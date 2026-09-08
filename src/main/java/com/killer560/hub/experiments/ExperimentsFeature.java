@@ -538,6 +538,16 @@ public final class ExperimentsFeature {
      *  of the vanilla one and relying on z-order/compositing to hide the first - that approach already
      *  failed once, so this one doesn't depend on draw order at all. */
     public static ItemStack superpairsGhostIcon(int slot) {
+        // Real bug found and fixed (2026-09-08), per killer560's screenshot of stray Superpairs items
+        // showing up around the border of Chronomatron's own blocks: this had no mode gate at all, so a
+        // covered/blank-named Chronomatron slot (isRevealedPair is false for a blank name, same as an
+        // actual Superpairs cover) matched just as easily as a real Superpairs one, pulling a STALE
+        // cached icon left over from the last Superpairs round. superpairsIconCache is also cleared on
+        // leaving Superpairs (see logModeChangeIfAny) as defense in depth, but the real fix is this mode
+        // check - the cache being stale should never matter once it can't be read outside Superpairs.
+        if (lastLoggedMode != ExperimentSolver.Mode.SUPERPAIRS) {
+            return null;
+        }
         for (ExperimentSolver.Cell cell : lastCells) {
             if (cell.slot() == slot) {
                 return ExperimentSolver.isRevealedPair(cell) ? null : superpairsIconCache.get(slot);
@@ -1101,6 +1111,12 @@ public final class ExperimentsFeature {
     private static void logModeChangeIfAny(ExperimentSolver.Mode mode, String title) {
         if (mode != lastLoggedMode) {
             LOGGER.info("Experiment mode changed: {} -> {} (title=\"{}\")", lastLoggedMode, mode, title);
+            // Defense in depth alongside the mode gate in superpairsGhostIcon - clears stale cached
+            // icons the instant Superpairs is left, rather than trusting the gate alone to keep them
+            // from ever being read again.
+            if (lastLoggedMode == ExperimentSolver.Mode.SUPERPAIRS && mode != ExperimentSolver.Mode.SUPERPAIRS) {
+                superpairsIconCache.clear();
+            }
             lastLoggedMode = mode;
             lastLoggedControlItem = null;
             maxClicksNotifiedThisRound = false;
