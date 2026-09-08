@@ -29,3 +29,6 @@ Thumbs.db
 
 # Local config
 local.properties
+
+# Personal QA checklist, not for the public repo
+TESTING.md
