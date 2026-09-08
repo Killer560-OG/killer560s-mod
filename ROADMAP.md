@@ -19,6 +19,7 @@ Informal running list of what's planned or being considered - not a promise of w
 - An in-mod update-check/update button, like SkyHanni has
 - Custom held-item transform (resize/reposition/reorient held items), like Devonian's
 - Extend Auto Correct to also fix typos in commands (`/...`), not just regular chat messages
+- A "Join Discord" button on the mod's main menu screen that opens the server invite link
 
 ## Under consideration
 
