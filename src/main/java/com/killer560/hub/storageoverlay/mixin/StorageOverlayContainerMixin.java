@@ -32,10 +32,17 @@ public abstract class StorageOverlayContainerMixin extends Screen {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void killer560smod$clickStorageOverlay(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        String activeKey = StorageOverlayFeature.storageKeyForTitle(this.getTitle().getString());
-        if (activeKey == null) {
+        // Real bug found and fixed (2026-09-08), per killer560's report that he couldn't click the
+        // grid at all on the "Storage" overview screen: this used to gate on activeKey != null, but
+        // storageKeyForTitle("Storage") is always null (only numbered pages match it) - meaning
+        // handleClick was NEVER even called while browsing the overview, the one screen where every
+        // panel in the grid is clickable (there's no "active" page to skip). Gate on shouldHideVanilla
+        // instead, which covers both cases the same way onContainerScreenRender already does.
+        String title = this.getTitle().getString();
+        if (!StorageOverlayFeature.shouldHideVanilla(title)) {
             return;
         }
+        String activeKey = StorageOverlayFeature.storageKeyForTitle(title);
         if (StorageOverlayFeature.handleClick(event.x(), event.y(), activeKey)) {
             cir.setReturnValue(true);
         }

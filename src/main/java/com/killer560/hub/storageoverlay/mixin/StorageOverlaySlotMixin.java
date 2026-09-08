@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -20,6 +21,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(AbstractContainerScreen.class)
 public abstract class StorageOverlaySlotMixin {
 
+    @Shadow
+    protected Slot hoveredSlot;
+
     @Inject(method = "extractSlot", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideStorageSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
@@ -31,6 +35,26 @@ public abstract class StorageOverlaySlotMixin {
         }
         int containerSlotCount = Math.max(0, self.getMenu().slots.size() - 36);
         if (slot.index < containerSlotCount) {
+            ci.cancel();
+        }
+    }
+
+    /** Real bug found and fixed (2026-09-08), per killer560's report of a real Hypixel "Backpack Slot
+     *  6" tooltip still popping up over the grid, confusingly unrelated to whatever panel he was
+     *  actually looking at - the real (now invisible) slot underneath was still fully hover-active.
+     *  Suppresses the real tooltip for a hidden top slot on the overview screen specifically, where
+     *  every panel is now fully handled by the grid's own click routing instead. */
+    @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$hideOverviewTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
+        AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        if (!StorageOverlayConfig.getInstance().isEnabled()) {
+            return;
+        }
+        if (!StorageOverlayFeature.isOverviewTitle(self.getTitle().getString())) {
+            return;
+        }
+        int containerSlotCount = Math.max(0, self.getMenu().slots.size() - 36);
+        if (hoveredSlot != null && hoveredSlot.index < containerSlotCount) {
             ci.cancel();
         }
     }

@@ -249,6 +249,15 @@ public final class StorageOverlayFeature {
         return storageKeyForTitle(title) != null || title.equals(OVERVIEW_TITLE);
     }
 
+    /** True only for the "Storage" overview itself, not a numbered page - used to suppress the real
+     *  vanilla hover tooltip there (per killer560's report of a confusing real "Backpack Slot 6"
+     *  tooltip popping up over the grid), since every panel there is fully replaced by the grid's own
+     *  click routing. Numbered pages keep their real tooltip/click-through untouched - the grid only
+     *  duplicates their contents for reference, real interaction still goes through vanilla there. */
+    public static boolean isOverviewTitle(String title) {
+        return title.equals(OVERVIEW_TITLE);
+    }
+
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin} on
      *  every container screen's own render pass - draws the 3-column grid of every known storage for
      *  the current account/profile if the currently open screen is itself a tracked storage. */
