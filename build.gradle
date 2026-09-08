@@ -1,0 +1,89 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	maven { url = "https://maven.terraformersmc.com/releases" }
+	mavenCentral()
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+	// SOCKS proxy support (Proxy Client feature). Minecraft bundles netty core/handler/codec,
+	// but NOT netty-handler-proxy or netty-codec-socks. Bundled into the jar (Jar-in-Jar) so
+	// they are present at runtime. Version must match Minecraft 26.1.2's netty version.
+	include(implementation("io.netty:netty-handler-proxy:${project.netty_version}"))
+	include(implementation("io.netty:netty-codec-socks:${project.netty_version}"))
+
+	// MP3 decoding for the GIF Player's companion audio (auto-converts .mp3 to .wav so the rest of
+	// the feature can keep using plain javax.sound.sampled Clips). The JDK has zero built-in MP3
+	// support, so this registers real javax.sound.sampled SPI providers (AudioFileReader +
+	// FormatConversionProvider) for MP3 - a maintained re-upload of javazoom's original mp3spi/
+	// jlayer/tritonus-share (whose own Maven repo has been dead for years). Bundled Jar-in-Jar like
+	// the netty libs above so the SPI service files are present at runtime.
+	include(implementation("com.googlecode.soundlibs:mp3spi:1.9.5.4"))
+	include(implementation("com.googlecode.soundlibs:jlayer:1.0.1.4"))
+	include(implementation("com.googlecode.soundlibs:tritonus-share:0.3.7.4"))
+}
+
+processResources {
+	def ver = project.version
+	inputs.property "version", ver
+	filesMatching("fabric.mod.json") {
+		expand "version": ver
+	}
+}
+
+// Two shipped variants from one codebase, per killer560's "cheat variant with everything and the
+// legit variant with only legit stuff" (2026-09-08): a generated BuildVariant.CHEAT_FEATURES_ENABLED
+// constant, gated at the single source of truth (ExperimentsConfig.isAutonomousMode()'s getter, not
+// scattered call sites) so the legit jar can never run Autonomous auto-clicking even if someone
+// hand-edits their config.json to set it true - the getter itself refuses to report true unless this
+// build was compiled with -PcheatBuild=true.
+def cheatBuild = (findProperty('cheatBuild') ?: 'false').toBoolean()
+def buildVariantDir = layout.buildDirectory.dir("generated/sources/buildVariant/java/main")
+
+tasks.register("generateBuildVariant") {
+	def outputDir = buildVariantDir
+	inputs.property "cheatBuild", cheatBuild
+	outputs.dir(outputDir)
+	doLast {
+		def pkgDir = new File(outputDir.get().asFile, "com/killer560/hub")
+		pkgDir.mkdirs()
+		new File(pkgDir, "BuildVariant.java").text = """package com.killer560.hub;
+
+/** Generated at build time (see build.gradle's generateBuildVariant task) - do not edit by hand. */
+public final class BuildVariant {
+    public static final boolean CHEAT_FEATURES_ENABLED = ${cheatBuild};
+    private BuildVariant() {}
+}
+"""
+	}
+}
+compileJava.dependsOn "generateBuildVariant"
+sourceSets.main.java.srcDir buildVariantDir
+
+jar {
+	archiveClassifier = cheatBuild ? "cheat" : "legit"
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = "UTF-8"
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}

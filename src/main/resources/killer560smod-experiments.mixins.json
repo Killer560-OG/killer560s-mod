@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.experiments.mixin",
+	"client": [
+		"ExperimentsGuiMixin",
+		"ExperimentsInputBlockMixin",
+		"ExperimentsContainerRenderMixin",
+		"ExperimentsSlotItemMixin",
+		"AbstractContainerScreenAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
