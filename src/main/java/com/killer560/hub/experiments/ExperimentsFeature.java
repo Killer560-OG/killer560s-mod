@@ -115,10 +115,18 @@ public final class ExperimentsFeature {
      *  orange, per killer560's explicit "highlight the one i should click now in green and the next one in
      *  order orange" (2026-09-06). */
     private static final int HIGHLIGHT_FOLLOWING_CLICK_COLOR = 0xFFFFA500;
+    /** A Superpairs pair the solver knows matches (both slots' identities remembered) but hasn't
+     *  actually been linked/found yet - see {@link #HIGHLIGHT_CONFIRMED_MATCH_COLOR} for once it has. */
     private static final int HIGHLIGHT_MATCH_COLOR = 0xFFFFD700;
     /** A known-but-not-yet-matched Superpairs single (its partner hasn't turned up yet) - distinct from
-     *  a confirmed pair (gold) so it's visually obvious at a glance which is which. */
+     *  a known pair (gold)/confirmed pair (green) so it's visually obvious at a glance which is which. */
     private static final int HIGHLIGHT_KNOWN_SINGLE_COLOR = 0xFF00BFFF;
+    /** A Superpairs pair that's actually been linked together and found (both tiles currently revealed
+     *  at once - see {@link ExperimentSolver#superpairsConfirmedMatches}), not just known - per
+     *  killer560's request (2026-09-08) to tell the two states apart visually. Same green as
+     *  {@link #HIGHLIGHT_SEQUENCE_COLOR} - unrelated features, just reusing the same "done/correct"
+     *  color. */
+    private static final int HIGHLIGHT_CONFIRMED_MATCH_COLOR = 0xFF00FF00;
     private static final int SLOT_SIZE = 16;
     /** Per killer560's explicit request: autonomous mode never starts clicking into games on its own the
      *  instant the table opens - it waits for a real click on the "Start ETable" overlay button
@@ -410,6 +418,11 @@ public final class ExperimentsFeature {
                 // (HIGHLIGHT_KNOWN_SINGLE_COLOR) so it's visually obvious they're not a confirmed match
                 // yet, but the name is shown either way.
                 List<int[]> matches = SOLVER.superpairsKnownMatches(lastCells);
+                Set<Integer> confirmedSlots = new HashSet<>();
+                for (int[] confirmed : SOLVER.superpairsConfirmedMatches(lastCells)) {
+                    confirmedSlots.add(confirmed[0]);
+                    confirmedSlots.add(confirmed[1]);
+                }
                 Set<Integer> matchedSlots = new HashSet<>();
                 for (int[] match : matches) {
                     matchedSlots.add(match[0]);
@@ -417,8 +430,12 @@ public final class ExperimentsFeature {
                 }
                 Map<Integer, String> knownNames = SOLVER.superpairsKnownItemNames(lastCells);
                 for (int[] match : matches) {
-                    highlightSlot(graphics, menu, match[0], left, top, HIGHLIGHT_MATCH_COLOR, shortLabel(knownNames.get(match[0])));
-                    highlightSlot(graphics, menu, match[1], left, top, HIGHLIGHT_MATCH_COLOR, shortLabel(knownNames.get(match[1])));
+                    // Green once actually linked/found (both tiles currently revealed together), gold
+                    // while just known - per killer560's request (2026-09-08).
+                    int color = confirmedSlots.contains(match[0]) && confirmedSlots.contains(match[1])
+                            ? HIGHLIGHT_CONFIRMED_MATCH_COLOR : HIGHLIGHT_MATCH_COLOR;
+                    highlightSlot(graphics, menu, match[0], left, top, color, shortLabel(knownNames.get(match[0])));
+                    highlightSlot(graphics, menu, match[1], left, top, color, shortLabel(knownNames.get(match[1])));
                 }
                 for (Map.Entry<Integer, String> entry : knownNames.entrySet()) {
                     if (matchedSlots.contains(entry.getKey())) continue;

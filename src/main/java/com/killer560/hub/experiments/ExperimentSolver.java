@@ -357,6 +357,29 @@ final class ExperimentSolver {
         return matches;
     }
 
+    /** @return the subset of {@link #superpairsKnownMatches} that are actually LINKED/found, not just
+     *  known - per killer560's request (2026-09-08) to color a genuinely completed pair differently
+     *  from one the solver merely remembers the identity of. A real match stays revealed together
+     *  permanently once made; two remembered-matching tiles are almost never BOTH currently revealed at
+     *  once unless the pair was actually just completed (an unmatched peek covers back up again within
+     *  a tick or two of the second tile being revealed), so "both currently revealed right now" is a
+     *  reliable proxy for a real, confirmed match without needing an explicit signal from Hypixel. */
+    List<int[]> superpairsConfirmedMatches(List<Cell> cells) {
+        Map<Integer, Cell> bySlot = new HashMap<>();
+        for (Cell cell : cells) {
+            bySlot.put(cell.slot(), cell);
+        }
+        List<int[]> confirmed = new ArrayList<>();
+        for (int[] match : superpairsKnownMatches(cells)) {
+            Cell a = bySlot.get(match[0]);
+            Cell b = bySlot.get(match[1]);
+            if (a != null && b != null && isRevealedPair(a) && isRevealedPair(b)) {
+                confirmed.add(match);
+            }
+        }
+        return confirmed;
+    }
+
     /** @return every slot Solver-Only mode currently knows the identity of (matched or not, covered or
      *  not) mapped to its real display name - per killer560's "tell me what is under it in case I manually
      *  have to take over to get a super rare or something." Same permanent-memory trust as
