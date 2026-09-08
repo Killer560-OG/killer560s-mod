@@ -12,7 +12,7 @@
     "client": ["com.killer560.hub.Killer560ModClient"],
     "modmenu": ["com.killer560.hub.ModMenuIntegration"]
   },
-  "mixins": ["killer560smod.mixins.json", "killer560smod-proxy.mixins.json", "killer560smod-rngmeter.mixins.json", "killer560smod-translate.mixins.json", "killer560smod-notify.mixins.json", "killer560smod-clicktranslate.mixins.json", "killer560smod-gifplayer.mixins.json", "killer560smod-dvd.mixins.json", "killer560smod-experiments.mixins.json", "killer560smod-jumpscare.mixins.json", "killer560smod-nofire.mixins.json"],
+  "mixins": ["killer560smod.mixins.json", "killer560smod-proxy.mixins.json", "killer560smod-rngmeter.mixins.json", "killer560smod-translate.mixins.json", "killer560smod-notify.mixins.json", "killer560smod-clicktranslate.mixins.json", "killer560smod-gifplayer.mixins.json", "killer560smod-dvd.mixins.json", "killer560smod-experiments.mixins.json", "killer560smod-jumpscare.mixins.json", "killer560smod-nofire.mixins.json", "killer560smod-storageoverlay.mixins.json", "killer560smod-fullbright.mixins.json"],
   "depends": {
     "fabricloader": ">=0.19.3",
     "minecraft": "~26.1",

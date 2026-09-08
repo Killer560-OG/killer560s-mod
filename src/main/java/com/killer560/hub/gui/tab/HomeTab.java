@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.fullbright.FullbrightConfig;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.window.WindowModeConfig;
@@ -48,6 +49,14 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
                     WindowModeFeature.toggle();
                     btn.setMessage(borderlessText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 26;
+
+        widgets.add(SettingsButtonWidget.builder(fullbrightText(), btn -> {
+                    FullbrightConfig cfg = FullbrightConfig.getInstance();
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    btn.setMessage(fullbrightText());
+                }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
     }
@@ -65,6 +74,11 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
     private static Component borderlessText() {
         return Component.literal("Borderless Fullscreen: "
                 + (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component fullbrightText() {
+        return Component.literal("Fullbright: "
+                + (FullbrightConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component keybindText() {

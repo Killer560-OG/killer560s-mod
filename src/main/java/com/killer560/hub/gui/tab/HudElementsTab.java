@@ -12,7 +12,8 @@ public class HudElementsTab extends FolderTab {
         super("Hud Elements", List.of(
                 new GifPlayerTab(),
                 new DvdTab(),
-                new ObjectHiderTab()
+                new ObjectHiderTab(),
+                new StorageOverlayTab()
         ));
     }
 }
