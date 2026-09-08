@@ -2,6 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.nofire.NoFireConfig;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -59,6 +60,14 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
                     WindowModeFeature.toggle();
                     btn.setMessage(borderlessText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 26;
+
+        widgets.add(SettingsButtonWidget.builder(noFireText(), btn -> {
+                    NoFireConfig cfg = NoFireConfig.getInstance();
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    btn.setMessage(noFireText());
+                }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
     }
@@ -76,6 +85,11 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
     private static Component borderlessText() {
         return Component.literal("Borderless Fullscreen: "
                 + (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component noFireText() {
+        return Component.literal("No Fire Overlay: "
+                + (NoFireConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component keybindText() {
