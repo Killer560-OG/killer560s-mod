@@ -77,14 +77,17 @@ public final class StorageOverlayFeature {
                 return "Storage Overlay";
             }
 
+            // Per killer560's report (2026-09-08): the old default (pinned near the right edge)
+            // looked "way off center." Centers the grid on screen instead, same spot the real
+            // container GUI is already centered at by vanilla.
             @Override
             public int defaultX() {
-                return Minecraft.getInstance().getWindow().getGuiScaledWidth() - PANEL_WIDTH - 20;
+                return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
             }
 
             @Override
             public int defaultY() {
-                return 20;
+                return (Minecraft.getInstance().getWindow().getGuiScaledHeight() - height()) / 2;
             }
 
             @Override
