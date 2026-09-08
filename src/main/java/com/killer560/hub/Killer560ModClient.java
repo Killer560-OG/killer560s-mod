@@ -22,6 +22,7 @@ import com.killer560.hub.rngmeter.RngMeterOverlay;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import com.killer560.hub.translate.TranslateConfig;
 import com.killer560.hub.translate.TranslateLanguages;
+import com.killer560.hub.window.WindowModeFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -68,6 +69,7 @@ public class Killer560ModClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);
+        ClientTickEvents.END_CLIENT_TICK.register(WindowModeFeature::tickApplyOnce);
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("killer560")

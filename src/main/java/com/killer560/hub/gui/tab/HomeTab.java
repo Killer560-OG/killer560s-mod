@@ -2,6 +2,8 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.window.WindowModeConfig;
+import com.killer560.hub.window.WindowModeFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -51,6 +53,12 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new HudEditorScreen(client.screen));
                 }).bounds(contentX, y, 220, 20).build());
+        y += 26;
+
+        widgets.add(SettingsButtonWidget.builder(borderlessText(), btn -> {
+                    WindowModeFeature.toggle();
+                    btn.setMessage(borderlessText());
+                }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
     }
@@ -63,6 +71,11 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
         listening = false;
         HudConfig.getInstance().setEditKeyCode(keyCode);
         HudConfig.getInstance().save();
+    }
+
+    private static Component borderlessText() {
+        return Component.literal("Borderless Fullscreen: "
+                + (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component keybindText() {

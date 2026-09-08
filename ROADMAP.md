@@ -5,7 +5,6 @@ Informal running list of what's planned or being considered - not a promise of w
 ## Planned
 
 - No Fire overlay texture/effect
-- Borderless fullscreen window mode
 - A keybind-to-run-commands section, like Skyblocker's
 - Get rid of Hypixel's forced Skyblock texture pack - port NoammAddons' "PackDisabler" approach
 - Fullbright
