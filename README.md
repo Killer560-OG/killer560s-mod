@@ -4,6 +4,10 @@ A Fabric client mod for Hypixel Skyblock (Minecraft 26.1.2). Built as a personal
 
 See [ROADMAP.md](ROADMAP.md) for what's planned next.
 
+[![Discord](https://img.shields.io/discord/1546630783970713665?label=Discord&logo=discord&color=9B59B6)](https://discord.gg/hkQMF5fE84)
+
+Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, and to suggest features.
+
 ## Features
 
 **Chat**
