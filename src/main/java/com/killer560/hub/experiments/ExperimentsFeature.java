@@ -943,7 +943,12 @@ public final class ExperimentsFeature {
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot);
-        return !correct && !event.hasShiftDown();
+        boolean blocked = !correct && !event.hasShiftDown();
+        // Diagnostic logging (2026-09-08), temporary - see the matching note in
+        // ExperimentSolver#confirmManualChronomatronClick.
+        LOGGER.info("shouldBlockManualMisclick: hitTestSlot={} correct={} shiftDown={} blocked={}",
+                slot, correct, event.hasShiftDown(), blocked);
+        return blocked;
     }
 
     /** @return the slot index whose real screen rectangle contains ({@code mouseX}, {@code mouseY}), or

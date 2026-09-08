@@ -281,20 +281,33 @@ final class ExperimentSolver {
         if (!chronomatronRevealLatched || chronomatronClickIndex >= chronomatron.size()) {
             return false;
         }
+        int indexBefore = chronomatronClickIndex;
         int expectedSlot = chronomatron.get(chronomatronClickIndex);
         Cell expected = cell(cells, expectedSlot);
         Cell clicked = cell(cells, slot);
+        boolean result;
         if (expectedSlot % 9 != slot % 9) {
-            return false;
+            result = false;
+        } else if (expected == null || clicked == null || expected.empty() || clicked.empty()) {
+            result = false;
+        } else if (!expected.itemId().equals(clicked.itemId())) {
+            result = false;
+        } else {
+            chronomatronClickIndex++;
+            result = true;
         }
-        if (expected == null || clicked == null || expected.empty() || clicked.empty()) {
-            return false;
-        }
-        if (!expected.itemId().equals(clicked.itemId())) {
-            return false;
-        }
-        chronomatronClickIndex++;
-        return true;
+        // Diagnostic logging (2026-09-08), per killer560's report: clicking a correct cell then
+        // immediately clicking a different one while spam-clicking sometimes still lets the second
+        // click through. Not reproduced/root-caused yet - restored temporarily (removed once the
+        // fast-click stale-snapshot bug was fixed) with indexBefore/after added, to tell apart a
+        // genuine bug from the same intentional "any block in a repeated/multi-tall run counts"
+        // behavior the earlier log already showed working as designed.
+        LOGGER.info("confirmManualChronomatronClick: clickedSlot={} (col={}) expectedSlot={} (col={}) "
+                        + "clickedItem={} expectedItem={} indexBefore={} indexAfter={} result={}",
+                slot, slot % 9, expectedSlot, expectedSlot % 9,
+                clicked == null ? "null" : clicked.itemId(), expected == null ? "null" : expected.itemId(),
+                indexBefore, chronomatronClickIndex, result);
+        return result;
     }
 
     /** Ultrasequencer equivalent of {@link #confirmManualChronomatronClick} - each sequence position
