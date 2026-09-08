@@ -2,6 +2,7 @@ package com.killer560.hub;
 
 import com.killer560.hub.accounts.HypixelJoinWatcher;
 import com.killer560.hub.automeow.AutoMeowFeature;
+import com.killer560.hub.compat.ModCompatibility;
 import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.dvd.DvdFeature;
 import com.killer560.hub.experiments.ExperimentsConfig;
@@ -50,6 +51,8 @@ public class Killer560ModClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ModCompatibility.refuseIfFirmamentPresent();
+
         HypixelJoinWatcher.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();
