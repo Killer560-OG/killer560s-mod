@@ -26,7 +26,7 @@ public abstract class StorageOverlaySlotMixin {
         if (!StorageOverlayConfig.getInstance().isEnabled()) {
             return;
         }
-        if (StorageOverlayFeature.storageKeyForTitle(self.getTitle().getString()) == null) {
+        if (!StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
             return;
         }
         int containerSlotCount = Math.max(0, self.getMenu().slots.size() - 36);

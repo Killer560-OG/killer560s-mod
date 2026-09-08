@@ -22,7 +22,7 @@ public abstract class StorageOverlayBackgroundMixin {
                                                        float partialTick, CallbackInfo ci) {
         ContainerScreen self = (ContainerScreen) (Object) this;
         if (StorageOverlayConfig.getInstance().isEnabled()
-                && StorageOverlayFeature.storageKeyForTitle(self.getTitle().getString()) != null) {
+                && StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
             ci.cancel();
         }
     }

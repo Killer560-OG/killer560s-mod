@@ -1,5 +1,6 @@
 package com.killer560.hub.storageoverlay;
 
+import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -7,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -50,10 +50,6 @@ public final class StorageOverlayFeature {
      *  whose slots 9-17 hold one icon per Ender Chest page and 27-44 one icon per Backpack, letting
      *  every storage be discovered before it's ever actually opened. */
     private static final String OVERVIEW_TITLE = "Storage";
-    /** Real Hypixel "this page/slot is empty" placeholder items on the overview screen, ported from
-     *  NoammAddons' own {@code emptyStorageSlotItems}. */
-    private static final List<String> OVERVIEW_EMPTY_MARKERS = List.of(
-            "minecraft:red_stained_glass_pane", "minecraft:brown_stained_glass_pane", "minecraft:gray_dye");
 
     /** Best-effort SkyBlock profile name, read off the sidebar scoreboard the same way
      *  {@link com.killer560.hub.rngmeter.LocationTracker} reads location - Hypixel's exact wording
@@ -189,8 +185,14 @@ public final class StorageOverlayFeature {
 
     /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
      *  27-44 = Backpacks 1-18 - ported from {@code StoragePage.overview}) and marks/unmarks each as
-     *  known-to-exist, per NoammAddons' own {@code saveOverview}. Never overwrites a page that
-     *  already has real logged contents. */
+     *  known-to-exist, per NoammAddons' own {@code saveOverview} and killer560's screenshots
+     *  (2026-09-08) of the real tooltips: an owned-but-unopened page shows as a plain numbered purple
+     *  pane (name doesn't matter, just non-empty), while a genuinely not-yet-purchased one shows a
+     *  real "Locked Page" tooltip ("Unlock more Ender Chest pages in the community shop!"). Matching
+     *  by name instead of NoammAddons' own item-id marker list, since the purple "owned" panes here
+     *  didn't match any of their known ids - only the confirmed "Locked Page" text is excluded, so
+     *  killer560 gets a dummy/clickable entry for everything he actually owns. Never overwrites a
+     *  page that already has real logged contents. */
     private static void scanOverview(ChestMenu menu) {
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
         for (Slot slot : menu.slots) {
@@ -199,12 +201,13 @@ public final class StorageOverlayFeature {
                 continue;
             }
             ItemStack stack = slot.getItem();
-            boolean empty = stack == null || stack.isEmpty()
-                    || OVERVIEW_EMPTY_MARKERS.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
-            if (empty) {
-                cache.unmarkKnown(key);
-            } else {
+            boolean locked = stack != null && !stack.isEmpty()
+                    && stack.getHoverName().getString().toLowerCase(java.util.Locale.US).contains("locked");
+            boolean owned = stack != null && !stack.isEmpty() && !locked;
+            if (owned) {
                 cache.markKnown(key);
+            } else {
+                cache.unmarkKnown(key);
             }
         }
     }
@@ -234,6 +237,14 @@ public final class StorageOverlayFeature {
         return null;
     }
 
+    /** Whether the vanilla background/top-slot rendering should be hidden for this screen title - a
+     *  tracked numbered page, OR (per killer560's "clean up that starter menu" request, 2026-09-08)
+     *  the "Storage" overview screen itself, since the grid now shows there too and having both up
+     *  looked cluttered. Public so the hide-mixins (a different package) can share this exact check. */
+    public static boolean shouldHideVanilla(String title) {
+        return storageKeyForTitle(title) != null || title.equals(OVERVIEW_TITLE);
+    }
+
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin} on
      *  every container screen's own render pass - draws the 3-column grid of every known storage for
      *  the current account/profile if the currently open screen is itself a tracked storage. */
@@ -252,6 +263,10 @@ public final class StorageOverlayFeature {
             if (activeKey == null && !isOverview) {
                 return;
             }
+            // Per killer560's request (2026-09-08): now that the vanilla background/top slots are
+            // hidden here, outline the player's own inventory too so it doesn't look like it's just
+            // floating with nothing to visually anchor it.
+            drawPlayerInventoryOutline(screen, graphics);
             if (activeKey != null && screen.getMenu() instanceof ChestMenu activeMenu) {
                 // Re-attempts the capture every frame (cheap - see captureIfChanged) so a too-early
                 // scan self-heals the moment Hypixel's real item data actually syncs in, instead of
@@ -290,6 +305,38 @@ public final class StorageOverlayFeature {
 
     private static int compareStorageKeys(String a, String b) {
         return a.compareTo(b);
+    }
+
+    /** Draws a border around the player's own 36-slot inventory area (unaffected by the vanilla-hide
+     *  mixins - this only outlines it, doesn't touch its rendering), computed from the real on-screen
+     *  bounds of those slots so it lines up exactly regardless of screen size/scale. */
+    private static void drawPlayerInventoryOutline(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+        if (!(screen.getMenu() instanceof ChestMenu menu)) {
+            return;
+        }
+        int containerSlotCount = Math.max(0, menu.slots.size() - 36);
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+        for (Slot slot : menu.slots) {
+            if (slot.index < containerSlotCount) {
+                continue;
+            }
+            minX = Math.min(minX, slot.x);
+            minY = Math.min(minY, slot.y);
+            maxX = Math.max(maxX, slot.x);
+            maxY = Math.max(maxY, slot.y);
+        }
+        if (minX == Integer.MAX_VALUE) {
+            return;
+        }
+        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
+        int left = accessor.killer560smod$getLeftPos();
+        int top = accessor.killer560smod$getTopPos();
+        int x0 = left + minX - 4;
+        int y0 = top + minY - 4;
+        int x1 = left + maxX + 16 + 4;
+        int y1 = top + maxY + 16 + 4;
+        int border = StorageOverlayConfig.getInstance().isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
+        graphics.outline(x0, y0, x1 - x0, y1 - y0, border);
     }
 
     /** Screen-space position/scale from the most recent render, and each panel's LOCAL (pre
