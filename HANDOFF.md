@@ -49,6 +49,17 @@ killer560 is public as **"killer560"** only. His real first name and real person
 6. Update the project memory file at `C:\Users\killer560\.claude\projects\C--Users-killer560\memory\project_killer560s_consolidation.md` if the change is significant enough to matter for future sessions.
 7. Report back to killer560 what changed, the build result, and whether all 4 instances deployed cleanly.
 
+## ⏰ Pending test — remind killer560 to check this
+
+killer560 hasn't field-tested this yet (deployed 2026-09-08, needs a few hours before he's back on). **If he opens a new chat about this project, proactively remind him to test Experimentation Table Chronomatron/Ultrasequencer Solver Only mode** and report back:
+
+- **Fixed:** Chronomatron highlight/click-tracking desyncing ("wanted me to immediately click it twice") when the same note color reappeared later in the sequence with a gap in between — was matching by color across the whole board instead of restricting to the same column.
+- **Fixed:** Shift-click override of the misclick protection — previously let the click through to the game but never advanced the solver's own tracked index, so every click after a Shift-click looked wrong too. Now confirms first, then applies Shift only to the block decision.
+- **Added:** a "Click Protection" ON/OFF toggle in the Experiments tab (Solver Only mode) — this was previously always-on with no setting.
+- Deployed jar md5 `b351e050fabc11c27502aeeb40983a94` on all 4 Prism instances (cheat-variant jar copied in as `killer560smod-1.0.0.jar`, matching what was already installed pre-legit/cheat-split). Commit: `19a50e4`.
+- Files touched: `ExperimentSolver.java` (`confirmManualChronomatronClick`), `ExperimentsFeature.java` (`highlightMatchingChronomatronSlots`, `shouldBlockManualMisclick`), `ExperimentsConfig.java` + `ExperimentsTab.java` (new `clickProtectionEnabled` setting).
+- If either issue is still present after this fix, get a real log per the debugging discipline below before proposing another fix — don't guess a third time on the same mechanism.
+
 ## Roadmap
 
 Feature ideas and planned work live in [ROADMAP.md](ROADMAP.md) in the repo — add to it as killer560 thinks of things, rather than tracking ideas only in chat. Current "Planned" list is long; check it before starting new feature work so nothing's duplicated. One item worth flagging: **a "Join Discord" button on the mod's main menu screen** (opens `https://discord.gg/hkQMF5fE84`) was just added to the roadmap and not yet built — likely next small feature to pick up.
