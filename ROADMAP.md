@@ -20,6 +20,8 @@ Informal running list of what's planned or being considered - not a promise of w
 - Custom held-item transform (resize/reposition/reorient held items), like Devonian's
 - Extend Auto Correct to also fix typos in commands (`/...`), not just regular chat messages
 - A "Join Discord" button on the mod's main menu screen that opens the server invite link
+- Storage overlay - preview ender chest/backpack contents without opening them, like SkyHanni's
+- Separate item search feature - search across storages/inventory
 
 ## Under consideration
 
