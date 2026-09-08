@@ -7,7 +7,6 @@ Informal running list of what's planned or being considered - not a promise of w
 - No Fire overlay texture/effect
 - Borderless fullscreen window mode
 - A keybind-to-run-commands section, like Skyblocker's
-- Refuse to load (or warn) if any version of the Firmament mod is also installed
 - Get rid of Hypixel's forced Skyblock texture pack - port NoammAddons' "PackDisabler" approach
 - Fullbright
 - Auto Croesus
