@@ -21,6 +21,9 @@ Informal running list of what's planned or being considered - not a promise of w
 - A "Join Discord" button on the mod's main menu screen that opens the server invite link
 - Storage overlay - preview ender chest/backpack contents without opening them, like SkyHanni's
 - Separate item search feature - search across storages/inventory
+- Dungeon interactive map, with secret highlighting and secret auras
+- Dungeon auto-generated routes - reminder: auto-generate these off of the interactive map's own room/data style, not a separate system
+- Note: dungeon routes should be convertible to/from quoi's, RSA's, and Sex5's own route formats, so routes can be shared across mods
 
 ## Under consideration
 
