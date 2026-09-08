@@ -948,24 +948,30 @@ public final class ExperimentsFeature {
         if (slot < 0 || slot >= containerSlotCount) {
             return false;
         }
-        // Real bug found and fixed (2026-09-08), per killer560's report that clicking fast sometimes
-        // let a click through it should have blocked (or blocked one it shouldn't have): this used to
-        // pass lastCells - a snapshot taken once per client TICK (up to 50ms stale) - into the item
-        // comparison below. A fast click can land mid-tick, after the slot's real item has already
-        // moved on to its next animation frame (Hypixel flips these between a stained-glass and a
-        // terracotta variant of the same color as part of its own flash cue) but before lastCells
-        // catches up, so the comparison could read a momentarily wrong or blank item for a slot that's
-        // actually correct right now. Re-snapshotting live at the exact moment of the click removes
-        // that up-to-one-tick staleness window entirely.
+        // Re-snapshotting live at the exact moment of the click (real bug found and fixed 2026-09-08,
+        // see git history) rather than reusing lastCells (a per-tick cache, up to 50ms stale) removes a
+        // staleness window that could read a momentarily wrong/blank item for a slot that's actually
+        // correct right now.
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot);
-        boolean blocked = !correct && !event.hasShiftDown();
-        // Diagnostic logging (2026-09-08), temporary - see the matching note in
-        // ExperimentSolver#confirmManualChronomatronClick.
-        LOGGER.info("shouldBlockManualMisclick: hitTestSlot={} correct={} shiftDown={} blocked={}",
-                slot, correct, event.hasShiftDown(), blocked);
-        return blocked;
+        if (correct) {
+            return false;
+        }
+        if (event.hasShiftDown()) {
+            // Real bug found and fixed (2026-09-08), per killer560's report that Shift-held still
+            // didn't let the click through: un-blocking the click here isn't enough on its own, because
+            // vanilla's OWN mouseClicked branches on hasShiftDown() itself - verified via javap that
+            // AbstractContainerScreen sends a ContainerInput.QUICK_MOVE action whenever Shift is held,
+            // never a normal click. Hypixel's custom Chronomatron/Ultrasequencer menu doesn't treat a
+            // quick-move as "click this note," so the override never actually did anything even though
+            // it wasn't being blocked. Cancelling vanilla's handling unconditionally and sending the
+            // real click ourselves via the same clickSlot mechanism the autonomous auto-clicker already
+            // uses successfully sidesteps vanilla's shift-specific branching entirely.
+            clickSlot(menu.containerId, slot);
+            return true;
+        }
+        return true;
     }
 
     /** @return the slot index whose real screen rectangle contains ({@code mouseX}, {@code mouseY}), or
