@@ -64,6 +64,13 @@ public class StorageOverlayTab extends BaseTab {
             String realTitle = StorageOverlayFeature.defaultLabelFor(key, prefix);
             StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
             String current = cfg.getCustomName(key);
+            boolean opened = StorageOverlayCache.getInstance().hasContents(key);
+
+            if (!opened) {
+                widgets.add(new StringWidget(contentX, y, contentWidth, 10,
+                        Component.literal("§7" + realTitle + " - not opened yet"), Minecraft.getInstance().font));
+                y += 12;
+            }
 
             EditBox nameField = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth - 90, 20,
                     Component.literal(realTitle));

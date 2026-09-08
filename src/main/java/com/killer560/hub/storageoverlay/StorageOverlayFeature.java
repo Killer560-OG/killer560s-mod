@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -43,6 +45,15 @@ public final class StorageOverlayFeature {
      *  and "<Backpack Name> (Slot #5)" or "... ✦ (Slot #5)". */
     private static final Pattern ENDER_CHEST_TITLE = Pattern.compile("^Ender Chest (?:✦ )?\\(([1-9])/[1-9]\\)$");
     private static final Pattern BACKPACK_TITLE = Pattern.compile("^.+Backpack (?:✦ )?\\(Slot #([0-9]+)\\)$");
+
+    /** The overview menu's exact real title, ported from {@code StorageMenu.kt} - a chest-style menu
+     *  whose slots 9-17 hold one icon per Ender Chest page and 27-44 one icon per Backpack, letting
+     *  every storage be discovered before it's ever actually opened. */
+    private static final String OVERVIEW_TITLE = "Storage";
+    /** Real Hypixel "this page/slot is empty" placeholder items on the overview screen, ported from
+     *  NoammAddons' own {@code emptyStorageSlotItems}. */
+    private static final List<String> OVERVIEW_EMPTY_MARKERS = List.of(
+            "minecraft:red_stained_glass_pane", "minecraft:brown_stained_glass_pane", "minecraft:gray_dye");
 
     /** Best-effort SkyBlock profile name, read off the sidebar scoreboard the same way
      *  {@link com.killer560.hub.rngmeter.LocationTracker} reads location - Hypixel's exact wording
@@ -99,17 +110,23 @@ public final class StorageOverlayFeature {
 
     /** Called from {@link ScreenEvents#AFTER_INIT} for every screen that opens - logs the contents of
      *  any real Ender Chest page or Backpack, exactly matching what NoammAddons captures on
-     *  {@code ContainerFullyOpenedEvent}. */
+     *  {@code ContainerFullyOpenedEvent}, or (for the overview screen) just registers which pages
+     *  exist without their contents. */
     private static void onScreenOpen(Screen screen) {
         try {
             if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
                 return;
             }
-            String key = storageKeyForTitle(containerScreen.getTitle().getString());
-            if (key == null) {
+            if (!(containerScreen.getMenu() instanceof ChestMenu menu)) {
                 return;
             }
-            if (!(containerScreen.getMenu() instanceof ChestMenu menu)) {
+            String title = containerScreen.getTitle().getString();
+            if (title.equals(OVERVIEW_TITLE)) {
+                scanOverview(menu);
+                return;
+            }
+            String key = storageKeyForTitle(title);
+            if (key == null) {
                 return;
             }
             List<ItemStack> contents = new ArrayList<>();
@@ -122,15 +139,48 @@ public final class StorageOverlayFeature {
                 contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
             }
             StorageOverlayCache.getInstance().put(key, contents);
-            LOGGER.info("Logged storage \"{}\" ({} slots) under key {}", containerScreen.getTitle().getString(), contents.size(), key);
+            LOGGER.info("Logged storage \"{}\" ({} slots) under key {}", title, contents.size(), key);
         } catch (Exception e) {
             LOGGER.error("Failed to log storage screen", e);
         }
     }
 
+    /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
+     *  27-44 = Backpacks 1-18 - ported from {@code StoragePage.overview}) and marks/unmarks each as
+     *  known-to-exist, per NoammAddons' own {@code saveOverview}. Never overwrites a page that
+     *  already has real logged contents. */
+    private static void scanOverview(ChestMenu menu) {
+        StorageOverlayCache cache = StorageOverlayCache.getInstance();
+        for (Slot slot : menu.slots) {
+            String key = overviewSlotToKey(slot.index);
+            if (key == null) {
+                continue;
+            }
+            ItemStack stack = slot.getItem();
+            boolean empty = stack == null || stack.isEmpty()
+                    || OVERVIEW_EMPTY_MARKERS.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            if (empty) {
+                cache.unmarkKnown(key);
+            } else {
+                cache.markKnown(key);
+            }
+        }
+    }
+
+    private static String overviewSlotToKey(int slotIndex) {
+        if (slotIndex >= 9 && slotIndex < 18) {
+            return storageKey("enderchest_" + (slotIndex - 8));
+        }
+        if (slotIndex >= 27 && slotIndex < 45) {
+            return storageKey("backpack_" + (slotIndex - 26));
+        }
+        return null;
+    }
+
     /** @return the composite cache key for this screen title if it's a real Ender Chest page or
-     *  Backpack, otherwise null. Package-visible for the mixin's own "should I even draw?" check. */
-    static String storageKeyForTitle(String title) {
+     *  Backpack, otherwise null. Public so the mixin (a different package) can use the same check
+     *  for both "should I draw?" and "should a click here even be considered for opening a page?". */
+    public static String storageKeyForTitle(String title) {
         Matcher chest = ENDER_CHEST_TITLE.matcher(title);
         if (chest.matches()) {
             return storageKey("enderchest_" + chest.group(1));
@@ -160,13 +210,11 @@ public final class StorageOverlayFeature {
                 return;
             }
             // Ender Chest pages before Backpacks, then numerically within each - matches the natural
-            // reading order NoammAddons' own StoragePage.compareTo gives.
+            // reading order NoammAddons' own StoragePage.compareTo gives. A null value here means
+            // "known to exist (from the overview screen) but not opened/logged yet" - see scanOverview.
             Map<String, List<ItemStack>> ordered = new TreeMap<>(StorageOverlayFeature::compareStorageKeys);
             for (String key : keys) {
-                List<ItemStack> contents = StorageOverlayCache.getInstance().get(key);
-                if (contents != null) {
-                    ordered.put(key, contents);
-                }
+                ordered.put(key, StorageOverlayCache.getInstance().get(key));
             }
 
             HudElement element = HudElementRegistry.all().stream()
@@ -174,11 +222,11 @@ public final class StorageOverlayFeature {
             if (element == null) {
                 return;
             }
-            int[] pos = HudElementRegistry.resolvePosition(element);
-            float scale = HudElementRegistry.resolveScale(element);
+            lastPos = HudElementRegistry.resolvePosition(element);
+            lastScale = HudElementRegistry.resolveScale(element);
             graphics.pose().pushMatrix();
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
+            graphics.pose().translate(lastPos[0], lastPos[1]);
+            graphics.pose().scale(lastScale, lastScale);
             renderGrid(graphics, ordered, prefix, activeKey);
             graphics.pose().popMatrix();
         } catch (Exception e) {
@@ -190,6 +238,14 @@ public final class StorageOverlayFeature {
         return a.compareTo(b);
     }
 
+    /** Screen-space position/scale from the most recent render, and each panel's LOCAL (pre
+     *  translate/scale) bounds from that same render - both needed to hit-test a real mouse click
+     *  against the grid in {@link #handleClick}. */
+    private static int[] lastPos = null;
+    private static float lastScale = 1.0f;
+    private static final Map<String, int[]> lastPanelBounds = new LinkedHashMap<>();
+    private static final int PLACEHOLDER_HEIGHT = 18;
+
     private static void renderGrid(GuiGraphicsExtractor graphics, Map<String, List<ItemStack>> storages,
                                     String prefix, String activeKey) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
@@ -199,6 +255,7 @@ public final class StorageOverlayFeature {
         int border = cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
         int activeBorder = 0xFFCC6600;
 
+        lastPanelBounds.clear();
         int columns = 3;
         int col = 0;
         int rowX = 0;
@@ -208,17 +265,39 @@ public final class StorageOverlayFeature {
         for (Map.Entry<String, List<ItemStack>> entry : storages.entrySet()) {
             String key = entry.getKey();
             List<ItemStack> contents = entry.getValue();
-            int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
-            int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
-
+            boolean active = key.equals(activeKey);
             int panelX = rowX;
             int panelY = rowY;
 
-            boolean active = key.equals(activeKey);
+            // Known-to-exist-but-never-opened (from the overview screen) - matches NoammAddons' own
+            // "Name - Click to load" placeholder for a page with no data yet.
+            if (contents == null) {
+                int panelHeight = PLACEHOLDER_HEIGHT;
+                graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
+                graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, border);
+                graphics.text(font, displayLabel(key, prefix) + " §7- Click to load", panelX + 3, panelY + 5, textColor);
+                lastPanelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, panelHeight});
+                rowTallest = Math.max(rowTallest, panelHeight);
+                col++;
+                if (col >= columns) {
+                    col = 0;
+                    rowX = 0;
+                    rowY += rowTallest + PADDING;
+                    rowTallest = 0;
+                } else {
+                    rowX += PANEL_WIDTH + PADDING;
+                }
+                continue;
+            }
+
+            int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
+            int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
+
             graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
             graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
             String label = displayLabel(key, prefix);
             graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
+            lastPanelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, panelHeight});
 
             int gridY = panelY + font.lineHeight + 4;
             for (int i = 0; i < contents.size(); i++) {
@@ -248,6 +327,46 @@ public final class StorageOverlayFeature {
             } else {
                 rowX += PANEL_WIDTH + PADDING;
             }
+        }
+    }
+
+    /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin}'s
+     *  mouse-click hook - if the click landed on a non-active page's panel from the most recent
+     *  render, sends the real client command to open it (ported from NoammAddons' own
+     *  {@code StoragePage.open}) and reports the click as handled so the mixin can cancel it before
+     *  it reaches the real (unrelated) menu underneath. */
+    public static boolean handleClick(double mouseX, double mouseY, String activeKey) {
+        if (lastPos == null || lastPanelBounds.isEmpty()) {
+            return false;
+        }
+        double localX = (mouseX - lastPos[0]) / lastScale;
+        double localY = (mouseY - lastPos[1]) / lastScale;
+        for (Map.Entry<String, int[]> entry : lastPanelBounds.entrySet()) {
+            String key = entry.getKey();
+            if (key.equals(activeKey)) {
+                continue;
+            }
+            int[] bounds = entry.getValue();
+            if (localX < bounds[0] || localX > bounds[0] + bounds[2] || localY < bounds[1] || localY > bounds[1] + bounds[3]) {
+                continue;
+            }
+            sendOpenCommand(key);
+            return true;
+        }
+        return false;
+    }
+
+    private static void sendOpenCommand(String key) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.player.connection == null) {
+            return;
+        }
+        String prefix = accountProfilePrefix();
+        String local = key.substring(prefix.length() + 1);
+        if (local.startsWith("enderchest_")) {
+            client.player.connection.sendCommand("enderchest " + local.substring("enderchest_".length()));
+        } else if (local.startsWith("backpack_")) {
+            client.player.connection.sendCommand("backpack " + local.substring("backpack_".length()));
         }
     }
 

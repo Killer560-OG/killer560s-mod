@@ -27,8 +27,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Cached contents of every tracked storage unit (Ender Chest pages, backpacks), keyed by a
  *  composite string that already embeds the account + SkyBlock profile it belongs to (see
@@ -54,6 +56,12 @@ public final class StorageOverlayCache {
 
     /** Composite key -> Base64'd compressed NBT blob (see class doc). */
     private final Map<String, String> encoded = new HashMap<>();
+    /** Composite keys the "Storage" overview screen has shown exist (a real icon, not one of the
+     *  "empty slot" placeholder items) but whose real contents haven't actually been opened/logged
+     *  yet - ported from NoammAddons' own {@code saveOverview}, which discovers backpacks this way
+     *  before you ever open them. A key moves out of this set the moment {@link #put} gives it real
+     *  contents. */
+    private final Set<String> knownOnly = new HashSet<>();
 
     private StorageOverlayCache() {
     }
@@ -65,6 +73,8 @@ public final class StorageOverlayCache {
         return instance;
     }
 
+    private static final String KNOWN_ONLY_KEY = "__known_only__";
+
     public static void load() {
         StorageOverlayCache cache = new StorageOverlayCache();
         if (Files.exists(CACHE_PATH)) {
@@ -72,7 +82,13 @@ public final class StorageOverlayCache {
                 String json = Files.readString(CACHE_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                 for (String key : obj.keySet()) {
-                    cache.encoded.put(key, obj.get(key).getAsString());
+                    if (key.equals(KNOWN_ONLY_KEY)) {
+                        for (var el : obj.getAsJsonArray(key)) {
+                            cache.knownOnly.add(el.getAsString());
+                        }
+                    } else {
+                        cache.encoded.put(key, obj.get(key).getAsString());
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -87,8 +103,31 @@ public final class StorageOverlayCache {
             for (Map.Entry<String, String> entry : encoded.entrySet()) {
                 obj.addProperty(entry.getKey(), entry.getValue());
             }
+            var knownArray = new com.google.gson.JsonArray();
+            for (String key : knownOnly) {
+                knownArray.add(key);
+            }
+            obj.add(KNOWN_ONLY_KEY, knownArray);
             Files.writeString(CACHE_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
+        }
+    }
+
+    /** Registers a storage as known to exist (a real icon on the "Storage" overview screen) without
+     *  real contents yet - a no-op if we already have real contents for this key. */
+    public void markKnown(String key) {
+        if (!encoded.containsKey(key)) {
+            knownOnly.add(key);
+            save();
+        }
+    }
+
+    /** Per NoammAddons' own overview cleanup: the overview later showing this page as one of the
+     *  "empty slot" placeholder items means it was removed (e.g. a backpack slot cleared) - drop it
+     *  from the known-but-unopened set. Never touches a key that already has real contents. */
+    public void unmarkKnown(String key) {
+        if (knownOnly.remove(key)) {
+            save();
         }
     }
 
@@ -117,6 +156,7 @@ public final class StorageOverlayCache {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             NbtIo.writeCompressed(root, baos);
             encoded.put(key, Base64.getEncoder().encodeToString(baos.toByteArray()));
+            knownOnly.remove(key);
             save();
         } catch (Exception e) {
             LOGGER.error("Failed to encode storage \"{}\"", key, e);
@@ -159,13 +199,24 @@ public final class StorageOverlayCache {
      *  - used both to list/rename the current account/profile's own storages in the settings tab and
      *  to lay out the 3-column overlay grid. */
     public List<String> knownKeysFor(String accountProfilePrefix) {
-        List<String> keys = new ArrayList<>();
+        Set<String> keys = new java.util.LinkedHashSet<>();
         for (String key : encoded.keySet()) {
             if (key.startsWith(accountProfilePrefix)) {
                 keys.add(key);
             }
         }
-        return keys;
+        for (String key : knownOnly) {
+            if (key.startsWith(accountProfilePrefix)) {
+                keys.add(key);
+            }
+        }
+        return new ArrayList<>(keys);
+    }
+
+    /** Whether this key has real logged contents (as opposed to only being known-to-exist via the
+     *  overview screen). */
+    public boolean hasContents(String key) {
+        return encoded.containsKey(key);
     }
 
     private static RegistryAccess registryAccess() {
