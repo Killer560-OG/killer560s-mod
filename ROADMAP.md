@@ -23,6 +23,8 @@ Informal running list of what's planned or being considered - not a promise of w
 - Dungeon auto-generated routes - reminder: auto-generate these off of the interactive map's own room/data style, not a separate system
 - Note: dungeon routes should be convertible to/from quoi's, RSA's, and Sex5's own route formats, so routes can be shared across mods
 
+- Nick hider / name changer suite: change your own displayed IGN client-side, rename specific other players' IGNs client-side, a permission system so someone can change their own displayed name/color for every player running the mod, and a mode that renames everyone else to randomized variants of one name (e.g. John1, John2343).
+
 ## Under consideration
 
 - Adaptive Superpairs confirm-timeout based on real measured ping instead of a flat constant.
