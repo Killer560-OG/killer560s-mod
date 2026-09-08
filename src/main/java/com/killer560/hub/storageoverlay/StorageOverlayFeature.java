@@ -111,10 +111,14 @@ public final class StorageOverlayFeature {
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> onScreenOpen(screen));
     }
 
-    /** Called from {@link ScreenEvents#AFTER_INIT} for every screen that opens - logs the contents of
-     *  any real Ender Chest page or Backpack, exactly matching what NoammAddons captures on
-     *  {@code ContainerFullyOpenedEvent}, or (for the overview screen) just registers which pages
-     *  exist without their contents. */
+    /** Called from {@link ScreenEvents#AFTER_INIT} for every screen that opens. Real bug found and
+     *  fixed (2026-09-08), per killer560's screenshot of an opened page showing a completely blank
+     *  panel: capturing only once here, right when the screen is first constructed, hit the exact
+     *  same timing problem {@code RngMeterOverlay} already had to work around - Hypixel's own item
+     *  data hasn't synced from the server yet at this exact moment, so this could capture (and
+     *  persist) an all-empty page. Now just does the FIRST attempt; {@link #onContainerScreenRender}
+     *  re-attempts every frame and only actually re-persists when the scan changes, so it self-heals
+     *  the moment real data arrives without hammering disk once it's stable. */
     private static void onScreenOpen(Screen screen) {
         try {
             if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
@@ -132,20 +136,55 @@ public final class StorageOverlayFeature {
             if (key == null) {
                 return;
             }
-            List<ItemStack> contents = new ArrayList<>();
-            int containerSlotCount = Math.max(0, menu.slots.size() - 36);
-            for (Slot slot : menu.slots) {
-                if (slot.index >= containerSlotCount) {
-                    break;
-                }
-                ItemStack stack = slot.getItem();
-                contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
-            }
-            StorageOverlayCache.getInstance().put(key, contents);
-            LOGGER.info("Logged storage \"{}\" ({} slots) under key {}", title, contents.size(), key);
+            captureIfChanged(menu, key);
         } catch (Exception e) {
             LOGGER.error("Failed to log storage screen", e);
         }
+    }
+
+    /** Scans {@code menu}'s top (non-player) slots and persists them under {@code key} only if they
+     *  actually differ from what's already cached (by item id + count) - cheap to call every frame,
+     *  and self-heals a too-early capture (see {@link #onScreenOpen}) the moment real data arrives
+     *  without writing to disk on every single frame once the scan has stabilized. */
+    private static void captureIfChanged(ChestMenu menu, String key) {
+        List<ItemStack> contents = new ArrayList<>();
+        int containerSlotCount = Math.max(0, menu.slots.size() - 36);
+        for (Slot slot : menu.slots) {
+            if (slot.index >= containerSlotCount) {
+                break;
+            }
+            ItemStack stack = slot.getItem();
+            contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
+        }
+        StorageOverlayCache cache = StorageOverlayCache.getInstance();
+        List<ItemStack> cached = cache.get(key);
+        if (sameContents(cached, contents)) {
+            return;
+        }
+        cache.put(key, contents);
+        LOGGER.info("Logged storage \"{}\" ({} slots)", key, contents.size());
+    }
+
+    private static boolean sameContents(List<ItemStack> a, List<ItemStack> b) {
+        if (a == null || b == null || a.size() != b.size()) {
+            return false;
+        }
+        for (int i = 0; i < a.size(); i++) {
+            ItemStack sa = a.get(i);
+            ItemStack sb = b.get(i);
+            boolean emptyA = sa == null || sa.isEmpty();
+            boolean emptyB = sb == null || sb.isEmpty();
+            if (emptyA != emptyB) {
+                return false;
+            }
+            if (emptyA) {
+                continue;
+            }
+            if (sa.getCount() != sb.getCount() || !sa.getItem().equals(sb.getItem())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
@@ -203,9 +242,21 @@ public final class StorageOverlayFeature {
             if (!StorageOverlayConfig.getInstance().isEnabled()) {
                 return;
             }
-            String activeKey = storageKeyForTitle(screen.getTitle().getString());
-            if (activeKey == null) {
+            String title = screen.getTitle().getString();
+            String activeKey = storageKeyForTitle(title);
+            // Per killer560's report (2026-09-08): the grid should already show while browsing the
+            // "Storage" overview screen (so a known-but-unopened page's "Click to load" placeholder is
+            // actually visible there), not only once a specific numbered page is open. activeKey stays
+            // null on the overview itself - nothing is "the active page" while just browsing it.
+            boolean isOverview = title.equals(OVERVIEW_TITLE);
+            if (activeKey == null && !isOverview) {
                 return;
+            }
+            if (activeKey != null && screen.getMenu() instanceof ChestMenu activeMenu) {
+                // Re-attempts the capture every frame (cheap - see captureIfChanged) so a too-early
+                // scan self-heals the moment Hypixel's real item data actually syncs in, instead of
+                // being stuck showing whatever onScreenOpen captured first.
+                captureIfChanged(activeMenu, activeKey);
             }
             String prefix = accountProfilePrefix();
             List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
@@ -303,6 +354,10 @@ public final class StorageOverlayFeature {
             lastPanelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, panelHeight});
 
             int gridY = panelY + font.lineHeight + 4;
+            // Per killer560's report (2026-09-08): draw the actual slot cells (matching NoammAddons'
+            // own drawSlotGrid) so the item area reads as a real grid even for slots with nothing in
+            // them right now, instead of just blank background.
+            drawSlotCells(graphics, panelX + 2, gridY, rows, cfg.isDarkMode());
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
                 if (stack == null || stack.isEmpty()) {
@@ -330,6 +385,25 @@ public final class StorageOverlayFeature {
             } else {
                 rowX += PANEL_WIDTH + PADDING;
             }
+        }
+    }
+
+    /** Draws the 9-wide item-cell grid itself (dark cell background + thin dividing lines), ported
+     *  from NoammAddons' own {@code drawSlotGrid} - makes an empty/still-loading page read as a real
+     *  item grid instead of blank background. */
+    private static void drawSlotCells(GuiGraphicsExtractor graphics, int x, int y, int rows, boolean darkMode) {
+        int cellBg = darkMode ? 0xFF1E1E22 : 0xFFD8D8D8;
+        int cellLine = darkMode ? 0xFF37373C : 0xFF999999;
+        int w = 9 * SLOT_SIZE;
+        int h = rows * SLOT_SIZE;
+        graphics.fill(x, y, x + w, y + h, cellBg);
+        for (int col = 0; col <= 9; col++) {
+            int lx = x + col * SLOT_SIZE;
+            graphics.fill(lx, y, lx + 1, y + h, cellLine);
+        }
+        for (int row = 0; row <= rows; row++) {
+            int ly = y + row * SLOT_SIZE;
+            graphics.fill(x, ly, x + w, ly + 1, cellLine);
         }
     }
 
