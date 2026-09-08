@@ -2,18 +2,30 @@ package com.killer560.hub.storageoverlay;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,27 +37,23 @@ import java.util.Map;
  *  actually satisfies killer560's "don't show one account's stuff on another account or profile"
  *  requirement (simpler and more robust than juggling separate cache files per account).
  *  <p>
- *  Two layers: {@link #liveStacks} holds the real, full-fidelity {@link ItemStack} copies captured
- *  this session (correct custom textures/NBT, same approach as {@code ExperimentsFeature}'s own
- *  {@code superpairsIconCache}) but is never persisted - full {@code ItemStack} NBT round-tripping
- *  through a registry-aware codec was judged out of scope for this pass. {@link #persisted} is a
- *  simplified id/count/name/lore summary written to disk so contents survive a restart; on load it's
- *  rebuilt into plain {@link ItemStack}s (correct base item and name, but a custom-textured item like
- *  a player-skull skin will show its default texture until that storage is opened again and
- *  {@link #liveStacks} takes back over). */
+ *  Real full-fidelity {@link ItemStack} NBT persistence (correct custom textures/components survive
+ *  a restart), not a simplified id/count/name summary - ported directly from NoammAddons'
+ *  {@code NBTInventory.kt} per killer560's explicit "really similar to noamm's" request: each stack
+ *  encodes via {@code ItemStack.CODEC} + {@code DataComponentPatch.CODEC} through {@link NbtOps},
+ *  written compressed via {@link NbtIo}, then Base64'd so it can sit as a plain string in this mod's
+ *  existing JSON config style rather than needing a second file format. */
 public final class StorageOverlayCache {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-storageoverlay");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CACHE_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-storageoverlay-cache.json");
 
     private static StorageOverlayCache instance;
 
-    private final Map<String, List<CachedItem>> persisted = new HashMap<>();
-    private final Map<String, List<ItemStack>> liveStacks = new HashMap<>();
-
-    public record CachedItem(String itemId, int count, String name, String lore) {
-    }
+    /** Composite key -> Base64'd compressed NBT blob (see class doc). */
+    private final Map<String, String> encoded = new HashMap<>();
 
     private StorageOverlayCache() {
     }
@@ -64,17 +72,7 @@ public final class StorageOverlayCache {
                 String json = Files.readString(CACHE_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                 for (String key : obj.keySet()) {
-                    JsonArray arr = obj.getAsJsonArray(key);
-                    List<CachedItem> items = new ArrayList<>();
-                    for (var el : arr) {
-                        JsonObject item = el.getAsJsonObject();
-                        items.add(new CachedItem(
-                                item.get("itemId").getAsString(),
-                                item.get("count").getAsInt(),
-                                item.has("name") ? item.get("name").getAsString() : "",
-                                item.has("lore") ? item.get("lore").getAsString() : ""));
-                    }
-                    cache.persisted.put(key, items);
+                    cache.encoded.put(key, obj.get(key).getAsString());
                 }
             } catch (Exception ignored) {
             }
@@ -86,78 +84,95 @@ public final class StorageOverlayCache {
         try {
             Files.createDirectories(CACHE_PATH.getParent());
             JsonObject obj = new JsonObject();
-            for (Map.Entry<String, List<CachedItem>> entry : persisted.entrySet()) {
-                JsonArray arr = new JsonArray();
-                for (CachedItem item : entry.getValue()) {
-                    JsonObject o = new JsonObject();
-                    o.addProperty("itemId", item.itemId());
-                    o.addProperty("count", item.count());
-                    o.addProperty("name", item.name());
-                    o.addProperty("lore", item.lore());
-                    arr.add(o);
-                }
-                obj.add(entry.getKey(), arr);
+            for (Map.Entry<String, String> entry : encoded.entrySet()) {
+                obj.addProperty(entry.getKey(), entry.getValue());
             }
             Files.writeString(CACHE_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
-    /** Stores this session's real capture of a storage's contents (full fidelity for rendering) and
-     *  the simplified persisted summary (survives a restart), then saves to disk immediately. */
+    /** Encodes and stores this storage's real contents, then saves to disk immediately. */
     public void put(String key, List<ItemStack> stacks) {
-        liveStacks.put(key, stacks.stream().map(ItemStack::copy).toList());
-        List<CachedItem> summary = new ArrayList<>(stacks.size());
-        for (ItemStack stack : stacks) {
-            summary.add(new CachedItem(
-                    BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),
-                    stack.getCount(),
-                    stack.getHoverName().getString(),
-                    ""));
+        RegistryAccess registryAccess = registryAccess();
+        if (registryAccess == null) {
+            return;
         }
-        persisted.put(key, summary);
-        save();
+        HolderLookup.Provider provider = registryAccess;
+        var ops = provider.createSerializationContext(NbtOps.INSTANCE);
+        ListTag list = new ListTag();
+        for (ItemStack stack : stacks) {
+            CompoundTag tag = new CompoundTag();
+            if (stack != null && !stack.isEmpty()) {
+                Tag encodedStack = ItemStack.CODEC.encodeStart(ops, stack).result().orElse(null);
+                if (encodedStack instanceof CompoundTag stackTag) {
+                    tag = stackTag;
+                }
+            }
+            list.add(tag);
+        }
+        try {
+            CompoundTag root = new CompoundTag();
+            root.put("i", list);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            NbtIo.writeCompressed(root, baos);
+            encoded.put(key, Base64.getEncoder().encodeToString(baos.toByteArray()));
+            save();
+        } catch (Exception e) {
+            LOGGER.error("Failed to encode storage \"{}\"", key, e);
+        }
     }
 
-    /** @return the real captured {@link ItemStack}s for this key if this session has ever seen it
-     *  opened, otherwise plain stacks rebuilt from the persisted summary (correct item/count/name,
-     *  generic texture for anything with custom NBT-driven skin data), or null if never known at all. */
+    /** @return the real stacks for this key, or null if never captured. */
     public List<ItemStack> get(String key) {
-        List<ItemStack> live = liveStacks.get(key);
-        if (live != null) {
-            return live;
-        }
-        List<CachedItem> summary = persisted.get(key);
-        if (summary == null) {
+        String blob = encoded.get(key);
+        if (blob == null) {
             return null;
         }
-        List<ItemStack> rebuilt = new ArrayList<>(summary.size());
-        for (CachedItem item : summary) {
-            Identifier id = Identifier.tryParse(item.itemId());
-            if (id == null) {
-                continue;
-            }
-            BuiltInRegistries.ITEM.get(id).ifPresent(ref ->
-                    rebuilt.add(new ItemStack(ref.value(), Math.max(1, item.count()))));
+        RegistryAccess registryAccess = registryAccess();
+        if (registryAccess == null) {
+            return null;
         }
-        return rebuilt;
+        try {
+            HolderLookup.Provider provider = registryAccess;
+            var ops = provider.createSerializationContext(NbtOps.INSTANCE);
+            byte[] bytes = Base64.getDecoder().decode(blob);
+            CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap());
+            ListTag list = root.getListOrEmpty("i");
+            List<ItemStack> result = new ArrayList<>(list.size());
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag tag = list.getCompoundOrEmpty(i);
+                if (tag.isEmpty()) {
+                    result.add(ItemStack.EMPTY);
+                    continue;
+                }
+                result.add(ItemStack.CODEC.parse(ops, tag).result().orElse(ItemStack.EMPTY));
+            }
+            return result;
+        } catch (Exception e) {
+            LOGGER.error("Failed to decode storage \"{}\"", key, e);
+            return null;
+        }
     }
 
-    /** Every storage key currently known (persisted or live-only) whose composite key starts with
-     *  {@code accountProfilePrefix} - used by the settings tab to list only the current account/
-     *  profile's own storages for renaming. */
+    /** Every storage key currently known whose composite key starts with {@code accountProfilePrefix}
+     *  - used both to list/rename the current account/profile's own storages in the settings tab and
+     *  to lay out the 3-column overlay grid. */
     public List<String> knownKeysFor(String accountProfilePrefix) {
         List<String> keys = new ArrayList<>();
-        for (String key : persisted.keySet()) {
-            if (key.startsWith(accountProfilePrefix) && !keys.contains(key)) {
-                keys.add(key);
-            }
-        }
-        for (String key : liveStacks.keySet()) {
-            if (key.startsWith(accountProfilePrefix) && !keys.contains(key)) {
+        for (String key : encoded.keySet()) {
+            if (key.startsWith(accountProfilePrefix)) {
                 keys.add(key);
             }
         }
         return keys;
+    }
+
+    private static RegistryAccess registryAccess() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level != null) {
+            return client.level.registryAccess();
+        }
+        return client.getConnection() != null ? client.getConnection().registryAccess() : null;
     }
 }

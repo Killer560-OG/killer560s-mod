@@ -5,6 +5,7 @@ import com.killer560.hub.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
@@ -18,28 +19,30 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** SkyHanni-style storage overlay: whenever an Ender Chest or Backpack item is captured (its real
- *  menu opened at least once) or was previously seen and persisted, holding that same item shows its
- *  cached contents as a HUD overlay - no need to actually open it. Per killer560's request
- *  (2026-09-08): main toggle, dark/light background, adjustable scale (via the shared HUD editor,
- *  same as every other HUD element), renamable storage units, config persists across restarts, and
- *  cached contents never leak between accounts or SkyBlock profiles. */
+/** NoammAddons-style Storage Overlay, per killer560's explicit "really similar to noamm's" request
+ *  (2026-09-08): whenever an Ender Chest page or a Backpack is actually opened, its contents are
+ *  logged (captured + persisted), and a 3-column grid of every known storage for the current
+ *  account/SkyBlock profile is drawn alongside the real menu, updating live as you browse. Ender
+ *  Chest and Backpack title patterns are ported directly from NoammAddons' own {@code StorageMenu.kt}
+ *  (a real, already-working 26.1.2 mod local to this machine) rather than guessed. */
 public final class StorageOverlayFeature {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-storageoverlay");
     private static final String ELEMENT_ID = "storage_overlay";
     private static final int SLOT_SIZE = 18;
-    private static final int COLUMNS = 9;
+    private static final int PANEL_WIDTH = SLOT_SIZE * 9 + 4;
+    private static final int PADDING = 6;
 
-    /** Real Hypixel storage item names always contain one of these, case-insensitive - a first pass,
-     *  not verified against a live session (same caveat {@link com.killer560.hub.rngmeter.LocationTracker}
-     *  already carries for its own keyword matching). Adjust if a real storage item's name doesn't
-     *  get picked up. */
-    private static final List<String> STORAGE_NAME_MARKERS = List.of("ender chest", "backpack");
+    /** Real Hypixel titles, ported from NoammAddons' {@code StorageMenu.kt} (confirmed working
+     *  against a live 26.1.2 session, not guessed): "Ender Chest (3/9)" or "Ender Chest ✦ (3/9)",
+     *  and "<Backpack Name> (Slot #5)" or "... ✦ (Slot #5)". */
+    private static final Pattern ENDER_CHEST_TITLE = Pattern.compile("^Ender Chest (?:✦ )?\\(([1-9])/[1-9]\\)$");
+    private static final Pattern BACKPACK_TITLE = Pattern.compile("^.+Backpack (?:✦ )?\\(Slot #([0-9]+)\\)$");
 
     /** Best-effort SkyBlock profile name, read off the sidebar scoreboard the same way
      *  {@link com.killer560.hub.rngmeter.LocationTracker} reads location - Hypixel's exact wording
@@ -65,7 +68,7 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultX() {
-                return 20;
+                return Minecraft.getInstance().getWindow().getGuiScaledWidth() - PANEL_WIDTH - 20;
             }
 
             @Override
@@ -75,36 +78,35 @@ public final class StorageOverlayFeature {
 
             @Override
             public int width() {
-                return COLUMNS * SLOT_SIZE;
+                return PANEL_WIDTH * 3 + PADDING * 2;
             }
 
             @Override
             public int height() {
-                return 4 * SLOT_SIZE + 12;
+                return 160;
             }
 
             @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
-                // HUD position editor preview - show a small sample grid regardless of whether a
-                // real storage is currently cached, same pattern as RngMeterOverlay's own preview.
-                List<ItemStack> sample = List.of(new ItemStack(net.minecraft.world.item.Items.CHEST, 1),
-                        new ItemStack(net.minecraft.world.item.Items.DIAMOND, 1));
-                renderGrid(graphics, x, y, "Example Storage", sample);
+                // HUD position editor preview - a real grid isn't necessarily open right now, so show
+                // a label only. The real overlay only draws while a storage screen is actually open.
+                graphics.text(Minecraft.getInstance().font, "§bStorage Overlay (shown when a storage is open)", x, y, 0xFFFFFFFF);
             }
         });
 
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> onScreenOpen(screen));
     }
 
-    /** Called from {@link ScreenEvents#AFTER_INIT} for every screen that opens - captures the
-     *  contents of any container screen that looks like a storage unit. */
-    public static void onScreenOpen(net.minecraft.client.gui.screens.Screen screen) {
+    /** Called from {@link ScreenEvents#AFTER_INIT} for every screen that opens - logs the contents of
+     *  any real Ender Chest page or Backpack, exactly matching what NoammAddons captures on
+     *  {@code ContainerFullyOpenedEvent}. */
+    private static void onScreenOpen(Screen screen) {
         try {
             if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
                 return;
             }
-            String title = containerScreen.getTitle().getString();
-            if (!looksLikeStorage(title)) {
+            String key = storageKeyForTitle(containerScreen.getTitle().getString());
+            if (key == null) {
                 return;
             }
             if (!(containerScreen.getMenu() instanceof ChestMenu menu)) {
@@ -119,119 +121,160 @@ public final class StorageOverlayFeature {
                 ItemStack stack = slot.getItem();
                 contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
             }
-            String key = storageKey(title);
             StorageOverlayCache.getInstance().put(key, contents);
-            LOGGER.info("Captured storage \"{}\" ({} slots) under key {}", title, contents.size(), key);
+            LOGGER.info("Logged storage \"{}\" ({} slots) under key {}", containerScreen.getTitle().getString(), contents.size(), key);
         } catch (Exception e) {
-            LOGGER.error("Failed to capture storage screen", e);
+            LOGGER.error("Failed to log storage screen", e);
         }
     }
 
-    private static boolean looksLikeStorage(String title) {
-        String lower = title.toLowerCase(Locale.US);
-        for (String marker : STORAGE_NAME_MARKERS) {
-            if (lower.contains(marker)) {
-                return true;
+    /** @return the composite cache key for this screen title if it's a real Ender Chest page or
+     *  Backpack, otherwise null. Package-visible for the mixin's own "should I even draw?" check. */
+    static String storageKeyForTitle(String title) {
+        Matcher chest = ENDER_CHEST_TITLE.matcher(title);
+        if (chest.matches()) {
+            return storageKey("enderchest_" + chest.group(1));
+        }
+        Matcher backpack = BACKPACK_TITLE.matcher(title);
+        if (backpack.matches()) {
+            return storageKey("backpack_" + backpack.group(1));
+        }
+        return null;
+    }
+
+    /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin} on
+     *  every container screen's own render pass - draws the 3-column grid of every known storage for
+     *  the current account/profile if the currently open screen is itself a tracked storage. */
+    public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+        try {
+            if (!StorageOverlayConfig.getInstance().isEnabled()) {
+                return;
             }
+            String activeKey = storageKeyForTitle(screen.getTitle().getString());
+            if (activeKey == null) {
+                return;
+            }
+            String prefix = accountProfilePrefix();
+            List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
+            if (keys.isEmpty()) {
+                return;
+            }
+            // Ender Chest pages before Backpacks, then numerically within each - matches the natural
+            // reading order NoammAddons' own StoragePage.compareTo gives.
+            Map<String, List<ItemStack>> ordered = new TreeMap<>(StorageOverlayFeature::compareStorageKeys);
+            for (String key : keys) {
+                List<ItemStack> contents = StorageOverlayCache.getInstance().get(key);
+                if (contents != null) {
+                    ordered.put(key, contents);
+                }
+            }
+
+            HudElement element = HudElementRegistry.all().stream()
+                    .filter(e -> e.id().equals(ELEMENT_ID)).findFirst().orElse(null);
+            if (element == null) {
+                return;
+            }
+            int[] pos = HudElementRegistry.resolvePosition(element);
+            float scale = HudElementRegistry.resolveScale(element);
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(pos[0], pos[1]);
+            graphics.pose().scale(scale, scale);
+            renderGrid(graphics, ordered, prefix, activeKey);
+            graphics.pose().popMatrix();
+        } catch (Exception e) {
+            LOGGER.error("Failed to render Storage Overlay", e);
         }
-        return false;
     }
 
-    /** Called every client tick from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayGuiMixin}
-     *  - if the player's currently held item (either hand) matches a known cached storage for the
-     *  current account/profile, draws its contents as a HUD overlay. */
-    public static void renderIfHoldingKnownStorage(GuiGraphicsExtractor graphics) {
-        StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
-        ItemStack held = heldStorageCandidate(client);
-        if (held == null) {
-            return;
-        }
-        String cleanName = held.getHoverName().getString();
-        if (!looksLikeStorage(cleanName)) {
-            return;
-        }
-        String key = storageKey(cleanName);
-        List<ItemStack> contents = StorageOverlayCache.getInstance().get(key);
-        if (contents == null) {
-            return;
-        }
-        HudElement element = HudElementRegistry.all().stream()
-                .filter(e -> e.id().equals(ELEMENT_ID)).findFirst().orElse(null);
-        if (element == null) {
-            return;
-        }
-        int[] pos = HudElementRegistry.resolvePosition(element);
-        float scale = HudElementRegistry.resolveScale(element);
-        String label = displayLabel(key, cleanName);
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(pos[0], pos[1]);
-        graphics.pose().scale(scale, scale);
-        renderGrid(graphics, 0, 0, label, contents);
-        graphics.pose().popMatrix();
+    private static int compareStorageKeys(String a, String b) {
+        return a.compareTo(b);
     }
 
-    private static ItemStack heldStorageCandidate(Minecraft client) {
-        ItemStack main = client.player.getMainHandItem();
-        if (main != null && !main.isEmpty()) {
-            return main;
-        }
-        ItemStack off = client.player.getOffhandItem();
-        return off != null && !off.isEmpty() ? off : null;
-    }
-
-    private static void renderGrid(GuiGraphicsExtractor graphics, int x, int y, String label, List<ItemStack> contents) {
+    private static void renderGrid(GuiGraphicsExtractor graphics, Map<String, List<ItemStack>> storages,
+                                    String prefix, String activeKey) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
-        int rows = Math.max(1, (contents.size() + COLUMNS - 1) / COLUMNS);
-        int panelWidth = COLUMNS * SLOT_SIZE;
-        int panelHeight = rows * SLOT_SIZE + 12;
-        int bg = cfg.isDarkMode() ? 0xCC101010 : 0xCCE8E8E8;
         int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
+        int bg = cfg.isDarkMode() ? 0xCC101010 : 0xCCE8E8E8;
         int border = cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
+        int activeBorder = 0xFFCC6600;
 
-        graphics.fill(x, y, x + panelWidth, y + panelHeight, bg);
-        graphics.outline(x, y, panelWidth, panelHeight, border);
-        graphics.text(font, label, x + 4, y + 2, textColor);
+        int columns = 3;
+        int col = 0;
+        int rowX = 0;
+        int rowY = 0;
+        int rowTallest = 0;
 
-        int gridY = y + 12;
-        for (int i = 0; i < contents.size(); i++) {
-            ItemStack stack = contents.get(i);
-            if (stack == null || stack.isEmpty()) {
-                continue;
+        for (Map.Entry<String, List<ItemStack>> entry : storages.entrySet()) {
+            String key = entry.getKey();
+            List<ItemStack> contents = entry.getValue();
+            int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
+            int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
+
+            int panelX = rowX;
+            int panelY = rowY;
+
+            boolean active = key.equals(activeKey);
+            graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
+            graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
+            String label = displayLabel(key, prefix);
+            graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
+
+            int gridY = panelY + font.lineHeight + 4;
+            for (int i = 0; i < contents.size(); i++) {
+                ItemStack stack = contents.get(i);
+                if (stack == null || stack.isEmpty()) {
+                    continue;
+                }
+                int slotX = panelX + (i % 9) * SLOT_SIZE + 2;
+                int slotY = gridY + (i / 9) * SLOT_SIZE;
+                graphics.item(stack, slotX, slotY);
+                if (stack.getCount() > 1) {
+                    graphics.pose().pushMatrix();
+                    graphics.pose().translate(slotX, slotY);
+                    graphics.pose().scale(0.6f, 0.6f);
+                    graphics.text(font, String.valueOf(stack.getCount()), 10, 10, textColor);
+                    graphics.pose().popMatrix();
+                }
             }
-            int col = i % COLUMNS;
-            int row = i / COLUMNS;
-            int slotX = x + col * SLOT_SIZE + 1;
-            int slotY = gridY + row * SLOT_SIZE + 1;
-            graphics.item(stack, slotX, slotY);
-            if (stack.getCount() > 1) {
-                graphics.pose().pushMatrix();
-                graphics.pose().translate(slotX, slotY);
-                graphics.pose().scale(0.6f, 0.6f);
-                graphics.text(font, String.valueOf(stack.getCount()), 10, 10, textColor);
-                graphics.pose().popMatrix();
+
+            rowTallest = Math.max(rowTallest, panelHeight);
+            col++;
+            if (col >= columns) {
+                col = 0;
+                rowX = 0;
+                rowY += rowTallest + PADDING;
+                rowTallest = 0;
+            } else {
+                rowX += PANEL_WIDTH + PADDING;
             }
         }
     }
 
-    /** killer560's custom name for this storage if he set one, otherwise the cleaned real name. */
-    private static String displayLabel(String key, String fallback) {
+    /** killer560's custom name for this storage if he set one, otherwise {@link #defaultLabelFor}. */
+    private static String displayLabel(String key, String prefix) {
         String custom = StorageOverlayConfig.getInstance().getCustomName(key);
-        return custom != null ? custom : fallback;
+        return custom != null ? custom : defaultLabelFor(key, prefix);
     }
 
-    /** Composite cache key: account UUID + SkyBlock profile + the storage's own title - see the
+    /** Readable default built from the key ("enderchest_3" -> "Ender Chest #3", "backpack_5" ->
+     *  "Backpack #5") - public so the settings tab can pre-fill the same default into a rename field. */
+    public static String defaultLabelFor(String key, String prefix) {
+        String local = key.substring(prefix.length() + 1);
+        if (local.startsWith("enderchest_")) {
+            return "Ender Chest #" + local.substring("enderchest_".length());
+        }
+        if (local.startsWith("backpack_")) {
+            return "Backpack #" + local.substring("backpack_".length());
+        }
+        return local;
+    }
+
+    /** Composite cache key: account UUID + SkyBlock profile + this storage's own local id - see the
      *  class doc on {@link StorageOverlayCache} for why embedding both directly in the key is what
      *  actually guarantees no cross-account/cross-profile leakage. */
-    static String storageKey(String title) {
-        return accountProfilePrefix() + "|" + title.trim();
+    private static String storageKey(String localId) {
+        return accountProfilePrefix() + "|" + localId;
     }
 
     /** The account+profile portion of {@link #storageKey} alone, for listing/renaming just the

@@ -4,7 +4,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.storageoverlay.mixin",
 	"client": [
-		"StorageOverlayGuiMixin"
+		"StorageOverlayContainerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

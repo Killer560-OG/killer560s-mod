@@ -46,8 +46,9 @@ public class StorageOverlayTab extends BaseTab {
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Hold an Ender Chest/Backpack to preview it. Scroll/drag it in "
-                        + "Edit HUD Positions to resize/move. Known storages (rename below):"),
+                Component.literal("Opening an Ender Chest page or Backpack logs it and shows every "
+                        + "known one in a 3-column grid alongside the menu. Scroll/drag it in Edit "
+                        + "HUD Positions to resize/move. Known storages (rename below):"),
                 Minecraft.getInstance().font));
         y += 20;
 
@@ -60,7 +61,7 @@ public class StorageOverlayTab extends BaseTab {
             y += 16;
         }
         for (String key : keys) {
-            String realTitle = key.substring(prefix.length() + 1);
+            String realTitle = StorageOverlayFeature.defaultLabelFor(key, prefix);
             StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
             String current = cfg.getCustomName(key);
 
