@@ -286,8 +286,13 @@ public final class StorageOverlayFeature {
             }
             // Per killer560's request (2026-09-08): now that the vanilla background/top slots are
             // hidden here, outline the player's own inventory too so it doesn't look like it's just
-            // floating with nothing to visually anchor it.
-            drawPlayerInventoryOutline(screen, graphics);
+            // floating with nothing to visually anchor it - also gives the real, on-screen top edge of
+            // the inventory, which the grid's own viewport (below) is capped against so it can never
+            // grow down over it.
+            int[] invBounds = computePlayerInventoryBounds(screen);
+            if (invBounds != null) {
+                drawPlayerInventoryOutline(graphics, invBounds);
+            }
             // Real bug found and fixed (2026-09-08), per killer560's report that dummy pages still
             // weren't appearing: scanOverview had the exact same too-early-capture problem
             // captureIfChanged was already fixed for, but only ever ran once (from onScreenOpen) with
@@ -307,6 +312,8 @@ public final class StorageOverlayFeature {
             String prefix = accountProfilePrefix();
             List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
             if (keys.isEmpty()) {
+                lastPos = null;
+                lastPanelBounds.clear();
                 return;
             }
             // Ender Chest pages before Backpacks, then numerically within each - matches the natural
@@ -332,14 +339,80 @@ public final class StorageOverlayFeature {
             }
             lastPos = HudElementRegistry.resolvePosition(element);
             lastScale = HudElementRegistry.resolveScale(element);
-            graphics.pose().pushMatrix();
-            graphics.pose().translate(lastPos[0], lastPos[1]);
-            graphics.pose().scale(lastScale, lastScale);
-            renderGrid(graphics, ordered, prefix, activeKey);
-            graphics.pose().popMatrix();
+
+            List<PanelLayout> layout = layoutPanels(ordered);
+            int contentHeight = 0;
+            for (PanelLayout p : layout) {
+                contentHeight = Math.max(contentHeight, p.y() + p.height());
+            }
+            int viewportWidthLocal = PANEL_WIDTH * 3 + PADDING * 2;
+            // Per killer560's report (2026-09-08) that the grid could grow tall enough to cover his own
+            // real inventory (making it unclickable): cap the visible viewport at wherever the real
+            // inventory actually starts on screen this frame (computed above from real slot positions,
+            // not guessed), and let scrolling reach whatever doesn't fit above that line.
+            int viewportBottomPx = invBounds != null ? invBounds[1] - 6
+                    : Minecraft.getInstance().getWindow().getGuiScaledHeight();
+            int viewportHeightPx = Math.max(SLOT_SIZE + PADDING, viewportBottomPx - lastPos[1]);
+            int viewportHeightLocal = Math.max(1, (int) (viewportHeightPx / lastScale));
+            lastMaxScroll = Math.max(0, contentHeight - viewportHeightLocal);
+            scrollOffset = Math.max(0, Math.min(scrollOffset, lastMaxScroll));
+            lastViewportWidthPx = (int) (viewportWidthLocal * lastScale);
+            lastViewportHeightPx = viewportHeightPx;
+
+            graphics.enableScissor(lastPos[0], lastPos[1],
+                    lastPos[0] + lastViewportWidthPx, lastPos[1] + lastViewportHeightPx);
+            try {
+                graphics.pose().pushMatrix();
+                try {
+                    graphics.pose().translate(lastPos[0], lastPos[1]);
+                    graphics.pose().scale(lastScale, lastScale);
+                    graphics.pose().translate(0, -scrollOffset);
+                    renderGrid(graphics, layout, prefix, activeKey, viewportHeightLocal);
+                } finally {
+                    graphics.pose().popMatrix();
+                }
+            } finally {
+                graphics.disableScissor();
+            }
+
+            if (lastMaxScroll > 0) {
+                drawScrollBar(graphics, viewportWidthLocal, viewportHeightLocal, contentHeight);
+            }
         } catch (Exception e) {
             LOGGER.error("Failed to render Storage Overlay", e);
         }
+    }
+
+    /** Draws a thin scroll indicator just right of the grid, in real screen coordinates (outside the
+     *  grid's own translate/scale/scroll transform, same approach as {@link #drawPlayerInventoryOutline})
+     *  so it stays fixed in place and always reflects how much content doesn't currently fit. */
+    private static void drawScrollBar(GuiGraphicsExtractor graphics, int viewportWidthLocal, int viewportHeightLocal, int contentHeight) {
+        int barX = lastPos[0] + (int) (viewportWidthLocal * lastScale) + 3;
+        int barY = lastPos[1];
+        int barH = lastViewportHeightPx;
+        int barW = 4;
+        graphics.fill(barX, barY, barX + barW, barY + barH, 0x66000000);
+        float knobFrac = Math.min(1f, viewportHeightLocal / (float) contentHeight);
+        int knobH = Math.max(10, (int) (barH * knobFrac));
+        float pct = lastMaxScroll > 0 ? scrollOffset / lastMaxScroll : 0f;
+        int knobY = barY + (int) (pct * (barH - knobH));
+        graphics.fill(barX, knobY, barX + barW, knobY + knobH, 0xCCFFFFFF);
+    }
+
+    /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin}'s
+     *  mouse-scroll hook, per killer560's "I need to be able to scroll on this page" request
+     *  (2026-09-08) - only intercepts the scroll wheel when the cursor is actually over the grid's
+     *  current viewport, so scrolling elsewhere on the screen is unaffected. */
+    public static boolean handleScroll(double mouseX, double mouseY, double scrollDeltaY) {
+        if (lastPos == null || lastViewportHeightPx <= 0) {
+            return false;
+        }
+        if (mouseX < lastPos[0] || mouseX > lastPos[0] + lastViewportWidthPx
+                || mouseY < lastPos[1] || mouseY > lastPos[1] + lastViewportHeightPx) {
+            return false;
+        }
+        scrollOffset = (float) Math.max(0, Math.min(lastMaxScroll, scrollOffset - scrollDeltaY * SLOT_SIZE * 1.5));
+        return true;
     }
 
     /** @return {@code [type, number]} for a storage key - type 0 = Ender Chest, 1 = Backpack (so
@@ -364,12 +437,14 @@ public final class StorageOverlayFeature {
         }
     }
 
-    /** Draws a border around the player's own 36-slot inventory area (unaffected by the vanilla-hide
-     *  mixins - this only outlines it, doesn't touch its rendering), computed from the real on-screen
-     *  bounds of those slots so it lines up exactly regardless of screen size/scale. */
-    private static void drawPlayerInventoryOutline(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+    /** @return the real on-screen bounds of the player's own 36 inventory slots ({@code [x0,y0,x1,y1]}),
+     *  or null if the menu doesn't actually have a player inventory - computed from the real slot
+     *  positions so it lines up exactly regardless of screen size/scale. Also doubles as the real,
+     *  live lower bound for the grid's own viewport (see {@link #onContainerScreenRender}), per
+     *  killer560's report (2026-09-08) that a tall grid could otherwise grow down over it. */
+    private static int[] computePlayerInventoryBounds(AbstractContainerScreen<?> screen) {
         if (!(screen.getMenu() instanceof ChestMenu menu)) {
-            return;
+            return null;
         }
         int containerSlotCount = Math.max(0, menu.slots.size() - 36);
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
@@ -383,29 +458,76 @@ public final class StorageOverlayFeature {
             maxY = Math.max(maxY, slot.y);
         }
         if (minX == Integer.MAX_VALUE) {
-            return;
+            return null;
         }
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
         int left = accessor.killer560smod$getLeftPos();
         int top = accessor.killer560smod$getTopPos();
-        int x0 = left + minX - 4;
-        int y0 = top + minY - 4;
-        int x1 = left + maxX + 16 + 4;
-        int y1 = top + maxY + 16 + 4;
+        return new int[]{left + minX - 4, top + minY - 4, left + maxX + 16 + 4, top + maxY + 16 + 4};
+    }
+
+    /** Draws a border around the player's own inventory area (unaffected by the vanilla-hide mixins -
+     *  this only outlines it, doesn't touch its rendering) at the bounds {@link #computePlayerInventoryBounds}
+     *  already computed this frame. */
+    private static void drawPlayerInventoryOutline(GuiGraphicsExtractor graphics, int[] bounds) {
         int border = StorageOverlayConfig.getInstance().isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
-        graphics.outline(x0, y0, x1 - x0, y1 - y0, border);
+        graphics.outline(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1], border);
     }
 
     /** Screen-space position/scale from the most recent render, and each panel's LOCAL (pre
-     *  translate/scale) bounds from that same render - both needed to hit-test a real mouse click
-     *  against the grid in {@link #handleClick}. */
+     *  translate/scale/scroll) bounds from that same render - both needed to hit-test a real mouse
+     *  click against the grid in {@link #handleClick}. The viewport fields are the grid's own current
+     *  on-screen clip box (see {@link #onContainerScreenRender}), used by both {@link #handleClick} and
+     *  {@link #handleScroll} to ignore a mouse event that's actually outside the visible grid. */
     private static int[] lastPos = null;
     private static float lastScale = 1.0f;
+    private static float scrollOffset = 0f;
+    private static float lastMaxScroll = 0f;
+    private static int lastViewportWidthPx = 0;
+    private static int lastViewportHeightPx = 0;
     private static final Map<String, int[]> lastPanelBounds = new LinkedHashMap<>();
     private static final int PLACEHOLDER_HEIGHT = 18;
 
-    private static void renderGrid(GuiGraphicsExtractor graphics, Map<String, List<ItemStack>> storages,
-                                    String prefix, String activeKey) {
+    /** One panel's pre-computed position/size in the grid's LOCAL (pre translate/scale/scroll)
+     *  coordinate space - laid out once per frame by {@link #layoutPanels} so both the total content
+     *  height (for scroll clamping) and the actual draw pass ({@link #renderGrid}) agree exactly on
+     *  where every panel sits, and so an off-screen panel can be skipped without redoing the layout. */
+    private record PanelLayout(String key, List<ItemStack> contents, int x, int y, int height) {
+    }
+
+    /** Lays out every known storage into the 3-column grid, top to bottom - pure layout math, no
+     *  drawing, so it can be reused both to measure the grid's total (unscrolled) content height and
+     *  to actually draw it. */
+    private static List<PanelLayout> layoutPanels(Map<String, List<ItemStack>> storages) {
+        var font = Minecraft.getInstance().font;
+        List<PanelLayout> result = new ArrayList<>();
+        int columns = 3;
+        int col = 0;
+        int rowX = 0;
+        int rowY = 0;
+        int rowTallest = 0;
+        for (Map.Entry<String, List<ItemStack>> entry : storages.entrySet()) {
+            List<ItemStack> contents = entry.getValue();
+            int panelHeight = contents == null
+                    ? PLACEHOLDER_HEIGHT
+                    : Math.max(1, (int) Math.ceil(contents.size() / 9.0)) * SLOT_SIZE + font.lineHeight + 6;
+            result.add(new PanelLayout(entry.getKey(), contents, rowX, rowY, panelHeight));
+            rowTallest = Math.max(rowTallest, panelHeight);
+            col++;
+            if (col >= columns) {
+                col = 0;
+                rowX = 0;
+                rowY += rowTallest + PADDING;
+                rowTallest = 0;
+            } else {
+                rowX += PANEL_WIDTH + PADDING;
+            }
+        }
+        return result;
+    }
+
+    private static void renderGrid(GuiGraphicsExtractor graphics, List<PanelLayout> layout,
+                                    String prefix, String activeKey, int viewportHeightLocal) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
         int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
@@ -414,42 +536,33 @@ public final class StorageOverlayFeature {
         int activeBorder = 0xFFCC6600;
 
         lastPanelBounds.clear();
-        int columns = 3;
-        int col = 0;
-        int rowX = 0;
-        int rowY = 0;
-        int rowTallest = 0;
+        // Per killer560's "scroll on this page" request (2026-09-08): only draw (and only register as
+        // clickable) panels that actually fall within the current scrolled viewport - matches
+        // NoammAddons' own viewTop/viewBottom skip in its drawPages, and keeps an off-screen panel from
+        // being clickable through the scissor clip.
+        int viewTop = (int) scrollOffset;
+        int viewBottom = viewTop + viewportHeightLocal;
 
-        for (Map.Entry<String, List<ItemStack>> entry : storages.entrySet()) {
-            String key = entry.getKey();
-            List<ItemStack> contents = entry.getValue();
+        for (PanelLayout p : layout) {
+            if (p.y() + p.height() < viewTop || p.y() > viewBottom) {
+                continue;
+            }
+            String key = p.key();
+            List<ItemStack> contents = p.contents();
             boolean active = key.equals(activeKey);
-            int panelX = rowX;
-            int panelY = rowY;
+            int panelX = p.x();
+            int panelY = p.y();
+            int panelHeight = p.height();
 
             // Known-to-exist-but-never-opened (from the overview screen) - matches NoammAddons' own
             // "Name - Click to load" placeholder for a page with no data yet.
             if (contents == null) {
-                int panelHeight = PLACEHOLDER_HEIGHT;
                 graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
                 graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, border);
                 graphics.text(font, displayLabel(key, prefix) + " §7- Click to load", panelX + 3, panelY + 5, textColor);
                 lastPanelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, panelHeight});
-                rowTallest = Math.max(rowTallest, panelHeight);
-                col++;
-                if (col >= columns) {
-                    col = 0;
-                    rowX = 0;
-                    rowY += rowTallest + PADDING;
-                    rowTallest = 0;
-                } else {
-                    rowX += PANEL_WIDTH + PADDING;
-                }
                 continue;
             }
-
-            int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
-            int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
 
             graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
             graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
@@ -457,6 +570,7 @@ public final class StorageOverlayFeature {
             graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
             lastPanelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, panelHeight});
 
+            int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
             int gridY = panelY + font.lineHeight + 4;
             // Per killer560's report (2026-09-08): draw the actual slot cells (matching NoammAddons'
             // own drawSlotGrid) so the item area reads as a real grid even for slots with nothing in
@@ -478,17 +592,6 @@ public final class StorageOverlayFeature {
                 // like a real slot - replaces the old manual push/scale/text hack that hand-placed the
                 // count text and inherited the same top-left offset bug.
                 graphics.itemDecorations(font, stack, slotX, slotY);
-            }
-
-            rowTallest = Math.max(rowTallest, panelHeight);
-            col++;
-            if (col >= columns) {
-                col = 0;
-                rowX = 0;
-                rowY += rowTallest + PADDING;
-                rowTallest = 0;
-            } else {
-                rowX += PANEL_WIDTH + PADDING;
             }
         }
     }
@@ -521,8 +624,17 @@ public final class StorageOverlayFeature {
         if (lastPos == null || lastPanelBounds.isEmpty()) {
             return false;
         }
+        // Real bug found and fixed (2026-09-08), per killer560's report that he could no longer reach
+        // his own real inventory: once the grid could grow taller than its own visible/scrolled
+        // viewport, a click below the (now-clipped) grid could still math out to a panel's LOCAL
+        // rectangle from further down the scrolled content and get intercepted - even though nothing
+        // was actually drawn there. Reject anything outside the grid's current on-screen box first.
+        if (mouseX < lastPos[0] || mouseX > lastPos[0] + lastViewportWidthPx
+                || mouseY < lastPos[1] || mouseY > lastPos[1] + lastViewportHeightPx) {
+            return false;
+        }
         double localX = (mouseX - lastPos[0]) / lastScale;
-        double localY = (mouseY - lastPos[1]) / lastScale;
+        double localY = (mouseY - lastPos[1]) / lastScale + scrollOffset;
         for (Map.Entry<String, int[]> entry : lastPanelBounds.entrySet()) {
             String key = entry.getKey();
             if (key.equals(activeKey)) {

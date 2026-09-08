@@ -47,4 +47,18 @@ public abstract class StorageOverlayContainerMixin extends Screen {
             cir.setReturnValue(true);
         }
     }
+
+    /** Per killer560's "I need to be able to scroll on this page" request (2026-09-08) - lets the
+     *  mouse wheel scroll the grid while the cursor is over it. */
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$scrollStorageOverlay(double mouseX, double mouseY, double scrollX, double scrollY,
+                                                       CallbackInfoReturnable<Boolean> cir) {
+        String title = this.getTitle().getString();
+        if (!StorageOverlayFeature.shouldHideVanilla(title)) {
+            return;
+        }
+        if (StorageOverlayFeature.handleScroll(mouseX, mouseY, scrollY)) {
+            cir.setReturnValue(true);
+        }
+    }
 }
