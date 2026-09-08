@@ -58,4 +58,19 @@ public abstract class StorageOverlaySlotMixin {
             ci.cancel();
         }
     }
+
+    /** Real bug found and fixed (2026-09-08), per killer560's screenshot showing real leftover grey
+     *  text (e.g. "Greater Backpack (Slot #9)") sitting right above our own grid panels - the vanilla
+     *  title/"Inventory" labels are drawn by a separate method from the background/slots already
+     *  hidden above, so they were never actually suppressed. Cancels both for any tracked screen. */
+    @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$hideStorageLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
+        AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        if (!StorageOverlayConfig.getInstance().isEnabled()) {
+            return;
+        }
+        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
+            ci.cancel();
+        }
+    }
 }

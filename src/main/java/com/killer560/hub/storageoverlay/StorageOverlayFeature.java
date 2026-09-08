@@ -146,7 +146,15 @@ public final class StorageOverlayFeature {
     private static void captureIfChanged(ChestMenu menu, String key) {
         List<ItemStack> contents = new ArrayList<>();
         int containerSlotCount = Math.max(0, menu.slots.size() - 36);
+        // Real slots 0-8 (row 1 of the container) are Hypixel's own menu chrome - a "Go Back" barrier,
+        // a sort/convert arrow, and decorative navigation glass panes, never real storage contents.
+        // Ported directly from NoammAddons' own savePage (StorageOverlay.kt:154-155), which captures
+        // gui.slots.subList(9, end) for exactly this reason - per killer560's "I dont want that top
+        // line shown" report (2026-09-08).
         for (Slot slot : menu.slots) {
+            if (slot.index < 9) {
+                continue;
+            }
             if (slot.index >= containerSlotCount) {
                 break;
             }
@@ -459,16 +467,17 @@ public final class StorageOverlayFeature {
                 if (stack == null || stack.isEmpty()) {
                     continue;
                 }
-                int slotX = panelX + (i % 9) * SLOT_SIZE + 2;
-                int slotY = gridY + (i / 9) * SLOT_SIZE;
+                // +1/+1: drawSlotCells' grid lines sit exactly on each cell's boundary, so the cell's
+                // actual 16x16 interior (matching vanilla's own slot inset) starts one pixel in from
+                // its top-left corner - drawing flush with the cell origin (the old behavior) put the
+                // icon straddling the border line above/left of where it visually belonged.
+                int slotX = panelX + (i % 9) * SLOT_SIZE + 2 + 1;
+                int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
                 graphics.item(stack, slotX, slotY);
-                if (stack.getCount() > 1) {
-                    graphics.pose().pushMatrix();
-                    graphics.pose().translate(slotX, slotY);
-                    graphics.pose().scale(0.6f, 0.6f);
-                    graphics.text(font, String.valueOf(stack.getCount()), 10, 10, textColor);
-                    graphics.pose().popMatrix();
-                }
+                // Vanilla's own count/durability-bar/cooldown overlay, positioned and scaled exactly
+                // like a real slot - replaces the old manual push/scale/text hack that hand-placed the
+                // count text and inherited the same top-left offset bug.
+                graphics.itemDecorations(font, stack, slotX, slotY);
             }
 
             rowTallest = Math.max(rowTallest, panelHeight);
