@@ -72,6 +72,13 @@ public final class ExperimentsConfig {
      *  explicit "this key should work even on the prevent keypress option," since that setting only
      *  ever blocks input routed through a container screen's own listeners. */
     private int emergencyCancelKeyCode = -1;
+    /** Solver Only mode only: while on (default), a manual click on the wrong Chronomatron/
+     *  Ultrasequencer slot is swallowed instead of reaching the game, per
+     *  {@link ExperimentsFeature#shouldBlockManualMisclick}. Holding Shift always bypasses the block
+     *  regardless of this setting; this toggle only controls whether the protection exists at all for
+     *  a plain (non-Shift) click. Previously always-on with no way to disable - promoted to a real
+     *  setting per killer560's request (2026-09-08). */
+    private boolean clickProtectionEnabled = true;
 
     private ExperimentsConfig() {
     }
@@ -115,6 +122,7 @@ public final class ExperimentsConfig {
                     ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("randomDelayMaxMs").getAsInt())) : 0;
             cfg.autoSwapGuardianPet = obj.has("autoSwapGuardianPet") && obj.get("autoSwapGuardianPet").getAsBoolean();
             cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? obj.get("emergencyCancelKeyCode").getAsInt() : -1;
+            cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new ExperimentsConfig();
@@ -138,6 +146,7 @@ public final class ExperimentsConfig {
             obj.addProperty("randomDelayMaxMs", randomDelayMaxMs);
             obj.addProperty("autoSwapGuardianPet", autoSwapGuardianPet);
             obj.addProperty("emergencyCancelKeyCode", emergencyCancelKeyCode);
+            obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -252,5 +261,13 @@ public final class ExperimentsConfig {
 
     public void setEmergencyCancelKeyCode(int emergencyCancelKeyCode) {
         this.emergencyCancelKeyCode = emergencyCancelKeyCode;
+    }
+
+    public boolean isClickProtectionEnabled() {
+        return clickProtectionEnabled;
+    }
+
+    public void setClickProtectionEnabled(boolean clickProtectionEnabled) {
+        this.clickProtectionEnabled = clickProtectionEnabled;
     }
 }

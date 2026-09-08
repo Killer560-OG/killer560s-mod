@@ -472,7 +472,19 @@ public final class ExperimentsFeature {
      *  always exactly 2 tall" pairing, which killer560's 2026-09-08 report and screenshot showed is wrong -
      *  the very first tier's blocks are 3 tall, not 2. Fixed by not assuming any fixed height/offset at
      *  all: reads the real item at {@code primarySlot} and highlights every OTHER slot on the board
-     *  showing that exact same item (color), whatever the real run length turns out to be. */
+     *  showing that exact same item (color), whatever the real run length turns out to be.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report of the highlight/tracker getting
+     *  confused ("wanted me to immediately click it twice") whenever the SAME note color reappeared
+     *  later in the sequence with a gap (other colors) in between: matching by color across the WHOLE
+     *  board, with no column restriction at all, also lit up a completely different, unrelated note
+     *  that just happens to reuse the same block color for a different sequence position - not an
+     *  actual multi-block run of the CURRENT note. {@link ExperimentSolver#confirmManualChronomatronClick}
+     *  matches the same way (by color, not exact slot), so clicking that unrelated note was also
+     *  silently accepted as fulfilling the current step, desyncing the tracked index. Fixed by
+     *  restricting the "run" to the SAME COLUMN as {@code primarySlot} (a real note's multi-row run
+     *  never spans columns in this GUI layout - only its height varies between tiers), so a
+     *  same-colored note in a different column is never treated as part of the same run. */
     private static void highlightMatchingChronomatronSlots(GuiGraphicsExtractor graphics, ChestMenu menu, int primarySlot, int left, int top, int color) {
         String itemId = null;
         for (ExperimentSolver.Cell cell : lastCells) {
@@ -484,8 +496,10 @@ public final class ExperimentsFeature {
         if (itemId == null || itemId.isEmpty()) {
             return;
         }
+        int column = primarySlot % 9;
         for (ExperimentSolver.Cell cell : lastCells) {
             if (cell.slot() == primarySlot || cell.slot() < 10 || cell.slot() > 43) continue;
+            if (cell.slot() % 9 != column) continue;
             if (itemId.equals(cell.itemId())) {
                 highlightSlot(graphics, menu, cell.slot(), left, top, color, null);
             }
@@ -830,17 +844,31 @@ public final class ExperimentsFeature {
 
     /** Per killer560's explicit request (2026-09-08): in Solver Only mode, prevent clicking anything
      *  except the exact slot(s) the solver currently says are correct for Chronomatron/Ultrasequencer -
-     *  real Shift-held override still lets a click through regardless. Deliberately never applies to
-     *  Superpairs - that puzzle's whole mechanic is clicking still-covered tiles to explore them, so
-     *  almost any click is legitimate, not a misclick. Also doubles as the mechanism that advances
+     *  real Shift-held override still lets a click through regardless. Gated on
+     *  {@link ExperimentsConfig#isClickProtectionEnabled()} (added 2026-09-08 per killer560's request -
+     *  previously always-on with no way to disable it). Deliberately never applies to Superpairs - that
+     *  puzzle's whole mechanic is clicking still-covered tiles to explore them, so almost any click is
+     *  legitimate, not a misclick. Also doubles as the mechanism that advances
      *  {@link ExperimentSolver#confirmManualChronomatronClick}/{@code confirmManualUltrasequencerClick}
      *  when the click IS correct - Solver Only never routes through the autonomous decide-and-advance
      *  path, so without this the highlight would freeze on the same slot forever regardless of what
      *  killer560 actually clicked.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report that Shift-held did not actually
+     *  override the block: the old code returned early on {@code event.hasShiftDown()} BEFORE ever
+     *  calling {@code confirmManualChronomatronClick}/{@code confirmManualUltrasequencerClick} - so a
+     *  Shift-click on the genuinely correct slot got let through to the game (unblocked, as intended)
+     *  but never advanced the solver's own tracked index, desyncing the highlight/tracker from what had
+     *  actually been clicked. Every click AFTER that one then looked wrong too, since the tracker was
+     *  still expecting the slot from before the Shift-click - indistinguishable from "the override
+     *  doesn't work" even though the click itself did go through. Fixed by always attempting to confirm
+     *  the click first (a click on the wrong slot never advances anything either way - see
+     *  {@code confirmManualChronomatronClick}'s own early-return), and only using Shift to decide
+     *  whether an incorrect click should still be let through.
      *  @return true if the click should be BLOCKED (cancelled). */
     public static boolean shouldBlockManualMisclick(MouseButtonEvent event) {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!cfg.isEnabled() || cfg.isAutonomousMode() || event.hasShiftDown()) {
+        if (!cfg.isEnabled() || !cfg.isClickProtectionEnabled() || cfg.isAutonomousMode()) {
             return false;
         }
         if (lastLoggedMode != ExperimentSolver.Mode.CHRONOMATRON && lastLoggedMode != ExperimentSolver.Mode.ULTRASEQUENCER) {
@@ -859,7 +887,7 @@ public final class ExperimentsFeature {
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, lastCells)
                 : SOLVER.confirmManualUltrasequencerClick(slot);
-        return !correct;
+        return !correct && !event.hasShiftDown();
     }
 
     /** @return the slot index whose real screen rectangle contains ({@code mouseX}, {@code mouseY}), or

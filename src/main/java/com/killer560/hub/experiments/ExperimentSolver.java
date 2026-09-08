@@ -263,17 +263,29 @@ final class ExperimentSolver {
      *  when the click matches, so the highlight stays in sync with killer560's own clicks instead of
      *  never moving.
      *  <p>
-     *  Matches by real ITEM (color), not the exact recorded slot - a note can render as a run of more
-     *  than one identical-colored block (see {@link com.killer560.hub.experiments.ExperimentsFeature#superpairsGhostIcon}'s
-     *  sibling fix, {@code highlightMatchingChronomatronSlots}), and clicking ANY block in that run is
-     *  equally correct, not just the one slot the solver happened to record.
-     *  @return true (and advances the index) if {@code slot} matches the expected next color, false
-     *  (no state change) otherwise. */
+     *  Matches by real ITEM (color) within the same COLUMN as the expected slot, not the exact recorded
+     *  slot - a note can render as a multi-row run of identical-colored blocks in that one column (see
+     *  {@link com.killer560.hub.experiments.ExperimentsFeature#superpairsGhostIcon}'s sibling fix,
+     *  {@code highlightMatchingChronomatronSlots}), and clicking ANY block in that run is equally
+     *  correct, not just the one slot the solver happened to record.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report ("wanted me to immediately click it
+     *  twice" after a gap): matching by color ALONE, with no column check, also accepted a click on a
+     *  completely different note elsewhere on the board that just happens to reuse the same block color
+     *  for a later/earlier sequence position - not an actual same-note run. Added the column restriction
+     *  (a real run never spans columns) so an unrelated same-colored note in another column can no
+     *  longer be mistaken for - or silently satisfy - the current step.
+     *  @return true (and advances the index) if {@code slot} matches the expected next color in the same
+     *  column, false (no state change) otherwise. */
     boolean confirmManualChronomatronClick(int slot, List<Cell> cells) {
         if (!chronomatronRevealLatched || chronomatronClickIndex >= chronomatron.size()) {
             return false;
         }
-        Cell expected = cell(cells, chronomatron.get(chronomatronClickIndex));
+        int expectedSlot = chronomatron.get(chronomatronClickIndex);
+        if (expectedSlot % 9 != slot % 9) {
+            return false;
+        }
+        Cell expected = cell(cells, expectedSlot);
         Cell clicked = cell(cells, slot);
         if (expected == null || clicked == null || expected.empty() || clicked.empty()) {
             return false;

@@ -228,6 +228,18 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
                         c.save();
                         requestRebuild.run();
                     }).bounds(titanicFieldX + titanicFieldWidth + GAP, y, contentWidth - titanicSliderWidth - titanicFieldWidth - 2 * GAP, 20).build());
+        } else {
+            // Per killer560's request (2026-09-08): expose the Chronomatron/Ultrasequencer misclick
+            // protection as a real setting instead of always-on with no way to disable it. Only shown
+            // in Solver Only mode - it has no effect at all in Autonomous (see
+            // ExperimentsFeature#shouldBlockManualMisclick), which never routes real clicks through it.
+            widgets.add(SettingsButtonWidget.builder(clickProtectionText(), btn -> {
+                        ExperimentsConfig c = ExperimentsConfig.getInstance();
+                        c.setClickProtectionEnabled(!c.isClickProtectionEnabled());
+                        c.save();
+                        btn.setMessage(clickProtectionText());
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += 24;
         }
 
         return widgets;
@@ -300,6 +312,13 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
     private static Component guardianSwapText() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         return Component.literal("Auto-Swap to Guardian Pet: " + (cfg.isAutoSwapGuardianPet() ? "§aON" : "§cOFF"));
+    }
+
+    /** Only ever built while {@code autonomous} is false (see {@link #buildWidgets}) - it has no effect
+     *  in Autonomous mode, which never routes real clicks through the misclick-protection check. */
+    private static Component clickProtectionText() {
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        return Component.literal("Click Protection: " + (cfg.isClickProtectionEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component emergencyCancelKeyText() {
