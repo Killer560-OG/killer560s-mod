@@ -284,16 +284,6 @@ final class ExperimentSolver {
         int expectedSlot = chronomatron.get(chronomatronClickIndex);
         Cell expected = cell(cells, expectedSlot);
         Cell clicked = cell(cells, slot);
-        // Diagnostic logging (2026-09-08), per killer560's report that clicking a WRONG slot close to
-        // the correct one sometimes isn't blocked while a far-away wrong slot correctly is - not
-        // reproduced or root-caused yet, so this doesn't change the matching logic itself (guessing at
-        // Hypixel's exact mechanic without real data has burned this exact code area before). Logs
-        // every real manual click evaluation so the next report can come with an actual log instead of
-        // another guess.
-        LOGGER.info("confirmManualChronomatronClick: clickedSlot={} (col={}) expectedSlot={} (col={}) "
-                        + "clickedItem={} expectedItem={}",
-                slot, slot % 9, expectedSlot, expectedSlot % 9,
-                clicked == null ? "null" : clicked.itemId(), expected == null ? "null" : expected.itemId());
         if (expectedSlot % 9 != slot % 9) {
             return false;
         }

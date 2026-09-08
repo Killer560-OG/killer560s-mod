@@ -927,16 +927,21 @@ public final class ExperimentsFeature {
         int left = accessor.killer560smod$getLeftPos();
         int top = accessor.killer560smod$getTopPos();
         int slot = hitTestSlot(menu, left, top, event.x(), event.y());
-        // Diagnostic logging (2026-09-08), see the matching note in
-        // ExperimentSolver#confirmManualChronomatronClick - not root-caused yet.
-        LOGGER.info("shouldBlockManualMisclick: mouse=({}, {}) leftPos={} topPos={} hitTestSlot={}",
-                event.x(), event.y(), left, top, slot);
         int containerSlotCount = menu.slots.size() - 36;
         if (slot < 0 || slot >= containerSlotCount) {
             return false;
         }
+        // Real bug found and fixed (2026-09-08), per killer560's report that clicking fast sometimes
+        // let a click through it should have blocked (or blocked one it shouldn't have): this used to
+        // pass lastCells - a snapshot taken once per client TICK (up to 50ms stale) - into the item
+        // comparison below. A fast click can land mid-tick, after the slot's real item has already
+        // moved on to its next animation frame (Hypixel flips these between a stained-glass and a
+        // terracotta variant of the same color as part of its own flash cue) but before lastCells
+        // catches up, so the comparison could read a momentarily wrong or blank item for a slot that's
+        // actually correct right now. Re-snapshotting live at the exact moment of the click removes
+        // that up-to-one-tick staleness window entirely.
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
-                ? SOLVER.confirmManualChronomatronClick(slot, lastCells)
+                ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot);
         return !correct && !event.hasShiftDown();
     }
