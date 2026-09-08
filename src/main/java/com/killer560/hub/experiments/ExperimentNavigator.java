@@ -436,6 +436,30 @@ final class ExperimentNavigator {
         doneReason = null;
     }
 
+    /** Read-only tier-screen scan for Solver Only mode's max-clicks chat notification - reuses the
+     *  exact same "Chain of N:"/"Series of N:" lore detection {@link #nextNavigationClick} does during
+     *  autonomous tier-picking (per killer560's explicit "use the auto detect system from the
+     *  automated portion"), but doesn't touch this navigator's own run-progress state or flag a
+     *  Titanic purchase - Solver Only never navigates or buys anything on its own, killer560 picks the
+     *  tier himself, this only needs to notice it happened. Feeds the same {@link #pendingRoundsNeeded}
+     *  queue {@link ExperimentsFeature#logModeChangeIfAny} already consumes from once the puzzle
+     *  actually starts, so no separate plumbing is needed on the reading side. Safe to call every tick
+     *  regardless of mode - a no-op unless a real tier-pick screen with actual tier items is open. */
+    void peekTierScreenForRoundsNeeded(ChestMenu menu, String title) {
+        boolean looksLikeGameScreen = title.contains("Chronomatron") || title.contains("Ultrasequencer");
+        if (!looksLikeGameScreen) {
+            return;
+        }
+        TierScan scan = scanTiers(menu);
+        if (scan.bestSlot() < 0) {
+            return;
+        }
+        int discovered = readMaxClickBonusRounds(scan.bestStack());
+        if (discovered > 0) {
+            pendingRoundsNeeded = discovered;
+        }
+    }
+
     /** @return the round at which the max Superpairs-click bonus is reached, per the chosen tier's
      *  own "Chain of N:"/"Series of N:" lore (real Hypixel text, per SkyHanni), consuming it so it's
      *  only applied to the very next game that starts - or -1 if none has been seen. */

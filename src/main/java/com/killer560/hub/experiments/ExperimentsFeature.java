@@ -77,6 +77,9 @@ public final class ExperimentsFeature {
      *  lore by the navigator on the way in - -1 means none was seen, fall back to the configured
      *  default. */
     private static int activeRoundsNeeded = -1;
+    /** Solver Only's max-clicks chat notification only ever fires once per round - reset alongside
+     *  {@link #activeRoundsNeeded} whenever {@link #logModeChangeIfAny} sees the puzzle mode change. */
+    private static boolean maxClicksNotifiedThisRound = false;
     /** The entity killer560 himself last right-clicked - captured passively via {@link UseEntityCallback}
      *  (never our own synthetic clicks, which go through {@code handleContainerInput} and never fire
      *  this), so this stays pinned to the real Experimentation Table entity for as long as killer560
@@ -636,9 +639,17 @@ public final class ExperimentsFeature {
                 // "that mode shouldn't click at all inside of the exp table. It should only
                 // highlight the correct blocks the exact same way skyhanni does."
                 SOLVER.observe(cells, cfg.isSuperpairsValuableOnly(), now);
+                maybeNotifyMaxClicksReached(mode, cfg);
             }
         } else {
             lastCells = List.of();
+            // Solver Only has no navigator of its own driving it to the tier-pick screen - killer560
+            // clicks a tier himself - so this passively scans whatever screen is open for the same
+            // rounds-needed lore Autonomous mode's navigator would have discovered while picking a
+            // tier itself. No-op unless a real tier-pick screen is actually showing right now.
+            if (!cfg.isAutonomousMode()) {
+                NAVIGATOR.peekTierScreenForRoundsNeeded(menu, title);
+            }
         }
 
         if (cfg.isAutonomousMode() && armed) {
@@ -818,15 +829,49 @@ public final class ExperimentsFeature {
         // MAX_CLICKS: only stop once real "Chain of N:"/"Series of N:" lore was actually found -
         // no manual fallback number, per killer560's explicit "I want skyhanni's format of auto
         // detection not manual choice." If it's never found, this strategy just never backs out.
-        // Threshold mirrors SkyHanni's own comparison exactly (SuperpairsClicksAlert.kt): Chronomatron
-        // checks round > roundsNeeded, Ultrasequencer checks round > roundsNeeded - 1 (a documented
-        // Hypixel bug makes Ultrasequencer need one fewer round) - both rewritten here as >= so they
-        // compose with currentChainLength() cleanly.
+        return roundsAtOrOverMaxClicksThreshold(mode);
+    }
+
+    /** The lore-based "Chain of N:"/"Series of N:" auto-detect threshold itself, independent of
+     *  {@link ExperimentStopStrategy} - Solver Only's max-clicks chat notification (see
+     *  {@link #maybeNotifyMaxClicksReached}) always uses this specific detection regardless of the
+     *  configured stop strategy, since Solver Only doesn't expose or use that setting at all (it's an
+     *  Autonomous-only concept - see {@code ExperimentsTab}). Threshold mirrors SkyHanni's own
+     *  comparison exactly (SuperpairsClicksAlert.kt): Chronomatron checks round > roundsNeeded,
+     *  Ultrasequencer checks round > roundsNeeded - 1 (a documented Hypixel bug makes Ultrasequencer
+     *  need one fewer round) - both rewritten here as >= so they compose with currentChainLength()
+     *  cleanly. */
+    private static boolean roundsAtOrOverMaxClicksThreshold(ExperimentSolver.Mode mode) {
         if (activeRoundsNeeded <= 0) {
             return false;
         }
         int threshold = mode == ExperimentSolver.Mode.CHRONOMATRON ? activeRoundsNeeded + 1 : activeRoundsNeeded;
         return SOLVER.currentChainLength() >= threshold;
+    }
+
+    /** Solver Only has no stop condition of its own - it never backs out of anything - so per
+     *  killer560's request (2026-09-08), this sends a real client-side chat message (not the action-bar
+     *  {@link ModOverlayMessage} popup - a message that stays in the chat log) the first time the same
+     *  max-clicks threshold Autonomous mode would have stopped at is reached, gated behind
+     *  {@link ExperimentsConfig#isNotifyMaxClicksReached()} so it's fully optional. Only ever fires
+     *  once per round - {@link #maxClicksNotifiedThisRound} is reset in {@link #logModeChangeIfAny}. */
+    private static void maybeNotifyMaxClicksReached(ExperimentSolver.Mode mode, ExperimentsConfig cfg) {
+        if (!cfg.isNotifyMaxClicksReached() || maxClicksNotifiedThisRound) {
+            return;
+        }
+        if (mode != ExperimentSolver.Mode.CHRONOMATRON && mode != ExperimentSolver.Mode.ULTRASEQUENCER) {
+            return;
+        }
+        if (!roundsAtOrOverMaxClicksThreshold(mode)) {
+            return;
+        }
+        maxClicksNotifiedThisRound = true;
+        var player = Minecraft.getInstance().player;
+        if (player != null) {
+            player.sendSystemMessage(Component.literal(
+                    "§b[Killer560's Mod] §fYou've reached the max rounds needed for max clicks (round "
+                            + activeRoundsNeeded + ")."));
+        }
     }
 
     /** Whether killer560's own mouse/keyboard input to a container screen should be swallowed right
@@ -879,7 +924,13 @@ public final class ExperimentsFeature {
         }
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
         ChestMenu menu = screen.getMenu();
-        int slot = hitTestSlot(menu, accessor.killer560smod$getLeftPos(), accessor.killer560smod$getTopPos(), event.x(), event.y());
+        int left = accessor.killer560smod$getLeftPos();
+        int top = accessor.killer560smod$getTopPos();
+        int slot = hitTestSlot(menu, left, top, event.x(), event.y());
+        // Diagnostic logging (2026-09-08), see the matching note in
+        // ExperimentSolver#confirmManualChronomatronClick - not root-caused yet.
+        LOGGER.info("shouldBlockManualMisclick: mouse=({}, {}) leftPos={} topPos={} hitTestSlot={}",
+                event.x(), event.y(), left, top, slot);
         int containerSlotCount = menu.slots.size() - 36;
         if (slot < 0 || slot >= containerSlotCount) {
             return false;
@@ -1019,6 +1070,7 @@ public final class ExperimentsFeature {
             LOGGER.info("Experiment mode changed: {} -> {} (title=\"{}\")", lastLoggedMode, mode, title);
             lastLoggedMode = mode;
             lastLoggedControlItem = null;
+            maxClicksNotifiedThisRound = false;
             if (mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER) {
                 int discovered = NAVIGATOR.takePendingRoundsNeeded();
                 activeRoundsNeeded = discovered;

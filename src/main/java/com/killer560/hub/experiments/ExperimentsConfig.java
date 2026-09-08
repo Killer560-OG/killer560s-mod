@@ -79,6 +79,11 @@ public final class ExperimentsConfig {
      *  a plain (non-Shift) click. Previously always-on with no way to disable - promoted to a real
      *  setting per killer560's request (2026-09-08). */
     private boolean clickProtectionEnabled = true;
+    /** Solver Only mode only: sends a real client-side chat message once the max-clicks threshold
+     *  (the same "Chain of N:"/"Series of N:" lore auto-detection Autonomous mode's MAX_CLICKS stop
+     *  strategy uses) is reached, since Solver Only never stops or announces anything on its own.
+     *  Per killer560's request (2026-09-08). */
+    private boolean notifyMaxClicksReached = true;
 
     private ExperimentsConfig() {
     }
@@ -123,6 +128,7 @@ public final class ExperimentsConfig {
             cfg.autoSwapGuardianPet = obj.has("autoSwapGuardianPet") && obj.get("autoSwapGuardianPet").getAsBoolean();
             cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? obj.get("emergencyCancelKeyCode").getAsInt() : -1;
             cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
+            cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new ExperimentsConfig();
@@ -147,6 +153,7 @@ public final class ExperimentsConfig {
             obj.addProperty("autoSwapGuardianPet", autoSwapGuardianPet);
             obj.addProperty("emergencyCancelKeyCode", emergencyCancelKeyCode);
             obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
+            obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -269,5 +276,13 @@ public final class ExperimentsConfig {
 
     public void setClickProtectionEnabled(boolean clickProtectionEnabled) {
         this.clickProtectionEnabled = clickProtectionEnabled;
+    }
+
+    public boolean isNotifyMaxClicksReached() {
+        return notifyMaxClicksReached;
+    }
+
+    public void setNotifyMaxClicksReached(boolean notifyMaxClicksReached) {
+        this.notifyMaxClicksReached = notifyMaxClicksReached;
     }
 }

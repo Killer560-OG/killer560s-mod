@@ -240,6 +240,18 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(clickProtectionText());
                     }).bounds(contentX, y, contentWidth, 20).build());
             y += 24;
+
+            // Per killer560's request (2026-09-08): Solver Only has no stop condition of its own, so
+            // this is a client-side chat message (not the action-bar popup) announcing when the same
+            // lore-based max-clicks threshold Autonomous mode would stop at is reached - see
+            // ExperimentsFeature#maybeNotifyMaxClicksReached.
+            widgets.add(SettingsButtonWidget.builder(notifyMaxClicksText(), btn -> {
+                        ExperimentsConfig c = ExperimentsConfig.getInstance();
+                        c.setNotifyMaxClicksReached(!c.isNotifyMaxClicksReached());
+                        c.save();
+                        btn.setMessage(notifyMaxClicksText());
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += 24;
         }
 
         return widgets;
@@ -319,6 +331,13 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
     private static Component clickProtectionText() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         return Component.literal("Click Protection: " + (cfg.isClickProtectionEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    /** Only ever built while {@code autonomous} is false (see {@link #buildWidgets}) - Autonomous mode
+     *  already announces its own max-clicks exit through the navigator, it doesn't need this too. */
+    private static Component notifyMaxClicksText() {
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        return Component.literal("Notify Max Clicks Reached: " + (cfg.isNotifyMaxClicksReached() ? "§aON" : "§cOFF"));
     }
 
     private static Component emergencyCancelKeyText() {
