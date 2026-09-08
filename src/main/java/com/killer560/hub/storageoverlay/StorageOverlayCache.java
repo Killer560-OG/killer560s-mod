@@ -114,10 +114,12 @@ public final class StorageOverlayCache {
     }
 
     /** Registers a storage as known to exist (a real icon on the "Storage" overview screen) without
-     *  real contents yet - a no-op if we already have real contents for this key. */
+     *  real contents yet - a no-op if we already have real contents for this key, or if it was
+     *  already marked (this is called every frame while the overview is open, same self-heal reason
+     *  as {@code captureIfChanged} - the set-membership check keeps that from writing to disk on
+     *  every single frame once it's already known). */
     public void markKnown(String key) {
-        if (!encoded.containsKey(key)) {
-            knownOnly.add(key);
+        if (!encoded.containsKey(key) && knownOnly.add(key)) {
             save();
         }
     }

@@ -73,9 +73,10 @@ public final class StorageOverlayFeature {
                 return "Storage Overlay";
             }
 
-            // Per killer560's report (2026-09-08): the old default (pinned near the right edge)
-            // looked "way off center." Centers the grid on screen instead, same spot the real
-            // container GUI is already centered at by vanilla.
+            // Per killer560's reports (2026-09-08): first centered horizontally AND vertically, which
+            // pushed the grid down into where the real (still vanilla-positioned) player inventory
+            // naturally sits, crowding it out. Still horizontally centered, but now top-aligned with a
+            // small margin instead - leaves the inventory fully visible below with room to breathe.
             @Override
             public int defaultX() {
                 return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
@@ -83,7 +84,7 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultY() {
-                return (Minecraft.getInstance().getWindow().getGuiScaledHeight() - height()) / 2;
+                return 20;
             }
 
             @Override
@@ -195,6 +196,7 @@ public final class StorageOverlayFeature {
      *  page that already has real logged contents. */
     private static void scanOverview(ChestMenu menu) {
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
+        int ownedCount = 0;
         for (Slot slot : menu.slots) {
             String key = overviewSlotToKey(slot.index);
             if (key == null) {
@@ -206,10 +208,12 @@ public final class StorageOverlayFeature {
             boolean owned = stack != null && !stack.isEmpty() && !locked;
             if (owned) {
                 cache.markKnown(key);
+                ownedCount++;
             } else {
                 cache.unmarkKnown(key);
             }
         }
+        LOGGER.info("Scanned Storage overview: {} owned page(s)/backpack(s) found", ownedCount);
     }
 
     private static String overviewSlotToKey(int slotIndex) {
@@ -267,6 +271,16 @@ public final class StorageOverlayFeature {
             // hidden here, outline the player's own inventory too so it doesn't look like it's just
             // floating with nothing to visually anchor it.
             drawPlayerInventoryOutline(screen, graphics);
+            // Real bug found and fixed (2026-09-08), per killer560's report that dummy pages still
+            // weren't appearing: scanOverview had the exact same too-early-capture problem
+            // captureIfChanged was already fixed for, but only ever ran once (from onScreenOpen) with
+            // no re-attempt - if the overview's own icons hadn't synced from Hypixel yet on that first
+            // frame, everything read as empty and nothing ever got marked known. Re-running it here
+            // every frame (markKnown/unmarkKnown are both no-ops once nothing's actually changing, so
+            // this doesn't hammer disk once it settles) self-heals the same way captureIfChanged does.
+            if (isOverview && screen.getMenu() instanceof ChestMenu overviewMenu) {
+                scanOverview(overviewMenu);
+            }
             if (activeKey != null && screen.getMenu() instanceof ChestMenu activeMenu) {
                 // Re-attempts the capture every frame (cheap - see captureIfChanged) so a too-early
                 // scan self-heals the moment Hypixel's real item data actually syncs in, instead of
@@ -279,9 +293,17 @@ public final class StorageOverlayFeature {
                 return;
             }
             // Ender Chest pages before Backpacks, then numerically within each - matches the natural
-            // reading order NoammAddons' own StoragePage.compareTo gives. A null value here means
-            // "known to exist (from the overview screen) but not opened/logged yet" - see scanOverview.
-            Map<String, List<ItemStack>> ordered = new TreeMap<>(StorageOverlayFeature::compareStorageKeys);
+            // reading order NoammAddons' own StoragePage.compareTo gives. Real bug found and fixed
+            // (2026-09-08), per killer560's screenshot showing "Backpack #14" before "Backpack #5":
+            // this used to be a plain string compare on the whole key, which sorts "backpack_14"
+            // before "backpack_2" lexicographically (and Backpacks before Ender Chest entirely, since
+            // 'b' < 'e') - see storageOrderKey for the real fix. A null value here means "known to
+            // exist (from the overview screen) but not opened/logged yet" - see scanOverview.
+            Map<String, List<ItemStack>> ordered = new TreeMap<>((a, b) -> {
+                int[] oa = storageOrderKey(a, prefix);
+                int[] ob = storageOrderKey(b, prefix);
+                return oa[0] != ob[0] ? Integer.compare(oa[0], ob[0]) : Integer.compare(oa[1], ob[1]);
+            });
             for (String key : keys) {
                 ordered.put(key, StorageOverlayCache.getInstance().get(key));
             }
@@ -303,8 +325,26 @@ public final class StorageOverlayFeature {
         }
     }
 
-    private static int compareStorageKeys(String a, String b) {
-        return a.compareTo(b);
+    /** @return {@code [type, number]} for a storage key - type 0 = Ender Chest, 1 = Backpack (so
+     *  Ender Chest pages always sort first), number = the real numeric id parsed as an int (not
+     *  compared as a string, which would put "14" before "5"). Used only for ordering the grid. */
+    private static int[] storageOrderKey(String key, String prefix) {
+        String local = key.substring(prefix.length() + 1);
+        if (local.startsWith("enderchest_")) {
+            return new int[]{0, parseIntSafe(local.substring("enderchest_".length()))};
+        }
+        if (local.startsWith("backpack_")) {
+            return new int[]{1, parseIntSafe(local.substring("backpack_".length()))};
+        }
+        return new int[]{2, 0};
+    }
+
+    private static int parseIntSafe(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     /** Draws a border around the player's own 36-slot inventory area (unaffected by the vanilla-hide
