@@ -2,14 +2,12 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
-import com.killer560.hub.nofire.NoFireConfig;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -31,16 +29,6 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("- Account Switcher: \"Swap Accounts\" button on the main menu"),
-                Minecraft.getInstance().font));
-        y += 16;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("- Proxy Client: \"Proxy: Enabled/Disabled\" button on the multiplayer screen"),
-                Minecraft.getInstance().font));
-        y += 32;
-
         Component keybindLabel = listening
                 ? Component.literal("Press any key...")
                 : keybindText();
@@ -60,14 +48,6 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
                     WindowModeFeature.toggle();
                     btn.setMessage(borderlessText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 26;
-
-        widgets.add(SettingsButtonWidget.builder(noFireText(), btn -> {
-                    NoFireConfig cfg = NoFireConfig.getInstance();
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    btn.setMessage(noFireText());
-                }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
     }
@@ -85,11 +65,6 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
     private static Component borderlessText() {
         return Component.literal("Borderless Fullscreen: "
                 + (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component noFireText() {
-        return Component.literal("No Fire Overlay: "
-                + (NoFireConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component keybindText() {
