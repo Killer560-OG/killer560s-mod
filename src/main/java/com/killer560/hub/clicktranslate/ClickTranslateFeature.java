@@ -69,8 +69,16 @@ public final class ClickTranslateFeature {
         if (!(custom.payload().orElse(null) instanceof StringTag stringTag) || stringTag.value().isBlank()) {
             return true;
         }
-        if (CopyChatConfig.getInstance().isEnabled() && CopyChatFeature.isShiftDown()) {
-            CopyChatFeature.copyToClipboard(ChatFormatting.stripFormatting(stringTag.value()));
+        // Per killer560's "make sure that my translate mod only fires if i am pressing lmb on a message
+        // ... it should not fire at the same time i copy" request (2026-09-09, round 12): checking shift
+        // FIRST and always consuming the click when it's held - regardless of whether Copy Chat itself
+        // is toggled on - means a Shift+Click can never also translate, even if Copy Chat happens to be
+        // off. Used to only check this when Copy Chat was enabled, so a Shift+Click with Copy Chat off
+        // fell straight through to translate below.
+        if (CopyChatFeature.isShiftDown()) {
+            if (CopyChatConfig.getInstance().isEnabled()) {
+                CopyChatFeature.copyToClipboard(ChatFormatting.stripFormatting(stringTag.value()));
+            }
             return true;
         }
         if (!ClickTranslateConfig.getInstance().isEnabled()) {
@@ -110,8 +118,10 @@ public final class ClickTranslateFeature {
             String fromSuffix = (fromCode == null || fromCode.isBlank())
                     ? "" : " §7(from " + TranslateLanguages.nameForCode(fromCode) + ")";
             String targetName = TranslateLanguages.nameForCode(targetCode);
+            // Recolored from blue to orange per killer560's round-12 request, matching the mod's own
+            // established amber/orange tag color used everywhere else (Copy Chat's confirmation, etc.).
             client.gui.getChat().addClientSystemMessage(
-                    Component.literal("§b[Killer560's Mod → " + targetName + "] §f" + prefix + result.text() + fromSuffix));
+                    Component.literal("§6[Killer560's Mod → " + targetName + "] §f" + prefix + result.text() + fromSuffix));
         }));
         return true;
     }

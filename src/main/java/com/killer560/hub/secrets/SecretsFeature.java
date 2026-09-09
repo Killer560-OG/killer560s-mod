@@ -10,8 +10,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -122,12 +125,29 @@ public final class SecretsFeature {
         return partial != null && partial.id() != null && WITHER_ESSENCE_PROFILE_IDS.contains(partial.id());
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrets");
+    // Per killer560's "for the dungeon detection relook through the other mods... otherwise put some
+    // sort of logging into my game" request (2026-09-09, round 12) - re-checking a real Hypixel run
+    // against this log line, alongside DungeonState's own floor-change log, should show exactly what this
+    // gate saw at the moment expansion failed to re-enable, without guessing further at HIGH RISK
+    // collision code. Cached and only logged on an actual change - #passesDungeonsOnlyGate runs on every
+    // real getShape() call, which can be very frequent.
+    private static Boolean lastLoggedGateResult;
+
     // Per killer560's explicit "dungeons only" request (2026-09-09) - shared by all 4 block types. Just
     // an independent AND condition alongside "Boss Only" (Levers/Buttons only, checked separately above)
     // - being in the F7/M7 boss phase already implies being in a dungeon, so having both on at once is
     // simply redundant, never contradictory.
     private static boolean passesDungeonsOnlyGate(SecretsConfig cfg) {
-        return !cfg.isDungeonsOnly() || DungeonState.isInDungeon();
+        if (!cfg.isDungeonsOnly()) {
+            return true;
+        }
+        boolean inDungeon = DungeonState.isInDungeon();
+        if (!Objects.equals(lastLoggedGateResult, inDungeon)) {
+            LOGGER.info("[Secrets] Dungeons Only gate changed: now passes={}", inDungeon);
+            lastLoggedGateResult = inDungeon;
+        }
+        return inDungeon;
     }
 
     // Ported 1:1 from quoi's own ButtonBlockMixin (its real hardcoded per-face shapes, 2026-09-09) - the

@@ -56,9 +56,11 @@ public final class TerminalSolverFeature {
     // area of solid color (unlike an outline or a small Select box) where "bright" reads better.
     private static final int BRIGHT_ORANGE = 0xFFFFA500;
     private static final int MUTED_ORANGE = 0xFFB37744;
-    // Per killer560's "3rd tier... another shade lighter orange" request (2026-09-09, round 11) - the
-    // optional 3rd reveal tier for Numbers, a shade lighter (paler) than MUTED_ORANGE.
-    private static final int FAINT_ORANGE = 0xFFCC9966;
+    // Round 11's first guess (0xFFCC9966, lighter than MUTED_ORANGE) was too close to tier 2 to tell
+    // apart - per killer560's round-12 follow-up "it is very hard to tell which one is second and which
+    // is 3rd, I should barely be able to see the 3rd one", this is now much darker/dimmer instead, close
+    // to the panel's own background color so it barely stands out at all.
+    private static final int FAINT_ORANGE = 0xFF4D3319;
 
     private static final int PANES_COLOR = BRIGHT_ORANGE;
     private static final int STARTS_WITH_COLOR = BRIGHT_ORANGE;
@@ -81,11 +83,14 @@ public final class TerminalSolverFeature {
     // black to a very light orange instead - see #melodySlotColor for the classification.
     private static final int MELODY_ENDPOINT_COLOR = PANEL_BORDER_COLOR;
     private static final int MELODY_MOVING_PIECE_COLOR = MELODY_ENDPOINT_COLOR;
-    private static final int MELODY_BUTTON_COLOR = 0xFFFFDDAA;
-    // Round 10's 0xFFFFF2E0 read as basically white per killer560's "make the panes that are white more
-    // of a light orange" follow-up (round 11, 2026-09-09) - still lighter than the button color above,
-    // but with enough saturation left to actually read as orange rather than off-white.
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFFFFCC80;
+    // Round 12 (2026-09-09): per killer560's "the bar that shows where I actually need to click... is
+    // the same as the rest of the gui, that should be the same color as the moving square" - the real
+    // clickable buttons are the functionally important part, so they now match the bright
+    // endpoint/moving color exactly instead of their own separate light shade.
+    private static final int MELODY_BUTTON_COLOR = MELODY_ENDPOINT_COLOR;
+    // Round 10's 0xFFFFF2E0 read as basically white, round 11's 0xFFFFCC80 still wasn't light enough per
+    // killer560's round-12 "you can lighten up the main 4x5" follow-up.
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFFFFE0B3;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -120,6 +125,17 @@ public final class TerminalSolverFeature {
     // Caching the last real bounds found and reusing them for that one blank frame avoids the flash
     // entirely; cleared whenever a DIFFERENT terminal is detected so it never leaks between terminals.
     private static GridBounds lastGoodBounds;
+    // Per killer560's round-12 report that terminals "still flash and quickly resize... making it look
+    // still like it opens multiple menus" even after round 11's fixes: rounds 8/9/11 each patched one
+    // specific symptom (panel size, then highlight correctness) of the same underlying cause - Hypixel's
+    // real container data can keep arriving/settling over several frames after a terminal opens, not just
+    // one. Rather than keep chasing individual symptoms, this is a blunt but total fix: don't draw
+    // anything (panel, highlights, all of it) for a short grace period after a genuinely new terminal is
+    // first detected, giving the real data time to fully settle before Custom GUI ever shows anything at
+    // all. The real background is still hidden during this window (see #shouldHideBackgroundAndLabels) -
+    // so what's actually visible is just a brief blank moment, never a resizing/flickering panel.
+    private static final long OPEN_GRACE_PERIOD_MS = 150;
+    private static long typeDetectedAtMs;
 
     private record SlotHighlight(int color, String label) {
     }
@@ -161,6 +177,7 @@ public final class TerminalSolverFeature {
             // highlighted before belongs to a different board entirely, so it must not carry over even
             // for one frame while this new one's own real data is still arriving.
             currentHighlights = Map.of();
+            typeDetectedAtMs = System.currentTimeMillis();
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
@@ -259,11 +276,20 @@ public final class TerminalSolverFeature {
             }
             return;
         }
+        if (withinOpenGracePeriod()) {
+            return;
+        }
         if (currentType == TerminalType.MELODY) {
             renderMelodyCustomGui(graphics, screen);
         } else if (!currentHighlights.isEmpty()) {
             renderCustomGui(graphics, screen);
         }
+    }
+
+    /** @return whether the current terminal was detected less than {@link #OPEN_GRACE_PERIOD_MS} ago -
+     *  see that field's own doc for why Custom GUI deliberately shows nothing at all during this window. */
+    private static boolean withinOpenGracePeriod() {
+        return System.currentTimeMillis() - typeDetectedAtMs < OPEN_GRACE_PERIOD_MS;
     }
 
     /** Melody has no solving logic - nothing here is marked correct/incorrect - so this just redraws
@@ -350,13 +376,15 @@ public final class TerminalSolverFeature {
      *  confirmed against a decompiled handler, just his own direct observation of the real board. Round 9
      *  (2026-09-09) first split the board into 4 shades; round 10 tied the endpoint and moving-piece
      *  colors together and lightened the track base; round 10.1 fixed the "whole board renders as the
-     *  mover" bug that round 10 exposed (see {@link #findMelodyMovingColor}'s own doc for the root cause):
+     *  mover" bug that round 10 exposed (see {@link #findMelodyMovingColor}'s own doc for the root cause);
+     *  round 12 tied the buttons to the endpoint/mover color too (they're the actually-important part) and
+     *  lightened the track base further:
      *  <ul>
      *  <li>The two purple pieces (fixed track endpoints) -&gt; same color as the panel border.
      *  <li>The "moving piece" (see {@link #findMelodyMovingColor}) -&gt; same color as the endpoints.
      *  <li>The real buttons you click (not a stained glass pane at all - a full block item, distinct from
-     *      the flat track panes in the original screenshot) -&gt; very light orange.
-     *  <li>Everything else (the static track base) -&gt; very very light orange.
+     *      the flat track panes in the original screenshot) -&gt; same color as the endpoints/mover too.
+     *  <li>Everything else (the static track base) -&gt; a light orange.
      *  </ul> */
     private static int melodySlotColor(ItemStack stack, DyeColor movingColor) {
         DyeColor pane = paneDyeColor(stack);
@@ -449,6 +477,11 @@ public final class TerminalSolverFeature {
     public static boolean handleCustomGuiClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, int button) {
         if (!isCustomGuiActive()) {
             return false;
+        }
+        if (withinOpenGracePeriod()) {
+            // Nothing is even drawn yet (see #renderOverlay) - still swallow the click rather than let
+            // it fall through to the hidden real slots underneath.
+            return true;
         }
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
         if (layout == null) {

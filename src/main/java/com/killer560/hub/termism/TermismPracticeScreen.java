@@ -34,9 +34,16 @@ public class TermismPracticeScreen extends Screen {
     private static final int CELL_SIZE = 18;
     private static final int PANEL_PADDING = 8;
     // Opaque now (was 0xEE, ~93%) - same round-10 fix as TerminalSolverFeature's own PANEL_BG_COLOR, per
-    // killer560's report of real content bleeding through a translucent panel.
+    // killer560's report of real content bleeding through a translucent panel. Used only when Custom GUI
+    // is ON - see #customGuiOn.
     private static final int PANEL_BG_COLOR = 0xFF241206;
     private static final int PANEL_BORDER_COLOR = 0xFFFFA500;
+    // Per killer560's round-12 request: "make them use my solver if it is on and not use it if it is
+    // off... if it is off it should be very similar if not the exact same to the default minecraft gui."
+    // A plain neutral panel (no orange theme) used when Custom GUI is OFF instead - the closest this
+    // standalone practice screen can get to vanilla's own inventory-screen look without a real container.
+    private static final int VANILLA_BG_COLOR = 0xF0373737;
+    private static final int VANILLA_BORDER_COLOR = 0xFFC6C6C6;
     // Real per-type grid dimensions (columns x rows), decompiled 2026-09-09 straight from Odin's own
     // TerminalTypes enum - each type builds its real Custom GUI panel via
     // simpleTermGui(rows, cols, startRow, startCol): PANES(3,5,..), RUBIX(3,3,..), NUMBERS(2,7,..),
@@ -169,25 +176,21 @@ public class TermismPracticeScreen extends Screen {
         }
     }
 
-    // Real Numbers is a 2x7 (killer560's "numbers should be a 2x7" report, round 11 - confirmed against
-    // Odin's own simpleTermGui(2, 7, ..)).
+    // Real Numbers is a dense 2x7 - all 14 cells filled, numbered 1-14 (killer560's "numbers should be a
+    // 2x7" report, round 11, and "numbers is not generating with all the numbers 1-14" follow-up, round
+    // 12 - confirmed against Odin's own simpleTermGui(2, 7, ..); was still only randomly filling 4-7 of
+    // the 14 cells, same sparse pattern Panes/Rubix legitimately use but Numbers apparently doesn't).
     private void generateNumbers() {
         columns = 7;
         int gridSize = columns * 2;
-        int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(gridSize, activeCount);
         List<Integer> order = new ArrayList<>();
-        for (int i = 1; i <= active.size(); i++) {
+        for (int i = 1; i <= gridSize; i++) {
             order.add(i);
         }
         Collections.shuffle(order, random);
         int cursor = 0;
         for (int i = 0; i < gridSize; i++) {
-            if (active.contains(i)) {
-                cells.add(new ItemStack(Items.RED_STAINED_GLASS_PANE, order.get(cursor++)));
-            } else {
-                cells.add(ItemStack.EMPTY);
-            }
+            cells.add(new ItemStack(Items.RED_STAINED_GLASS_PANE, order.get(cursor++)));
         }
     }
 
@@ -334,12 +337,15 @@ public class TermismPracticeScreen extends Screen {
         solvedAtMs = System.currentTimeMillis();
     }
 
-    // Per killer560's "make sure it still looks the exact same as ingame... using my ingame solver with
-    // the right size" request (2026-09-09) - reuses the real Highlight Scale setting Custom GUI mode
-    // itself uses (TerminalSolverConfig), instead of a hardcoded 2x, so practice puzzles are sized exactly
-    // like whatever the player already has their real solver's scale set to.
+    // Per killer560's round-12 request: Custom GUI OFF -> practice looks close to plain vanilla (fixed
+    // 1x scale, neutral panel); Custom GUI ON -> "fully replace it with my solver's scaling and hud and
+    // whatnot" (the real Highlight Scale setting and the orange theme, same as round 11).
+    private static boolean customGuiOn() {
+        return TerminalSolverConfig.getInstance().isCustomGuiEnabled();
+    }
+
     private static float scale() {
-        return TerminalSolverConfig.getInstance().getScale();
+        return customGuiOn() ? TerminalSolverConfig.getInstance().getScale() : 1.0f;
     }
 
     private void updateLayoutMetrics() {
@@ -355,13 +361,16 @@ public class TermismPracticeScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
 
+        boolean customGui = customGuiOn();
+        int bgColor = customGui ? PANEL_BG_COLOR : VANILLA_BG_COLOR;
+        int borderColor = customGui ? PANEL_BORDER_COLOR : VANILLA_BORDER_COLOR;
         float scale = scale();
         int panelWidth = Math.round(columns * CELL_SIZE * scale);
         int panelHeight = Math.round(rows * CELL_SIZE * scale);
         graphics.fill(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
-                gridOriginX + panelWidth + PANEL_PADDING, gridOriginY + panelHeight + PANEL_PADDING, PANEL_BG_COLOR);
+                gridOriginX + panelWidth + PANEL_PADDING, gridOriginY + panelHeight + PANEL_PADDING, bgColor);
         graphics.outline(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
-                panelWidth + PANEL_PADDING * 2, panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
+                panelWidth + PANEL_PADDING * 2, panelHeight + PANEL_PADDING * 2, borderColor);
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(gridOriginX, gridOriginY);
