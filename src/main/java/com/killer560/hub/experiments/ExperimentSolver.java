@@ -83,17 +83,6 @@ final class ExperimentSolver {
     private long chronomatronRoundReadyAtMs;
     private final Map<Integer, Integer> ultrasequencer = new HashMap<>();
     private int ultrasequencerClickIndex;
-    /** Real bug found and fixed (2026-09-08), per killer560's report of spam-clicking a genuinely
-     *  correct block and having it "not register [in-game] but update the solver position": a real
-     *  physical click can fire twice in very quick succession (OS/input coalescing, or two rapid clicks
-     *  close enough together that Hypixel's own server silently drops the second one as spam), and this
-     *  mod's own confirm-and-advance had no way to tell that apart from two genuinely separate clicks -
-     *  both got the index advanced client-side even though only one click actually reached/registered on
-     *  the server, desyncing the highlight from what Hypixel itself has actually processed. Mirrors the
-     *  same minimum-gap idea {@link #superpairsLastClickSentAtMs} already uses for the autonomous
-     *  clicker, just applied to Solver Only's manual-click confirms instead. */
-    private long lastManualConfirmedAtMs;
-    private static final long MANUAL_CONFIRM_MIN_GAP_MS = 100;
     private boolean ultrasequencerReady;
     private long ultrasequencerRoundReadyAtMs;
     private final Queue<Integer> pairClicks = new ArrayDeque<>();
@@ -286,14 +275,22 @@ final class ExperimentSolver {
      *  for a later/earlier sequence position - not an actual same-note run. Added the column restriction
      *  (a real run never spans columns) so an unrelated same-colored note in another column can no
      *  longer be mistaken for - or silently satisfy - the current step.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report that clicking the correct block,
+     *  then the next correct one in order, then the next, could still fail partway through: a min-gap
+     *  timer here (since removed) was blocking a legitimately fast SECOND correct click if it landed
+     *  within the gap window, mistaking normal skilled fast play for a duplicate. Checked SkyHanni's own
+     *  real (decompiled) ExperimentsAddonsHelper.handleChronomatronClick/handleUltrasequencerClick for
+     *  comparison per killer560's request - it uses NO timing gate at all, purely comparing each click
+     *  against {@code expected[userProgress.size()]}; a genuine duplicate/double-fired click naturally
+     *  fails to match once the index has already advanced past it, without needing to guess a timing
+     *  threshold at all. This method already worked exactly that way underneath the now-removed gate
+     *  ({@code chronomatronClickIndex} only ever advances on a real match), so removing the gate just
+     *  stops it from also rejecting fast, genuinely correct clicks.
      *  @return true (and advances the index) if {@code slot} matches the expected next color in the same
      *  column, false (no state change) otherwise. */
     boolean confirmManualChronomatronClick(int slot, List<Cell> cells) {
         if (!chronomatronRevealLatched || chronomatronClickIndex >= chronomatron.size()) {
-            return false;
-        }
-        long now = System.currentTimeMillis();
-        if (now - lastManualConfirmedAtMs < MANUAL_CONFIRM_MIN_GAP_MS) {
             return false;
         }
         int expectedSlot = chronomatron.get(chronomatronClickIndex);
@@ -309,7 +306,6 @@ final class ExperimentSolver {
             return false;
         }
         chronomatronClickIndex++;
-        lastManualConfirmedAtMs = now;
         return true;
     }
 
@@ -331,16 +327,11 @@ final class ExperimentSolver {
         if (control == null || !control.itemId().equals("minecraft:clock")) {
             return false;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastManualConfirmedAtMs < MANUAL_CONFIRM_MIN_GAP_MS) {
-            return false;
-        }
         Integer expected = ultrasequencer.get(ultrasequencerClickIndex);
         if (expected == null || expected != slot) {
             return false;
         }
         ultrasequencerClickIndex++;
-        lastManualConfirmedAtMs = now;
         return true;
     }
 

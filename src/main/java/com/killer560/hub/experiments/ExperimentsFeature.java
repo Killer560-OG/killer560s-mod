@@ -139,14 +139,6 @@ public final class ExperimentsFeature {
      *  rejoining the world). */
     private static boolean armed = false;
 
-    /** Per killer560's explicit request (2026-09-08), after reporting he could still click the correct
-     *  block then whip the mouse over and land a wrong click: a hard, unconditional 50ms lockout after
-     *  EVERY click attempt on the puzzle grid (not just confirmed-correct ones, unlike
-     *  {@link ExperimentSolver}'s own {@code MANUAL_CONFIRM_MIN_GAP_MS}, which only re-gates a click that
-     *  would otherwise be confirmed) - see {@link #shouldBlockManualMisclick}. */
-    private static long lastManualClickAttemptAtMs = 0L;
-    private static final long MANUAL_CLICK_LOCKOUT_MS = 50;
-
     private record PendingAction(Runnable action, long fireAtMs) {
     }
 
@@ -952,6 +944,19 @@ public final class ExperimentsFeature {
      *  the click first (a click on the wrong slot never advances anything either way - see
      *  {@code confirmManualChronomatronClick}'s own early-return), and only using Shift to decide
      *  whether an incorrect click should still be let through.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report that clicking the correct block,
+     *  then the next one in order, then the next, could still fail partway through a legitimate fast
+     *  sequence: this used to also enforce a hard 50ms lockout after EVERY click attempt (not just
+     *  confirmed-correct ones), which ended up blocking a genuinely correct SECOND click whenever it
+     *  landed within that window - indistinguishable, from a pure timer's perspective, from a
+     *  duplicate/misclick. Removed entirely per killer560's own suggestion to check how SkyHanni does
+     *  this: its real (decompiled) ExperimentsAddonsHelper.handleChronomatronClick/
+     *  handleUltrasequencerClick uses no timing gate anywhere - purely comparing each click against
+     *  {@code expected[userProgress.size()]}, so a genuine duplicate naturally fails to match once the
+     *  index has already advanced. {@code confirmManualChronomatronClick}/
+     *  {@code confirmManualUltrasequencerClick} already work exactly that way underneath, so this
+     *  function no longer needs (or has) any timing logic of its own either.
      *  @return true if the click should be BLOCKED (cancelled). */
     public static boolean shouldBlockManualMisclick(MouseButtonEvent event) {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
@@ -973,19 +978,6 @@ public final class ExperimentsFeature {
         if (slot < 0 || slot >= containerSlotCount) {
             return false;
         }
-        // Per killer560's report (2026-09-08) that he could still click the correct block, whip the
-        // mouse over, and land a wrong click: a hard, unconditional lockout right after ANY click
-        // attempt here - unlike the solver's own MANUAL_CONFIRM_MIN_GAP_MS below, which only re-gates a
-        // click that would otherwise be CONFIRMED correct, this blocks every attempt (correct or not,
-        // Shift-held or not) and never lets the solver advance, for the full 50ms after the previous one.
-        long now = System.currentTimeMillis();
-        long sinceLastAttempt = now - lastManualClickAttemptAtMs;
-        if (sinceLastAttempt < MANUAL_CLICK_LOCKOUT_MS) {
-            LOGGER.info("Misclick guard: LOCKOUT slot={} sinceLastAttempt={}ms (< {}ms)",
-                    slot, sinceLastAttempt, MANUAL_CLICK_LOCKOUT_MS);
-            return true;
-        }
-        lastManualClickAttemptAtMs = now;
         // Re-snapshotting live at the exact moment of the click (real bug found and fixed 2026-09-08,
         // see git history) rather than reusing lastCells (a per-tick cache, up to 50ms stale) removes a
         // staleness window that could read a momentarily wrong/blank item for a slot that's actually
@@ -993,13 +985,6 @@ public final class ExperimentsFeature {
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot, snapshot(menu));
-        // Diagnostic logging (2026-09-08) - killer560 has now reported "click correct, whip mouse over,
-        // click wrong, it goes through" TWICE, once before and once after the lockout above was added,
-        // and static analysis says this whole function should already be rejecting a genuinely wrong
-        // slot regardless of timing (see the final `return true` below). Logging every real decision so
-        // the next test run gives an actual log to root-cause from instead of a third blind guess.
-        LOGGER.info("Misclick guard: slot={} sinceLastAttempt={}ms correct={} shiftDown={} mode={}",
-                slot, sinceLastAttempt, correct, event.hasShiftDown(), lastLoggedMode);
         if (correct) {
             return false;
         }
