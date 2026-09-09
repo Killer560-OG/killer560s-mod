@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.terminals.mixin",
+	"client": [
+		"TerminalSolverContainerRenderMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
