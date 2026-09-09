@@ -1,6 +1,9 @@
 package com.killer560.hub.copychat;
 
+import com.killer560.hub.copychat.mixin.ChatComponentAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
@@ -9,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /** Ctrl+Click any chat message to copy its plain text to the clipboard - general QoL, not
@@ -42,6 +46,70 @@ public final class CopyChatFeature {
         long handle = Minecraft.getInstance().getWindow().handle();
         return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+    }
+
+    private static boolean isShiftDown() {
+        long handle = Minecraft.getInstance().getWindow().handle();
+        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+    }
+
+    /** Per killer560's "if i shift click to copy then itll only do the line... shift click would only
+     *  get the line my cursor is on" request (2026-09-09) - unlike Ctrl+Click (which copies the whole
+     *  underlying message via a baked-in {@code ClickEvent}, see {@code ClickTranslateFeature}), this
+     *  works entirely off the raw click position, hooked from
+     *  {@link com.killer560.hub.copychat.mixin.ChatScreenLineClickMixin} before vanilla resolves the
+     *  click down to a Style - reversing (mouseX, mouseY) into a specific wrapped visual line the exact
+     *  same way quoi's own Copy Chat module does it ({@code ChatUtils.toChatLineMY}/
+     *  {@code getMessageLineIdx}, decompiled 2026-09-09 as reference), then reading that ONE line's own
+     *  {@link net.minecraft.util.FormattedCharSequence} instead of tracing back to its parent message -
+     *  quoi's own version always copies the full message regardless of which line was clicked; this is
+     *  intentionally narrower.
+     *  @return true if the click was on a valid chat line and handled (whether or not it was blank). */
+    public static boolean tryHandleLineClick(double mouseX, double mouseY) {
+        if (!CopyChatConfig.getInstance().isEnabled() || !isShiftDown()) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        ChatComponent chat = client.gui.getChat();
+        if (!chat.isChatFocused()) {
+            return false;
+        }
+        ChatComponentAccessor accessor = (ChatComponentAccessor) chat;
+        List<GuiMessage.Line> trimmed = accessor.killer560smod$getTrimmedMessages();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+
+        double scale = accessor.killer560smod$invokeGetScale();
+        int lineHeight = accessor.killer560smod$invokeGetLineHeight();
+        double chatLineX = mouseX / scale - 4.0;
+        double chatLineY = (client.getWindow().getGuiScaledHeight() - mouseY - 40.0) / (scale * lineHeight);
+
+        double maxLineX = ChatComponent.getWidth(client.options.chatWidth().get()) / scale;
+        if (chatLineX < -4.0 || chatLineX > maxLineX) {
+            return false;
+        }
+        int lineCount = Math.min(chat.getLinesPerPage(), trimmed.size());
+        if (chatLineY < 0.0 || chatLineY >= lineCount) {
+            return false;
+        }
+
+        int idx = (int) Math.floor(chatLineY + accessor.killer560smod$getChatScrollbarPos());
+        if (idx < 0 || idx >= trimmed.size()) {
+            return false;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        trimmed.get(idx).content().accept((position, style, codePoint) -> {
+            sb.appendCodePoint(codePoint);
+            return true;
+        });
+        String text = sb.toString();
+        if (!text.isBlank()) {
+            copyToClipboard(text);
+        }
+        return true;
     }
 
     public static void copyToClipboard(String text) {

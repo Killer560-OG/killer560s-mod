@@ -251,7 +251,7 @@ public final class TerminalSolverFeature {
         graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
 
         List<Slot> slots = screen.getMenu().slots;
-        DyeColor majorityTrackColor = findMelodyMajorityTrackColor(slots);
+        DyeColor movingColor = findMelodyMovingColor(slots);
         for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
             ItemStack stack = slots.get(slotIndex).getItem();
             if (!isMelodyButtonSlot(stack)) {
@@ -264,7 +264,7 @@ public final class TerminalSolverFeature {
             }
             int x0 = col * CELL_SIZE;
             int y0 = row * CELL_SIZE;
-            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, melodySlotColor(stack, majorityTrackColor));
+            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, melodySlotColor(stack, movingColor));
         }
         graphics.pose().popMatrix();
     }
@@ -277,12 +277,20 @@ public final class TerminalSolverFeature {
         return !stack.isEmpty() && stack.getItem() != Items.BLACK_STAINED_GLASS_PANE;
     }
 
-    /** @return the most common {@link DyeColor} among Melody's own track panes (every real button slot
-     *  that's a stained glass pane and isn't purple) - per killer560's own read of his screenshot
-     *  (2026-09-09, round 9): the track is mostly one repeated base color with a single differently
-     *  colored pane marking the currently "moving" position, so the majority color is the static base
-     *  and any minority color is the moving marker. Returns null if there's no pane data to go on. */
-    private static DyeColor findMelodyMajorityTrackColor(List<Slot> slots) {
+    /** @return the single {@link DyeColor} that appears EXACTLY ONCE among Melody's own track panes
+     *  (every real slot that's a stained glass pane and isn't purple), or null if there's no such unique
+     *  color right now. Round 9's original model (2026-09-09) assumed one repeated "majority" base color
+     *  plus a single differently-colored "moving" marker, and colored everything that didn't match the
+     *  majority as the mover - but killer560's round-10 live screenshot showed nearly the ENTIRE track
+     *  rendering as the mover's bright color, meaning a real board can have enough color variety that no
+     *  true majority exists, and most panes end up "not equal to majority" by default. Round 10.1 flips
+     *  the default to the safer direction instead: every track pane is base (light) UNLESS it's the one
+     *  pane whose color is a genuine singleton (appears nowhere else on the board) - a real moving marker
+     *  should almost always be uniquely colored that frame, so this is a much narrower, safer trigger for
+     *  the "moving" highlight than "isn't the majority." If more than one color happens to be a singleton
+     *  (ambiguous - no way to tell which one is the real mover), returns null and everything just renders
+     *  as base instead of guessing wrong. */
+    private static DyeColor findMelodyMovingColor(List<Slot> slots) {
         EnumMap<DyeColor, Integer> counts = new EnumMap<>(DyeColor.class);
         for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
             DyeColor pane = paneDyeColor(slots.get(slotIndex).getItem());
@@ -291,29 +299,30 @@ public final class TerminalSolverFeature {
             }
             counts.merge(pane, 1, Integer::sum);
         }
-        DyeColor majority = null;
-        int best = -1;
+        DyeColor singleton = null;
+        int singletonCount = 0;
         for (Map.Entry<DyeColor, Integer> entry : counts.entrySet()) {
-            if (entry.getValue() > best) {
-                best = entry.getValue();
-                majority = entry.getKey();
+            if (entry.getValue() == 1) {
+                singleton = entry.getKey();
+                singletonCount++;
             }
         }
-        return majority;
+        return singletonCount == 1 ? singleton : null;
     }
 
     /** Per killer560's exact per-role coloring request, from his own read of a real screenshot - not
      *  confirmed against a decompiled handler, just his own direct observation of the real board. Round 9
-     *  (2026-09-09) first split the board into 4 shades; round 10 (2026-09-09) tied the endpoint and
-     *  moving-piece colors together and lightened the track base:
+     *  (2026-09-09) first split the board into 4 shades; round 10 tied the endpoint and moving-piece
+     *  colors together and lightened the track base; round 10.1 fixed the "whole board renders as the
+     *  mover" bug that round 10 exposed (see {@link #findMelodyMovingColor}'s own doc for the root cause):
      *  <ul>
      *  <li>The two purple pieces (fixed track endpoints) -&gt; same color as the panel border.
-     *  <li>The "moving piece" (see {@link #findMelodyMajorityTrackColor}) -&gt; same color as the endpoints.
+     *  <li>The "moving piece" (see {@link #findMelodyMovingColor}) -&gt; same color as the endpoints.
      *  <li>The real buttons you click (not a stained glass pane at all - a full block item, distinct from
      *      the flat track panes in the original screenshot) -&gt; very light orange.
      *  <li>Everything else (the static track base) -&gt; very very light orange.
      *  </ul> */
-    private static int melodySlotColor(ItemStack stack, DyeColor majorityTrackColor) {
+    private static int melodySlotColor(ItemStack stack, DyeColor movingColor) {
         DyeColor pane = paneDyeColor(stack);
         if (pane == null) {
             return MELODY_BUTTON_COLOR;
@@ -321,7 +330,7 @@ public final class TerminalSolverFeature {
         if (pane == DyeColor.PURPLE) {
             return MELODY_ENDPOINT_COLOR;
         }
-        if (majorityTrackColor != null && pane != majorityTrackColor) {
+        if (movingColor != null && pane == movingColor) {
             return MELODY_MOVING_PIECE_COLOR;
         }
         return MELODY_TRACK_BASE_COLOR;

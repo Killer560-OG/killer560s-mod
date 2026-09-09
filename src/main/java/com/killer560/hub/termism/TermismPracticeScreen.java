@@ -1,5 +1,6 @@
 package com.killer560.hub.termism;
 
+import com.killer560.hub.terminals.TerminalSolverConfig;
 import com.killer560.hub.terminals.TerminalType;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -31,12 +32,15 @@ import java.util.Random;
 public class TermismPracticeScreen extends Screen {
 
     private static final int CELL_SIZE = 18;
-    private static final int SCALE = 2;
     private static final int PANEL_PADDING = 8;
-    private static final int PANEL_BG_COLOR = 0xEE241206;
+    // Opaque now (was 0xEE, ~93%) - same round-10 fix as TerminalSolverFeature's own PANEL_BG_COLOR, per
+    // killer560's report of real content bleeding through a translucent panel.
+    private static final int PANEL_BG_COLOR = 0xFF241206;
     private static final int PANEL_BORDER_COLOR = 0xFFFFA500;
-    private static final int SQUARE_GRID_SIZE = 20;
-    private static final int NAME_GRID_SIZE = 12;
+    // Was two different sizes (SQUARE_GRID_SIZE=20 for Panes/Rubix/Numbers, a cramped NAME_GRID_SIZE=12
+    // for Starts With/Select) - per killer560's "starts with is the wrong size, and so is select" report
+    // (2026-09-09), unified to one shared size so every type's practice puzzle occupies the same footprint.
+    private static final int GRID_SIZE = 20;
 
     // Real Hypixel Rubix mechanic (same order TerminalSolverFeature's own solveRubix uses) - each pane
     // cycles forward one step per left-click, backward per right-click, no neighbor coupling.
@@ -90,7 +94,9 @@ public class TermismPracticeScreen extends Screen {
     );
 
     private final Screen parent;
-    private final TerminalType type;
+    // Not final - per killer560's "for new puzzle make it completely random from all puzzles besides
+    // melody" request (2026-09-09), the New Puzzle button now rerolls the type itself, not just the board.
+    private TerminalType type;
     private final Random random = new Random();
     private long startedAtMs;
     private long solvedAtMs = -1;
@@ -115,7 +121,10 @@ public class TermismPracticeScreen extends Screen {
     @Override
     protected void init() {
         generatePuzzle();
-        this.addRenderableWidget(Button.builder(Component.literal("New Puzzle"), btn -> generatePuzzle())
+        this.addRenderableWidget(Button.builder(Component.literal("New Puzzle"), btn -> {
+                    type = TermismMenuScreen.PRACTICE_TYPES.get(random.nextInt(TermismMenuScreen.PRACTICE_TYPES.size()));
+                    generatePuzzle();
+                })
                 .bounds(this.width / 2 - 105, this.height - 30, 100, 20).build());
         this.addRenderableWidget(Button.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(this.width / 2 + 5, this.height - 30, 100, 20).build());
@@ -140,8 +149,8 @@ public class TermismPracticeScreen extends Screen {
     private void generatePanes() {
         columns = 5;
         int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(SQUARE_GRID_SIZE, activeCount);
-        for (int i = 0; i < SQUARE_GRID_SIZE; i++) {
+        List<Integer> active = randomIndices(GRID_SIZE, activeCount);
+        for (int i = 0; i < GRID_SIZE; i++) {
             cells.add(new ItemStack(active.contains(i) ? Items.RED_STAINED_GLASS_PANE : Items.LIME_STAINED_GLASS_PANE));
         }
     }
@@ -149,8 +158,8 @@ public class TermismPracticeScreen extends Screen {
     private void generateRubix() {
         columns = 5;
         int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(SQUARE_GRID_SIZE, activeCount);
-        for (int i = 0; i < SQUARE_GRID_SIZE; i++) {
+        List<Integer> active = randomIndices(GRID_SIZE, activeCount);
+        for (int i = 0; i < GRID_SIZE; i++) {
             if (active.contains(i)) {
                 DyeColor color = RUBIX_COLOR_ORDER.get(random.nextInt(RUBIX_COLOR_ORDER.size()));
                 cells.add(new ItemStack(paneItemFor(color)));
@@ -163,14 +172,14 @@ public class TermismPracticeScreen extends Screen {
     private void generateNumbers() {
         columns = 5;
         int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(SQUARE_GRID_SIZE, activeCount);
+        List<Integer> active = randomIndices(GRID_SIZE, activeCount);
         List<Integer> order = new ArrayList<>();
         for (int i = 1; i <= active.size(); i++) {
             order.add(i);
         }
         Collections.shuffle(order, random);
         int cursor = 0;
-        for (int i = 0; i < SQUARE_GRID_SIZE; i++) {
+        for (int i = 0; i < GRID_SIZE; i++) {
             if (active.contains(i)) {
                 cells.add(new ItemStack(Items.RED_STAINED_GLASS_PANE, order.get(cursor++)));
             } else {
@@ -180,7 +189,7 @@ public class TermismPracticeScreen extends Screen {
     }
 
     private void generateStartsWith() {
-        columns = 4;
+        columns = 5;
         List<NamedItem> pool = new ArrayList<>(STARTS_WITH_POOL);
         Collections.shuffle(pool, random);
         NamedItem seed = pool.get(0);
@@ -201,7 +210,7 @@ public class TermismPracticeScreen extends Screen {
 
         int matchCount = Math.min(2 + random.nextInt(3), matches.size());
         List<NamedItem> chosenMatches = new ArrayList<>(matches.subList(0, matchCount));
-        int distractorCount = Math.min(NAME_GRID_SIZE - matchCount, distractors.size());
+        int distractorCount = Math.min(GRID_SIZE - matchCount, distractors.size());
         List<NamedItem> chosenDistractors = new ArrayList<>(distractors.subList(0, distractorCount));
 
         List<NamedItem> combined = new ArrayList<>();
@@ -212,14 +221,14 @@ public class TermismPracticeScreen extends Screen {
         for (NamedItem entry : combined) {
             cells.add(new ItemStack(entry.item()));
         }
-        while (cells.size() < NAME_GRID_SIZE) {
+        while (cells.size() < GRID_SIZE) {
             cells.add(ItemStack.EMPTY);
         }
         remainingMatches = chosenMatches.size();
     }
 
     private void generateSelect() {
-        columns = 4;
+        columns = 5;
         ColorAlias target = SELECT_POOL.get(random.nextInt(SELECT_POOL.size()));
         targetColor = target.color();
 
@@ -232,14 +241,14 @@ public class TermismPracticeScreen extends Screen {
         for (int i = 0; i < matchCount; i++) {
             combined.add(namedStack(target.texture(), target.name()));
         }
-        int distractorCount = NAME_GRID_SIZE - matchCount;
+        int distractorCount = GRID_SIZE - matchCount;
         for (int i = 0; i < distractorCount && !distractorPool.isEmpty(); i++) {
             ColorAlias d = distractorPool.get(i % distractorPool.size());
             combined.add(namedStack(d.texture(), d.name()));
         }
         Collections.shuffle(combined, random);
         cells.addAll(combined);
-        while (cells.size() < NAME_GRID_SIZE) {
+        while (cells.size() < GRID_SIZE) {
             cells.add(ItemStack.EMPTY);
         }
         remainingMatches = matchCount;
@@ -318,10 +327,19 @@ public class TermismPracticeScreen extends Screen {
         solvedAtMs = System.currentTimeMillis();
     }
 
+    // Per killer560's "make sure it still looks the exact same as ingame... using my ingame solver with
+    // the right size" request (2026-09-09) - reuses the real Highlight Scale setting Custom GUI mode
+    // itself uses (TerminalSolverConfig), instead of a hardcoded 2x, so practice puzzles are sized exactly
+    // like whatever the player already has their real solver's scale set to.
+    private static float scale() {
+        return TerminalSolverConfig.getInstance().getScale();
+    }
+
     private void updateLayoutMetrics() {
         rows = Math.max(1, (int) Math.ceil(cells.size() / (double) columns));
-        int panelWidth = columns * CELL_SIZE * SCALE;
-        int panelHeight = rows * CELL_SIZE * SCALE;
+        float scale = scale();
+        int panelWidth = Math.round(columns * CELL_SIZE * scale);
+        int panelHeight = Math.round(rows * CELL_SIZE * scale);
         gridOriginX = (this.width - panelWidth) / 2;
         gridOriginY = (this.height - panelHeight) / 2 - 8;
     }
@@ -330,8 +348,9 @@ public class TermismPracticeScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
 
-        int panelWidth = columns * CELL_SIZE * SCALE;
-        int panelHeight = rows * CELL_SIZE * SCALE;
+        float scale = scale();
+        int panelWidth = Math.round(columns * CELL_SIZE * scale);
+        int panelHeight = Math.round(rows * CELL_SIZE * scale);
         graphics.fill(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
                 gridOriginX + panelWidth + PANEL_PADDING, gridOriginY + panelHeight + PANEL_PADDING, PANEL_BG_COLOR);
         graphics.outline(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
@@ -339,7 +358,7 @@ public class TermismPracticeScreen extends Screen {
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(gridOriginX, gridOriginY);
-        graphics.pose().scale(SCALE, SCALE);
+        graphics.pose().scale(scale, scale);
         for (int i = 0; i < cells.size(); i++) {
             ItemStack stack = cells.get(i);
             if (stack.isEmpty()) {
@@ -347,7 +366,16 @@ public class TermismPracticeScreen extends Screen {
             }
             int col = i % columns;
             int row = i / columns;
-            graphics.item(stack, col * CELL_SIZE, row * CELL_SIZE);
+            int x0 = col * CELL_SIZE;
+            int y0 = row * CELL_SIZE;
+            graphics.item(stack, x0, y0);
+            // Numbers' real mechanic is the stack COUNT (its sequence position) - #item() alone never
+            // draws that, only the raw icon, so every pane looked visually identical and unreadable
+            // (killer560's "numbers... broken" report, 2026-09-09). Forces the label to always show via
+            // the explicit-string overload, since vanilla's own default count overlay skips count == 1.
+            if (type == TerminalType.NUMBERS) {
+                graphics.itemDecorations(this.font, stack, x0, y0, String.valueOf(stack.getCount()));
+            }
         }
         graphics.pose().popMatrix();
 
@@ -383,8 +411,8 @@ public class TermismPracticeScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!solved && (event.button() == 0 || event.button() == 1)) {
-            double localX = (event.x() - gridOriginX) / (double) SCALE;
-            double localY = (event.y() - gridOriginY) / (double) SCALE;
+            double localX = (event.x() - gridOriginX) / (double) scale();
+            double localY = (event.y() - gridOriginY) / (double) scale();
             int col = (int) Math.floor(localX / CELL_SIZE);
             int row = (int) Math.floor(localY / CELL_SIZE);
             if (col >= 0 && col < columns && row >= 0 && row < rows) {

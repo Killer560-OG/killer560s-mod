@@ -19,7 +19,10 @@ import java.util.Random;
  *  to generate a practice puzzle for. */
 public class TermismMenuScreen extends Screen {
 
-    private static final List<TerminalType> PRACTICE_TYPES = List.of(
+    // Package-visible (not private) so TermismPracticeScreen's own "New Puzzle" reroll (killer560's
+    // "make it completely random from all puzzles besides melody" request, 2026-09-09) can reuse the
+    // exact same never-Melody type pool this menu's own Random button already draws from.
+    static final List<TerminalType> PRACTICE_TYPES = List.of(
             TerminalType.PANES, TerminalType.RUBIX, TerminalType.NUMBERS,
             TerminalType.STARTS_WITH, TerminalType.SELECT
     );

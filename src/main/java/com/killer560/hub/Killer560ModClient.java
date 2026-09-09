@@ -84,7 +84,6 @@ public class Killer560ModClient implements ClientModInitializer {
                             LOGGER.info("/killer560 executed - command handler running");
                             Minecraft client = Minecraft.getInstance();
                             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
-                            ModOverlayMessage.show("§b[Killer560's Mod] Opening menu...", 3000);
                             // Deferred via client.execute (matches the macro mod's own proven-working
                             // /start command pattern) rather than calling setScreen synchronously from
                             // inside command execution, in case that context matters.
