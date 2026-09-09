@@ -27,7 +27,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$renderStorageOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
                                                       float partialTick, CallbackInfo ci) {
-        StorageOverlayFeature.onContainerScreenRender((AbstractContainerScreen<?>) (Object) this, graphics);
+        StorageOverlayFeature.onContainerScreenRender((AbstractContainerScreen<?>) (Object) this, graphics, mouseX, mouseY);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)

@@ -75,8 +75,13 @@ public final class StorageOverlayFeature {
 
             // Per killer560's reports (2026-09-08): first centered horizontally AND vertically, which
             // pushed the grid down into where the real (still vanilla-positioned) player inventory
-            // naturally sits, crowding it out. Still horizontally centered, but now top-aligned with a
-            // small margin instead - leaves the inventory fully visible below with room to breathe.
+            // naturally sits, crowding it out, so it was pinned to a small top margin instead. Per his
+            // later screenshot showing a lot of unused space still sitting between the (now shorter,
+            // chrome-row-free) grid and his real inventory, it's vertically centered in whatever room
+            // is actually available above the inventory instead of staying pinned to the top -
+            // computed from the real, live inventory position when a storage screen is open (not
+            // guessed), using the grid's actual content height from the most recent render (see
+            // lastContentHeight) so it self-corrects as more/fewer storages become known.
             @Override
             public int defaultX() {
                 return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
@@ -84,6 +89,15 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultY() {
+                Minecraft client = Minecraft.getInstance();
+                if (client.screen instanceof AbstractContainerScreen<?> containerScreen) {
+                    int[] invBounds = computePlayerInventoryBounds(containerScreen);
+                    if (invBounds != null) {
+                        int available = Math.max(30, invBounds[1] - 16);
+                        int centered = (available - lastContentHeight) / 2;
+                        return Math.max(20, centered);
+                    }
+                }
                 return 20;
             }
 
@@ -269,7 +283,8 @@ public final class StorageOverlayFeature {
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin} on
      *  every container screen's own render pass - draws the 3-column grid of every known storage for
      *  the current account/profile if the currently open screen is itself a tracked storage. */
-    public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+    public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics,
+                                                int mouseX, int mouseY) {
         try {
             if (!StorageOverlayConfig.getInstance().isEnabled()) {
                 return;
@@ -345,6 +360,7 @@ public final class StorageOverlayFeature {
             for (PanelLayout p : layout) {
                 contentHeight = Math.max(contentHeight, p.y() + p.height());
             }
+            lastContentHeight = contentHeight;
             int viewportWidthLocal = PANEL_WIDTH * 3 + PADDING * 2;
             // Per killer560's report (2026-09-08) that the grid could grow tall enough to cover his own
             // real inventory (making it unclickable): cap the visible viewport at wherever the real
@@ -359,6 +375,15 @@ public final class StorageOverlayFeature {
             lastViewportWidthPx = (int) (viewportWidthLocal * lastScale);
             lastViewportHeightPx = viewportHeightPx;
 
+            // Per killer560's "still hover an item's tooltip even if I'm not in its page" request
+            // (2026-09-08): only worth converting the real cursor into the grid's local coordinate
+            // space when it's actually over the (clipped) viewport - same bounds check handleClick and
+            // handleScroll already use.
+            boolean mouseOverViewport = mouseX >= lastPos[0] && mouseX <= lastPos[0] + lastViewportWidthPx
+                    && mouseY >= lastPos[1] && mouseY <= lastPos[1] + lastViewportHeightPx;
+            double localMouseX = mouseOverViewport ? (mouseX - lastPos[0]) / lastScale : Double.NaN;
+            double localMouseY = mouseOverViewport ? (mouseY - lastPos[1]) / lastScale + scrollOffset : Double.NaN;
+
             graphics.enableScissor(lastPos[0], lastPos[1],
                     lastPos[0] + lastViewportWidthPx, lastPos[1] + lastViewportHeightPx);
             try {
@@ -367,7 +392,8 @@ public final class StorageOverlayFeature {
                     graphics.pose().translate(lastPos[0], lastPos[1]);
                     graphics.pose().scale(lastScale, lastScale);
                     graphics.pose().translate(0, -scrollOffset);
-                    renderGrid(graphics, layout, prefix, activeKey, viewportHeightLocal);
+                    renderGrid(graphics, layout, prefix, activeKey, viewportHeightLocal,
+                            localMouseX, localMouseY, mouseX, mouseY);
                 } finally {
                     graphics.pose().popMatrix();
                 }
@@ -485,6 +511,11 @@ public final class StorageOverlayFeature {
     private static float lastMaxScroll = 0f;
     private static int lastViewportWidthPx = 0;
     private static int lastViewportHeightPx = 0;
+    /** The grid's total (unscrolled) content height from the most recent render - seeded with a rough
+     *  guess for the very first frame before any real layout exists, then self-corrects every frame
+     *  after. Used by {@code defaultY()} above to vertically center the grid in whatever room is
+     *  actually available, per killer560's report (2026-09-08) of unused space below a top-pinned grid. */
+    private static int lastContentHeight = 90;
     private static final Map<String, int[]> lastPanelBounds = new LinkedHashMap<>();
     private static final int PLACEHOLDER_HEIGHT = 18;
 
@@ -527,7 +558,8 @@ public final class StorageOverlayFeature {
     }
 
     private static void renderGrid(GuiGraphicsExtractor graphics, List<PanelLayout> layout,
-                                    String prefix, String activeKey, int viewportHeightLocal) {
+                                    String prefix, String activeKey, int viewportHeightLocal,
+                                    double localMouseX, double localMouseY, int realMouseX, int realMouseY) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
         int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
@@ -542,6 +574,13 @@ public final class StorageOverlayFeature {
         // being clickable through the scissor clip.
         int viewTop = (int) scrollOffset;
         int viewBottom = viewTop + viewportHeightLocal;
+
+        // Per killer560's "still hover an item's tooltip even if I'm not in its page" request
+        // (2026-09-08): the active page's real (invisible) vanilla slots already show a real tooltip
+        // on hover via vanilla's own hoveredSlot mechanism (untouched for numbered pages - see
+        // StorageOverlaySlotMixin) - only OTHER pages' items are purely custom-drawn with nothing
+        // backing their hover, so only they need a manually-triggered tooltip here.
+        ItemStack hoveredStack = null;
 
         for (PanelLayout p : layout) {
             if (p.y() + p.height() < viewTop || p.y() > viewBottom) {
@@ -592,7 +631,19 @@ public final class StorageOverlayFeature {
                 // like a real slot - replaces the old manual push/scale/text hack that hand-placed the
                 // count text and inherited the same top-left offset bug.
                 graphics.itemDecorations(font, stack, slotX, slotY);
+
+                if (!active && localMouseX >= slotX && localMouseX < slotX + 16
+                        && localMouseY >= slotY && localMouseY < slotY + 16) {
+                    hoveredStack = stack;
+                }
             }
+        }
+
+        if (hoveredStack != null) {
+            // Real screen mouse coordinates, not the local grid-space ones used for hit-testing above -
+            // setTooltipForNextFrame renders later in the frame using these directly, unaffected by the
+            // pose translate/scale/scroll this method is currently drawing under.
+            graphics.setTooltipForNextFrame(font, hoveredStack, realMouseX, realMouseY);
         }
     }
 
