@@ -104,6 +104,10 @@ public final class ExperimentsFeature {
      *  and so Superpairs highlighting can confirm a remembered match is still currently valid. Empty
      *  whenever no puzzle is active. */
     private static List<ExperimentSolver.Cell> lastCells = List.of();
+    /** Diagnostic-only state (2026-09-08) for the "Pickup guard" check in {@link #tickUnsafe} - tracks
+     *  whether the menu's carried item was already non-empty last tick, so the warning only logs once
+     *  per pickup (the rising edge) instead of spamming every tick it's still held. */
+    private static boolean wasHoldingCarriedItem = false;
     /** Real item snapshot of every Superpairs slot the instant it's genuinely visible (uncovered),
      *  keyed by slot - per killer560's "show everything as the default item texture... instead of the
      *  glass pane for that box." A known-but-currently-recovered tile (flipped back to its covering
@@ -637,6 +641,23 @@ public final class ExperimentsFeature {
                 updateSuperpairsIconCache(menu, cells);
             }
             logControlSlotIfChanged(cells);
+            // Diagnostic logging (2026-09-08) - killer560 has now reported an item still getting picked
+            // up during Solver Only clicking a SECOND time, after both the CLONE-redirect and the
+            // mouseDragged/mouseReleased block were already in place. Item pickup itself isn't something
+            // Minecraft logs on its own, so this directly watches menu.getCarried() every tick while
+            // click protection is actually active here and logs the instant it goes from empty to
+            // holding something - a real, unambiguous catch of the exact moment it happens (and,
+            // implicitly, whether it happens at all any more), rather than guessing a third blind fix.
+            if ((mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER)
+                    && ExperimentsConfig.getInstance().isClickProtectionEnabled() && !cfg.isAutonomousMode()) {
+                ItemStack carried = menu.getCarried();
+                boolean holdingNow = carried != null && !carried.isEmpty();
+                if (holdingNow && !wasHoldingCarriedItem) {
+                    LOGGER.warn("Pickup guard: a real item got picked up during {} click protection! carried={}",
+                            mode, carried.getHoverName().getString());
+                }
+                wasHoldingCarriedItem = holdingNow;
+            }
 
             // Real bug found and fixed (2026-09-06), per killer560's report: "i did press my stop key
             // and that didnt stop it during this phase" - this branch used to be gated on
