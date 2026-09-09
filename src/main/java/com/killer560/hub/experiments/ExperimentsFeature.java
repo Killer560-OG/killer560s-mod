@@ -104,9 +104,9 @@ public final class ExperimentsFeature {
      *  and so Superpairs highlighting can confirm a remembered match is still currently valid. Empty
      *  whenever no puzzle is active. */
     private static List<ExperimentSolver.Cell> lastCells = List.of();
-    /** Diagnostic-only state (2026-09-08) for the "Pickup guard" check in {@link #tickUnsafe} - tracks
-     *  whether the menu's carried item was already non-empty last tick, so the warning only logs once
-     *  per pickup (the rising edge) instead of spamming every tick it's still held. */
+    /** Whether the menu's carried item was already non-empty last tick, for the accidental-pickup guard
+     *  in {@link #tickUnsafe} - so it only fires the corrective clear once per pickup (the rising edge)
+     *  instead of re-sending it every tick the cursor happens to still be non-empty. */
     private static boolean wasHoldingCarriedItem = false;
     /** Real item snapshot of every Superpairs slot the instant it's genuinely visible (uncovered),
      *  keyed by slot - per killer560's "show everything as the default item texture... instead of the
@@ -641,26 +641,22 @@ public final class ExperimentsFeature {
                 updateSuperpairsIconCache(menu, cells);
             }
             logControlSlotIfChanged(cells);
-            // Real bug found and fixed (2026-09-08) - the "Pickup guard" diagnostic added to catch this
-            // (see git history) confirmed it with a real log: "carried=Green" during CHRONOMATRON click
-            // protection, seconds after a correct-click confirm, seconds before "Experiment Over." Since
-            // this happens even with EVERY real client click already redirected through
-            // ContainerInput.CLONE (a genuine no-op for real item movement in survival) AND
-            // mouseDragged/mouseReleased fully blocked, it can't be this mod's own choice of click type
-            // causing it any more - the far more likely explanation is Hypixel's own server briefly
-            // granting/echoing the note item into the cursor as click feedback, which nothing client-side
-            // about HOW the click is sent can prevent, since Hypixel controls what it sends back
-            // regardless. Rather than keep chasing prevention, this reacts instead: the instant a carried
-            // item is detected while click protection is active, immediately clears it the same real way
-            // clicking outside any inventory slot does (ContainerInput.PICKUP at slot -999, well-
-            // established vanilla behavior, not Hypixel-specific) - fast enough that it can't be seen. */
+            // Real bug found and fixed (2026-09-08): a real item could still end up in killer560's
+            // cursor during Solver Only click protection even with every real client click already
+            // redirected through ContainerInput.CLONE (a genuine no-op for real item movement in
+            // survival) AND mouseDragged/mouseReleased fully blocked - confirmed via a real log to
+            // happen even while this mod never sent a click type that should cause it, so it's most
+            // likely Hypixel's own server briefly granting/echoing the note item into the cursor as
+            // click feedback, which nothing client-side about HOW a click is sent can prevent. Rather
+            // than keep chasing prevention, this reacts instead: the instant a carried item is detected
+            // while click protection is active, it's immediately cleared the same real way clicking
+            // outside any inventory slot does (ContainerInput.PICKUP at slot -999 - well-established
+            // vanilla behavior, not Hypixel-specific) - fast enough that it can't be seen. */
             if ((mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER)
                     && ExperimentsConfig.getInstance().isClickProtectionEnabled() && !cfg.isAutonomousMode()) {
                 ItemStack carried = menu.getCarried();
                 boolean holdingNow = carried != null && !carried.isEmpty();
                 if (holdingNow && !wasHoldingCarriedItem) {
-                    LOGGER.warn("Pickup guard: a real item got picked up during {} click protection "
-                                    + "(carried={}) - clearing it now", mode, carried.getHoverName().getString());
                     client.gameMode.handleContainerInput(menu.containerId, -999, 0, ContainerInput.PICKUP, client.player);
                 }
                 wasHoldingCarriedItem = holdingNow;
