@@ -2,6 +2,7 @@ package com.killer560.hub.secrets;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.DisplaySlot;
@@ -28,21 +29,25 @@ import java.util.regex.Pattern;
  *  (not world coordinates - NoammAddons uses a per-floor {@code AABB} bounding-box approach instead, but
  *  that needs real boss-room coordinate data this mod doesn't have verified for Master Mode specifically,
  *  so the chat-message approach was used here as the safer, simpler-to-verify option). The real F7/M7
- *  boss fight always opens with the identical line
- *  {@code §4[BOSS] Maxor§r§c: §r§cWELL! WELL! WELL! LOOK WHO'S HERE!} (confirmed via SkyHanni's own
- *  {@code maxorStartPattern}, and this exact mod's own boot-test log this session independently showed
- *  the real {@code [BOSS] Goldor: Who dares trespass into my domain?} follow-up line from the same
- *  fight) - only the fight's opening line is needed here since Levers/Buttons expansion just needs "is
- *  the boss phase active right now", not which exact sub-phase. Ends when the floor is no longer F7/M7
- *  (leaving the dungeon, or - defensively - if the scoreboard ever reports something else). */
+ *  boss fight always opens with the line {@code [BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!}
+ *  (confirmed via SkyHanni's own {@code maxorStartPattern}) - only the fight's opening line is needed
+ *  here since Levers/Buttons expansion just needs "is the boss phase active right now", not which exact
+ *  sub-phase. Ends when the floor is no longer F7/M7 (leaving the dungeon, or - defensively - if the
+ *  scoreboard ever reports something else). Matched on the plain text with formatting stripped first -
+ *  an earlier version required an exact match on hardcoded color codes, which silently never matched a
+ *  real boss fight (killer560's report: Boss Only never enabled full-block even during a real F7 fight). */
 public final class DungeonState {
 
     private static final Pattern CATACOMBS_FLOOR_PATTERN = Pattern.compile("The Catacombs \\(([^)]+)\\)");
-    // Real line confirmed via SkyHanni's own maxorStartPattern (decompiled 2026-09-09) and this mod's
-    // own earlier boot-test log this session, which independently captured the real follow-up
-    // "[BOSS] Goldor: Who dares trespass into my domain?" line from the same F7 boss fight.
+    // Real bug found and fixed (2026-09-09, round after the Dungeons Only fix) - killer560 reported Boss
+    // Only still never enabled full-block even during a real F7 boss fight. This pattern required an
+    // EXACT match on hardcoded color codes (§4, §r, §c) - a single real formatting difference (extra/
+    // missing reset code, a slightly different color) would silently never match, and unlike the floor
+    // pattern above there was no logging on this path to catch it. Matching on the plain text instead
+    // (formatting stripped first) is far more robust - color codes are cosmetic, the words are what
+    // actually identify the line.
     private static final Pattern BOSS_START_PATTERN =
-            Pattern.compile("§4\\[BOSS] Maxor§r§c: §r§cWELL! WELL! WELL! LOOK WHO'S HERE!");
+            Pattern.compile("\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!");
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrets");
 
@@ -91,7 +96,15 @@ public final class DungeonState {
     }
 
     private static void onChatMessage(Component message) {
-        if (BOSS_START_PATTERN.matcher(message.getString()).find() && isF7OrM7()) {
+        String raw = message.getString();
+        // Broad safety net - if the plain-text match below still somehow misses the real line, this
+        // logs the EXACT raw text (formatting codes and all) of anything boss-related so the actual
+        // wording/codes can be compared directly instead of guessing again.
+        if (raw.contains("Maxor") || raw.contains("[BOSS]")) {
+            LOGGER.info("[Secrets] Boss-related chat line seen: \"{}\"", raw);
+        }
+        String plain = ChatFormatting.stripFormatting(raw);
+        if (plain != null && BOSS_START_PATTERN.matcher(plain).find() && isF7OrM7()) {
             LOGGER.info("[Secrets] Boss phase started (real Maxor chat line matched)");
             bossPhaseActive = true;
         }

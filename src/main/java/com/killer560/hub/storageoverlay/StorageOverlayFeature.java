@@ -224,7 +224,13 @@ public final class StorageOverlayFeature {
      *  by name instead of NoammAddons' own item-id marker list, since the purple "owned" panes here
      *  didn't match any of their known ids - only the confirmed "Locked Page" text is excluded, so
      *  killer560 gets a dummy/clickable entry for everything he actually owns. Never overwrites a
-     *  page that already has real logged contents. */
+     *  page that already has real logged contents.
+     *  <p>
+     *  Real bug found and fixed (2026-09-09), per killer560's screenshot showing "Backpack #1 - Click
+     *  to load" offered with 0 real backpacks: a Backpack slot has a THIRD real state Ender Chest pages
+     *  don't - unlocked (not shop-locked) but with no actual backpack item placed in it yet, shown as a
+     *  real "Empty Backpack Slot #N" tooltip ("Left-click a backpack item on this slot to place it!").
+     *  That tooltip doesn't contain "locked", so it was being counted as owned. Now excluded the same way. */
     private static void scanOverview(ChestMenu menu) {
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
         int ownedCount = 0;
@@ -234,9 +240,11 @@ public final class StorageOverlayFeature {
                 continue;
             }
             ItemStack stack = slot.getItem();
-            boolean locked = stack != null && !stack.isEmpty()
-                    && stack.getHoverName().getString().toLowerCase(java.util.Locale.US).contains("locked");
-            boolean owned = stack != null && !stack.isEmpty() && !locked;
+            String name = stack != null && !stack.isEmpty()
+                    ? stack.getHoverName().getString().toLowerCase(java.util.Locale.US) : "";
+            boolean locked = name.contains("locked");
+            boolean emptySlot = name.contains("empty");
+            boolean owned = stack != null && !stack.isEmpty() && !locked && !emptySlot;
             if (owned) {
                 cache.markKnown(key);
                 ownedCount++;

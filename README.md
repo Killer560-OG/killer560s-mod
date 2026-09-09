@@ -15,6 +15,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Auto Correct — fixes common typos before you send
 - Chat Emotes — shortcuts that turn into fun chat emotes
 - Click Translate — click a chat message to see it translated
+- Copy Chat — Shift+Click a message to copy the whole thing, or Shift+Right-Click to copy just one line of it
 - Auto Meow — random cat noises
 - Cringe — random one-liner messages for fun
 - Spotify Mod — posts the lyrics of whatever you're playing on Spotify into chat, synced to the song
@@ -22,13 +23,29 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
+- Jumpscare — randomly plays a full-screen image with sound to startle you (just for fun)
 
 **Helpers**
 - Experimentation Table Solver — solves Chronomatron, Ultrasequencer, and Superpairs in a highlight-only "Solver Only" mode (you click, it just shows you the answer). The **cheat** build additionally has a fully autonomous mode that clicks for you - see [Which jar do I download?](#installing) below.
+- Storage Overlay — see the contents of every Ender Chest page and Backpack live, right alongside your open inventory
+- Screenshot Copy — automatically copies a screenshot to your clipboard the moment you take it
+- No Fire — removes the on-screen fire overlay so burning doesn't block your view mid-fight
+- Auto Join Skyblock — automatically runs `/skyblock` the moment you connect to Hypixel
 
 **Dungeon**
 - RNG Meter — tracks your Hypixel Skyblock RNG/pity progress on dungeon floors
 - Leap Message — sends a message when you leap to someone in dungeons
+- Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection (Solver Only - never clicks for you)
+- Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run
+- Secrets (Full Block) — expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click
+
+**Display**
+- Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
+- Fullbright — see clearly in dark areas without touching your real brightness setting
+
+**Accounts**
+- Account Switcher — swap between your saved Microsoft accounts from the main menu, with each one's Hypixel ban status shown
+- Proxy Client — optionally route your connection through a SOCKS proxy
 
 **Home**
 - A HUD editor to drag and resize the mod's on-screen elements wherever you want them
