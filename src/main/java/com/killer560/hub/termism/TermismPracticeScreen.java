@@ -450,8 +450,9 @@ public class TermismPracticeScreen extends Screen {
             if (type == TerminalType.RUBIX && highlight.label() != null) {
                 // No shadow, matching TerminalSolverFeature's own round-14 fix - #centeredText has no
                 // shadow-off overload, so this centers by hand via the plain #text overload instead.
-                int textY = y0 + (16 - this.font.lineHeight) / 2;
-                int textX = x0 + 8 - this.font.width(highlight.label()) / 2;
+                // Round 15's small centering nudge, same as that class's own fix.
+                int textY = y0 + (16 - this.font.lineHeight) / 2 + 1;
+                int textX = x0 + 8 - Math.round(this.font.width(highlight.label()) / 2f) + 1;
                 graphics.text(this.font, highlight.label(), textX, textY, 0xFF000000, false);
             }
         }

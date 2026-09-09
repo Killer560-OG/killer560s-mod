@@ -90,8 +90,9 @@ public final class TerminalSolverFeature {
     // endpoint/moving color exactly instead of their own separate light shade.
     private static final int MELODY_BUTTON_COLOR = MELODY_ENDPOINT_COLOR;
     // Round 10's 0xFFFFF2E0 read as basically white, round 11's 0xFFFFCC80 still wasn't light enough per
-    // killer560's round-12 "you can lighten up the main 4x5" follow-up.
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFFFFE0B3;
+    // killer560's round-12 "you can lighten up the main 4x5" follow-up. Round 15: "so close to perfect...
+    // just make those white spaces a little bit dimmer" - nudged back down slightly from there.
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFFF5D2A0;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -130,17 +131,18 @@ public final class TerminalSolverFeature {
     // still like it opens multiple menus" even after round 11's fixes: rounds 8/9/11 each patched one
     // specific symptom (panel size, then highlight correctness) of the same underlying cause - Hypixel's
     // real container data can keep arriving/settling over several frames after a terminal opens, not just
-    // one. This is a blunt but total fix: don't draw anything (panel, highlights, all of it) for a short
-    // grace period after a genuinely new terminal is first detected, giving the real data time to settle
-    // before Custom GUI ever shows anything at all. The real background is still hidden during this
-    // window (see #shouldHideBackgroundAndLabels) - so what's actually visible is just a brief blank
-    // moment, never a resizing/flickering panel. Round 12's 150ms fixed the flash but killer560's round-13
-    // follow-up ("opening terminals is very delayed and I dont want that") confirmed that read as
-    // sluggish; round 13 cut it to 60ms, and round 14's "make it so I can enter terms faster again" says
-    // that's still not fast enough - cut further to close to a single frame's worth, about as low as this
-    // can go and still cover the transient population gap at all.
-    private static final long OPEN_GRACE_PERIOD_MS = 20;
-    private static long typeDetectedAtMs;
+    // one. Rounds 12-14 tried a blind wall-clock grace period (draw nothing for N ms after a new terminal
+    // is detected) - but that's a real tradeoff with no right answer: killer560 kept finding it either
+    // still flashed occasionally ("opening a ton of solvers") or felt sluggish, because population time
+    // genuinely varies and no fixed constant covers every case without also being slower than necessary
+    // the rest of the time. Round 15 replaces the timer entirely with a content-stability check instead:
+    // don't draw until this terminal's real item data has been IDENTICAL for two consecutive frames (see
+    // #hasStabilizedOnce), then never re-check for the rest of that terminal's lifetime (so a later
+    // legitimate change, like a correct click updating a pane, never re-triggers this gate) - this
+    // self-adapts to however long the real population actually takes, as fast as truly possible, with no
+    // constant to keep re-tuning.
+    private static boolean hasStabilizedOnce;
+    private static List<ItemStack> previousItemsSnapshot = List.of();
 
     // Public - per killer560's round-13 "my solver overlay still isnt happening on [Termism]" request,
     // TermismPracticeScreen (a different package) reuses this exact record via the public #solve entry
@@ -185,12 +187,20 @@ public final class TerminalSolverFeature {
             // highlighted before belongs to a different board entirely, so it must not carry over even
             // for one frame while this new one's own real data is still arriving.
             currentHighlights = Map.of();
-            typeDetectedAtMs = System.currentTimeMillis();
             rubixTargetColorIndex = -1;
+            hasStabilizedOnce = false;
+            previousItemsSnapshot = List.of();
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
         currentTerminalSlotCount = items.size();
+        if (!hasStabilizedOnce) {
+            boolean realContent = hasRealContent(items);
+            if (realContent && ItemStack.listMatches(items, previousItemsSnapshot)) {
+                hasStabilizedOnce = true;
+            }
+            previousItemsSnapshot = realContent ? List.copyOf(items) : List.of();
+        }
         // Melody has no solving logic - nothing to mark correct/incorrect - so currentHighlights always
         // stays empty for it. Its Custom GUI panel (see #renderMelodyCustomGui) instead just redraws
         // every real terminal-grid item as-is, decluttered from the rest of the screen.
@@ -223,6 +233,7 @@ public final class TerminalSolverFeature {
         }
         return false;
     }
+
 
     /** Per killer560's explicit "make it so it doesnt pick up panes at all anymore" request (2026-09-09,
      *  round 8) - Custom GUI's redirected clicks already avoid {@code ContainerInput.PICKUP} for every
@@ -290,15 +301,22 @@ public final class TerminalSolverFeature {
         }
         if (currentType == TerminalType.MELODY) {
             renderMelodyCustomGui(graphics, screen);
-        } else if (!currentHighlights.isEmpty()) {
+        } else {
+            // Per killer560's "rubix is still flashing on the last item" report (2026-09-09, round 15) -
+            // this used to skip drawing entirely once currentHighlights went empty (the last correct
+            // click leaves nothing left to highlight), so the whole panel would abruptly vanish back to
+            // the hidden/blank real background for whatever's left of the moment before Hypixel closes
+            // the solved terminal - reading as a flash. Now always draws the panel itself (background +
+            // border), just with zero highlighted cells when there's nothing left to click, so something
+            // stays on screen continuously instead of a sudden gap.
             renderCustomGui(graphics, screen);
         }
     }
 
-    /** @return whether the current terminal was detected less than {@link #OPEN_GRACE_PERIOD_MS} ago -
-     *  see that field's own doc for why Custom GUI deliberately shows nothing at all during this window. */
+    /** @return whether this terminal's data hasn't stabilized yet (see {@link #hasStabilizedOnce}'s own
+     *  doc) - Custom GUI deliberately shows nothing at all until it has. */
     private static boolean withinOpenGracePeriod() {
-        return System.currentTimeMillis() - typeDetectedAtMs < OPEN_GRACE_PERIOD_MS;
+        return !hasStabilizedOnce;
     }
 
     /** Melody has no solving logic - nothing here is marked correct/incorrect - so this just redraws
@@ -484,10 +502,14 @@ public final class TerminalSolverFeature {
             if (currentType == TerminalType.RUBIX && highlight.label() != null) {
                 // Per killer560's "please remove that text shadow" report (2026-09-09, round 14) -
                 // #centeredText has no shadow-off overload, so this centers the text by hand instead
-                // using the plain #text overload's own explicit shadow=false parameter.
+                // using the plain #text overload's own explicit shadow=false parameter. Round 15's "the
+                // numbers are now off center a little high and left" follow-up - this formula is actually
+                // identical to #centeredText's own internal one (confirmed via decompile), so the shadow
+                // itself was likely visually masking the same small offset before; nudged down/right a
+                // touch since removing the shadow made it more noticeable.
                 Font font = Minecraft.getInstance().font;
-                int textY = y0 + (SLOT_SIZE - font.lineHeight) / 2;
-                int textX = x0 + SLOT_SIZE / 2 - font.width(highlight.label()) / 2;
+                int textY = y0 + (SLOT_SIZE - font.lineHeight) / 2 + 1;
+                int textX = x0 + SLOT_SIZE / 2 - Math.round(font.width(highlight.label()) / 2f) + 1;
                 graphics.text(font, highlight.label(), textX, textY, 0xFF000000, false);
             }
         }
