@@ -11,9 +11,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -903,9 +905,14 @@ public final class ExperimentsFeature {
         maxClicksNotifiedThisRound = true;
         var player = Minecraft.getInstance().player;
         if (player != null) {
+            // Per killer560's explicit request (2026-09-08): the whole line in orange (§6/GOLD - the
+            // closest vanilla color code to true orange, matching this mod's own amber/orange theme
+            // elsewhere), plus a real sound so it's noticed even if chat isn't being watched right now -
+            // same play(SimpleSoundInstance.forUI(...)) pattern already used for the /killer560 command.
             player.sendSystemMessage(Component.literal(
-                    "§b[Killer560's Mod] §fYou've reached the max rounds needed for max clicks (round "
+                    "§6[Killer560's Mod] You've reached the max rounds needed for max clicks (round "
                             + activeRoundsNeeded + ")."));
+            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
         }
     }
 

@@ -446,9 +446,25 @@ public final class StorageOverlayFeature {
             if (lastMaxScroll > 0) {
                 drawScrollBar(graphics, viewportWidthLocal, viewportHeightLocal, contentHeight);
             }
+            // Real bug found and fixed (2026-09-08), per killer560's report that the item being moved
+            // "doesn't show on my cursor" - vanilla's own extractCarriedItem already runs earlier in
+            // this same render pass (drawing whatever's currently held following the mouse), but this
+            // mod's own grid/Inventory panel draws AFTER it and covers a large part of the screen,
+            // visually burying it. The item was never actually lost - just invisible under this mod's
+            // own content. Redrawing it here, last, puts it back on top of everything.
+            screen.extractCarriedItem(graphics, mouseX, mouseY);
         } catch (Exception e) {
             LOGGER.error("Failed to render Storage Overlay", e);
         }
+    }
+
+    /** @return true if killer560 currently has an item picked up (following his cursor) in this
+     *  screen's menu - used by the mixin as a safety net: an unclaimed click on a tracked screen (every
+     *  real slot hidden, so vanilla's own hit-testing can't find one under the cursor either) is blocked
+     *  outright while holding something, rather than letting it fall through into vanilla's real
+     *  "clicked outside the inventory" throw. */
+    public static boolean isHoldingCarriedItem(AbstractContainerScreen<?> screen) {
+        return !screen.getMenu().getCarried().isEmpty();
     }
 
     /** Draws a thin scroll indicator just right of the grid, in real screen coordinates (outside the

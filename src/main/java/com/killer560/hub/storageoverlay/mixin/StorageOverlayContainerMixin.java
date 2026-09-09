@@ -67,6 +67,18 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         String activeKey = StorageOverlayFeature.storageKeyForTitle(title);
         if (StorageOverlayFeature.handleClick(self, event.x(), event.y(), activeKey, event.button(), event.hasShiftDown())) {
             cir.setReturnValue(true);
+            return;
+        }
+        // Real bug found and fixed (2026-09-08), per killer560's report that moving items between his
+        // inventory and an open storage "sometimes tries to drop the item": every real slot on this
+        // screen is hidden, so a click that none of the redirects above claimed lands on a mouse
+        // position vanilla's own hit-testing finds NO slot under at all - which is exactly the real
+        // "clicked outside the inventory" case vanilla throws the carried item for. Rather than track
+        // down every exact geometric edge case that can slip through the redirects, this is a safety
+        // net: if killer560 is actually holding an item right now, an unclaimed click is blocked
+        // outright instead of being allowed to fall through into a real, silent item-loss drop.
+        if (StorageOverlayFeature.isHoldingCarriedItem(self)) {
+            cir.setReturnValue(true);
         }
     }
 
