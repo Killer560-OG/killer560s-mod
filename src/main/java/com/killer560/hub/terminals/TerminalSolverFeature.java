@@ -52,14 +52,14 @@ public final class TerminalSolverFeature {
     // tiles" request (2026-09-09) - the mod's own established amber/orange accent (see
     // SettingsButtonWidget's own BORDER_HOVER), leaned into here instead of the old green/cyan/gold
     // rainbow mix, everywhere the puzzle itself doesn't force a specific color choice.
-    private static final int THEME_ORANGE_LIGHT = 0xFFFFCC66;
     private static final int THEME_ORANGE = 0xFFFF8C00;
-    private static final int THEME_ORANGE_DEEP = 0xFFCC5500;
+    // "Having them be bright would be better" (2026-09-09, round 4) - a more vivid/saturated orange
+    // than THEME_ORANGE specifically for Panes/Numbers' flat boxes, which are otherwise a big flat
+    // area of solid color (unlike an outline or a small Select box) where "bright" reads better.
+    private static final int BRIGHT_ORANGE = 0xFFFFA500;
+    private static final int MUTED_ORANGE = 0xFFB37744;
 
-    private static final int PANES_COLOR = THEME_ORANGE;
-    private static final int ORDER_COLOR_1 = THEME_ORANGE_LIGHT;
-    private static final int ORDER_COLOR_2 = THEME_ORANGE;
-    private static final int ORDER_COLOR_3 = THEME_ORANGE_DEEP;
+    private static final int PANES_COLOR = BRIGHT_ORANGE;
     private static final int STARTS_WITH_COLOR = THEME_ORANGE;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
@@ -87,13 +87,6 @@ public final class TerminalSolverFeature {
     private static Map<Integer, SlotHighlight> currentHighlights = Map.of();
     private static int currentTerminalSlotCount;
 
-    // Melody has no solving logic - Custom GUI mode just hides its player-inventory rows and recenters
-    // the screen (see #applyMelodyRepositioning). Tracks the real, un-shifted topPos per screen instance
-    // so the recenter shift is always computed from a stable baseline instead of drifting frame to frame.
-    private static ContainerScreen melodyBaselineScreen;
-    private static int melodyBaselineTopPos;
-    private static final int MELODY_RECENTER_SHIFT = 45;
-
     private record SlotHighlight(int color, String label) {
     }
 
@@ -115,7 +108,6 @@ public final class TerminalSolverFeature {
         if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
             currentType = null;
             currentHighlights = Map.of();
-            melodyBaselineScreen = null;
             return;
         }
         String title = screen.getTitle().getString();
@@ -123,41 +115,23 @@ public final class TerminalSolverFeature {
         if (type == null) {
             currentType = null;
             currentHighlights = Map.of();
-            melodyBaselineScreen = null;
             return;
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
         currentTerminalSlotCount = items.size();
-        if (type == TerminalType.MELODY) {
-            currentHighlights = Map.of();
-            applyMelodyRepositioning(screen);
-        } else {
-            melodyBaselineScreen = null;
-            currentHighlights = solve(type, title, items);
-        }
-    }
-
-    /** Melody-only: recenters the real vanilla screen once its inventory rows are hidden, by directly
-     *  shifting its own real {@code topPos} - moving the actual anchor point (not just a visual overlay)
-     *  keeps rendering AND real click hit-testing in sync automatically, since both already read from
-     *  this same field. {@link #MELODY_RECENTER_SHIFT} is an approximation (roughly half the height of
-     *  the hidden inventory rows + label gap) rather than an exact computed value. */
-    private static void applyMelodyRepositioning(ContainerScreen screen) {
-        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
-        if (melodyBaselineScreen != screen) {
-            melodyBaselineScreen = screen;
-            melodyBaselineTopPos = accessor.killer560smod$getTopPos();
-        }
-        int targetTopPos = TerminalSolverConfig.getInstance().isCustomGuiEnabled()
-                ? melodyBaselineTopPos + MELODY_RECENTER_SHIFT : melodyBaselineTopPos;
-        accessor.killer560smod$setTopPos(targetTopPos);
+        // Melody has no solving logic - Custom GUI mode just hides its player-inventory rows (see
+        // #shouldHideSlot). Real bug found and fixed (2026-09-09, round 4): an earlier version of this
+        // also tried to recenter the screen by mutating its real topPos, which killer560 reported broke
+        // Melody's whole layout - reverted, not worth the risk for a cosmetic recenter.
+        currentHighlights = type == TerminalType.MELODY ? Map.of() : solve(type, title, items);
     }
 
     /** @return whether the given real slot index should be hidden right now. Every type but Melody
      *  hides its whole grid (Custom GUI draws a full replacement panel); Melody only hides the player's
-     *  own inventory rows (there's no replacement panel for it - the real terminal portion stays put),
-     *  per killer560's "hide my inventory" request (2026-09-09). */
+     *  own inventory rows - there's no replacement panel for it, and no repositioning any more either
+     *  (see {@link #refreshState()}'s own doc) - just the inventory items themselves, per killer560's
+     *  "hide my inventory" request (2026-09-09). */
     public static boolean shouldHideSlot(int slotIndex) {
         if (!isCustomGuiActive()) {
             return false;
@@ -261,12 +235,11 @@ public final class TerminalSolverFeature {
 
             // Per killer560's per-type style requests (2026-09-09):
             switch (currentType) {
-                case PANES -> {
-                    // "i can only see the red ones and they have no outline" - the bare real item
-                    // (already a red pane) with no cell background or outline added around it.
-                    if (!stack.isEmpty()) {
-                        graphics.item(stack, x0, y0);
-                    }
+                case PANES, NUMBERS -> {
+                    // "make these orange... bright" (round 4) - a flat, bright orange box, no item
+                    // icon, no outline. Numbers' current-vs-next distinction (see #solveNumbers) still
+                    // comes through since that's a different, muted shade of the same color.
+                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
                 }
                 case SELECT -> {
                     // "the items are instead glass panes/colored boxes... all the same" - a flat box in
@@ -284,7 +257,7 @@ public final class TerminalSolverFeature {
                     }
                 }
                 default -> {
-                    // Numbers, Starts With: unchanged from before - real item + colored outline.
+                    // Starts With: unchanged from before - real item + colored outline.
                     graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, CELL_BG_COLOR);
                     graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, highlight.color());
                     if (!stack.isEmpty()) {
@@ -294,16 +267,17 @@ public final class TerminalSolverFeature {
                 }
             }
 
-            if (!stack.isEmpty() && localMouseX >= x0 && localMouseX < x0 + SLOT_SIZE
+            if (currentType == TerminalType.STARTS_WITH && !stack.isEmpty()
+                    && localMouseX >= x0 && localMouseX < x0 + SLOT_SIZE
                     && localMouseY >= y0 && localMouseY < y0 + SLOT_SIZE) {
                 hoveredStack = stack;
             }
         }
         graphics.pose().popMatrix();
 
-        // Select/Rubix show a flat color instead of the real item, so a tooltip about "the item" would
-        // be meaningless there - only Panes/Numbers/Starts With (which still show the real item) get one.
-        if (hoveredStack != null && currentType != TerminalType.SELECT && currentType != TerminalType.RUBIX) {
+        // Every other type is now a flat color (no real item shown), so a tooltip about "the item"
+        // would be meaningless there - only Starts With still shows the real item icon.
+        if (hoveredStack != null) {
             graphics.setTooltipForNextFrame(Minecraft.getInstance().font, hoveredStack, mouseX, mouseY);
         }
     }
@@ -366,8 +340,8 @@ public final class TerminalSolverFeature {
             case NUMBERS -> cfg.isNumbersEnabled();
             case STARTS_WITH -> cfg.isStartsWithEnabled();
             case SELECT -> cfg.isSelectEnabled();
-            // No solving/toggle of its own - only ever detected so Custom GUI's hide-inventory/recenter
-            // treatment (see #shouldHideSlot, #applyMelodyRepositioning) can apply to it.
+            // No solving/toggle of its own - only ever detected so Custom GUI's hide-inventory
+            // treatment (see #shouldHideSlot) can apply to it.
             case MELODY -> true;
         };
     }
@@ -404,7 +378,15 @@ public final class TerminalSolverFeature {
     /** "Click in order!" - same red-pane detection as Panes, but the real order is encoded in each
      *  pane's stack COUNT (not its name/lore) - confirmed via Odin's NumbersHandler. No label of our
      *  own on these - per killer560's report (2026-09-09), vanilla already renders that same count as
-     *  a real number in the corner of the item, so our own text just doubled up on top of it. */
+     *  a real number in the corner of the item, so our own text just doubled up on top of it.
+     *  <p>
+     *  Per killer560's follow-up request (2026-09-09, round 4): only ever surfaces the immediate next
+     *  click (bright orange) and the one after it (muted orange) - everything else stays completely
+     *  unhighlighted, the same "next + following" two-tier reveal Chronomatron/Ultrasequencer's own
+     *  Solver Only mode already uses, rather than lighting up every remaining pane's own order at once.
+     *  Self-correcting every frame with no extra state: once the real current-lowest pane is clicked,
+     *  Hypixel's own server stops it being a red pane, so the freshly re-sorted list naturally advances
+     *  on its own. */
     private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
         List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
@@ -414,13 +396,11 @@ public final class TerminalSolverFeature {
         }
         slots.sort(Comparator.comparingInt(i -> items.get(i).getCount()));
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
-        for (int order = 0; order < slots.size(); order++) {
-            int color = switch (order) {
-                case 0 -> ORDER_COLOR_1;
-                case 1 -> ORDER_COLOR_2;
-                default -> ORDER_COLOR_3;
-            };
-            result.put(slots.get(order), new SlotHighlight(color, null));
+        if (!slots.isEmpty()) {
+            result.put(slots.get(0), new SlotHighlight(BRIGHT_ORANGE, null));
+        }
+        if (slots.size() > 1) {
+            result.put(slots.get(1), new SlotHighlight(MUTED_ORANGE, null));
         }
         return result;
     }
