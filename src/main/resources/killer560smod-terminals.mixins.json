@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.terminals.mixin",
 	"client": [
-		"TerminalSolverContainerRenderMixin"
+		"TerminalSolverContainerRenderMixin",
+		"TerminalSolverSlotMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

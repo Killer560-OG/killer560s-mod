@@ -1,11 +1,14 @@
 package com.killer560.hub.terminals;
 
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
+import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
-import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
@@ -30,6 +33,16 @@ import java.util.regex.Matcher;
 public final class TerminalSolverFeature {
 
     private static final int SLOT_SIZE = 16;
+
+    // Custom GUI mode's own layout constants - a fixed local grid cell size (vanilla's own 16px item
+    // plus a 2px gap, same spacing convention as vanilla chest slots) that the shared Scale setting
+    // then blows up via a pose transform, same trick StorageOverlayFeature's own grid already uses.
+    private static final int CELL_SIZE = 18;
+    private static final int GRID_COLUMNS = 9;
+    private static final int PANEL_PADDING = 6;
+    private static final int PANEL_BG_COLOR = 0xEE1A1A1A;
+    private static final int PANEL_BORDER_COLOR = 0xFF663D1A;
+    private static final int CELL_BG_COLOR = 0xFF2A2A2A;
 
     // A normal Hypixel container GUI always appends the player's own 36 inventory+hotbar slots after
     // the GUI's own content - subtracting this out is a simpler, more robust way to isolate "just the
@@ -95,13 +108,27 @@ public final class TerminalSolverFeature {
         currentHighlights = solve(type, title, items);
     }
 
-    public static void renderHighlights(GuiGraphicsExtractor graphics) {
+    /** @return whether Custom GUI mode should currently be showing (feature + that toggle both on,
+     *  and a covered terminal is actually open right now). */
+    public static boolean isCustomGuiActive() {
+        return currentType != null && TerminalSolverConfig.getInstance().isCustomGuiEnabled();
+    }
+
+    public static void renderOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (currentType == null || currentHighlights.isEmpty()) {
             return;
         }
-        if (!(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
+        if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
+        if (isCustomGuiActive()) {
+            renderCustomGui(graphics, screen, mouseX, mouseY);
+        } else {
+            renderVanillaHighlights(graphics, screen);
+        }
+    }
+
+    private static void renderVanillaHighlights(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
         int left = accessor.killer560smod$getLeftPos();
         int top = accessor.killer560smod$getTopPos();
@@ -128,6 +155,103 @@ public final class TerminalSolverFeature {
         }
     }
 
+    /** Custom GUI mode: a big, standalone panel showing ONLY the slots actually in the solution -
+     *  "the buttons i have to press are the only things I see in the gui", per killer560's explicit
+     *  request (2026-09-09) - laid out at each item's real row/column within the terminal's own 9-wide
+     *  grid (every Hypixel chest-style container is 9 columns wide) so the spatial layout still makes
+     *  sense, just with every irrelevant slot skipped entirely and everything scaled up via the same
+     *  Scale setting the vanilla-overlay mode already uses. The real slots are hidden elsewhere (see
+     *  {@code TerminalSolverSlotMixin}) - clicking a cell here redirects to the real underlying slot by
+     *  index via {@link SlotClickInvoker}, the same trick Storage Overlay's own custom grid uses. */
+    private static void renderCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, int mouseX, int mouseY) {
+        CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        double localMouseX = (mouseX - layout.originX) / (double) layout.scale;
+        double localMouseY = (mouseY - layout.originY) / (double) layout.scale;
+
+        graphics.nextStratum();
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(layout.originX, layout.originY);
+        graphics.pose().scale(layout.scale, layout.scale);
+
+        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING, PANEL_BG_COLOR);
+        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
+
+        List<Slot> slots = screen.getMenu().slots;
+        ItemStack hoveredStack = null;
+        for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
+            int slotIndex = entry.getKey();
+            if (slotIndex >= slots.size()) {
+                continue;
+            }
+            SlotHighlight highlight = entry.getValue();
+            int x0 = (slotIndex % GRID_COLUMNS) * CELL_SIZE;
+            int y0 = (slotIndex / GRID_COLUMNS) * CELL_SIZE;
+
+            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, CELL_BG_COLOR);
+            graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, highlight.color());
+
+            ItemStack stack = slots.get(slotIndex).getItem();
+            if (!stack.isEmpty()) {
+                graphics.item(stack, x0, y0);
+                graphics.itemDecorations(Minecraft.getInstance().font, stack, x0, y0);
+                if (localMouseX >= x0 && localMouseX < x0 + SLOT_SIZE && localMouseY >= y0 && localMouseY < y0 + SLOT_SIZE) {
+                    hoveredStack = stack;
+                }
+            }
+            if (highlight.label() != null) {
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(x0, y0 + SLOT_SIZE - 7);
+                graphics.pose().scale(0.5f, 0.5f);
+                graphics.text(Minecraft.getInstance().font, highlight.label(), 1, 1, 0xFFFFFFFF, true);
+                graphics.pose().popMatrix();
+            }
+        }
+        graphics.pose().popMatrix();
+
+        if (hoveredStack != null) {
+            graphics.setTooltipForNextFrame(Minecraft.getInstance().font, hoveredStack, mouseX, mouseY);
+        }
+    }
+
+    /** @return whether the click was consumed - Custom GUI mode swallows every click while it's
+     *  showing (redirecting the ones that land on a real cell, discarding the rest), since the real
+     *  slots underneath are hidden and shouldn't be reachable by an unrelated click landing on empty
+     *  panel background. */
+    public static boolean handleCustomGuiClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, int button) {
+        if (!isCustomGuiActive()) {
+            return false;
+        }
+        CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        double localX = (mouseX - layout.originX) / layout.scale;
+        double localY = (mouseY - layout.originY) / layout.scale;
+        int col = (int) Math.floor(localX / CELL_SIZE);
+        int row = (int) Math.floor(localY / CELL_SIZE);
+        int slotIndex = row * GRID_COLUMNS + col;
+
+        List<Slot> slots = screen.getMenu().slots;
+        if (col >= 0 && col < GRID_COLUMNS && row >= 0 && currentHighlights.containsKey(slotIndex) && slotIndex < slots.size()) {
+            Slot slot = slots.get(slotIndex);
+            ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, ContainerInput.PICKUP);
+        }
+        return true;
+    }
+
+    private record CustomGuiLayout(int originX, int originY, float scale, int panelWidth, int panelHeight) {
+    }
+
+    private static CustomGuiLayout computeCustomGuiLayout(AbstractContainerScreen<?> screen) {
+        int terminalSlotCount = terminalItems(screen.getMenu()).size();
+        int rows = Math.max(1, (int) Math.ceil(terminalSlotCount / (double) GRID_COLUMNS));
+        float scale = TerminalSolverConfig.getInstance().getScale();
+        int panelWidth = GRID_COLUMNS * CELL_SIZE;
+        int panelHeight = rows * CELL_SIZE;
+        int scaledWidth = Math.round(panelWidth * scale);
+        int scaledHeight = Math.round(panelHeight * scale);
+        int originX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - scaledWidth) / 2;
+        int originY = (Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight) / 2;
+        return new CustomGuiLayout(originX, originY, scale, panelWidth, panelHeight);
+    }
+
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {
         for (TerminalType type : TerminalType.values()) {
             if (!isTypeEnabled(type, cfg)) {
@@ -150,7 +274,7 @@ public final class TerminalSolverFeature {
         };
     }
 
-    private static List<ItemStack> terminalItems(ChestMenu menu) {
+    private static List<ItemStack> terminalItems(AbstractContainerMenu menu) {
         List<ItemStack> all = menu.getItems();
         int terminalSlotCount = Math.max(0, all.size() - PLAYER_INVENTORY_SIZE);
         return terminalSlotCount == 0 ? all : all.subList(0, terminalSlotCount);
@@ -178,7 +302,9 @@ public final class TerminalSolverFeature {
     }
 
     /** "Click in order!" - same red-pane detection as Panes, but the real order is encoded in each
-     *  pane's stack COUNT (not its name/lore) - confirmed via Odin's NumbersHandler. */
+     *  pane's stack COUNT (not its name/lore) - confirmed via Odin's NumbersHandler. No label of our
+     *  own on these - per killer560's report (2026-09-09), vanilla already renders that same count as
+     *  a real number in the corner of the item, so our own text just doubled up on top of it. */
     private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
         List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
@@ -194,7 +320,7 @@ public final class TerminalSolverFeature {
                 case 1 -> ORDER_COLOR_2;
                 default -> ORDER_COLOR_3;
             };
-            result.put(slots.get(order), new SlotHighlight(color, String.valueOf(order + 1)));
+            result.put(slots.get(order), new SlotHighlight(color, null));
         }
         return result;
     }

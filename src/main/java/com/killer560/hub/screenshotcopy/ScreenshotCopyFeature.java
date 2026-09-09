@@ -1,6 +1,5 @@
 package com.killer560.hub.screenshotcopy;
 
-import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.network.chat.Component;
@@ -91,7 +90,8 @@ public final class ScreenshotCopyFeature {
     }
 
     private static void notifySuccess() {
-        ModOverlayMessage.show("§b[Killer560's Mod] Screenshot copied to clipboard!", 3000);
+        // Per killer560's request (2026-09-09), the center-screen overlay message was removed - the
+        // chat message below is the only confirmation now.
         Minecraft.getInstance().execute(() -> {
             var player = Minecraft.getInstance().player;
             if (player != null) {

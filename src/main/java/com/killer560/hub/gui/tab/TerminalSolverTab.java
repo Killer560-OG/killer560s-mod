@@ -53,6 +53,23 @@ public class TerminalSolverTab extends BaseTab {
         });
         y += 30;
 
+        widgets.add(SettingsButtonWidget.builder(customGuiText(), btn -> {
+                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                    cfg.setCustomGuiEnabled(!cfg.isCustomGuiEnabled());
+                    cfg.save();
+                    btn.setMessage(customGuiText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Custom GUI replaces the terminal with a bigger panel showing"),
+                Minecraft.getInstance().font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("only the slot(s) you actually need to click."),
+                Minecraft.getInstance().font));
+        y += 22;
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Terminals to solve:"), Minecraft.getInstance().font));
         y += 16;
@@ -111,6 +128,10 @@ public class TerminalSolverTab extends BaseTab {
 
     private static Component scaleText() {
         return Component.literal(String.format("Highlight Scale: %.0f%%", TerminalSolverConfig.getInstance().getScale() * 100));
+    }
+
+    private static Component customGuiText() {
+        return Component.literal("Custom GUI: " + (TerminalSolverConfig.getInstance().isCustomGuiEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component panesText() {

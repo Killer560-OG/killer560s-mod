@@ -32,6 +32,7 @@ public final class TerminalSolverConfig {
     private boolean numbersEnabled = true;
     private boolean startsWithEnabled = true;
     private boolean selectEnabled = true;
+    private boolean customGuiEnabled = false;
 
     private TerminalSolverConfig() {
     }
@@ -59,6 +60,7 @@ public final class TerminalSolverConfig {
             cfg.numbersEnabled = !obj.has("numbersEnabled") || obj.get("numbersEnabled").getAsBoolean();
             cfg.startsWithEnabled = !obj.has("startsWithEnabled") || obj.get("startsWithEnabled").getAsBoolean();
             cfg.selectEnabled = !obj.has("selectEnabled") || obj.get("selectEnabled").getAsBoolean();
+            cfg.customGuiEnabled = obj.has("customGuiEnabled") && obj.get("customGuiEnabled").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalSolverConfig();
@@ -76,6 +78,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("numbersEnabled", numbersEnabled);
             obj.addProperty("startsWithEnabled", startsWithEnabled);
             obj.addProperty("selectEnabled", selectEnabled);
+            obj.addProperty("customGuiEnabled", customGuiEnabled);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -139,5 +142,13 @@ public final class TerminalSolverConfig {
 
     public void setSelectEnabled(boolean selectEnabled) {
         this.selectEnabled = selectEnabled;
+    }
+
+    public boolean isCustomGuiEnabled() {
+        return customGuiEnabled;
+    }
+
+    public void setCustomGuiEnabled(boolean customGuiEnabled) {
+        this.customGuiEnabled = customGuiEnabled;
     }
 }
