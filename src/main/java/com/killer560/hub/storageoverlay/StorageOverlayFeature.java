@@ -79,9 +79,9 @@ public final class StorageOverlayFeature {
 
             // Per killer560's reports (2026-09-08): first centered both ways (crowded his real
             // inventory), then pinned near the top (left too little margin), then content-height-based
-            // centering (unreliable - see defaultY's own comment). Now a fixed 40% of the real,
-            // live-computed room above his inventory - simple and predictable regardless of how many
-            // storages are known.
+            // centering (unreliable), then a fixed 40% of the available room (still not enough - "you
+            // just shrunk the top of it"). His own words gave a real, concrete unit to use instead of
+            // another guessed fraction: "move it down about a full inventory length" - see defaultY.
             @Override
             public int defaultX() {
                 return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
@@ -89,19 +89,19 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultY() {
-                // Per killer560's report (2026-09-08) that content-height-based centering was "still
-                // way too high" and needed to "come down a ton": with enough known storages, centering
-                // barely moved it (it bottoms out near the top the moment content exceeds the available
-                // room), and even short of that it wasn't giving the large, predictable top margin he
-                // actually wanted. Replaced entirely with a fixed 40% of the real available room above
-                // his inventory (computed live, not guessed) - always a generous, consistent gap
-                // regardless of how many storages are known, at the cost of a bit more scrolling.
+                // The previous 40%-of-available margin, PLUS one full real inventory-height on top of
+                // it (both computed live, not guessed) - killer560 gave an exact, concrete unit for how
+                // much further down he wanted it (2026-09-08: "about a full inventory length"), so this
+                // adds exactly that on top of the old value instead of guessing at another fraction.
+                // Capped so at least some real viewport room remains even on a short window.
                 Minecraft client = Minecraft.getInstance();
                 if (client.screen instanceof AbstractContainerScreen<?> containerScreen) {
                     int[] invBounds = computePlayerInventoryBounds(containerScreen);
                     if (invBounds != null) {
                         int available = Math.max(30, invBounds[1] - 16);
-                        return Math.max(50, available * 2 / 5);
+                        int invHeight = invBounds[3] - invBounds[1];
+                        int margin = (available * 2 / 5) + invHeight;
+                        return Math.max(50, Math.min(available - 60, margin));
                     }
                 }
                 return 50;
@@ -399,15 +399,41 @@ public final class StorageOverlayFeature {
             // WHOLE viewport, not just each individual item panel's own fill - otherwise the padding
             // between panels (and the world behind it) showed through, looking unfinished. Drawn in
             // real screen coordinates, same as drawPlayerInventoryOutline/drawScrollBar, so it isn't
-            // affected by the grid's own scroll translate. Skipped entirely while a rename is active -
-            // per killer560's report (2026-09-08) that the rename box's text was unreadable ("turns
-            // black") while editing: whatever this mod's own draw order turns out to be relative to the
-            // real EditBox widget's own render pass, nothing of ours painting over that exact area at
-            // all is the only way to guarantee it never happens, regardless of the actual order.
-            if (renamingKey == null) {
-                int viewportBg = StorageOverlayConfig.getInstance().isDarkMode() ? 0xD0000000 : 0xD0FFFFFF;
-                graphics.fill(lastPos[0] - 4, lastPos[1] - 4,
-                        lastPos[0] + lastViewportWidthPx + 4, lastPos[1] + lastViewportHeightPx + 4, viewportBg);
+            // affected by the grid's own scroll translate.
+            //
+            // Real bug found and fixed (2026-09-08): the FIRST fix for the rename box's unreadable text
+            // skipped this ENTIRE fill while renaming, which killer560 correctly flagged as its own
+            // new bug - the whole grid's background (not just the box's own small area) visibly went
+            // translucent, then snapped back once the rename ended. Punching an actual hole for just
+            // the box's own real screen rect (drawn as up to 4 surrounding strips instead of one big
+            // rect) keeps the rest of the background solid throughout, while still never drawing
+            // anything of ours directly under the box's own text.
+            int viewportBg = StorageOverlayConfig.getInstance().isDarkMode() ? 0xD0000000 : 0xD0FFFFFF;
+            int vx0 = lastPos[0] - 4;
+            int vy0 = lastPos[1] - 4;
+            int vx1 = lastPos[0] + lastViewportWidthPx + 4;
+            int vy1 = lastPos[1] + lastViewportHeightPx + 4;
+            if (renamingBox == null) {
+                graphics.fill(vx0, vy0, vx1, vy1, viewportBg);
+            } else {
+                int bx0 = renamingBox.getX();
+                int by0 = renamingBox.getY();
+                int bx1 = bx0 + renamingBox.getWidth();
+                int by1 = by0 + renamingBox.getHeight();
+                if (by0 > vy0) {
+                    graphics.fill(vx0, vy0, vx1, by0, viewportBg);
+                }
+                if (by1 < vy1) {
+                    graphics.fill(vx0, by1, vx1, vy1, viewportBg);
+                }
+                int midTop = Math.max(vy0, by0);
+                int midBottom = Math.min(vy1, by1);
+                if (bx0 > vx0) {
+                    graphics.fill(vx0, midTop, bx0, midBottom, viewportBg);
+                }
+                if (bx1 < vx1) {
+                    graphics.fill(bx1, midTop, vx1, midBottom, viewportBg);
+                }
             }
 
             graphics.enableScissor(lastPos[0], lastPos[1],
