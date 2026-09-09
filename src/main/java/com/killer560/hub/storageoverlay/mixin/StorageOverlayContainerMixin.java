@@ -116,4 +116,38 @@ public abstract class StorageOverlayContainerMixin extends Screen {
             cir.setReturnValue(true);
         }
     }
+
+    /** Real bug found and fixed (2026-09-08), per killer560's report that he could pick an item up
+     *  fine but it "still really wants to drop it": every interaction this mod supports is a single
+     *  discrete click (see killer560smod$clickStorageOverlay) - a real press-hold-drag-release gesture
+     *  only ever gets that first press through us; the CONTINUATION (mouseDragged while still held,
+     *  then mouseReleased) was never intercepted at all and ran vanilla's own unmodified logic, which
+     *  tries to track real slot positions that don't exist any more (every real slot on this screen is
+     *  hidden) - exactly the same "no real slot found" situation that can end in a drop. Blocking both
+     *  outright is the safe trade-off: a genuine hold-drag-release from the relocated Inventory/grid
+     *  panels won't complete the move in one motion any more, but two separate clicks (pick up, then
+     *  place - already fully supported) still will, with no risk of an unwanted drop either way. Left
+     *  alone while renaming (real text-selection drag inside the EditBox still needs both events). */
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$blockDragOnHiddenSlots(MouseButtonEvent event, double dragX, double dragY,
+                                                        CallbackInfoReturnable<Boolean> cir) {
+        if (StorageOverlayFeature.isRenamePending()) {
+            return;
+        }
+        if (StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /** See {@link #killer560smod$blockDragOnHiddenSlots} - same reasoning, the other half of a
+     *  press-hold-drag-release gesture. */
+    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$blockReleaseOnHiddenSlots(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (StorageOverlayFeature.isRenamePending()) {
+            return;
+        }
+        if (StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
+            cir.setReturnValue(true);
+        }
+    }
 }

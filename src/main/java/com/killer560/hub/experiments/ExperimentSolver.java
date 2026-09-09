@@ -315,8 +315,22 @@ final class ExperimentSolver {
 
     /** Ultrasequencer equivalent of {@link #confirmManualChronomatronClick} - each sequence position
      *  maps to exactly one unique slot here (no repeated-color runs like Chronomatron), so this matches
-     *  by exact slot rather than by item. */
-    boolean confirmManualUltrasequencerClick(int slot) {
+     *  by exact slot rather than by item.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's explicit request that clicking shouldn't
+     *  do anything "until the numbers turn back into panes": this never checked the control slot (49)
+     *  at all, unlike the autonomous path ({@link #decideUltrasequencerClick}), which correctly only
+     *  ever clicks while it shows the clock (the real "now solve it" phase, panes covering the board
+     *  again) - not the glowstone phase right after, where the panes still show their real numbers.
+     *  {@code ultrasequencer} itself gets populated the moment glowstone appears (that's the only time
+     *  the numbers are actually readable to learn the sequence from), so a click matching the right slot
+     *  during THAT phase was being confirmed too, even though the round hadn't reached the solvable
+     *  phase yet. */
+    boolean confirmManualUltrasequencerClick(int slot, List<Cell> cells) {
+        Cell control = cell(cells, 49);
+        if (control == null || !control.itemId().equals("minecraft:clock")) {
+            return false;
+        }
         long now = System.currentTimeMillis();
         if (now - lastManualConfirmedAtMs < MANUAL_CONFIRM_MIN_GAP_MS) {
             return false;

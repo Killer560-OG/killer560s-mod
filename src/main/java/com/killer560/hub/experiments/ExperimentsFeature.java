@@ -992,7 +992,7 @@ public final class ExperimentsFeature {
         // correct right now.
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
-                : SOLVER.confirmManualUltrasequencerClick(slot);
+                : SOLVER.confirmManualUltrasequencerClick(slot, snapshot(menu));
         // Diagnostic logging (2026-09-08) - killer560 has now reported "click correct, whip mouse over,
         // click wrong, it goes through" TWICE, once before and once after the lockout above was added,
         // and static analysis says this whole function should already be rejecting a genuinely wrong
