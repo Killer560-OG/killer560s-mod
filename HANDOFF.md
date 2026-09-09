@@ -71,6 +71,20 @@ Session date: 2026-09-09. Working directory: `C:\Users\Hunter\killer560s-mod`.
    confirms live, especially the "every toggle OFF behaves like vanilla" and "chests still block movement
    normally when their hitbox toggle is on" checks in `TESTING.md`.
 
+5. **Secrets follow-up** (commit `cb3a407`): killer560 asked for two more gates plus a "double check you
+   missed nothing" pass. Added `com.killer560.hub.secrets.DungeonState` - real dungeon-floor detection
+   via the sidebar scoreboard (mirrors this mod's own existing `LocationTracker` technique) and real
+   boss-phase detection via the actual F7/M7 boss chat line (grounded in SkyHanni's `DungeonBossApi`
+   reference, decompiled). New toggles: **Dungeons Only** (all 4 types) and **Boss Only**
+   (Levers/Buttons only - restricts to the real F7/M7 boss fight, this mod's alternative to NoammAddons'
+   per-floor lever blacklist for the same precision-puzzle-lever concern). Also found and fixed a real
+   gap during the "double check" pass: Wither Essence is one specific player-head SKIN on a vanilla
+   skull block, not a distinct block type - the original version expanded every skull's hitbox when
+   Essence was on; now checks the real skin profile UUID first (ported from NoammAddons'
+   `DungeonUtils.isSecret`). Boot-tested clean. **Not yet confirmed against a real dungeon run** - this
+   is the first time this mod reads the sidebar scoreboard for dungeon/boss state, so the new
+   `TESTING.md` checklist for this round deserves real verification before being trusted.
+
 **Note on `taskkill` policy:** Hunter reverted the "leave Minecraft running after boot-test" preference
 mid this session (2026-09-09) - back to taskkilling after a clean boot-test log by default now (memory
 updated: `feedback_killer560s_mod_boot_test_leave_open.md`). Don't leave instances running between
