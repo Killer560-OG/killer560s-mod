@@ -77,11 +77,15 @@ public final class StorageOverlayFeature {
                 return "Storage Overlay";
             }
 
-            // Per killer560's reports (2026-09-08): first centered both ways (crowded his real
-            // inventory), then pinned near the top (left too little margin), then content-height-based
-            // centering (unreliable), then a fixed 40% of the available room (still not enough - "you
-            // just shrunk the top of it"). His own words gave a real, concrete unit to use instead of
-            // another guessed fraction: "move it down about a full inventory length" - see defaultY.
+            // Real mistake found and fixed (2026-09-08): every earlier attempt here was moving the
+            // WRONG element. killer560's actual, original request was "make the menu start at the top
+            // of the page" (the grid) and "force my inventory to be at the bottom" (the real player
+            // inventory) - two separate things. His later "the inventory hud is still very high"
+            // referred to the real inventory, not the grid, but was read as the grid each time,
+            // repeatedly pushing the grid DOWN when it should have stayed pinned at the top the whole
+            // time. Back to a small fixed top margin, matching the original correct behavior - the real
+            // fix for the real inventory's position is a separate, bigger feature (see StorageOverlayFeature
+            // class doc / TESTING.md for the current plan).
             @Override
             public int defaultX() {
                 return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
@@ -89,22 +93,7 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultY() {
-                // The previous 40%-of-available margin, PLUS one full real inventory-height on top of
-                // it (both computed live, not guessed) - killer560 gave an exact, concrete unit for how
-                // much further down he wanted it (2026-09-08: "about a full inventory length"), so this
-                // adds exactly that on top of the old value instead of guessing at another fraction.
-                // Capped so at least some real viewport room remains even on a short window.
-                Minecraft client = Minecraft.getInstance();
-                if (client.screen instanceof AbstractContainerScreen<?> containerScreen) {
-                    int[] invBounds = computePlayerInventoryBounds(containerScreen);
-                    if (invBounds != null) {
-                        int available = Math.max(30, invBounds[1] - 16);
-                        int invHeight = invBounds[3] - invBounds[1];
-                        int margin = (available * 2 / 5) + invHeight;
-                        return Math.max(50, Math.min(available - 60, margin));
-                    }
-                }
-                return 50;
+                return 20;
             }
 
             @Override
