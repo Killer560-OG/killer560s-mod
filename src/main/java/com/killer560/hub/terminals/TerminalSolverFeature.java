@@ -90,6 +90,15 @@ public final class TerminalSolverFeature {
     private static TerminalType currentType;
     private static Map<Integer, SlotHighlight> currentHighlights = Map.of();
     private static int currentTerminalSlotCount;
+    private static boolean wasHoldingCarriedItem;
+    // Per killer560's "quick flash thing" report (2026-09-09, round 8) - a terminal's real items can
+    // momentarily be a transient "not yet populated" state on the very first frame or two after opening
+    // (e.g. every slot briefly filler/air before Hypixel's real puzzle data arrives), which used to make
+    // #computeGridBounds fall back to a full 9-wide guess for that one frame before shrinking down to
+    // the real cropped size - a visible flash of the panel briefly being much bigger than it should be.
+    // Caching the last real bounds found and reusing them for that one blank frame avoids the flash
+    // entirely; cleared whenever a DIFFERENT terminal is detected so it never leaks between terminals.
+    private static GridBounds lastGoodBounds;
 
     private record SlotHighlight(int color, String label) {
     }
@@ -112,6 +121,8 @@ public final class TerminalSolverFeature {
         if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
             currentType = null;
             currentHighlights = Map.of();
+            wasHoldingCarriedItem = false;
+            lastGoodBounds = null;
             return;
         }
         String title = screen.getTitle().getString();
@@ -119,7 +130,12 @@ public final class TerminalSolverFeature {
         if (type == null) {
             currentType = null;
             currentHighlights = Map.of();
+            wasHoldingCarriedItem = false;
+            lastGoodBounds = null;
             return;
+        }
+        if (type != currentType) {
+            lastGoodBounds = null;
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
@@ -128,6 +144,32 @@ public final class TerminalSolverFeature {
         // stays empty for it. Its Custom GUI panel (see #renderMelodyCustomGui) instead just redraws
         // every real terminal-grid item as-is, decluttered from the rest of the screen.
         currentHighlights = type == TerminalType.MELODY ? Map.of() : solve(type, title, items);
+        maybeClearAccidentalCarriedItem(screen);
+    }
+
+    /** Per killer560's explicit "make it so it doesnt pick up panes at all anymore" request (2026-09-09,
+     *  round 8) - Custom GUI's redirected clicks already avoid {@code ContainerInput.PICKUP} for every
+     *  type except Rubix (which genuinely needs a real left-vs-right click so Hypixel knows which
+     *  direction to cycle the pane - see {@link #handleCustomGuiClick}), but that one real click can
+     *  still end up with the pane briefly in the cursor. Same real, already-diagnosed bug class
+     *  ExperimentsFeature's own Click Protection hit (2026-09-08, see its own doc): Hypixel's server can
+     *  briefly grant/echo the item into the cursor as click feedback no matter how the click was sent -
+     *  nothing about preventing it client-side actually works. Reacts instead: the instant a carried
+     *  item is detected while Custom GUI is showing, clears it the same real way clicking outside any
+     *  inventory slot does ({@code ContainerInput.PICKUP} at slot -999, well-established vanilla
+     *  behavior) - called every frame from {@link #refreshState()}, fast enough it can't be seen. */
+    private static void maybeClearAccidentalCarriedItem(ContainerScreen screen) {
+        if (!isCustomGuiActive()) {
+            wasHoldingCarriedItem = false;
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        ItemStack carried = screen.getMenu().getCarried();
+        boolean holdingNow = carried != null && !carried.isEmpty();
+        if (holdingNow && !wasHoldingCarriedItem && client.player != null && client.gameMode != null) {
+            client.gameMode.handleContainerInput(screen.getMenu().containerId, -999, 0, ContainerInput.PICKUP, client.player);
+        }
+        wasHoldingCarriedItem = holdingNow;
     }
 
     /** @return whether the given real slot index should be hidden right now - true for every type,
@@ -303,7 +345,18 @@ public final class TerminalSolverFeature {
         List<Slot> slots = screen.getMenu().slots;
         if (validCell && slotIndex >= 0 && slotIndex < slots.size()) {
             Slot slot = slots.get(slotIndex);
-            ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, ContainerInput.PICKUP);
+            // Per killer560's "make it so it doesnt pick up panes at all anymore" request (2026-09-09,
+            // round 8): every type except Rubix only needs a single undirected "click this slot" signal
+            // to register with Hypixel, so CLONE (pick-block) - a genuine no-op for real item movement
+            // in survival, same trick ExperimentsFeature's own click redirect already relies on - never
+            // actually picks anything up. Rubix is the one real exception: it needs an actual left-vs-
+            // right click so Hypixel knows which direction to cycle the pane, so it still sends a real
+            // PICKUP with the real button - any resulting accidental pickup gets caught and cleared a
+            // frame later by #maybeClearAccidentalCarriedItem instead of being prevented outright.
+            boolean needsRealClick = currentType == TerminalType.RUBIX;
+            ContainerInput clickType = needsRealClick ? ContainerInput.PICKUP : ContainerInput.CLONE;
+            int effectiveButton = needsRealClick ? button : 0;
+            ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, effectiveButton, clickType);
         }
         return true;
     }
@@ -352,12 +405,20 @@ public final class TerminalSolverFeature {
             maxRow = Math.max(maxRow, row);
         }
         if (maxCol < 0) {
-            // No real puzzle items found this frame (shouldn't normally happen while a covered terminal
-            // is open) - fall back to the old full-width behavior so nothing renders as a zero-size panel.
+            // No real puzzle items found this frame - either a genuinely empty/transient state (e.g. the
+            // very first frame or two after opening, before Hypixel's real puzzle data has arrived) or
+            // this terminal just doesn't have any right now. Reuse the last real size found instead of
+            // falling back to a full-width guess, so that transient frame doesn't flash the panel at the
+            // wrong size (see #lastGoodBounds's own doc for why this matters).
+            if (lastGoodBounds != null) {
+                return lastGoodBounds;
+            }
             int rows = Math.max(1, (int) Math.ceil(items.size() / (double) GRID_COLUMNS));
             return new GridBounds(0, 0, GRID_COLUMNS, rows);
         }
-        return new GridBounds(minCol, minRow, maxCol - minCol + 1, maxRow - minRow + 1);
+        GridBounds bounds = new GridBounds(minCol, minRow, maxCol - minCol + 1, maxRow - minRow + 1);
+        lastGoodBounds = bounds;
+        return bounds;
     }
 
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {
