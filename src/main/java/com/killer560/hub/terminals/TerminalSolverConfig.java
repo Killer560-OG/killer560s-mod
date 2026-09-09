@@ -34,7 +34,17 @@ public final class TerminalSolverConfig {
     private boolean numbersEnabled = true;
     private boolean startsWithEnabled = true;
     private boolean selectEnabled = true;
+    // Per killer560's "there is no melody toggle in the terminals to solve box" report (2026-09-09,
+    // round 11) - Melody used to be detected unconditionally (see TerminalSolverFeature#isTypeEnabled's
+    // old hardcoded `true`), with no way to turn it off like every other type. Defaults to true so
+    // existing behavior doesn't change for anyone who never touches this toggle.
+    private boolean melodyEnabled = true;
     private boolean customGuiEnabled = false;
+    // Per killer560's "have a setting where I can make it show the one I need to click, the one after
+    // that, then one after that as well" request (2026-09-09, round 11) - extends Numbers' existing
+    // 2-tier reveal (current + next) with an optional 3rd tier (next-after-that), off by default since
+    // the 2-tier reveal is the one already confirmed working.
+    private boolean numbersThreeTierReveal = false;
 
     private TerminalSolverConfig() {
     }
@@ -62,7 +72,9 @@ public final class TerminalSolverConfig {
             cfg.numbersEnabled = !obj.has("numbersEnabled") || obj.get("numbersEnabled").getAsBoolean();
             cfg.startsWithEnabled = !obj.has("startsWithEnabled") || obj.get("startsWithEnabled").getAsBoolean();
             cfg.selectEnabled = !obj.has("selectEnabled") || obj.get("selectEnabled").getAsBoolean();
+            cfg.melodyEnabled = !obj.has("melodyEnabled") || obj.get("melodyEnabled").getAsBoolean();
             cfg.customGuiEnabled = obj.has("customGuiEnabled") && obj.get("customGuiEnabled").getAsBoolean();
+            cfg.numbersThreeTierReveal = obj.has("numbersThreeTierReveal") && obj.get("numbersThreeTierReveal").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalSolverConfig();
@@ -80,7 +92,9 @@ public final class TerminalSolverConfig {
             obj.addProperty("numbersEnabled", numbersEnabled);
             obj.addProperty("startsWithEnabled", startsWithEnabled);
             obj.addProperty("selectEnabled", selectEnabled);
+            obj.addProperty("melodyEnabled", melodyEnabled);
             obj.addProperty("customGuiEnabled", customGuiEnabled);
+            obj.addProperty("numbersThreeTierReveal", numbersThreeTierReveal);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -146,11 +160,27 @@ public final class TerminalSolverConfig {
         this.selectEnabled = selectEnabled;
     }
 
+    public boolean isMelodyEnabled() {
+        return melodyEnabled;
+    }
+
+    public void setMelodyEnabled(boolean melodyEnabled) {
+        this.melodyEnabled = melodyEnabled;
+    }
+
     public boolean isCustomGuiEnabled() {
         return customGuiEnabled;
     }
 
     public void setCustomGuiEnabled(boolean customGuiEnabled) {
         this.customGuiEnabled = customGuiEnabled;
+    }
+
+    public boolean isNumbersThreeTierReveal() {
+        return numbersThreeTierReveal;
+    }
+
+    public void setNumbersThreeTierReveal(boolean numbersThreeTierReveal) {
+        this.numbersThreeTierReveal = numbersThreeTierReveal;
     }
 }

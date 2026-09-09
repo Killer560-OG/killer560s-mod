@@ -56,6 +56,9 @@ public final class TerminalSolverFeature {
     // area of solid color (unlike an outline or a small Select box) where "bright" reads better.
     private static final int BRIGHT_ORANGE = 0xFFFFA500;
     private static final int MUTED_ORANGE = 0xFFB37744;
+    // Per killer560's "3rd tier... another shade lighter orange" request (2026-09-09, round 11) - the
+    // optional 3rd reveal tier for Numbers, a shade lighter (paler) than MUTED_ORANGE.
+    private static final int FAINT_ORANGE = 0xFFCC9966;
 
     private static final int PANES_COLOR = BRIGHT_ORANGE;
     private static final int STARTS_WITH_COLOR = BRIGHT_ORANGE;
@@ -79,7 +82,10 @@ public final class TerminalSolverFeature {
     private static final int MELODY_ENDPOINT_COLOR = PANEL_BORDER_COLOR;
     private static final int MELODY_MOVING_PIECE_COLOR = MELODY_ENDPOINT_COLOR;
     private static final int MELODY_BUTTON_COLOR = 0xFFFFDDAA;
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFFFFF2E0;
+    // Round 10's 0xFFFFF2E0 read as basically white per killer560's "make the panes that are white more
+    // of a light orange" follow-up (round 11, 2026-09-09) - still lighter than the button color above,
+    // but with enough saturation left to actually read as orange rather than off-white.
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFFFFCC80;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -151,6 +157,10 @@ public final class TerminalSolverFeature {
         }
         if (type != currentType) {
             lastGoodBounds = null;
+            // A genuinely different terminal (or the very first one) just opened - whatever was
+            // highlighted before belongs to a different board entirely, so it must not carry over even
+            // for one frame while this new one's own real data is still arriving.
+            currentHighlights = Map.of();
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
@@ -158,8 +168,34 @@ public final class TerminalSolverFeature {
         // Melody has no solving logic - nothing to mark correct/incorrect - so currentHighlights always
         // stays empty for it. Its Custom GUI panel (see #renderMelodyCustomGui) instead just redraws
         // every real terminal-grid item as-is, decluttered from the rest of the screen.
-        currentHighlights = type == TerminalType.MELODY ? Map.of() : solve(type, title, items);
+        if (type == TerminalType.MELODY) {
+            currentHighlights = Map.of();
+        } else if (hasRealContent(items)) {
+            // Per killer560's "flashes incorrect answers for about a frame... like it is opening two
+            // menus and one gets closed" report (2026-09-09, round 11) on Numbers/Starts With or Select -
+            // same underlying cause as the already-fixed panel-size flash (round 8/9): a terminal's real
+            // items can be transiently incomplete for a frame or two right after opening. Round 8/9 only
+            // guarded the PANEL SIZE against that (see #lastGoodBounds) - this frame's item list could
+            // still feed #solve a partial/stale board and briefly highlight the wrong slot(s). Only
+            // trusting a fresh solve() result once real, non-filler content is actually present - and
+            // simply keeping whatever was already showing otherwise - closes that same gap for the
+            // highlights themselves, not just the panel's dimensions.
+            currentHighlights = solve(type, title, items);
+        }
         maybeClearAccidentalCarriedItem(screen);
+    }
+
+    /** @return whether {@code items} contains at least one real, non-filler slot (same "not empty, not a
+     *  black filler pane" signal {@link #computeGridBounds} already uses) - used by {@link #refreshState}
+     *  to tell a genuinely populated board apart from a transient population gap right after a terminal
+     *  opens. */
+    private static boolean hasRealContent(List<ItemStack> items) {
+        for (ItemStack stack : items) {
+            if (!stack.isEmpty() && stack.getItem() != Items.BLACK_STAINED_GLASS_PANE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Per killer560's explicit "make it so it doesnt pick up panes at all anymore" request (2026-09-09,
@@ -446,12 +482,21 @@ public final class TerminalSolverFeature {
             // in survival, same trick ExperimentsFeature's own click redirect already relies on - never
             // actually picks anything up. Rubix is the one real exception: it needs an actual left-vs-
             // right click so Hypixel knows which direction to cycle the pane, so it still sends a real
-            // PICKUP with the real button - any resulting accidental pickup gets caught and cleared a
-            // frame later by #maybeClearAccidentalCarriedItem instead of being prevented outright.
+            // PICKUP with the real button.
             boolean needsRealClick = currentType == TerminalType.RUBIX;
             ContainerInput clickType = needsRealClick ? ContainerInput.PICKUP : ContainerInput.CLONE;
             int effectiveButton = needsRealClick ? button : 0;
             ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, effectiveButton, clickType);
+            if (needsRealClick) {
+                // Per killer560's "whenever I click in rubix it makes my held item move... please dont
+                // make that happen, it is the only term it does that for" report (2026-09-09, round 11):
+                // a real PICKUP click predicts the pickup LOCALLY and synchronously as part of the call
+                // above (menu.clicked() moves the slot's item into the carried stack itself, before any
+                // server round-trip) - #maybeClearAccidentalCarriedItem only caught this reactively on
+                // the NEXT frame's refreshState(), a frame too late to stop the visible flash. Clearing
+                // it immediately, same call, means the very next render already sees an empty cursor.
+                screen.getMenu().setCarried(ItemStack.EMPTY);
+            }
         }
         return true;
     }
@@ -538,9 +583,10 @@ public final class TerminalSolverFeature {
             case NUMBERS -> cfg.isNumbersEnabled();
             case STARTS_WITH -> cfg.isStartsWithEnabled();
             case SELECT -> cfg.isSelectEnabled();
-            // No solving/toggle of its own - only ever detected so Custom GUI's hide-inventory
-            // treatment (see #shouldHideSlot) can apply to it.
-            case MELODY -> true;
+            // Has no solving logic of its own - toggling this just turns detection on/off (Custom GUI's
+            // hide-inventory treatment, see #shouldHideSlot) - per killer560's "there is no melody toggle
+            // in the terminals to solve box" report (2026-09-09, round 11); used to be hardcoded true.
+            case MELODY -> cfg.isMelodyEnabled();
         };
     }
 
@@ -584,7 +630,12 @@ public final class TerminalSolverFeature {
      *  Solver Only mode already uses, rather than lighting up every remaining pane's own order at once.
      *  Self-correcting every frame with no extra state: once the real current-lowest pane is clicked,
      *  Hypixel's own server stops it being a red pane, so the freshly re-sorted list naturally advances
-     *  on its own. */
+     *  on its own.
+     *  <p>
+     *  Round 11 (2026-09-09): optional 3rd tier, per killer560's "show the one I need to click, the one
+     *  after that, then one after that as well" request - a fainter orange again, off by default via
+     *  {@link TerminalSolverConfig#isNumbersThreeTierReveal()} since the 2-tier reveal is the one
+     *  already confirmed working. */
     private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
         List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
@@ -599,6 +650,9 @@ public final class TerminalSolverFeature {
         }
         if (slots.size() > 1) {
             result.put(slots.get(1), new SlotHighlight(MUTED_ORANGE, null));
+        }
+        if (slots.size() > 2 && TerminalSolverConfig.getInstance().isNumbersThreeTierReveal()) {
+            result.put(slots.get(2), new SlotHighlight(FAINT_ORANGE, null));
         }
         return result;
     }

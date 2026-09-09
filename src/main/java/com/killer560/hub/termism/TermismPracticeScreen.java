@@ -37,10 +37,12 @@ public class TermismPracticeScreen extends Screen {
     // killer560's report of real content bleeding through a translucent panel.
     private static final int PANEL_BG_COLOR = 0xFF241206;
     private static final int PANEL_BORDER_COLOR = 0xFFFFA500;
-    // Was two different sizes (SQUARE_GRID_SIZE=20 for Panes/Rubix/Numbers, a cramped NAME_GRID_SIZE=12
-    // for Starts With/Select) - per killer560's "starts with is the wrong size, and so is select" report
-    // (2026-09-09), unified to one shared size so every type's practice puzzle occupies the same footprint.
-    private static final int GRID_SIZE = 20;
+    // Real per-type grid dimensions (columns x rows), decompiled 2026-09-09 straight from Odin's own
+    // TerminalTypes enum - each type builds its real Custom GUI panel via
+    // simpleTermGui(rows, cols, startRow, startCol): PANES(3,5,..), RUBIX(3,3,..), NUMBERS(2,7,..),
+    // STARTS_WITH(3,7,..), SELECT(4,7,..). Round 10.1's guessed 5-wide/4-wide grids were all wrong (round
+    // 11 killer560 confirmed via screenshot: "rubix still isnt a 3x3", "numbers should be a 2x7") - these
+    // replace that guesswork with the real, verified shape per type instead of one shared size.
 
     // Real Hypixel Rubix mechanic (same order TerminalSolverFeature's own solveRubix uses) - each pane
     // cycles forward one step per left-click, backward per right-click, no neighbor coupling.
@@ -148,38 +150,39 @@ public class TermismPracticeScreen extends Screen {
 
     private void generatePanes() {
         columns = 5;
+        int gridSize = columns * 3;
         int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(GRID_SIZE, activeCount);
-        for (int i = 0; i < GRID_SIZE; i++) {
+        List<Integer> active = randomIndices(gridSize, activeCount);
+        for (int i = 0; i < gridSize; i++) {
             cells.add(new ItemStack(active.contains(i) ? Items.RED_STAINED_GLASS_PANE : Items.LIME_STAINED_GLASS_PANE));
         }
     }
 
+    // Real Rubix is a dense 3x3 - every cell is a colored pane, none empty (killer560's "rubix still
+    // isnt a 3x3" report, 2026-09-09, round 11 - confirmed against Odin's own simpleTermGui(3, 3, ..)).
     private void generateRubix() {
-        columns = 5;
-        int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(GRID_SIZE, activeCount);
-        for (int i = 0; i < GRID_SIZE; i++) {
-            if (active.contains(i)) {
-                DyeColor color = RUBIX_COLOR_ORDER.get(random.nextInt(RUBIX_COLOR_ORDER.size()));
-                cells.add(new ItemStack(paneItemFor(color)));
-            } else {
-                cells.add(ItemStack.EMPTY);
-            }
+        columns = 3;
+        int gridSize = columns * 3;
+        for (int i = 0; i < gridSize; i++) {
+            DyeColor color = RUBIX_COLOR_ORDER.get(random.nextInt(RUBIX_COLOR_ORDER.size()));
+            cells.add(new ItemStack(paneItemFor(color)));
         }
     }
 
+    // Real Numbers is a 2x7 (killer560's "numbers should be a 2x7" report, round 11 - confirmed against
+    // Odin's own simpleTermGui(2, 7, ..)).
     private void generateNumbers() {
-        columns = 5;
+        columns = 7;
+        int gridSize = columns * 2;
         int activeCount = 4 + random.nextInt(4);
-        List<Integer> active = randomIndices(GRID_SIZE, activeCount);
+        List<Integer> active = randomIndices(gridSize, activeCount);
         List<Integer> order = new ArrayList<>();
         for (int i = 1; i <= active.size(); i++) {
             order.add(i);
         }
         Collections.shuffle(order, random);
         int cursor = 0;
-        for (int i = 0; i < GRID_SIZE; i++) {
+        for (int i = 0; i < gridSize; i++) {
             if (active.contains(i)) {
                 cells.add(new ItemStack(Items.RED_STAINED_GLASS_PANE, order.get(cursor++)));
             } else {
@@ -188,8 +191,9 @@ public class TermismPracticeScreen extends Screen {
         }
     }
 
+    // Real Starts With is a 3x7 (Odin's own simpleTermGui(3, 7, ..)).
     private void generateStartsWith() {
-        columns = 5;
+        columns = 7;
         List<NamedItem> pool = new ArrayList<>(STARTS_WITH_POOL);
         Collections.shuffle(pool, random);
         NamedItem seed = pool.get(0);
@@ -208,9 +212,10 @@ public class TermismPracticeScreen extends Screen {
         Collections.shuffle(matches, random);
         Collections.shuffle(distractors, random);
 
+        int startsWithGridSize = columns * 3;
         int matchCount = Math.min(2 + random.nextInt(3), matches.size());
         List<NamedItem> chosenMatches = new ArrayList<>(matches.subList(0, matchCount));
-        int distractorCount = Math.min(GRID_SIZE - matchCount, distractors.size());
+        int distractorCount = Math.min(startsWithGridSize - matchCount, distractors.size());
         List<NamedItem> chosenDistractors = new ArrayList<>(distractors.subList(0, distractorCount));
 
         List<NamedItem> combined = new ArrayList<>();
@@ -221,14 +226,16 @@ public class TermismPracticeScreen extends Screen {
         for (NamedItem entry : combined) {
             cells.add(new ItemStack(entry.item()));
         }
-        while (cells.size() < GRID_SIZE) {
+        while (cells.size() < startsWithGridSize) {
             cells.add(ItemStack.EMPTY);
         }
         remainingMatches = chosenMatches.size();
     }
 
+    // Real Select is a 4x7 (Odin's own simpleTermGui(4, 7, ..)).
     private void generateSelect() {
-        columns = 5;
+        columns = 7;
+        int gridSize = columns * 4;
         ColorAlias target = SELECT_POOL.get(random.nextInt(SELECT_POOL.size()));
         targetColor = target.color();
 
@@ -241,14 +248,14 @@ public class TermismPracticeScreen extends Screen {
         for (int i = 0; i < matchCount; i++) {
             combined.add(namedStack(target.texture(), target.name()));
         }
-        int distractorCount = GRID_SIZE - matchCount;
+        int distractorCount = gridSize - matchCount;
         for (int i = 0; i < distractorCount && !distractorPool.isEmpty(); i++) {
             ColorAlias d = distractorPool.get(i % distractorPool.size());
             combined.add(namedStack(d.texture(), d.name()));
         }
         Collections.shuffle(combined, random);
         cells.addAll(combined);
-        while (cells.size() < GRID_SIZE) {
+        while (cells.size() < gridSize) {
             cells.add(ItemStack.EMPTY);
         }
         remainingMatches = matchCount;

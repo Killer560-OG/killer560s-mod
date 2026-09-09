@@ -112,7 +112,31 @@ public class TerminalSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(selectText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        // Per killer560's "there is no melody toggle in the terminals to solve box" report (2026-09-09,
+        // round 11) - Melody has no solving logic of its own, but this still controls whether it's
+        // detected at all (Custom GUI's hide-inventory treatment).
+        widgets.add(SettingsButtonWidget.builder(melodyText(), btn -> {
+                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                    cfg.setMelodyEnabled(!cfg.isMelodyEnabled());
+                    cfg.save();
+                    btn.setMessage(melodyText());
+                }).bounds(contentX, y, 220, 20).build());
         y += 30;
+
+        widgets.add(SettingsButtonWidget.builder(numbersThreeTierText(), btn -> {
+                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                    cfg.setNumbersThreeTierReveal(!cfg.isNumbersThreeTierReveal());
+                    cfg.save();
+                    btn.setMessage(numbersThreeTierText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Numbers: also reveal the 3rd click, a fainter shade again."),
+                Minecraft.getInstance().font));
+        y += 22;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Highlights the correct slot(s) to click - never clicks for you."),
@@ -152,5 +176,13 @@ public class TerminalSolverTab extends BaseTab {
 
     private static Component selectText() {
         return Component.literal("Select: " + (TerminalSolverConfig.getInstance().isSelectEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component melodyText() {
+        return Component.literal("Melody: " + (TerminalSolverConfig.getInstance().isMelodyEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component numbersThreeTierText() {
+        return Component.literal("Numbers 3-Tier Reveal: " + (TerminalSolverConfig.getInstance().isNumbersThreeTierReveal() ? "§aON" : "§cOFF"));
     }
 }

@@ -40,10 +40,11 @@ public final class ClickTranslateFeature {
         return t;
     });
 
-    // Per killer560's "Ctrl+Click to copy" roadmap request (2026-09-09) - Copy Chat shares this exact
-    // click event rather than adding a second, competing one: a chat line's Style can only carry one
-    // ClickEvent at a time, so the wrap gate now fires for EITHER feature (Copy still works with
-    // Translate off) and #tryHandleClick below decides which one a given click actually means.
+    // Per killer560's "Ctrl+Click to copy" roadmap request (2026-09-09, changed to Shift+Click round 11)
+    // - Copy Chat shares this exact click event rather than adding a second, competing one: a chat line's
+    // Style can only carry one ClickEvent at a time, so the wrap gate now fires for EITHER feature (Copy
+    // still works with Translate off) and #tryHandleClick below decides which one a given click actually
+    // means.
     public static Component wrap(Component message) {
         if (!ClickTranslateConfig.getInstance().isEnabled() && !CopyChatConfig.getInstance().isEnabled()) {
             return message;
@@ -68,13 +69,13 @@ public final class ClickTranslateFeature {
         if (!(custom.payload().orElse(null) instanceof StringTag stringTag) || stringTag.value().isBlank()) {
             return true;
         }
-        if (CopyChatConfig.getInstance().isEnabled() && CopyChatFeature.isControlDown()) {
+        if (CopyChatConfig.getInstance().isEnabled() && CopyChatFeature.isShiftDown()) {
             CopyChatFeature.copyToClipboard(ChatFormatting.stripFormatting(stringTag.value()));
             return true;
         }
         if (!ClickTranslateConfig.getInstance().isEnabled()) {
             // Translate is off - nothing left for a plain click to do (Copy already handled above if it
-            // was a Ctrl+click) - still consumed rather than falling through to vanilla, matching the
+            // was a Shift+click) - still consumed rather than falling through to vanilla, matching the
             // original behavior from when Translate was the only feature on this click event.
             return true;
         }
