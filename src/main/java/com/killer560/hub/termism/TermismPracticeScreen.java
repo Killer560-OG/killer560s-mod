@@ -145,6 +145,10 @@ public class TermismPracticeScreen extends Screen {
         solvedAtMs = -1;
         startedAtMs = System.currentTimeMillis();
         cells = new ArrayList<>();
+        // The real terminal's own committed-Rubix-target state (round 14) is shared static state, not
+        // scoped to any one board - clear it so a fresh practice puzzle never inherits a stale target
+        // left over from a real terminal or a previous practice round.
+        TerminalSolverFeature.resetRubixTarget();
         switch (type) {
             case PANES -> generatePanes();
             case RUBIX -> generateRubix();
@@ -444,8 +448,11 @@ public class TermismPracticeScreen extends Screen {
             int y0 = row * CELL_SIZE;
             graphics.fill(x0, y0, x0 + 16, y0 + 16, highlight.color());
             if (type == TerminalType.RUBIX && highlight.label() != null) {
+                // No shadow, matching TerminalSolverFeature's own round-14 fix - #centeredText has no
+                // shadow-off overload, so this centers by hand via the plain #text overload instead.
                 int textY = y0 + (16 - this.font.lineHeight) / 2;
-                graphics.centeredText(this.font, highlight.label(), x0 + 8, textY, 0xFF000000);
+                int textX = x0 + 8 - this.font.width(highlight.label()) / 2;
+                graphics.text(this.font, highlight.label(), textX, textY, 0xFF000000, false);
             }
         }
     }

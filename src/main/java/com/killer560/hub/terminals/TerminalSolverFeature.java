@@ -3,6 +3,7 @@ package com.killer560.hub.terminals;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
@@ -135,9 +136,10 @@ public final class TerminalSolverFeature {
     // window (see #shouldHideBackgroundAndLabels) - so what's actually visible is just a brief blank
     // moment, never a resizing/flickering panel. Round 12's 150ms fixed the flash but killer560's round-13
     // follow-up ("opening terminals is very delayed and I dont want that") confirmed that read as
-    // sluggish - cut down to the shortest window that should still cover the transient population gap
-    // (a frame or two) without feeling like a deliberate delay.
-    private static final long OPEN_GRACE_PERIOD_MS = 60;
+    // sluggish; round 13 cut it to 60ms, and round 14's "make it so I can enter terms faster again" says
+    // that's still not fast enough - cut further to close to a single frame's worth, about as low as this
+    // can go and still cover the transient population gap at all.
+    private static final long OPEN_GRACE_PERIOD_MS = 20;
     private static long typeDetectedAtMs;
 
     // Public - per killer560's round-13 "my solver overlay still isnt happening on [Termism]" request,
@@ -184,6 +186,7 @@ public final class TerminalSolverFeature {
             // for one frame while this new one's own real data is still arriving.
             currentHighlights = Map.of();
             typeDetectedAtMs = System.currentTimeMillis();
+            rubixTargetColorIndex = -1;
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
@@ -362,7 +365,7 @@ public final class TerminalSolverFeature {
         EnumMap<DyeColor, Integer> counts = new EnumMap<>(DyeColor.class);
         for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
             DyeColor pane = paneDyeColor(slots.get(slotIndex).getItem());
-            if (pane == null || pane == DyeColor.PURPLE) {
+            if (pane == null || isMelodyEndpointColor(pane)) {
                 continue;
             }
             counts.merge(pane, 1, Integer::sum);
@@ -397,13 +400,23 @@ public final class TerminalSolverFeature {
         if (pane == null) {
             return MELODY_BUTTON_COLOR;
         }
-        if (pane == DyeColor.PURPLE) {
+        if (isMelodyEndpointColor(pane)) {
             return MELODY_ENDPOINT_COLOR;
         }
         if (movingColor != null && pane == movingColor) {
             return MELODY_MOVING_PIECE_COLOR;
         }
         return MELODY_TRACK_BASE_COLOR;
+    }
+
+    // Real bug found and fixed (2026-09-09, round 14), per killer560's screenshot comparison against a
+    // real vanilla Melody board: the longest column's two tip/endpoint panes weren't getting colored at
+    // all, staying the plain track-base shade. Round 9's "the two purple pieces" read was checking only
+    // DyeColor.PURPLE - Hypixel's actual endpoint pane is close enough to purple to read as the same
+    // color in a screenshot but is really MAGENTA, a distinct DyeColor. Treating both as the endpoint
+    // color covers whichever one a given board actually uses without needing to guess further.
+    private static boolean isMelodyEndpointColor(DyeColor pane) {
+        return pane == DyeColor.PURPLE || pane == DyeColor.MAGENTA;
     }
 
     private static void renderVanillaHighlights(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
@@ -469,8 +482,13 @@ public final class TerminalSolverFeature {
             // box (no real item icon, no outline) except Rubix, which also centers its click-count text.
             graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
             if (currentType == TerminalType.RUBIX && highlight.label() != null) {
-                int textY = y0 + (SLOT_SIZE - Minecraft.getInstance().font.lineHeight) / 2;
-                graphics.centeredText(Minecraft.getInstance().font, highlight.label(), x0 + SLOT_SIZE / 2, textY, 0xFF000000);
+                // Per killer560's "please remove that text shadow" report (2026-09-09, round 14) -
+                // #centeredText has no shadow-off overload, so this centers the text by hand instead
+                // using the plain #text overload's own explicit shadow=false parameter.
+                Font font = Minecraft.getInstance().font;
+                int textY = y0 + (SLOT_SIZE - font.lineHeight) / 2;
+                int textX = x0 + SLOT_SIZE / 2 - font.width(highlight.label()) / 2;
+                graphics.text(font, highlight.label(), textX, textY, 0xFF000000, false);
             }
         }
         graphics.pose().popMatrix();
@@ -777,12 +795,24 @@ public final class TerminalSolverFeature {
         }
     }
 
+    // Per killer560's "if the rubix gives a pattern and I misclick, dont have it adjust the solver in
+    // the sense of trying to find a new pattern, this causes a flash... just have it stay" request
+    // (2026-09-09, round 14) - once a target color has been picked for the CURRENT puzzle, every later
+    // frame keeps solving toward that exact same target rather than re-running the cheapest-target
+    // search from scratch (which a misclick, or just Hypixel's own state syncing mid-solve, could
+    // legitimately cause to land on a DIFFERENT target - flashing every remaining pane's color/count to
+    // match it). -1 means "no target committed yet" - reset whenever a genuinely new terminal opens (see
+    // #refreshState) or a new Termism puzzle generates (see TermismPracticeScreen#resetRubixTarget).
+    private static int rubixTargetColorIndex = -1;
+
     /** "Change all to same color!" - each pane cycles forward one step through
-     *  {@link #RUBIX_COLOR_ORDER} per click (no neighbor coupling). Tries every possible target color
-     *  and picks whichever needs the fewest total clicks, counting a "3 or 4 forward" pane as cheaper
-     *  clicked backwards instead (2 or 1 clicks respectively) - real Hypixel lets you reverse-cycle a
-     *  pane, same mechanic Odin's RubixHandler relies on. Each highlighted slot's label is the signed
-     *  click count: positive = click normally that many times, negative = click backwards. */
+     *  {@link #RUBIX_COLOR_ORDER} per click (no neighbor coupling). The FIRST time this runs for a given
+     *  puzzle, tries every possible target color and commits to whichever needs the fewest total clicks
+     *  (counting a "3 or 4 forward" pane as cheaper clicked backwards instead - real Hypixel lets you
+     *  reverse-cycle a pane, same mechanic Odin's RubixHandler relies on) - every later frame reuses that
+     *  SAME committed target (see {@link #rubixTargetColorIndex}) instead of re-searching, so a misclick
+     *  never suddenly flashes the whole board over to a different target. Each highlighted slot's label
+     *  is the signed click count: positive = click normally that many times, negative = click backwards. */
     private static Map<Integer, SlotHighlight> solveRubix(List<ItemStack> items) {
         List<int[]> panes = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
@@ -800,11 +830,29 @@ public final class TerminalSolverFeature {
             return Map.of();
         }
 
-        Map<Integer, SlotHighlight> best = Map.of();
-        int bestCost = Integer.MAX_VALUE;
         int cycleLength = RUBIX_COLOR_ORDER.size();
+        int target = rubixTargetColorIndex;
+        if (target < 0 || target >= cycleLength) {
+            target = cheapestRubixTarget(panes, cycleLength);
+            rubixTargetColorIndex = target;
+        }
+
+        Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
+        for (int[] pane : panes) {
+            int forward = Math.floorMod(target - pane[1], cycleLength);
+            if (forward == 0) {
+                continue;
+            }
+            int clicksRequired = forward <= 2 ? forward : forward - cycleLength;
+            result.put(pane[0], new SlotHighlight(rubixColorFor(clicksRequired), String.valueOf(clicksRequired)));
+        }
+        return result;
+    }
+
+    private static int cheapestRubixTarget(List<int[]> panes, int cycleLength) {
+        int best = 0;
+        int bestCost = Integer.MAX_VALUE;
         for (int target = 0; target < cycleLength; target++) {
-            Map<Integer, SlotHighlight> candidate = new LinkedHashMap<>();
             int cost = 0;
             for (int[] pane : panes) {
                 int forward = Math.floorMod(target - pane[1], cycleLength);
@@ -813,14 +861,21 @@ public final class TerminalSolverFeature {
                 }
                 int clicksRequired = forward <= 2 ? forward : forward - cycleLength;
                 cost += Math.abs(clicksRequired);
-                candidate.put(pane[0], new SlotHighlight(rubixColorFor(clicksRequired), String.valueOf(clicksRequired)));
             }
             if (cost < bestCost) {
                 bestCost = cost;
-                best = candidate;
+                best = target;
             }
         }
         return best;
+    }
+
+    /** Lets {@code TermismPracticeScreen} clear the committed Rubix target when a fresh practice puzzle
+     *  generates, so it doesn't accidentally inherit whatever a real terminal (or a previous practice
+     *  puzzle) last committed to - {@link #rubixTargetColorIndex} is shared static state, not scoped to
+     *  any one board. */
+    public static void resetRubixTarget() {
+        rubixTargetColorIndex = -1;
     }
 
     private static int rubixColorFor(int clicksRequired) {
