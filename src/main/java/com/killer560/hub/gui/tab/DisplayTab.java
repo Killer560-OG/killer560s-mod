@@ -4,7 +4,9 @@ import com.killer560.hub.fullbright.FullbrightConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -27,7 +29,12 @@ public class DisplayTab extends BaseTab {
                     WindowModeFeature.toggle();
                     btn.setMessage(borderlessText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 26;
+        y += 22;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7- disable and re-enable once on first use"),
+                Minecraft.getInstance().font));
+        y += 16;
 
         widgets.add(SettingsButtonWidget.builder(fullbrightText(), btn -> {
                     FullbrightConfig cfg = FullbrightConfig.getInstance();

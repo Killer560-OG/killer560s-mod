@@ -20,6 +20,63 @@ Informal running list of what's planned or being considered - not a promise of w
 - Note: dungeon routes should be convertible to/from quoi's, RSA's, and Sex5's own route formats, so routes can be shared across mods
 - Nick hider / name changer suite: change your own displayed IGN client-side, rename specific other players' IGNs client-side, a permission system so someone can change their own displayed name/color for every player running the mod, and a mode that renames everyone else to randomized variants of one name (e.g. John1, John2343).
 
+## Dungeon / feature ideas from a reference client (2026-09-08)
+
+Raw brainstorm dump, not scoped yet - names only, mostly Dungeons-focused. Some overlap with items already
+listed above under Planned; left as separate entries rather than merged, per killer560's own instruction.
+
+- Ctrl+Click to copy (general QoL, not dungeon-specific)
+- Etherwarp Overlay
+- P4 Platform Highlight
+- Fuck Diorite (F7 diorite removal for pathing)
+- Auto Leap
+- Custom Leap Menu
+- Dungeon ESP
+- Funny Map
+- Shadow Assassin Alert
+- Auto GFS
+- Secret Sound
+- Secret Aura
+- Full Block
+- Auto Close Chest
+- Auto Dialogue
+- Score Calculator
+- Terracotta Timer
+- Breaker Aura
+- 0ping Breaker
+- Puzzle Solvers
+- Auto Puzzles
+- Auto SS / SS Solver
+- Auto I4
+- Chest Profit
+- Room Alerts (NoammAddons-style)
+- Blood Camp / Auto Blood Camp / Blood Camp Triggerbot
+- Door Keys
+- Custom Mage Beam
+- Auto Ult
+- Custom Ability Keybinds
+- Term Solver / Auto Terms
+- Melody Display
+- Auto Dev (F7)
+- Auto P3 (AP3)
+- Tick Timers
+- Wither ESP (P3 only)
+- Run Splits
+- Class Colors
+- Better Party Finder (Odin-style)
+- Invincibility Timer (Odin-style)
+- Dungeon Queue (Odin-style)
+- Better Party Finder (Devonian-style - separate from the Odin-style one above, compare both before building)
+- Terminal Times
+- Spring Boot Overlay
+- Chat Commands
+- Ragnarock
+- Slot Binds
+- Revert Master Stars
+- Trajectories
+
+(Waypoints already listed above as "Waypoint routing.")
+
 ## Under consideration
 
 - Adaptive Superpairs confirm-timeout based on real measured ping instead of a flat constant.
