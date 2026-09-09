@@ -90,9 +90,10 @@ public final class TerminalSolverFeature {
     // endpoint/moving color exactly instead of their own separate light shade.
     private static final int MELODY_BUTTON_COLOR = MELODY_ENDPOINT_COLOR;
     // Round 10's 0xFFFFF2E0 read as basically white, round 11's 0xFFFFCC80 still wasn't light enough per
-    // killer560's round-12 "you can lighten up the main 4x5" follow-up. Round 15: "so close to perfect...
-    // just make those white spaces a little bit dimmer" - nudged back down slightly from there.
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFFF5D2A0;
+    // killer560's round-12 "you can lighten up the main 4x5" follow-up. Round 15 dimmed it back down to
+    // 0xFFF5D2A0 ("so close to perfect... just make those white spaces a little bit dimmer"); round 16's
+    // "even dimmer" ("other than that it is perfect") dims it further again.
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFFDCB37D;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -563,6 +564,21 @@ public final class TerminalSolverFeature {
             // right click so Hypixel knows which direction to cycle the pane, so it still sends a real
             // PICKUP with the real button.
             boolean needsRealClick = currentType == TerminalType.RUBIX;
+            if (needsRealClick) {
+                // Per killer560's "add prevent misclicks" request (2026-09-09, round 16) - a highlighted
+                // Rubix cell already tells you which direction to click via its color/label (see
+                // #renderCustomGui); clicking it with the OPPOSITE button would otherwise still send a
+                // real click that direction, actively undoing progress instead of doing nothing. Swallow
+                // a wrong-direction click on an otherwise-valid cell rather than redirecting it - matches
+                // this mod's existing click-protection precedent (ExperimentsFeature) of never letting an
+                // incorrect action reach the real server.
+                SlotHighlight highlight = currentHighlights.get(slotIndex);
+                boolean needsRightClick = highlight != null && highlight.label() != null && highlight.label().startsWith("-");
+                int expectedButton = needsRightClick ? 1 : 0;
+                if (button != expectedButton) {
+                    return true;
+                }
+            }
             ContainerInput clickType = needsRealClick ? ContainerInput.PICKUP : ContainerInput.CLONE;
             int effectiveButton = needsRealClick ? button : 0;
             ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, effectiveButton, clickType);
