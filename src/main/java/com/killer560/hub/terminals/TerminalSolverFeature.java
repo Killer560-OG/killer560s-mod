@@ -64,16 +64,22 @@ public final class TerminalSolverFeature {
     // cells: a warm dark amber instead of a neutral gray-black, and the same bright orange as every
     // other accent for the border (was a muted brown that barely read as "orange" at a glance). Shared
     // by every type's panel, Melody included - it used to have its own identical-value constant.
-    private static final int PANEL_BG_COLOR = 0xEE241206;
+    // Alpha bumped to fully opaque (was 0xEE, ~93%) per killer560's round-10 screenshot showing real
+    // background content ("Inactive Terminal"/"CLICK HERE" ghost text) bleeding through the panel fill
+    // right as a terminal opens - a translucent panel can never fully hide whatever's still being drawn
+    // underneath it, however briefly, so opaque is the only way to guarantee nothing shows through.
+    private static final int PANEL_BG_COLOR = 0xFF241206;
     private static final int PANEL_BORDER_COLOR = BRIGHT_ORANGE;
-    // Melody's own per-role palette, per killer560's exact request (2026-09-09, round 9) after seeing
-    // its old raw-vanilla-item rendering: the two fixed purple endpoint pieces, the currently "moving"
-    // piece, and the real buttons you click each get their own distinguishable shade of orange, and
-    // everything else (the static track base) goes black. See #melodySlotColor for the classification.
-    private static final int MELODY_ENDPOINT_COLOR = THEME_ORANGE;
-    private static final int MELODY_MOVING_PIECE_COLOR = 0xFFCC5500;
+    // Melody's own per-role palette. Round 9 (2026-09-09) had the two fixed endpoint pieces as
+    // THEME_ORANGE, the moving piece as its own darker shade, buttons as a light orange, and the static
+    // track base as black. Round 10 (2026-09-09) revised per killer560's exact follow-up: the endpoints
+    // now match the panel border color itself (not just the general theme orange), the moving piece
+    // matches the endpoints exactly (was a separate darker shade), and the static track base goes from
+    // black to a very light orange instead - see #melodySlotColor for the classification.
+    private static final int MELODY_ENDPOINT_COLOR = PANEL_BORDER_COLOR;
+    private static final int MELODY_MOVING_PIECE_COLOR = MELODY_ENDPOINT_COLOR;
     private static final int MELODY_BUTTON_COLOR = 0xFFFFDDAA;
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFF000000;
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFFFFF2E0;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -296,15 +302,16 @@ public final class TerminalSolverFeature {
         return majority;
     }
 
-    /** Per killer560's exact per-role coloring request (2026-09-09, round 9), from his own read of a real
-     *  screenshot - not confirmed against a decompiled handler, just his own direct observation of the
-     *  real board:
+    /** Per killer560's exact per-role coloring request, from his own read of a real screenshot - not
+     *  confirmed against a decompiled handler, just his own direct observation of the real board. Round 9
+     *  (2026-09-09) first split the board into 4 shades; round 10 (2026-09-09) tied the endpoint and
+     *  moving-piece colors together and lightened the track base:
      *  <ul>
-     *  <li>The two purple pieces (fixed track endpoints) -&gt; orange.
-     *  <li>The "moving piece" (see {@link #findMelodyMajorityTrackColor}) -&gt; a different shade of orange.
+     *  <li>The two purple pieces (fixed track endpoints) -&gt; same color as the panel border.
+     *  <li>The "moving piece" (see {@link #findMelodyMajorityTrackColor}) -&gt; same color as the endpoints.
      *  <li>The real buttons you click (not a stained glass pane at all - a full block item, distinct from
      *      the flat track panes in the original screenshot) -&gt; very light orange.
-     *  <li>Everything else (the static track base) -&gt; black.
+     *  <li>Everything else (the static track base) -&gt; very very light orange.
      *  </ul> */
     private static int melodySlotColor(ItemStack stack, DyeColor majorityTrackColor) {
         DyeColor pane = paneDyeColor(stack);
