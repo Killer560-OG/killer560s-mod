@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.StainedGlassPaneBlock;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -65,6 +66,14 @@ public final class TerminalSolverFeature {
     // by every type's panel, Melody included - it used to have its own identical-value constant.
     private static final int PANEL_BG_COLOR = 0xEE241206;
     private static final int PANEL_BORDER_COLOR = BRIGHT_ORANGE;
+    // Melody's own per-role palette, per killer560's exact request (2026-09-09, round 9) after seeing
+    // its old raw-vanilla-item rendering: the two fixed purple endpoint pieces, the currently "moving"
+    // piece, and the real buttons you click each get their own distinguishable shade of orange, and
+    // everything else (the static track base) goes black. See #melodySlotColor for the classification.
+    private static final int MELODY_ENDPOINT_COLOR = THEME_ORANGE;
+    private static final int MELODY_MOVING_PIECE_COLOR = 0xFFCC5500;
+    private static final int MELODY_BUTTON_COLOR = 0xFFFFDDAA;
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFF000000;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -223,6 +232,9 @@ public final class TerminalSolverFeature {
      *  the narrower "just hide inventory" special case round 5 had. */
     private static void renderMelodyCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        if (layout == null) {
+            return;
+        }
 
         graphics.nextStratum();
         graphics.pose().pushMatrix();
@@ -233,9 +245,10 @@ public final class TerminalSolverFeature {
         graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
 
         List<Slot> slots = screen.getMenu().slots;
+        DyeColor majorityTrackColor = findMelodyMajorityTrackColor(slots);
         for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
             ItemStack stack = slots.get(slotIndex).getItem();
-            if (stack.isEmpty()) {
+            if (!isMelodyButtonSlot(stack)) {
                 continue;
             }
             int col = slotIndex % GRID_COLUMNS - layout.minCol();
@@ -243,9 +256,68 @@ public final class TerminalSolverFeature {
             if (col < 0 || row < 0) {
                 continue;
             }
-            graphics.item(stack, col * CELL_SIZE, row * CELL_SIZE);
+            int x0 = col * CELL_SIZE;
+            int y0 = row * CELL_SIZE;
+            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, melodySlotColor(stack, majorityTrackColor));
         }
         graphics.pose().popMatrix();
+    }
+
+    /** @return whether the given real item is one of Melody's actual clickable buttons, as opposed to a
+     *  black filler/background pane - same "not a black filler pane" rule every other type already uses
+     *  to skip decorative background slots (see {@link #solveSelect}), reused here so Melody's rendered
+     *  cells and clickable cells always agree on what counts as a real button. */
+    private static boolean isMelodyButtonSlot(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() != Items.BLACK_STAINED_GLASS_PANE;
+    }
+
+    /** @return the most common {@link DyeColor} among Melody's own track panes (every real button slot
+     *  that's a stained glass pane and isn't purple) - per killer560's own read of his screenshot
+     *  (2026-09-09, round 9): the track is mostly one repeated base color with a single differently
+     *  colored pane marking the currently "moving" position, so the majority color is the static base
+     *  and any minority color is the moving marker. Returns null if there's no pane data to go on. */
+    private static DyeColor findMelodyMajorityTrackColor(List<Slot> slots) {
+        EnumMap<DyeColor, Integer> counts = new EnumMap<>(DyeColor.class);
+        for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
+            DyeColor pane = paneDyeColor(slots.get(slotIndex).getItem());
+            if (pane == null || pane == DyeColor.PURPLE) {
+                continue;
+            }
+            counts.merge(pane, 1, Integer::sum);
+        }
+        DyeColor majority = null;
+        int best = -1;
+        for (Map.Entry<DyeColor, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > best) {
+                best = entry.getValue();
+                majority = entry.getKey();
+            }
+        }
+        return majority;
+    }
+
+    /** Per killer560's exact per-role coloring request (2026-09-09, round 9), from his own read of a real
+     *  screenshot - not confirmed against a decompiled handler, just his own direct observation of the
+     *  real board:
+     *  <ul>
+     *  <li>The two purple pieces (fixed track endpoints) -&gt; orange.
+     *  <li>The "moving piece" (see {@link #findMelodyMajorityTrackColor}) -&gt; a different shade of orange.
+     *  <li>The real buttons you click (not a stained glass pane at all - a full block item, distinct from
+     *      the flat track panes in the original screenshot) -&gt; very light orange.
+     *  <li>Everything else (the static track base) -&gt; black.
+     *  </ul> */
+    private static int melodySlotColor(ItemStack stack, DyeColor majorityTrackColor) {
+        DyeColor pane = paneDyeColor(stack);
+        if (pane == null) {
+            return MELODY_BUTTON_COLOR;
+        }
+        if (pane == DyeColor.PURPLE) {
+            return MELODY_ENDPOINT_COLOR;
+        }
+        if (majorityTrackColor != null && pane != majorityTrackColor) {
+            return MELODY_MOVING_PIECE_COLOR;
+        }
+        return MELODY_TRACK_BASE_COLOR;
     }
 
     private static void renderVanillaHighlights(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
@@ -285,6 +357,9 @@ public final class TerminalSolverFeature {
      *  index via {@link SlotClickInvoker}, the same trick Storage Overlay's own custom grid uses. */
     private static void renderCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        if (layout == null) {
+            return;
+        }
 
         graphics.nextStratum();
         graphics.pose().pushMatrix();
@@ -324,6 +399,9 @@ public final class TerminalSolverFeature {
             return false;
         }
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        if (layout == null) {
+            return true;
+        }
         double localX = (mouseX - layout.originX) / layout.scale;
         double localY = (mouseY - layout.originY) / layout.scale;
         int localCol = (int) Math.floor(localX / CELL_SIZE);
@@ -337,12 +415,13 @@ public final class TerminalSolverFeature {
         }
         int slotIndex = (localRow + layout.minRow()) * GRID_COLUMNS + (localCol + layout.minCol());
 
-        // Melody has no solved/correct set to check against - any real terminal-grid cell is fair game,
-        // matching "redraw it entirely" (every real item is shown, so every real item stays clickable).
-        boolean validCell = currentType == TerminalType.MELODY
-                ? slotIndex < currentTerminalSlotCount
-                : currentHighlights.containsKey(slotIndex);
         List<Slot> slots = screen.getMenu().slots;
+        // Melody has no solved/correct set to check against - any real button cell is fair game (matches
+        // #isMelodyButtonSlot, the same "not black filler" rule its own rendering already uses so
+        // clickable and rendered cells never disagree).
+        boolean validCell = currentType == TerminalType.MELODY
+                ? slotIndex < currentTerminalSlotCount && slotIndex < slots.size() && isMelodyButtonSlot(slots.get(slotIndex).getItem())
+                : currentHighlights.containsKey(slotIndex);
         if (validCell && slotIndex >= 0 && slotIndex < slots.size()) {
             Slot slot = slots.get(slotIndex);
             // Per killer560's "make it so it doesnt pick up panes at all anymore" request (2026-09-09,
@@ -373,6 +452,9 @@ public final class TerminalSolverFeature {
      *  skip Select's own background panes) - applies to every type uniformly, Melody included. */
     private static CustomGuiLayout computeCustomGuiLayout(AbstractContainerScreen<?> screen) {
         GridBounds bounds = computeGridBounds(screen);
+        if (bounds == null) {
+            return null;
+        }
         float scale = TerminalSolverConfig.getInstance().getScale();
         int panelWidth = bounds.columns() * CELL_SIZE;
         int panelHeight = bounds.rows() * CELL_SIZE;
@@ -408,13 +490,13 @@ public final class TerminalSolverFeature {
             // No real puzzle items found this frame - either a genuinely empty/transient state (e.g. the
             // very first frame or two after opening, before Hypixel's real puzzle data has arrived) or
             // this terminal just doesn't have any right now. Reuse the last real size found instead of
-            // falling back to a full-width guess, so that transient frame doesn't flash the panel at the
-            // wrong size (see #lastGoodBounds's own doc for why this matters).
-            if (lastGoodBounds != null) {
-                return lastGoodBounds;
-            }
-            int rows = Math.max(1, (int) Math.ceil(items.size() / (double) GRID_COLUMNS));
-            return new GridBounds(0, 0, GRID_COLUMNS, rows);
+            // guessing (see #lastGoodBounds's own doc for why) - and if there's no previous size to fall
+            // back on either (the very first terminal opened this session), return null so the caller
+            // just skips drawing for that one frame instead of showing a wrong-size panel that then
+            // visibly resizes once real data arrives - killer560's "still a quick load flash... i think
+            // is it from before it resizes" report (2026-09-09, round 9) confirmed the old full-grid
+            // guess fallback was exactly that residual case.
+            return lastGoodBounds;
         }
         GridBounds bounds = new GridBounds(minCol, minRow, maxCol - minCol + 1, maxRow - minRow + 1);
         lastGoodBounds = bounds;
