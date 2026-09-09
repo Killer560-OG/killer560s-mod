@@ -22,9 +22,9 @@ import java.util.Locale;
  *  {@link ClientSendMessageEvents#COMMAND}. */
 public final class AutoJoinSkyblockFeature {
 
-    // Long enough for a human to type "/lobby" and hit enter if that's what they actually wanted,
-    // short enough that the auto-join still feels immediate if they don't.
-    private static final long DELAY_MS = 5000;
+    // Per killer560's explicit request (2026-09-08): fire almost immediately after loading in
+    // rather than waiting several seconds.
+    private static final long DELAY_MS = 500;
 
     private static boolean pending = false;
     private static long fireAtMs = -1;
