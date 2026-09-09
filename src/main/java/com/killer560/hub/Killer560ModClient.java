@@ -22,6 +22,7 @@ import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngMeterOverlay;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
+import com.killer560.hub.termism.TermismMenuScreen;
 import com.killer560.hub.translate.TranslateConfig;
 import com.killer560.hub.translate.TranslateLanguages;
 import com.killer560.hub.window.WindowModeFeature;
@@ -89,6 +90,16 @@ public class Killer560ModClient implements ClientModInitializer {
                                 LOGGER.info("Deferred setScreenAndShow(ModScreen) running now");
                                 client.setScreenAndShow(new ModScreen(client.screen));
                             });
+                            return 1;
+                        })));
+
+        // Termism: killer560's own terminal-practice request (2026-09-09) - "/termism or... through the
+        // settings" - this is the command half, TermismTab (Dungeon folder) is the settings half.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal("termism")
+                        .executes(context -> {
+                            Minecraft client = Minecraft.getInstance();
+                            client.execute(() -> client.setScreenAndShow(new TermismMenuScreen(client.screen)));
                             return 1;
                         })));
 
