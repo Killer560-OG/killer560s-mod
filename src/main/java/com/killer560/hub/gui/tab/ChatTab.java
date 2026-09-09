@@ -4,9 +4,11 @@ import java.util.List;
 
 /** Folder tab grouping every chat-affecting feature: Translate first (so "/language" - which opens
  *  this tab directly - still lands on it by default), then Auto Correct, Chat Emotes, Click
- *  Translate, Auto Meow, Cringe, Spotify Mod (moved in from its own top-level slot, 2026-09-07,
- *  per killer560's re-categorization request), and Screenshot Copy (moved in from Home, 2026-09-08,
- *  per killer560's explicit request to give it its own category here). */
+ *  Translate, Copy Chat (2026-09-09, killer560's "Ctrl+Click to copy" roadmap request - grouped right
+ *  next to Click Translate since both hook the same chat-click infrastructure), Auto Meow, Cringe,
+ *  Spotify Mod (moved in from its own top-level slot, 2026-09-07, per killer560's re-categorization
+ *  request), and Screenshot Copy (moved in from Home, 2026-09-08, per killer560's explicit request to
+ *  give it its own category here). */
 public class ChatTab extends FolderTab {
 
     public ChatTab() {
@@ -15,6 +17,7 @@ public class ChatTab extends FolderTab {
                 new AutoCorrectTab(),
                 new ChatEmotesTab(),
                 new ClickTranslateTab(),
+                new CopyChatTab(),
                 new AutoMeowTab(),
                 new CringeTab(),
                 new SpotifyTab(),

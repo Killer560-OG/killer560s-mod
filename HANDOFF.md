@@ -8,32 +8,37 @@ relying on it surviving a `git status`; if it's tracked, treat it as scratch/int
 
 Session date: 2026-09-09. Working directory: `C:\Users\Hunter\killer560s-mod`.
 
-**Just finished:** Terminal Solver polish rounds 6-9 (Dispenser stale-state bug, Melody full custom
-redesign with role-based coloring, orange theming, 500% scale, bounding-box crop, no-pickup clicks,
-load-flash fixes) - all committed and pushed (commits `1a4fd13` through `18d10df`), deployed to all 5
-instances, `TESTING.md` updated with checklists for killer560 to confirm live.
+**Done, committed, pushed, deployed to all 5 instances:**
+1. Terminal Solver polish rounds 6-9 (Dispenser stale-state bug, Melody full custom redesign with
+   role-based coloring, orange theming, 500% scale, bounding-box crop, no-pickup clicks, load-flash
+   fixes) - commits `1a4fd13` through `18d10df`.
+2. Termism - a terminal-practice feature (`/termism` command or Dungeon tab -> Termism): Random (never
+   Melody) + a button per other terminal type, generates a fake local practice puzzle reusing
+   `TerminalSolverFeature`'s real Odin-derived mechanics, zero highlighting on purpose. Commit `dc8c08e`.
+   Boot-tested clean.
 
-**In progress right now:** Termism - a new terminal-practice feature killer560 asked for explicitly
-before any roadmap work: `/termism` command or a Dungeon-tab settings button opens a menu with a
-"Random" button (never picks Melody) plus one button per other terminal type (Panes, Rubix, Numbers,
-Starts With, Select). Picking one generates a fake, fully local practice puzzle (no real Hypixel menu
-involved) using the SAME real mechanics already ported from Odin for `TerminalSolverFeature`'s own
-solvers. Renders the RAW puzzle with zero highlighting - the point is practicing reading it yourself.
+**In progress right now:** Copy Chat - "Ctrl+Click to copy" roadmap item (general QoL, not
+dungeon-specific), grounded in quoi's own "Copy chat" module (decompiled via javap, 2026-09-09: "Copies
+chat on mouse click"). New `com.killer560.hub.copychat` package (`CopyChatConfig`, `CopyChatFeature` -
+GLFW live Ctrl-key check + a `Set-Clipboard` PowerShell shellout mirroring `ScreenshotCopyFeature`'s own
+established AWT-headless workaround) plus a `CopyChatTab` (added to the Chat folder, right after Click
+Translate). **Architecturally coupled to `ClickTranslateFeature`** - a chat line's `Style` can only carry
+one `ClickEvent` at a time, so `ClickTranslateFeature.wrap()`'s gate now fires if EITHER Translate or
+Copy is enabled, and `tryHandleClick()` checks `CopyChatFeature.isControlDown()` first before falling
+through to its own translate logic - modified, not just added to, so double-check this still works
+correctly if anything about Click Translate acts up after this.
 
-Files added this round (not yet committed as of this handoff's last update - check `git status`):
-- `src/main/java/com/killer560/hub/termism/TermismMenuScreen.java` - type picker
-- `src/main/java/com/killer560/hub/termism/TermismPracticeScreen.java` - puzzle generator + practice UI
-- `src/main/java/com/killer560/hub/gui/tab/TermismTab.java` - settings entry point
-- `src/main/java/com/killer560/hub/Killer560ModClient.java` - added `/termism` command (modified, not new)
-- `src/main/java/com/killer560/hub/gui/tab/DungeonTab.java` - added `TermismTab` to the folder (modified)
+Build passed (`BUILD SUCCESSFUL`) for `-PcheatBuild=true` after one fix (`Window.getWindow()` doesn't
+exist - it's `Window.handle()`, matching `WindowModeFeature`'s own established usage). Currently
+boot-testing on `26.1.2 (Mod Only Test)` - **check the actual result before trusting this is done**; if
+resuming cold here, check `latest.log` for errors, then in-game confirm: a plain click on a chat message
+still translates (if Click Translate is on), and Ctrl+Click copies to clipboard (with Copy Chat on) -
+then deploy to the other 4 instances, build legit, update `TESTING.md`, commit + push.
 
-Build passed (`BUILD SUCCESSFUL`) for `-PcheatBuild=true`. Currently boot-testing on
-`26.1.2 (Mod Only Test)` before deploying everywhere - **check the actual boot-test result before
-trusting this is done**; if this handoff is being read because the session got cut off mid-test, the
-next step is: check `latest.log` for mixin/exception errors, then manually open `/termism` in-game
-(or via the Dungeon tab) and click through all 5 non-Melody types to confirm no crashes, then deploy to
-the other 4 instances (`26.1.2 (Dungeons)`, `26.1.2 (Dungeons) (duo)`, `26.1.2 ALT`, `Taunahi`) with
-MD5 + `unzip -t` verification, build the legit variant, update `TESTING.md`, commit + push.
+**Note on `taskkill` policy:** Hunter reverted the "leave Minecraft running after boot-test" preference
+mid this session (2026-09-09) - back to taskkilling after a clean boot-test log by default now (memory
+updated: `feedback_killer560s_mod_boot_test_leave_open.md`). Don't leave instances running between
+rounds unless he says so again.
 
 ## Standing rules for this project (see CLAUDE.md / memory for full detail - this is a quick reference)
 
