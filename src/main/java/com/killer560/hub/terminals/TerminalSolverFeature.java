@@ -41,7 +41,6 @@ public final class TerminalSolverFeature {
     private static final int PANEL_PADDING = 6;
     private static final int PANEL_BG_COLOR = 0xEE1A1A1A;
     private static final int PANEL_BORDER_COLOR = 0xFF663D1A;
-    private static final int CELL_BG_COLOR = 0xFF2A2A2A;
 
     // A normal Hypixel container GUI always appends the player's own 36 inventory+hotbar slots after
     // the GUI's own content - subtracting this out is a simpler, more robust way to isolate "just the
@@ -60,7 +59,10 @@ public final class TerminalSolverFeature {
     private static final int MUTED_ORANGE = 0xFFB37744;
 
     private static final int PANES_COLOR = BRIGHT_ORANGE;
-    private static final int STARTS_WITH_COLOR = THEME_ORANGE;
+    private static final int STARTS_WITH_COLOR = BRIGHT_ORANGE;
+    // Round 5 (2026-09-09): the whole GUI, terminal grid included, gets an orange accent border.
+    private static final int MELODY_BORDER_COLOR = BRIGHT_ORANGE;
+    private static final int MELODY_BORDER_PADDING = 3;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -128,15 +130,16 @@ public final class TerminalSolverFeature {
     }
 
     /** @return whether the given real slot index should be hidden right now. Every type but Melody
-     *  hides its whole grid (Custom GUI draws a full replacement panel); Melody only hides the player's
-     *  own inventory rows - there's no replacement panel for it, and no repositioning any more either
-     *  (see {@link #refreshState()}'s own doc) - just the inventory items themselves, per killer560's
-     *  "hide my inventory" request (2026-09-09). */
+     *  hides its whole grid ONLY while Custom GUI mode is on (it draws a full replacement panel);
+     *  Melody hides just its own player-inventory rows UNCONDITIONALLY (not gated behind Custom GUI at
+     *  all - there's no panel to replace it with either way, so this is just a standing cosmetic
+     *  tweak), per killer560's "hide my inventory" request (2026-09-09) and his round-5 report that it
+     *  wasn't actually happening, which traced back to it incorrectly requiring Custom GUI to be on. */
     public static boolean shouldHideSlot(int slotIndex) {
-        if (!isCustomGuiActive()) {
-            return false;
+        if (currentType == TerminalType.MELODY) {
+            return slotIndex >= currentTerminalSlotCount;
         }
-        return currentType != TerminalType.MELODY || slotIndex >= currentTerminalSlotCount;
+        return isCustomGuiActive();
     }
 
     /** @return whether the vanilla background texture and title/"Inventory" labels should be hidden -
@@ -159,18 +162,59 @@ public final class TerminalSolverFeature {
         return isCustomGuiActive() && currentType != TerminalType.MELODY;
     }
 
-    public static void renderOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        if (currentType == null || currentHighlights.isEmpty()) {
+    public static void renderOverlay(GuiGraphicsExtractor graphics) {
+        if (currentType == null) {
             return;
         }
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
+        // Melody's own lightweight treatment (hide inventory + an orange accent border) is always on
+        // whenever it's detected - not gated behind the Custom GUI toggle at all, since there's no
+        // full-panel replacement for it the way the other 5 types get; see #shouldHideSlot too.
+        if (currentType == TerminalType.MELODY) {
+            renderMelodyBorder(graphics, screen);
+            return;
+        }
+        if (currentHighlights.isEmpty()) {
+            return;
+        }
         if (isCustomGuiActive()) {
-            renderCustomGui(graphics, screen, mouseX, mouseY);
+            renderCustomGui(graphics, screen);
         } else {
             renderVanillaHighlights(graphics, screen);
         }
+    }
+
+    /** Melody has no solving logic, so there's nothing to highlight - just a themed orange outline
+     *  around the real terminal grid area (not the now-hidden inventory below it), per killer560's
+     *  "make it more orange" request (2026-09-09, round 5). Bounds come from the real terminal slots'
+     *  own positions, not a fixed guess, so it fits whatever Melody's actual grid size turns out to be. */
+    private static void renderMelodyBorder(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
+        List<Slot> slots = screen.getMenu().slots;
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        for (int i = 0; i < currentTerminalSlotCount && i < slots.size(); i++) {
+            Slot slot = slots.get(i);
+            minX = Math.min(minX, slot.x);
+            minY = Math.min(minY, slot.y);
+            maxX = Math.max(maxX, slot.x + SLOT_SIZE);
+            maxY = Math.max(maxY, slot.y + SLOT_SIZE);
+        }
+        if (minX > maxX) {
+            return;
+        }
+        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
+        int left = accessor.killer560smod$getLeftPos();
+        int top = accessor.killer560smod$getTopPos();
+        int x0 = left + minX - MELODY_BORDER_PADDING;
+        int y0 = top + minY - MELODY_BORDER_PADDING;
+        int x1 = left + maxX + MELODY_BORDER_PADDING;
+        int y1 = top + maxY + MELODY_BORDER_PADDING;
+        graphics.nextStratum();
+        graphics.outline(x0, y0, x1 - x0, y1 - y0, MELODY_BORDER_COLOR);
     }
 
     private static void renderVanillaHighlights(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
@@ -208,10 +252,8 @@ public final class TerminalSolverFeature {
      *  Scale setting the vanilla-overlay mode already uses. The real slots are hidden elsewhere (see
      *  {@code TerminalSolverSlotMixin}) - clicking a cell here redirects to the real underlying slot by
      *  index via {@link SlotClickInvoker}, the same trick Storage Overlay's own custom grid uses. */
-    private static void renderCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, int mouseX, int mouseY) {
+    private static void renderCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
-        double localMouseX = (mouseX - layout.originX) / (double) layout.scale;
-        double localMouseY = (mouseY - layout.originY) / (double) layout.scale;
 
         graphics.nextStratum();
         graphics.pose().pushMatrix();
@@ -222,7 +264,6 @@ public final class TerminalSolverFeature {
         graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
 
         List<Slot> slots = screen.getMenu().slots;
-        ItemStack hoveredStack = null;
         for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
             int slotIndex = entry.getKey();
             if (slotIndex >= slots.size()) {
@@ -231,55 +272,16 @@ public final class TerminalSolverFeature {
             SlotHighlight highlight = entry.getValue();
             int x0 = (slotIndex % GRID_COLUMNS) * CELL_SIZE;
             int y0 = (slotIndex / GRID_COLUMNS) * CELL_SIZE;
-            ItemStack stack = slots.get(slotIndex).getItem();
 
-            // Per killer560's per-type style requests (2026-09-09):
-            switch (currentType) {
-                case PANES, NUMBERS -> {
-                    // "make these orange... bright" (round 4) - a flat, bright orange box, no item
-                    // icon, no outline. Numbers' current-vs-next distinction (see #solveNumbers) still
-                    // comes through since that's a different, muted shade of the same color.
-                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
-                }
-                case SELECT -> {
-                    // "the items are instead glass panes/colored boxes... all the same" - a flat box in
-                    // the real target color (see solveSelect), no item icon, no outline.
-                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
-                }
-                case RUBIX -> {
-                    // "remove the outside border... left/right click color... number large in the
-                    // middle" - the cell's own fill IS the left/right-click color indicator, no separate
-                    // outline, with the signed click count centered on top at full (unshrunk) size.
-                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
-                    if (highlight.label() != null) {
-                        int textY = y0 + (SLOT_SIZE - Minecraft.getInstance().font.lineHeight) / 2;
-                        graphics.centeredText(Minecraft.getInstance().font, highlight.label(), x0 + SLOT_SIZE / 2, textY, 0xFF000000);
-                    }
-                }
-                default -> {
-                    // Starts With: unchanged from before - real item + colored outline.
-                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, CELL_BG_COLOR);
-                    graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, highlight.color());
-                    if (!stack.isEmpty()) {
-                        graphics.item(stack, x0, y0);
-                        graphics.itemDecorations(Minecraft.getInstance().font, stack, x0, y0);
-                    }
-                }
-            }
-
-            if (currentType == TerminalType.STARTS_WITH && !stack.isEmpty()
-                    && localMouseX >= x0 && localMouseX < x0 + SLOT_SIZE
-                    && localMouseY >= y0 && localMouseY < y0 + SLOT_SIZE) {
-                hoveredStack = stack;
+            // Per killer560's per-type style requests (2026-09-09) - every type is now a flat colored
+            // box (no real item icon, no outline) except Rubix, which also centers its click-count text.
+            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
+            if (currentType == TerminalType.RUBIX && highlight.label() != null) {
+                int textY = y0 + (SLOT_SIZE - Minecraft.getInstance().font.lineHeight) / 2;
+                graphics.centeredText(Minecraft.getInstance().font, highlight.label(), x0 + SLOT_SIZE / 2, textY, 0xFF000000);
             }
         }
         graphics.pose().popMatrix();
-
-        // Every other type is now a flat color (no real item shown), so a tooltip about "the item"
-        // would be meaningless there - only Starts With still shows the real item icon.
-        if (hoveredStack != null) {
-            graphics.setTooltipForNextFrame(Minecraft.getInstance().font, hoveredStack, mouseX, mouseY);
-        }
     }
 
     /** @return whether the click was consumed - Custom GUI mode swallows every click while it's
@@ -438,10 +440,9 @@ public final class TerminalSolverFeature {
     /** "Select all the '<color>' items!" - select every item whose name starts with one of that
      *  color's known aliases (Hypixel's real item names don't all literally start with the dye color's
      *  own name - e.g. "Rose" for red, "Cactus" for green - see {@link #SELECT_PREFIXES}), excluding
-     *  glinted items and the black filler panes. Highlight color is the real target dye's own color
-     *  (via {@code DyeColor.getFireworkColor()}, a vivid real RGB per color) rather than a fixed
-     *  constant - per killer560's request (2026-09-09) that Custom GUI show these as plain colored
-     *  boxes in the actual target color, not the real (visually inconsistent) item icons. */
+     *  glinted items and the black filler panes. Highlight color is always the mod's own bright orange
+     *  now - a round-4 version briefly used the real target dye's own color instead, but killer560
+     *  explicitly asked (round 5, 2026-09-09) for orange regardless of the real target color. */
     private static Map<Integer, SlotHighlight> solveSelect(TerminalType type, String title, List<ItemStack> items) {
         Matcher matcher = type.titlePattern().matcher(title);
         if (!matcher.matches()) {
@@ -450,7 +451,6 @@ public final class TerminalSolverFeature {
         String colorText = matcher.group(1).trim().toLowerCase(Locale.ROOT);
         DyeColor color = parseSelectColor(colorText);
         List<String> prefixes = color != null ? SELECT_PREFIXES.getOrDefault(color, List.of(colorText)) : List.of(colorText);
-        int highlightColor = color != null ? (0xFF000000 | color.getFireworkColor()) : THEME_ORANGE;
 
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
@@ -461,7 +461,7 @@ public final class TerminalSolverFeature {
             String name = stripColor(item.getHoverName().getString()).toLowerCase(Locale.ROOT);
             for (String prefix : prefixes) {
                 if (name.startsWith(prefix)) {
-                    result.put(i, new SlotHighlight(highlightColor, null));
+                    result.put(i, new SlotHighlight(BRIGHT_ORANGE, null));
                     break;
                 }
             }
