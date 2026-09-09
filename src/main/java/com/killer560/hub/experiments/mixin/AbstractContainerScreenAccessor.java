@@ -16,4 +16,10 @@ public interface AbstractContainerScreenAccessor {
 
     @Accessor("topPos")
     int killer560smod$getTopPos();
+
+    // Mutator added (2026-09-09) for TerminalSolverFeature's Melody recentering - both fields are real
+    // (non-final, per javap) protected ints, so writing back through the same accessor keeps rendering
+    // AND real click hit-testing in sync automatically, since both already read from this one field.
+    @Accessor("topPos")
+    void killer560smod$setTopPos(int topPos);
 }

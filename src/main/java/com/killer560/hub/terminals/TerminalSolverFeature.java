@@ -48,16 +48,24 @@ public final class TerminalSolverFeature {
     // terminal grid" than hardcoding each type's own grid slot count.
     private static final int PLAYER_INVENTORY_SIZE = 36;
 
-    private static final int PANES_COLOR = 0xFF00FF00;
-    private static final int ORDER_COLOR_1 = 0xFF00FF00;
-    private static final int ORDER_COLOR_2 = 0xFFFFA500;
-    private static final int ORDER_COLOR_3 = 0xFFFF0000;
-    private static final int STARTS_WITH_COLOR = 0xFF00FFFF;
-    private static final int SELECT_COLOR = 0xFFFFD700;
-    private static final int RUBIX_FORWARD_1_COLOR = 0xFF00FF00;
-    private static final int RUBIX_FORWARD_2_COLOR = 0xFFFFA500;
-    private static final int RUBIX_REVERSE_1_COLOR = 0xFF00BFFF;
-    private static final int RUBIX_REVERSE_2_COLOR = 0xFFFF00FF;
+    // Per killer560's "focus on the orange side of the mod's gui... more orange in a sense for the
+    // tiles" request (2026-09-09) - the mod's own established amber/orange accent (see
+    // SettingsButtonWidget's own BORDER_HOVER), leaned into here instead of the old green/cyan/gold
+    // rainbow mix, everywhere the puzzle itself doesn't force a specific color choice.
+    private static final int THEME_ORANGE_LIGHT = 0xFFFFCC66;
+    private static final int THEME_ORANGE = 0xFFFF8C00;
+    private static final int THEME_ORANGE_DEEP = 0xFFCC5500;
+
+    private static final int PANES_COLOR = THEME_ORANGE;
+    private static final int ORDER_COLOR_1 = THEME_ORANGE_LIGHT;
+    private static final int ORDER_COLOR_2 = THEME_ORANGE;
+    private static final int ORDER_COLOR_3 = THEME_ORANGE_DEEP;
+    private static final int STARTS_WITH_COLOR = THEME_ORANGE;
+    // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
+    // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
+    // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
+    private static final int RUBIX_LEFT_CLICK_COLOR = THEME_ORANGE;
+    private static final int RUBIX_RIGHT_CLICK_COLOR = 0xFF3399FF;
 
     // Real Hypixel Rubix mechanic (confirmed via Odin's own RubixHandler): each click on a pane
     // advances it ONE step through this 5-color cycle - no adjacency/neighbor coupling despite the name.
@@ -77,6 +85,14 @@ public final class TerminalSolverFeature {
 
     private static TerminalType currentType;
     private static Map<Integer, SlotHighlight> currentHighlights = Map.of();
+    private static int currentTerminalSlotCount;
+
+    // Melody has no solving logic - Custom GUI mode just hides its player-inventory rows and recenters
+    // the screen (see #applyMelodyRepositioning). Tracks the real, un-shifted topPos per screen instance
+    // so the recenter shift is always computed from a stable baseline instead of drifting frame to frame.
+    private static ContainerScreen melodyBaselineScreen;
+    private static int melodyBaselineTopPos;
+    private static final int MELODY_RECENTER_SHIFT = 45;
 
     private record SlotHighlight(int color, String label) {
     }
@@ -89,16 +105,17 @@ public final class TerminalSolverFeature {
      *  client TICK (~50ms), but rendering happens far more often than that (every frame, up to several
      *  times before the next tick even fires) - the first few frames after a terminal screen opens
      *  could render with stale (null) state, showing the real vanilla screen for a moment before the
-     *  next tick corrected it. Now called from {@link com.killer560.hub.terminals.mixin.TerminalSolverContainerRenderMixin}
-     *  at the very HEAD of {@code extractRenderState} - before ANY of the sub-calls this same render
-     *  pass makes (background, slots, tooltip, labels) - so every one of them, even on the very first
-     *  frame the screen exists, already sees correct, freshly-computed state. No separate tick-based
-     *  polling needed any more now that this runs every single frame instead. */
+     *  next tick corrected it. Called from {@link com.killer560.hub.terminals.mixin.TerminalSolverBackgroundMixin}
+     *  at the very HEAD of {@code extractBackground} - the true first thing a screen's whole render pass
+     *  does (confirmed via javap: {@code Screen.extractRenderStateWithTooltipAndSubtitles} calls it
+     *  before {@code extractRenderState} even begins) - so every hook downstream of it, every single
+     *  frame including the very first, already sees correct, freshly-computed state. */
     public static void refreshState() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
             currentType = null;
             currentHighlights = Map.of();
+            melodyBaselineScreen = null;
             return;
         }
         String title = screen.getTitle().getString();
@@ -106,17 +123,66 @@ public final class TerminalSolverFeature {
         if (type == null) {
             currentType = null;
             currentHighlights = Map.of();
+            melodyBaselineScreen = null;
             return;
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
-        currentHighlights = solve(type, title, items);
+        currentTerminalSlotCount = items.size();
+        if (type == TerminalType.MELODY) {
+            currentHighlights = Map.of();
+            applyMelodyRepositioning(screen);
+        } else {
+            melodyBaselineScreen = null;
+            currentHighlights = solve(type, title, items);
+        }
+    }
+
+    /** Melody-only: recenters the real vanilla screen once its inventory rows are hidden, by directly
+     *  shifting its own real {@code topPos} - moving the actual anchor point (not just a visual overlay)
+     *  keeps rendering AND real click hit-testing in sync automatically, since both already read from
+     *  this same field. {@link #MELODY_RECENTER_SHIFT} is an approximation (roughly half the height of
+     *  the hidden inventory rows + label gap) rather than an exact computed value. */
+    private static void applyMelodyRepositioning(ContainerScreen screen) {
+        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
+        if (melodyBaselineScreen != screen) {
+            melodyBaselineScreen = screen;
+            melodyBaselineTopPos = accessor.killer560smod$getTopPos();
+        }
+        int targetTopPos = TerminalSolverConfig.getInstance().isCustomGuiEnabled()
+                ? melodyBaselineTopPos + MELODY_RECENTER_SHIFT : melodyBaselineTopPos;
+        accessor.killer560smod$setTopPos(targetTopPos);
+    }
+
+    /** @return whether the given real slot index should be hidden right now. Every type but Melody
+     *  hides its whole grid (Custom GUI draws a full replacement panel); Melody only hides the player's
+     *  own inventory rows (there's no replacement panel for it - the real terminal portion stays put),
+     *  per killer560's "hide my inventory" request (2026-09-09). */
+    public static boolean shouldHideSlot(int slotIndex) {
+        if (!isCustomGuiActive()) {
+            return false;
+        }
+        return currentType != TerminalType.MELODY || slotIndex >= currentTerminalSlotCount;
+    }
+
+    /** @return whether the vanilla background texture and title/"Inventory" labels should be hidden -
+     *  everything but Melody (whose real terminal portion is left fully visible, unlike every other
+     *  type's full custom-panel replacement). */
+    public static boolean shouldHideBackgroundAndLabels() {
+        return isCustomGuiActive() && currentType != TerminalType.MELODY;
     }
 
     /** @return whether Custom GUI mode should currently be showing (feature + that toggle both on,
      *  and a covered terminal is actually open right now). */
     public static boolean isCustomGuiActive() {
         return currentType != null && TerminalSolverConfig.getInstance().isCustomGuiEnabled();
+    }
+
+    /** @return whether a real, clickable custom PANEL should currently be intercepting clicks - true
+     *  for every type but Melody, which has no panel to redirect clicks to (its real terminal buttons
+     *  need to stay genuinely clickable - only its inventory rows and position are touched). */
+    public static boolean isCustomGuiPanelActive() {
+        return isCustomGuiActive() && currentType != TerminalType.MELODY;
     }
 
     public static void renderOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -191,29 +257,53 @@ public final class TerminalSolverFeature {
             SlotHighlight highlight = entry.getValue();
             int x0 = (slotIndex % GRID_COLUMNS) * CELL_SIZE;
             int y0 = (slotIndex / GRID_COLUMNS) * CELL_SIZE;
-
-            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, CELL_BG_COLOR);
-            graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, highlight.color());
-
             ItemStack stack = slots.get(slotIndex).getItem();
-            if (!stack.isEmpty()) {
-                graphics.item(stack, x0, y0);
-                graphics.itemDecorations(Minecraft.getInstance().font, stack, x0, y0);
-                if (localMouseX >= x0 && localMouseX < x0 + SLOT_SIZE && localMouseY >= y0 && localMouseY < y0 + SLOT_SIZE) {
-                    hoveredStack = stack;
+
+            // Per killer560's per-type style requests (2026-09-09):
+            switch (currentType) {
+                case PANES -> {
+                    // "i can only see the red ones and they have no outline" - the bare real item
+                    // (already a red pane) with no cell background or outline added around it.
+                    if (!stack.isEmpty()) {
+                        graphics.item(stack, x0, y0);
+                    }
+                }
+                case SELECT -> {
+                    // "the items are instead glass panes/colored boxes... all the same" - a flat box in
+                    // the real target color (see solveSelect), no item icon, no outline.
+                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
+                }
+                case RUBIX -> {
+                    // "remove the outside border... left/right click color... number large in the
+                    // middle" - the cell's own fill IS the left/right-click color indicator, no separate
+                    // outline, with the signed click count centered on top at full (unshrunk) size.
+                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, highlight.color());
+                    if (highlight.label() != null) {
+                        int textY = y0 + (SLOT_SIZE - Minecraft.getInstance().font.lineHeight) / 2;
+                        graphics.centeredText(Minecraft.getInstance().font, highlight.label(), x0 + SLOT_SIZE / 2, textY, 0xFF000000);
+                    }
+                }
+                default -> {
+                    // Numbers, Starts With: unchanged from before - real item + colored outline.
+                    graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, CELL_BG_COLOR);
+                    graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, highlight.color());
+                    if (!stack.isEmpty()) {
+                        graphics.item(stack, x0, y0);
+                        graphics.itemDecorations(Minecraft.getInstance().font, stack, x0, y0);
+                    }
                 }
             }
-            if (highlight.label() != null) {
-                graphics.pose().pushMatrix();
-                graphics.pose().translate(x0, y0 + SLOT_SIZE - 7);
-                graphics.pose().scale(0.5f, 0.5f);
-                graphics.text(Minecraft.getInstance().font, highlight.label(), 1, 1, 0xFFFFFFFF, true);
-                graphics.pose().popMatrix();
+
+            if (!stack.isEmpty() && localMouseX >= x0 && localMouseX < x0 + SLOT_SIZE
+                    && localMouseY >= y0 && localMouseY < y0 + SLOT_SIZE) {
+                hoveredStack = stack;
             }
         }
         graphics.pose().popMatrix();
 
-        if (hoveredStack != null) {
+        // Select/Rubix show a flat color instead of the real item, so a tooltip about "the item" would
+        // be meaningless there - only Panes/Numbers/Starts With (which still show the real item) get one.
+        if (hoveredStack != null && currentType != TerminalType.SELECT && currentType != TerminalType.RUBIX) {
             graphics.setTooltipForNextFrame(Minecraft.getInstance().font, hoveredStack, mouseX, mouseY);
         }
     }
@@ -223,7 +313,7 @@ public final class TerminalSolverFeature {
      *  slots underneath are hidden and shouldn't be reachable by an unrelated click landing on empty
      *  panel background. */
     public static boolean handleCustomGuiClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, int button) {
-        if (!isCustomGuiActive()) {
+        if (!isCustomGuiPanelActive()) {
             return false;
         }
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
@@ -276,6 +366,9 @@ public final class TerminalSolverFeature {
             case NUMBERS -> cfg.isNumbersEnabled();
             case STARTS_WITH -> cfg.isStartsWithEnabled();
             case SELECT -> cfg.isSelectEnabled();
+            // No solving/toggle of its own - only ever detected so Custom GUI's hide-inventory/recenter
+            // treatment (see #shouldHideSlot, #applyMelodyRepositioning) can apply to it.
+            case MELODY -> true;
         };
     }
 
@@ -292,6 +385,8 @@ public final class TerminalSolverFeature {
             case NUMBERS -> solveNumbers(items);
             case STARTS_WITH -> solveStartsWith(type, title, items);
             case SELECT -> solveSelect(type, title, items);
+            // refreshState() never calls solve() for Melody - see its own doc.
+            case MELODY -> Map.of();
         };
     }
 
@@ -363,7 +458,10 @@ public final class TerminalSolverFeature {
     /** "Select all the '<color>' items!" - select every item whose name starts with one of that
      *  color's known aliases (Hypixel's real item names don't all literally start with the dye color's
      *  own name - e.g. "Rose" for red, "Cactus" for green - see {@link #SELECT_PREFIXES}), excluding
-     *  glinted items and the black filler panes. */
+     *  glinted items and the black filler panes. Highlight color is the real target dye's own color
+     *  (via {@code DyeColor.getFireworkColor()}, a vivid real RGB per color) rather than a fixed
+     *  constant - per killer560's request (2026-09-09) that Custom GUI show these as plain colored
+     *  boxes in the actual target color, not the real (visually inconsistent) item icons. */
     private static Map<Integer, SlotHighlight> solveSelect(TerminalType type, String title, List<ItemStack> items) {
         Matcher matcher = type.titlePattern().matcher(title);
         if (!matcher.matches()) {
@@ -372,6 +470,7 @@ public final class TerminalSolverFeature {
         String colorText = matcher.group(1).trim().toLowerCase(Locale.ROOT);
         DyeColor color = parseSelectColor(colorText);
         List<String> prefixes = color != null ? SELECT_PREFIXES.getOrDefault(color, List.of(colorText)) : List.of(colorText);
+        int highlightColor = color != null ? (0xFF000000 | color.getFireworkColor()) : THEME_ORANGE;
 
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
@@ -382,7 +481,7 @@ public final class TerminalSolverFeature {
             String name = stripColor(item.getHoverName().getString()).toLowerCase(Locale.ROOT);
             for (String prefix : prefixes) {
                 if (name.startsWith(prefix)) {
-                    result.put(i, new SlotHighlight(SELECT_COLOR, null));
+                    result.put(i, new SlotHighlight(highlightColor, null));
                     break;
                 }
             }
@@ -450,12 +549,7 @@ public final class TerminalSolverFeature {
     }
 
     private static int rubixColorFor(int clicksRequired) {
-        return switch (clicksRequired) {
-            case 1 -> RUBIX_FORWARD_1_COLOR;
-            case 2 -> RUBIX_FORWARD_2_COLOR;
-            case -1 -> RUBIX_REVERSE_1_COLOR;
-            default -> RUBIX_REVERSE_2_COLOR;
-        };
+        return clicksRequired > 0 ? RUBIX_LEFT_CLICK_COLOR : RUBIX_RIGHT_CLICK_COLOR;
     }
 
     private static DyeColor paneDyeColor(ItemStack item) {

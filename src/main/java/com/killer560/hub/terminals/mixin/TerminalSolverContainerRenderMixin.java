@@ -45,14 +45,15 @@ public abstract class TerminalSolverContainerRenderMixin extends Screen {
     // up via the redirect above can still get dropped by vanilla's own unblocked drag/release handling.
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockTerminalCustomGuiDrag(MouseButtonEvent event, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
-        if (TerminalSolverFeature.isCustomGuiActive()) {
+        // Melody's real terminal buttons must stay genuinely clickable - see #isCustomGuiPanelActive.
+        if (TerminalSolverFeature.isCustomGuiPanelActive()) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockTerminalCustomGuiRelease(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (TerminalSolverFeature.isCustomGuiActive()) {
+        if (TerminalSolverFeature.isCustomGuiPanelActive()) {
             cir.setReturnValue(true);
         }
     }

@@ -31,7 +31,8 @@ public abstract class TerminalSolverBackgroundMixin {
     @Inject(method = "extractBackground", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         TerminalSolverFeature.refreshState();
-        if (TerminalSolverFeature.isCustomGuiActive()) {
+        // Melody keeps its real background visible - see TerminalSolverFeature#shouldHideBackgroundAndLabels.
+        if (TerminalSolverFeature.shouldHideBackgroundAndLabels()) {
             ci.cancel();
         }
     }
