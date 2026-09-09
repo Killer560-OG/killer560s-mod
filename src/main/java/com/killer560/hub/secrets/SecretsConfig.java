@@ -30,6 +30,14 @@ public final class SecretsConfig {
     // Wither Essence, per killer560's own naming (2026-09-09) - a skull-family block (SkullBlock or
     // WallSkullBlock depending on placement) in real dungeon rooms.
     private boolean essenceEnabled = false;
+    // Per killer560's explicit request (2026-09-09): restricts every block type above to only expand
+    // while actually inside a real Catacombs/Master Mode run, not just anywhere on hypixel.net/p3sim.net.
+    private boolean dungeonsOnly = false;
+    // Per killer560's explicit request (2026-09-09): Levers and Buttons specifically (not Chests/
+    // Essence) can be restricted further to ONLY the F7/M7 boss phase - see DungeonState's own doc for
+    // why (avoids interfering with precision puzzle levers elsewhere in the dungeon, the same real edge
+    // case NoammAddons' own per-floor lever blacklist exists for).
+    private boolean bossOnly = false;
 
     private SecretsConfig() {
     }
@@ -55,6 +63,8 @@ public final class SecretsConfig {
             cfg.buttonsFullBox = obj.has("buttonsFullBox") && obj.get("buttonsFullBox").getAsBoolean();
             cfg.chestsEnabled = obj.has("chestsEnabled") && obj.get("chestsEnabled").getAsBoolean();
             cfg.essenceEnabled = obj.has("essenceEnabled") && obj.get("essenceEnabled").getAsBoolean();
+            cfg.dungeonsOnly = obj.has("dungeonsOnly") && obj.get("dungeonsOnly").getAsBoolean();
+            cfg.bossOnly = obj.has("bossOnly") && obj.get("bossOnly").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new SecretsConfig();
@@ -70,6 +80,8 @@ public final class SecretsConfig {
             obj.addProperty("buttonsFullBox", buttonsFullBox);
             obj.addProperty("chestsEnabled", chestsEnabled);
             obj.addProperty("essenceEnabled", essenceEnabled);
+            obj.addProperty("dungeonsOnly", dungeonsOnly);
+            obj.addProperty("bossOnly", bossOnly);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -113,5 +125,21 @@ public final class SecretsConfig {
 
     public void setEssenceEnabled(boolean essenceEnabled) {
         this.essenceEnabled = essenceEnabled;
+    }
+
+    public boolean isDungeonsOnly() {
+        return dungeonsOnly;
+    }
+
+    public void setDungeonsOnly(boolean dungeonsOnly) {
+        this.dungeonsOnly = dungeonsOnly;
+    }
+
+    public boolean isBossOnly() {
+        return bossOnly;
+    }
+
+    public void setBossOnly(boolean bossOnly) {
+        this.bossOnly = bossOnly;
     }
 }

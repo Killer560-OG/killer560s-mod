@@ -18,6 +18,7 @@ import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.rngmeter.MagicFindTracker;
+import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngMeterOverlay;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
@@ -71,6 +72,7 @@ public class Killer560ModClient implements ClientModInitializer {
         ExperimentsFeature.register();
         JumpscareFeature.register();
         StorageOverlayFeature.register();
+        DungeonState.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);

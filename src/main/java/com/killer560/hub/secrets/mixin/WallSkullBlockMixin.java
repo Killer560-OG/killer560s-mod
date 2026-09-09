@@ -23,7 +23,8 @@ import java.util.Map;
  *  {@link SkullBlockMixin} (both share the one "Essence"/Skulls toggle, matching quoi's own real
  *  coverage - NoammAddons only covers the floor variant). Implements
  *  {@link OriginalCollisionShapeProvider} for the same real reason {@link ChestBlockMixin} does - see
- *  {@link BlockBehaviourMixin}'s own doc. */
+ *  {@link BlockBehaviourMixin}'s own doc. Also checks {@link SecretsFeature#isWitherEssence} for the
+ *  same real reason {@link SkullBlockMixin} does - see its own doc. */
 @Mixin(WallSkullBlock.class)
 public abstract class WallSkullBlockMixin implements OriginalCollisionShapeProvider {
 
@@ -33,7 +34,7 @@ public abstract class WallSkullBlockMixin implements OriginalCollisionShapeProvi
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (SecretsFeature.shouldExpandEssence()) {
+        if (SecretsFeature.shouldExpandEssence() && SecretsFeature.isWitherEssence(level, pos)) {
             cir.setReturnValue(Shapes.block());
         }
     }
