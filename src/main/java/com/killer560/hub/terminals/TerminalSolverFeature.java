@@ -2,7 +2,6 @@ package com.killer560.hub.terminals;
 
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -85,11 +84,17 @@ public final class TerminalSolverFeature {
     private TerminalSolverFeature() {
     }
 
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
-    }
-
-    private static void tick() {
+    /** Real bug found and fixed (2026-09-09), per killer560's report of a real, if brief, flash of the
+     *  raw unmodified terminal on open before Custom GUI kicks in: state used to only refresh once per
+     *  client TICK (~50ms), but rendering happens far more often than that (every frame, up to several
+     *  times before the next tick even fires) - the first few frames after a terminal screen opens
+     *  could render with stale (null) state, showing the real vanilla screen for a moment before the
+     *  next tick corrected it. Now called from {@link com.killer560.hub.terminals.mixin.TerminalSolverContainerRenderMixin}
+     *  at the very HEAD of {@code extractRenderState} - before ANY of the sub-calls this same render
+     *  pass makes (background, slots, tooltip, labels) - so every one of them, even on the very first
+     *  frame the screen exists, already sees correct, freshly-computed state. No separate tick-based
+     *  polling needed any more now that this runs every single frame instead. */
+    public static void refreshState() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
             currentType = null;

@@ -27,6 +27,8 @@ public abstract class TerminalSolverContainerRenderMixin extends Screen {
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$drawTerminalHighlights(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        // State itself is refreshed earlier, from TerminalSolverBackgroundMixin - see that class's own
+        // doc for why THIS method is already too late in the frame for that.
         TerminalSolverFeature.renderOverlay(graphics, mouseX, mouseY);
     }
 
