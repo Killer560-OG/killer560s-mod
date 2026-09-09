@@ -641,20 +641,27 @@ public final class ExperimentsFeature {
                 updateSuperpairsIconCache(menu, cells);
             }
             logControlSlotIfChanged(cells);
-            // Diagnostic logging (2026-09-08) - killer560 has now reported an item still getting picked
-            // up during Solver Only clicking a SECOND time, after both the CLONE-redirect and the
-            // mouseDragged/mouseReleased block were already in place. Item pickup itself isn't something
-            // Minecraft logs on its own, so this directly watches menu.getCarried() every tick while
-            // click protection is actually active here and logs the instant it goes from empty to
-            // holding something - a real, unambiguous catch of the exact moment it happens (and,
-            // implicitly, whether it happens at all any more), rather than guessing a third blind fix.
+            // Real bug found and fixed (2026-09-08) - the "Pickup guard" diagnostic added to catch this
+            // (see git history) confirmed it with a real log: "carried=Green" during CHRONOMATRON click
+            // protection, seconds after a correct-click confirm, seconds before "Experiment Over." Since
+            // this happens even with EVERY real client click already redirected through
+            // ContainerInput.CLONE (a genuine no-op for real item movement in survival) AND
+            // mouseDragged/mouseReleased fully blocked, it can't be this mod's own choice of click type
+            // causing it any more - the far more likely explanation is Hypixel's own server briefly
+            // granting/echoing the note item into the cursor as click feedback, which nothing client-side
+            // about HOW the click is sent can prevent, since Hypixel controls what it sends back
+            // regardless. Rather than keep chasing prevention, this reacts instead: the instant a carried
+            // item is detected while click protection is active, immediately clears it the same real way
+            // clicking outside any inventory slot does (ContainerInput.PICKUP at slot -999, well-
+            // established vanilla behavior, not Hypixel-specific) - fast enough that it can't be seen. */
             if ((mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER)
                     && ExperimentsConfig.getInstance().isClickProtectionEnabled() && !cfg.isAutonomousMode()) {
                 ItemStack carried = menu.getCarried();
                 boolean holdingNow = carried != null && !carried.isEmpty();
                 if (holdingNow && !wasHoldingCarriedItem) {
-                    LOGGER.warn("Pickup guard: a real item got picked up during {} click protection! carried={}",
-                            mode, carried.getHoverName().getString());
+                    LOGGER.warn("Pickup guard: a real item got picked up during {} click protection "
+                                    + "(carried={}) - clearing it now", mode, carried.getHoverName().getString());
+                    client.gameMode.handleContainerInput(menu.containerId, -999, 0, ContainerInput.PICKUP, client.player);
                 }
                 wasHoldingCarriedItem = holdingNow;
             }
