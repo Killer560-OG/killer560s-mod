@@ -91,9 +91,10 @@ public final class TerminalSolverFeature {
     private static final int MELODY_BUTTON_COLOR = MELODY_ENDPOINT_COLOR;
     // Round 10's 0xFFFFF2E0 read as basically white, round 11's 0xFFFFCC80 still wasn't light enough per
     // killer560's round-12 "you can lighten up the main 4x5" follow-up. Round 15 dimmed it back down to
-    // 0xFFF5D2A0 ("so close to perfect... just make those white spaces a little bit dimmer"); round 16's
-    // "even dimmer" ("other than that it is perfect") dims it further again.
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFFDCB37D;
+    // 0xFFF5D2A0 ("so close to perfect... just make those white spaces a little bit dimmer"); round 16
+    // dimmed further to 0xFFDCB37D ("even dimmer"); round 17's "still fairly bright... a hair dimmer" is
+    // one more small step down from there.
+    private static final int MELODY_TRACK_BASE_COLOR = 0xFFCDA775;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
