@@ -11,13 +11,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Hides the vanilla item rendering for the TOP (storage) slots only on a tracked Ender Chest/
- *  Backpack screen - the 3-column grid already shows the same items in its own "active page" panel,
- *  so leaving vanilla's copy visible too just looked cluttered. The player's own 36 inventory slots
- *  are deliberately left alone (their index is always {@code >= menu.slots.size() - 36}) so nothing
- *  about interacting with your own inventory changes. Only the DRAW call is cancelled here, never
- *  click handling (that hit-tests a {@code Slot}'s own x/y directly, not what was drawn), so the real
- *  slots underneath stay fully clickable even though nothing shows there any more. */
+/** Hides the vanilla item rendering for EVERY slot - both the top (storage) slots and, since
+ *  killer560's "move the inventory portion all the way to the bottom" request (2026-09-08), the
+ *  player's own 36 inventory slots too - on a tracked Ender Chest/Backpack screen. The grid draws its
+ *  own copy of every storage's contents, and {@link StorageOverlayFeature#renderInventoryPanel} draws
+ *  a full replacement for the real inventory elsewhere on screen, so leaving vanilla's own copies
+ *  visible in their original (fixed, unmovable - {@code Slot.x}/{@code y} are {@code final}) positions
+ *  would just be redundant clutter. Only the DRAW call is cancelled here, never click handling (that
+ *  hit-tests a {@code Slot}'s own x/y directly, not what was drawn) - the real slots stay fully
+ *  functional at their original position, just invisible; the relocated Inventory panel instead
+ *  redirects clicks/hover to them by index (see {@code SlotClickInvoker}). */
 @Mixin(AbstractContainerScreen.class)
 public abstract class StorageOverlaySlotMixin {
 
@@ -30,11 +33,7 @@ public abstract class StorageOverlaySlotMixin {
         if (!StorageOverlayConfig.getInstance().isEnabled()) {
             return;
         }
-        if (!StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
-            return;
-        }
-        int containerSlotCount = Math.max(0, self.getMenu().slots.size() - 36);
-        if (slot.index < containerSlotCount) {
+        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
             ci.cancel();
         }
     }
@@ -42,19 +41,25 @@ public abstract class StorageOverlaySlotMixin {
     /** Real bug found and fixed (2026-09-08), per killer560's report of a real Hypixel "Backpack Slot
      *  6" tooltip still popping up over the grid, confusingly unrelated to whatever panel he was
      *  actually looking at - the real (now invisible) slot underneath was still fully hover-active.
-     *  Suppresses the real tooltip for a hidden top slot on the overview screen specifically, where
-     *  every panel is now fully handled by the grid's own click routing instead. */
+     *  Suppresses the real tooltip for: any hidden top (storage) slot on the overview screen
+     *  specifically, where every panel there is fully handled by the grid's own click routing (a
+     *  numbered page's own ACTIVE top slots keep their real tooltip - that's still the authoritative
+     *  interactive copy, the grid only duplicates it for reference); and, on ANY tracked screen, the
+     *  player's own inventory slots, now that {@link StorageOverlayFeature#renderInventoryPanel} always
+     *  relocates and re-shows their real tooltip itself instead. */
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
-    private void killer560smod$hideOverviewTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
+    private void killer560smod$hideRelocatedTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!StorageOverlayConfig.getInstance().isEnabled()) {
+        if (!StorageOverlayConfig.getInstance().isEnabled() || hoveredSlot == null) {
             return;
         }
-        if (!StorageOverlayFeature.isOverviewTitle(self.getTitle().getString())) {
+        String title = self.getTitle().getString();
+        if (!StorageOverlayFeature.shouldHideVanilla(title)) {
             return;
         }
         int containerSlotCount = Math.max(0, self.getMenu().slots.size() - 36);
-        if (hoveredSlot != null && hoveredSlot.index < containerSlotCount) {
+        boolean isPlayerSlot = hoveredSlot.index >= containerSlotCount;
+        if (isPlayerSlot || StorageOverlayFeature.isOverviewTitle(title)) {
             ci.cancel();
         }
     }

@@ -7,7 +7,8 @@
 		"StorageOverlayContainerMixin",
 		"StorageOverlayBackgroundMixin",
 		"StorageOverlaySlotMixin",
-		"ScreenWidgetInvoker"
+		"ScreenWidgetInvoker",
+		"SlotClickInvoker"
 	],
 	"injectors": {
 		"defaultRequire": 1

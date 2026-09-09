@@ -58,6 +58,12 @@ public abstract class StorageOverlayContainerMixin extends Screen {
             cir.setReturnValue(true);
             return;
         }
+        // Per killer560's "move the inventory portion all the way to the bottom" request (2026-09-08):
+        // a click on the relocated Inventory panel is redirected to the real underlying slot by index.
+        if (StorageOverlayFeature.handleInventoryClick(self, event.x(), event.y(), event.button(), event.hasShiftDown())) {
+            cir.setReturnValue(true);
+            return;
+        }
         String activeKey = StorageOverlayFeature.storageKeyForTitle(title);
         if (StorageOverlayFeature.handleClick(event.x(), event.y(), activeKey)) {
             cir.setReturnValue(true);

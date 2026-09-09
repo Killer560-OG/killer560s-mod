@@ -1,9 +1,9 @@
 package com.killer560.hub.storageoverlay;
 
-import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.storageoverlay.mixin.ScreenWidgetInvoker;
+import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.scores.DisplaySlot;
@@ -300,15 +301,14 @@ public final class StorageOverlayFeature {
             if (activeKey == null && !isOverview) {
                 return;
             }
-            // Per killer560's request (2026-09-08): now that the vanilla background/top slots are
-            // hidden here, outline the player's own inventory too so it doesn't look like it's just
-            // floating with nothing to visually anchor it - also gives the real, on-screen top edge of
-            // the inventory, which the grid's own viewport (below) is capped against so it can never
-            // grow down over it.
-            int[] invBounds = computePlayerInventoryBounds(screen);
-            if (invBounds != null) {
-                drawPlayerInventoryOutline(graphics, invBounds);
-            }
+            // Per killer560's "same exact style as the rest of the overlay... move the inventory
+            // portion all the way to the bottom" request (2026-09-08): the real inventory can't
+            // actually be moved (Slot.x/y are final), so instead it's hidden (StorageOverlaySlotMixin)
+            // and a full replacement - styled identically to every other panel, titled "Inventory" -
+            // is drawn fixed at the bottom of the screen, with clicks/hover redirected to the real
+            // slots by index (see handleInventoryClick / SlotClickInvoker) rather than by faking a
+            // mouse position back over the real, invisible, unmovable slot.
+            renderInventoryPanel(screen, graphics, mouseX, mouseY);
             // Real bug found and fixed (2026-09-08), per killer560's report that dummy pages still
             // weren't appearing: scanOverview had the exact same too-early-capture problem
             // captureIfChanged was already fixed for, but only ever ran once (from onScreenOpen) with
@@ -363,11 +363,10 @@ public final class StorageOverlayFeature {
             }
             int viewportWidthLocal = PANEL_WIDTH * 3 + PADDING * 2;
             // Per killer560's report (2026-09-08) that the grid could grow tall enough to cover his own
-            // real inventory (making it unclickable): cap the visible viewport at wherever the real
-            // inventory actually starts on screen this frame (computed above from real slot positions,
-            // not guessed), and let scrolling reach whatever doesn't fit above that line.
-            int viewportBottomPx = invBounds != null ? invBounds[1] - 6
-                    : Minecraft.getInstance().getWindow().getGuiScaledHeight();
+            // inventory (making it unclickable): cap the visible viewport right above the relocated
+            // Inventory panel's own fixed position at the bottom of the screen, and let scrolling reach
+            // whatever doesn't fit above that line.
+            int viewportBottomPx = inventoryPanelTopY() - 6;
             int viewportHeightPx = Math.max(SLOT_SIZE + PADDING, viewportBottomPx - lastPos[1]);
             int viewportHeightLocal = Math.max(1, (int) (viewportHeightPx / lastScale));
             lastMaxScroll = Math.max(0, contentHeight - viewportHeightLocal);
@@ -387,7 +386,7 @@ public final class StorageOverlayFeature {
             // Per killer560's "give it a background" request (2026-09-08): a solid panel behind the
             // WHOLE viewport, not just each individual item panel's own fill - otherwise the padding
             // between panels (and the world behind it) showed through, looking unfinished. Drawn in
-            // real screen coordinates, same as drawPlayerInventoryOutline/drawScrollBar, so it isn't
+            // real screen coordinates, same as renderInventoryPanel/drawScrollBar, so it isn't
             // affected by the grid's own scroll translate.
             //
             // Real bug found and fixed (2026-09-08): the FIRST fix for the rename box's unreadable text
@@ -451,7 +450,7 @@ public final class StorageOverlayFeature {
     }
 
     /** Draws a thin scroll indicator just right of the grid, in real screen coordinates (outside the
-     *  grid's own translate/scale/scroll transform, same approach as {@link #drawPlayerInventoryOutline})
+     *  grid's own translate/scale/scroll transform, same approach as {@link #renderInventoryPanel})
      *  so it stays fixed in place and always reflects how much content doesn't currently fit. */
     private static void drawScrollBar(GuiGraphicsExtractor graphics, int viewportWidthLocal, int viewportHeightLocal, int contentHeight) {
         int barX = lastPos[0] + (int) (viewportWidthLocal * lastScale) + 3;
@@ -510,41 +509,116 @@ public final class StorageOverlayFeature {
         }
     }
 
-    /** @return the real on-screen bounds of the player's own 36 inventory slots ({@code [x0,y0,x1,y1]}),
-     *  or null if the menu doesn't actually have a player inventory - computed from the real slot
-     *  positions so it lines up exactly regardless of screen size/scale. Also doubles as the real,
-     *  live lower bound for the grid's own viewport (see {@link #onContainerScreenRender}), per
-     *  killer560's report (2026-09-08) that a tall grid could otherwise grow down over it. */
-    private static int[] computePlayerInventoryBounds(AbstractContainerScreen<?> screen) {
-        if (!(screen.getMenu() instanceof ChestMenu menu)) {
-            return null;
-        }
-        int containerSlotCount = Math.max(0, menu.slots.size() - 36);
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
-        for (Slot slot : menu.slots) {
-            if (slot.index < containerSlotCount) {
-                continue;
-            }
-            minX = Math.min(minX, slot.x);
-            minY = Math.min(minY, slot.y);
-            maxX = Math.max(maxX, slot.x);
-            maxY = Math.max(maxY, slot.y);
-        }
-        if (minX == Integer.MAX_VALUE) {
-            return null;
-        }
-        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
-        int left = accessor.killer560smod$getLeftPos();
-        int top = accessor.killer560smod$getTopPos();
-        return new int[]{left + minX - 4, top + minY - 4, left + maxX + 16 + 4, top + maxY + 16 + 4};
+    /** Real on-screen bounds of the relocated "Inventory" panel's own item grid from the most recent
+     *  render ({@code [x, y, width, height]}, real screen coordinates - this panel is fixed at scale
+     *  1.0, not affected by the draggable grid's own position/scale/scroll) - used by
+     *  {@link #handleInventoryClick} to hit-test a real click against it. {@code lastInventorySlotBase}
+     *  is the real slot index the panel's own local slot 0 maps to (i.e. {@code menu.slots.size() - 36}
+     *  for a normal player inventory), needed to redirect a click back to the actual {@link Slot}. */
+    private static int[] lastInventoryBounds = null;
+    private static int lastInventorySlotBase = 0;
+
+    /** The relocated "Inventory" panel's fixed height - always 4 rows (36 slots), styled identically to
+     *  every other panel in the grid. */
+    private static int inventoryPanelHeight() {
+        return 4 * SLOT_SIZE + Minecraft.getInstance().font.lineHeight + 6;
     }
 
-    /** Draws a border around the player's own inventory area (unaffected by the vanilla-hide mixins -
-     *  this only outlines it, doesn't touch its rendering) at the bounds {@link #computePlayerInventoryBounds}
-     *  already computed this frame. */
-    private static void drawPlayerInventoryOutline(GuiGraphicsExtractor graphics, int[] bounds) {
-        int border = StorageOverlayConfig.getInstance().isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
-        graphics.outline(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1], border);
+    /** The relocated "Inventory" panel's fixed screen Y - per killer560's "move the inventory portion
+     *  all the way to the bottom" request (2026-09-08), pinned to the bottom of the screen regardless
+     *  of the draggable grid's own position, since the real inventory it replaces can't actually be
+     *  moved (Slot.x/y are final) and this is what stands in for it instead. */
+    private static int inventoryPanelTopY() {
+        return Minecraft.getInstance().getWindow().getGuiScaledHeight() - inventoryPanelHeight() - 8;
+    }
+
+    /** Draws the real player inventory as its own panel, styled identically to every other panel in the
+     *  grid (same background/outline/label/slot-cell-grid/item-decoration code), titled "Inventory" -
+     *  per killer560's "make the inventory have the same exact style as the rest of the overlay...
+     *  with the title of inventory" request (2026-09-08). The real slots are hidden elsewhere
+     *  (StorageOverlaySlotMixin); clicks and hover here are redirected to them by index (see
+     *  {@link #handleInventoryClick}) rather than by faking a mouse position over their real,
+     *  invisible, unmovable location. */
+    private static void renderInventoryPanel(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics,
+                                              int mouseX, int mouseY) {
+        List<Slot> slots = screen.getMenu().slots;
+        int base = Math.max(0, slots.size() - 36);
+        int count = slots.size() - base;
+        if (count <= 0) {
+            lastInventoryBounds = null;
+            return;
+        }
+
+        StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
+        var font = Minecraft.getInstance().font;
+        int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
+        int bg = cfg.isDarkMode() ? 0xCC101010 : 0xCCE8E8E8;
+        int border = cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
+
+        int rows = Math.max(1, (int) Math.ceil(count / 9.0));
+        int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
+        int panelX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - PANEL_WIDTH) / 2;
+        int panelY = inventoryPanelTopY();
+
+        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
+        graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, border);
+        graphics.text(font, "Inventory", panelX + 3, panelY + 3, textColor);
+
+        int gridY = panelY + font.lineHeight + 4;
+        drawSlotCells(graphics, panelX + 2, gridY, rows, cfg.isDarkMode());
+
+        lastInventoryBounds = new int[]{panelX + 2, gridY, 9 * SLOT_SIZE, rows * SLOT_SIZE};
+        lastInventorySlotBase = base;
+
+        ItemStack hoveredStack = null;
+        for (int i = 0; i < count; i++) {
+            ItemStack stack = slots.get(base + i).getItem();
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            int slotX = panelX + (i % 9) * SLOT_SIZE + 2 + 1;
+            int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
+            graphics.item(stack, slotX, slotY);
+            graphics.itemDecorations(font, stack, slotX, slotY);
+            if (mouseX >= slotX && mouseX < slotX + 16 && mouseY >= slotY && mouseY < slotY + 16) {
+                hoveredStack = stack;
+            }
+        }
+        if (hoveredStack != null) {
+            graphics.setTooltipForNextFrame(font, hoveredStack, mouseX, mouseY);
+        }
+    }
+
+    /** Called from the mixin's mouse-click hook - redirects a click on the relocated Inventory panel to
+     *  the real underlying slot via {@link SlotClickInvoker}, per killer560's "move the inventory
+     *  portion all the way to the bottom" request (2026-09-08). Shift held sends a real quick-move
+     *  (matches shift-click on a real slot); otherwise a normal pickup/place click. Dragging a stack
+     *  across multiple relocated slots isn't supported - same accepted limitation already noted for the
+     *  grid's own non-active pages, for the same reason (no continuous real screen position to track a
+     *  drag across). */
+    public static boolean handleInventoryClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY,
+                                                int button, boolean shiftDown) {
+        if (lastInventoryBounds == null) {
+            return false;
+        }
+        int x = lastInventoryBounds[0];
+        int y = lastInventoryBounds[1];
+        int w = lastInventoryBounds[2];
+        int h = lastInventoryBounds[3];
+        if (mouseX < x || mouseX >= x + w || mouseY < y || mouseY >= y + h) {
+            return false;
+        }
+        int col = (int) ((mouseX - x) / SLOT_SIZE);
+        int row = (int) ((mouseY - y) / SLOT_SIZE);
+        List<Slot> slots = screen.getMenu().slots;
+        int realIndex = lastInventorySlotBase + row * 9 + col;
+        if (realIndex < lastInventorySlotBase || realIndex >= slots.size()) {
+            return false;
+        }
+        Slot slot = slots.get(realIndex);
+        ContainerInput clickType = shiftDown ? ContainerInput.QUICK_MOVE : ContainerInput.PICKUP;
+        ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+        return true;
     }
 
     /** Screen-space position/scale from the most recent render, and each panel's LOCAL (pre
