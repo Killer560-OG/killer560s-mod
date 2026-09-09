@@ -31,6 +31,12 @@ server), not just real Hypixel. Whatever "am I on the right server" check gates 
 `AutoJoinSkyblockFeature`'s own `server.ip` check for the established pattern) needs to accept both
 `hypixel.net` and `p3sim.net`, not hard-code Hypixel only.
 
+**Reference-mod note (2026-09-08):** every item in this list came from one of three mods - **NoammAddons**,
+**quoi**, or **Odin** - except the "Better Party Finder (Devonian-style)" entry, which came from
+**Devonian**. When building any of these, decompile/reference the specific mod it came from first (all
+four are already installed in killer560's live-play instances for exactly this) rather than guessing the
+mechanic from scratch.
+
 - Ctrl+Click to copy (general QoL, not dungeon-specific)
 - Etherwarp Overlay
 - P4 Platform Highlight
