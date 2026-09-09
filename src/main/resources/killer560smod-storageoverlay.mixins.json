@@ -6,7 +6,8 @@
 	"client": [
 		"StorageOverlayContainerMixin",
 		"StorageOverlayBackgroundMixin",
-		"StorageOverlaySlotMixin"
+		"StorageOverlaySlotMixin",
+		"ScreenWidgetInvoker"
 	],
 	"injectors": {
 		"defaultRequire": 1

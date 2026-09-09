@@ -4,8 +4,10 @@ import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -42,8 +44,33 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         if (!StorageOverlayFeature.shouldHideVanilla(title)) {
             return;
         }
+        // Per killer560's "double click the actual text and edit it there" request (2026-09-08): a
+        // click landing inside the active rename box is left completely alone so vanilla's own EditBox
+        // click handling (cursor placement, text selection) runs normally further down this same
+        // method - only a click OUTSIDE it commits the rename first (and then still gets to act, e.g.
+        // opening a different page, in the same click).
+        if (StorageOverlayFeature.isRenameClickInsideBox(event.x(), event.y())) {
+            return;
+        }
+        StorageOverlayFeature.commitRename();
+        AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        if (doubleClick && StorageOverlayFeature.handleDoubleClick(self, event.x(), event.y())) {
+            cir.setReturnValue(true);
+            return;
+        }
         String activeKey = StorageOverlayFeature.storageKeyForTitle(title);
         if (StorageOverlayFeature.handleClick(event.x(), event.y(), activeKey)) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /** Per killer560's "double click the actual text and edit it there" request (2026-09-08) - Enter
+     *  commits an in-progress rename immediately, without needing to click away from the box first. */
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$renameKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (StorageOverlayFeature.isRenamePending()
+                && (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER)) {
+            StorageOverlayFeature.commitRename();
             cir.setReturnValue(true);
         }
     }

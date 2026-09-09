@@ -3,11 +3,14 @@ package com.killer560.hub.storageoverlay;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.storageoverlay.mixin.ScreenWidgetInvoker;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -89,16 +92,21 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultY() {
+                // Per killer560's follow-up report (2026-09-08) that it was "still very high": with
+                // enough known storages (his real account has 18+ backpacks) the content is taller than
+                // the available room no matter what, so centering always bottomed out at the floor -
+                // meaning the floor itself IS what he was seeing, flush against the very top of the
+                // screen. Raised from 20 to 32 to actually clear that space, regardless of content size.
                 Minecraft client = Minecraft.getInstance();
                 if (client.screen instanceof AbstractContainerScreen<?> containerScreen) {
                     int[] invBounds = computePlayerInventoryBounds(containerScreen);
                     if (invBounds != null) {
                         int available = Math.max(30, invBounds[1] - 16);
                         int centered = (available - lastContentHeight) / 2;
-                        return Math.max(20, centered);
+                        return Math.max(32, centered);
                     }
                 }
-                return 20;
+                return 32;
             }
 
             @Override
@@ -132,6 +140,12 @@ public final class StorageOverlayFeature {
      *  the moment real data arrives without hammering disk once it's stable. */
     private static void onScreenOpen(Screen screen) {
         try {
+            // Any new screen opening (of any kind) invalidates whatever EditBox this feature may have
+            // added into the PREVIOUS screen's own widget list - that screen instance is being
+            // discarded either way, so there's nothing left to commit it into; just drop the reference.
+            renamingKey = null;
+            renamingBox = null;
+            renamingScreen = null;
             if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
                 return;
             }
@@ -384,6 +398,15 @@ public final class StorageOverlayFeature {
             double localMouseX = mouseOverViewport ? (mouseX - lastPos[0]) / lastScale : Double.NaN;
             double localMouseY = mouseOverViewport ? (mouseY - lastPos[1]) / lastScale + scrollOffset : Double.NaN;
 
+            // Per killer560's "give it a background" request (2026-09-08): a solid panel behind the
+            // WHOLE viewport, not just each individual item panel's own fill - otherwise the padding
+            // between panels (and the world behind it) showed through, looking unfinished. Drawn in
+            // real screen coordinates, same as drawPlayerInventoryOutline/drawScrollBar, so it isn't
+            // affected by the grid's own scroll translate.
+            int viewportBg = StorageOverlayConfig.getInstance().isDarkMode() ? 0xD0000000 : 0xD0FFFFFF;
+            graphics.fill(lastPos[0] - 4, lastPos[1] - 4,
+                    lastPos[0] + lastViewportWidthPx + 4, lastPos[1] + lastViewportHeightPx + 4, viewportBg);
+
             graphics.enableScissor(lastPos[0], lastPos[1],
                     lastPos[0] + lastViewportWidthPx, lastPos[1] + lastViewportHeightPx);
             try {
@@ -431,6 +454,12 @@ public final class StorageOverlayFeature {
      *  current viewport, so scrolling elsewhere on the screen is unaffected. */
     public static boolean handleScroll(double mouseX, double mouseY, double scrollDeltaY) {
         if (lastPos == null || lastViewportHeightPx <= 0) {
+            return false;
+        }
+        // The rename EditBox's screen position is fixed at whatever it was when double-clicked (see
+        // startRename) - scrolling the grid underneath it would visually detach it from its label, so
+        // scrolling is simply blocked for the duration of a rename instead.
+        if (renamingKey != null) {
             return false;
         }
         if (mouseX < lastPos[0] || mouseX > lastPos[0] + lastViewportWidthPx
@@ -517,7 +546,114 @@ public final class StorageOverlayFeature {
      *  actually available, per killer560's report (2026-09-08) of unused space below a top-pinned grid. */
     private static int lastContentHeight = 90;
     private static final Map<String, int[]> lastPanelBounds = new LinkedHashMap<>();
+    /** Just the clickable LABEL strip of each panel from the most recent render (a subset of that
+     *  panel's full {@link #lastPanelBounds} rect - the whole thing for a not-yet-opened placeholder,
+     *  since there's no separate item area to protect there) - what a double-click is hit-tested
+     *  against to start a rename, per killer560's "double click the actual text and edit it there"
+     *  request (2026-09-08). */
+    private static final Map<String, int[]> lastLabelBounds = new LinkedHashMap<>();
     private static final int PLACEHOLDER_HEIGHT = 18;
+
+    /** The storage key currently being renamed inline, and the real {@link EditBox} widget added into
+     *  the live container screen for it (null when nothing's being renamed). {@code renamingScreen} is
+     *  only kept to remove that widget again on commit - a stale reference is harmless since nothing
+     *  reads it once a new screen has opened (see {@link #onScreenOpen}, which always clears these
+     *  three together first). */
+    private static String renamingKey = null;
+    private static EditBox renamingBox = null;
+    private static AbstractContainerScreen<?> renamingScreen = null;
+
+    /** Starts an inline rename of {@code key}, adding a real vanilla {@link EditBox} into the live
+     *  screen at the label's current real screen position - reuses vanilla's own text-field handling
+     *  (typing, backspace, selection, clipboard) entirely rather than reimplementing it. Commits
+     *  whatever rename was already in progress first, if any. */
+    private static void startRename(AbstractContainerScreen<?> screen, String key) {
+        commitRename();
+        int[] label = lastLabelBounds.get(key);
+        if (label == null || lastPos == null) {
+            return;
+        }
+        // Real screen coordinates: mirrors the exact translate(lastPos) -> scale(lastScale) ->
+        // translate(0,-scrollOffset) transform renderGrid draws under, so the box lands exactly over
+        // the label it represents (see onContainerScreenRender). Font size inside the box is NOT scaled
+        // by lastScale (EditBox doesn't support that) - a minor mismatch only noticeable away from the
+        // default 1.0 grid scale.
+        int screenX = lastPos[0] + (int) (label[0] * lastScale);
+        int screenY = lastPos[1] + (int) ((label[1] - scrollOffset) * lastScale);
+        int screenW = Math.max(40, (int) (label[2] * lastScale));
+        int screenH = Math.max(12, (int) (label[3] * lastScale));
+        EditBox box = new EditBox(Minecraft.getInstance().font, screenX, screenY, screenW, screenH, Component.empty());
+        box.setMaxLength(48);
+        box.setBordered(true);
+        String prefix = accountProfilePrefix();
+        box.setValue(displayLabel(key, prefix));
+        ((ScreenWidgetInvoker) (Object) screen).killer560smod$addRenderableWidget(box);
+        screen.setFocused(box);
+        box.setFocused(true);
+        renamingKey = key;
+        renamingBox = box;
+        renamingScreen = screen;
+    }
+
+    /** Saves the in-progress rename (if any) to {@link StorageOverlayConfig} and removes the EditBox
+     *  from the screen - a no-op if nothing's being renamed. Called whenever the rename should end:
+     *  Enter is pressed (see the mixin), or a click lands outside the box. */
+    public static void commitRename() {
+        if (renamingKey == null) {
+            return;
+        }
+        String value = renamingBox != null ? renamingBox.getValue().trim() : "";
+        String prefix = accountProfilePrefix();
+        String defaultLabel = defaultLabelFor(renamingKey, prefix);
+        StorageOverlayConfig.getInstance().setCustomName(renamingKey, value.equals(defaultLabel) ? null : value);
+        StorageOverlayConfig.getInstance().save();
+        if (renamingScreen != null && renamingBox != null) {
+            renamingScreen.setFocused(null);
+            ((ScreenWidgetInvoker) (Object) renamingScreen).killer560smod$removeWidget(renamingBox);
+        }
+        renamingKey = null;
+        renamingBox = null;
+        renamingScreen = null;
+    }
+
+    public static boolean isRenamePending() {
+        return renamingKey != null;
+    }
+
+    /** @return true if {@code (mouseX, mouseY)} (real screen coordinates) falls inside the currently
+     *  active rename box - the mixin uses this to let a click there reach vanilla untouched (real
+     *  cursor placement/selection) instead of being treated as a grid click. */
+    public static boolean isRenameClickInsideBox(double mouseX, double mouseY) {
+        if (renamingBox == null) {
+            return false;
+        }
+        return mouseX >= renamingBox.getX() && mouseX < renamingBox.getX() + renamingBox.getWidth()
+                && mouseY >= renamingBox.getY() && mouseY < renamingBox.getY() + renamingBox.getHeight();
+    }
+
+    /** Called from the mixin's mouse-click hook on a real double-click - starts renaming whichever
+     *  panel's label strip (not its item area) the click landed on, per killer560's request
+     *  (2026-09-08). Any panel can be renamed this way, active or not. */
+    public static boolean handleDoubleClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
+        if (lastPos == null || lastLabelBounds.isEmpty()) {
+            return false;
+        }
+        if (mouseX < lastPos[0] || mouseX > lastPos[0] + lastViewportWidthPx
+                || mouseY < lastPos[1] || mouseY > lastPos[1] + lastViewportHeightPx) {
+            return false;
+        }
+        double localX = (mouseX - lastPos[0]) / lastScale;
+        double localY = (mouseY - lastPos[1]) / lastScale + scrollOffset;
+        for (Map.Entry<String, int[]> entry : lastLabelBounds.entrySet()) {
+            int[] bounds = entry.getValue();
+            if (localX < bounds[0] || localX > bounds[0] + bounds[2] || localY < bounds[1] || localY > bounds[1] + bounds[3]) {
+                continue;
+            }
+            startRename(screen, entry.getKey());
+            return true;
+        }
+        return false;
+    }
 
     /** One panel's pre-computed position/size in the grid's LOCAL (pre translate/scale/scroll)
      *  coordinate space - laid out once per frame by {@link #layoutPanels} so both the total content
@@ -568,6 +704,7 @@ public final class StorageOverlayFeature {
         int activeBorder = 0xFFCC6600;
 
         lastPanelBounds.clear();
+        lastLabelBounds.clear();
         // Per killer560's "scroll on this page" request (2026-09-08): only draw (and only register as
         // clickable) panels that actually fall within the current scrolled viewport - matches
         // NoammAddons' own viewTop/viewBottom skip in its drawPages, and keeps an off-screen panel from
@@ -594,7 +731,11 @@ public final class StorageOverlayFeature {
             int panelHeight = p.height();
 
             // Known-to-exist-but-never-opened (from the overview screen) - matches NoammAddons' own
-            // "Name - Click to load" placeholder for a page with no data yet.
+            // "Name - Click to load" placeholder for a page with no data yet. Its whole rect is the
+            // click-to-open target (no separate item area exists yet to open into) - and, since that
+            // means a double-click's own FIRST click would already open it before the second click ever
+            // arrives, it deliberately isn't added to lastLabelBounds: rename-by-double-click only
+            // applies once a page is actually opened (still renameable from the settings tab either way).
             if (contents == null) {
                 graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
                 graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, border);
@@ -605,9 +746,17 @@ public final class StorageOverlayFeature {
 
             graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
             graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
-            String label = displayLabel(key, prefix);
-            graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
-            lastPanelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, panelHeight});
+            int labelHeight = font.lineHeight + 4;
+            if (!key.equals(renamingKey)) {
+                String label = displayLabel(key, prefix);
+                graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
+            }
+            // Per killer560's "double click the actual text and edit it there" request (2026-09-08):
+            // the label strip is the rename target ONLY, not a click-to-open target - click-to-open
+            // (lastPanelBounds) covers just the item body below it instead, so double-clicking the
+            // title doesn't also fire an open-page command on the double-click's first, plain click.
+            lastLabelBounds.put(key, new int[]{panelX, panelY, PANEL_WIDTH, labelHeight});
+            lastPanelBounds.put(key, new int[]{panelX, panelY + labelHeight, PANEL_WIDTH, panelHeight - labelHeight});
 
             int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
             int gridY = panelY + font.lineHeight + 4;
