@@ -41,14 +41,18 @@ public abstract class ExperimentsInputBlockMixin {
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockMouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (ExperimentsFeature.shouldBlockInput()) {
+        // Real bug found and fixed (2026-09-08), per killer560's report that clicking "incredibly fast"
+        // could still pick a pane up: see ExperimentsFeature#shouldBlockManualDragOrRelease's own doc
+        // for the full story - neither this nor mouseDragged below were ever gated on Solver Only's
+        // click-protection state before, only on the separate autonomous-mode input-block toggle.
+        if (ExperimentsFeature.shouldBlockInput() || ExperimentsFeature.shouldBlockManualDragOrRelease()) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockMouseDragged(MouseButtonEvent event, double dragX, double dragY, CallbackInfoReturnable<Boolean> cir) {
-        if (ExperimentsFeature.shouldBlockInput()) {
+        if (ExperimentsFeature.shouldBlockInput() || ExperimentsFeature.shouldBlockManualDragOrRelease()) {
             cir.setReturnValue(true);
         }
     }

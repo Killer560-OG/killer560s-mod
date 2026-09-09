@@ -904,7 +904,18 @@ public final class ExperimentsFeature {
             player.sendSystemMessage(Component.literal(
                     "§6[Killer560's Mod] You've reached the max rounds needed for max clicks (round "
                             + activeRoundsNeeded + ")."));
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
+            // Per killer560's follow-up "make it play a sound a few times and be noticeable" (2026-09-08):
+            // one ding wasn't attention-grabbing enough. Three, spaced 220ms apart via the same
+            // pendingActions timer this class already uses for jittered clicks (just with fixed delays
+            // instead of random jitter), reads as a clear, deliberate alert rather than a single blip
+            // easy to miss.
+            long now = System.currentTimeMillis();
+            for (int i = 0; i < 3; i++) {
+                pendingActions.add(new PendingAction(
+                        () -> Minecraft.getInstance().getSoundManager()
+                                .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
+                        now + i * 220L));
+            }
         }
     }
 
@@ -1014,6 +1025,28 @@ public final class ExperimentsFeature {
             return true;
         }
         return true;
+    }
+
+    /** Real bug found and fixed (2026-09-08), per killer560's report that clicking "incredibly fast"
+     *  could still pick a pane up despite {@link #shouldBlockManualMisclick} redirecting every real
+     *  click through {@code ContainerInput.CLONE} - same root cause class as a bug already found and
+     *  fixed in the Storage Overlay feature: a genuine click is really a press-hold-release sequence,
+     *  and at high enough speed a tiny bit of cursor movement between press and release can register as
+     *  a real {@code mouseDragged}/{@code mouseReleased} pair, neither of which this mixin's own
+     *  {@code mouseClicked} redirect touches at all - they ran vanilla's own unblocked handling the
+     *  whole time, which is what could still pick the item up. Checked from
+     *  {@link com.killer560.hub.experiments.mixin.ExperimentsInputBlockMixin}'s existing
+     *  mouseDragged/mouseReleased hooks (previously gated only on {@link #shouldBlockInput}, the
+     *  separate autonomous-mode toggle) - neither is a legitimate gesture on a Chronomatron/
+     *  Ultrasequencer screen in the first place, so both are blocked outright whenever click
+     *  protection is actually active here, the same screen-level gate {@link #shouldBlockManualMisclick}
+     *  itself checks before ever hit-testing a specific slot. */
+    public static boolean shouldBlockManualDragOrRelease() {
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isClickProtectionEnabled() || cfg.isAutonomousMode()) {
+            return false;
+        }
+        return lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON || lastLoggedMode == ExperimentSolver.Mode.ULTRASEQUENCER;
     }
 
     /** @return the slot index whose real screen rectangle contains ({@code mouseX}, {@code mouseY}), or
