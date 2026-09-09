@@ -1,6 +1,7 @@
 package com.killer560.hub;
 
 import com.killer560.hub.accounts.HypixelJoinWatcher;
+import com.killer560.hub.autojoinskyblock.AutoJoinSkyblockFeature;
 import com.killer560.hub.automeow.AutoMeowFeature;
 import com.killer560.hub.compat.ModCompatibility;
 import com.killer560.hub.cringe.CringeFeature;
@@ -56,6 +57,7 @@ public class Killer560ModClient implements ClientModInitializer {
         ModCompatibility.refuseIfFirmamentPresent();
 
         HypixelJoinWatcher.register();
+        AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
         SpotifyLyricsFeature.init();
         MagicFindTracker.register();
