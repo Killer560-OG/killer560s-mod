@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
@@ -76,15 +77,11 @@ public final class StorageOverlayFeature {
                 return "Storage Overlay";
             }
 
-            // Per killer560's reports (2026-09-08): first centered horizontally AND vertically, which
-            // pushed the grid down into where the real (still vanilla-positioned) player inventory
-            // naturally sits, crowding it out, so it was pinned to a small top margin instead. Per his
-            // later screenshot showing a lot of unused space still sitting between the (now shorter,
-            // chrome-row-free) grid and his real inventory, it's vertically centered in whatever room
-            // is actually available above the inventory instead of staying pinned to the top -
-            // computed from the real, live inventory position when a storage screen is open (not
-            // guessed), using the grid's actual content height from the most recent render (see
-            // lastContentHeight) so it self-corrects as more/fewer storages become known.
+            // Per killer560's reports (2026-09-08): first centered both ways (crowded his real
+            // inventory), then pinned near the top (left too little margin), then content-height-based
+            // centering (unreliable - see defaultY's own comment). Now a fixed 40% of the real,
+            // live-computed room above his inventory - simple and predictable regardless of how many
+            // storages are known.
             @Override
             public int defaultX() {
                 return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
@@ -92,21 +89,22 @@ public final class StorageOverlayFeature {
 
             @Override
             public int defaultY() {
-                // Per killer560's follow-up report (2026-09-08) that it was "still very high": with
-                // enough known storages (his real account has 18+ backpacks) the content is taller than
-                // the available room no matter what, so centering always bottomed out at the floor -
-                // meaning the floor itself IS what he was seeing, flush against the very top of the
-                // screen. Raised from 20 to 32 to actually clear that space, regardless of content size.
+                // Per killer560's report (2026-09-08) that content-height-based centering was "still
+                // way too high" and needed to "come down a ton": with enough known storages, centering
+                // barely moved it (it bottoms out near the top the moment content exceeds the available
+                // room), and even short of that it wasn't giving the large, predictable top margin he
+                // actually wanted. Replaced entirely with a fixed 40% of the real available room above
+                // his inventory (computed live, not guessed) - always a generous, consistent gap
+                // regardless of how many storages are known, at the cost of a bit more scrolling.
                 Minecraft client = Minecraft.getInstance();
                 if (client.screen instanceof AbstractContainerScreen<?> containerScreen) {
                     int[] invBounds = computePlayerInventoryBounds(containerScreen);
                     if (invBounds != null) {
                         int available = Math.max(30, invBounds[1] - 16);
-                        int centered = (available - lastContentHeight) / 2;
-                        return Math.max(32, centered);
+                        return Math.max(50, available * 2 / 5);
                     }
                 }
-                return 32;
+                return 50;
             }
 
             @Override
@@ -374,7 +372,6 @@ public final class StorageOverlayFeature {
             for (PanelLayout p : layout) {
                 contentHeight = Math.max(contentHeight, p.y() + p.height());
             }
-            lastContentHeight = contentHeight;
             int viewportWidthLocal = PANEL_WIDTH * 3 + PADDING * 2;
             // Per killer560's report (2026-09-08) that the grid could grow tall enough to cover his own
             // real inventory (making it unclickable): cap the visible viewport at wherever the real
@@ -402,10 +399,16 @@ public final class StorageOverlayFeature {
             // WHOLE viewport, not just each individual item panel's own fill - otherwise the padding
             // between panels (and the world behind it) showed through, looking unfinished. Drawn in
             // real screen coordinates, same as drawPlayerInventoryOutline/drawScrollBar, so it isn't
-            // affected by the grid's own scroll translate.
-            int viewportBg = StorageOverlayConfig.getInstance().isDarkMode() ? 0xD0000000 : 0xD0FFFFFF;
-            graphics.fill(lastPos[0] - 4, lastPos[1] - 4,
-                    lastPos[0] + lastViewportWidthPx + 4, lastPos[1] + lastViewportHeightPx + 4, viewportBg);
+            // affected by the grid's own scroll translate. Skipped entirely while a rename is active -
+            // per killer560's report (2026-09-08) that the rename box's text was unreadable ("turns
+            // black") while editing: whatever this mod's own draw order turns out to be relative to the
+            // real EditBox widget's own render pass, nothing of ours painting over that exact area at
+            // all is the only way to guarantee it never happens, regardless of the actual order.
+            if (renamingKey == null) {
+                int viewportBg = StorageOverlayConfig.getInstance().isDarkMode() ? 0xD0000000 : 0xD0FFFFFF;
+                graphics.fill(lastPos[0] - 4, lastPos[1] - 4,
+                        lastPos[0] + lastViewportWidthPx + 4, lastPos[1] + lastViewportHeightPx + 4, viewportBg);
+            }
 
             graphics.enableScissor(lastPos[0], lastPos[1],
                     lastPos[0] + lastViewportWidthPx, lastPos[1] + lastViewportHeightPx);
@@ -540,11 +543,6 @@ public final class StorageOverlayFeature {
     private static float lastMaxScroll = 0f;
     private static int lastViewportWidthPx = 0;
     private static int lastViewportHeightPx = 0;
-    /** The grid's total (unscrolled) content height from the most recent render - seeded with a rough
-     *  guess for the very first frame before any real layout exists, then self-corrects every frame
-     *  after. Used by {@code defaultY()} above to vertically center the grid in whatever room is
-     *  actually available, per killer560's report (2026-09-08) of unused space below a top-pinned grid. */
-    private static int lastContentHeight = 90;
     private static final Map<String, int[]> lastPanelBounds = new LinkedHashMap<>();
     /** Just the clickable LABEL strip of each panel from the most recent render (a subset of that
      *  panel's full {@link #lastPanelBounds} rect - the whole thing for a not-yet-opened placeholder,
@@ -618,6 +616,20 @@ public final class StorageOverlayFeature {
 
     public static boolean isRenamePending() {
         return renamingKey != null;
+    }
+
+    /** Manually forwards a key press to the active rename box - real bug found and fixed (2026-09-08),
+     *  per killer560's report that typing a movement key (e.g. "w") while renaming also made him walk.
+     *  {@link EditBox#keyPressed} only actually claims (returns true for) navigation/editing keys like
+     *  backspace and the arrow keys - a plain letter key is deliberately left unclaimed there, since
+     *  EditBox inserts letters via the separate charTyped callback instead. The mixin calling this
+     *  always treats the key as consumed regardless of what this returns, specifically so a letter key
+     *  never falls through to Minecraft's own global keybind handling (which is what was driving
+     *  movement) just because the box itself didn't need to do anything special with it. */
+    public static void forwardKeyToRenameBox(KeyEvent event) {
+        if (renamingBox != null) {
+            renamingBox.keyPressed(event);
+        }
     }
 
     /** @return true if {@code (mouseX, mouseY)} (real screen coordinates) falls inside the currently
@@ -724,6 +736,14 @@ public final class StorageOverlayFeature {
                 continue;
             }
             String key = p.key();
+            // The real EditBox occupies this exact screen area while it's being renamed - skip drawing
+            // this panel entirely rather than risk painting over the box's text, regardless of which
+            // of the two actually renders on top this frame (see the viewport-background skip above
+            // for the same reasoning). Its own click/label bounds are deliberately not re-registered
+            // either, since nothing should treat this panel as clickable while it's mid-rename.
+            if (key.equals(renamingKey)) {
+                continue;
+            }
             List<ItemStack> contents = p.contents();
             boolean active = key.equals(activeKey);
             int panelX = p.x();
@@ -747,10 +767,8 @@ public final class StorageOverlayFeature {
             graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
             graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
             int labelHeight = font.lineHeight + 4;
-            if (!key.equals(renamingKey)) {
-                String label = displayLabel(key, prefix);
-                graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
-            }
+            String label = displayLabel(key, prefix);
+            graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
             // Per killer560's "double click the actual text and edit it there" request (2026-09-08):
             // the label strip is the rename target ONLY, not a click-to-open target - click-to-open
             // (lastPanelBounds) covers just the item body below it instead, so double-clicking the

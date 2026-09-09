@@ -65,14 +65,24 @@ public abstract class StorageOverlayContainerMixin extends Screen {
     }
 
     /** Per killer560's "double click the actual text and edit it there" request (2026-09-08) - Enter
-     *  commits an in-progress rename immediately, without needing to click away from the box first. */
+     *  commits an in-progress rename immediately, without needing to click away from the box first.
+     *  Real bug found and fixed (2026-09-08), per killer560's report that typing a movement key (e.g.
+     *  "w") while renaming also made him walk: every OTHER key while renaming is now manually forwarded
+     *  to the box and always treated as consumed here, at the very head of this method, so a plain
+     *  letter key (which the box itself doesn't need to specially claim - see
+     *  {@link StorageOverlayFeature#forwardKeyToRenameBox}) never reaches Minecraft's own global keybind
+     *  handling just because nothing downstream claimed it. */
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void killer560smod$renameKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (StorageOverlayFeature.isRenamePending()
-                && (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER)) {
-            StorageOverlayFeature.commitRename();
-            cir.setReturnValue(true);
+        if (!StorageOverlayFeature.isRenamePending()) {
+            return;
         }
+        if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            StorageOverlayFeature.commitRename();
+        } else {
+            StorageOverlayFeature.forwardKeyToRenameBox(event);
+        }
+        cir.setReturnValue(true);
     }
 
     /** Per killer560's "I need to be able to scroll on this page" request (2026-09-08) - lets the
