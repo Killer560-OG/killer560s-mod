@@ -25,6 +25,12 @@ Informal running list of what's planned or being considered - not a promise of w
 Raw brainstorm dump, not scoped yet - names only, mostly Dungeons-focused. Some overlap with items already
 listed above under Planned; left as separate entries rather than merged, per killer560's own instruction.
 
+**Server-gating note (2026-09-08):** any dungeon solver/ESP/timer/etc. built from this list - here or
+already under Planned above - must also work on **p3sim.net** (a Hypixel Dungeons practice/simulation
+server), not just real Hypixel. Whatever "am I on the right server" check gates these features (see
+`AutoJoinSkyblockFeature`'s own `server.ip` check for the established pattern) needs to accept both
+`hypixel.net` and `p3sim.net`, not hard-code Hypixel only.
+
 - Ctrl+Click to copy (general QoL, not dungeon-specific)
 - Etherwarp Overlay
 - P4 Platform Highlight
