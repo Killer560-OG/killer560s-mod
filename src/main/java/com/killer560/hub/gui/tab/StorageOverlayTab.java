@@ -67,11 +67,34 @@ public class StorageOverlayTab extends BaseTab {
         });
         y += 26;
 
+        // Per killer560's "add a new slider to dictate the amount of columns shown from 1-5" request
+        // (2026-09-08) - snaps to whole columns (same discrete-step trick as ExperimentsTab's own
+        // sliders): the grid always stays centered on whatever the current column count/scale work out
+        // to (see StorageOverlayFeature's defaultX()), so this alone re-centers it too.
+        int columnRange = StorageOverlayConfig.MAX_COLUMNS - StorageOverlayConfig.MIN_COLUMNS;
+        double columnsNormalized = (StorageOverlayConfig.getInstance().getColumns() - StorageOverlayConfig.MIN_COLUMNS)
+                / (double) columnRange;
+        widgets.add(new ThemedSliderButton(contentX, y, 220, 20, columnsText(), columnsNormalized) {
+            @Override
+            protected void updateMessage() {
+                setMessage(columnsText());
+            }
+
+            @Override
+            protected void applyValue() {
+                StorageOverlayConfig c = StorageOverlayConfig.getInstance();
+                int snapped = StorageOverlayConfig.MIN_COLUMNS + (int) Math.round(this.value * columnRange);
+                c.setColumns(snapped);
+                c.save();
+                this.value = (snapped - StorageOverlayConfig.MIN_COLUMNS) / (double) columnRange;
+            }
+        });
+        y += 26;
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Opening an Ender Chest page or Backpack logs it and shows every "
-                        + "known one in a 3-column grid alongside the menu. Drag it in Edit HUD "
-                        + "Positions to move. Double-click a storage's title in the grid to rename it "
-                        + "right there."),
+                        + "known one in a grid alongside the menu. Drag it in Edit HUD Positions to "
+                        + "move. Double-click a storage's title in the grid to rename it right there."),
                 Minecraft.getInstance().font));
 
         return widgets;
@@ -89,5 +112,9 @@ public class StorageOverlayTab extends BaseTab {
 
     private static Component scaleText() {
         return Component.literal(String.format("Scale: %.0f%%", StorageOverlayConfig.getInstance().getScale() * 100));
+    }
+
+    private static Component columnsText() {
+        return Component.literal("Columns: " + StorageOverlayConfig.getInstance().getColumns());
     }
 }

@@ -87,9 +87,16 @@ public final class StorageOverlayFeature {
             // time. Back to a small fixed top margin, matching the original correct behavior - the real
             // fix for the real inventory's position is a separate, bigger feature (see StorageOverlayFeature
             // class doc / TESTING.md for the current plan).
+            //
+            // Real bug found and fixed (2026-09-08), per killer560's screenshot showing the grid visibly
+            // off-center once he raised the Scale slider: this used to center against the UNSCALED
+            // width() - correct at 100%, but every other scale renders at width()*scale (the pose
+            // transform in onContainerScreenRender), so the panel's actual right edge drifted further
+            // from center the more it was scaled up, with nothing added back on the left to compensate.
             @Override
             public int defaultX() {
-                return (Minecraft.getInstance().getWindow().getGuiScaledWidth() - width()) / 2;
+                float scale = StorageOverlayConfig.getInstance().getScale();
+                return (int) ((Minecraft.getInstance().getWindow().getGuiScaledWidth() - width() * scale) / 2);
             }
 
             @Override
@@ -99,7 +106,7 @@ public final class StorageOverlayFeature {
 
             @Override
             public int width() {
-                return PANEL_WIDTH * 3 + PADDING * 2;
+                return gridWidthLocal();
             }
 
             @Override
@@ -356,7 +363,7 @@ public final class StorageOverlayFeature {
             for (PanelLayout p : layout) {
                 contentHeight = Math.max(contentHeight, p.y() + p.height());
             }
-            int viewportWidthLocal = PANEL_WIDTH * 3 + PADDING * 2;
+            int viewportWidthLocal = gridWidthLocal();
             // Per killer560's report (2026-09-08) that the grid could grow tall enough to cover his own
             // inventory (making it unclickable): cap the visible viewport right above the relocated
             // Inventory panel's own fixed position at the bottom of the screen, and let scrolling reach
@@ -790,13 +797,22 @@ public final class StorageOverlayFeature {
     private record PanelLayout(String key, List<ItemStack> contents, int x, int y, int height) {
     }
 
-    /** Lays out every known storage into the 3-column grid, top to bottom - pure layout math, no
-     *  drawing, so it can be reused both to measure the grid's total (unscrolled) content height and
-     *  to actually draw it. */
+    /** The grid's LOCAL (pre-scale) total width for the current column count - per killer560's "add a
+     *  new slider to dictate the amount of columns shown from 1-5" request (2026-09-08), shared by
+     *  {@code width()}, the viewport calculation, and {@link #layoutPanels} so all three always agree. */
+    private static int gridWidthLocal() {
+        int columns = StorageOverlayConfig.getInstance().getColumns();
+        return PANEL_WIDTH * columns + PADDING * (columns - 1);
+    }
+
+    /** Lays out every known storage into the grid (column count from
+     *  {@link StorageOverlayConfig#getColumns()}), top to bottom - pure layout math, no drawing, so it
+     *  can be reused both to measure the grid's total (unscrolled) content height and to actually draw
+     *  it. */
     private static List<PanelLayout> layoutPanels(Map<String, List<ItemStack>> storages) {
         var font = Minecraft.getInstance().font;
         List<PanelLayout> result = new ArrayList<>();
-        int columns = 3;
+        int columns = StorageOverlayConfig.getInstance().getColumns();
         int col = 0;
         int rowX = 0;
         int rowY = 0;

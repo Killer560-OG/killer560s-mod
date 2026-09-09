@@ -12,10 +12,9 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Persisted Storage Overlay settings - the main on/off toggle, dark/light background, and custom
- *  display names for individual tracked storage units (renamed per killer560's request). Scale and
- *  screen position are handled by the shared {@link com.killer560.hub.hud.HudConfig}/HUD editor like
- *  every other HUD element instead of being duplicated here. */
+/** Persisted Storage Overlay settings - the main on/off toggle, dark/light background, scale, and
+ *  column count. Screen POSITION (not scale any more) is still handled by the shared
+ *  {@link com.killer560.hub.hud.HudConfig}/HUD editor like every other HUD element. */
 public final class StorageOverlayConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -36,6 +35,11 @@ public final class StorageOverlayConfig {
     public static final float MIN_SCALE = 0.5f;
     public static final float MAX_SCALE = 2.0f;
     private float scale = 1.0f;
+    /** Grid column count - per killer560's "add a new slider to dictate the amount of columns shown
+     *  from 1-5... always use the centermost point as the middle" request (2026-09-08). */
+    public static final int MIN_COLUMNS = 1;
+    public static final int MAX_COLUMNS = 5;
+    private int columns = 3;
 
     private StorageOverlayConfig() {
     }
@@ -59,6 +63,7 @@ public final class StorageOverlayConfig {
             cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
             cfg.darkMode = !obj.has("darkMode") || obj.get("darkMode").getAsBoolean();
             cfg.scale = obj.has("scale") ? clampScale(obj.get("scale").getAsFloat()) : 1.0f;
+            cfg.columns = obj.has("columns") ? clampColumns(obj.get("columns").getAsInt()) : 3;
             if (obj.has("customNames")) {
                 JsonObject names = obj.getAsJsonObject("customNames");
                 for (String key : names.keySet()) {
@@ -78,6 +83,7 @@ public final class StorageOverlayConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("darkMode", darkMode);
             obj.addProperty("scale", scale);
+            obj.addProperty("columns", columns);
             JsonObject names = new JsonObject();
             for (Map.Entry<String, String> entry : customNames.entrySet()) {
                 names.addProperty(entry.getKey(), entry.getValue());
@@ -114,6 +120,18 @@ public final class StorageOverlayConfig {
 
     private static float clampScale(float value) {
         return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
+    }
+
+    public int getColumns() {
+        return columns;
+    }
+
+    public void setColumns(int columns) {
+        this.columns = clampColumns(columns);
+    }
+
+    private static int clampColumns(int value) {
+        return Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, value));
     }
 
     public String getCustomName(String storageKey) {

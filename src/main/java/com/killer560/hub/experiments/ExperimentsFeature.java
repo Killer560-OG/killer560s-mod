@@ -972,7 +972,10 @@ public final class ExperimentsFeature {
         // click that would otherwise be CONFIRMED correct, this blocks every attempt (correct or not,
         // Shift-held or not) and never lets the solver advance, for the full 50ms after the previous one.
         long now = System.currentTimeMillis();
-        if (now - lastManualClickAttemptAtMs < MANUAL_CLICK_LOCKOUT_MS) {
+        long sinceLastAttempt = now - lastManualClickAttemptAtMs;
+        if (sinceLastAttempt < MANUAL_CLICK_LOCKOUT_MS) {
+            LOGGER.info("Misclick guard: LOCKOUT slot={} sinceLastAttempt={}ms (< {}ms)",
+                    slot, sinceLastAttempt, MANUAL_CLICK_LOCKOUT_MS);
             return true;
         }
         lastManualClickAttemptAtMs = now;
@@ -983,6 +986,13 @@ public final class ExperimentsFeature {
         boolean correct = lastLoggedMode == ExperimentSolver.Mode.CHRONOMATRON
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot);
+        // Diagnostic logging (2026-09-08) - killer560 has now reported "click correct, whip mouse over,
+        // click wrong, it goes through" TWICE, once before and once after the lockout above was added,
+        // and static analysis says this whole function should already be rejecting a genuinely wrong
+        // slot regardless of timing (see the final `return true` below). Logging every real decision so
+        // the next test run gives an actual log to root-cause from instead of a third blind guess.
+        LOGGER.info("Misclick guard: slot={} sinceLastAttempt={}ms correct={} shiftDown={} mode={}",
+                slot, sinceLastAttempt, correct, event.hasShiftDown(), lastLoggedMode);
         if (correct) {
             return false;
         }
