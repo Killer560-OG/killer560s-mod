@@ -137,6 +137,14 @@ public final class ExperimentsFeature {
      *  rejoining the world). */
     private static boolean armed = false;
 
+    /** Per killer560's explicit request (2026-09-08), after reporting he could still click the correct
+     *  block then whip the mouse over and land a wrong click: a hard, unconditional 50ms lockout after
+     *  EVERY click attempt on the puzzle grid (not just confirmed-correct ones, unlike
+     *  {@link ExperimentSolver}'s own {@code MANUAL_CONFIRM_MIN_GAP_MS}, which only re-gates a click that
+     *  would otherwise be confirmed) - see {@link #shouldBlockManualMisclick}. */
+    private static long lastManualClickAttemptAtMs = 0L;
+    private static final long MANUAL_CLICK_LOCKOUT_MS = 50;
+
     private record PendingAction(Runnable action, long fireAtMs) {
     }
 
@@ -958,6 +966,16 @@ public final class ExperimentsFeature {
         if (slot < 0 || slot >= containerSlotCount) {
             return false;
         }
+        // Per killer560's report (2026-09-08) that he could still click the correct block, whip the
+        // mouse over, and land a wrong click: a hard, unconditional lockout right after ANY click
+        // attempt here - unlike the solver's own MANUAL_CONFIRM_MIN_GAP_MS below, which only re-gates a
+        // click that would otherwise be CONFIRMED correct, this blocks every attempt (correct or not,
+        // Shift-held or not) and never lets the solver advance, for the full 50ms after the previous one.
+        long now = System.currentTimeMillis();
+        if (now - lastManualClickAttemptAtMs < MANUAL_CLICK_LOCKOUT_MS) {
+            return true;
+        }
+        lastManualClickAttemptAtMs = now;
         // Re-snapshotting live at the exact moment of the click (real bug found and fixed 2026-09-08,
         // see git history) rather than reusing lastCells (a per-tick cache, up to 50ms stale) removes a
         // staleness window that could read a momentarily wrong/blank item for a slot that's actually

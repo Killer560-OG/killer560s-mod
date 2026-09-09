@@ -28,6 +28,14 @@ public final class StorageOverlayConfig {
     private boolean darkMode = true;
     /** Storage key (see {@link StorageOverlayFeature#storageKey}) -> killer560's custom display name. */
     private final Map<String, String> customNames = new HashMap<>();
+    /** Uniform scale for the WHOLE feature - both the grid and the relocated Inventory panel - per
+     *  killer560's "add a scale bar... this should rescale everything while still keeping my inventory
+     *  at the bottom and it centered at the top" request (2026-09-08): a single explicit control in the
+     *  settings tab, rather than the grid's own separate (and apparently not discovered/used) HUD-editor
+     *  scroll-to-resize. Scaling never moves either panel's own anchor point - only their size. */
+    public static final float MIN_SCALE = 0.5f;
+    public static final float MAX_SCALE = 2.0f;
+    private float scale = 1.0f;
 
     private StorageOverlayConfig() {
     }
@@ -50,6 +58,7 @@ public final class StorageOverlayConfig {
             StorageOverlayConfig cfg = new StorageOverlayConfig();
             cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
             cfg.darkMode = !obj.has("darkMode") || obj.get("darkMode").getAsBoolean();
+            cfg.scale = obj.has("scale") ? clampScale(obj.get("scale").getAsFloat()) : 1.0f;
             if (obj.has("customNames")) {
                 JsonObject names = obj.getAsJsonObject("customNames");
                 for (String key : names.keySet()) {
@@ -68,6 +77,7 @@ public final class StorageOverlayConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("darkMode", darkMode);
+            obj.addProperty("scale", scale);
             JsonObject names = new JsonObject();
             for (Map.Entry<String, String> entry : customNames.entrySet()) {
                 names.addProperty(entry.getKey(), entry.getValue());
@@ -92,6 +102,18 @@ public final class StorageOverlayConfig {
 
     public void setDarkMode(boolean darkMode) {
         this.darkMode = darkMode;
+    }
+
+    public float getScale() {
+        return scale;
+    }
+
+    public void setScale(float scale) {
+        this.scale = clampScale(scale);
+    }
+
+    private static float clampScale(float value) {
+        return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
     }
 
     public String getCustomName(String storageKey) {

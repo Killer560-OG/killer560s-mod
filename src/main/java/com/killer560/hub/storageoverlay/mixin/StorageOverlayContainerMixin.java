@@ -65,7 +65,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
             return;
         }
         String activeKey = StorageOverlayFeature.storageKeyForTitle(title);
-        if (StorageOverlayFeature.handleClick(event.x(), event.y(), activeKey)) {
+        if (StorageOverlayFeature.handleClick(self, event.x(), event.y(), activeKey, event.button(), event.hasShiftDown())) {
             cir.setReturnValue(true);
         }
     }

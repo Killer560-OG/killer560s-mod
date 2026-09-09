@@ -273,15 +273,6 @@ public final class StorageOverlayFeature {
         return storageKeyForTitle(title) != null || title.equals(OVERVIEW_TITLE);
     }
 
-    /** True only for the "Storage" overview itself, not a numbered page - used to suppress the real
-     *  vanilla hover tooltip there (per killer560's report of a confusing real "Backpack Slot 6"
-     *  tooltip popping up over the grid), since every panel there is fully replaced by the grid's own
-     *  click routing. Numbered pages keep their real tooltip/click-through untouched - the grid only
-     *  duplicates their contents for reference, real interaction still goes through vanilla there. */
-    public static boolean isOverviewTitle(String title) {
-        return title.equals(OVERVIEW_TITLE);
-    }
-
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin} on
      *  every container screen's own render pass - draws the 3-column grid of every known storage for
      *  the current account/profile if the currently open screen is itself a tracked storage. */
@@ -354,7 +345,11 @@ public final class StorageOverlayFeature {
                 return;
             }
             lastPos = HudElementRegistry.resolvePosition(element);
-            lastScale = HudElementRegistry.resolveScale(element);
+            // Per killer560's "add a scale bar... rescale everything" request (2026-09-08): one
+            // explicit setting-tab control for the whole feature's scale, grid and Inventory panel
+            // alike (see renderInventoryPanel), instead of the grid's own separate HUD-editor
+            // scroll-to-resize.
+            lastScale = StorageOverlayConfig.getInstance().getScale();
 
             List<PanelLayout> layout = layoutPanels(ordered);
             int contentHeight = 0;
@@ -509,27 +504,35 @@ public final class StorageOverlayFeature {
         }
     }
 
-    /** Real on-screen bounds of the relocated "Inventory" panel's own item grid from the most recent
-     *  render ({@code [x, y, width, height]}, real screen coordinates - this panel is fixed at scale
-     *  1.0, not affected by the draggable grid's own position/scale/scroll) - used by
-     *  {@link #handleInventoryClick} to hit-test a real click against it. {@code lastInventorySlotBase}
-     *  is the real slot index the panel's own local slot 0 maps to (i.e. {@code menu.slots.size() - 36}
-     *  for a normal player inventory), needed to redirect a click back to the actual {@link Slot}. */
+    /** Real on-screen ORIGIN and scale of the relocated "Inventory" panel from the most recent render -
+     *  per killer560's "add a scale bar... rescale everything" request (2026-09-08), this panel scales
+     *  with {@link StorageOverlayConfig#getScale()} just like the grid does, via its own pose transform
+     *  (see {@link #renderInventoryPanel}). {@code lastInventoryBounds} is its item grid's rect in LOCAL
+     *  (pre-scale) coordinates - both are needed together to convert a real click/hover position back
+     *  into local space for hit-testing. {@code lastInventorySlotBase} is the real slot index the
+     *  panel's own local slot 0 maps to (i.e. {@code menu.slots.size() - 36} for a normal player
+     *  inventory), needed to redirect a click back to the actual {@link Slot}. */
+    private static int[] lastInventoryOrigin = null;
+    private static float lastInventoryScale = 1.0f;
     private static int[] lastInventoryBounds = null;
     private static int lastInventorySlotBase = 0;
 
-    /** The relocated "Inventory" panel's fixed height - always 4 rows (36 slots), styled identically to
-     *  every other panel in the grid. */
+    /** The relocated "Inventory" panel's LOCAL (pre-scale) height - always 4 rows (36 slots), styled
+     *  identically to every other panel in the grid. */
     private static int inventoryPanelHeight() {
         return 4 * SLOT_SIZE + Minecraft.getInstance().font.lineHeight + 6;
     }
 
-    /** The relocated "Inventory" panel's fixed screen Y - per killer560's "move the inventory portion
-     *  all the way to the bottom" request (2026-09-08), pinned to the bottom of the screen regardless
-     *  of the draggable grid's own position, since the real inventory it replaces can't actually be
-     *  moved (Slot.x/y are final) and this is what stands in for it instead. */
+    /** The relocated "Inventory" panel's real on-screen top Y, AFTER scale - per killer560's "move the
+     *  inventory portion all the way to the bottom" request (2026-09-08), pinned to the bottom of the
+     *  screen regardless of the draggable grid's own position, since the real inventory it replaces
+     *  can't actually be moved (Slot.x/y are final) and this is what stands in for it instead. Used by
+     *  the grid's own viewport cap, so it must reflect the CURRENT scale (a bigger scale needs more
+     *  room, which the grid above it needs to yield). */
     private static int inventoryPanelTopY() {
-        return Minecraft.getInstance().getWindow().getGuiScaledHeight() - inventoryPanelHeight() - 8;
+        float scale = StorageOverlayConfig.getInstance().getScale();
+        int scaledHeight = (int) (inventoryPanelHeight() * scale);
+        return Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
     }
 
     /** Draws the real player inventory as its own panel, styled identically to every other panel in the
@@ -538,7 +541,9 @@ public final class StorageOverlayFeature {
      *  with the title of inventory" request (2026-09-08). The real slots are hidden elsewhere
      *  (StorageOverlaySlotMixin); clicks and hover here are redirected to them by index (see
      *  {@link #handleInventoryClick}) rather than by faking a mouse position over their real,
-     *  invisible, unmovable location. */
+     *  invisible, unmovable location. Drawn via its own translate+scale pose transform (matching the
+     *  grid's own approach) so {@link StorageOverlayConfig#getScale()} resizes it without moving its
+     *  bottom-centered anchor point. */
     private static void renderInventoryPanel(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics,
                                               int mouseX, int mouseY) {
         List<Slot> slots = screen.getMenu().slots;
@@ -546,6 +551,7 @@ public final class StorageOverlayFeature {
         int count = slots.size() - base;
         if (count <= 0) {
             lastInventoryBounds = null;
+            lastInventoryOrigin = null;
             return;
         }
 
@@ -557,35 +563,54 @@ public final class StorageOverlayFeature {
 
         int rows = Math.max(1, (int) Math.ceil(count / 9.0));
         int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
-        int panelX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - PANEL_WIDTH) / 2;
-        int panelY = inventoryPanelTopY();
+        float scale = cfg.getScale();
+        int scaledWidth = (int) (PANEL_WIDTH * scale);
+        int scaledHeight = (int) (panelHeight * scale);
+        int originX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - scaledWidth) / 2;
+        int originY = Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight - 8;
+        lastInventoryOrigin = new int[]{originX, originY};
+        lastInventoryScale = scale;
 
-        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, bg);
-        graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, border);
-        graphics.text(font, "Inventory", panelX + 3, panelY + 3, textColor);
+        double localMouseX = (mouseX - originX) / scale;
+        double localMouseY = (mouseY - originY) / scale;
 
-        int gridY = panelY + font.lineHeight + 4;
-        drawSlotCells(graphics, panelX + 2, gridY, rows, cfg.isDarkMode());
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(originX, originY);
+            graphics.pose().scale(scale, scale);
 
-        lastInventoryBounds = new int[]{panelX + 2, gridY, 9 * SLOT_SIZE, rows * SLOT_SIZE};
-        lastInventorySlotBase = base;
+            graphics.fill(0, 0, PANEL_WIDTH, panelHeight, bg);
+            graphics.outline(0, 0, PANEL_WIDTH, panelHeight, border);
+            graphics.text(font, "Inventory", 3, 3, textColor);
 
-        ItemStack hoveredStack = null;
-        for (int i = 0; i < count; i++) {
-            ItemStack stack = slots.get(base + i).getItem();
-            if (stack == null || stack.isEmpty()) {
-                continue;
+            int gridY = font.lineHeight + 4;
+            drawSlotCells(graphics, 2, gridY, rows, cfg.isDarkMode());
+
+            lastInventoryBounds = new int[]{2, gridY, 9 * SLOT_SIZE, rows * SLOT_SIZE};
+            lastInventorySlotBase = base;
+
+            ItemStack hoveredStack = null;
+            for (int i = 0; i < count; i++) {
+                ItemStack stack = slots.get(base + i).getItem();
+                if (stack == null || stack.isEmpty()) {
+                    continue;
+                }
+                int slotX = (i % 9) * SLOT_SIZE + 2 + 1;
+                int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
+                graphics.item(stack, slotX, slotY);
+                graphics.itemDecorations(font, stack, slotX, slotY);
+                if (localMouseX >= slotX && localMouseX < slotX + 16
+                        && localMouseY >= slotY && localMouseY < slotY + 16) {
+                    hoveredStack = stack;
+                }
             }
-            int slotX = panelX + (i % 9) * SLOT_SIZE + 2 + 1;
-            int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
-            graphics.item(stack, slotX, slotY);
-            graphics.itemDecorations(font, stack, slotX, slotY);
-            if (mouseX >= slotX && mouseX < slotX + 16 && mouseY >= slotY && mouseY < slotY + 16) {
-                hoveredStack = stack;
+            if (hoveredStack != null) {
+                // Real screen mouse coordinates for the tooltip itself, not the local ones used above
+                // for hit-testing - same reasoning as renderGrid's own tooltip call.
+                graphics.setTooltipForNextFrame(font, hoveredStack, mouseX, mouseY);
             }
-        }
-        if (hoveredStack != null) {
-            graphics.setTooltipForNextFrame(font, hoveredStack, mouseX, mouseY);
+        } finally {
+            graphics.pose().popMatrix();
         }
     }
 
@@ -598,18 +623,20 @@ public final class StorageOverlayFeature {
      *  drag across). */
     public static boolean handleInventoryClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY,
                                                 int button, boolean shiftDown) {
-        if (lastInventoryBounds == null) {
+        if (lastInventoryBounds == null || lastInventoryOrigin == null) {
             return false;
         }
+        double localX = (mouseX - lastInventoryOrigin[0]) / lastInventoryScale;
+        double localY = (mouseY - lastInventoryOrigin[1]) / lastInventoryScale;
         int x = lastInventoryBounds[0];
         int y = lastInventoryBounds[1];
         int w = lastInventoryBounds[2];
         int h = lastInventoryBounds[3];
-        if (mouseX < x || mouseX >= x + w || mouseY < y || mouseY >= y + h) {
+        if (localX < x || localX >= x + w || localY < y || localY >= y + h) {
             return false;
         }
-        int col = (int) ((mouseX - x) / SLOT_SIZE);
-        int row = (int) ((mouseY - y) / SLOT_SIZE);
+        int col = (int) ((localX - x) / SLOT_SIZE);
+        int row = (int) ((localY - y) / SLOT_SIZE);
         List<Slot> slots = screen.getMenu().slots;
         int realIndex = lastInventorySlotBase + row * 9 + col;
         if (realIndex < lastInventorySlotBase || realIndex >= slots.size()) {
@@ -888,7 +915,12 @@ public final class StorageOverlayFeature {
                 // count text and inherited the same top-left offset bug.
                 graphics.itemDecorations(font, stack, slotX, slotY);
 
-                if (!active && localMouseX >= slotX && localMouseX < slotX + 16
+                // Real bug found and fixed (2026-09-08), per killer560's "can't drag between inventory
+                // and storage" report: the active panel used to be excluded here on the assumption its
+                // real vanilla tooltip still worked - it didn't, since the real slot's hover-tracking
+                // lives at its OLD, invisible, unmovable position, not this visual one. Every panel now
+                // gets the same manually-triggered tooltip regardless of active status.
+                if (localMouseX >= slotX && localMouseX < slotX + 16
                         && localMouseY >= slotY && localMouseY < slotY + 16) {
                     hoveredStack = stack;
                 }
@@ -923,11 +955,18 @@ public final class StorageOverlayFeature {
     }
 
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin}'s
-     *  mouse-click hook - if the click landed on a non-active page's panel from the most recent
-     *  render, sends the real client command to open it (ported from NoammAddons' own
-     *  {@code StoragePage.open}) and reports the click as handled so the mixin can cancel it before
-     *  it reaches the real (unrelated) menu underneath. */
-    public static boolean handleClick(double mouseX, double mouseY, String activeKey) {
+     *  mouse-click hook. A click on a NON-active page's panel sends the real client command to open it
+     *  (ported from NoammAddons' own {@code StoragePage.open}). A click on the ACTIVE page's own panel
+     *  is redirected to the real underlying container slot by index instead (see
+     *  {@link #handleActivePanelClick}) - real bug found and fixed (2026-09-08), per killer560's report
+     *  that he couldn't drag/move items between his (relocated) inventory and any open storage: the
+     *  active page's real top slots are hidden and relocated to this same visual panel exactly like the
+     *  player's own inventory is, but unlike the inventory panel, clicking the active panel previously
+     *  did NOTHING at all (this loop just skipped it outright) - the real interactive copy was sitting
+     *  at its old, invisible, unmovable position elsewhere on screen instead, nowhere near what
+     *  killer560 could actually see and click. */
+    public static boolean handleClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY,
+                                       String activeKey, int button, boolean shiftDown) {
         if (lastPos == null || lastPanelBounds.isEmpty()) {
             return false;
         }
@@ -944,17 +983,37 @@ public final class StorageOverlayFeature {
         double localY = (mouseY - lastPos[1]) / lastScale + scrollOffset;
         for (Map.Entry<String, int[]> entry : lastPanelBounds.entrySet()) {
             String key = entry.getKey();
-            if (key.equals(activeKey)) {
-                continue;
-            }
             int[] bounds = entry.getValue();
             if (localX < bounds[0] || localX > bounds[0] + bounds[2] || localY < bounds[1] || localY > bounds[1] + bounds[3]) {
                 continue;
+            }
+            if (key.equals(activeKey)) {
+                return handleActivePanelClick(screen, bounds, localX, localY, button, shiftDown);
             }
             sendOpenCommand(key);
             return true;
         }
         return false;
+    }
+
+    /** Redirects a click on the ACTIVE panel's own item area to the real underlying container slot by
+     *  index, the same {@link SlotClickInvoker} trick already used for the relocated Inventory panel -
+     *  {@code bounds} is that panel's item-body rect as registered in {@link #renderGrid} (excludes the
+     *  label strip, which is the rename target instead). Real slot indices skip the first 9 chrome
+     *  slots, matching exactly how {@link #captureIfChanged} captured this same panel's contents. */
+    private static boolean handleActivePanelClick(AbstractContainerScreen<?> screen, int[] bounds,
+                                                    double localX, double localY, int button, boolean shiftDown) {
+        int col = (int) ((localX - bounds[0] - 2) / SLOT_SIZE);
+        int row = (int) ((localY - bounds[1]) / SLOT_SIZE);
+        List<Slot> slots = screen.getMenu().slots;
+        int realIndex = 9 + row * 9 + col;
+        if (col < 0 || col >= 9 || realIndex < 9 || realIndex >= slots.size()) {
+            return false;
+        }
+        Slot slot = slots.get(realIndex);
+        ContainerInput clickType = shiftDown ? ContainerInput.QUICK_MOVE : ContainerInput.PICKUP;
+        ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+        return true;
     }
 
     private static void sendOpenCommand(String key) {

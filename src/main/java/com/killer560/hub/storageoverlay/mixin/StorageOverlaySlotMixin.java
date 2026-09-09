@@ -41,11 +41,11 @@ public abstract class StorageOverlaySlotMixin {
     /** Real bug found and fixed (2026-09-08), per killer560's report of a real Hypixel "Backpack Slot
      *  6" tooltip still popping up over the grid, confusingly unrelated to whatever panel he was
      *  actually looking at - the real (now invisible) slot underneath was still fully hover-active.
-     *  Suppresses the real tooltip for: any hidden top (storage) slot on the overview screen
-     *  specifically, where every panel there is fully handled by the grid's own click routing (a
-     *  numbered page's own ACTIVE top slots keep their real tooltip - that's still the authoritative
-     *  interactive copy, the grid only duplicates it for reference); and, on ANY tracked screen, the
-     *  player's own inventory slots, now that {@link StorageOverlayFeature#renderInventoryPanel} always
+     *  Suppresses the real tooltip for EVERY hidden slot on any tracked screen - both the top (storage)
+     *  slots (including the active page's own, since killer560's "can't drag between inventory and
+     *  storage" report showed those need their own manually-triggered tooltip too now, same as every
+     *  other panel - the real one still only tracks their old, invisible, unmovable position) and the
+     *  player's own inventory slots, which {@link StorageOverlayFeature#renderInventoryPanel} always
      *  relocates and re-shows their real tooltip itself instead. */
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideRelocatedTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
@@ -53,13 +53,7 @@ public abstract class StorageOverlaySlotMixin {
         if (!StorageOverlayConfig.getInstance().isEnabled() || hoveredSlot == null) {
             return;
         }
-        String title = self.getTitle().getString();
-        if (!StorageOverlayFeature.shouldHideVanilla(title)) {
-            return;
-        }
-        int containerSlotCount = Math.max(0, self.getMenu().slots.size() - 36);
-        boolean isPlayerSlot = hoveredSlot.index >= containerSlotCount;
-        if (isPlayerSlot || StorageOverlayFeature.isOverviewTitle(title)) {
+        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
             ci.cancel();
         }
     }
