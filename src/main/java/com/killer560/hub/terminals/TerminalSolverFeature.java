@@ -129,15 +129,21 @@ public final class TerminalSolverFeature {
     // still like it opens multiple menus" even after round 11's fixes: rounds 8/9/11 each patched one
     // specific symptom (panel size, then highlight correctness) of the same underlying cause - Hypixel's
     // real container data can keep arriving/settling over several frames after a terminal opens, not just
-    // one. Rather than keep chasing individual symptoms, this is a blunt but total fix: don't draw
-    // anything (panel, highlights, all of it) for a short grace period after a genuinely new terminal is
-    // first detected, giving the real data time to fully settle before Custom GUI ever shows anything at
-    // all. The real background is still hidden during this window (see #shouldHideBackgroundAndLabels) -
-    // so what's actually visible is just a brief blank moment, never a resizing/flickering panel.
-    private static final long OPEN_GRACE_PERIOD_MS = 150;
+    // one. This is a blunt but total fix: don't draw anything (panel, highlights, all of it) for a short
+    // grace period after a genuinely new terminal is first detected, giving the real data time to settle
+    // before Custom GUI ever shows anything at all. The real background is still hidden during this
+    // window (see #shouldHideBackgroundAndLabels) - so what's actually visible is just a brief blank
+    // moment, never a resizing/flickering panel. Round 12's 150ms fixed the flash but killer560's round-13
+    // follow-up ("opening terminals is very delayed and I dont want that") confirmed that read as
+    // sluggish - cut down to the shortest window that should still cover the transient population gap
+    // (a frame or two) without feeling like a deliberate delay.
+    private static final long OPEN_GRACE_PERIOD_MS = 60;
     private static long typeDetectedAtMs;
 
-    private record SlotHighlight(int color, String label) {
+    // Public - per killer560's round-13 "my solver overlay still isnt happening on [Termism]" request,
+    // TermismPracticeScreen (a different package) reuses this exact record via the public #solve entry
+    // point below, instead of re-deriving its own approximation of the real highlight logic.
+    public record SlotHighlight(int color, String label) {
     }
 
     private TerminalSolverFeature() {
@@ -629,7 +635,13 @@ public final class TerminalSolverFeature {
         return terminalSlotCount == 0 ? all : all.subList(0, terminalSlotCount);
     }
 
-    private static Map<Integer, SlotHighlight> solve(TerminalType type, String title, List<ItemStack> items) {
+    /** Public - lets {@code TermismPracticeScreen} feed its own generated practice board through the
+     *  exact same solving logic the real terminal uses (per killer560's round-13 "my solver overlay
+     *  still isnt happening on it which I want" request), rather than reimplementing an approximation of
+     *  it. {@code title} only matters for Starts With/Select (they parse the target letter/color out of
+     *  it via each type's own {@link TerminalType#titlePattern()}) - Termism builds a synthetic title
+     *  matching that same pattern since it has no real Hypixel container title to read from. */
+    public static Map<Integer, SlotHighlight> solve(TerminalType type, String title, List<ItemStack> items) {
         return switch (type) {
             case PANES -> solvePanes(items);
             case RUBIX -> solveRubix(items);

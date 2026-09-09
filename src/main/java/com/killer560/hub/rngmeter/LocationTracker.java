@@ -50,6 +50,12 @@ public final class LocationTracker {
         return -1;
     }
 
+    // Per killer560's dungeon-detection investigation (2026-09-09, round 13) - DungeonState had the exact
+    // same DisplaySlot.SIDEBAR-only assumption and real logging proved it never actually found Hypixel's
+    // real sidebar objective at all (Hypixel commonly renders it through one of the 15 TEAM_* colored
+    // slots instead, a well-known vanilla scoreboard quirk). This class's own doc already flagged its
+    // keyword matches as "not verified against a live session" - falling back to whichever TEAM_* slot is
+    // actually populated the same way, since without that fallback this likely never worked either.
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
@@ -57,6 +63,18 @@ public final class LocationTracker {
         }
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
+        if (sidebar == null) {
+            for (DisplaySlot slot : DisplaySlot.values()) {
+                if (slot == DisplaySlot.SIDEBAR || slot == DisplaySlot.LIST || slot == DisplaySlot.BELOW_NAME) {
+                    continue;
+                }
+                Objective candidate = scoreboard.getDisplayObjective(slot);
+                if (candidate != null) {
+                    sidebar = candidate;
+                    break;
+                }
+            }
+        }
         if (sidebar == null) {
             return "";
         }

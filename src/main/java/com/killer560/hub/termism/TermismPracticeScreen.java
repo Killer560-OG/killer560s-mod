@@ -1,6 +1,7 @@
 package com.killer560.hub.termism;
 
 import com.killer560.hub.terminals.TerminalSolverConfig;
+import com.killer560.hub.terminals.TerminalSolverFeature;
 import com.killer560.hub.terminals.TerminalType;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -375,23 +376,10 @@ public class TermismPracticeScreen extends Screen {
         graphics.pose().pushMatrix();
         graphics.pose().translate(gridOriginX, gridOriginY);
         graphics.pose().scale(scale, scale);
-        for (int i = 0; i < cells.size(); i++) {
-            ItemStack stack = cells.get(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            int col = i % columns;
-            int row = i / columns;
-            int x0 = col * CELL_SIZE;
-            int y0 = row * CELL_SIZE;
-            graphics.item(stack, x0, y0);
-            // Numbers' real mechanic is the stack COUNT (its sequence position) - #item() alone never
-            // draws that, only the raw icon, so every pane looked visually identical and unreadable
-            // (killer560's "numbers... broken" report, 2026-09-09). Forces the label to always show via
-            // the explicit-string overload, since vanilla's own default count overlay skips count == 1.
-            if (type == TerminalType.NUMBERS) {
-                graphics.itemDecorations(this.font, stack, x0, y0, String.valueOf(stack.getCount()));
-            }
+        if (customGui) {
+            renderSolverOverlay(graphics);
+        } else {
+            renderRawPuzzle(graphics);
         }
         graphics.pose().popMatrix();
 
@@ -407,6 +395,73 @@ public class TermismPracticeScreen extends Screen {
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /** Custom GUI OFF: the raw puzzle, real item icons - the original "practice reading it yourself"
+     *  mode. */
+    private void renderRawPuzzle(GuiGraphicsExtractor graphics) {
+        for (int i = 0; i < cells.size(); i++) {
+            ItemStack stack = cells.get(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            int col = i % columns;
+            int row = i / columns;
+            int x0 = col * CELL_SIZE;
+            int y0 = row * CELL_SIZE;
+            graphics.item(stack, x0, y0);
+            // Numbers' real mechanic is the stack COUNT (its sequence position) - #item() alone never
+            // draws that, only the raw icon, so every pane looked visually identical and unreadable
+            // (killer560's "numbers... broken" report, 2026-09-09). Forces the label to always show via
+            // the explicit-string overload, since vanilla's own default count overlay skips count == 1.
+            // Only for still-red panes - a solved (lime) pane defaults to stack count 1, which showed a
+            // stray "1" on every already-solved cell (killer560's round-13 "after clicking on the right
+            // pane the number changes to 1, dont do that" report).
+            if (type == TerminalType.NUMBERS && stack.getItem() == Items.RED_STAINED_GLASS_PANE) {
+                graphics.itemDecorations(this.font, stack, x0, y0, String.valueOf(stack.getCount()));
+            }
+        }
+    }
+
+    /** Custom GUI ON: per killer560's "my solver overlay still isnt happening on it which I want...
+     *  fully replace it with my solvers scaling and hud and whatnot" request (2026-09-09, round 13) -
+     *  runs this practice board through the exact same real solving logic
+     *  ({@link TerminalSolverFeature#solve}) the actual terminal uses, then draws flat colored boxes
+     *  (only for slots that logic actually flags, everything else invisible) exactly like the real
+     *  Custom GUI's own panel does - no item icons at all in this mode, matching the real thing. */
+    private void renderSolverOverlay(GuiGraphicsExtractor graphics) {
+        Map<Integer, TerminalSolverFeature.SlotHighlight> highlights =
+                TerminalSolverFeature.solve(type, syntheticTitle(), cells);
+        for (Map.Entry<Integer, TerminalSolverFeature.SlotHighlight> entry : highlights.entrySet()) {
+            int index = entry.getKey();
+            if (index < 0 || index >= cells.size()) {
+                continue;
+            }
+            TerminalSolverFeature.SlotHighlight highlight = entry.getValue();
+            int col = index % columns;
+            int row = index / columns;
+            int x0 = col * CELL_SIZE;
+            int y0 = row * CELL_SIZE;
+            graphics.fill(x0, y0, x0 + 16, y0 + 16, highlight.color());
+            if (type == TerminalType.RUBIX && highlight.label() != null) {
+                int textY = y0 + (16 - this.font.lineHeight) / 2;
+                graphics.centeredText(this.font, highlight.label(), x0 + 8, textY, 0xFF000000);
+            }
+        }
+    }
+
+    /** A fake title matching the real terminal's own {@link TerminalType#titlePattern()}, since Termism
+     *  has no real Hypixel container title to read the target letter/color from - only Starts With and
+     *  Select actually need this (see {@link TerminalSolverFeature#solve}'s own doc). */
+    private String syntheticTitle() {
+        return switch (type) {
+            case STARTS_WITH -> "What starts with: '" + targetLetter + "'?";
+            // Hypixel's real title says "SILVER" for LIGHT_GRAY (same special case
+            // TerminalSolverFeature#parseSelectColor itself handles) - every other color's enum name is
+            // already a single word matching the real title text.
+            case SELECT -> "Select all the " + (targetColor == DyeColor.LIGHT_GRAY ? "SILVER" : targetColor.name()) + " items!";
+            default -> "";
+        };
     }
 
     private String headerText() {

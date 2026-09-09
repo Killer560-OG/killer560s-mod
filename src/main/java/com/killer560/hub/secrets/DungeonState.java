@@ -73,7 +73,13 @@ public final class DungeonState {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             String floor = computeCurrentFloor();
             if (!Objects.equals(floor, cachedFloor)) {
-                LOGGER.info("[Secrets] Dungeon floor changed: '{}' -> '{}'", cachedFloor, floor);
+                // Includes a snippet of the raw sidebar text this round - if the DisplaySlot fallback fix
+                // (2026-09-09, round 13) still isn't enough, this is the next thing to check: is a real
+                // sidebar even being found now, and does its actual text match CATACOMBS_FLOOR_PATTERN.
+                String rawSidebar = readSidebarText();
+                String snippet = rawSidebar.length() > 200 ? rawSidebar.substring(0, 200) + "..." : rawSidebar;
+                LOGGER.info("[Secrets] Dungeon floor changed: '{}' -> '{}' (sidebar: \"{}\")",
+                        cachedFloor, floor, snippet.replace("\n", "\\n"));
                 cachedFloor = floor;
             }
             boolean f7OrM7Now = "F7".equals(floor) || "M7".equals(floor);
@@ -117,6 +123,18 @@ public final class DungeonState {
         return matcher.find() ? matcher.group(1) : null;
     }
 
+    /** Real bug found and fixed (2026-09-09, round 13) - killer560's own logging (added round 12) caught
+     *  ZERO floor-change transitions across a real session that entered 3 different Catacombs floors back
+     *  to back, meaning this was never detecting being in a dungeon AT ALL, not just failing to re-enable
+     *  on re-entry as originally reported (which then follows trivially: it can't turn something back on
+     *  that it never detected turning on in the first place). Root cause: {@code DisplaySlot.SIDEBAR} is
+     *  the plain, uncolored sidebar slot, but Hypixel (like many servers) commonly renders its real
+     *  sidebar through one of the 15 {@code TEAM_*} colored slots instead - a well-known vanilla
+     *  scoreboard quirk servers use to route around per-line color/format limits on the plain slot. This
+     *  mod's own {@code LocationTracker} (RNG meter) has the exact same never-verified assumption per its
+     *  own doc comment - not a proven-working reference after all, just an equally untested copy of the
+     *  same approach. Falls back to whichever {@code TEAM_*} slot is actually populated if the plain one
+     *  isn't. */
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {
@@ -124,6 +142,18 @@ public final class DungeonState {
         }
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
+        if (sidebar == null) {
+            for (DisplaySlot slot : DisplaySlot.values()) {
+                if (slot == DisplaySlot.SIDEBAR || slot == DisplaySlot.LIST || slot == DisplaySlot.BELOW_NAME) {
+                    continue;
+                }
+                Objective candidate = scoreboard.getDisplayObjective(slot);
+                if (candidate != null) {
+                    sidebar = candidate;
+                    break;
+                }
+            }
+        }
         if (sidebar == null) {
             return "";
         }
