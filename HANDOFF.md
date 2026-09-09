@@ -28,29 +28,48 @@ Session date: 2026-09-09. Working directory: `C:\Users\Hunter\killer560s-mod`.
    Translate ever acts up after this session, check that coupling first. Commit `7aa9883`, boot-tested
    clean, deployed to all 5 instances, `TESTING.md` updated.
 
-**Researched but NOT built yet - see "Next steps" below for what to do with this:**
-- **Slot Binds** (in Odin/NoammAddons/Devonian, all three - a genuinely established feature). Decompiled
-  Odin's `SlotBinds.kt` via CFR (`java -jar` a redownloaded CFR jar - the one from earlier in the session
-  is gone, re-fetch from `https://github.com/leibnitz27/cfr/releases/download/0.152/cfr-0.152.jar` if
-  needed again). Real mechanic: "Bind slots together for quick access" - NOT a hotbar-key-to-item bind
-  like the name suggests; it links TWO arbitrary inventory slots together (press a "set bind" keybind,
-  click slot A, click slot B), persisted per-profile (6 profiles), and draws a colored line between bound
-  slots on hover (or hover+shift, or never - a display-mode setting). The actual click/bind-creation logic
-  lives in anonymous Kotlin lambda classes (`SlotBinds$1`/`$2`/`$3`/`$4` in the jar) that weren't
-  decompiled yet - **that's the next research step before building this**, since the outer class alone
-  only shows the settings/event registration, not the actual bind-pairing algorithm. More involved than
-  it looks: needs a keybind-gated slot-click interceptor, per-profile persistent slot-pair storage, and
-  hover-triggered line rendering across arbitrary screens - moderate complexity, not "simple."
-- **Full Block** (quoi). Decompiled via CFR. Real mechanic: "Expands the hitboxes of buttons, chests,
-  levers, mushrooms, and skulls" (dungeon secret-related blocks with narrow real interaction hitboxes) -
-  a per-block-type toggle plus a hitbox-shape selector ("Expanded" vs "FullBlock"). This is a genuine
-  interaction/collision-shape override (`getInteractionShape`/`getOutlineShape`-style mixin on specific
-  Block subclasses: `ButtonBlock`, chest blocks, `LeverBlock`, mushroom blocks, skull/wall-skull blocks),
-  not just a visual change - moderate-to-higher risk since it touches core block-interaction code across
-  every instance of those block types, not a self-contained feature. Didn't find the actual shape-mixin
-  class in quoi's own jar in the time available this session (only found the settings/toggle class) -
-  would need another decompile pass targeting quoi's actual mixin/block-shape-override classes before
-  building this safely.
+4. **Secrets (Full Block)** - expanded interaction hitboxes for Levers/Buttons (Flat or Full Box
+   choice)/Chests/Wither Essence (skulls), each its own toggle, under a new Dungeon -> Secrets tab. Deep
+   dive per killer560's explicit request to cross-reference BOTH quoi and NoammAddons "very in depth."
+   New `com.killer560.hub.secrets` package: `SecretsConfig`, `SecretsFeature` (server-gate: hypixel.net
+   OR p3sim.net, per-type toggle checks, the 6 hardcoded button-face shapes ported from quoi), and 6
+   mixins targeting `LeverBlock`/`ButtonBlock`/`ChestBlock`/`SkullBlock`/`WallSkullBlock`.getShape at HEAD
+   (cancellable), plus a broad `BlockBehaviourMixin` on `BlockBehaviour` (parent of every block).
+   **Real finding from the cross-reference** (both mods independently arrived at the same fix): a block
+   with REAL solid collision (chests, skulls) needs its `getCollisionShape` separately pinned back to its
+   ORIGINAL shape after `getShape` is expanded, or the player's own movement collision silently becomes a
+   full solid cube too. Levers/Buttons don't need this (their real collision is hardcoded empty,
+   independent of shape) - confirmed by neither reference mod bothering with it for those two.
+   Deliberately simpler than NoammAddons in one way: no in-dungeon-room "is this a known secret"
+   gate (needs a secrets-position database this mod doesn't have) or per-floor lever blacklist - just
+   "toggle on + connected to hypixel.net/p3sim.net", documented as a known simplification.
+   All real field/method names (`getShape`, `getCollisionShape`, `SHAPE`, `HALF_SHAPES`, `SHAPE_PIGLIN`,
+   `SHAPES`, `FACE`, `FACING`, `getConnectedDirection`, `SkullBlock.Types.PIGLIN`) verified via javap
+   against this project's own compiled MC 26.1.2 jar before writing any mixin, not just copied blind from
+   the decompile. Build passed clean on the first try.
+
+   **Real bug hit and fixed during boot-test**: the FIRST boot crashed at bootstrap with
+   `IllegalClassLoadError: com.killer560.hub.secrets.mixin.OriginalCollisionShapeProvider is in a defined
+   mixin package com.killer560.hub.secrets.mixin.* owned by killer560smod-secrets.mixins.json and cannot
+   be referenced directly`. Root cause: the shared `OriginalCollisionShapeProvider` interface (implemented
+   by ChestBlockMixin/SkullBlockMixin/WallSkullBlockMixin) was placed inside
+   `com.killer560.hub.secrets.mixin` - the SAME package the mixin config's own `"package"` field claims -
+   and Mixin's classloader reserves that entire package for actual `@Mixin` classes only, refusing to load
+   a plain interface from it. quoi's own equivalent (`IOriginalCollisionShapeProvider`) already keeps this
+   exact separation (its own dedicated `mixininterfaces` package, distinct from `mixins`) - missed porting
+   that packaging detail on the first pass. **Fixed** by moving the interface to `com.killer560.hub.secrets`
+   (alongside `SecretsConfig`/`SecretsFeature`, NOT the `.mixin` subpackage) and updating the 4 mixin
+   classes' imports. Re-deployed and re-boot-testing now - **general lesson for any future mixin work in
+   this codebase using a shared interface across multiple mixin classes: that interface must live OUTSIDE
+   the `.mixin` subpackage declared in the mixins.json's own `"package"` field, always.**
+
+   **This is the highest-risk mixin set this session** (broad `BlockBehaviour` target, core
+   interaction/collision code) - check the actual current boot-test result before trusting it's done; if
+   resuming cold, check `latest.log` very closely (not just grep "error" - read the actual mixin-apply
+   section, and check for a crash-reports file too - the first crash didn't even show up under a plain
+   "error" grep of latest.log, only in the separate crash-reports/*.txt file) and ideally have killer560
+   confirm live that levers/buttons/chests/skulls still behave normally with every Secrets toggle OFF (the
+   default) before he ever turns one on.
 
 **Note on `taskkill` policy:** Hunter reverted the "leave Minecraft running after boot-test" preference
 mid this session (2026-09-09) - back to taskkilling after a clean boot-test log by default now (memory
