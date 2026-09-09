@@ -13,10 +13,13 @@ import java.util.Random;
 
 /** Entry menu for Termism, killer560's own practice-mode request (2026-09-09): open via {@code /termism}
  *  or a settings button, "a button for random and then a button for each of the other actual terminals...
- *  if I press random, it will never be able to select the Melody option." Melody is excluded from both
- *  Random and its own button - it has no real solving logic to practice against (see
- *  {@code TerminalSolverFeature}'s own doc on why it's the one type with no solver), so there's nothing
- *  to generate a practice puzzle for. */
+ *  if I press random, it will never be able to select the Melody option." Round 18 (2026-09-09) added
+ *  Melody its own dedicated button per killer560's follow-up "add melody [but] make it so the random
+ *  button will never select melody" - Melody still has no real "correct slot" solving logic (see
+ *  {@code TerminalSolverFeature}'s own doc on why it's the one type with no solver), but its real
+ *  mechanic is a genuine timing puzzle (ported from Odin's own {@code MelodySim}, decompiled as
+ *  reference) that IS practicable on its own terms - it's just excluded from {@link #PRACTICE_TYPES} so
+ *  Random/New Puzzle can never land on it by chance. */
 public class TermismMenuScreen extends Screen {
 
     // Package-visible (not private) so TermismPracticeScreen's own "New Puzzle" reroll (killer560's
@@ -51,7 +54,11 @@ public class TermismMenuScreen extends Screen {
                     .bounds(x, y, width, 20).build());
             y += 24;
         }
-        y += 8;
+        // Deliberately outside PRACTICE_TYPES/the loop above - present as its own option, but never
+        // reachable via Random or New Puzzle's reroll (both only ever draw from PRACTICE_TYPES).
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal(TerminalType.MELODY.displayName()), btn -> open(TerminalType.MELODY))
+                .bounds(x, y, width, 20).build());
+        y += 30;
 
         this.addRenderableWidget(Button.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(x, y, width, 20).build());

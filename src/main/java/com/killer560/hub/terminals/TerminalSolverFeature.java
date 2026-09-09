@@ -82,7 +82,10 @@ public final class TerminalSolverFeature {
     // now match the panel border color itself (not just the general theme orange), the moving piece
     // matches the endpoints exactly (was a separate darker shade), and the static track base goes from
     // black to a very light orange instead - see #melodySlotColor for the classification.
-    private static final int MELODY_ENDPOINT_COLOR = PANEL_BORDER_COLOR;
+    // Public - per killer560's round-18 "add melody [to Termism]" request, TermismPracticeScreen (a
+    // different package) reuses these exact same colors for its own Melody practice mode's Custom-GUI-on
+    // overlay, instead of hardcoding a second copy that could drift out of sync with future tuning here.
+    public static final int MELODY_ENDPOINT_COLOR = PANEL_BORDER_COLOR;
     private static final int MELODY_MOVING_PIECE_COLOR = MELODY_ENDPOINT_COLOR;
     // Round 12 (2026-09-09): per killer560's "the bar that shows where I actually need to click... is
     // the same as the rest of the gui, that should be the same color as the moving square" - the real
@@ -93,8 +96,8 @@ public final class TerminalSolverFeature {
     // killer560's round-12 "you can lighten up the main 4x5" follow-up. Round 15 dimmed it back down to
     // 0xFFF5D2A0 ("so close to perfect... just make those white spaces a little bit dimmer"); round 16
     // dimmed further to 0xFFDCB37D ("even dimmer"); round 17's "still fairly bright... a hair dimmer" is
-    // one more small step down from there.
-    private static final int MELODY_TRACK_BASE_COLOR = 0xFFCDA775;
+    // one more small step down from there. Public for the same reason as MELODY_ENDPOINT_COLOR above.
+    public static final int MELODY_TRACK_BASE_COLOR = 0xFFCDA775;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.

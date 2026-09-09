@@ -57,6 +57,20 @@ public class TermismPracticeScreen extends Screen {
     private static final List<DyeColor> RUBIX_COLOR_ORDER =
             List.of(DyeColor.ORANGE, DyeColor.YELLOW, DyeColor.GREEN, DyeColor.BLUE, DyeColor.RED);
 
+    // Real Melody mechanic, ported from Odin's own MelodySim (decompiled 2026-09-09 as reference) - the
+    // real terminal is 9 columns wide, 6 rows tall (0-5). Columns 1-5 are the track, column 7 is the real
+    // clickable buttons (0, 6, 8 are always empty). Rows 1-4 are the "active band" - each round, the
+    // WHOLE active row is red except one pane (the "moving" marker) that bounces left-right between
+    // columns 1 and 5 on a timer; two fixed MAGENTA panes mark the current round's target column, one at
+    // row 0 and one at row 5. Clicking the real button (column 7) in the active row only succeeds if the
+    // moving marker's column currently matches the magenta target column - miss the timing and nothing
+    // happens. A successful click advances to the next row (and picks a new random target column); after
+    // row 4's click, the puzzle is done - matches Hypixel's real "Click the button on time!" 4-round
+    // structure.
+    private static final int MELODY_COLUMNS = 9;
+    private static final int MELODY_BUTTON_COLUMN = 7;
+    private static final long MELODY_MOVE_INTERVAL_MS = 500;
+
     private static final Map<Item, DyeColor> PANE_COLOR_LOOKUP = buildPaneColorLookup();
 
     private record NamedItem(String name, Item item) {
@@ -119,6 +133,12 @@ public class TermismPracticeScreen extends Screen {
     private String targetLetter;
     private DyeColor targetColor;
 
+    private int melodyMagentaColumn;
+    private int melodyLimeColumn;
+    private int melodyLimeDirection;
+    private int melodyCurrentRow;
+    private long melodyLastMoveAtMs;
+
     private int gridOriginX;
     private int gridOriginY;
 
@@ -155,9 +175,70 @@ public class TermismPracticeScreen extends Screen {
             case NUMBERS -> generateNumbers();
             case STARTS_WITH -> generateStartsWith();
             case SELECT -> generateSelect();
-            case MELODY -> throw new IllegalStateException("Melody has no practice mode - see TermismMenuScreen");
+            case MELODY -> generateMelody();
         }
         updateLayoutMetrics();
+    }
+
+    private void generateMelody() {
+        columns = MELODY_COLUMNS;
+        melodyCurrentRow = 1;
+        melodyMagentaColumn = 1 + random.nextInt(5);
+        melodyLimeColumn = 1;
+        melodyLimeDirection = 1;
+        melodyLastMoveAtMs = System.currentTimeMillis();
+        rebuildMelodyCells();
+    }
+
+    private void rebuildMelodyCells() {
+        List<ItemStack> newCells = new ArrayList<>();
+        int total = MELODY_COLUMNS * 6;
+        for (int i = 0; i < total; i++) {
+            newCells.add(melodyItemFor(i % MELODY_COLUMNS, i / MELODY_COLUMNS));
+        }
+        cells = newCells;
+    }
+
+    private ItemStack melodyItemFor(int col, int row) {
+        boolean inBand = row >= 1 && row < 5;
+        if (col == melodyMagentaColumn && !inBand) {
+            return new ItemStack(Items.MAGENTA_STAINED_GLASS_PANE);
+        }
+        if (col == melodyLimeColumn && row == melodyCurrentRow) {
+            return new ItemStack(Items.LIME_STAINED_GLASS_PANE);
+        }
+        if (col >= 1 && col < 6 && row == melodyCurrentRow) {
+            return new ItemStack(Items.RED_STAINED_GLASS_PANE);
+        }
+        if (col == MELODY_BUTTON_COLUMN && row == melodyCurrentRow) {
+            return new ItemStack(Items.LIME_TERRACOTTA);
+        }
+        if (col == MELODY_BUTTON_COLUMN && inBand) {
+            return new ItemStack(Items.RED_TERRACOTTA);
+        }
+        if (col >= 1 && col < 6 && inBand) {
+            return new ItemStack(Items.WHITE_STAINED_GLASS_PANE);
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** Advances the moving (lime) marker on a fixed real-time interval, matching Odin's own "every 10
+     *  ticks" (~500ms) cadence - called every render frame (see #extractRenderState) but only actually
+     *  moves/rebuilds once the interval has actually elapsed. */
+    private void updateMelodyAnimation() {
+        if (solved) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - melodyLastMoveAtMs < MELODY_MOVE_INTERVAL_MS) {
+            return;
+        }
+        melodyLastMoveAtMs = now;
+        melodyLimeColumn += melodyLimeDirection;
+        if (melodyLimeColumn == 1 || melodyLimeColumn == 5) {
+            melodyLimeDirection *= -1;
+        }
+        rebuildMelodyCells();
     }
 
     private void generatePanes() {
@@ -333,6 +414,21 @@ public class TermismPracticeScreen extends Screen {
                 }
             }
             case MELODY -> {
+                int col = index % columns;
+                int row = index / columns;
+                // Real Odin mechanic: only the real button (column 7) in the CURRENT active row counts,
+                // and only if the moving marker's column currently matches the fixed target column - a
+                // mistimed click (or clicking the wrong row's button) is simply a no-op, same as the real
+                // terminal.
+                if (col == MELODY_BUTTON_COLUMN && row == melodyCurrentRow && melodyLimeColumn == melodyMagentaColumn) {
+                    melodyMagentaColumn = 1 + random.nextInt(5);
+                    melodyCurrentRow++;
+                    if (melodyCurrentRow >= 5) {
+                        markSolved();
+                    } else {
+                        rebuildMelodyCells();
+                    }
+                }
             }
         }
     }
@@ -364,6 +460,9 @@ public class TermismPracticeScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (type == TerminalType.MELODY) {
+            updateMelodyAnimation();
+        }
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
 
         boolean customGui = customGuiOn();
@@ -381,7 +480,11 @@ public class TermismPracticeScreen extends Screen {
         graphics.pose().translate(gridOriginX, gridOriginY);
         graphics.pose().scale(scale, scale);
         if (customGui) {
-            renderSolverOverlay(graphics);
+            if (type == TerminalType.MELODY) {
+                renderMelodyOverlay(graphics);
+            } else {
+                renderSolverOverlay(graphics);
+            }
         } else {
             renderRawPuzzle(graphics);
         }
@@ -425,6 +528,34 @@ public class TermismPracticeScreen extends Screen {
                 graphics.itemDecorations(this.font, stack, x0, y0, String.valueOf(stack.getCount()));
             }
         }
+    }
+
+    /** Melody's own Custom-GUI-ON overlay - it has no "correct slot" solve() result to reuse (see
+     *  {@link TerminalSolverFeature#solve}'s own MELODY case), so this reuses the exact same 2 role
+     *  colors {@code TerminalSolverFeature}'s own real Melody panel uses instead: the magenta
+     *  endpoints/lime mover/real buttons all read as the bright endpoint color, everything else
+     *  (the red active-row cells and the white static band) reads as the dimmer track-base color. */
+    private void renderMelodyOverlay(GuiGraphicsExtractor graphics) {
+        for (int i = 0; i < cells.size(); i++) {
+            ItemStack stack = cells.get(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            int col = i % columns;
+            int row = i / columns;
+            int x0 = col * CELL_SIZE;
+            int y0 = row * CELL_SIZE;
+            graphics.fill(x0, y0, x0 + 16, y0 + 16, melodyOverlayColorFor(stack));
+        }
+    }
+
+    private static int melodyOverlayColorFor(ItemStack stack) {
+        Item item = stack.getItem();
+        if (item == Items.MAGENTA_STAINED_GLASS_PANE || item == Items.LIME_STAINED_GLASS_PANE
+                || item == Items.LIME_TERRACOTTA || item == Items.RED_TERRACOTTA) {
+            return TerminalSolverFeature.MELODY_ENDPOINT_COLOR;
+        }
+        return TerminalSolverFeature.MELODY_TRACK_BASE_COLOR;
     }
 
     /** Custom GUI ON: per killer560's "my solver overlay still isnt happening on it which I want...
@@ -483,6 +614,7 @@ public class TermismPracticeScreen extends Screen {
     private String hintText() {
         return switch (type) {
             case RUBIX -> "Left-click to cycle forward, right-click to cycle backward.";
+            case MELODY -> "Click the button when the moving pane lines up with the magenta markers!";
             default -> "Click the correct slot(s).";
         };
     }
