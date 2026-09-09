@@ -17,23 +17,40 @@ Session date: 2026-09-09. Working directory: `C:\Users\Hunter\killer560s-mod`.
    `TerminalSolverFeature`'s real Odin-derived mechanics, zero highlighting on purpose. Commit `dc8c08e`.
    Boot-tested clean.
 
-**In progress right now:** Copy Chat - "Ctrl+Click to copy" roadmap item (general QoL, not
-dungeon-specific), grounded in quoi's own "Copy chat" module (decompiled via javap, 2026-09-09: "Copies
-chat on mouse click"). New `com.killer560.hub.copychat` package (`CopyChatConfig`, `CopyChatFeature` -
-GLFW live Ctrl-key check + a `Set-Clipboard` PowerShell shellout mirroring `ScreenshotCopyFeature`'s own
-established AWT-headless workaround) plus a `CopyChatTab` (added to the Chat folder, right after Click
-Translate). **Architecturally coupled to `ClickTranslateFeature`** - a chat line's `Style` can only carry
-one `ClickEvent` at a time, so `ClickTranslateFeature.wrap()`'s gate now fires if EITHER Translate or
-Copy is enabled, and `tryHandleClick()` checks `CopyChatFeature.isControlDown()` first before falling
-through to its own translate logic - modified, not just added to, so double-check this still works
-correctly if anything about Click Translate acts up after this.
+3. Copy Chat - "Ctrl+Click to copy" roadmap item (general QoL, not dungeon-specific), grounded in quoi's
+   own "Copy chat" module (decompiled via javap: "Copies chat on mouse click"). New
+   `com.killer560.hub.copychat` package (`CopyChatConfig`, `CopyChatFeature` - GLFW live Ctrl-key check +
+   a `Set-Clipboard` PowerShell shellout mirroring `ScreenshotCopyFeature`'s own AWT-headless workaround)
+   plus a `CopyChatTab` (Chat folder, right after Click Translate). **Architecturally coupled to
+   `ClickTranslateFeature`** - a chat line's `Style` can only carry one `ClickEvent`, so
+   `ClickTranslateFeature.wrap()`'s gate now fires if EITHER feature is enabled, and `tryHandleClick()`
+   checks `CopyChatFeature.isControlDown()` first before falling through to translate - if Click
+   Translate ever acts up after this session, check that coupling first. Commit `7aa9883`, boot-tested
+   clean, deployed to all 5 instances, `TESTING.md` updated.
 
-Build passed (`BUILD SUCCESSFUL`) for `-PcheatBuild=true` after one fix (`Window.getWindow()` doesn't
-exist - it's `Window.handle()`, matching `WindowModeFeature`'s own established usage). Currently
-boot-testing on `26.1.2 (Mod Only Test)` - **check the actual result before trusting this is done**; if
-resuming cold here, check `latest.log` for errors, then in-game confirm: a plain click on a chat message
-still translates (if Click Translate is on), and Ctrl+Click copies to clipboard (with Copy Chat on) -
-then deploy to the other 4 instances, build legit, update `TESTING.md`, commit + push.
+**Researched but NOT built yet - see "Next steps" below for what to do with this:**
+- **Slot Binds** (in Odin/NoammAddons/Devonian, all three - a genuinely established feature). Decompiled
+  Odin's `SlotBinds.kt` via CFR (`java -jar` a redownloaded CFR jar - the one from earlier in the session
+  is gone, re-fetch from `https://github.com/leibnitz27/cfr/releases/download/0.152/cfr-0.152.jar` if
+  needed again). Real mechanic: "Bind slots together for quick access" - NOT a hotbar-key-to-item bind
+  like the name suggests; it links TWO arbitrary inventory slots together (press a "set bind" keybind,
+  click slot A, click slot B), persisted per-profile (6 profiles), and draws a colored line between bound
+  slots on hover (or hover+shift, or never - a display-mode setting). The actual click/bind-creation logic
+  lives in anonymous Kotlin lambda classes (`SlotBinds$1`/`$2`/`$3`/`$4` in the jar) that weren't
+  decompiled yet - **that's the next research step before building this**, since the outer class alone
+  only shows the settings/event registration, not the actual bind-pairing algorithm. More involved than
+  it looks: needs a keybind-gated slot-click interceptor, per-profile persistent slot-pair storage, and
+  hover-triggered line rendering across arbitrary screens - moderate complexity, not "simple."
+- **Full Block** (quoi). Decompiled via CFR. Real mechanic: "Expands the hitboxes of buttons, chests,
+  levers, mushrooms, and skulls" (dungeon secret-related blocks with narrow real interaction hitboxes) -
+  a per-block-type toggle plus a hitbox-shape selector ("Expanded" vs "FullBlock"). This is a genuine
+  interaction/collision-shape override (`getInteractionShape`/`getOutlineShape`-style mixin on specific
+  Block subclasses: `ButtonBlock`, chest blocks, `LeverBlock`, mushroom blocks, skull/wall-skull blocks),
+  not just a visual change - moderate-to-higher risk since it touches core block-interaction code across
+  every instance of those block types, not a self-contained feature. Didn't find the actual shape-mixin
+  class in quoi's own jar in the time available this session (only found the settings/toggle class) -
+  would need another decompile pass targeting quoi's actual mixin/block-shape-override classes before
+  building this safely.
 
 **Note on `taskkill` policy:** Hunter reverted the "leave Minecraft running after boot-test" preference
 mid this session (2026-09-09) - back to taskkilling after a clean boot-test log by default now (memory
@@ -61,17 +78,31 @@ rounds unless he says so again.
 
 ## Next steps (in the order killer560 asked for)
 
-1. **Finish Termism** (in progress - see above): confirm boot-test clean, deploy everywhere, commit.
-2. **Then work through `ROADMAP.md`, simplest to most complicated**, referencing the specific source mod
-   for each item (NoammAddons/quoi/Odin/Devonian per the roadmap's own "Reference-mod note") before
-   building it - don't guess mechanics. Keep updating THIS document regularly (killer560's explicit
-   instruction: "update the handoff document extremely regularly") so a fresh session can resume cleanly
-   if this one runs out of room.
-3. Suggested rough simplicity ordering to start from (not exhaustive - re-scan `ROADMAP.md` for the
-   full list, this is just a starting point): "Ctrl+Click to copy" (general QoL) and "Slot Binds" look
-   like the simplest self-contained items; most of the rest (ESP/aura/timer/auto-X features) need a real
-   decompile pass against the specific reference mod first since none of their mechanics are grounded
-   yet in this codebase.
+Termism and Copy Chat are both DONE (built, boot-tested, deployed to all 5, committed, pushed). Continue
+working through `ROADMAP.md` simplest-to-most-complicated, referencing the specific source mod for each
+item before building it - don't guess mechanics. Keep updating THIS document regularly.
+
+**Immediate next candidates**, roughly in order:
+1. Finish the Slot Binds research (decompile `SlotBinds$1`/`$2`/`$3`/`$4` from Odin's jar - the actual
+   bind-pairing/click-interception logic) before building it. Once grounded, it's a reasonable
+   medium-complexity feature: per-profile slot-pair storage (mirror the Gson-config pattern every other
+   feature here already uses) + a keybind-gated click interceptor (mirror `StorageOverlayContainerMixin`'s
+   own click-redirect pattern) + hover-line rendering (mirror `TerminalSolverFeature`'s own
+   `graphics.outline`/pose-transform usage for the visual side).
+2. Full Block needs one more decompile pass (find quoi's actual hitbox-shape-override class, not just its
+   settings class) before building - flag the real risk (core block-interaction code) to killer560 before
+   starting, since a mistake here could affect way more than just dungeon secrets.
+3. Beyond those two, re-scan `ROADMAP.md`'s "Dungeon / feature ideas" list fresh - most of the rest
+   (ESP/aura/timer/auto-X features) haven't been decompile-checked at all yet this session. Chat Commands
+   (Odin, `ChatCommands.class` - a big suite of `/coords`, `/ping`, `/dice`, `/8ball` etc. slash commands)
+   is large but each individual command inside it is trivial once the dispatcher shell exists - could be
+   a good next target since it's really many tiny features under one roof, not one complex one.
+4. CFR decompiler jar note: re-download from
+   `https://github.com/leibnitz27/cfr/releases/download/0.152/cfr-0.152.jar` to `/tmp/cfr.jar` (or
+   wherever) each session - it doesn't persist between sessions (gets cleaned from temp). Reference mod
+   jars live in `26.1.2 (Dungeons)`'s own `minecraft/mods/` folder - extract just the `.class` file(s) you
+   need with `unzip`, then `java -jar cfr.jar SomeClass.class --outputdir <dir>` for readable pseudo-Java
+   (much easier to read than raw `javap -c` bytecode for anything beyond a few methods).
 
 ## Open questions / things to flag to killer560 if this resumes cold
 
@@ -80,3 +111,5 @@ rounds unless he says so again.
   actual random item list instead.
 - Whether Termism needs a "keep going / next puzzle after solving" auto-flow vs. the current manual "New
   Puzzle" button.
+- Full Block's real risk (core block-interaction hitbox code, not a self-contained feature) is worth a
+  quick sanity-check with killer560 before building, given the blast radius if it's ever subtly wrong.
