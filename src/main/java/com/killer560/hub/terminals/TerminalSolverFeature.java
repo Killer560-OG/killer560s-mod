@@ -39,8 +39,6 @@ public final class TerminalSolverFeature {
     private static final int CELL_SIZE = 18;
     private static final int GRID_COLUMNS = 9;
     private static final int PANEL_PADDING = 6;
-    private static final int PANEL_BG_COLOR = 0xEE1A1A1A;
-    private static final int PANEL_BORDER_COLOR = 0xFF663D1A;
 
     // A normal Hypixel container GUI always appends the player's own 36 inventory+hotbar slots after
     // the GUI's own content - subtracting this out is a simpler, more robust way to isolate "just the
@@ -60,9 +58,13 @@ public final class TerminalSolverFeature {
 
     private static final int PANES_COLOR = BRIGHT_ORANGE;
     private static final int STARTS_WITH_COLOR = BRIGHT_ORANGE;
-    // Round 5 (2026-09-09): the whole GUI, terminal grid included, gets an orange accent border.
-    private static final int MELODY_BORDER_COLOR = BRIGHT_ORANGE;
-    private static final int MELODY_BORDER_PADDING = 3;
+    // Per killer560's "make more of the actual in element gui orange" request (2026-09-09, round 7) -
+    // the panel itself (background + border) leans into the same theme now, not just the highlighted
+    // cells: a warm dark amber instead of a neutral gray-black, and the same bright orange as every
+    // other accent for the border (was a muted brown that barely read as "orange" at a glance). Shared
+    // by every type's panel, Melody included - it used to have its own identical-value constant.
+    private static final int PANEL_BG_COLOR = 0xEE241206;
+    private static final int PANEL_BORDER_COLOR = BRIGHT_ORANGE;
     // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
     // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
     // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
@@ -122,44 +124,31 @@ public final class TerminalSolverFeature {
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
         currentTerminalSlotCount = items.size();
-        // Melody has no solving logic - Custom GUI mode just hides its player-inventory rows (see
-        // #shouldHideSlot). Real bug found and fixed (2026-09-09, round 4): an earlier version of this
-        // also tried to recenter the screen by mutating its real topPos, which killer560 reported broke
-        // Melody's whole layout - reverted, not worth the risk for a cosmetic recenter.
+        // Melody has no solving logic - nothing to mark correct/incorrect - so currentHighlights always
+        // stays empty for it. Its Custom GUI panel (see #renderMelodyCustomGui) instead just redraws
+        // every real terminal-grid item as-is, decluttered from the rest of the screen.
         currentHighlights = type == TerminalType.MELODY ? Map.of() : solve(type, title, items);
     }
 
-    /** @return whether the given real slot index should be hidden right now. Every type but Melody
-     *  hides its whole grid ONLY while Custom GUI mode is on (it draws a full replacement panel);
-     *  Melody hides just its own player-inventory rows UNCONDITIONALLY (not gated behind Custom GUI at
-     *  all - there's no panel to replace it with either way, so this is just a standing cosmetic
-     *  tweak), per killer560's "hide my inventory" request (2026-09-09) and his round-5 report that it
-     *  wasn't actually happening, which traced back to it incorrectly requiring Custom GUI to be on. */
+    /** @return whether the given real slot index should be hidden right now - true for every type,
+     *  Melody included, while Custom GUI mode is showing (each type either draws a full replacement
+     *  panel of its own, or - for Melody - a plain redraw of the real terminal items, per killer560's
+     *  "follow a similar track to the other one... hide the normal screen and redraw it entirely"
+     *  request, 2026-09-09 round 6, which folded Melody into the same unified treatment). */
     public static boolean shouldHideSlot(int slotIndex) {
-        if (currentType == TerminalType.MELODY) {
-            return slotIndex >= currentTerminalSlotCount;
-        }
         return isCustomGuiActive();
     }
 
     /** @return whether the vanilla background texture and title/"Inventory" labels should be hidden -
-     *  everything but Melody (whose real terminal portion is left fully visible, unlike every other
-     *  type's full custom-panel replacement). */
+     *  same as {@link #shouldHideSlot}, unconditionally true for every type while Custom GUI is on. */
     public static boolean shouldHideBackgroundAndLabels() {
-        return isCustomGuiActive() && currentType != TerminalType.MELODY;
+        return isCustomGuiActive();
     }
 
     /** @return whether Custom GUI mode should currently be showing (feature + that toggle both on,
      *  and a covered terminal is actually open right now). */
     public static boolean isCustomGuiActive() {
         return currentType != null && TerminalSolverConfig.getInstance().isCustomGuiEnabled();
-    }
-
-    /** @return whether a real, clickable custom PANEL should currently be intercepting clicks - true
-     *  for every type but Melody, which has no panel to redirect clicks to (its real terminal buttons
-     *  need to stay genuinely clickable - only its inventory rows and position are touched). */
-    public static boolean isCustomGuiPanelActive() {
-        return isCustomGuiActive() && currentType != TerminalType.MELODY;
     }
 
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
@@ -169,52 +158,52 @@ public final class TerminalSolverFeature {
         if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
-        // Melody's own lightweight treatment (hide inventory + an orange accent border) is always on
-        // whenever it's detected - not gated behind the Custom GUI toggle at all, since there's no
-        // full-panel replacement for it the way the other 5 types get; see #shouldHideSlot too.
+        if (!isCustomGuiActive()) {
+            // Melody has nothing to show outside Custom GUI mode - no solving logic means no
+            // vanilla-overlay outlines to draw either.
+            if (currentType != TerminalType.MELODY && !currentHighlights.isEmpty()) {
+                renderVanillaHighlights(graphics, screen);
+            }
+            return;
+        }
         if (currentType == TerminalType.MELODY) {
-            renderMelodyBorder(graphics, screen);
-            return;
-        }
-        if (currentHighlights.isEmpty()) {
-            return;
-        }
-        if (isCustomGuiActive()) {
+            renderMelodyCustomGui(graphics, screen);
+        } else if (!currentHighlights.isEmpty()) {
             renderCustomGui(graphics, screen);
-        } else {
-            renderVanillaHighlights(graphics, screen);
         }
     }
 
-    /** Melody has no solving logic, so there's nothing to highlight - just a themed orange outline
-     *  around the real terminal grid area (not the now-hidden inventory below it), per killer560's
-     *  "make it more orange" request (2026-09-09, round 5). Bounds come from the real terminal slots'
-     *  own positions, not a fixed guess, so it fits whatever Melody's actual grid size turns out to be. */
-    private static void renderMelodyBorder(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
-        List<Slot> slots = screen.getMenu().slots;
-        int minX = Integer.MAX_VALUE;
-        int minY = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxY = Integer.MIN_VALUE;
-        for (int i = 0; i < currentTerminalSlotCount && i < slots.size(); i++) {
-            Slot slot = slots.get(i);
-            minX = Math.min(minX, slot.x);
-            minY = Math.min(minY, slot.y);
-            maxX = Math.max(maxX, slot.x + SLOT_SIZE);
-            maxY = Math.max(maxY, slot.y + SLOT_SIZE);
-        }
-        if (minX > maxX) {
-            return;
-        }
-        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
-        int left = accessor.killer560smod$getLeftPos();
-        int top = accessor.killer560smod$getTopPos();
-        int x0 = left + minX - MELODY_BORDER_PADDING;
-        int y0 = top + minY - MELODY_BORDER_PADDING;
-        int x1 = left + maxX + MELODY_BORDER_PADDING;
-        int y1 = top + maxY + MELODY_BORDER_PADDING;
+    /** Melody has no solving logic - nothing here is marked correct/incorrect - so this just redraws
+     *  every real terminal-grid item, bare (no fill/outline decoration), in the same bigger decluttered
+     *  panel style every other type's Custom GUI mode already uses. Per killer560's "follow a similar
+     *  track to the other one... hide the normal screen and just redraw it entirely" request
+     *  (2026-09-09, round 6) - folds Melody into the same unified hide-and-redraw treatment instead of
+     *  the narrower "just hide inventory" special case round 5 had. */
+    private static void renderMelodyCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
+        CustomGuiLayout layout = computeCustomGuiLayout(screen);
+
         graphics.nextStratum();
-        graphics.outline(x0, y0, x1 - x0, y1 - y0, MELODY_BORDER_COLOR);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(layout.originX, layout.originY);
+        graphics.pose().scale(layout.scale, layout.scale);
+
+        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING, PANEL_BG_COLOR);
+        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
+
+        List<Slot> slots = screen.getMenu().slots;
+        for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
+            ItemStack stack = slots.get(slotIndex).getItem();
+            if (stack.isEmpty()) {
+                continue;
+            }
+            int col = slotIndex % GRID_COLUMNS - layout.minCol();
+            int row = slotIndex / GRID_COLUMNS - layout.minRow();
+            if (col < 0 || row < 0) {
+                continue;
+            }
+            graphics.item(stack, col * CELL_SIZE, row * CELL_SIZE);
+        }
+        graphics.pose().popMatrix();
     }
 
     private static void renderVanillaHighlights(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
@@ -270,8 +259,8 @@ public final class TerminalSolverFeature {
                 continue;
             }
             SlotHighlight highlight = entry.getValue();
-            int x0 = (slotIndex % GRID_COLUMNS) * CELL_SIZE;
-            int y0 = (slotIndex / GRID_COLUMNS) * CELL_SIZE;
+            int x0 = (slotIndex % GRID_COLUMNS - layout.minCol()) * CELL_SIZE;
+            int y0 = (slotIndex / GRID_COLUMNS - layout.minRow()) * CELL_SIZE;
 
             // Per killer560's per-type style requests (2026-09-09) - every type is now a flat colored
             // box (no real item icon, no outline) except Rubix, which also centers its click-count text.
@@ -289,38 +278,86 @@ public final class TerminalSolverFeature {
      *  slots underneath are hidden and shouldn't be reachable by an unrelated click landing on empty
      *  panel background. */
     public static boolean handleCustomGuiClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, int button) {
-        if (!isCustomGuiPanelActive()) {
+        if (!isCustomGuiActive()) {
             return false;
         }
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
         double localX = (mouseX - layout.originX) / layout.scale;
         double localY = (mouseY - layout.originY) / layout.scale;
-        int col = (int) Math.floor(localX / CELL_SIZE);
-        int row = (int) Math.floor(localY / CELL_SIZE);
-        int slotIndex = row * GRID_COLUMNS + col;
+        int localCol = (int) Math.floor(localX / CELL_SIZE);
+        int localRow = (int) Math.floor(localY / CELL_SIZE);
+        int panelColumns = layout.panelWidth / CELL_SIZE;
+        int panelRows = layout.panelHeight / CELL_SIZE;
+        // Clicks landing outside the (now cropped-to-content) panel grid have nothing to redirect to -
+        // still consumed below, same as a click on empty panel padding always was.
+        if (localCol < 0 || localCol >= panelColumns || localRow < 0 || localRow >= panelRows) {
+            return true;
+        }
+        int slotIndex = (localRow + layout.minRow()) * GRID_COLUMNS + (localCol + layout.minCol());
 
+        // Melody has no solved/correct set to check against - any real terminal-grid cell is fair game,
+        // matching "redraw it entirely" (every real item is shown, so every real item stays clickable).
+        boolean validCell = currentType == TerminalType.MELODY
+                ? slotIndex < currentTerminalSlotCount
+                : currentHighlights.containsKey(slotIndex);
         List<Slot> slots = screen.getMenu().slots;
-        if (col >= 0 && col < GRID_COLUMNS && row >= 0 && currentHighlights.containsKey(slotIndex) && slotIndex < slots.size()) {
+        if (validCell && slotIndex >= 0 && slotIndex < slots.size()) {
             Slot slot = slots.get(slotIndex);
             ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, ContainerInput.PICKUP);
         }
         return true;
     }
 
-    private record CustomGuiLayout(int originX, int originY, float scale, int panelWidth, int panelHeight) {
+    private record CustomGuiLayout(int originX, int originY, float scale, int panelWidth, int panelHeight, int minCol, int minRow) {
     }
 
+    /** Per killer560's "if boxes can only spawn in lets say a 2x7 space, then only show the 2x7 space...
+     *  i dont need to see the outer border that will never have anything rendered" request (2026-09-09,
+     *  round 7) - the panel used to always span the full 9-wide grid regardless of how much of it a
+     *  given terminal type actually uses, wasting most of the panel on dead space for types whose real
+     *  pattern only occupies a small sub-rectangle. Now crops to the bounding box of every real,
+     *  non-filler item slot (same "not a black filler pane" rule {@link #solveSelect} already uses to
+     *  skip Select's own background panes) - applies to every type uniformly, Melody included. */
     private static CustomGuiLayout computeCustomGuiLayout(AbstractContainerScreen<?> screen) {
-        int terminalSlotCount = terminalItems(screen.getMenu()).size();
-        int rows = Math.max(1, (int) Math.ceil(terminalSlotCount / (double) GRID_COLUMNS));
+        GridBounds bounds = computeGridBounds(screen);
         float scale = TerminalSolverConfig.getInstance().getScale();
-        int panelWidth = GRID_COLUMNS * CELL_SIZE;
-        int panelHeight = rows * CELL_SIZE;
+        int panelWidth = bounds.columns() * CELL_SIZE;
+        int panelHeight = bounds.rows() * CELL_SIZE;
         int scaledWidth = Math.round(panelWidth * scale);
         int scaledHeight = Math.round(panelHeight * scale);
         int originX = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - scaledWidth) / 2;
         int originY = (Minecraft.getInstance().getWindow().getGuiScaledHeight() - scaledHeight) / 2;
-        return new CustomGuiLayout(originX, originY, scale, panelWidth, panelHeight);
+        return new CustomGuiLayout(originX, originY, scale, panelWidth, panelHeight, bounds.minCol(), bounds.minRow());
+    }
+
+    private record GridBounds(int minCol, int minRow, int columns, int rows) {
+    }
+
+    private static GridBounds computeGridBounds(AbstractContainerScreen<?> screen) {
+        List<ItemStack> items = terminalItems(screen.getMenu());
+        int minCol = GRID_COLUMNS;
+        int maxCol = -1;
+        int minRow = Integer.MAX_VALUE;
+        int maxRow = -1;
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack stack = items.get(i);
+            if (stack.isEmpty() || stack.getItem() == Items.BLACK_STAINED_GLASS_PANE) {
+                continue;
+            }
+            int col = i % GRID_COLUMNS;
+            int row = i / GRID_COLUMNS;
+            minCol = Math.min(minCol, col);
+            maxCol = Math.max(maxCol, col);
+            minRow = Math.min(minRow, row);
+            maxRow = Math.max(maxRow, row);
+        }
+        if (maxCol < 0) {
+            // No real puzzle items found this frame (shouldn't normally happen while a covered terminal
+            // is open) - fall back to the old full-width behavior so nothing renders as a zero-size panel.
+            int rows = Math.max(1, (int) Math.ceil(items.size() / (double) GRID_COLUMNS));
+            return new GridBounds(0, 0, GRID_COLUMNS, rows);
+        }
+        return new GridBounds(minCol, minRow, maxCol - minCol + 1, maxRow - minRow + 1);
     }
 
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {

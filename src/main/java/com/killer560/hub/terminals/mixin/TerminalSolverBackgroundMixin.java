@@ -24,14 +24,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  (it was hooked off {@code extractRenderState} itself) to affect that same frame's background call.
  *  Moved the refresh to run right here instead, at the very front of the whole chain, so every hook
  *  downstream of this one (this one included) sees fresh state on every single frame, including the
- *  very first one right after the screen opens. */
+ *  very first one right after the screen opens.
+ *  <p>
+ *  Round 6 (2026-09-09): this refresh call is now redundant with {@code TerminalSolverStateRefreshMixin}
+ *  (a broader safety net covering every screen type, not just this one, see its own doc for why that
+ *  turned out to be necessary) but kept here too - harmless and cheap, and keeps this class's own
+ *  cancel decision below always working off freshly-computed state regardless of ordering. */
 @Mixin(ContainerScreen.class)
 public abstract class TerminalSolverBackgroundMixin {
 
     @Inject(method = "extractBackground", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         TerminalSolverFeature.refreshState();
-        // Melody keeps its real background visible - see TerminalSolverFeature#shouldHideBackgroundAndLabels.
         if (TerminalSolverFeature.shouldHideBackgroundAndLabels()) {
             ci.cancel();
         }

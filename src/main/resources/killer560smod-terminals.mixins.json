@@ -6,7 +6,8 @@
 	"client": [
 		"TerminalSolverBackgroundMixin",
 		"TerminalSolverContainerRenderMixin",
-		"TerminalSolverSlotMixin"
+		"TerminalSolverSlotMixin",
+		"TerminalSolverStateRefreshMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

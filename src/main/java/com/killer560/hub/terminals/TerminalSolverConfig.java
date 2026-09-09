@@ -17,7 +17,9 @@ import java.nio.file.Path;
 public final class TerminalSolverConfig {
 
     public static final float MIN_SCALE = 0.5f;
-    public static final float MAX_SCALE = 2.0f;
+    // Bumped 0.5-2.0 -> 0.5-5.0 per killer560's explicit "let me put the scale up to a max of 500%"
+    // request (2026-09-09).
+    public static final float MAX_SCALE = 5.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =

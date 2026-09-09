@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  {@link TerminalSolverFeature#renderOverlay} draws its own replacement panel instead, so the real
  *  (still fully functional, just invisible) slots would otherwise be redundant clutter behind it. Same
  *  three injection points {@code StorageOverlaySlotMixin} already uses for the exact same reason.
- *  Melody is the one exception - see {@link TerminalSolverFeature#shouldHideSlot} - it only hides the
- *  player's own inventory rows, not the real terminal portion. */
+ *  Applies to every type uniformly, Melody included since round 6 (2026-09-09) folded it into the same
+ *  full hide-and-redraw treatment as everything else. */
 @Mixin(AbstractContainerScreen.class)
 public abstract class TerminalSolverSlotMixin {
 
