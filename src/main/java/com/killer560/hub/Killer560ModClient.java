@@ -19,7 +19,6 @@ import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.rngmeter.MagicFindTracker;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngMeterOverlay;
-import com.killer560.hub.screenshotcopy.ScreenshotCopyFeature;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import com.killer560.hub.translate.TranslateConfig;
@@ -69,7 +68,6 @@ public class Killer560ModClient implements ClientModInitializer {
         ExperimentsFeature.register();
         JumpscareFeature.register();
         StorageOverlayFeature.register();
-        ScreenshotCopyFeature.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);

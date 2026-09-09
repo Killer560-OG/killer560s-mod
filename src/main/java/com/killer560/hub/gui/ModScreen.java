@@ -2,6 +2,7 @@ package com.killer560.hub.gui;
 
 import com.killer560.hub.gui.tab.BaseTab;
 import com.killer560.hub.gui.tab.ChatTab;
+import com.killer560.hub.gui.tab.DisplayTab;
 import com.killer560.hub.gui.tab.DungeonTab;
 import com.killer560.hub.gui.tab.FolderTab;
 import com.killer560.hub.gui.tab.HelpersTab;
@@ -77,6 +78,7 @@ public class ModScreen extends Screen {
         if (tabs == null) {
             tabs = new ArrayList<>();
             tabs.add(new HomeTab());
+            tabs.add(new DisplayTab());
             tabs.add(new ChatTab());
             tabs.add(new HudElementsTab());
             tabs.add(new HelpersTab());

@@ -1,9 +1,10 @@
 package com.killer560.hub.screenshotcopy;
 
 import com.killer560.hub.notify.ModOverlayMessage;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.Toolkit;
@@ -12,7 +13,6 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,67 +20,49 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-/** When enabled, watches the real vanilla screenshot keybind ({@code Options.keyScreenshot}) and
- *  copies whatever screenshot it just took to the system clipboard as an image, in addition to the
- *  normal save-to-disk vanilla already does. Deliberately does NOT hook vanilla's own
- *  {@code Screenshot.grab} internals (its actual file-write happens off a private lambda with no
- *  stable injection point) - instead peeks the keybind's own {@code isDown()} state every tick (a
- *  safe, non-consuming read confirmed via javap - it doesn't steal or interfere with the real
- *  keypress vanilla also sees), waits for the write to finish, then picks up whatever new file
- *  landed in the screenshots directory. Ships disabled by default - see {@link ScreenshotCopyConfig}. */
+/** When enabled, copies whatever screenshot vanilla's own screenshot key just took to the system
+ *  clipboard as an image, in addition to the normal save-to-disk vanilla already does. Triggered via
+ *  {@link com.killer560.hub.screenshotcopy.mixin.ScreenshotMixin}, which wraps the real completion
+ *  callback {@code Screenshot.grab} hands back once the PNG is actually written - see that class's
+ *  own doc for why an earlier version of this feature (guessing a fixed delay after the keypress
+ *  instead) didn't reliably work. Ships disabled by default - see {@link ScreenshotCopyConfig}. */
 public final class ScreenshotCopyFeature {
 
-    // Vanilla's own screenshot write is fire-and-forget from the render thread; this is enough
-    // margin for the PNG encode+write to land before we go looking for it.
-    private static final long COPY_DELAY_MS = 300;
-
-    private static boolean keyWasDown = false;
-    private static long pendingCopyAtMs = -1;
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-screenshotcopy");
 
     private ScreenshotCopyFeature() {
     }
 
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(ScreenshotCopyFeature::tick);
-    }
-
-    private static void tick(Minecraft client) {
+    /** Called from {@link com.killer560.hub.screenshotcopy.mixin.ScreenshotMixin} the moment vanilla
+     *  itself confirms a screenshot finished writing - may run on whatever thread that callback fires
+     *  on, not necessarily the render thread, but everything done here (file IO, AWT clipboard) is
+     *  safe off the render thread. */
+    public static void onVanillaScreenshotSaved() {
         if (!ScreenshotCopyConfig.getInstance().isEnabled()) {
-            keyWasDown = false;
-            pendingCopyAtMs = -1;
             return;
         }
-
-        boolean down = client.options.keyScreenshot.isDown();
-        if (down && !keyWasDown) {
-            pendingCopyAtMs = System.currentTimeMillis() + COPY_DELAY_MS;
-        }
-        keyWasDown = down;
-
-        if (pendingCopyAtMs > 0 && System.currentTimeMillis() >= pendingCopyAtMs) {
-            pendingCopyAtMs = -1;
-            copyNewestScreenshotToClipboard();
-        }
+        copyNewestScreenshotToClipboard();
     }
 
     private static void copyNewestScreenshotToClipboard() {
-        Path dir = client().gameDirectory.toPath().resolve(Screenshot.SCREENSHOT_DIR);
+        Path dir = Minecraft.getInstance().gameDirectory.toPath().resolve(Screenshot.SCREENSHOT_DIR);
         Optional<Path> newest = findNewestPng(dir);
         if (newest.isEmpty()) {
+            LOGGER.warn("Screenshot copy: no .png found in {}", dir);
             return;
         }
 
         try {
             BufferedImage image = ImageIO.read(newest.get().toFile());
             if (image == null) {
+                LOGGER.warn("Screenshot copy: ImageIO couldn't decode {}", newest.get());
                 return;
             }
             Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
             clipboard.setContents(new ImageTransferable(image), null);
             ModOverlayMessage.show("§b[Killer560's Mod] Screenshot copied to clipboard!", 3000);
-        } catch (IOException | RuntimeException ignored) {
-            // Clipboard ownership can be lost to another app mid-write on some platforms - not
-            // worth surfacing to killer560 as an error, the file is still safely saved to disk.
+        } catch (IOException | RuntimeException e) {
+            LOGGER.warn("Screenshot copy failed for {}", newest.get(), e);
         }
     }
 
@@ -102,10 +84,6 @@ public final class ScreenshotCopyFeature {
         } catch (IOException e) {
             return -1;
         }
-    }
-
-    private static Minecraft client() {
-        return Minecraft.getInstance();
     }
 
     private static final class ImageTransferable implements Transferable {

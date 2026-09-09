@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.screenshotcopy.mixin",
+	"client": [
+		"ScreenshotMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
