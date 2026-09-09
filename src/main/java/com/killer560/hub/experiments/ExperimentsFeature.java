@@ -957,6 +957,17 @@ public final class ExperimentsFeature {
      *  index has already advanced. {@code confirmManualChronomatronClick}/
      *  {@code confirmManualUltrasequencerClick} already work exactly that way underneath, so this
      *  function no longer needs (or has) any timing logic of its own either.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report that moving items between his
+     *  inventory and storage "picks up the pane" when clicking a correct block: a correct click here
+     *  used to just return false and let the REAL click through unmodified - a genuine left-click, which
+     *  sends {@code ContainerInput.PICKUP} and (since these panes are real items) actually picks the
+     *  note up into his cursor. The autonomous auto-clicker never had this problem, since
+     *  {@link #clickSlot} has always sent {@code ContainerInput.CLONE} (pick-block) instead - a no-op
+     *  for real item movement in survival, matching SkyHanni's own {@code makePickblock()} exactly. A
+     *  correct click here now gets the same treatment: cancelled and redirected through
+     *  {@code clickSlot} instead of being let through as-is, so it registers with Hypixel exactly like
+     *  before but never actually picks anything up.
      *  @return true if the click should be BLOCKED (cancelled). */
     public static boolean shouldBlockManualMisclick(MouseButtonEvent event) {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
@@ -986,7 +997,8 @@ public final class ExperimentsFeature {
                 ? SOLVER.confirmManualChronomatronClick(slot, snapshot(menu))
                 : SOLVER.confirmManualUltrasequencerClick(slot, snapshot(menu));
         if (correct) {
-            return false;
+            clickSlot(menu.containerId, slot);
+            return true;
         }
         if (event.hasShiftDown()) {
             // Real bug found and fixed (2026-09-08), per killer560's report that Shift-held still
@@ -1141,7 +1153,16 @@ public final class ExperimentsFeature {
             lastLoggedControlItem = null;
             maxClicksNotifiedThisRound = false;
             if (mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER) {
-                int discovered = NAVIGATOR.takePendingRoundsNeeded();
+                // Real bug found and fixed (2026-09-08), per killer560's report that the max-clicks
+                // notification fired "very early": prefer the per-tier-name lookup (matches whatever
+                // tier the puzzle's own title actually names) over the old single "best tier" value,
+                // which only ever really matched autonomous mode's own choice (see
+                // ExperimentNavigator#peekTierScreenForRoundsNeeded's own doc for the full story). Falls
+                // back to the old mechanism only if nothing was scanned for this specific tier name.
+                int discovered = NAVIGATOR.getRoundsNeededForTitle(title);
+                if (discovered <= 0) {
+                    discovered = NAVIGATOR.takePendingRoundsNeeded();
+                }
                 activeRoundsNeeded = discovered;
                 if (discovered > 0) {
                     LOGGER.info("Using rounds-needed={} discovered from stakes lore for this round", discovered);

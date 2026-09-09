@@ -12,8 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,6 +96,11 @@ final class ExperimentNavigator {
     private long lastNavClickAtMs = 0;
     private String lastLoggedTitle = null;
     private int pendingRoundsNeeded = -1;
+    /** Solver Only's own per-tier-name threshold cache - see {@link #peekTierScreenForRoundsNeeded}/
+     *  {@link #getRoundsNeededForTitle} for why this exists separately from {@link #pendingRoundsNeeded}
+     *  (autonomous mode's own, still correct as-is since it always matches whatever tier it's about to
+     *  click). */
+    private final Map<String, Integer> pendingRoundsNeededByTier = new HashMap<>();
     /** Set when either a better tier is locked behind "Not enough experience!" or Renew Experiments
      *  itself is blocked by insufficient XP - the navigator backs out to go buy a Titanic Experience
      *  Bottle in both cases (per killer560's explicit "make sure it buys titanics during any instance
@@ -431,6 +438,7 @@ final class ExperimentNavigator {
         superpairsDoneThisRun = false;
         lastLoggedTitle = null;
         pendingRoundsNeeded = -1;
+        pendingRoundsNeededByTier.clear();
         pendingTitanicPurchase = false;
         titanicPurchasedThisVisit = false;
         doneReason = null;
@@ -441,23 +449,53 @@ final class ExperimentNavigator {
      *  autonomous tier-picking (per killer560's explicit "use the auto detect system from the
      *  automated portion"), but doesn't touch this navigator's own run-progress state or flag a
      *  Titanic purchase - Solver Only never navigates or buys anything on its own, killer560 picks the
-     *  tier himself, this only needs to notice it happened. Feeds the same {@link #pendingRoundsNeeded}
-     *  queue {@link ExperimentsFeature#logModeChangeIfAny} already consumes from once the puzzle
-     *  actually starts, so no separate plumbing is needed on the reading side. Safe to call every tick
-     *  regardless of mode - a no-op unless a real tier-pick screen with actual tier items is open. */
+     *  tier himself, this only needs to notice it happened. Safe to call every tick regardless of mode -
+     *  a no-op unless a real tier-pick screen with actual tier items is open.
+     *  <p>
+     *  Real bug found and fixed (2026-09-08), per killer560's report that the max-clicks notification
+     *  "is going off very early compared to when it should": this used to read the lore off
+     *  {@code scanTiers()}'s own "best UNLOCKED tier" - the right choice for autonomous mode (which
+     *  really is about to click that exact tier), but Solver Only doesn't pick a tier itself at all,
+     *  killer560 does, and there's no guarantee he's playing the objectively "best" one. If a lower tier
+     *  he's actually grinding has a SMALLER "Chain/Series of N:" threshold than whatever ranked highest
+     *  on screen, the notification fired at the wrong (too-early) tier's number the whole time. Now
+     *  scans and remembers EVERY visible tier's own threshold by name instead of picking one, so
+     *  {@link #getRoundsNeededForTitle} can look up the number for whichever tier the puzzle's own
+     *  title actually says he's playing, once it starts. */
     void peekTierScreenForRoundsNeeded(ChestMenu menu, String title) {
         boolean looksLikeGameScreen = title.contains("Chronomatron") || title.contains("Ultrasequencer");
         if (!looksLikeGameScreen) {
             return;
         }
-        TierScan scan = scanTiers(menu);
-        if (scan.bestSlot() < 0) {
-            return;
+        int containerSlotCount = topContainerSlotCount(menu);
+        for (Slot slot : menu.slots) {
+            if (slot.index >= containerSlotCount) continue;
+            ItemStack stack = slot.getItem();
+            if (stack == null || stack.isEmpty()) continue;
+            String name = stack.getHoverName().getString();
+            int rank = tierRank(name);
+            if (rank < 0) continue;
+            int discovered = readMaxClickBonusRounds(stack);
+            if (discovered > 0) {
+                pendingRoundsNeededByTier.put(TIER_NAMES.get(rank), discovered);
+            }
         }
-        int discovered = readMaxClickBonusRounds(scan.bestStack());
-        if (discovered > 0) {
-            pendingRoundsNeeded = discovered;
+    }
+
+    /** @return the "Chain/Series of N:" threshold remembered for whichever tier name appears in
+     *  {@code puzzleTitle} (e.g. "Metaphysical" in "Ultrasequencer (Metaphysical)" - real title format,
+     *  confirmed from a live log), or -1 if that tier was never scanned. Unlike
+     *  {@link #takePendingRoundsNeeded}, this is a plain lookup (not consumed) - a tier's own threshold
+     *  never changes between plays, so there's no reason to throw it away after one puzzle instance;
+     *  killer560 can keep grinding the same tier through several rounds without needing to revisit the
+     *  stakes screen for this to keep working. */
+    int getRoundsNeededForTitle(String puzzleTitle) {
+        for (String tierName : TIER_NAMES) {
+            if (puzzleTitle.contains(tierName)) {
+                return pendingRoundsNeededByTier.getOrDefault(tierName, -1);
+            }
         }
+        return -1;
     }
 
     /** @return the round at which the max Superpairs-click bonus is reached, per the chosen tier's
