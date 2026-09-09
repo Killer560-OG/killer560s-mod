@@ -63,13 +63,13 @@ Session date: 2026-09-09. Working directory: `C:\Users\Hunter\killer560s-mod`.
    this codebase using a shared interface across multiple mixin classes: that interface must live OUTSIDE
    the `.mixin` subpackage declared in the mixins.json's own `"package"` field, always.**
 
-   **This is the highest-risk mixin set this session** (broad `BlockBehaviour` target, core
-   interaction/collision code) - check the actual current boot-test result before trusting it's done; if
-   resuming cold, check `latest.log` very closely (not just grep "error" - read the actual mixin-apply
-   section, and check for a crash-reports file too - the first crash didn't even show up under a plain
-   "error" grep of latest.log, only in the separate crash-reports/*.txt file) and ideally have killer560
-   confirm live that levers/buttons/chests/skulls still behave normally with every Secrets toggle OFF (the
-   default) before he ever turns one on.
+   **DONE**: both bugs fixed, boot-tested clean (no mixin errors, no crash reports, reaches Title
+   Screen), deployed to all 5 instances, legit built, `TESTING.md` updated with an extra-thorough
+   checklist given the risk, committed `10dc3f9`, pushed. This is the highest-risk mixin set this session
+   (broad `BlockBehaviour` target, core interaction/collision code) - it has NOT been verified with real
+   in-game interaction yet (can't automate that), so treat it as boot-tested-only until killer560
+   confirms live, especially the "every toggle OFF behaves like vanilla" and "chests still block movement
+   normally when their hitbox toggle is on" checks in `TESTING.md`.
 
 **Note on `taskkill` policy:** Hunter reverted the "leave Minecraft running after boot-test" preference
 mid this session (2026-09-09) - back to taskkilling after a clean boot-test log by default now (memory
@@ -97,9 +97,10 @@ rounds unless he says so again.
 
 ## Next steps (in the order killer560 asked for)
 
-Termism and Copy Chat are both DONE (built, boot-tested, deployed to all 5, committed, pushed). Continue
-working through `ROADMAP.md` simplest-to-most-complicated, referencing the specific source mod for each
-item before building it - don't guess mechanics. Keep updating THIS document regularly.
+Termism, Copy Chat, and Secrets (Full Block) are all DONE (built, boot-tested, deployed to all 5,
+committed, pushed). Continue working through `ROADMAP.md` simplest-to-most-complicated, referencing the
+specific source mod for each item before building it - don't guess mechanics. Keep updating THIS document
+regularly.
 
 **Immediate next candidates**, roughly in order:
 1. Finish the Slot Binds research (decompile `SlotBinds$1`/`$2`/`$3`/`$4` from Odin's jar - the actual
@@ -108,20 +109,22 @@ item before building it - don't guess mechanics. Keep updating THIS document reg
    feature here already uses) + a keybind-gated click interceptor (mirror `StorageOverlayContainerMixin`'s
    own click-redirect pattern) + hover-line rendering (mirror `TerminalSolverFeature`'s own
    `graphics.outline`/pose-transform usage for the visual side).
-2. Full Block needs one more decompile pass (find quoi's actual hitbox-shape-override class, not just its
-   settings class) before building - flag the real risk (core block-interaction code) to killer560 before
-   starting, since a mistake here could affect way more than just dungeon secrets.
-3. Beyond those two, re-scan `ROADMAP.md`'s "Dungeon / feature ideas" list fresh - most of the rest
-   (ESP/aura/timer/auto-X features) haven't been decompile-checked at all yet this session. Chat Commands
-   (Odin, `ChatCommands.class` - a big suite of `/coords`, `/ping`, `/dice`, `/8ball` etc. slash commands)
-   is large but each individual command inside it is trivial once the dispatcher shell exists - could be
-   a good next target since it's really many tiny features under one roof, not one complex one.
-4. CFR decompiler jar note: re-download from
+2. Re-scan `ROADMAP.md`'s "Dungeon / feature ideas" list fresh - most of it hasn't been decompile-checked
+   at all yet this session. Chat Commands (Odin, `ChatCommands.class` - a big suite of `/coords`, `/ping`,
+   `/dice`, `/8ball` etc. slash commands) is large overall but each individual command inside it is
+   trivial once the dispatcher shell exists - could be a good next target since it's really many tiny
+   features under one roof, not one complex one.
+3. CFR decompiler jar note: re-download from
    `https://github.com/leibnitz27/cfr/releases/download/0.152/cfr-0.152.jar` to `/tmp/cfr.jar` (or
    wherever) each session - it doesn't persist between sessions (gets cleaned from temp). Reference mod
    jars live in `26.1.2 (Dungeons)`'s own `minecraft/mods/` folder - extract just the `.class` file(s) you
    need with `unzip`, then `java -jar cfr.jar SomeClass.class --outputdir <dir>` for readable pseudo-Java
    (much easier to read than raw `javap -c` bytecode for anything beyond a few methods).
+4. **New general lesson from this session's Secrets work, apply to ANY future mixin with a shared
+   interface**: that interface must live OUTSIDE the `.mixin` subpackage a mixins.json declares as its own
+   `"package"` - Mixin's classloader refuses to load a plain (non-@Mixin) class from that package. Also:
+   any mixin on a `getShape`/`getCollisionShape`/similar block-shape method can fire during
+   `Blocks.<clinit>` bootstrap, before `Minecraft.getInstance()` exists - null-guard it.
 
 ## Open questions / things to flag to killer560 if this resumes cold
 
@@ -130,5 +133,6 @@ item before building it - don't guess mechanics. Keep updating THIS document reg
   actual random item list instead.
 - Whether Termism needs a "keep going / next puzzle after solving" auto-flow vs. the current manual "New
   Puzzle" button.
-- Full Block's real risk (core block-interaction hitbox code, not a self-contained feature) is worth a
-  quick sanity-check with killer560 before building, given the blast radius if it's ever subtly wrong.
+- Secrets (Full Block) needs killer560's own real in-game confirmation before it's fully trusted - see
+  the TESTING.md checklist, especially "every toggle OFF behaves like vanilla" and chests still blocking
+  movement normally when their toggle is on.
