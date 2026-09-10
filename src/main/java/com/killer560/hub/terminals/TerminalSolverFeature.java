@@ -455,50 +455,62 @@ public final class TerminalSolverFeature {
      *  {@code MelodyTerminal#onSlotUpdate}/{@code AutoTerminal}'s Melody-specific click logic (both
      *  decompiled 2026-09-09), adapted from their per-slot-update-PACKET trigger onto this class's own
      *  per-FRAME full-rescan model: every frame, finds whichever slot currently holds the real moving
-     *  lime-pane indicator and whichever slot holds the real magenta "target" marker pane (there's always
-     *  at most one of each on a real board) and derives:
+     *  lime-pane indicator and whichever slot holds the real target-marker pane (there's always at most
+     *  one of each on a real board) and derives:
      *  <ul>
      *  <li>{@code buttonRow} (0-3) - which of the 4 button rows the indicator is currently on, from the
      *  lime slot's own row (real formula confirmed via decompile: {@code limeSlot/9 - 1}).
      *  <li>{@code current} - the indicator's column position within that row ({@code limeSlot%9 - 1}).
-     *  <li>{@code correct} - the target column ({@code magentaSlot - 1}), kept from the last frame a
-     *  magenta pane was actually found if it isn't visible this exact frame.
+     *  <li>{@code correct} - the target column ({@code targetSlot - 1}), kept from the last frame a
+     *  target pane was actually found if it isn't visible this exact frame.
      *  </ul>
      *  When {@code current == correct}, the real clickable button for that row (confirmed real slots:
      *  16/25/34/43, one per row, matching {@code buttonRow*9+16}) is clicked - guarded against re-firing
      *  for the same row twice in a row (matching NoammAddons' own {@code lastClickedSlot} + 250ms cooldown
      *  pair) since a real match can stay true for several consecutive frames before the indicator moves
-     *  on. See {@link #queueMelodyLookaheadClicks} for the optional "click ahead" burst on top of this. */
+     *  on. See {@link #queueMelodyLookaheadClicks} for the optional "click ahead" burst on top of this.
+     *  <p>Real bug found and fixed (2026-09-09, round 28) per killer560's "still isnt clicking in melody"
+     *  report: the target-marker scan used to check ONLY {@code Items.MAGENTA_STAINED_GLASS_PANE}. But
+     *  this class's OWN Melody rendering code ({@link #isMelodyEndpointColor}, round 14) already
+     *  discovered from a real screenshot that a real board's marker pane can be either MAGENTA or
+     *  PURPLE - "close enough to purple to read as the same color... but is really MAGENTA, a distinct
+     *  DyeColor." A board using purple made {@code magentaSlot} stay null forever, so {@code correct}
+     *  never initialized and Melody never clicked at all for that whole run - matching the intermittent
+     *  "sometimes works, a lot of the time doesn't" pattern exactly. Now reuses the same proven
+     *  {@link #paneDyeColor}/{@link #isMelodyEndpointColor} classification the rendering path already
+     *  relies on, instead of a separate, narrower Item check. */
     private static void tickMelodyAutoClick(ContainerScreen screen, List<ItemStack> items) {
         fireDueMelodyLookaheadClicks(screen);
 
         Integer limeSlot = null;
-        Integer magentaSlot = null;
+        Integer targetSlot = null;
         for (int i = 0; i < items.size(); i++) {
-            var itemType = items.get(i).getItem();
-            if (itemType == Items.LIME_STAINED_GLASS_PANE) {
+            ItemStack stack = items.get(i);
+            if (stack.getItem() == Items.LIME_STAINED_GLASS_PANE) {
                 limeSlot = i;
-            } else if (itemType == Items.MAGENTA_STAINED_GLASS_PANE) {
-                magentaSlot = i;
+                continue;
             }
+            DyeColor pane = paneDyeColor(stack);
+            if (pane != null && isMelodyEndpointColor(pane)) {
+                targetSlot = i;
+            }
+        }
+        if (targetSlot != null) {
+            melodyCorrectColumn = targetSlot - 1;
         }
         if (limeSlot != null) {
             Integer previousRow = melodyButtonRow;
             melodyButtonRow = (int) Math.floor(limeSlot / 9.0) - 1;
             melodyCurrentColumn = limeSlot % 9 - 1;
             // Diagnostic (2026-09-09) per killer560's report "for melody it only does the first click if
-            // its in first row no other ones" - couldn't confirm a concrete bug re-reading this logic
-            // alone (the formula matches NoammAddons' own decompiled onSlotUpdate exactly), so this logs
-            // every time the indicator's own row changes, to show definitively in the next real log
-            // whether rows 1-3 ever actually get reached/evaluated at all, and if so, whether their
-            // current/correct values look sane at that point.
+            // its in first row no other ones" - the row/column formula itself matches NoammAddons'
+            // decompiled onSlotUpdate exactly and real logs confirm rows 1-3 do get reached, so this
+            // stays in place to keep showing the real slot/row/column values every time the indicator's
+            // own row changes.
             if (!melodyButtonRow.equals(previousRow)) {
-                LOGGER.info("Melody row changed: {} -> {} (limeSlot={}, magentaSlot={}, currentColumn={}, correctColumn={})",
-                        previousRow, melodyButtonRow, limeSlot, magentaSlot, melodyCurrentColumn, melodyCorrectColumn);
+                LOGGER.info("Melody row changed: {} -> {} (limeSlot={}, targetSlot={}, currentColumn={}, correctColumn={})",
+                        previousRow, melodyButtonRow, limeSlot, targetSlot, melodyCurrentColumn, melodyCorrectColumn);
             }
-        }
-        if (magentaSlot != null) {
-            melodyCorrectColumn = magentaSlot - 1;
         }
         if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
             return;
