@@ -315,11 +315,15 @@ public class TermismPracticeScreen extends Screen {
     private void generatePanes() {
         columns = 5;
         int gridSize = columns * 3;
-        // Per killer560's "by default tend to favor higher amounts of panes shown" request (2026-09-10) -
-        // still the same real 4-7 range, but picking the max of two rolls instead of one biases the
-        // distribution toward the higher end (7 becomes the single most likely outcome, ~44% vs the
-        // original flat 25%, while 4 drops to ~6%) rather than raising the range itself.
-        int activeCount = 4 + Math.max(random.nextInt(4), random.nextInt(4));
+        // Per killer560's "by default tend to favor higher amounts of panes shown" request (2026-09-10),
+        // then "raise the max higher than 7 - it should max out at the max amount of clicks that sim can
+        // handle" follow-up: the ceiling is now the full grid itself (gridSize, 15) - solvePanes just
+        // highlights every RED pane regardless of how many that is, and randomIndices already caps at
+        // the grid's own size, so a board that's entirely wrong panes is a completely valid puzzle, not
+        // an edge case to guard against. Picking the max of two rolls (instead of one) keeps the same
+        // bias toward the higher end of whatever the range is, not just a raised ceiling.
+        int minActive = 4;
+        int activeCount = minActive + Math.max(random.nextInt(gridSize - minActive + 1), random.nextInt(gridSize - minActive + 1));
         List<Integer> active = randomIndices(gridSize, activeCount);
         for (int i = 0; i < gridSize; i++) {
             cells.add(new ItemStack(active.contains(i) ? Items.RED_STAINED_GLASS_PANE : Items.LIME_STAINED_GLASS_PANE));
