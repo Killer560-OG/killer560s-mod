@@ -1,9 +1,9 @@
 package com.killer560.hub.proxy.gui;
 
+import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.proxy.config.ProxyType;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -20,8 +20,8 @@ public class ProxyConfigScreen extends Screen {
     private EditBox addressField;
     private EditBox usernameField;
     private EditBox passwordField;
-    private Button socks4Button;
-    private Button socks5Button;
+    private SettingsButtonWidget socks4Button;
+    private SettingsButtonWidget socks5Button;
 
     private ProxyType selectedType;
     private int warningY;
@@ -30,7 +30,7 @@ public class ProxyConfigScreen extends Screen {
     private static final int FIELD_WIDTH = 200;
     private static final int FIELD_HEIGHT = 20;
 
-    private static final int COLOR_WHITE = 0xFFFFFFFF;
+    private static final int COLOR_TITLE = 0xFFCC6600;
     private static final int COLOR_WARNING = 0xFFFF5555;
     private static final int COLOR_LABEL = 0xFFA0A0A0;
 
@@ -57,10 +57,10 @@ public class ProxyConfigScreen extends Screen {
 
         // --- Type toggle row (two half-width radio-style buttons) ---
         int halfWidth = (FIELD_WIDTH - 4) / 2;
-        this.socks4Button = Button.builder(typeLabel(ProxyType.SOCKS4), b -> selectType(ProxyType.SOCKS4))
+        this.socks4Button = SettingsButtonWidget.builder(typeLabel(ProxyType.SOCKS4), b -> selectType(ProxyType.SOCKS4))
                 .bounds(fieldX, typeButtonsTop, halfWidth, FIELD_HEIGHT)
                 .build();
-        this.socks5Button = Button.builder(typeLabel(ProxyType.SOCKS5), b -> selectType(ProxyType.SOCKS5))
+        this.socks5Button = SettingsButtonWidget.builder(typeLabel(ProxyType.SOCKS5), b -> selectType(ProxyType.SOCKS5))
                 .bounds(fieldX + halfWidth + 4, typeButtonsTop, halfWidth, FIELD_HEIGHT)
                 .build();
         this.addRenderableWidget(this.socks4Button);
@@ -91,13 +91,13 @@ public class ProxyConfigScreen extends Screen {
 
         // --- Action buttons (Apply / Go Back / Reset) ---
         int btnWidth = (FIELD_WIDTH - 8) / 3;
-        this.addRenderableWidget(Button.builder(Component.literal("Apply"), b -> apply())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Apply"), b -> apply())
                 .bounds(fieldX, actionButtonsTop, btnWidth, FIELD_HEIGHT)
                 .build());
-        this.addRenderableWidget(Button.builder(Component.literal("Go Back"), b -> onClose())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Go Back"), b -> onClose())
                 .bounds(fieldX + btnWidth + 4, actionButtonsTop, btnWidth, FIELD_HEIGHT)
                 .build());
-        this.addRenderableWidget(Button.builder(Component.literal("Reset"), b -> reset())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset"), b -> reset())
                 .bounds(fieldX + (btnWidth + 4) * 2, actionButtonsTop, btnWidth, FIELD_HEIGHT)
                 .build());
     }
@@ -140,12 +140,14 @@ public class ProxyConfigScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Black + amber theme (2026-09-09) - see AccountSwitcherScreen#extractRenderState.
+        guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
         int centerX = this.width / 2;
 
         // Title
-        guiGraphics.centeredText(this.font, this.title, centerX, this.height / 4 - 34, COLOR_WHITE);
+        guiGraphics.centeredText(this.font, this.title, centerX, this.height / 4 - 34, COLOR_TITLE);
 
         // "Type:" label above the toggle row
         guiGraphics.text(this.font, "Type:",
@@ -157,7 +159,7 @@ public class ProxyConfigScreen extends Screen {
 
         // "Login (optional)" heading centered above the username field
         guiGraphics.centeredText(this.font, Component.literal("Login (optional)"),
-                centerX, this.usernameField.getY() - 14, COLOR_WHITE);
+                centerX, this.usernameField.getY() - 14, COLOR_TITLE);
 
         // Warning footer
         guiGraphics.centeredText(this.font, Component.literal("Do NOT use free proxies."),

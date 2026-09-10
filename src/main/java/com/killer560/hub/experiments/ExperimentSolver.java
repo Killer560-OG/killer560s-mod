@@ -620,6 +620,20 @@ final class ExperimentSolver {
                     if (current != null && !current.name().isBlank()) {
                         superpairsRevealAttempted.remove(superpairsAwaitingConfirmSlot);
                     }
+                    // Real bug found and fixed (2026-09-09) from killer560's report: "found two power
+                    // books but didn't claim both." queuedPairSlots is only ever ADDED to everywhere else
+                    // in this class (see decideSuperpairsClickInternal) - nothing ever removed a slot from
+                    // it once queued, including right here, where a PAIR-COMPLETING click (not a reveal
+                    // click - reveal clicks go through superpairsRevealAttempted instead) times out
+                    // without ever confirming. That left the slot permanently stuck in queuedPairSlots,
+                    // silently blocking every future pairing attempt involving it for the rest of the
+                    // round (see the `if (queuedPairSlots.contains(slot)) continue;` guard there) even
+                    // though the card was never actually matched - exactly matching a real log where the
+                    // same "known at slots [X, Y] but no pair was queued" diagnostic warning kept firing
+                    // every cycle for several seconds straight because Y stayed wrongly reserved. Removing
+                    // it here lets the pairing logic reconsider this slot fresh, the same way a timed-out
+                    // reveal click already gets retried above.
+                    queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
                 }
                 superpairsAwaitingConfirmSlot = null;
                 superpairsAwaitingConfirmPriorCell = null;

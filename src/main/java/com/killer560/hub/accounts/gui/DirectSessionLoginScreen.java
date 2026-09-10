@@ -4,8 +4,9 @@ import com.killer560.hub.accounts.AccountApplier;
 import com.killer560.hub.accounts.core.AuthException;
 import com.killer560.hub.accounts.core.MicrosoftAuthFlow;
 import com.killer560.hub.accounts.core.SessionLoginStore;
+import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -100,13 +101,13 @@ public class DirectSessionLoginScreen extends Screen {
             resolveIgn(initialValue);
         }
 
-        Button connectButton = Button.builder(Component.literal("Connect"), btn -> onConnect())
+        SettingsButtonWidget connectButton = SettingsButtonWidget.builder(Component.literal("Connect"), btn -> onConnect())
                 .bounds(centerX - fieldWidth / 2, y + 26, fieldWidth, 20)
                 .build();
         connectButton.active = !this.busy;
         this.addRenderableWidget(connectButton);
 
-        this.addRenderableWidget(Button.builder(Component.literal("Back"), btn -> onBack())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> onBack())
                 .bounds(centerX - fieldWidth / 2, y + 52, fieldWidth, 20)
                 .build());
 
@@ -114,6 +115,14 @@ public class DirectSessionLoginScreen extends Screen {
             this.addRenderableOnly(new StringWidget(centerX - fieldWidth / 2, y + 78, fieldWidth, 12,
                     Component.literal(this.statusMessage), this.font));
         }
+    }
+
+    /** Black + amber theme (2026-09-09) - see {@link AccountSwitcherScreen#extractRenderState}. */
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFCC6600);
     }
 
     private void onBack() {

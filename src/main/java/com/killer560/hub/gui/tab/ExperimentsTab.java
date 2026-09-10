@@ -120,7 +120,9 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
             EditBox delayField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, 20, Component.literal("Delay (ms)"));
             delayField.setValue(String.valueOf(cfg.getDelayMs()));
             widgets.add(delayField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Click to set delay to " + cfg.getDelayMs() + "ms"), btn -> {
+            // Per killer560's request: each of these 3 buttons now says WHICH delay it sets, not just
+            // a generic "Click to set delay to Xms" that looked identical across all three.
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Set Click Delay: " + cfg.getDelayMs() + "ms"), btn -> {
                         Integer ms = parseInt(delayField.getValue());
                         if (ms != null) {
                             ExperimentsConfig.getInstance().setDelayMs(ms);
@@ -133,7 +135,7 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
             EditBox firstDelayField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, 20, Component.literal("First click delay"));
             firstDelayField.setValue(String.valueOf(cfg.getFirstClickDelayMs()));
             widgets.add(firstDelayField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Click to set delay to " + cfg.getFirstClickDelayMs() + "ms"), btn -> {
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Set First Click Delay: " + cfg.getFirstClickDelayMs() + "ms"), btn -> {
                         Integer ms = parseInt(firstDelayField.getValue());
                         if (ms != null) {
                             ExperimentsConfig.getInstance().setFirstClickDelayMs(ms);
@@ -146,7 +148,7 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
             EditBox randomDelayField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, 20, Component.literal("Random Delay (ms)"));
             randomDelayField.setValue(String.valueOf(cfg.getRandomDelayMaxMs()));
             widgets.add(randomDelayField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Click to set delay to " + cfg.getRandomDelayMaxMs() + "ms"), btn -> {
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Set Random Delay (max): " + cfg.getRandomDelayMaxMs() + "ms"), btn -> {
                         Integer ms = parseInt(randomDelayField.getValue());
                         if (ms != null) {
                             ExperimentsConfig.getInstance().setRandomDelayMaxMs(ms);

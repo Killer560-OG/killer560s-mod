@@ -7,8 +7,9 @@ import com.killer560.hub.accounts.core.PrismAccount;
 import com.killer560.hub.accounts.core.PrismAccountStore;
 import com.killer560.hub.accounts.core.SharedBanStatusStore;
 import com.killer560.hub.accounts.core.StoredBanStatus;
+import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -82,13 +83,13 @@ public class AccountSwitcherScreen extends Screen {
         for (PrismAccount account : this.accounts) {
             int y = startY + i * rowHeight;
 
-            Button button = Button.builder(Component.literal(account.displayName()), btn -> onAccountSelected(account))
+            SettingsButtonWidget button = SettingsButtonWidget.builder(Component.literal(account.displayName()), btn -> onAccountSelected(account))
                     .bounds(startX, y, buttonWidth, 20)
                     .build();
             button.active = !this.busy;
             this.addRenderableWidget(button);
 
-            Button copyButton = Button.builder(Component.literal("Copy ID"), btn -> onCopySessionId(account))
+            SettingsButtonWidget copyButton = SettingsButtonWidget.builder(Component.literal("Copy ID"), btn -> onCopySessionId(account))
                     .bounds(startX + buttonWidth + gap, y, copyWidth, 20)
                     .build();
             copyButton.active = !this.busy;
@@ -100,16 +101,27 @@ public class AccountSwitcherScreen extends Screen {
         }
 
         int belowListY = startY + Math.max(i, 1) * rowHeight + 12;
-        this.addRenderableWidget(Button.builder(Component.literal("Back"), btn -> onBack())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> onBack())
                 .bounds(this.width / 2 - buttonWidth / 2, belowListY, buttonWidth, 20)
                 .build());
 
         // Bottom-middle "Direct Connect"-style entry point: a temporary login from a raw session
         // token, not one of Prism's saved accounts (see DirectSessionLoginScreen).
-        this.addRenderableWidget(Button.builder(Component.literal("Direct Session Login"), btn ->
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Direct Session Login"), btn ->
                         Minecraft.getInstance().setScreen(new DirectSessionLoginScreen(this, this.parent)))
                 .bounds(this.width / 2 - buttonWidth / 2, belowListY + 26, buttonWidth, 20)
                 .build());
+    }
+
+    /** Black + amber theme (2026-09-09), matching {@link com.killer560.hub.gui.ModScreen} - per
+     *  killer560's "make the account switcher and proxy mod more fit the new theme." Same dim overlay
+     *  instead of the vanilla blurred background, title drawn in the same amber accent as the main
+     *  menu's own header. */
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFCC6600);
     }
 
     private void addBanStatusWidgets(PrismAccount account, int x, int y, int width) {
