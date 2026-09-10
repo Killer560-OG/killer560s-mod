@@ -84,6 +84,19 @@ public final class TerminalSolverConfig {
     // clicks the row that's actually confirmed correct right now. See TerminalSolverFeature's own
     // Melody auto-click doc for the real mechanic this is built on.
     private int melodyLookaheadClicks = 0;
+    // Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10) - gates
+    // WHEN the lookahead burst above is allowed to fire. EDGES (default, safer) only allows it when the
+    // real match happens at row 0 or the last row - the two physical ends of the track, matching the
+    // original "very first spot of the very first row" request; middle rows just click live, one at a
+    // time. ALL fires the burst from a match at ANY row and - per killer560's explicit "click through the
+    // whole row anytime it gets a proper click" - ignores melodyLookaheadClicks entirely and bursts every
+    // remaining row down to the last one, not just a capped number of them.
+    private MelodySkipMode melodySkipMode = MelodySkipMode.EDGES;
+
+    /** See {@link #melodySkipMode}'s own doc. */
+    public enum MelodySkipMode {
+        ALL, EDGES
+    }
 
     private TerminalSolverConfig() {
     }
@@ -129,6 +142,7 @@ public final class TerminalSolverConfig {
                     || obj.get("blockInputWhileAutoClicking").getAsBoolean();
             cfg.melodyLookaheadClicks = obj.has("melodyLookaheadClicks")
                     ? clampMelodyLookahead(obj.get("melodyLookaheadClicks").getAsInt()) : 0;
+            cfg.melodySkipMode = parseMelodySkipMode(obj.has("melodySkipMode") ? obj.get("melodySkipMode").getAsString() : null);
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalSolverConfig();
@@ -160,6 +174,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
+            obj.addProperty("melodySkipMode", melodySkipMode.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -175,6 +190,17 @@ public final class TerminalSolverConfig {
 
     private static int clampMelodyLookahead(int value) {
         return Math.max(MIN_MELODY_LOOKAHEAD, Math.min(MAX_MELODY_LOOKAHEAD, value));
+    }
+
+    private static MelodySkipMode parseMelodySkipMode(String value) {
+        if (value == null) {
+            return MelodySkipMode.EDGES;
+        }
+        try {
+            return MelodySkipMode.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return MelodySkipMode.EDGES;
+        }
     }
 
     public boolean isEnabled() {
@@ -365,5 +391,13 @@ public final class TerminalSolverConfig {
 
     public void setMelodyLookaheadClicks(int melodyLookaheadClicks) {
         this.melodyLookaheadClicks = clampMelodyLookahead(melodyLookaheadClicks);
+    }
+
+    public MelodySkipMode getMelodySkipMode() {
+        return melodySkipMode;
+    }
+
+    public void setMelodySkipMode(MelodySkipMode melodySkipMode) {
+        this.melodySkipMode = melodySkipMode;
     }
 }

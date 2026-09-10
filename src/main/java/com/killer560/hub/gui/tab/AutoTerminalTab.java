@@ -148,28 +148,47 @@ public class AutoTerminalTab extends BaseTab {
         y += 26;
 
         if (TerminalSolverConfig.getInstance().isAutoMelodyEnabled()) {
-            double lookaheadNormalized = (TerminalSolverConfig.getInstance().getMelodyLookaheadClicks() - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD)
-                    / (double) (TerminalSolverConfig.MAX_MELODY_LOOKAHEAD - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD);
-            widgets.add(new ThemedSliderButton(contentX, y, 220, 20, melodyLookaheadText(), lookaheadNormalized) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(melodyLookaheadText());
-                }
-
-                @Override
-                protected void applyValue() {
-                    TerminalSolverConfig c = TerminalSolverConfig.getInstance();
-                    int newLookahead = (int) Math.round(TerminalSolverConfig.MIN_MELODY_LOOKAHEAD
-                            + this.value * (TerminalSolverConfig.MAX_MELODY_LOOKAHEAD - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD));
-                    c.setMelodyLookaheadClicks(newLookahead);
-                    c.save();
-                }
-            });
-            y += 26;
+            widgets.add(SettingsButtonWidget.builder(melodySkipModeText(), btn -> {
+                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                        cfg.setMelodySkipMode(cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.EDGES
+                                ? TerminalSolverConfig.MelodySkipMode.ALL
+                                : TerminalSolverConfig.MelodySkipMode.EDGES);
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, 220, 20).build());
+            y += 24;
+            boolean skipAll = TerminalSolverConfig.getInstance().getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL;
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("Melody: how many rows to click ahead once one matches (0 = none)."),
+                    Component.literal(skipAll
+                            ? "All: a match on ANY row bursts every remaining row, ignoring the slider below."
+                            : "Edges: only a match on the first or last row can burst ahead (see slider below)."),
                     Minecraft.getInstance().font));
-            y += 16;
+            y += 22;
+
+            if (!skipAll) {
+                double lookaheadNormalized = (TerminalSolverConfig.getInstance().getMelodyLookaheadClicks() - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD)
+                        / (double) (TerminalSolverConfig.MAX_MELODY_LOOKAHEAD - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD);
+                widgets.add(new ThemedSliderButton(contentX, y, 220, 20, melodyLookaheadText(), lookaheadNormalized) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(melodyLookaheadText());
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        TerminalSolverConfig c = TerminalSolverConfig.getInstance();
+                        int newLookahead = (int) Math.round(TerminalSolverConfig.MIN_MELODY_LOOKAHEAD
+                                + this.value * (TerminalSolverConfig.MAX_MELODY_LOOKAHEAD - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD));
+                        c.setMelodyLookaheadClicks(newLookahead);
+                        c.save();
+                    }
+                });
+                y += 26;
+                widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                        Component.literal("Melody: how many rows to click ahead once an edge row matches (0 = none)."),
+                        Minecraft.getInstance().font));
+                y += 16;
+            }
         }
 
         return widgets;
@@ -217,5 +236,10 @@ public class AutoTerminalTab extends BaseTab {
 
     private static Component melodyLookaheadText() {
         return Component.literal("Melody Lookahead Clicks: " + TerminalSolverConfig.getInstance().getMelodyLookaheadClicks());
+    }
+
+    private static Component melodySkipModeText() {
+        return Component.literal("Melody Skip Mode: "
+                + (TerminalSolverConfig.getInstance().getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL ? "All" : "Edges"));
     }
 }

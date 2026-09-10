@@ -166,6 +166,16 @@ public final class TerminalSolverFeature {
     // jitter frame to frame instead of the delay just varying click to click).
     private static long nextAutoClickAllowedAtMs;
     private static int lastAutoClickedSlot = -1;
+    private static long lastAutoClickedSlotAtMs;
+    // Real bug found and fixed (2026-09-10, round 30) per killer560's "this terminal broke and didnt
+    // click" report + screenshot: the "never re-click the same slot twice in a row" guard below had no
+    // timeout at all, so if a single click packet ever went unacknowledged (didn't actually clear that
+    // slot's highlight - real network loss, or Hypixel silently dropping/rate-limiting a click), the
+    // guard deadlocked forever - it refuses to re-click the stuck slot, and nothing else ever un-stuck
+    // it, so the whole terminal just sat there not clicking until manually reopened (which resets this
+    // guard's state from scratch). This bounds how long the guard is allowed to keep blocking a given
+    // slot before giving the click another try.
+    private static final long SAME_SLOT_RETRY_TIMEOUT_MS = 1500;
     // Melody's own real-time state - NOT derived from #currentHighlights (Melody has no solving logic
     // there, see #solve) - tracked fresh each frame straight from the real lime/magenta marker panes,
     // the same real mechanic NoammAddons' own MelodyTerminal#onSlotUpdate uses (decompiled 2026-09-09).
@@ -308,6 +318,7 @@ public final class TerminalSolverFeature {
     private static void resetAutoClickState() {
         nextAutoClickAllowedAtMs = 0;
         lastAutoClickedSlot = -1;
+        lastAutoClickedSlotAtMs = 0;
         melodyButtonRow = null;
         melodyCurrentColumn = null;
         melodyCorrectColumn = null;
@@ -363,13 +374,17 @@ public final class TerminalSolverFeature {
         }
         // Per NoammAddons' own AutoTerminal#autoClick: never blindly re-click the exact same slot two
         // decisions in a row - Rubix is the one real exception (it genuinely needs several consecutive
-        // clicks on the same pane to cycle it through multiple colors).
-        if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX) {
+        // clicks on the same pane to cycle it through multiple colors). Bounded by
+        // SAME_SLOT_RETRY_TIMEOUT_MS (round 30) so a click that never actually registered doesn't
+        // deadlock the whole terminal forever - past that timeout, it's treated as lost and retried.
+        if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX
+                && now - lastAutoClickedSlotAtMs < SAME_SLOT_RETRY_TIMEOUT_MS) {
             logAutoClickSkipThrottled(type, "target slot " + target.slot() + " is the same as last click - waiting for it to clear");
             return;
         }
         nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
         lastAutoClickedSlot = target.slot();
+        lastAutoClickedSlotAtMs = now;
         sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
     }
 
@@ -540,19 +555,40 @@ public final class TerminalSolverFeature {
 
     /** Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks...
      *  0-4 max" - a real match at {@code matchedRow} gambles that the SAME column stays correct for
-     *  however many of the remaining rows {@link TerminalSolverConfig#getMelodyLookaheadClicks} asks
-     *  for, clicking them ahead of time instead of waiting for the indicator to actually reach each one.
-     *  0/1 (default) means no lookahead at all. Mirrors NoammAddons' own scheduled per-row delay (~1
+     *  however many more rows get queued, clicking them ahead of time instead of waiting for the
+     *  indicator to actually reach each one. Mirrors NoammAddons' own scheduled per-row delay (~1
      *  tick/50ms further out per additional row) - re-validated against the terminal still being the
      *  current Melody handler right before each one actually fires (see
-     *  {@link #fireDueMelodyLookaheadClicks}), since the real board can close or change mid-burst. */
+     *  {@link #fireDueMelodyLookaheadClicks}), since the real board can close or change mid-burst.
+     *  <p>Per killer560's explicit "add a skip on edges or skip on all section" request (2026-09-10):
+     *  {@link TerminalSolverConfig.MelodySkipMode#EDGES} (default) only allows this burst at all when
+     *  {@code matchedRow} is the first or the last row - the two physical ends of the track - and even
+     *  then stays capped at {@link TerminalSolverConfig#getMelodyLookaheadClicks}; a match on a middle row
+     *  just clicks live, one row at a time, no burst. {@link TerminalSolverConfig.MelodySkipMode#ALL}
+     *  fires from a match at ANY row and - per killer560's explicit "click through the whole row anytime
+     *  it gets a proper click" - ignores the lookahead count entirely, bursting every remaining row down
+     *  to the last one. */
     private static void queueMelodyLookaheadClicks(int matchedRow) {
-        int lookahead = TerminalSolverConfig.getInstance().getMelodyLookaheadClicks();
-        if (lookahead <= 1) {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        int lastRow = MELODY_CLAY_SLOTS.size() - 1;
+        int extraRows;
+        if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) {
+            extraRows = lastRow - matchedRow;
+        } else {
+            boolean isEdgeRow = matchedRow == 0 || matchedRow == lastRow;
+            if (!isEdgeRow) {
+                return;
+            }
+            int lookahead = cfg.getMelodyLookaheadClicks();
+            if (lookahead <= 1) {
+                return;
+            }
+            extraRows = Math.min(lookahead - 1, lastRow - matchedRow);
+        }
+        if (extraRows <= 0) {
             return;
         }
         long now = System.currentTimeMillis();
-        int extraRows = Math.min(lookahead - 1, MELODY_CLAY_SLOTS.size() - 1 - matchedRow);
         for (int i = 1; i <= extraRows; i++) {
             scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
         }
