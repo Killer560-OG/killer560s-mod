@@ -14,13 +14,16 @@ import java.util.List;
  *  independent toggle for each covered block type's expanded interaction hitbox - killer560's explicit
  *  request (2026-09-09), "each should have their own toggle under a main secrets tab in dungeons." The
  *  master toggle is a later follow-up request so the whole feature can be flipped off in one click
- *  without losing each block type's individual on/off state. Buttons additionally gets a Flat/Full Box
- *  shape choice, plus two further optional restriction toggles (also killer560's explicit follow-up
- *  request, 2026-09-09): Dungeons Only (all 4 types) and Boss Only (Levers/Buttons only, restricts to
- *  the real F7/M7 boss fight). See {@link com.killer560.hub.secrets.SecretsFeature} for the real
- *  mechanic (ported from and cross-checked against both quoi's and NoammAddons' own reference
- *  implementations) and {@link com.killer560.hub.secrets.DungeonState} for how the two restriction
- *  toggles are really detected. */
+ *  without losing each block type's individual on/off state - per killer560's explicit follow-up
+ *  ("make it hide the other settings if it is off or on"), every setting below the master toggle is
+ *  only actually built (not just disabled-looking) while it's ON, collapsing the tab down to just the
+ *  master toggle itself while it's OFF. Buttons additionally gets a Flat/Full Box shape choice, plus two
+ *  further optional restriction toggles (also killer560's explicit follow-up request, 2026-09-09):
+ *  Dungeons Only (all 4 types) and Boss Only (Levers/Buttons only, restricts to the real F7/M7 boss
+ *  fight). See {@link com.killer560.hub.secrets.SecretsFeature} for the real mechanic (ported from and
+ *  cross-checked against both quoi's and NoammAddons' own reference implementations) and
+ *  {@link com.killer560.hub.secrets.DungeonState} for how the two restriction toggles are really
+ *  detected. */
 public class SecretsTab extends BaseTab {
 
     public SecretsTab() {
@@ -41,9 +44,13 @@ public class SecretsTab extends BaseTab {
                     SecretsConfig cfg = SecretsConfig.getInstance();
                     cfg.setMasterEnabled(!cfg.isMasterEnabled());
                     cfg.save();
-                    btn.setMessage(masterText());
+                    requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
+
+        if (!SecretsConfig.getInstance().isMasterEnabled()) {
+            return widgets;
+        }
 
         widgets.add(SettingsButtonWidget.builder(leversText(), btn -> {
                     SecretsConfig cfg = SecretsConfig.getInstance();
@@ -103,15 +110,6 @@ public class SecretsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(bossOnlyText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Boss Only applies to Levers and Buttons only, restricting"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("them to the real F7/M7 boss fight specifically."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

@@ -52,6 +52,20 @@ public final class DungeonState {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrets");
 
     private static boolean bossPhaseActive = false;
+    // Real bug found (2026-09-09, round 21): killer560 confirmed every individual block toggle works
+    // fine (Full Block master ON, Dungeons Only OFF), but Dungeons Only itself never enables during a
+    // real dungeon run. A real F7 clear's log (all 5 bosses fought) never logged a SINGLE "Dungeon floor
+    // changed" line - meaning #computeCurrentFloor() returned null the entire run, not just failed to
+    // re-enable on re-entry. SkyHanni's own real, currently-working sidebar reader
+    // (ScoreboardCompatKt.getSidebarObjective, decompiled 2026-09-09) is just a bare
+    // `getDisplayObjective(DisplaySlot.SIDEBAR)` with NO team-color fallback at all - directly
+    // contradicting this class's own round-13 "Hypixel uses a TEAM_* slot instead" theory, which was
+    // never independently confirmed against a real log and looks to have been the wrong diagnosis.
+    // Rather than guess again on this HIGH-RISK-adjacent detection code, this logs the full picture
+    // every ~3s (not just on change, since it may never be changing at all) - which DisplaySlot (if any)
+    // actually holds a non-null objective, and the raw text read from it - so the next real dungeon run
+    // shows definitively whether SIDEBAR itself is populated, some other slot is, or none are.
+    private static int diagnosticTickCounter = 0;
     // Per killer560's "relook through the other mods... otherwise put some sort of logging into my game"
     // request (2026-09-09, round 12) - re-checked NoammAddons' own LocationUtils (decompiled) for how it
     // tracks the same dungeon state; its approach is architecturally different (a one-shot "detect
@@ -76,6 +90,11 @@ public final class DungeonState {
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            diagnosticTickCounter++;
+            if (diagnosticTickCounter >= 60) {
+                diagnosticTickCounter = 0;
+                logSidebarDiagnostic();
+            }
             String floor = computeCurrentFloor();
             if (!Objects.equals(floor, cachedFloor)) {
                 // Includes a snippet of the raw sidebar text this round - if the DisplaySlot fallback fix
@@ -136,18 +155,47 @@ public final class DungeonState {
         return matcher.find() ? matcher.group(1) : null;
     }
 
-    /** Real bug found and fixed (2026-09-09, round 13) - killer560's own logging (added round 12) caught
-     *  ZERO floor-change transitions across a real session that entered 3 different Catacombs floors back
-     *  to back, meaning this was never detecting being in a dungeon AT ALL, not just failing to re-enable
-     *  on re-entry as originally reported (which then follows trivially: it can't turn something back on
-     *  that it never detected turning on in the first place). Root cause: {@code DisplaySlot.SIDEBAR} is
-     *  the plain, uncolored sidebar slot, but Hypixel (like many servers) commonly renders its real
-     *  sidebar through one of the 15 {@code TEAM_*} colored slots instead - a well-known vanilla
-     *  scoreboard quirk servers use to route around per-line color/format limits on the plain slot. This
-     *  mod's own {@code LocationTracker} (RNG meter) has the exact same never-verified assumption per its
-     *  own doc comment - not a proven-working reference after all, just an equally untested copy of the
-     *  same approach. Falls back to whichever {@code TEAM_*} slot is actually populated if the plain one
-     *  isn't. */
+    /** Diagnostic only (round 21) - see the doc comment on {@link #diagnosticTickCounter}. Logs whether
+     *  the plain {@code DisplaySlot.SIDEBAR} objective is populated, and if not, EVERY other
+     *  {@code DisplaySlot} that has a non-null objective (not just the first one found, unlike
+     *  {@link #readSidebarText()}) - plus the actual raw text {@link #readSidebarText()} ends up reading.
+     *  Runs every ~3 real seconds (60 client ticks) regardless of whether the floor value has changed,
+     *  since the bug being chased is that it may never be changing at all. */
+    private static void logSidebarDiagnostic() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) {
+            return;
+        }
+        Scoreboard scoreboard = client.level.getScoreboard();
+        Objective plainSidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
+        StringBuilder others = new StringBuilder();
+        for (DisplaySlot slot : DisplaySlot.values()) {
+            if (slot == DisplaySlot.SIDEBAR) {
+                continue;
+            }
+            Objective candidate = scoreboard.getDisplayObjective(slot);
+            if (candidate != null) {
+                others.append(slot).append("='").append(candidate.getDisplayName().getString()).append("' ");
+            }
+        }
+        String raw = readSidebarText();
+        String snippet = raw.length() > 200 ? raw.substring(0, 200) + "..." : raw;
+        LOGGER.info("[Secrets] Sidebar diagnostic: plainSidebar={} otherPopulatedSlots=[{}] readSidebarText=\"{}\"",
+                plainSidebar != null ? "'" + plainSidebar.getDisplayName().getString() + "'" : "null",
+                others.toString().trim(), snippet.replace("\n", "\\n"));
+    }
+
+    /** Round 13 (2026-09-09) added a fallback here from a theory that Hypixel renders its real sidebar
+     *  through one of the {@code TEAM_*} colored slots instead of plain {@code DisplaySlot.SIDEBAR}. That
+     *  theory is now suspect (round 21, 2026-09-09): killer560 confirmed Dungeons Only still never
+     *  enables during a real dungeon run even with every individual block toggle working, and that
+     *  session's log never once showed a floor change across a full F7 clear. SkyHanni's own real,
+     *  currently-working sidebar reader (decompiled 2026-09-09 - {@code ScoreboardCompatKt
+     *  .getSidebarObjective}) is just a bare {@code getDisplayObjective(DisplaySlot.SIDEBAR)} with NO
+     *  team-color fallback at all, which directly contradicts the round-13 theory. The fallback loop below
+     *  is left in place (harmless if {@code DisplaySlot.SIDEBAR} is populated, since it only runs when
+     *  that's null), but the real bug is evidently elsewhere - see {@link #logSidebarDiagnostic()}, added
+     *  this round specifically to pin it down with real data instead of another guess. */
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {
