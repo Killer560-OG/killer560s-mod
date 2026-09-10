@@ -384,13 +384,16 @@ public class TermismPracticeScreen extends Screen {
         int gridSize = columns * 3;
         // Per killer560's "by default tend to favor higher amounts of panes shown" request (2026-09-10),
         // then "raise the max higher than 7 - it should max out at the max amount of clicks that sim can
-        // handle" follow-up: the ceiling is now the full grid itself (gridSize, 15) - solvePanes just
+        // handle" follow-up: the ceiling is the full grid itself (gridSize, 15) - solvePanes just
         // highlights every RED pane regardless of how many that is, and randomIndices already caps at
         // the grid's own size, so a board that's entirely wrong panes is a completely valid puzzle, not
-        // an edge case to guard against. Picking the max of two rolls (instead of one) keeps the same
-        // bias toward the higher end of whatever the range is, not just a raised ceiling.
+        // an edge case to guard against.
+        // Round 38 (2026-09-10): per killer560's "panes down about 20%" request - dropped the max-of-two
+        // bias back to a single plain roll over the same 4-15 range (simulated: mean fell from ~11.5 to
+        // ~9.5, -17%, close enough to "about 20%") - still the full range, including the max, just no
+        // longer weighted toward the top of it.
         int minActive = 4;
-        int activeCount = minActive + Math.max(random.nextInt(gridSize - minActive + 1), random.nextInt(gridSize - minActive + 1));
+        int activeCount = minActive + random.nextInt(gridSize - minActive + 1);
         List<Integer> active = randomIndices(gridSize, activeCount);
         for (int i = 0; i < gridSize; i++) {
             cells.add(new ItemStack(active.contains(i) ? Items.RED_STAINED_GLASS_PANE : Items.LIME_STAINED_GLASS_PANE));
@@ -502,9 +505,12 @@ public class TermismPracticeScreen extends Screen {
         // option" request (2026-09-10) - same treatment as Panes (round 33) and Starts With above: the
         // ceiling is the whole grid, since matchCount just repeats the target color and distractors fill
         // whatever's left (a board that's entirely the target color is a valid puzzle). Explicit
-        // Math.min against gridSize keeps distractorCount below from ever going negative. Max of two
-        // rolls keeps the "tends toward the higher end" bias from round 32/33.
-        int matchCount = Math.min(2 + Math.max(random.nextInt(gridSize - 1), random.nextInt(gridSize - 1)), gridSize);
+        // Math.min against gridSize keeps distractorCount below from ever going negative.
+        // Round 38 (2026-09-10): per killer560's "select about 50% of what it is averaging now" request -
+        // flipped Math.max to Math.min, same two-roll structure just biased toward the LOW end of the
+        // range instead of the high end now (simulated: mean fell from ~19.5 to ~10.5, -46%, close to
+        // "about 50%") - still the full 2-28 range, including the max, just no longer weighted toward it.
+        int matchCount = Math.min(2 + Math.min(random.nextInt(gridSize - 1), random.nextInt(gridSize - 1)), gridSize);
         List<ItemStack> combined = new ArrayList<>();
         for (int i = 0; i < matchCount; i++) {
             combined.add(namedStack(target.texture(), target.name()));
