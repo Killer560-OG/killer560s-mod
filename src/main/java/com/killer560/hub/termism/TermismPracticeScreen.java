@@ -16,6 +16,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +76,10 @@ public class TermismPracticeScreen extends Screen {
 
     private record NamedItem(String name, Item item) {
     }
+
+    // How many random candidate items #generateStartsWith draws before keeping whichever one's letter
+    // has the most pool matches - see that method's own round 37 doc.
+    private static final int CANDIDATE_COUNT = 5;
 
     // Not Hypixel's exact real item pool (that's not decompiled) - a hand-picked, visually varied set of
     // real vanilla items covering plenty of different starting letters, enough to practice the actual
@@ -136,7 +141,30 @@ public class TermismPracticeScreen extends Screen {
             new NamedItem("Oak Boat", Items.OAK_BOAT), new NamedItem("Oak Sign", Items.OAK_SIGN),
             new NamedItem("Amethyst Shard", Items.AMETHYST_SHARD), new NamedItem("Armor Stand", Items.ARMOR_STAND),
             new NamedItem("Gold Ingot", Items.GOLD_INGOT), new NamedItem("Glass Bottle", Items.GLASS_BOTTLE),
-            new NamedItem("Wooden Sword", Items.WOODEN_SWORD), new NamedItem("Writable Book", Items.WRITABLE_BOOK)
+            new NamedItem("Wooden Sword", Items.WOODEN_SWORD), new NamedItem("Writable Book", Items.WRITABLE_BOOK),
+            // Round 37 (2026-09-10) - per killer560's "it is normally a little bit higher but i would
+            // still like the average to be about 50% higher" follow-up. Simulated round 36's actual
+            // algorithm first (mean matchCount 6.3) before touching anything: scaling most letters up
+            // ~1.3x combined with widening #generateStartsWith's own candidate-letter bias from 2 to 5
+            // candidates landed almost exactly on target (simulated mean 9.3, +48%). These ~22 items are
+            // that 1.3x scale-up, one or two per letter (Q/K/V untouched - genuinely no more safe, real
+            // vanilla items starting with those letters worth adding).
+            new NamedItem("Spider Eye", Items.SPIDER_EYE), new NamedItem("Salmon", Items.SALMON), new NamedItem("Sugar Cane", Items.SUGAR_CANE),
+            new NamedItem("Firework Rocket", Items.FIREWORK_ROCKET),
+            new NamedItem("Experience Bottle", Items.EXPERIENCE_BOTTLE),
+            new NamedItem("Totem of Undying", Items.TOTEM_OF_UNDYING),
+            new NamedItem("Lapis Lazuli", Items.LAPIS_LAZULI), new NamedItem("Lightning Rod", Items.LIGHTNING_ROD),
+            new NamedItem("Beetroot", Items.BEETROOT), new NamedItem("Blaze Rod", Items.BLAZE_ROD),
+            new NamedItem("Clay Ball", Items.CLAY_BALL), new NamedItem("Cod", Items.COD),
+            new NamedItem("Dried Kelp", Items.DRIED_KELP), new NamedItem("Diamond Boots", Items.DIAMOND_BOOTS),
+            new NamedItem("Raw Iron", Items.RAW_IRON),
+            new NamedItem("Potato", Items.POTATO),
+            new NamedItem("Magma Cream", Items.MAGMA_CREAM),
+            new NamedItem("Iron Helmet", Items.IRON_HELMET),
+            new NamedItem("Oak Door", Items.OAK_DOOR),
+            new NamedItem("Ancient Debris", Items.ANCIENT_DEBRIS),
+            new NamedItem("Ghast Tear", Items.GHAST_TEAR),
+            new NamedItem("Wooden Axe", Items.WOODEN_AXE)
     );
 
     private record ColorAlias(DyeColor color, String name, Item texture) {
@@ -403,20 +431,22 @@ public class TermismPracticeScreen extends Screen {
         columns = 7;
         List<NamedItem> pool = new ArrayList<>(STARTS_WITH_POOL);
         Collections.shuffle(pool, random);
-        // Round 36 (2026-09-10) - per killer560's fresh "did a ton of sims, all sub 5 clicks" report:
-        // picking the seed uniformly by ITEM (not letter) means a letter's own selection odds are already
-        // proportional to how many items it has - but with several letters now similarly populated (see
+        // Round 36 (2026-09-10) - per killer560's "did a ton of sims, all sub 5 clicks" report: picking
+        // the seed uniformly by ITEM (not letter) means a letter's own selection odds are already
+        // proportional to how many items it has - but with several letters similarly populated (see
         // STARTS_WITH_POOL's own round 36 doc), that alone wasn't tilting things toward the richer ones
-        // enough. Same max-of-two trick used for matchCount's own roll, applied here too: draw two
-        // candidate items and keep whichever one's letter has more matches in the pool, so a letter that
-        // can actually support a high matchCount gets picked more than its raw item-share would imply.
-        NamedItem candidateA = pool.get(0);
-        NamedItem candidateB = pool.get(1);
-        char letterA = Character.toUpperCase(candidateA.name().charAt(0));
-        char letterB = Character.toUpperCase(candidateB.name().charAt(0));
-        long countA = STARTS_WITH_POOL.stream().filter(i -> Character.toUpperCase(i.name().charAt(0)) == letterA).count();
-        long countB = STARTS_WITH_POOL.stream().filter(i -> Character.toUpperCase(i.name().charAt(0)) == letterB).count();
-        char letter = countA >= countB ? letterA : letterB;
+        // enough. Same max-of-N trick used for matchCount's own roll, applied here too: draw several
+        // candidate items and keep whichever one's letter has the most matches in the pool, so a letter
+        // that can actually support a high matchCount gets picked more than its raw item-share would
+        // imply. Round 37 (2026-09-10) widened this from 2 candidates to CANDIDATE_COUNT (5) per
+        // killer560's "i would still like the average to be about 50% higher" follow-up - simulated
+        // together with STARTS_WITH_POOL's own round 37 growth to land on that target (verified mean
+        // matchCount 9.3, up from round 36's 6.3).
+        char letter = pool.subList(0, CANDIDATE_COUNT).stream()
+                .map(item -> Character.toUpperCase(item.name().charAt(0)))
+                .max(Comparator.comparingLong(candidateLetter ->
+                        STARTS_WITH_POOL.stream().filter(i -> Character.toUpperCase(i.name().charAt(0)) == candidateLetter).count()))
+                .orElseThrow();
         targetLetter = String.valueOf(letter);
 
         List<NamedItem> matches = new ArrayList<>();
