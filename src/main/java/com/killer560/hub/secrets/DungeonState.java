@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,17 +186,17 @@ public final class DungeonState {
                 others.toString().trim(), snippet.replace("\n", "\\n"));
     }
 
-    /** Round 13 (2026-09-09) added a fallback here from a theory that Hypixel renders its real sidebar
-     *  through one of the {@code TEAM_*} colored slots instead of plain {@code DisplaySlot.SIDEBAR}. That
-     *  theory is now suspect (round 21, 2026-09-09): killer560 confirmed Dungeons Only still never
-     *  enables during a real dungeon run even with every individual block toggle working, and that
-     *  session's log never once showed a floor change across a full F7 clear. SkyHanni's own real,
-     *  currently-working sidebar reader (decompiled 2026-09-09 - {@code ScoreboardCompatKt
-     *  .getSidebarObjective}) is just a bare {@code getDisplayObjective(DisplaySlot.SIDEBAR)} with NO
-     *  team-color fallback at all, which directly contradicts the round-13 theory. The fallback loop below
-     *  is left in place (harmless if {@code DisplaySlot.SIDEBAR} is populated, since it only runs when
-     *  that's null), but the real bug is evidently elsewhere - see {@link #logSidebarDiagnostic()}, added
-     *  this round specifically to pin it down with real data instead of another guess. */
+    /** Real bug found and fixed (2026-09-09, round 22) - your own log from a real F7 clear (Maxor's
+     *  opening chat line included) showed the actual root cause: {@code DisplaySlot.SIDEBAR} WAS
+     *  populated the whole time (round 13's "wrong slot" theory was a red herring), but every line came
+     *  back as literal garbage like {@code "§j"}/{@code "§t"} - no visible text at all. Hypixel's real
+     *  anti-scraping technique: {@link PlayerScoreEntry#owner()} is just a per-line unique INVISIBLE
+     *  color-code key, not real text - the actual visible line is rendered from that owner's registered
+     *  {@link PlayerTeam}'s prefix + suffix instead. This mod's code was reading {@code entry.display()}
+     *  (null - Hypixel doesn't set it) falling back to {@code entry.owner()} (the invisible key itself),
+     *  so it could never have matched real text. Confirmed against SkyHanni's own real, working
+     *  {@code ScoreboardCompatKt.getPlayerNames} (decompiled 2026-09-09), which reconstructs each line
+     *  from {@code scoreboard.getPlayersTeam(entry.owner())}'s prefix/suffix - this mirrors that exactly. */
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {
@@ -221,8 +222,29 @@ public final class DungeonState {
         StringBuilder sb = new StringBuilder();
         sb.append(sidebar.getDisplayName().getString()).append('\n');
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
-            sb.append(entry.display() != null ? entry.display().getString() : entry.owner()).append('\n');
+            sb.append(realLineText(scoreboard, entry)).append('\n');
         }
         return sb.toString();
+    }
+
+    /** @return the real visible text for one sidebar line - see {@link #readSidebarText()}'s doc comment
+     *  for why this can't just be {@code entry.display()}/{@code entry.owner()}. Falls back to those only
+     *  if the entry's owner has no registered team at all (shouldn't normally happen on Hypixel, but
+     *  cheaper/safer than returning nothing). */
+    private static String realLineText(Scoreboard scoreboard, PlayerScoreEntry entry) {
+        PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
+        if (team == null) {
+            return entry.display() != null ? entry.display().getString() : entry.owner();
+        }
+        StringBuilder line = new StringBuilder();
+        Component prefix = team.getPlayerPrefix();
+        if (prefix != null) {
+            line.append(prefix.getString());
+        }
+        Component suffix = team.getPlayerSuffix();
+        if (suffix != null) {
+            line.append(suffix.getString());
+        }
+        return line.toString();
     }
 }

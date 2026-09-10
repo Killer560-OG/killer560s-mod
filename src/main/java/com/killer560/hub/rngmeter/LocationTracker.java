@@ -1,9 +1,11 @@
 package com.killer560.hub.rngmeter;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 
 import java.util.Locale;
@@ -50,12 +52,13 @@ public final class LocationTracker {
         return -1;
     }
 
-    // Per killer560's dungeon-detection investigation (2026-09-09, round 13) - DungeonState had the exact
-    // same DisplaySlot.SIDEBAR-only assumption and real logging proved it never actually found Hypixel's
-    // real sidebar objective at all (Hypixel commonly renders it through one of the 15 TEAM_* colored
-    // slots instead, a well-known vanilla scoreboard quirk). This class's own doc already flagged its
-    // keyword matches as "not verified against a live session" - falling back to whichever TEAM_* slot is
-    // actually populated the same way, since without that fallback this likely never worked either.
+    // Real bug found and fixed (2026-09-09, round 22) - see DungeonState#readSidebarText's doc comment
+    // for the full story: killer560's own real F7-clear log proved DisplaySlot.SIDEBAR WAS populated the
+    // whole time (the round-13 "wrong slot" theory here was a red herring), but every line came back as
+    // invisible-color-code garbage - Hypixel's real anti-scraping technique puts the actual visible text
+    // on each entry's registered PlayerTeam prefix/suffix, not on entry.display()/owner() directly. This
+    // class had the identical bug (same copied approach, per its own now-outdated doc note above) - fixed
+    // the same way, confirmed against SkyHanni's own real, working ScoreboardCompatKt.getPlayerNames.
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
@@ -81,8 +84,25 @@ public final class LocationTracker {
         StringBuilder sb = new StringBuilder();
         sb.append(sidebar.getDisplayName().getString()).append('\n');
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
-            sb.append(entry.display() != null ? entry.display().getString() : entry.owner()).append('\n');
+            sb.append(realLineText(scoreboard, entry)).append('\n');
         }
         return sb.toString();
+    }
+
+    private static String realLineText(Scoreboard scoreboard, PlayerScoreEntry entry) {
+        PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
+        if (team == null) {
+            return entry.display() != null ? entry.display().getString() : entry.owner();
+        }
+        StringBuilder line = new StringBuilder();
+        Component prefix = team.getPlayerPrefix();
+        if (prefix != null) {
+            line.append(prefix.getString());
+        }
+        Component suffix = team.getPlayerSuffix();
+        if (suffix != null) {
+            line.append(suffix.getString());
+        }
+        return line.toString();
     }
 }
