@@ -37,6 +37,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -460,6 +462,13 @@ public final class ExperimentsFeature {
     // like garbled/duplicated text. 5 chars (~13-15px) comfortably fits inside one slot, matching how
     // short the XP-amount labels (e.g. "131k") already are.
     private static final int SHORT_LABEL_MAX_CHARS = 5;
+    // Real bug found and fixed (2026-09-09) from killer560's screenshot: the plain "Experience" reward
+    // (a dye-family tile, see isValuablePair's doc) is real-named like "39k Experience" - blind 5-char
+    // truncation chopped that down to "39k E", a stray dangling letter that looked broken/glitched
+    // rather than intentional. These tiles' amount prefix ALONE is exactly as informative as the other
+    // numeric-only labels (e.g. "131k") already shown elsewhere on the board, so this is matched first
+    // and shown as just the amount, skipping the generic truncation entirely for this one case.
+    private static final Pattern XP_AMOUNT_LABEL = Pattern.compile("^([\\d,.]+[kKmM]?)\\s+Experience$");
 
     private static String shortLabel(String name) {
         if (name == null) {
@@ -468,6 +477,10 @@ public final class ExperimentsFeature {
         String stripped = name.replaceAll("§.", "").trim();
         if (stripped.isEmpty()) {
             return null;
+        }
+        Matcher xpMatch = XP_AMOUNT_LABEL.matcher(stripped);
+        if (xpMatch.matches()) {
+            return xpMatch.group(1);
         }
         return stripped.length() > SHORT_LABEL_MAX_CHARS ? stripped.substring(0, SHORT_LABEL_MAX_CHARS) : stripped;
     }
@@ -1104,7 +1117,13 @@ public final class ExperimentsFeature {
         resetRunState();
         if (wasArmed) {
             LOGGER.info("Emergency cancel triggered - autonomous run stopped and reset");
-            ModOverlayMessage.show("§c[Killer560's Mod] Experiment Table automation cancelled", 3000);
+            // Per killer560's request (2026-09-09) - same "chat message, not a popup" treatment the
+            // natural-finish notification already got (see the DONE_SIGNAL branch in tickUnsafe()).
+            var player = Minecraft.getInstance().player;
+            if (player != null) {
+                player.sendSystemMessage(Component.literal(
+                        "§c[Killer560's Mod] Experiment Table automation cancelled"));
+            }
         }
     }
 

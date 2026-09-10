@@ -113,6 +113,17 @@ final class ExperimentSolver {
     /** True for exactly one solve() call right after activating a bonus tile - the next click should
      *  be aimed at the best known target instead of the normal priority order. */
     private boolean superpairsPowerupPending;
+    /** Real bug found and fixed (2026-09-09) from killer560's report of the solver getting stuck
+     *  alternating between the same two slots forever - set to whichever slot was just clicked to
+     *  ACTIVATE a bonus tile (as opposed to a normal reveal/pair-completion click), cleared the instant
+     *  that click's confirm-wait resolves. A powerup tile's own item never visibly changes when
+     *  clicked (it's a persistent activatable button, not a card that flips or disappears), so its
+     *  confirm ALWAYS times out - which used to make {@link #observeSuperpairs}'s timeout-cleanup (see
+     *  round 22's queuedPairSlots fix) free it from {@link #queuedPairSlots} every single time,
+     *  re-exposing the exact same tile as "not yet activated" on the very next scan and clicking it
+     *  again forever. Recording which slot this was lets that cleanup skip freeing it specifically,
+     *  while still freeing genuinely-stuck PAIR-completion clicks like it's meant to. */
+    private Integer superpairsPowerupActivationSlot;
     /** Per killer560's request: scan the grid top-left to bottom-right in a full snake/boustrophedon
      *  pattern (row 1 left-to-right, row 2 right-to-left, and so on) rather than a flat row-major
      *  scan, so pairs get queued in that visible order. */
@@ -633,7 +644,18 @@ final class ExperimentSolver {
                     // every cycle for several seconds straight because Y stayed wrongly reserved. Removing
                     // it here lets the pairing logic reconsider this slot fresh, the same way a timed-out
                     // reveal click already gets retried above.
-                    queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
+                    //
+                    // EXCEPT a bonus-tile ACTIVATION click (see superpairsPowerupActivationSlot's doc
+                    // comment) - real bug found and fixed (2026-09-09) from killer560's report of the
+                    // solver getting stuck alternating between the same two slots forever: a powerup
+                    // tile's own item never visibly changes when clicked, so its confirm ALWAYS times
+                    // out, and freeing it here (like a genuine stuck pair-click) just re-exposed the same
+                    // already-activated tile as "not yet activated" on the very next scan, clicking it
+                    // again forever. Leaving it queued is correct here - the tile's already spent.
+                    if (!superpairsAwaitingConfirmSlot.equals(superpairsPowerupActivationSlot)) {
+                        queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
+                    }
+                    superpairsPowerupActivationSlot = null;
                 }
                 superpairsAwaitingConfirmSlot = null;
                 superpairsAwaitingConfirmPriorCell = null;
@@ -741,6 +763,7 @@ final class ExperimentSolver {
             superpairsPowerupSlot = null;
             superpairsPowerupPending = true;
             queuedPairSlots.add(slot);
+            superpairsPowerupActivationSlot = slot;
             return OptionalInt.of(slot);
         }
 
@@ -944,6 +967,7 @@ final class ExperimentSolver {
         superpairsRevealAttempted.clear();
         superpairsPowerupSlot = null;
         superpairsPowerupPending = false;
+        superpairsPowerupActivationSlot = null;
         superpairsAwaitingConfirmSlot = null;
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;
