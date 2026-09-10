@@ -1,5 +1,6 @@
 package com.killer560.hub.rngmeter;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.DisplaySlot;
@@ -29,7 +30,14 @@ public final class LocationTracker {
         if (sidebar.isEmpty()) {
             return -1;
         }
-        String lower = sidebar.toLowerCase(Locale.US);
+        // Real bug found and fixed (2026-09-09, round 23) - same fix as DungeonState#computeCurrentFloor:
+        // Hypixel embeds literal color codes MID-WORD (e.g. "The Catac§combs"), which broke every one of
+        // these plain substring checks even after the round-22 fix made real text readable at all.
+        String plain = ChatFormatting.stripFormatting(sidebar);
+        if (plain == null) {
+            return -1;
+        }
+        String lower = plain.toLowerCase(Locale.US);
 
         if (lower.contains("master mode")) {
             return 1; // Master Mode

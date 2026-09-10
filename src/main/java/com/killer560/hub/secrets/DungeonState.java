@@ -149,10 +149,18 @@ public final class DungeonState {
      *  scoreboard on every call. */
     private static String computeCurrentFloor() {
         String sidebar = readSidebarText();
-        if (sidebar.isEmpty() || sidebar.contains("Queue")) {
+        if (sidebar.isEmpty()) {
             return null;
         }
-        Matcher matcher = CATACOMBS_FLOOR_PATTERN.matcher(sidebar);
+        // Real bug found and fixed (2026-09-09, round 23) - killer560's own log from AFTER the round-22
+        // fix proved the sidebar text itself was now being read correctly, but Hypixel embeds literal
+        // color codes MID-WORD (e.g. "The Catac§combs §7(F7)"), which the plain CATACOMBS_FLOOR_PATTERN
+        // can't match through. Stripped first, the same way BOSS_START_PATTERN already handles it above.
+        String plain = ChatFormatting.stripFormatting(sidebar);
+        if (plain == null || plain.contains("Queue")) {
+            return null;
+        }
+        Matcher matcher = CATACOMBS_FLOOR_PATTERN.matcher(plain);
         return matcher.find() ? matcher.group(1) : null;
     }
 
