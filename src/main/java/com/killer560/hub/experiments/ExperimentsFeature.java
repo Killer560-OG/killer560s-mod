@@ -462,13 +462,15 @@ public final class ExperimentsFeature {
     // like garbled/duplicated text. 5 chars (~13-15px) comfortably fits inside one slot, matching how
     // short the XP-amount labels (e.g. "131k") already are.
     private static final int SHORT_LABEL_MAX_CHARS = 5;
-    // Real bug found and fixed (2026-09-09) from killer560's screenshot: the plain "Experience" reward
-    // (a dye-family tile, see isValuablePair's doc) is real-named like "39k Experience" - blind 5-char
-    // truncation chopped that down to "39k E", a stray dangling letter that looked broken/glitched
-    // rather than intentional. These tiles' amount prefix ALONE is exactly as informative as the other
-    // numeric-only labels (e.g. "131k") already shown elsewhere on the board, so this is matched first
-    // and shown as just the amount, skipping the generic truncation entirely for this one case.
-    private static final Pattern XP_AMOUNT_LABEL = Pattern.compile("^([\\d,.]+[kKmM]?)\\s+Experience$");
+    // Real bug found and fixed (2026-09-09) from killer560's screenshot: the plain XP reward (a
+    // dye-family tile, see isValuablePair's doc) is real-named like "46k Enchanting Exp" (confirmed
+    // from a real log - NOT "Experience" as first assumed, which is why the first attempt at this fix
+    // still left "46k E" showing up on some tiles) - blind 5-char truncation chopped that down to
+    // "46k E", a stray dangling letter that looked broken/glitched rather than intentional. These
+    // tiles' amount prefix ALONE is exactly as informative as the other numeric-only labels (e.g.
+    // "131k") already shown elsewhere on the board, so this is matched first and shown as just the
+    // amount, skipping the generic truncation entirely for this one case.
+    private static final Pattern XP_AMOUNT_LABEL = Pattern.compile("^([\\d,.]+[kKmM]?)\\s+Enchanting Exp$");
 
     private static String shortLabel(String name) {
         if (name == null) {
