@@ -16,8 +16,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.StainedGlassPaneBlock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,6 +37,8 @@ import java.util.regex.Matcher;
  *  title regexes, item-matching rules, and the Rubix color-cycle math below are all ported from its real
  *  handler classes, not guessed. Ships disabled by default - see {@link TerminalSolverConfig}. */
 public final class TerminalSolverFeature {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoterminal");
 
     private static final int SLOT_SIZE = 16;
 
@@ -149,6 +156,28 @@ public final class TerminalSolverFeature {
     private static boolean hasStabilizedOnce;
     private static List<ItemStack> previousItemsSnapshot = List.of();
 
+    // --- Auto Terminals (2026-09-09) - real auto-clicking, cheat build only. Ported from NoammAddons'
+    // own AutoTerminal (decompiled 2026-09-09), adapted onto this class's existing per-frame solve()
+    // results instead of re-deriving a second copy of the solving logic. See #tickAutoClick. ---
+    private static long lastAutoClickAtMs;
+    private static int lastAutoClickedSlot = -1;
+    // Melody's own real-time state - NOT derived from #currentHighlights (Melody has no solving logic
+    // there, see #solve) - tracked fresh each frame straight from the real lime/magenta marker panes,
+    // the same real mechanic NoammAddons' own MelodyTerminal#onSlotUpdate uses (decompiled 2026-09-09).
+    private static Integer melodyButtonRow;
+    private static Integer melodyCurrentColumn;
+    private static Integer melodyCorrectColumn;
+    private static int lastMelodyClickedRow = -1;
+    private static long lastMelodyClickAtMs;
+    // Lookahead clicks queued by #tickMelodyAutoClick (see TerminalSolverConfig#getMelodyLookaheadClicks)
+    // - each fires once real time reaches its slot, re-validated against the terminal still being open
+    // right before sending (a terminal closing/changing mid-burst must not fire a stray click into
+    // whatever screen replaced it).
+    private record ScheduledMelodyClick(long fireAtMs, int row) {
+    }
+    private static final Deque<ScheduledMelodyClick> scheduledMelodyClicks = new ArrayDeque<>();
+    private static final List<Integer> MELODY_CLAY_SLOTS = List.of(16, 25, 34, 43);
+
     // Public - per killer560's round-13 "my solver overlay still isnt happening on [Termism]" request,
     // TermismPracticeScreen (a different package) reuses this exact record via the public #solve entry
     // point below, instead of re-deriving its own approximation of the real highlight logic.
@@ -175,6 +204,7 @@ public final class TerminalSolverFeature {
             currentHighlights = Map.of();
             wasHoldingCarriedItem = false;
             lastGoodBounds = null;
+            resetAutoClickState();
             return;
         }
         String title = screen.getTitle().getString();
@@ -184,6 +214,7 @@ public final class TerminalSolverFeature {
             currentHighlights = Map.of();
             wasHoldingCarriedItem = false;
             lastGoodBounds = null;
+            resetAutoClickState();
             return;
         }
         if (type != currentType) {
@@ -195,6 +226,7 @@ public final class TerminalSolverFeature {
             rubixTargetColorIndex = -1;
             hasStabilizedOnce = false;
             previousItemsSnapshot = List.of();
+            resetAutoClickState();
         }
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
@@ -224,6 +256,9 @@ public final class TerminalSolverFeature {
             currentHighlights = solve(type, title, items);
         }
         maybeClearAccidentalCarriedItem(screen);
+        if (hasStabilizedOnce) {
+            tickAutoClick(screen, type, items);
+        }
     }
 
     /** @return whether {@code items} contains at least one real, non-filler slot (same "not empty, not a
@@ -263,6 +298,229 @@ public final class TerminalSolverFeature {
             client.gameMode.handleContainerInput(screen.getMenu().containerId, -999, 0, ContainerInput.PICKUP, client.player);
         }
         wasHoldingCarriedItem = holdingNow;
+    }
+
+    private static void resetAutoClickState() {
+        lastAutoClickAtMs = 0;
+        lastAutoClickedSlot = -1;
+        melodyButtonRow = null;
+        melodyCurrentColumn = null;
+        melodyCorrectColumn = null;
+        lastMelodyClickedRow = -1;
+        lastMelodyClickAtMs = 0;
+        scheduledMelodyClicks.clear();
+    }
+
+    /** Auto Terminals - real auto-clicking, cheat build only (see {@link TerminalSolverConfig
+     *  #isAutoTerminalsEnabled}). Melody is handled completely separately ({@link #tickMelodyAutoClick})
+     *  since it has no solved/correct set at all, unlike the other 5 types which all funnel through the
+     *  same {@link #currentHighlights} this class already computes every frame for highlighting - Auto
+     *  Terminals just additionally SENDS a real click for whichever slot that highlight says is next,
+     *  instead of only drawing it. Ported from NoammAddons' own AutoTerminal (decompiled 2026-09-09):
+     *  same {@code ContainerInput.CLONE} no-op click every other type uses, same real left/right
+     *  {@code PICKUP} click Rubix specifically needs. Deliberately does NOT port NoammAddons' own
+     *  predict-then-confirm bookkeeping ({@code TerminalClick.predict}/{@code queuedPairSlots}-style
+     *  tracking) - unnecessary here, since {@link #currentHighlights} is already recomputed FRESH from
+     *  real item state every single frame (not a cached/predicted list), so a slot that's actually been
+     *  clicked simply stops appearing in it on its own the very next frame once Hypixel's response
+     *  arrives - the same self-correcting property {@code refreshState()} already relies on for
+     *  highlighting. */
+    private static void tickAutoClick(ContainerScreen screen, TerminalType type, List<ItemStack> items) {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        if (!cfg.isAutoTerminalsEnabled()) {
+            return;
+        }
+        if (type == TerminalType.MELODY) {
+            if (cfg.isAutoMelodyEnabled()) {
+                tickMelodyAutoClick(screen, items);
+            }
+            return;
+        }
+        if (!isAutoTypeEnabled(type, cfg) || currentHighlights.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastAutoClickAtMs < cfg.getAutoClickDelayMs()) {
+            return;
+        }
+        AutoClickTarget target = pickAutoClickTarget(type);
+        if (target == null) {
+            return;
+        }
+        // Per NoammAddons' own AutoTerminal#autoClick: never blindly re-click the exact same slot two
+        // decisions in a row - Rubix is the one real exception (it genuinely needs several consecutive
+        // clicks on the same pane to cycle it through multiple colors).
+        if (target.slot == lastAutoClickedSlot && type != TerminalType.RUBIX) {
+            return;
+        }
+        lastAutoClickAtMs = now;
+        lastAutoClickedSlot = target.slot;
+        sendTerminalClick(screen, target.slot, target.button, target.clickType);
+    }
+
+    private static boolean isAutoTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
+        return switch (type) {
+            case PANES -> cfg.isAutoPanesEnabled();
+            case RUBIX -> cfg.isAutoRubixEnabled();
+            case NUMBERS -> cfg.isAutoNumbersEnabled();
+            case STARTS_WITH -> cfg.isAutoStartsWithEnabled();
+            case SELECT -> cfg.isAutoSelectEnabled();
+            case MELODY -> cfg.isAutoMelodyEnabled();
+        };
+    }
+
+    private record AutoClickTarget(int slot, int button, ContainerInput clickType) {
+    }
+
+    /** @return which highlighted slot to click next, and how - Numbers must always be the current
+     *  BRIGHT_ORANGE (lowest-count, next-in-order) entry specifically, never the muted "following"
+     *  preview tier; every other type has no ordering constraint, so any highlighted entry is fine.
+     *  Rubix additionally needs the real signed click direction its own label already encodes (see
+     *  {@link #solveRubix}) - reused here rather than re-deriving it, the same "-" prefix check
+     *  {@link #handleCustomGuiClick} already uses for its own manual-click redirect. */
+    private static AutoClickTarget pickAutoClickTarget(TerminalType type) {
+        if (type == TerminalType.NUMBERS) {
+            for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
+                if (entry.getValue().color() == BRIGHT_ORANGE) {
+                    return new AutoClickTarget(entry.getKey(), 0, ContainerInput.CLONE);
+                }
+            }
+            return null;
+        }
+        Map.Entry<Integer, SlotHighlight> first = currentHighlights.entrySet().iterator().next();
+        if (type == TerminalType.RUBIX) {
+            boolean needsRightClick = first.getValue().label() != null && first.getValue().label().startsWith("-");
+            return new AutoClickTarget(first.getKey(), needsRightClick ? 1 : 0, ContainerInput.PICKUP);
+        }
+        return new AutoClickTarget(first.getKey(), 0, ContainerInput.CLONE);
+    }
+
+    /** Sends one real click for {@code slot} the same way {@link #handleCustomGuiClick} already does for
+     *  a real mouse click landing on a Custom GUI cell - reusing {@link SlotClickInvoker} rather than
+     *  {@code MultiPlayerGameMode.handleContainerInput} directly keeps this on the exact same real code
+     *  path a genuine click already takes (sound effects, carried-item bookkeeping included), regardless
+     *  of whether Custom GUI mode happens to be on right now. */
+    private static void sendTerminalClick(ContainerScreen screen, int slotIndex, int button, ContainerInput clickType) {
+        List<Slot> slots = screen.getMenu().slots;
+        if (slotIndex < 0 || slotIndex >= slots.size()) {
+            return;
+        }
+        Slot slot = slots.get(slotIndex);
+        ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+        if (clickType == ContainerInput.PICKUP) {
+            // Same real-click carried-item flash Rubix's own manual click path already guards against
+            // (see #handleCustomGuiClick's matching comment) - a real PICKUP predicts the pickup locally
+            // and synchronously as part of the call above, before any server round-trip.
+            screen.getMenu().setCarried(ItemStack.EMPTY);
+        }
+        LOGGER.info("Auto-clicked slot {} (button={}, type={})", slotIndex, button, clickType);
+    }
+
+    /** Melody's real-time auto-click - NOT driven by {@link #currentHighlights}/{@link #solve} at all
+     *  (Melody has no solved/correct set - see that method's own doc). Ported from NoammAddons' own
+     *  {@code MelodyTerminal#onSlotUpdate}/{@code AutoTerminal}'s Melody-specific click logic (both
+     *  decompiled 2026-09-09), adapted from their per-slot-update-PACKET trigger onto this class's own
+     *  per-FRAME full-rescan model: every frame, finds whichever slot currently holds the real moving
+     *  lime-pane indicator and whichever slot holds the real magenta "target" marker pane (there's always
+     *  at most one of each on a real board) and derives:
+     *  <ul>
+     *  <li>{@code buttonRow} (0-3) - which of the 4 button rows the indicator is currently on, from the
+     *  lime slot's own row (real formula confirmed via decompile: {@code limeSlot/9 - 1}).
+     *  <li>{@code current} - the indicator's column position within that row ({@code limeSlot%9 - 1}).
+     *  <li>{@code correct} - the target column ({@code magentaSlot - 1}), kept from the last frame a
+     *  magenta pane was actually found if it isn't visible this exact frame.
+     *  </ul>
+     *  When {@code current == correct}, the real clickable button for that row (confirmed real slots:
+     *  16/25/34/43, one per row, matching {@code buttonRow*9+16}) is clicked - guarded against re-firing
+     *  for the same row twice in a row (matching NoammAddons' own {@code lastClickedSlot} + 250ms cooldown
+     *  pair) since a real match can stay true for several consecutive frames before the indicator moves
+     *  on. See {@link #queueMelodyLookaheadClicks} for the optional "click ahead" burst on top of this. */
+    private static void tickMelodyAutoClick(ContainerScreen screen, List<ItemStack> items) {
+        fireDueMelodyLookaheadClicks(screen);
+
+        Integer limeSlot = null;
+        Integer magentaSlot = null;
+        for (int i = 0; i < items.size(); i++) {
+            var itemType = items.get(i).getItem();
+            if (itemType == Items.LIME_STAINED_GLASS_PANE) {
+                limeSlot = i;
+            } else if (itemType == Items.MAGENTA_STAINED_GLASS_PANE) {
+                magentaSlot = i;
+            }
+        }
+        if (limeSlot != null) {
+            melodyButtonRow = (int) Math.floor(limeSlot / 9.0) - 1;
+            melodyCurrentColumn = limeSlot % 9 - 1;
+        }
+        if (magentaSlot != null) {
+            melodyCorrectColumn = magentaSlot - 1;
+        }
+        if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
+            return;
+        }
+        int buttonRow = melodyButtonRow;
+        if (buttonRow < 0 || buttonRow >= MELODY_CLAY_SLOTS.size()) {
+            return;
+        }
+        if (!melodyCurrentColumn.equals(melodyCorrectColumn)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (buttonRow == lastMelodyClickedRow && now - lastMelodyClickAtMs < 250) {
+            return;
+        }
+        lastMelodyClickedRow = buttonRow;
+        lastMelodyClickAtMs = now;
+        sendTerminalClick(screen, MELODY_CLAY_SLOTS.get(buttonRow), 0, ContainerInput.CLONE);
+        queueMelodyLookaheadClicks(buttonRow);
+    }
+
+    /** Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks...
+     *  0-4 max" - a real match at {@code matchedRow} gambles that the SAME column stays correct for
+     *  however many of the remaining rows {@link TerminalSolverConfig#getMelodyLookaheadClicks} asks
+     *  for, clicking them ahead of time instead of waiting for the indicator to actually reach each one.
+     *  0/1 (default) means no lookahead at all. Mirrors NoammAddons' own scheduled per-row delay (~1
+     *  tick/50ms further out per additional row) - re-validated against the terminal still being the
+     *  current Melody handler right before each one actually fires (see
+     *  {@link #fireDueMelodyLookaheadClicks}), since the real board can close or change mid-burst. */
+    private static void queueMelodyLookaheadClicks(int matchedRow) {
+        int lookahead = TerminalSolverConfig.getInstance().getMelodyLookaheadClicks();
+        if (lookahead <= 1) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        int extraRows = Math.min(lookahead - 1, MELODY_CLAY_SLOTS.size() - 1 - matchedRow);
+        for (int i = 1; i <= extraRows; i++) {
+            scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
+        }
+    }
+
+    private static void fireDueMelodyLookaheadClicks(ContainerScreen screen) {
+        if (scheduledMelodyClicks.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
+            ScheduledMelodyClick due = scheduledMelodyClicks.pollFirst();
+            if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= MELODY_CLAY_SLOTS.size()) {
+                continue;
+            }
+            lastMelodyClickedRow = due.row();
+            lastMelodyClickAtMs = now;
+            sendTerminalClick(screen, MELODY_CLAY_SLOTS.get(due.row()), 0, ContainerInput.CLONE);
+        }
+    }
+
+    /** @return whether real mouse/keyboard input to the terminal screen should be swallowed right now -
+     *  per killer560's explicit "add a toggle on by default" (2026-09-09), same real risk
+     *  ExperimentsFeature's own Block Input protects against: a stray manual click/keypress landing
+     *  mid-auto-click could otherwise fight the bot (e.g. a manual Rubix click in the wrong direction
+     *  undoing an auto-click's own progress). Only ever true while Auto Terminals is actually clicking
+     *  for the current type - never blocks input for a type that's only being highlighted, not clicked. */
+    public static boolean shouldBlockInput() {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        return currentType != null && cfg.isAutoTerminalsEnabled() && cfg.isBlockInputWhileAutoClicking()
+                && isAutoTypeEnabled(currentType, cfg);
     }
 
     /** @return whether the given real slot index should be hidden right now - true for every type,
