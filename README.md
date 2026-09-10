@@ -2,7 +2,7 @@
 
 A Fabric client mod for Hypixel Skyblock (Minecraft 26.1.2). Built as a personal quality-of-life toolkit that grew into something friends can use too.
 
-See [ROADMAP.md](ROADMAP.md) for what's planned next.
+See the #roadmap channel in the [Discord server](https://discord.gg/hkQMF5fE84) for what's planned next.
 
 [![Discord](https://img.shields.io/discord/1546630783970713665?label=Discord&logo=discord&color=9B59B6)](https://discord.gg/hkQMF5fE84)
 
