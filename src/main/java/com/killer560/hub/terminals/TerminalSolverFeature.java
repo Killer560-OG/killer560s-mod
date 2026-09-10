@@ -154,6 +154,18 @@ public final class TerminalSolverFeature {
     // self-adapts to however long the real population actually takes, as fast as truly possible, with no
     // constant to keep re-tuning.
     private static boolean hasStabilizedOnce;
+    // Real bug found and fixed (2026-09-10, round 31) per killer560's "sometimes it will not click for a
+    // few seconds then go through and click" report: a real log showed Hypixel sending TWO "Screen
+    // opened" packets back to back the instant a terminal first activates (a real double-open, not a
+    // client-side artifact) - and hasStabilizedOnce can flip true fast enough (real item data often
+    // arrives already complete) that Auto Terminals' very first click for that terminal can land in the
+    // split second between those two opens, get sent against a container id that's about to be replaced,
+    // and get silently dropped by the server. The round 30 same-slot retry timeout recovers from this
+    // (so it's no longer a permanent stall), but recovering still means a visible ~1.5s pause. This adds
+    // a short extra settle window, timed from the moment hasStabilizedOnce itself flips true, so the
+    // FIRST click of a freshly-opened terminal waits out that reopen window instead of racing it.
+    private static long stabilizedAtMs;
+    private static final long INITIAL_CLICK_SETTLE_MS = 500;
     private static List<ItemStack> previousItemsSnapshot = List.of();
 
     // --- Auto Terminals (2026-09-09) - real auto-clicking, cheat build only. Ported from NoammAddons'
@@ -250,6 +262,7 @@ public final class TerminalSolverFeature {
             boolean realContent = hasRealContent(items);
             if (realContent && ItemStack.listMatches(items, previousItemsSnapshot)) {
                 hasStabilizedOnce = true;
+                stabilizedAtMs = System.currentTimeMillis();
             }
             previousItemsSnapshot = realContent ? List.copyOf(items) : List.of();
         }
@@ -344,6 +357,11 @@ public final class TerminalSolverFeature {
     private static void tickAutoClick(ContainerScreen screen, TerminalType type, List<ItemStack> items) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         if (!cfg.isAutoTerminalsEnabled()) {
+            return;
+        }
+        if (System.currentTimeMillis() - stabilizedAtMs < INITIAL_CLICK_SETTLE_MS) {
+            // Round 31 - see stabilizedAtMs's own doc. Lets a freshly-opened terminal's real double-open
+            // finish before this class ever attempts its first click against it.
             return;
         }
         if (type == TerminalType.MELODY) {
