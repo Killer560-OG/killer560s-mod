@@ -495,8 +495,14 @@ public final class TerminalSolverFeature {
                 targetSlot = i;
             }
         }
+        // Real bug found and fixed (2026-09-09, round 29), confirmed from a real log: currentColumn is
+        // correctly reduced to a same-row column via `% 9`, but this line used to be `targetSlot - 1`
+        // with NO modulo - an absolute slot index across the whole (up to 54-slot) board, not a column.
+        // The two could only ever match by pure coincidence (row 0's absolute slots 0-8 happen to already
+        // be small numbers), which is exactly why only row 0 ever fired a click and every other row's
+        // comparison was comparing a real column (0-7) against a nonsense number like 48 or 49.
         if (targetSlot != null) {
-            melodyCorrectColumn = targetSlot - 1;
+            melodyCorrectColumn = targetSlot % 9 - 1;
         }
         if (limeSlot != null) {
             Integer previousRow = melodyButtonRow;
