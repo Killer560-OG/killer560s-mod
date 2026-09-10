@@ -381,7 +381,13 @@ public class TermismPracticeScreen extends Screen {
         Collections.shuffle(distractors, random);
 
         int startsWithGridSize = columns * 3;
-        int matchCount = Math.min(2 + random.nextInt(3), matches.size());
+        // Per killer560's "make sure panes startswith and select all have the max available as an
+        // option" request (2026-09-10) - same treatment Panes got in round 33: the ceiling is the whole
+        // grid (matchCount could fill every cell if the pool has enough same-letter items, distractors
+        // simply fill whatever's left), not an arbitrary small cap. Math.min against matches.size() still
+        // protects against asking for more real matches than the pool actually has for this letter.
+        // Max of two rolls keeps the "tends toward the higher end" bias from round 32/33.
+        int matchCount = Math.min(2 + Math.max(random.nextInt(startsWithGridSize - 1), random.nextInt(startsWithGridSize - 1)), matches.size());
         List<NamedItem> chosenMatches = new ArrayList<>(matches.subList(0, matchCount));
         int distractorCount = Math.min(startsWithGridSize - matchCount, distractors.size());
         List<NamedItem> chosenDistractors = new ArrayList<>(distractors.subList(0, distractorCount));
@@ -411,7 +417,13 @@ public class TermismPracticeScreen extends Screen {
         distractorPool.remove(target);
         Collections.shuffle(distractorPool, random);
 
-        int matchCount = 2 + random.nextInt(3);
+        // Per killer560's "make sure panes startswith and select all have the max available as an
+        // option" request (2026-09-10) - same treatment as Panes (round 33) and Starts With above: the
+        // ceiling is the whole grid, since matchCount just repeats the target color and distractors fill
+        // whatever's left (a board that's entirely the target color is a valid puzzle). Explicit
+        // Math.min against gridSize keeps distractorCount below from ever going negative. Max of two
+        // rolls keeps the "tends toward the higher end" bias from round 32/33.
+        int matchCount = Math.min(2 + Math.max(random.nextInt(gridSize - 1), random.nextInt(gridSize - 1)), gridSize);
         List<ItemStack> combined = new ArrayList<>();
         for (int i = 0; i < matchCount; i++) {
             combined.add(namedStack(target.texture(), target.name()));
