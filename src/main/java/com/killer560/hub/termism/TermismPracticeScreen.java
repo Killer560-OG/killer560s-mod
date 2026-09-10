@@ -97,7 +97,25 @@ public class TermismPracticeScreen extends Screen {
             new NamedItem("Kelp", Items.KELP), new NamedItem("Ice", Items.ICE),
             new NamedItem("Obsidian", Items.OBSIDIAN), new NamedItem("Apple", Items.APPLE),
             new NamedItem("Arrow", Items.ARROW), new NamedItem("Gunpowder", Items.GUNPOWDER),
-            new NamedItem("Vine", Items.VINE), new NamedItem("Web", Items.COBWEB)
+            new NamedItem("Vine", Items.VINE), new NamedItem("Web", Items.COBWEB),
+            // Round 35 (2026-09-10) additions, per killer560's "starts with is continually loading with
+            // near 0 amounts of panes still" report: raising matchCount's ceiling (round 34) didn't
+            // actually help because it's clamped by matches.size() - how many pool items share the
+            // chosen letter - and 10 of the 19 letters above only had exactly ONE item each (T, D, R, Q,
+            // K, I, O, G, V, W), forcing matchCount down to 1 on roughly a quarter of all rolls no matter
+            // how high the ceiling went. These fill out the sparsest letters so a high roll actually has
+            // enough real items available to be realized.
+            new NamedItem("Fishing Rod", Items.FISHING_ROD), new NamedItem("Ender Pearl", Items.ENDER_PEARL),
+            new NamedItem("Leather", Items.LEATHER), new NamedItem("Lava Bucket", Items.LAVA_BUCKET),
+            new NamedItem("Pufferfish", Items.PUFFERFISH), new NamedItem("Milk Bucket", Items.MILK_BUCKET),
+            new NamedItem("Anvil", Items.ANVIL),
+            new NamedItem("TNT", Items.TNT), new NamedItem("Trident", Items.TRIDENT),
+            new NamedItem("Diamond Sword", Items.DIAMOND_SWORD), new NamedItem("Diamond Pickaxe", Items.DIAMOND_PICKAXE),
+            new NamedItem("Rail", Items.RAIL), new NamedItem("Rabbit", Items.RABBIT),
+            new NamedItem("Iron Ingot", Items.IRON_INGOT), new NamedItem("Ink Sac", Items.INK_SAC),
+            new NamedItem("Orange Dye", Items.ORANGE_DYE),
+            new NamedItem("Golden Apple", Items.GOLDEN_APPLE), new NamedItem("Glowstone Dust", Items.GLOWSTONE_DUST),
+            new NamedItem("Wheat", Items.WHEAT), new NamedItem("Water Bucket", Items.WATER_BUCKET)
     );
 
     private record ColorAlias(DyeColor color, String name, Item texture) {
