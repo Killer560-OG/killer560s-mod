@@ -9,6 +9,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Random;
 
 /** Persisted Terminal Solver settings - see {@link TerminalSolverFeature}. Ships disabled by default,
  *  same as every other new feature added going forward per killer560's standing instruction. Each
@@ -28,6 +29,7 @@ public final class TerminalSolverConfig {
     public static final int MIN_MELODY_LOOKAHEAD = 0;
     public static final int MAX_MELODY_LOOKAHEAD = 4;
 
+    private static final Random RANDOM = new Random();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-terminalsolver.json");
@@ -63,9 +65,12 @@ public final class TerminalSolverConfig {
     private boolean autoStartsWithEnabled = false;
     private boolean autoSelectEnabled = false;
     private boolean autoMelodyEnabled = false;
-    // Matches NoammAddons' own default (150ms) and range (80-500ms) - proven safe/fast for a real
-    // time-limited terminal room.
-    private int autoClickDelayMs = 150;
+    // Per killer560's explicit "give it a min and max delay and randomly pick between the two" request
+    // (2026-09-09) - matches NoammAddons' own real Random Delay feature (min/max, picks a fresh random
+    // value in that range per click) rather than one fixed interval. Defaults match NoammAddons' own
+    // proven-safe range.
+    private int autoClickMinDelayMs = 120;
+    private int autoClickMaxDelayMs = 200;
     // Per killer560's explicit "add a toggle on by default" (2026-09-09) - a stray real click/keypress
     // while the bot is mid-click could otherwise fight it, same real risk ExperimentsConfig's own
     // Block Input toggle protects against (that one defaults off; this one defaults ON per killer560's
@@ -116,8 +121,10 @@ public final class TerminalSolverConfig {
             cfg.autoStartsWithEnabled = obj.has("autoStartsWithEnabled") && obj.get("autoStartsWithEnabled").getAsBoolean();
             cfg.autoSelectEnabled = obj.has("autoSelectEnabled") && obj.get("autoSelectEnabled").getAsBoolean();
             cfg.autoMelodyEnabled = obj.has("autoMelodyEnabled") && obj.get("autoMelodyEnabled").getAsBoolean();
-            cfg.autoClickDelayMs = obj.has("autoClickDelayMs")
-                    ? clampAutoClickDelay(obj.get("autoClickDelayMs").getAsInt()) : 150;
+            cfg.autoClickMinDelayMs = obj.has("autoClickMinDelayMs")
+                    ? clampAutoClickDelay(obj.get("autoClickMinDelayMs").getAsInt()) : 120;
+            cfg.autoClickMaxDelayMs = obj.has("autoClickMaxDelayMs")
+                    ? clampAutoClickDelay(obj.get("autoClickMaxDelayMs").getAsInt()) : 200;
             cfg.blockInputWhileAutoClicking = !obj.has("blockInputWhileAutoClicking")
                     || obj.get("blockInputWhileAutoClicking").getAsBoolean();
             cfg.melodyLookaheadClicks = obj.has("melodyLookaheadClicks")
@@ -149,7 +156,8 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoStartsWithEnabled", autoStartsWithEnabled);
             obj.addProperty("autoSelectEnabled", autoSelectEnabled);
             obj.addProperty("autoMelodyEnabled", autoMelodyEnabled);
-            obj.addProperty("autoClickDelayMs", autoClickDelayMs);
+            obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
+            obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -308,12 +316,39 @@ public final class TerminalSolverConfig {
         this.autoMelodyEnabled = autoMelodyEnabled;
     }
 
-    public int getAutoClickDelayMs() {
-        return autoClickDelayMs;
+    public int getAutoClickMinDelayMs() {
+        return autoClickMinDelayMs;
     }
 
-    public void setAutoClickDelayMs(int autoClickDelayMs) {
-        this.autoClickDelayMs = clampAutoClickDelay(autoClickDelayMs);
+    /** Keeps min &lt;= max by clamping the OTHER bound too if this push would cross it - a slider that
+     *  can only ever move one bound at a time otherwise has no way to stop min from being dragged past
+     *  whatever max currently is (or vice versa). */
+    public void setAutoClickMinDelayMs(int autoClickMinDelayMs) {
+        this.autoClickMinDelayMs = clampAutoClickDelay(autoClickMinDelayMs);
+        if (this.autoClickMinDelayMs > this.autoClickMaxDelayMs) {
+            this.autoClickMaxDelayMs = this.autoClickMinDelayMs;
+        }
+    }
+
+    public int getAutoClickMaxDelayMs() {
+        return autoClickMaxDelayMs;
+    }
+
+    public void setAutoClickMaxDelayMs(int autoClickMaxDelayMs) {
+        this.autoClickMaxDelayMs = clampAutoClickDelay(autoClickMaxDelayMs);
+        if (this.autoClickMaxDelayMs < this.autoClickMinDelayMs) {
+            this.autoClickMinDelayMs = this.autoClickMaxDelayMs;
+        }
+    }
+
+    /** @return a fresh random delay in [min, max] - per killer560's explicit "randomly pick between the
+     *  two" request, a new value each time this is called (i.e. once per click), not a value fixed for
+     *  the whole session. */
+    public int rollAutoClickDelayMs() {
+        if (autoClickMinDelayMs >= autoClickMaxDelayMs) {
+            return autoClickMinDelayMs;
+        }
+        return autoClickMinDelayMs + RANDOM.nextInt(autoClickMaxDelayMs - autoClickMinDelayMs + 1);
     }
 
     public boolean isBlockInputWhileAutoClicking() {

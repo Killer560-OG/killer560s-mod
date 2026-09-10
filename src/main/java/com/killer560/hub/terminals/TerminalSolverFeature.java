@@ -159,7 +159,12 @@ public final class TerminalSolverFeature {
     // --- Auto Terminals (2026-09-09) - real auto-clicking, cheat build only. Ported from NoammAddons'
     // own AutoTerminal (decompiled 2026-09-09), adapted onto this class's existing per-frame solve()
     // results instead of re-deriving a second copy of the solving logic. See #tickAutoClick. ---
-    private static long lastAutoClickAtMs;
+    // Per killer560's explicit "give it a min and max delay and randomly pick between the two" request
+    // (2026-09-09) - a fresh random delay in [min, max] is rolled once right after each click fires (see
+    // TerminalSolverConfig#rollAutoClickDelayMs), stored here as the actual next-eligible timestamp
+    // rather than re-rolling the threshold on every single gate check (which would make the gate itself
+    // jitter frame to frame instead of the delay just varying click to click).
+    private static long nextAutoClickAllowedAtMs;
     private static int lastAutoClickedSlot = -1;
     // Melody's own real-time state - NOT derived from #currentHighlights (Melody has no solving logic
     // there, see #solve) - tracked fresh each frame straight from the real lime/magenta marker panes,
@@ -301,7 +306,7 @@ public final class TerminalSolverFeature {
     }
 
     private static void resetAutoClickState() {
-        lastAutoClickAtMs = 0;
+        nextAutoClickAllowedAtMs = 0;
         lastAutoClickedSlot = -1;
         melodyButtonRow = null;
         melodyCurrentColumn = null;
@@ -336,29 +341,52 @@ public final class TerminalSolverFeature {
             }
             return;
         }
-        if (!isAutoTypeEnabled(type, cfg) || currentHighlights.isEmpty()) {
+        if (!isAutoTypeEnabled(type, cfg)) {
+            return;
+        }
+        if (currentHighlights.isEmpty()) {
+            // Diagnostic (2026-09-09) per killer560's report "sometimes it is actually auto solving
+            // them but a lot of the time it isnt" - couldn't find a concrete bug re-reading this logic
+            // alone, so this logs the exact reason auto-click didn't fire this cycle instead of
+            // guessing at a fix. Throttled to once per second (not every frame) to stay readable.
+            logAutoClickSkipThrottled(type, "no highlighted slots from solve() right now");
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - lastAutoClickAtMs < cfg.getAutoClickDelayMs()) {
+        if (now < nextAutoClickAllowedAtMs) {
             return;
         }
-        AutoClickTarget target = pickAutoClickTarget(type);
+        AutoClickTarget target = pickAutoClickTarget(type, currentHighlights);
         if (target == null) {
+            logAutoClickSkipThrottled(type, "pickAutoClickTarget returned null (highlights present but no valid target)");
             return;
         }
         // Per NoammAddons' own AutoTerminal#autoClick: never blindly re-click the exact same slot two
         // decisions in a row - Rubix is the one real exception (it genuinely needs several consecutive
         // clicks on the same pane to cycle it through multiple colors).
-        if (target.slot == lastAutoClickedSlot && type != TerminalType.RUBIX) {
+        if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX) {
+            logAutoClickSkipThrottled(type, "target slot " + target.slot() + " is the same as last click - waiting for it to clear");
             return;
         }
-        lastAutoClickAtMs = now;
-        lastAutoClickedSlot = target.slot;
-        sendTerminalClick(screen, target.slot, target.button, target.clickType);
+        nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
+        lastAutoClickedSlot = target.slot();
+        sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
     }
 
-    private static boolean isAutoTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
+    private static TerminalType lastLoggedSkipType;
+    private static long lastLoggedSkipAtMs;
+
+    private static void logAutoClickSkipThrottled(TerminalType type, String reason) {
+        long now = System.currentTimeMillis();
+        if (type == lastLoggedSkipType && now - lastLoggedSkipAtMs < 1000) {
+            return;
+        }
+        lastLoggedSkipType = type;
+        lastLoggedSkipAtMs = now;
+        LOGGER.info("Auto Terminals ({}) not clicking: {}", type, reason);
+    }
+
+    public static boolean isAutoTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
         return switch (type) {
             case PANES -> cfg.isAutoPanesEnabled();
             case RUBIX -> cfg.isAutoRubixEnabled();
@@ -369,7 +397,11 @@ public final class TerminalSolverFeature {
         };
     }
 
-    private record AutoClickTarget(int slot, int button, ContainerInput clickType) {
+    /** Public - {@link com.killer560.hub.termism.TermismPracticeScreen} reuses this (2026-09-09, per
+     *  killer560's "also make it work in termism" request) to drive auto-clicking against its own
+     *  locally-computed {@link #solve} result, the same way it already reuses {@link #solve} itself for
+     *  its Custom GUI overlay. */
+    public record AutoClickTarget(int slot, int button, ContainerInput clickType) {
     }
 
     /** @return which highlighted slot to click next, and how - Numbers must always be the current
@@ -377,17 +409,19 @@ public final class TerminalSolverFeature {
      *  preview tier; every other type has no ordering constraint, so any highlighted entry is fine.
      *  Rubix additionally needs the real signed click direction its own label already encodes (see
      *  {@link #solveRubix}) - reused here rather than re-deriving it, the same "-" prefix check
-     *  {@link #handleCustomGuiClick} already uses for its own manual-click redirect. */
-    private static AutoClickTarget pickAutoClickTarget(TerminalType type) {
+     *  {@link #handleCustomGuiClick} already uses for its own manual-click redirect. Public and
+     *  parameterized (rather than reading {@link #currentHighlights} directly) so Termism can pass its
+     *  own board's highlights through the identical decision logic. */
+    public static AutoClickTarget pickAutoClickTarget(TerminalType type, Map<Integer, SlotHighlight> highlights) {
         if (type == TerminalType.NUMBERS) {
-            for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
+            for (Map.Entry<Integer, SlotHighlight> entry : highlights.entrySet()) {
                 if (entry.getValue().color() == BRIGHT_ORANGE) {
                     return new AutoClickTarget(entry.getKey(), 0, ContainerInput.CLONE);
                 }
             }
             return null;
         }
-        Map.Entry<Integer, SlotHighlight> first = currentHighlights.entrySet().iterator().next();
+        Map.Entry<Integer, SlotHighlight> first = highlights.entrySet().iterator().next();
         if (type == TerminalType.RUBIX) {
             boolean needsRightClick = first.getValue().label() != null && first.getValue().label().startsWith("-");
             return new AutoClickTarget(first.getKey(), needsRightClick ? 1 : 0, ContainerInput.PICKUP);
@@ -449,8 +483,19 @@ public final class TerminalSolverFeature {
             }
         }
         if (limeSlot != null) {
+            Integer previousRow = melodyButtonRow;
             melodyButtonRow = (int) Math.floor(limeSlot / 9.0) - 1;
             melodyCurrentColumn = limeSlot % 9 - 1;
+            // Diagnostic (2026-09-09) per killer560's report "for melody it only does the first click if
+            // its in first row no other ones" - couldn't confirm a concrete bug re-reading this logic
+            // alone (the formula matches NoammAddons' own decompiled onSlotUpdate exactly), so this logs
+            // every time the indicator's own row changes, to show definitively in the next real log
+            // whether rows 1-3 ever actually get reached/evaluated at all, and if so, whether their
+            // current/correct values look sane at that point.
+            if (!melodyButtonRow.equals(previousRow)) {
+                LOGGER.info("Melody row changed: {} -> {} (limeSlot={}, magentaSlot={}, currentColumn={}, correctColumn={})",
+                        previousRow, melodyButtonRow, limeSlot, magentaSlot, melodyCurrentColumn, melodyCorrectColumn);
+            }
         }
         if (magentaSlot != null) {
             melodyCorrectColumn = magentaSlot - 1;

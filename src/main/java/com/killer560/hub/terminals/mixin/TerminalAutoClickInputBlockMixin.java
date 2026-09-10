@@ -4,6 +4,7 @@ import com.killer560.hub.terminals.TerminalSolverFeature;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -50,6 +51,14 @@ public abstract class TerminalAutoClickInputBlockMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        // Per killer560's explicit "I should still be able to press escape while in terminals even if
+        // it blocks my other keys" (2026-09-09) - matches NoammAddons' own real precedent too (its
+        // AutoTerminal exempts both Escape and the player's own Inventory keybind from this exact same
+        // kind of input block), so closing/backing out of the menu is never trapped behind Auto
+        // Terminals' input block.
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            return;
+        }
         if (TerminalSolverFeature.shouldBlockInput()) {
             cir.setReturnValue(true);
         }

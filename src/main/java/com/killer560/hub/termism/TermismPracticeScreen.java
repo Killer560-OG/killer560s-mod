@@ -139,6 +139,18 @@ public class TermismPracticeScreen extends Screen {
     private int melodyCurrentRow;
     private long melodyLastMoveAtMs;
 
+    // Auto Terminals in Termism (2026-09-09) - per killer560's explicit "also make it work in termism"
+    // request, cheat build only (see TerminalSolverConfig#isAutoTerminalsEnabled). Only ever active
+    // while Custom GUI is also on (see #customGuiOn) - Custom GUI OFF is deliberately "practice reading
+    // it yourself" mode (see this class's own top doc), so auto-clicking there would defeat the whole
+    // point. Reuses TerminalSolverFeature's own #pickAutoClickTarget decision logic against THIS
+    // screen's own locally-computed highlights (same #solve call #renderSolverOverlay already makes),
+    // exactly the way this screen already reuses #solve itself for that overlay.
+    private long nextAutoClickAllowedAtMs;
+    private int lastAutoClickedSlot = -1;
+    private int lastMelodyAutoClickedRow = -1;
+    private long lastMelodyAutoClickAtMs;
+
     private int gridOriginX;
     private int gridOriginY;
 
@@ -169,6 +181,12 @@ public class TermismPracticeScreen extends Screen {
         // scoped to any one board - clear it so a fresh practice puzzle never inherits a stale target
         // left over from a real terminal or a previous practice round.
         TerminalSolverFeature.resetRubixTarget();
+        // Same reasoning for Auto Terminals' own re-click guards (2026-09-09) - a fresh puzzle must not
+        // inherit "already clicked this slot" state from whatever board was showing before it.
+        nextAutoClickAllowedAtMs = 0;
+        lastAutoClickedSlot = -1;
+        lastMelodyAutoClickedRow = -1;
+        lastMelodyAutoClickAtMs = 0;
         switch (type) {
             case PANES -> generatePanes();
             case RUBIX -> generateRubix();
@@ -239,6 +257,59 @@ public class TermismPracticeScreen extends Screen {
             melodyLimeDirection *= -1;
         }
         rebuildMelodyCells();
+    }
+
+    /** See the doc comment on {@link #nextAutoClickAllowedAtMs} - only ever runs with Custom GUI on. */
+    private void tickAutoClick() {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        if (!cfg.isAutoTerminalsEnabled() || !customGuiOn() || solved) {
+            return;
+        }
+        if (type == TerminalType.MELODY) {
+            if (cfg.isAutoMelodyEnabled()) {
+                tickMelodyAutoClick();
+            }
+            return;
+        }
+        if (!TerminalSolverFeature.isAutoTypeEnabled(type, cfg)) {
+            return;
+        }
+        Map<Integer, TerminalSolverFeature.SlotHighlight> highlights =
+                TerminalSolverFeature.solve(type, syntheticTitle(), cells);
+        if (highlights.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now < nextAutoClickAllowedAtMs) {
+            return;
+        }
+        TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, highlights);
+        if (target == null) {
+            return;
+        }
+        if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX) {
+            return;
+        }
+        nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
+        lastAutoClickedSlot = target.slot();
+        handleCellClick(target.slot(), target.button() == 0);
+    }
+
+    /** Termism's own Melody simulation already tracks the exact ground-truth state
+     *  ({@link #melodyLimeColumn}/{@link #melodyMagentaColumn}/{@link #melodyCurrentRow}) directly - no
+     *  need to re-derive it by scanning cell items the way {@code TerminalSolverFeature}'s real-terminal
+     *  version has to (this screen isn't a real container, just a plain local simulation). */
+    private void tickMelodyAutoClick() {
+        if (melodyLimeColumn != melodyMagentaColumn) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (melodyCurrentRow == lastMelodyAutoClickedRow && now - lastMelodyAutoClickAtMs < 250) {
+            return;
+        }
+        lastMelodyAutoClickedRow = melodyCurrentRow;
+        lastMelodyAutoClickAtMs = now;
+        handleCellClick(melodyCurrentRow * columns + MELODY_BUTTON_COLUMN, true);
     }
 
     private void generatePanes() {
@@ -463,6 +534,7 @@ public class TermismPracticeScreen extends Screen {
         if (type == TerminalType.MELODY) {
             updateMelodyAnimation();
         }
+        tickAutoClick();
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
 
         boolean customGui = customGuiOn();
