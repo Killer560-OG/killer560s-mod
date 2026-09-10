@@ -193,4 +193,25 @@ public final class ProxyConfig {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
+
+    /** Per killer560's "add a button to set a proxy by account... whenever i swap to that account it
+     *  should auto swap to that proxy" request (2026-09-10), with his explicit choice that swapping to
+     *  an account with no saved proxy should turn the active proxy OFF rather than leave whatever was
+     *  active before - so {@code profile == null} always disables, never just leaves things alone.
+     *  Called from {@code AccountSwitcherScreen#onAccountSelected} right after a successful swap. */
+    public void applyAccountProfile(AccountProxyProfile profile) {
+        if (profile == null) {
+            this.enabled = false;
+            this.host = "";
+            save();
+            return;
+        }
+        this.type = profile.getType();
+        this.host = profile.getHost();
+        this.port = profile.getPort();
+        this.username = profile.getUsername();
+        this.password = profile.getPassword();
+        this.enabled = hasValidAddress();
+        save();
+    }
 }

@@ -44,7 +44,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Fullbright — see clearly in dark areas without touching your real brightness setting
 
 **Accounts**
-- Account Switcher — swap between your saved Microsoft accounts from the main menu, with each one's Hypixel ban status shown
+- Account Switcher — swap between your saved Microsoft accounts from the main menu, with each one's Hypixel ban status shown; each account can also have its own SOCKS proxy assigned, applied automatically every time you swap to it
 - Proxy Client — optionally route your connection through a SOCKS proxy
 
 **Home**

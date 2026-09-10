@@ -8,6 +8,9 @@ import com.killer560.hub.accounts.core.PrismAccountStore;
 import com.killer560.hub.accounts.core.SharedBanStatusStore;
 import com.killer560.hub.accounts.core.StoredBanStatus;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.proxy.config.AccountProxyProfile;
+import com.killer560.hub.proxy.config.AccountProxyStore;
+import com.killer560.hub.proxy.config.ProxyConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.StringWidget;
@@ -68,14 +71,15 @@ public class AccountSwitcherScreen extends Screen {
         int rowHeight = 22;
         int buttonWidth = 200;
         int copyWidth = 60;
+        int proxyWidth = 70;
         int statusWidth = 240;
         int gap = 10;
         // Per killer560's "remove the not checked yet portion and recenter it" (2026-09-09): the ban
         // status column is now blank for any account that's never been checked (see
-        // addBanStatusWidgets), so it's no longer counted in the centering math - the account/copy
-        // button pair is centered as its own group, with status text (when there IS any) sitting as an
-        // annex to the right of that centered pair rather than pulling the whole row off-center.
-        int totalWidth = buttonWidth + gap + copyWidth;
+        // addBanStatusWidgets), so it's no longer counted in the centering math - the account/copy/proxy
+        // button group is centered as its own unit, with status text (when there IS any) sitting as an
+        // annex to the right of that centered group rather than pulling the whole row off-center.
+        int totalWidth = buttonWidth + gap + copyWidth + gap + proxyWidth;
         int startX = this.width / 2 - totalWidth / 2;
         int startY = 40;
 
@@ -100,7 +104,14 @@ public class AccountSwitcherScreen extends Screen {
             copyButton.active = !this.busy;
             this.addRenderableWidget(copyButton);
 
-            addBanStatusWidgets(account, startX + buttonWidth + gap + copyWidth + gap, y, statusWidth);
+            SettingsButtonWidget proxyButton = SettingsButtonWidget.builder(proxyButtonLabel(account),
+                            btn -> Minecraft.getInstance().setScreen(new AccountProxyConfigScreen(this, account)))
+                    .bounds(startX + buttonWidth + gap + copyWidth + gap, y, proxyWidth, 20)
+                    .build();
+            proxyButton.active = !this.busy;
+            this.addRenderableWidget(proxyButton);
+
+            addBanStatusWidgets(account, startX + buttonWidth + gap + copyWidth + gap + proxyWidth + gap, y, statusWidth);
 
             i++;
         }
@@ -192,6 +203,11 @@ public class AccountSwitcherScreen extends Screen {
         Minecraft.getInstance().setScreen(this.parent);
     }
 
+    private static Component proxyButtonLabel(PrismAccount account) {
+        AccountProxyProfile profile = AccountProxyStore.get(account.uuid());
+        return Component.literal(profile != null ? "Proxy ✓" : "Set Proxy");
+    }
+
     private void onAccountSelected(PrismAccount account) {
         if (this.busy) {
             return;
@@ -215,6 +231,11 @@ public class AccountSwitcherScreen extends Screen {
                 return;
             }
             AccountApplier.apply(result);
+            // Per killer560's "add a button to set a proxy by account... whenever i swap to that
+            // account it should auto swap to that proxy" request (2026-09-10) - applies (or, per his
+            // explicit choice, explicitly clears) the active proxy to match this account's own saved
+            // assignment every time, right after the swap actually completes.
+            ProxyConfig.getInstance().applyAccountProfile(AccountProxyStore.get(account.uuid()));
             Minecraft.getInstance().setScreen(this.parent);
         }, this.screenExecutor);
     }

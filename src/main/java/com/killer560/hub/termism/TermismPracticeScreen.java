@@ -315,7 +315,11 @@ public class TermismPracticeScreen extends Screen {
     private void generatePanes() {
         columns = 5;
         int gridSize = columns * 3;
-        int activeCount = 4 + random.nextInt(4);
+        // Per killer560's "by default tend to favor higher amounts of panes shown" request (2026-09-10) -
+        // still the same real 4-7 range, but picking the max of two rolls instead of one biases the
+        // distribution toward the higher end (7 becomes the single most likely outcome, ~44% vs the
+        // original flat 25%, while 4 drops to ~6%) rather than raising the range itself.
+        int activeCount = 4 + Math.max(random.nextInt(4), random.nextInt(4));
         List<Integer> active = randomIndices(gridSize, activeCount);
         for (int i = 0; i < gridSize; i++) {
             cells.add(new ItemStack(active.contains(i) ? Items.RED_STAINED_GLASS_PANE : Items.LIME_STAINED_GLASS_PANE));
