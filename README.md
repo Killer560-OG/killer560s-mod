@@ -35,9 +35,9 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Dungeon**
 - RNG Meter — tracks your Hypixel Skyblock RNG/pity progress on dungeon floors
 - Leap Message — sends a message when you leap to someone in dungeons
-- Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode that clicks for you - see [Which jar do I download?](#installing) below.
-- Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run
-- Full Block — expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click, with a master on/off toggle
+- Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
+- Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free
+- Full Block — **cheat build only.** Expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click, with a master on/off toggle - see [Which jar do I download?](#installing) below.
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
@@ -62,8 +62,8 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 1. Install Fabric Loader for `26.1.2`.
 2. Drop Fabric API into your `mods` folder.
 3. Grab the latest release jar from the [Releases](../../releases) page and drop it in `mods` too. Two jars are published per release:
-   - **`-legit.jar`** — everything in the feature list above except autonomous auto-clicking. This is the one almost everyone wants.
-   - **`-cheat.jar`** — same mod, plus the Experimentation Table's fully autonomous mode and Auto Terminals (auto-clicks Floor 7 terminals for you). This is a real macro against Hypixel's rules - download at your own risk.
+   - **`-legit.jar`** — everything in the feature list above except autonomous auto-clicking and Full Block. This is the one almost everyone wants.
+   - **`-cheat.jar`** — same mod, plus the Experimentation Table's fully autonomous mode, Auto Terminals (auto-clicks Floor 7 terminals for you), and Full Block (expanded secret hitboxes). These are real macros/exploits against Hypixel's rules - download at your own risk.
 4. Launch with the Fabric profile — configure everything from the in-game mod menu (works standalone or through [Mod Menu](https://modrinth.com/mod/modmenu)).
 
 Config is created automatically on first launch - nothing else to set up.

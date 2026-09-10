@@ -92,8 +92,16 @@ public final class SecretsConfig {
         }
     }
 
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} (2026-09-10) - per
+     *  killer560's explicit "cheat variant should have hitbox's auto etable and auto terms" request,
+     *  matching the exact same pattern {@link com.killer560.hub.experiments.ExperimentsConfig
+     *  #isAutonomousMode} and {@link com.killer560.hub.terminals.TerminalSolverConfig
+     *  #isAutoTerminalsEnabled} already use: gated HERE, the single real source every Full Block call
+     *  site already checks through (see {@link com.killer560.hub.secrets.SecretsFeature}), so the legit
+     *  jar can never expand hitboxes even from a copied config.json - the raw field is never what gets
+     *  read. */
     public boolean isMasterEnabled() {
-        return masterEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && masterEnabled;
     }
 
     public void setMasterEnabled(boolean masterEnabled) {

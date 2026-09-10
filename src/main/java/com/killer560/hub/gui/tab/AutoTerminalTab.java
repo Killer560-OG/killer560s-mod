@@ -134,11 +134,6 @@ public class AutoTerminalTab extends BaseTab {
         });
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("A fresh random delay between Min and Max is picked for every click."),
-                Minecraft.getInstance().font));
-        y += 22;
-
         widgets.add(SettingsButtonWidget.builder(blockInputText(), btn -> {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
                     cfg.setBlockInputWhileAutoClicking(!cfg.isBlockInputWhileAutoClicking());
@@ -158,12 +153,6 @@ public class AutoTerminalTab extends BaseTab {
                     }).bounds(contentX, y, 220, 20).build());
             y += 24;
             boolean skipAll = TerminalSolverConfig.getInstance().getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal(skipAll
-                            ? "All: a match on ANY row bursts every remaining row, ignoring the slider below."
-                            : "Edges: only a match on the first or last row can burst ahead (see slider below)."),
-                    Minecraft.getInstance().font));
-            y += 22;
 
             if (!skipAll) {
                 double lookaheadNormalized = (TerminalSolverConfig.getInstance().getMelodyLookaheadClicks() - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD)
