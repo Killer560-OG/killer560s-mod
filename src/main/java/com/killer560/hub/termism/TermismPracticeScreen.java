@@ -98,13 +98,16 @@ public class TermismPracticeScreen extends Screen {
             new NamedItem("Obsidian", Items.OBSIDIAN), new NamedItem("Apple", Items.APPLE),
             new NamedItem("Arrow", Items.ARROW), new NamedItem("Gunpowder", Items.GUNPOWDER),
             new NamedItem("Vine", Items.VINE), new NamedItem("Web", Items.COBWEB),
-            // Round 35 (2026-09-10) additions, per killer560's "starts with is continually loading with
-            // near 0 amounts of panes still" report: raising matchCount's ceiling (round 34) didn't
-            // actually help because it's clamped by matches.size() - how many pool items share the
-            // chosen letter - and 10 of the 19 letters above only had exactly ONE item each (T, D, R, Q,
-            // K, I, O, G, V, W), forcing matchCount down to 1 on roughly a quarter of all rolls no matter
-            // how high the ceiling went. These fill out the sparsest letters so a high roll actually has
-            // enough real items available to be realized.
+            // Round 35 (2026-09-10) additions - per killer560's "starts with is continually loading with
+            // near 0 amounts of panes still" report, filled out the 10 letters that only had ONE item
+            // each. Round 36 (2026-09-10) additions below - simulating the actual algorithm afterward
+            // showed round 35 had accidentally made 11 of the 19 letters converge to exactly THREE items
+            // each, so matchCount piled up at 3 (~59% of rolls) no matter how high the ceiling went -
+            // matching killer560's fresh "did a ton of sims, all sub 5 clicks" report. These push most
+            // letters up further (S/B/C toward 7-9, most others to 5-6) - simulated afterward: mean
+            // matchCount rose from 3.4 to 6.3, with ~96% of rolls now landing at 5 or above instead of
+            // ~90% landing at 4 or below. Combined with biasing WHICH letter gets picked toward richer
+            // ones (see #generateStartsWith's own doc), not just raising the ceiling on its own again.
             new NamedItem("Fishing Rod", Items.FISHING_ROD), new NamedItem("Ender Pearl", Items.ENDER_PEARL),
             new NamedItem("Leather", Items.LEATHER), new NamedItem("Lava Bucket", Items.LAVA_BUCKET),
             new NamedItem("Pufferfish", Items.PUFFERFISH), new NamedItem("Milk Bucket", Items.MILK_BUCKET),
@@ -115,7 +118,25 @@ public class TermismPracticeScreen extends Screen {
             new NamedItem("Iron Ingot", Items.IRON_INGOT), new NamedItem("Ink Sac", Items.INK_SAC),
             new NamedItem("Orange Dye", Items.ORANGE_DYE),
             new NamedItem("Golden Apple", Items.GOLDEN_APPLE), new NamedItem("Glowstone Dust", Items.GLOWSTONE_DUST),
-            new NamedItem("Wheat", Items.WHEAT), new NamedItem("Water Bucket", Items.WATER_BUCKET)
+            new NamedItem("Wheat", Items.WHEAT), new NamedItem("Water Bucket", Items.WATER_BUCKET),
+            new NamedItem("Shears", Items.SHEARS), new NamedItem("Sugar", Items.SUGAR), new NamedItem("Shield", Items.SHIELD),
+            new NamedItem("Furnace", Items.FURNACE), new NamedItem("Flower Pot", Items.FLOWER_POT),
+            new NamedItem("Elytra", Items.ELYTRA), new NamedItem("Enchanted Book", Items.ENCHANTED_BOOK),
+            new NamedItem("Turtle Egg", Items.TURTLE_EGG), new NamedItem("Tripwire Hook", Items.TRIPWIRE_HOOK),
+            new NamedItem("Lantern", Items.LANTERN), new NamedItem("Lily Pad", Items.LILY_PAD),
+            new NamedItem("Bow", Items.BOW), new NamedItem("Brick", Items.BRICK), new NamedItem("Bell", Items.BELL),
+            new NamedItem("Carrot", Items.CARROT), new NamedItem("Chest", Items.CHEST), new NamedItem("Charcoal", Items.CHARCOAL),
+            new NamedItem("Diamond Axe", Items.DIAMOND_AXE), new NamedItem("Diamond Helmet", Items.DIAMOND_HELMET),
+            new NamedItem("Diamond Block", Items.DIAMOND_BLOCK),
+            new NamedItem("Rotten Flesh", Items.ROTTEN_FLESH), new NamedItem("Rabbit's Foot", Items.RABBIT_FOOT),
+            new NamedItem("Prismarine Shard", Items.PRISMARINE_SHARD), new NamedItem("Popped Chorus Fruit", Items.POPPED_CHORUS_FRUIT),
+            new NamedItem("Minecart", Items.MINECART), new NamedItem("Mushroom Stew", Items.MUSHROOM_STEW),
+            new NamedItem("Knowledge Book", Items.KNOWLEDGE_BOOK),
+            new NamedItem("Iron Sword", Items.IRON_SWORD), new NamedItem("Iron Axe", Items.IRON_AXE),
+            new NamedItem("Oak Boat", Items.OAK_BOAT), new NamedItem("Oak Sign", Items.OAK_SIGN),
+            new NamedItem("Amethyst Shard", Items.AMETHYST_SHARD), new NamedItem("Armor Stand", Items.ARMOR_STAND),
+            new NamedItem("Gold Ingot", Items.GOLD_INGOT), new NamedItem("Glass Bottle", Items.GLASS_BOTTLE),
+            new NamedItem("Wooden Sword", Items.WOODEN_SWORD), new NamedItem("Writable Book", Items.WRITABLE_BOOK)
     );
 
     private record ColorAlias(DyeColor color, String name, Item texture) {
@@ -382,8 +403,20 @@ public class TermismPracticeScreen extends Screen {
         columns = 7;
         List<NamedItem> pool = new ArrayList<>(STARTS_WITH_POOL);
         Collections.shuffle(pool, random);
-        NamedItem seed = pool.get(0);
-        char letter = Character.toUpperCase(seed.name().charAt(0));
+        // Round 36 (2026-09-10) - per killer560's fresh "did a ton of sims, all sub 5 clicks" report:
+        // picking the seed uniformly by ITEM (not letter) means a letter's own selection odds are already
+        // proportional to how many items it has - but with several letters now similarly populated (see
+        // STARTS_WITH_POOL's own round 36 doc), that alone wasn't tilting things toward the richer ones
+        // enough. Same max-of-two trick used for matchCount's own roll, applied here too: draw two
+        // candidate items and keep whichever one's letter has more matches in the pool, so a letter that
+        // can actually support a high matchCount gets picked more than its raw item-share would imply.
+        NamedItem candidateA = pool.get(0);
+        NamedItem candidateB = pool.get(1);
+        char letterA = Character.toUpperCase(candidateA.name().charAt(0));
+        char letterB = Character.toUpperCase(candidateB.name().charAt(0));
+        long countA = STARTS_WITH_POOL.stream().filter(i -> Character.toUpperCase(i.name().charAt(0)) == letterA).count();
+        long countB = STARTS_WITH_POOL.stream().filter(i -> Character.toUpperCase(i.name().charAt(0)) == letterB).count();
+        char letter = countA >= countB ? letterA : letterB;
         targetLetter = String.valueOf(letter);
 
         List<NamedItem> matches = new ArrayList<>();
