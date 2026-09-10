@@ -264,14 +264,19 @@ public final class ExperimentsFeature {
             graphics.pose().scale(scale, scale);
             drawButtonBox(graphics, 0, 0, "Start ETable");
             graphics.pose().popMatrix();
-        } else {
-            renderGuardianSwapStatusIfNeeded(graphics);
         }
     }
 
+    // Per killer560's "make the start button fit the mod's aesthetic a bit better" request (2026-09-09)
+    // - was a plain green box with a white outline, matching nothing else in the mod. Reuses
+    // SettingsButtonWidget's own established colors (dark background, amber/orange border) instead of a
+    // one-off scheme, so this reads as part of the same UI as everywhere else.
+    private static final int START_BUTTON_BG = 0xFF1A1A1A;
+    private static final int START_BUTTON_BORDER = 0xFFCC6600;
+
     private static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label) {
-        graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, 0xFF2D8A3E);
-        graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, 0xFFFFFFFF);
+        graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, START_BUTTON_BG);
+        graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, START_BUTTON_BORDER);
         graphics.centeredText(Minecraft.getInstance().font, label, x + START_BUTTON_WIDTH / 2, y + 6, 0xFFFFFFFF);
     }
 
@@ -287,29 +292,6 @@ public final class ExperimentsFeature {
     private static float resolveStartButtonScale() {
         HudElement element = startButtonElement();
         return element == null ? 1.0f : HudElementRegistry.resolveScale(element);
-    }
-
-    /** Live on-screen countdown for the Guardian-pet swap, per killer560's report that the swap and the
-     *  /pets command "instantly" fired with no perceptible delay despite the 1s pacing logic already
-     *  in {@link GuardianPetSwapper} - rather than guess at another blind fix, this makes the actual
-     *  real-time countdown visible so it's obvious from watching the screen whether the delay is
-     *  really elapsing or not. */
-    private static void renderGuardianSwapStatusIfNeeded(GuiGraphicsExtractor graphics) {
-        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!cfg.isAutonomousMode() || !cfg.isAutoSwapGuardianPet() || !armed) {
-            return;
-        }
-        String status = GUARDIAN_SWAPPER.statusText(System.currentTimeMillis());
-        if (status == null) {
-            return;
-        }
-        int[] pos = resolveStartButtonPosition();
-        float scale = resolveStartButtonScale();
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(pos[0], pos[1]);
-        graphics.pose().scale(scale, scale);
-        graphics.centeredText(Minecraft.getInstance().font, status, START_BUTTON_WIDTH / 2, 6, 0xFFFFFF55);
-        graphics.pose().popMatrix();
     }
 
     /** @return whether the "Start ETable" button should currently be shown/clickable: the whole
@@ -759,7 +741,14 @@ public final class ExperimentsFeature {
                     String doneReason = NAVIGATOR.takeDoneReason();
                     LOGGER.info("Autonomous run finished on its own: {}", doneReason);
                     resetRunState();
-                    ModOverlayMessage.show("§a[Killer560's Mod] Experiment Table automation finished: " + doneReason, 6000);
+                    // Per killer560's request (2026-09-09) - the center-screen overlay popup is gone,
+                    // matching the same "chat message is the only confirmation" pattern Screenshot Copy
+                    // already uses (see ScreenshotCopyFeature#notifySuccess).
+                    var player = Minecraft.getInstance().player;
+                    if (player != null) {
+                        player.sendSystemMessage(Component.literal(
+                                "§a[Killer560's Mod] Experiment Table automation finished: " + doneReason));
+                    }
                 }
             }
         }

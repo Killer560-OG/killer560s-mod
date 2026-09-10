@@ -72,23 +72,6 @@ final class GuardianPetSwapper {
         return !doneThisRun;
     }
 
-    /** Diagnostic-only live status for the on-screen overlay - lets killer560 (and us) see with our own
-     *  eyes whether the 1s pacing between steps is actually elapsing in real time, instead of taking
-     *  it on faith. Returns null once this run is done (nothing to show). */
-    String statusText(long now) {
-        if (doneThisRun) {
-            return null;
-        }
-        if (lastActionAtMs < 0) {
-            return "Guardian Swap: starting pacing clock...";
-        }
-        long remainingMs = STEP_DELAY_MS - (now - lastActionAtMs);
-        if (remainingMs > 0) {
-            return String.format("Guardian Swap [%s]: waiting %.1fs", state, remainingMs / 1000.0);
-        }
-        return "Guardian Swap [" + state + "]: acting now";
-    }
-
     /** Called every tick (autonomous mode + this feature both on) with whatever screen title is
      *  currently open ("" if no screen at all - the gap between closing the table and the Pets
      *  screen opening is a real state this needs to keep ticking through). Returns the action

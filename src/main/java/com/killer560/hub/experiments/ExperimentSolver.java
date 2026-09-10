@@ -753,6 +753,28 @@ final class ExperimentSolver {
                     break;
                 }
             }
+            // Diagnostic (2026-09-09) - per killer560's report that a just-discovered book (Sharpness)
+            // wasn't paired with an already-known copy elsewhere even though both should have been
+            // sitting in knownSuperpairsCells - couldn't find a concrete bug by re-reading this logic
+            // alone (the scan above looks structurally correct: both slots would need to share this
+            // exact itemId+name key and neither be in queuedPairSlots). Logs the exact reason a real
+            // duplicate would've been skipped (already queued, or filtered by valuableOnly) the next
+            // time this happens, rather than guessing at a fix that might not be the real cause.
+            if (pairClicks.isEmpty()) {
+                Map<String, List<Integer>> byKey = new HashMap<>();
+                for (Map.Entry<Integer, Cell> entry : knownSuperpairsCells.entrySet()) {
+                    Cell known = entry.getValue();
+                    String key = known.itemId() + "|" + known.name();
+                    byKey.computeIfAbsent(key, k -> new ArrayList<>()).add(entry.getKey());
+                }
+                for (Map.Entry<String, List<Integer>> entry : byKey.entrySet()) {
+                    if (entry.getValue().size() < 2) continue;
+                    LOGGER.warn("Superpairs: key '{}' known at slots {} but no pair was queued this cycle - "
+                                    + "queuedPairSlots={}, valuableOnly={}, isValuablePair={}",
+                            entry.getKey(), entry.getValue(), queuedPairSlots, valuableOnly,
+                            isValuablePair(knownSuperpairsCells.get(entry.getValue().get(0))));
+                }
+            }
         }
 
         if (!pairClicks.isEmpty()) {
