@@ -3,6 +3,7 @@ package com.killer560.hub.proxy.gui;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.proxy.config.ProxyType;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -33,6 +34,16 @@ public class ProxyConfigScreen extends Screen {
     private static final int COLOR_TITLE = 0xFFCC6600;
     private static final int COLOR_WARNING = 0xFFFF5555;
     private static final int COLOR_LABEL = 0xFFA0A0A0;
+    // Per killer560's "make this look more like the mod. The typing areas do not really look like it"
+    // (2026-09-09) - real bug found and fixed in the first attempt at this: calling setBordered(false)
+    // to draw a custom themed box DISABLED vanilla EditBox's own text-centering math too (confirmed by
+    // decompiling EditBox - both textX/textY are computed only in the `bordered` branch of
+    // updateTextPosition(), so text/hints snapped to the raw top-left corner instead of staying
+    // vertically centered once bordered was false). Fields now stay bordered=true (vanilla keeps
+    // handling centering correctly) and this outline is drawn OVER vanilla's own border sprite
+    // afterward instead, purely recoloring it to match the theme without touching text layout at all.
+    private static final int FIELD_BORDER = 0xFF663D1A;
+    private static final int FIELD_BORDER_FOCUSED = 0xFFCC6600;
 
     public ProxyConfigScreen(Screen parent) {
         super(Component.literal("Proxy Configuration"));
@@ -70,7 +81,10 @@ public class ProxyConfigScreen extends Screen {
         this.addressField = new EditBox(this.font, fieldX, addressFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
                 Component.literal("Address"));
         this.addressField.setMaxLength(256);
-        this.addressField.setHint(Component.literal("127.0.0.1:1080"));
+        // Per killer560's "make it all white" - an unstyled hint Component gets EditBox's own default
+        // dim-grey hint style; giving it an explicit style here (any style, not specifically white)
+        // makes EditBox use exactly this one instead - see EditBox#setHint's hasNoStyle check.
+        this.addressField.setHint(Component.literal("127.0.0.1:1080").withStyle(ChatFormatting.WHITE));
         this.addressField.setValue(config.getAddressString());
         this.addRenderableWidget(this.addressField);
 
@@ -78,14 +92,14 @@ public class ProxyConfigScreen extends Screen {
         this.usernameField = new EditBox(this.font, fieldX, usernameFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
                 Component.literal("Username"));
         this.usernameField.setMaxLength(256);
-        this.usernameField.setHint(Component.literal("Username"));
+        this.usernameField.setHint(Component.literal("Username").withStyle(ChatFormatting.WHITE));
         this.usernameField.setValue(config.getUsername());
         this.addRenderableWidget(this.usernameField);
 
         this.passwordField = new EditBox(this.font, fieldX, passwordFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
                 Component.literal("Password"));
         this.passwordField.setMaxLength(256);
-        this.passwordField.setHint(Component.literal("Password"));
+        this.passwordField.setHint(Component.literal("Password").withStyle(ChatFormatting.WHITE));
         this.passwordField.setValue(config.getPassword());
         this.addRenderableWidget(this.passwordField);
 
@@ -143,6 +157,12 @@ public class ProxyConfigScreen extends Screen {
         // Black + amber theme (2026-09-09) - see AccountSwitcherScreen#extractRenderState.
         guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+        // Recolor each field's border AFTER vanilla draws its own (see the doc comment on
+        // FIELD_BORDER) - drawn on top rather than replacing vanilla's rendering entirely, so
+        // text/hint positioning is untouched.
+        outlineField(guiGraphics, this.addressField);
+        outlineField(guiGraphics, this.usernameField);
+        outlineField(guiGraphics, this.passwordField);
 
         int centerX = this.width / 2;
 
@@ -164,6 +184,12 @@ public class ProxyConfigScreen extends Screen {
         // Warning footer
         guiGraphics.centeredText(this.font, Component.literal("Do NOT use free proxies."),
                 centerX, this.warningY, COLOR_WARNING);
+    }
+
+    /** Recolors one field's border to match the theme - see the doc comment on {@link #FIELD_BORDER}. */
+    private static void outlineField(GuiGraphicsExtractor graphics, EditBox field) {
+        graphics.outline(field.getX(), field.getY(), field.getWidth(), field.getHeight(),
+                field.isFocused() ? FIELD_BORDER_FOCUSED : FIELD_BORDER);
     }
 
     @Override

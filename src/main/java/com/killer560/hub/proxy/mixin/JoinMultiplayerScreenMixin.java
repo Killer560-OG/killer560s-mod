@@ -32,8 +32,7 @@ public abstract class JoinMultiplayerScreenMixin extends Screen {
         int buttonWidth = 110;
         int x = this.width - buttonWidth - 5;
         int y = 5;
-        ProxyToggleButton button = new ProxyToggleButton(x, y, buttonWidth, 20,
-                b -> this.minecraft.setScreen(new ProxyConfigScreen(this)));
-        this.addRenderableWidget(button);
+        this.addRenderableWidget(ProxyToggleButton.create(x, y, buttonWidth, 20,
+                b -> this.minecraft.setScreen(new ProxyConfigScreen(this))));
     }
 }

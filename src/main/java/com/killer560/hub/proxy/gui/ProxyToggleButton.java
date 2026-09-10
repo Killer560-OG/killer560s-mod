@@ -1,21 +1,29 @@
 package com.killer560.hub.proxy.gui;
 
+import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
 /**
- * A {@link Button} whose label always reflects the current proxy state. The
- * label is refreshed every frame in {@link #extractContents}, so it stays
- * correct without relying on the parent screen re-initialising or ticking.
+ * Builds the "Proxy: Enabled/Disabled" button shown on the multiplayer server-list screen, styled to
+ * match the mod's own black+amber theme (2026-09-09, per killer560's "make that text in the top right
+ * fit the mod") instead of a plain vanilla {@link net.minecraft.client.gui.components.Button}. The
+ * label is computed once at creation - {@code JoinMultiplayerScreenMixin}'s {@code init()} injection
+ * re-creates this button every time the screen is (re)displayed (vanilla calls {@code init()} on every
+ * {@code Minecraft.setScreen}, including right after Apply/Reset closes back to it from
+ * {@link ProxyConfigScreen}), so the label is always current without needing its own per-frame refresh.
  */
-public class ProxyToggleButton extends Button {
+public final class ProxyToggleButton {
 
-    public ProxyToggleButton(int x, int y, int width, int height, OnPress onPress) {
-        super(x, y, width, height, buildLabel(), onPress, Button.DEFAULT_NARRATION);
+    private ProxyToggleButton() {
+    }
+
+    public static SettingsButtonWidget create(int x, int y, int width, int height, SettingsButtonWidget.OnPress onPress) {
+        return SettingsButtonWidget.builder(buildLabel(), onPress)
+                .bounds(x, y, width, height)
+                .build();
     }
 
     private static Component buildLabel() {
@@ -24,13 +32,5 @@ public class ProxyToggleButton extends Button {
                 ? Component.literal("Enabled").withStyle(ChatFormatting.GREEN)
                 : Component.literal("Disabled").withStyle(ChatFormatting.RED);
         return Component.literal("Proxy: ").append(state);
-    }
-
-    @Override
-    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-        // Refresh label from live config before each draw.
-        this.setMessage(buildLabel());
-        this.extractDefaultSprite(graphics);
-        this.extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
     }
 }

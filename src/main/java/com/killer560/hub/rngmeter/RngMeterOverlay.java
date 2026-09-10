@@ -582,7 +582,7 @@ public final class RngMeterOverlay {
         var font = Minecraft.getInstance().font;
         int cursorY = y;
 
-        String header = "§9§lRNG Meter";
+        String header = "§6§lRNG Meter";
         if (rows.size() > VISIBLE_ROWS) {
             int from = Math.min(scrollOffset, Math.max(0, rows.size() - 1)) + 1;
             int to = Math.min(rows.size(), from + VISIBLE_ROWS - 1);

@@ -70,7 +70,12 @@ public class AccountSwitcherScreen extends Screen {
         int copyWidth = 60;
         int statusWidth = 240;
         int gap = 10;
-        int totalWidth = buttonWidth + gap + copyWidth + gap + statusWidth;
+        // Per killer560's "remove the not checked yet portion and recenter it" (2026-09-09): the ban
+        // status column is now blank for any account that's never been checked (see
+        // addBanStatusWidgets), so it's no longer counted in the centering math - the account/copy
+        // button pair is centered as its own group, with status text (when there IS any) sitting as an
+        // annex to the right of that centered pair rather than pulling the whole row off-center.
+        int totalWidth = buttonWidth + gap + copyWidth;
         int startX = this.width / 2 - totalWidth / 2;
         int startY = 40;
 
@@ -126,13 +131,16 @@ public class AccountSwitcherScreen extends Screen {
 
     private void addBanStatusWidgets(PrismAccount account, int x, int y, int width) {
         StoredBanStatus info = this.banStatuses.get(account.uuid());
+        // Per killer560's "remove the not checked yet portion" (2026-09-09): an account with no
+        // recorded status at all now shows nothing here, instead of a "Not checked yet"/"Join Hypixel
+        // to check" placeholder.
+        if (info == null) {
+            return;
+        }
         String line1;
         String line2 = null;
 
-        if (info == null) {
-            line1 = "Not checked yet";
-            line2 = "Join Hypixel to check";
-        } else if (info.status() == com.killer560.hub.accounts.core.HypixelBanStatus.Status.BANNED) {
+        if (info.status() == com.killer560.hub.accounts.core.HypixelBanStatus.Status.BANNED) {
             if (info.estimatedExpiryEpochMillis() != null) {
                 Instant expiry = Instant.ofEpochMilli(info.estimatedExpiryEpochMillis());
                 double daysFromNow = Duration.between(Instant.now(), expiry).toMillis() / 86400000.0;
