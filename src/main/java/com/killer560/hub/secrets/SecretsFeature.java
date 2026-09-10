@@ -28,8 +28,10 @@ import java.util.UUID;
  *  {@link com.killer560.hub.secrets.mixin.BlockBehaviourMixin} - that cross-confirmation is why it's
  *  included here too; see that class's own doc for why it matters.
  *  <p>
- *  Always gated on "connected to a server this mod's dungeon features are meant to run on" (hypixel.net
- *  or p3sim.net, per the roadmap's own server-gating note) plus each block type's own toggle. Two
+ *  Always gated on the master "Full Block" toggle (per killer560's explicit request, 2026-09-09 - one
+ *  switch that overrides every per-block toggle below when off) plus "connected to a server this mod's
+ *  dungeon features are meant to run on" (hypixel.net or p3sim.net, per the roadmap's own server-gating
+ *  note) plus each block type's own toggle. Two
  *  further OPTIONAL gates, per killer560's explicit follow-up request (2026-09-09) - see
  *  {@link DungeonState} for how each is really detected:
  *  <ul>
@@ -72,7 +74,7 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandLevers() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        if (!isOnDungeonServer() || !cfg.isLeversEnabled() || !passesDungeonsOnlyGate(cfg)) {
+        if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isLeversEnabled() || !passesDungeonsOnlyGate(cfg)) {
             return false;
         }
         return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
@@ -80,7 +82,7 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandButtons() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        if (!isOnDungeonServer() || !cfg.isButtonsEnabled() || !passesDungeonsOnlyGate(cfg)) {
+        if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isButtonsEnabled() || !passesDungeonsOnlyGate(cfg)) {
             return false;
         }
         return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
@@ -92,12 +94,12 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandChests() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg);
+        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg);
     }
 
     public static boolean shouldExpandEssence() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg);
+        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg);
     }
 
     // Real player-head skin profile IDs for Wither Essence, per NoammAddons' own DungeonUtils.isSecret

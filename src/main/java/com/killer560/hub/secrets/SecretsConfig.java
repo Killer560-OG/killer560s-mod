@@ -21,6 +21,9 @@ public final class SecretsConfig {
 
     private static SecretsConfig instance;
 
+    // Per killer560's explicit request (2026-09-09): a single master switch on top of every per-block
+    // toggle below - when off, nothing expands regardless of the individual toggles' own state.
+    private boolean masterEnabled = false;
     private boolean leversEnabled = false;
     private boolean buttonsEnabled = false;
     // false = "Flat" (quoi's real "Expanded" mode - a wider but still thin, face-hugging shape, ported
@@ -58,6 +61,7 @@ public final class SecretsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SecretsConfig cfg = new SecretsConfig();
+            cfg.masterEnabled = obj.has("masterEnabled") && obj.get("masterEnabled").getAsBoolean();
             cfg.leversEnabled = obj.has("leversEnabled") && obj.get("leversEnabled").getAsBoolean();
             cfg.buttonsEnabled = obj.has("buttonsEnabled") && obj.get("buttonsEnabled").getAsBoolean();
             cfg.buttonsFullBox = obj.has("buttonsFullBox") && obj.get("buttonsFullBox").getAsBoolean();
@@ -75,6 +79,7 @@ public final class SecretsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("masterEnabled", masterEnabled);
             obj.addProperty("leversEnabled", leversEnabled);
             obj.addProperty("buttonsEnabled", buttonsEnabled);
             obj.addProperty("buttonsFullBox", buttonsFullBox);
@@ -85,6 +90,14 @@ public final class SecretsConfig {
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    public boolean isMasterEnabled() {
+        return masterEnabled;
+    }
+
+    public void setMasterEnabled(boolean masterEnabled) {
+        this.masterEnabled = masterEnabled;
     }
 
     public boolean isLeversEnabled() {

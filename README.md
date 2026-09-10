@@ -37,7 +37,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Leap Message — sends a message when you leap to someone in dungeons
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection (Solver Only - never clicks for you)
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run
-- Secrets (Full Block) — expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click
+- Full Block — expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click, with a master on/off toggle
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen

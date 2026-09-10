@@ -10,19 +10,21 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Secrets settings: an independent toggle for each covered block type's expanded interaction hitbox -
- *  killer560's explicit request (2026-09-09), "each should have their own toggle under a main secrets
- *  tab in dungeons." Buttons additionally gets a Flat/Full Box shape choice, plus two further optional
- *  restriction toggles (also killer560's explicit follow-up request, 2026-09-09): Dungeons Only (all 4
- *  types) and Boss Only (Levers/Buttons only, restricts to the real F7/M7 boss fight). See
- *  {@link com.killer560.hub.secrets.SecretsFeature} for the real mechanic (ported from and cross-checked
- *  against both quoi's and NoammAddons' own reference implementations) and
- *  {@link com.killer560.hub.secrets.DungeonState} for how the two restriction toggles are really
- *  detected. */
+/** Full Block settings (tab renamed from "Secrets", 2026-09-09): a master toggle on top, then an
+ *  independent toggle for each covered block type's expanded interaction hitbox - killer560's explicit
+ *  request (2026-09-09), "each should have their own toggle under a main secrets tab in dungeons." The
+ *  master toggle is a later follow-up request so the whole feature can be flipped off in one click
+ *  without losing each block type's individual on/off state. Buttons additionally gets a Flat/Full Box
+ *  shape choice, plus two further optional restriction toggles (also killer560's explicit follow-up
+ *  request, 2026-09-09): Dungeons Only (all 4 types) and Boss Only (Levers/Buttons only, restricts to
+ *  the real F7/M7 boss fight). See {@link com.killer560.hub.secrets.SecretsFeature} for the real
+ *  mechanic (ported from and cross-checked against both quoi's and NoammAddons' own reference
+ *  implementations) and {@link com.killer560.hub.secrets.DungeonState} for how the two restriction
+ *  toggles are really detected. */
 public class SecretsTab extends BaseTab {
 
     public SecretsTab() {
-        super("Secrets");
+        super("Full Block");
     }
 
     @Override
@@ -34,6 +36,14 @@ public class SecretsTab extends BaseTab {
                 Component.literal("Expands interaction hitboxes for easier clicking."),
                 Minecraft.getInstance().font));
         y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(masterText(), btn -> {
+                    SecretsConfig cfg = SecretsConfig.getInstance();
+                    cfg.setMasterEnabled(!cfg.isMasterEnabled());
+                    cfg.save();
+                    btn.setMessage(masterText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(leversText(), btn -> {
                     SecretsConfig cfg = SecretsConfig.getInstance();
@@ -104,6 +114,10 @@ public class SecretsTab extends BaseTab {
                 Minecraft.getInstance().font));
 
         return widgets;
+    }
+
+    private static Component masterText() {
+        return Component.literal("Full Block: " + (SecretsConfig.getInstance().isMasterEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component leversText() {
