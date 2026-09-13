@@ -41,6 +41,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Simon Says — highlights the correct button(s) on the F7/M7 boss-fight Simon Says device with numbered, colored boxes, and tracks party members' progress from their chat announcements (compatible with Odin/QUOI's own progress messages too). The **cheat** build additionally has a no-rotate Trigger Bot, Auto Solve, and an Auto Start mode for the real "skip" trick with configurable click counts and timer-based pacing - see [Which jar do I download?](#installing) below.
 - Tick Timers — real countdowns for Necron's drop, Goldor's Core opening, and Storm's pad/lightning/purple-pillar/crush windows, driven off the real boss chat lines
 - Split Timers — per-segment time splits for every floor's real boss fight (Bonzo through Necron), announced in chat and shown on a HUD list
+- Mask Invincibility Timers — automatic active/cooldown timers for Spirit Mask, Bonzo's Mask, and Phoenix Pet, detected off the real "saved your life" chat lines
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen

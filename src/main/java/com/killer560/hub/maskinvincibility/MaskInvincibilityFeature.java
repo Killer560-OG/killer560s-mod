@@ -1,0 +1,182 @@
+package com.killer560.hub.maskinvincibility;
+
+import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.secrets.DungeonState;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+
+import java.util.EnumMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+/**
+ * Mask/pet invincibility-proc timers - killer560's "mask invulnerability cooldown timers from
+ * Noamm/odin" request. Real chat trigger lines and real default durations ported directly from Odin's
+ * own confirmed {@code InvincibilityTimer.kt}:
+ * <ul>
+ *   <li>Spirit Mask: "Second Wind Activated! Your Spirit Mask saved your life!" - 3s active, 30s cooldown</li>
+ *   <li>Bonzo's Mask: "Your [.] Bonzo's Mask saved your life!" - 3s active, 180s cooldown</li>
+ *   <li>Phoenix Pet: "Your Phoenix Pet saved you from certain death!" - 4s active, 60s cooldown</li>
+ * </ul>
+ * <b>Simplification vs. Odin:</b> Odin reads Bonzo's Mask's REAL remaining cooldown straight from the
+ * item's own tooltip lore ("Cooldown: Ns") after each proc, since Hypixel actually varies it slightly.
+ * This codebase has no established pattern yet for reading item tooltip lore off an equipped item, so
+ * this uses the fixed 180s default instead - close, but correct that once lore-reading exists elsewhere
+ * in this mod to reuse.
+ */
+public final class MaskInvincibilityFeature {
+
+    private enum Type {
+        SPIRIT(Pattern.compile("^Second Wind Activated! Your Spirit Mask saved your life!$"), 60, 30 * 20, "Spirit Mask"),
+        BONZO(Pattern.compile("^Your (?:. )?Bonzo's Mask saved your life!$"), 60, 180 * 20, "Bonzo's Mask"),
+        PHOENIX(Pattern.compile("^Your Phoenix Pet saved you from certain death!$"), 80, 60 * 20, "Phoenix Pet");
+
+        final Pattern pattern;
+        final int activeTicks;
+        final int cooldownTicks;
+        final String label;
+
+        Type(Pattern pattern, int activeTicks, int cooldownTicks, String label) {
+            this.pattern = pattern;
+            this.activeTicks = activeTicks;
+            this.cooldownTicks = cooldownTicks;
+            this.label = label;
+        }
+    }
+
+    private static final Map<Type, Integer> activeRemaining = new EnumMap<>(Type.class);
+    private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
+    private static boolean wasInDungeon = false;
+
+    private MaskInvincibilityFeature() {
+        for (Type t : Type.values()) {
+            activeRemaining.put(t, 0);
+            cooldownRemaining.put(t, 0);
+        }
+    }
+
+    public static void register() {
+        for (Type t : Type.values()) {
+            activeRemaining.put(t, 0);
+            cooldownRemaining.put(t, 0);
+        }
+        ClientReceiveMessageEvents.CHAT.register(
+                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+    }
+
+    private static void onChatMessage(Component message) {
+        MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+        if (!cfg.isEnabled()) {
+            return;
+        }
+        String raw = message.getString();
+        for (Type t : Type.values()) {
+            if (t.pattern.matcher(raw).matches()) {
+                activeRemaining.put(t, t.activeTicks);
+                cooldownRemaining.put(t, t.cooldownTicks);
+                if (cfg.isAnnounceInChat()) {
+                    Minecraft client = Minecraft.getInstance();
+                    if (client.player != null) {
+                        client.player.sendSystemMessage(Component.literal("§d[Mask] " + t.label + " procced!"));
+                    }
+                }
+                return;
+            }
+        }
+    }
+
+    private static void tick() {
+        boolean inDungeon = DungeonState.isInDungeon();
+        if (!inDungeon && wasInDungeon) {
+            for (Type t : Type.values()) {
+                activeRemaining.put(t, 0);
+                cooldownRemaining.put(t, 0);
+            }
+        }
+        wasInDungeon = inDungeon;
+
+        if (!MaskInvincibilityConfig.getInstance().isEnabled()) {
+            return;
+        }
+        for (Type t : Type.values()) {
+            int active = activeRemaining.get(t);
+            if (active > 0) {
+                activeRemaining.put(t, active - 1);
+            }
+            int cooldown = cooldownRemaining.get(t);
+            if (cooldown > 0) {
+                cooldownRemaining.put(t, cooldown - 1);
+            }
+        }
+    }
+
+    private static boolean shown(Type t) {
+        MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+        return switch (t) {
+            case SPIRIT -> cfg.isShowSpirit();
+            case BONZO -> cfg.isShowBonzo();
+            case PHOENIX -> cfg.isShowPhoenix();
+        };
+    }
+
+    public static final class MaskInvincibilityHudElement implements HudElement {
+        @Override
+        public String id() {
+            return "mask_invincibility";
+        }
+
+        @Override
+        public String displayName() {
+            return "Mask Invincibility Timers";
+        }
+
+        @Override
+        public int defaultX() {
+            return 10;
+        }
+
+        @Override
+        public int defaultY() {
+            return 440;
+        }
+
+        @Override
+        public int width() {
+            return 150;
+        }
+
+        @Override
+        public int height() {
+            return 12 * (int) java.util.Arrays.stream(Type.values()).filter(MaskInvincibilityFeature::shown).count();
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+            if (!MaskInvincibilityConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+                return;
+            }
+            int lineY = y;
+            for (Type t : Type.values()) {
+                if (!shown(t)) {
+                    continue;
+                }
+                int active = activeRemaining.get(t);
+                int cooldown = cooldownRemaining.get(t);
+                String status = active > 0
+                        ? String.format(Locale.US, "%.1fs", active / 20f)
+                        : cooldown > 0
+                        ? String.format(Locale.US, "%.1fs", cooldown / 20f)
+                        : "Ready";
+                int color = active > 0 ? 0xFFFFAA00 : cooldown > 0 ? 0xFFFF5555 : 0xFF55FF55;
+                graphics.text(Minecraft.getInstance().font, t.label + ": " + status, x, lineY, color, false);
+                lineY += 12;
+            }
+        }
+    }
+}

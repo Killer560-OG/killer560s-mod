@@ -20,6 +20,7 @@ import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.jumpscare.JumpscareFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.mapping.MappingFeature;
+import com.killer560.hub.maskinvincibility.MaskInvincibilityFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
@@ -100,6 +101,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new TickTimersFeature.TickTimersHudElement());
         SplitTimersFeature.register();
         HudElementRegistry.register(new SplitTimersFeature.SplitTimersHudElement());
+        MaskInvincibilityFeature.register();
+        HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
