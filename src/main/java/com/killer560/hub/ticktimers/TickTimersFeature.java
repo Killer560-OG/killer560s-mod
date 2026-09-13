@@ -1,0 +1,213 @@
+package com.killer560.hub.ticktimers;
+
+import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.secrets.DungeonState;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+/**
+ * F7/M7 boss-fight countdown timers - killer560's "tick timers from Odin/noamm" request. Every chat
+ * trigger and tick count below is ported directly from Odin's own real, confirmed {@code TickTimers.kt}
+ * - real boss dialogue lines and real countdown lengths (Necron/Goldor: 60 ticks; Storm's pad: 20
+ * ticks; lightning: 560 ticks; the purple-pillar "PY" window: 95 ticks; Storm's second-phase crush
+ * window: 620 ticks), not guessed. Deliberately omits Odin's "Secrets" pulse timer - that one isn't a
+ * real per-secret prediction (Hypixel doesn't expose secret-spawn timing), just a repeating 20-tick
+ * cosmetic pulse, and killer560's list already has a real secret-count feature elsewhere
+ * ({@code DungeonInfoFeature}).
+ */
+public final class TickTimersFeature {
+
+    private static final Pattern NECRON_REGEX = Pattern.compile("^\\[BOSS] Necron: I'm afraid, your journey ends now\\.$");
+    private static final Pattern GOLDOR_REGEX = Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");
+    private static final Pattern CORE_OPENING_REGEX = Pattern.compile("^The Core entrance is opening!$");
+    private static final Pattern STORM_END_REGEX = Pattern.compile("^\\[BOSS] Storm: I should have known that I stood no chance\\.$");
+    private static final Pattern STORM_START_REGEX = Pattern.compile("^\\[BOSS] Storm: Pathetic Maxor, just like expected\\.$");
+    private static final Pattern STORM_PY_REGEX = Pattern.compile("^\\[BOSS] Storm: (ENERGY HEED MY CALL|THUNDER LET ME BE YOUR CATALYST)!$");
+
+    private static int necronTicks = -1;
+    private static int goldorTickTime = -1;
+    private static int goldorStartTime = -1;
+    private static int padTickTime = -1;
+    private static int lightningTickTime = -1;
+    private static boolean pyTriggered = false;
+    private static int pyTickTime = -1;
+    private static int stormTick = -1;
+    private static boolean wasInDungeon = false;
+
+    private TickTimersFeature() {
+    }
+
+    public static void register() {
+        ClientReceiveMessageEvents.CHAT.register(
+                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+    }
+
+    private static void onChatMessage(Component message) {
+        if (!TickTimersConfig.getInstance().isEnabled()) {
+            return;
+        }
+        String raw = message.getString();
+        if (NECRON_REGEX.matcher(raw).matches()) {
+            necronTicks = 60;
+        } else if (GOLDOR_REGEX.matcher(raw).matches()) {
+            goldorTickTime = 60;
+        } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
+            goldorStartTime = -1;
+            goldorTickTime = -1;
+        } else if (STORM_END_REGEX.matcher(raw).matches()) {
+            goldorStartTime = 104;
+            padTickTime = -1;
+            stormTick = -1;
+        } else if (STORM_START_REGEX.matcher(raw).matches()) {
+            padTickTime = 20;
+            lightningTickTime = 560;
+            stormTick = 0;
+        } else if (!pyTriggered && STORM_PY_REGEX.matcher(raw).matches()) {
+            pyTriggered = true;
+            pyTickTime = 95;
+        }
+    }
+
+    private static void tick() {
+        boolean inDungeon = DungeonState.isInDungeon();
+        if (!inDungeon && wasInDungeon) {
+            resetAll();
+        }
+        wasInDungeon = inDungeon;
+
+        if (!TickTimersConfig.getInstance().isEnabled() || !DungeonState.isBossPhaseActive()) {
+            return;
+        }
+        if (goldorTickTime == 0 && goldorStartTime <= 0) {
+            goldorTickTime = 60;
+        }
+        if (goldorStartTime >= 0) {
+            goldorStartTime--;
+        }
+        if (goldorTickTime >= 0) {
+            goldorTickTime--;
+        }
+        if (padTickTime == 0) {
+            padTickTime = 20;
+        }
+        if (padTickTime >= 0) {
+            padTickTime--;
+        }
+        if (lightningTickTime >= 0) {
+            lightningTickTime--;
+        }
+        if (pyTickTime >= 0) {
+            pyTickTime--;
+        }
+        if (necronTicks >= 0) {
+            necronTicks--;
+        }
+        if (stormTick >= 0) {
+            stormTick++;
+        }
+    }
+
+    private static void resetAll() {
+        necronTicks = -1;
+        goldorTickTime = -1;
+        goldorStartTime = -1;
+        padTickTime = -1;
+        lightningTickTime = -1;
+        pyTickTime = -1;
+        pyTriggered = false;
+        stormTick = -1;
+    }
+
+    private static String format(int time, int max, String prefix) {
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        String color = time >= max * 0.66 ? "§a" : time >= max * 0.33 ? "§6" : "§c";
+        String value = cfg.isDisplayInTicks()
+                ? time + (cfg.isShowSymbol() ? "t" : "")
+                : String.format(Locale.US, "%.1f%s", time / 20f, cfg.isShowSymbol() ? "s" : "");
+        return (cfg.isShowPrefix() ? prefix + " " : "") + color + value;
+    }
+
+    public static final class TickTimersHudElement implements HudElement {
+        @Override
+        public String id() {
+            return "tick_timers";
+        }
+
+        @Override
+        public String displayName() {
+            return "Tick Timers";
+        }
+
+        @Override
+        public int defaultX() {
+            return 10;
+        }
+
+        @Override
+        public int defaultY() {
+            return 380;
+        }
+
+        @Override
+        public int width() {
+            return 160;
+        }
+
+        @Override
+        public int height() {
+            return 12 * Math.max(1, activeLines().size());
+        }
+
+        private List<String> activeLines() {
+            TickTimersConfig cfg = TickTimersConfig.getInstance();
+            List<String> lines = new ArrayList<>();
+            if (cfg.isNecronTimer() && necronTicks >= 0) {
+                lines.add(format(necronTicks, 60, "§4Necron dropping in"));
+            }
+            if (cfg.isGoldorTimer()) {
+                if (goldorStartTime >= 0) {
+                    lines.add(format(goldorStartTime, 100, "§aStart:"));
+                } else if (goldorTickTime >= 0) {
+                    lines.add(format(goldorTickTime, 60, "§7Tick:"));
+                }
+            }
+            if (cfg.isStormTimer()) {
+                if (padTickTime >= 0) {
+                    lines.add(format(padTickTime, 20, "§bPad:"));
+                }
+                if (lightningTickTime >= 0) {
+                    lines.add(format(lightningTickTime, 560, "§bLightning:"));
+                }
+                if (pyTickTime >= 0) {
+                    lines.add(format(pyTickTime, 95, "§bPY:"));
+                }
+                if (stormTick >= 0) {
+                    lines.add(format(stormTick, 620, "§bStorm:"));
+                }
+            }
+            return lines;
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+            if (!TickTimersConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+                return;
+            }
+            int lineY = y;
+            for (String line : activeLines()) {
+                graphics.text(Minecraft.getInstance().font, line, x, lineY, 0xFFFFFFFF, false);
+                lineY += 12;
+            }
+        }
+    }
+}

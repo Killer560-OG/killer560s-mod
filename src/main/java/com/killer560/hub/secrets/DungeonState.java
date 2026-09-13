@@ -134,6 +134,13 @@ public final class DungeonState {
         return cachedFloor != null;
     }
 
+    /** @return the raw floor string (e.g. "F7", "M3"), or null outside a dungeon run - added for
+     *  {@link com.killer560.hub.splittimers.SplitTimersFeature}, which needs to pick the right split
+     *  list per floor rather than just the boolean F7/M7 check the rest of this mod uses. */
+    public static String getFloor() {
+        return cachedFloor;
+    }
+
     public static boolean isF7OrM7() {
         return "F7".equals(cachedFloor) || "M7".equals(cachedFloor);
     }
