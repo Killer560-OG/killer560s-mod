@@ -32,3 +32,6 @@ local.properties
 
 # Personal QA checklist, not for the public repo
 TESTING.md
+
+# Session handoff notes, not for the public repo
+HANDOFF.md
