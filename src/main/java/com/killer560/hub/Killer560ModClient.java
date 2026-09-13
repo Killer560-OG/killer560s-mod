@@ -1,10 +1,12 @@
 package com.killer560.hub;
 
+import com.killer560.hub.abilitytimers.AbilityTimersFeature;
 import com.killer560.hub.accounts.HypixelJoinWatcher;
 import com.killer560.hub.autojoinskyblock.AutoJoinSkyblockFeature;
 import com.killer560.hub.automeow.AutoMeowFeature;
 import com.killer560.hub.compat.ModCompatibility;
 import com.killer560.hub.cringe.CringeFeature;
+import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.dvd.DvdFeature;
 import com.killer560.hub.experiments.ExperimentsConfig;
 import com.killer560.hub.experiments.ExperimentsFeature;
@@ -15,6 +17,7 @@ import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.jumpscare.JumpscareFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
+import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.posmsg.PosmsgConfig;
@@ -80,6 +83,11 @@ public class Killer560ModClient implements ClientModInitializer {
         DungeonState.register();
         PosmsgFeature.register();
         HudElementRegistry.register(new PosmsgHudElement());
+        AbilityTimersFeature.register();
+        HudElementRegistry.register(new AbilityTimersFeature.TimersHudElement());
+        DungeonInfoFeature.register();
+        HudElementRegistry.register(new DungeonInfoFeature.InfoHudElement());
+        MobEspFeature.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);
