@@ -33,7 +33,8 @@ public class DungeonTab extends FolderTab {
                 new TickTimersTab(),
                 new SplitTimersTab(),
                 new MaskInvincibilityTab(),
-                new I4SensorsTab()
+                new I4SensorsTab(),
+                new LiveMapTab()
         ));
         // Per killer560's explicit "cheat variant should have hitbox's auto etable and auto terms"
         // request (2026-09-10) - Full Block (hitbox expansion) moved from always-available to cheat-only

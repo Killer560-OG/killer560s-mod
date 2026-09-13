@@ -45,6 +45,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Mask Invincibility Timers — automatic active/cooldown timers for Spirit Mask, Bonzo's Mask, and Phoenix Pet, detected off the real "saved your life" chat lines. The **cheat** build additionally has Auto Swap: right-clicks your other mask into place the moment the worn one procs, if it's off cooldown
 - I4 Sensors — a diagnostic block-state logger for the real "Pre4" area (right before Necron's P4 starts), for gathering the real data an i4 solver would need
 - Auto Leap Out — **cheat build only.** Automatically opens Spirit Leap and jumps to a configured player (or "Mel") on real F7 triggers: the i4 device completing, Storm's death, the middle/P4 approach, relic pickup, and pad crushes
+- Live Map — a self-drawn room/door map for the current dungeon run, using the dungeon's real fixed 11x11 room grid and real door-type detection, plus live teammate positions (colored by their assigned class from the Leap Menu). Doesn't show room names, secrets, or mimic detection yet - that needs a room database this mod doesn't have access to
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
