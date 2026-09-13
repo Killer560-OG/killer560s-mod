@@ -15,7 +15,12 @@ import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.jumpscare.JumpscareFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
+import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.posmsg.PosmsgConfig;
+import com.killer560.hub.posmsg.PosmsgEntry;
+import com.killer560.hub.posmsg.PosmsgFeature;
+import com.killer560.hub.posmsg.PosmsgHudElement;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.rngmeter.MagicFindTracker;
 import com.killer560.hub.secrets.DungeonState;
@@ -73,6 +78,8 @@ public class Killer560ModClient implements ClientModInitializer {
         JumpscareFeature.register();
         StorageOverlayFeature.register();
         DungeonState.register();
+        PosmsgFeature.register();
+        HudElementRegistry.register(new PosmsgHudElement());
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);
@@ -92,7 +99,39 @@ public class Killer560ModClient implements ClientModInitializer {
                                 client.setScreenAndShow(new ModScreen(client.screen));
                             });
                             return 1;
-                        })));
+                        })
+                        // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
+                        // directly rather than going through the mod menu's Dungeon folder.
+                        .then(ClientCommands.literal("leaporder")
+                                .executes(context -> {
+                                    Minecraft client = Minecraft.getInstance();
+                                    client.execute(() -> client.setScreenAndShow(
+                                            new com.killer560.hub.leapmenu.LeapMenuScreen(client.screen)));
+                                    return 1;
+                                }))));
+
+        // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
+        // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the
+        // radius. "add" always creates a reusable custom waypoint AND sends it immediately (same as
+        // pressing Send on it right after adding); "send <name>" re-sends an existing preset/custom
+        // entry by name (case-insensitive), honoring its own once-per-run toggle.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal("posmsg")
+                        .then(ClientCommands.literal("add")
+                                .then(ClientCommands.argument("rest", StringArgumentType.greedyString())
+                                        .executes(Killer560ModClient::posmsgAdd)))
+                        .then(ClientCommands.literal("send")
+                                .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                        .executes(context -> {
+                                            String name = StringArgumentType.getString(context, "name");
+                                            PosmsgEntry entry = PosmsgConfig.getInstance().byName(name);
+                                            if (entry == null) {
+                                                ModOverlayMessage.show("§c[Posmsg] No waypoint named \"" + name + "\".", 3000);
+                                                return 0;
+                                            }
+                                            PosmsgFeature.send(entry);
+                                            return 1;
+                                        })))));
 
         // Termism: killer560's own terminal-practice request (2026-09-09) - "/termism or... through the
         // settings" - this is the command half, TermismTab (Dungeon folder) is the settings half.
@@ -161,6 +200,36 @@ public class Killer560ModClient implements ClientModInitializer {
                                 return 1;
                             })));
         });
+    }
+
+    /** Parses {@code /posmsg add <message...> <x> <y> <z> <radius>} - the message itself can contain
+     *  spaces (e.g. "Simon Says"), so this takes the trailing 4 whitespace-separated tokens as the
+     *  numbers and joins everything before them back into the message text, rather than using
+     *  separate Brigadier arguments (which can't express "greedy string, but not the last 4 words"). */
+    private static int posmsgAdd(CommandContext<FabricClientCommandSource> context) {
+        String rest = StringArgumentType.getString(context, "rest").trim();
+        String[] tokens = rest.split("\\s+");
+        if (tokens.length < 5) {
+            ModOverlayMessage.show("§c[Posmsg] Usage: /posmsg add <message> <x> <y> <z> <radius>", 4000);
+            return 0;
+        }
+        try {
+            double radius = Double.parseDouble(tokens[tokens.length - 1]);
+            double z = Double.parseDouble(tokens[tokens.length - 2]);
+            double y = Double.parseDouble(tokens[tokens.length - 3]);
+            double x = Double.parseDouble(tokens[tokens.length - 4]);
+            String message = String.join(" ", java.util.Arrays.copyOfRange(tokens, 0, tokens.length - 4));
+            if (message.isBlank()) {
+                ModOverlayMessage.show("§c[Posmsg] Usage: /posmsg add <message> <x> <y> <z> <radius>", 4000);
+                return 0;
+            }
+            PosmsgFeature.addAndSend(message, x, y, z, radius);
+            ModOverlayMessage.show("§b[Posmsg] Added and sent \"" + message + "\"", 3000);
+            return 1;
+        } catch (NumberFormatException e) {
+            ModOverlayMessage.show("§c[Posmsg] The last 4 words must be numbers: x y z radius", 4000);
+            return 0;
+        }
     }
 
     private static int setLanguageFromCommand(CommandContext<FabricClientCommandSource> context) {

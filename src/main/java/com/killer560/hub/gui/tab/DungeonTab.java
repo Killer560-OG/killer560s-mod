@@ -19,6 +19,9 @@ public class DungeonTab extends FolderTab {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new RngMeterTab(),
                 new LeapMessageTab(),
+                new LeapMenuTab(),
+                new FastLeapTab(),
+                new PosmsgTab(),
                 new TerminalSolverTab(),
                 new TermismTab()
         ));
