@@ -50,6 +50,8 @@ public final class DungeonInfoFeature {
     private static boolean wasInDungeon = false;
     private static long runStartAtMs = 0;
     private static long runEndedAtMs = -1;
+    private static long runStartGameTime = -1;
+    private static long runEndedGameTime = -1;
     private static boolean loggedSidebarThisRun = false;
     private static int lastSecretsCount = -1;
     private static long lastMimicAlertAtMs = 0;
@@ -68,13 +70,17 @@ public final class DungeonInfoFeature {
 
     private static void tick() {
         boolean inDungeonNow = DungeonState.isInDungeon();
+        Minecraft client = Minecraft.getInstance();
         if (inDungeonNow && !wasInDungeon) {
             runStartAtMs = System.currentTimeMillis();
+            runStartGameTime = client.level != null ? client.level.getGameTime() : -1;
             runEndedAtMs = -1;
+            runEndedGameTime = -1;
             loggedSidebarThisRun = false;
             lastSecretsCount = -1;
         } else if (!inDungeonNow && wasInDungeon) {
             runEndedAtMs = System.currentTimeMillis();
+            runEndedGameTime = client.level != null ? client.level.getGameTime() : runEndedGameTime;
         }
         wasInDungeon = inDungeonNow;
 
@@ -134,17 +140,42 @@ public final class DungeonInfoFeature {
         TranslateFeature.sendGenerated(cfg.getScore300Message(), "pc");
     }
 
-    /** Client-side elapsed time for the current (or most recently finished) run, "with lag" simply
-     *  being real wall-clock elapsed time - killer560's "with and without lag" ask needs a real
-     *  server-tick-count source to give a without-lag figure that means anything, which nothing in
-     *  this mod currently tracks; only the wall-clock figure is implemented here. */
+    /** Client-side elapsed time for the current (or most recently finished) run - real wall-clock
+     *  elapsed time, so it includes any lag/freeze along the way. */
     public static String elapsedTimeText() {
         if (runStartAtMs == 0) {
             return "No run yet";
         }
         long end = runEndedAtMs > 0 ? runEndedAtMs : System.currentTimeMillis();
-        long elapsedSec = (end - runStartAtMs) / 1000;
-        return String.format(Locale.US, "%02d:%02d", elapsedSec / 60, elapsedSec % 60);
+        return formatSeconds((end - runStartAtMs) / 1000);
+    }
+
+    /** "Without lag" elapsed time - uses {@code ClientLevel#getGameTime()} (the world's own tick
+     *  counter, real vanilla API) instead of wall-clock time. Game time only advances when the server
+     *  actually sends a tick update, so a real lag spike/freeze widens the gap between this and
+     *  {@link #elapsedTimeText()} while wall-clock time keeps counting regardless - the difference
+     *  between the two IS the time lost to lag, which is what "without lag" means here. */
+    public static String elapsedTimeWithoutLagText() {
+        if (runStartGameTime < 0) {
+            return "No run yet";
+        }
+        Minecraft client = Minecraft.getInstance();
+        long end = runEndedGameTime >= 0 ? runEndedGameTime
+                : client.level != null ? client.level.getGameTime() : runStartGameTime;
+        long elapsedTicks = Math.max(0, end - runStartGameTime);
+        return formatSeconds(elapsedTicks / 20);
+    }
+
+    private static String formatSeconds(long totalSeconds) {
+        return String.format(Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60);
+    }
+
+    public static void sendTime() {
+        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
+        String message = cfg.isSendTimeWithoutLag()
+                ? String.format(Locale.US, "Time: %s (%s without lag)", elapsedTimeText(), elapsedTimeWithoutLagText())
+                : "Time: " + elapsedTimeText();
+        TranslateFeature.sendGenerated(message, "pc");
     }
 
     private static String readSidebarText() {
@@ -210,7 +241,7 @@ public final class DungeonInfoFeature {
 
         @Override
         public int height() {
-            return 24;
+            return 36;
         }
 
         @Override
@@ -227,6 +258,8 @@ public final class DungeonInfoFeature {
             }
             if (cfg.isTimeTrackerEnabled() && runStartAtMs > 0) {
                 graphics.text(Minecraft.getInstance().font, "Time: " + elapsedTimeText(), x, lineY, 0xFFFFFFFF, false);
+                lineY += 12;
+                graphics.text(Minecraft.getInstance().font, "No Lag: " + elapsedTimeWithoutLagText(), x, lineY, 0xFFAAAAAA, false);
             }
         }
     }

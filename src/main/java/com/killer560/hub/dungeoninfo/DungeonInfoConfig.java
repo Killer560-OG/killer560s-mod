@@ -37,6 +37,7 @@ public final class DungeonInfoConfig {
     private String score300Message = "300 score!";
 
     private boolean timeTrackerEnabled = false;
+    private boolean sendTimeWithoutLag = true;
 
     private DungeonInfoConfig() {
     }
@@ -72,6 +73,7 @@ public final class DungeonInfoConfig {
             cfg.score300Enabled = obj.has("score300Enabled") && obj.get("score300Enabled").getAsBoolean();
             cfg.score300Message = getString(obj, "score300Message", cfg.score300Message);
             cfg.timeTrackerEnabled = obj.has("timeTrackerEnabled") && obj.get("timeTrackerEnabled").getAsBoolean();
+            cfg.sendTimeWithoutLag = !obj.has("sendTimeWithoutLag") || obj.get("sendTimeWithoutLag").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonInfoConfig();
@@ -101,6 +103,7 @@ public final class DungeonInfoConfig {
             obj.addProperty("score300Enabled", score300Enabled);
             obj.addProperty("score300Message", score300Message);
             obj.addProperty("timeTrackerEnabled", timeTrackerEnabled);
+            obj.addProperty("sendTimeWithoutLag", sendTimeWithoutLag);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -224,5 +227,13 @@ public final class DungeonInfoConfig {
 
     public void setTimeTrackerEnabled(boolean v) {
         this.timeTrackerEnabled = v;
+    }
+
+    public boolean isSendTimeWithoutLag() {
+        return sendTimeWithoutLag;
+    }
+
+    public void setSendTimeWithoutLag(boolean v) {
+        this.sendTimeWithoutLag = v;
     }
 }

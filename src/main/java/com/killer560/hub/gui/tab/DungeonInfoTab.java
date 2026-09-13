@@ -51,8 +51,19 @@ public class DungeonInfoTab extends BaseTab {
         y += 24;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Current run time: " + DungeonInfoFeature.elapsedTimeText()),
+                Component.literal("§7Current run time: " + DungeonInfoFeature.elapsedTimeText()
+                        + " §8(" + DungeonInfoFeature.elapsedTimeWithoutLagText() + " without lag)"),
                 Minecraft.getInstance().font));
+        y += 16;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Include \"Without Lag\"", cfg.isSendTimeWithoutLag()), btn -> {
+                    cfg.setSendTimeWithoutLag(!cfg.isSendTimeWithoutLag());
+                    cfg.save();
+                    btn.setMessage(onOff("Include \"Without Lag\"", cfg.isSendTimeWithoutLag()));
+                }).bounds(contentX, y, 160, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Send Time"), btn -> DungeonInfoFeature.sendTime())
+                .bounds(contentX + 168, y, 100, 18).build());
         y += 24;
 
         y = buildKeywordRow(widgets, "Mimic", contentX, y, contentWidth,
