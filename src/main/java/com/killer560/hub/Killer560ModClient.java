@@ -8,6 +8,8 @@ import com.killer560.hub.compat.ModCompatibility;
 import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.dvd.DvdFeature;
+import com.killer560.hub.etherwarp.EtherwarpFeature;
+import com.killer560.hub.etherwarp.EtherwarpHudElement;
 import com.killer560.hub.experiments.ExperimentsConfig;
 import com.killer560.hub.experiments.ExperimentsFeature;
 import com.killer560.hub.gifplayer.GifPlayerFeature;
@@ -17,6 +19,7 @@ import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.jumpscare.JumpscareFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
+import com.killer560.hub.mapping.MappingFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
@@ -29,6 +32,7 @@ import com.killer560.hub.rngmeter.MagicFindTracker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngMeterOverlay;
+import com.killer560.hub.simonsays.SimonSaysFeature;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import com.killer560.hub.termism.TermismMenuScreen;
@@ -88,6 +92,10 @@ public class Killer560ModClient implements ClientModInitializer {
         DungeonInfoFeature.register();
         HudElementRegistry.register(new DungeonInfoFeature.InfoHudElement());
         MobEspFeature.register();
+        SimonSaysFeature.register();
+        MappingFeature.register();
+        EtherwarpFeature.register();
+        HudElementRegistry.register(new EtherwarpHudElement());
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);
@@ -116,7 +124,32 @@ public class Killer560ModClient implements ClientModInitializer {
                                     client.execute(() -> client.setScreenAndShow(
                                             new com.killer560.hub.leapmenu.LeapMenuScreen(client.screen)));
                                     return 1;
-                                }))));
+                                }))
+                        // Real, working data-gathering tool for the Mapping tab's placeholders - see
+                        // MappingFeature's class doc. Dumps whatever map you're holding right now.
+                        .then(ClientCommands.literal("mapdump")
+                                .executes(context -> {
+                                    ModOverlayMessage.show(MappingFeature.dumpHeldMap(), 4000);
+                                    return 1;
+                                }))
+                        // "/killer560 ew add <name>" - killer560's "secret waypoints" request
+                        // (2026-09-13), exact syntax as requested. Deliberately its own local-only
+                        // system, not built on Posmsg's add - see EtherwarpFeature's class doc for why
+                        // (Posmsg's add immediately broadcasts to real Party Chat; this never does).
+                        .then(ClientCommands.literal("ew")
+                                .then(ClientCommands.literal("add")
+                                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                                .executes(context -> {
+                                                    String name = StringArgumentType.getString(context, "name");
+                                                    ModOverlayMessage.show(EtherwarpFeature.addAtLookTarget(name), 3000);
+                                                    return 1;
+                                                })))
+                                .then(ClientCommands.literal("clear")
+                                        .executes(context -> {
+                                            EtherwarpFeature.clear();
+                                            ModOverlayMessage.show("§b[Etherwarp] Cleared all waypoints.", 2500);
+                                            return 1;
+                                        })))));
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the

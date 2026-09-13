@@ -26,7 +26,10 @@ public class DungeonTab extends FolderTab {
                 new TermismTab(),
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),
-                new MobEspTab()
+                new MobEspTab(),
+                new SimonSaysTab(),
+                new MappingTab(),
+                new EtherwarpTab()
         ));
         // Per killer560's explicit "cheat variant should have hitbox's auto etable and auto terms"
         // request (2026-09-10) - Full Block (hitbox expansion) moved from always-available to cheat-only
