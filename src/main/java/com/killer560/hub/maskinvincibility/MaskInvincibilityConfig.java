@@ -25,6 +25,7 @@ public final class MaskInvincibilityConfig {
     private boolean showSpirit = true;
     private boolean showBonzo = true;
     private boolean showPhoenix = true;
+    private boolean autoSwapEnabled = false;
 
     private MaskInvincibilityConfig() {
     }
@@ -50,6 +51,8 @@ public final class MaskInvincibilityConfig {
             cfg.showSpirit = !obj.has("showSpirit") || obj.get("showSpirit").getAsBoolean();
             cfg.showBonzo = !obj.has("showBonzo") || obj.get("showBonzo").getAsBoolean();
             cfg.showPhoenix = !obj.has("showPhoenix") || obj.get("showPhoenix").getAsBoolean();
+            cfg.autoSwapEnabled = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                    && obj.has("autoSwapEnabled") && obj.get("autoSwapEnabled").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new MaskInvincibilityConfig();
@@ -65,6 +68,7 @@ public final class MaskInvincibilityConfig {
             obj.addProperty("showSpirit", showSpirit);
             obj.addProperty("showBonzo", showBonzo);
             obj.addProperty("showPhoenix", showPhoenix);
+            obj.addProperty("autoSwapEnabled", autoSwapEnabled);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -108,5 +112,15 @@ public final class MaskInvincibilityConfig {
 
     public void setShowPhoenix(boolean showPhoenix) {
         this.showPhoenix = showPhoenix;
+    }
+
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatically swaps
+     *  your worn mask, a real automation. */
+    public boolean isAutoSwapEnabled() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSwapEnabled;
+    }
+
+    public void setAutoSwapEnabled(boolean autoSwapEnabled) {
+        this.autoSwapEnabled = autoSwapEnabled;
     }
 }

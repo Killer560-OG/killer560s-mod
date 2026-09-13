@@ -19,6 +19,8 @@ import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.jumpscare.JumpscareFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
+import com.killer560.hub.autoleap.AutoLeapFeature;
+import com.killer560.hub.i4sensors.I4SensorsFeature;
 import com.killer560.hub.mapping.MappingFeature;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
@@ -105,6 +107,8 @@ public class Killer560ModClient implements ClientModInitializer {
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
         ModChatFeature.register();
+        AutoLeapFeature.register();
+        I4SensorsFeature.register();
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());

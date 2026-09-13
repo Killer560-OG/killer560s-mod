@@ -72,6 +72,30 @@ public class MaskInvincibilityTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7the item's own tooltip - this uses a fixed 180s estimate instead."),
                 Minecraft.getInstance().font));
+        y += 20;
+
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return widgets;
+        }
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§c§lCheat Build - Automation"), Minecraft.getInstance().font));
+        y += 14;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isAutoSwapEnabled()), btn -> {
+                    cfg.setAutoSwapEnabled(!cfg.isAutoSwapEnabled());
+                    cfg.save();
+                    btn.setMessage(onOff("Auto Swap", cfg.isAutoSwapEnabled()));
+                }).bounds(col1, y, 100, 18).build());
+        y += 20;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7When Spirit/Bonzo procs, right-clicks the other one if it's in your"),
+                Minecraft.getInstance().font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7hotbar and off cooldown - real vanilla equip-swap, works mid-fight."),
+                Minecraft.getInstance().font));
 
         return widgets;
     }

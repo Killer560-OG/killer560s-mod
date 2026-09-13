@@ -7,6 +7,10 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.EnumMap;
 import java.util.Locale;
@@ -86,6 +90,38 @@ public final class MaskInvincibilityFeature {
                         client.player.sendSystemMessage(Component.literal("§d[Mask] " + t.label + " procced!"));
                     }
                 }
+                if (cfg.isAutoSwapEnabled() && (t == Type.SPIRIT || t == Type.BONZO)) {
+                    trySwapMask(t == Type.SPIRIT ? Type.BONZO : Type.SPIRIT);
+                }
+                return;
+            }
+        }
+    }
+
+    /** Right-clicking a helmet-type item (found by display name, not a guessed NBT id) equips it
+     *  directly to your head slot - real, long-stable vanilla behavior that works with your inventory
+     *  closed, unlike a container-input shift-click swap. Your previous helmet goes back into whatever
+     *  hotbar slot you swapped from, same as manually pressing the number key and right-clicking would
+     *  do. Only fires when the OTHER mask (not the one that just procced) is actually sitting in your
+     *  hotbar, off cooldown. */
+    private static void trySwapMask(Type other) {
+        if (cooldownRemaining.getOrDefault(other, 0) > 0) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.gameMode == null) {
+            return;
+        }
+        ItemStack worn = client.player.getItemBySlot(EquipmentSlot.HEAD);
+        if (worn.isEmpty() || !worn.getHoverName().getString().contains(other == Type.SPIRIT ? "Bonzo" : "Spirit")) {
+            return;
+        }
+        for (int i = 0; i < 9; i++) {
+            ItemStack item = client.player.getInventory().getItem(i);
+            if (!item.isEmpty() && item.getHoverName().getString().contains(other.label.split(" ")[0])) {
+                client.player.getInventory().setSelectedSlot(i);
+                client.player.connection.send(new ServerboundSetCarriedItemPacket(i));
+                client.gameMode.useItem(client.player, InteractionHand.MAIN_HAND);
                 return;
             }
         }
