@@ -93,6 +93,7 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new DungeonInfoFeature.InfoHudElement());
         MobEspFeature.register();
         SimonSaysFeature.register();
+        HudElementRegistry.register(new SimonSaysFeature.PartyProgressHudElement());
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
