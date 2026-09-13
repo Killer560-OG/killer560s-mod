@@ -21,7 +21,8 @@ public class ChatTab extends FolderTab {
                 new AutoMeowTab(),
                 new CringeTab(),
                 new SpotifyTab(),
-                new ScreenshotCopyTab()
+                new ScreenshotCopyTab(),
+                new ModChatTab()
         ));
     }
 }

@@ -19,6 +19,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Auto Meow — random cat noises
 - Cringe — random one-liner messages for fun
 - Spotify Mod — posts the lyrics of whatever you're playing on Spotify into chat, synced to the song
+- Mod Chat — `/killer560 chat <message>` tags a message so other mod users get it as a highlighted overlay; sent over real Party/Guild chat, so it's not actually private from non-mod-users there (Hypixel doesn't offer a private client-only channel)
 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay

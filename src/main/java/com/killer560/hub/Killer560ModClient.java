@@ -22,6 +22,7 @@ import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.mapping.MappingFeature;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
+import com.killer560.hub.modchat.ModChatFeature;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.posmsg.PosmsgConfig;
@@ -103,6 +104,7 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new SplitTimersFeature.SplitTimersHudElement());
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
+        ModChatFeature.register();
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
@@ -158,6 +160,16 @@ public class Killer560ModClient implements ClientModInitializer {
                                         .executes(context -> {
                                             EtherwarpFeature.clear();
                                             ModOverlayMessage.show("§b[Etherwarp] Cleared all waypoints.", 2500);
+                                            return 1;
+                                        })))
+                        // "/killer560 chat <message>" - killer560's "custom chat" request. See
+                        // ModChatFeature's class doc for why this isn't literally "/chat killer560"
+                        // (that root belongs to a real Hypixel command).
+                        .then(ClientCommands.literal("chat")
+                                .then(ClientCommands.argument("message", StringArgumentType.greedyString())
+                                        .executes(context -> {
+                                            String message = StringArgumentType.getString(context, "message");
+                                            ModOverlayMessage.show(com.killer560.hub.modchat.ModChatFeature.send(message), 3000);
                                             return 1;
                                         })))));
 
