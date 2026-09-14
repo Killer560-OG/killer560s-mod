@@ -1434,7 +1434,24 @@ public final class SimonSaysFeature {
         if (client.player == null) {
             return false;
         }
-        if (buttonPos.equals(rotateClickFiredFor)) {
+        if (rotateClickFiredFor != null) {
+            // Real bug found and fixed (2026-09-14, killer560's own report: "it is still no where near
+            // the propper time" - confirmed by a full [SimonSays][AutoSolve] state trace: rounds were
+            // completing correctly, in the right order, but autoSolveNextClickAtMs never rescheduled and
+            // not one "Auto-solve click" line ever logged): tick() calls detectGridChanges - which
+            // advances clickNeeded via the real block-state change from a click that just fired - BEFORE
+            // this method's own caller (tickAutoSolveAndTriggerBot) runs, in the SAME real tick. So by the
+            // time this gets called again, `buttonPos` here is already the NEXT real target (clickNeeded
+            // already moved on) - not the one rotateClickFiredFor was actually set for a moment earlier.
+            // The old buttonPos.equals(rotateClickFiredFor) check demanded an exact match that this
+            // ordering makes IMPOSSIBLE on literally every real click, not just an edge case - silently
+            // orphaning the flag forever and never reporting the click back to the caller's own pacing
+            // bookkeeping, which is exactly why the schedule never advanced and the configured Timer
+            // Target had zero effect on the real result. Only one approach is ever in progress at a time
+            // (Auto Start and Auto Solve/Trigger Bot are already mutually exclusive via autoStartRunning),
+            // so any pending rotateClickFiredFor unambiguously belongs to whatever this caller was most
+            // recently working toward - safe to report success regardless of which exact position is
+            // being asked about on this specific call.
             rotateClickFiredFor = null;
             return true;
         }
