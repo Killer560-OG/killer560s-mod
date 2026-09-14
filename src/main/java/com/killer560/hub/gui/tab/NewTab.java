@@ -60,7 +60,8 @@ public class NewTab extends FolderTab {
                 new AbilityKeybindsTab(),
                 new P4PlatformHighlightTab(),
                 new BetterPartyFinderTab(),
-                new CommandKeybindsTab()
+                new CommandKeybindsTab(),
+                new RevertMasterStarsTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
