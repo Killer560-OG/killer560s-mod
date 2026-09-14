@@ -1361,21 +1361,38 @@ public final class SimonSaysFeature {
             }
         }
 
+        // Real bug found and fixed (2026-09-14, killer560's own report: "it just did that large weird
+        // flick again... it is always right after a button press and it moves a ton then right back"):
+        // rotateInProgressTarget is nulled the instant a click fires (see applyRotateApproachFrame) and
+        // only gets set to the NEXT real target on the next TICK (tickAutoSolveAndTriggerBot/tickAutoStart
+        // are tick-based) - but this frame loop runs far more often than ticks, so there was a real gap of
+        // several frames after every single click where rotateInProgressTarget was null. Every OTHER idle
+        // gate (autoStartRunning false, near the anchor, Goldor line seen) is already satisfied throughout
+        // an entire active solve, so idle would win that gap and start easing the camera toward
+        // rememberedFirstButton (button 1) - then the very next tick immediately yanked it back to the
+        // real next target. That's the "flick": a real jump toward button 1 and back, every single click.
+        // solveStepsPending means Auto Solve/Trigger Bot still has a real click due in the CURRENT round -
+        // i.e. another approach is about to begin on the very next tick regardless - so idle must not
+        // touch the camera during that gap at all; holding still (falling into BLOCKED, which doesn't move
+        // the camera) until that next approach begins is exactly what a real person's aim would do.
+        boolean solveStepsPending = !clickInOrder.isEmpty() && clickNeeded < clickInOrder.size();
+
         String state;
         if (rotateInProgressTarget != null) {
             state = "APPROACH target=" + rotateInProgressTarget;
             applyRotateApproachFrame(client, rotateInProgressTarget, dtTicks);
         } else {
             boolean nearAnchor = isNearIdleLookAnchor(client);
-            if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor) {
+            if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor
+                    && !solveStepsPending) {
                 state = "IDLE target=" + (rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON);
                 applyIdleSwayFrame(client, dtTicks);
             } else {
                 double distSq = client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR);
                 state = String.format(Locale.US,
-                        "BLOCKED autoStartRunning=%b idleSuppressedAfterCompletion=%b goldorLineSeen=%b nearAnchor=%b (distSq=%.1f, need<=%.1f) rememberedFirstButton=%s clickInOrder.size=%d clickNeeded=%d",
+                        "BLOCKED autoStartRunning=%b idleSuppressedAfterCompletion=%b goldorLineSeen=%b nearAnchor=%b (distSq=%.1f, need<=%.1f) solveStepsPending=%b rememberedFirstButton=%s clickInOrder.size=%d clickNeeded=%d",
                         autoStartRunning, idleSuppressedAfterCompletion, goldorLineSeenThisPhase, nearAnchor,
-                        distSq, IDLE_LOOK_RANGE_SQ, rememberedFirstButton, clickInOrder.size(), clickNeeded);
+                        distSq, IDLE_LOOK_RANGE_SQ, solveStepsPending, rememberedFirstButton, clickInOrder.size(), clickNeeded);
             }
         }
         if (!state.equals(lastLoggedRotateFrameState)) {
