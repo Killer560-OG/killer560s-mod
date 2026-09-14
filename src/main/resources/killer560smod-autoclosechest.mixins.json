@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.autoclosechest.mixin",
+	"client": [
+		"AutoCloseChestMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

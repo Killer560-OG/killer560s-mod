@@ -51,6 +51,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Auto Leap Out — **cheat build only.** Automatically opens Spirit Leap and jumps to a configured player (or "Mel") on real F7 triggers: the i4 device completing, Storm's death, the middle/P4 approach, relic pickup, and pad crushes
 - Live Map — a self-drawn room/door map for the current dungeon run, using the dungeon's real fixed 11x11 room grid, real door-type detection, and (new) real room NAMES from the same room database Secret Waypoints uses, plus live teammate positions (colored by their assigned class from the Leap Menu)
 - Secret Waypoints — real, preloaded per-room secret positions (chests, items, wither skulls, bats, redstone keys) once a room is identified, downloaded from the same public room database NoammAddons itself uses. Includes real mimic-chest detection (an extra trapped chest beyond what a room should have)
+- Auto Close Chest — instantly closes a real secret reward chest ("Chest"/"Large Chest"/"Trapped Chest") the moment it opens in a dungeon, before it's ever shown on screen
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen

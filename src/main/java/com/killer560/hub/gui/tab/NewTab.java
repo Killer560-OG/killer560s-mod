@@ -37,7 +37,8 @@ public class NewTab extends FolderTab {
                 new I4SensorsTab(),
                 new LiveMapTab(),
                 new SecretWaypointsTab(),
-                new ProximityVoiceTab()
+                new ProximityVoiceTab(),
+                new AutoCloseChestTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
