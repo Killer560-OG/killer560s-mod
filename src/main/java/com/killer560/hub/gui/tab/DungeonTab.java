@@ -19,21 +19,15 @@ public class DungeonTab extends FolderTab {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new RngMeterTab(),
                 new LeapMessageTab(),
-                new LeapMenuTab(),
-                new FastLeapTab(),
-                new PosmsgTab(),
                 new TerminalSolverTab(),
-                new TermismTab(),
-                new AbilityTimersTab(),
-                new DungeonInfoTab(),
-                new MobEspTab(),
-                new MappingTab(),
-                new EtherwarpTab()
+                new TermismTab()
         ));
-        // Simon Says, Tick Timers, Split Timers, Mask Invincibility, I4 Sensors, Live Map, and (cheat
-        // build) Auto Leap Out are all new/rewritten this session (2026-09-13) - per killer560's
-        // explicit request they live in the "New" tab only until he's confirmed each one actually works,
-        // then move back here.
+        // Leap Menu, Fast Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, Etherwarp
+        // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers, Mask
+        // Invincibility, I4 Sensors, Live Map, Secret Waypoints, Mod Chat, Voice To Text, Proximity
+        // Voice, and (cheat build) Auto Leap Out (built this session) all live in the "New" tab only
+        // until killer560 confirms each one actually works, then move back here. Fullbright was tested
+        // and confirmed working 2026-09-14 and has already moved back out of New (see DisplayTab).
         // Per killer560's explicit "cheat variant should have hitbox's auto etable and auto terms"
         // request (2026-09-10) - Full Block (hitbox expansion) moved from always-available to cheat-only
         // here, joining Auto Terminals; the legit build has neither tab at all, not just a

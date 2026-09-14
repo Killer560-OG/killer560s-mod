@@ -3,11 +3,15 @@ package com.killer560.hub.gui.tab;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Everything new or changed this session, all in one place - per killer560's explicit request
- *  (2026-09-13) so he knows exactly what still needs real testing without hunting through the normal
+/** Every feature killer560 hasn't personally confirmed working yet, all in one place - per his explicit
+ *  request (2026-09-13) so testing has one list to work through instead of hunting through normal
  *  category tabs. Once a feature here is confirmed working for real, move its tab back to wherever it
  *  normally belongs (Dungeon/Chat/etc.) and remove it from this list - this tab is a temporary staging
- *  area, not a permanent home. */
+ *  area, not a permanent home. Fullbright was tested and confirmed working 2026-09-14 and was removed
+ *  from here (it only ever lived in {@code DisplayTab} anyway - no tab to move back). Leap Menu, Fast
+ *  Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, and Etherwarp (landed just before this
+ *  session) were added 2026-09-14 per killer560's "add things like posmsg and whatnot... everything I
+ *  haven't tested" request - untested is untested regardless of which session built it. */
 public class NewTab extends FolderTab {
 
     public NewTab() {
@@ -16,8 +20,14 @@ public class NewTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                new FullbrightTab(),
+                new LeapMenuTab(),
+                new FastLeapTab(),
+                new PosmsgTab(),
+                new AbilityTimersTab(),
                 new DungeonInfoTab(),
+                new MobEspTab(),
+                new MappingTab(),
+                new EtherwarpTab(),
                 new SimonSaysTab(),
                 new TickTimersTab(),
                 new SplitTimersTab(),
