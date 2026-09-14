@@ -68,6 +68,12 @@ public final class SimonSaysConfig {
     // of it not overall."
     private int clickTimerTargetMs = 12_800;
     private int clickTimerVarianceMs = 100;
+    // Alternative pacing mode (2026-09-14, killer560's own request after seeing real log data showing
+    // the Target/Variance model landing at a consistent but slow-feeling ~850ms/click): a flat, directly
+    // controllable "ms between clicks" delay instead of an abstract overall-duration target. Off by
+    // default so existing configs keep the Target/Variance behavior they already had.
+    private boolean autoSolveFixedDelayMode = false;
+    private int autoSolveFixedDelayMs = 150;
 
     private boolean autoStartEnabled = false;
     // Real reference: NoammAddons' own SimonSays.kt ("Start Clicks" default 3, "Start Click Delay" in
@@ -134,6 +140,8 @@ public final class SimonSaysConfig {
             cfg.autoSolveRotate = getBool(obj, "autoSolveRotate", false);
             cfg.clickTimerTargetMs = getInt(obj, "clickTimerTargetMs", 12_800);
             cfg.clickTimerVarianceMs = getInt(obj, "clickTimerVarianceMs", 100);
+            cfg.autoSolveFixedDelayMode = getBool(obj, "autoSolveFixedDelayMode", false);
+            cfg.autoSolveFixedDelayMs = getInt(obj, "autoSolveFixedDelayMs", 150);
             cfg.autoStartEnabled = getBool(obj, "autoStartEnabled", false);
             cfg.autoStartClicks = getInt(obj, "autoStartClicks", 3);
             // Routed through the setter's own clamp (not a direct field assignment like the rest of this
@@ -170,6 +178,8 @@ public final class SimonSaysConfig {
             obj.addProperty("autoSolveRotate", autoSolveRotate);
             obj.addProperty("clickTimerTargetMs", clickTimerTargetMs);
             obj.addProperty("clickTimerVarianceMs", clickTimerVarianceMs);
+            obj.addProperty("autoSolveFixedDelayMode", autoSolveFixedDelayMode);
+            obj.addProperty("autoSolveFixedDelayMs", autoSolveFixedDelayMs);
             obj.addProperty("autoStartEnabled", autoStartEnabled);
             obj.addProperty("autoStartClicks", autoStartClicks);
             obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
@@ -331,6 +341,22 @@ public final class SimonSaysConfig {
 
     public void setClickTimerVarianceMs(int clickTimerVarianceMs) {
         this.clickTimerVarianceMs = Math.max(0, Math.min(5000, clickTimerVarianceMs));
+    }
+
+    public boolean isAutoSolveFixedDelayMode() {
+        return autoSolveFixedDelayMode;
+    }
+
+    public void setAutoSolveFixedDelayMode(boolean autoSolveFixedDelayMode) {
+        this.autoSolveFixedDelayMode = autoSolveFixedDelayMode;
+    }
+
+    public int getAutoSolveFixedDelayMs() {
+        return autoSolveFixedDelayMs;
+    }
+
+    public void setAutoSolveFixedDelayMs(int autoSolveFixedDelayMs) {
+        this.autoSolveFixedDelayMs = Math.max(0, Math.min(3000, autoSolveFixedDelayMs));
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - auto-clicking the start

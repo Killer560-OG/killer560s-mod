@@ -199,45 +199,73 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                         cfg.setAutoSolveRotate(!cfg.isAutoSolveRotate());
                         cfg.save();
                         btn.setMessage(rotateText(cfg));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 20;
+                    }).bounds(col2aX, y, col2W, 18).build());
 
-            // Real bug found and fixed (2026-09-14): killer560 reported Auto Solve was "extremely slow"
-            // and correctly guessed why - this used to re-arm a fresh Target ± Variance window every
-            // time a new ROUND started, applying the full target duration to that round's handful of
-            // clicks alone (round 1 has just ONE click, so it waited the full ~12s target just to press
-            // it once). Now arms exactly once per full device attempt and paces across the real total of
-            // 15 clicks across all 5 rounds, so the target is genuinely the time for the WHOLE solve.
-            double targetNorm = (cfg.getClickTimerTargetMs() - 1000.0) / (60_000.0 - 1000.0);
-            widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18,
-                    Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"), targetNorm) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"));
-                }
-
-                @Override
-                protected void applyValue() {
-                    cfg.setClickTimerTargetMs((int) Math.round(1000 + this.value * (60_000 - 1000)));
-                    cfg.save();
-                }
-            });
-
-            double varianceNorm = cfg.getClickTimerVarianceMs() / 5000.0;
-            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
-                    Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"), varianceNorm) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"));
-                }
-
-                @Override
-                protected void applyValue() {
-                    cfg.setClickTimerVarianceMs((int) Math.round(this.value * 5000));
-                    cfg.save();
-                }
-            });
+            // Alternative pacing mode (2026-09-14, killer560's own request after seeing real log data
+            // show the Target/Variance model below landing at a consistent ~850ms/click that still felt
+            // too slow) - a flat, directly controllable delay instead of an overall-duration target.
+            widgets.add(SettingsButtonWidget.builder(pacingModeText(cfg), btn -> {
+                        cfg.setAutoSolveFixedDelayMode(!cfg.isAutoSolveFixedDelayMode());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(col2bX, y, col2W, 18).build());
             y += 22;
+
+            if (cfg.isAutoSolveFixedDelayMode()) {
+                double fixedDelayNorm = cfg.getAutoSolveFixedDelayMs() / 3000.0;
+                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
+                        Component.literal("Click Delay: " + cfg.getAutoSolveFixedDelayMs() + "ms"), fixedDelayNorm) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(Component.literal("Click Delay: " + cfg.getAutoSolveFixedDelayMs() + "ms"));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        cfg.setAutoSolveFixedDelayMs((int) Math.round(this.value * 3000));
+                        cfg.save();
+                    }
+                });
+                y += 22;
+            } else {
+                // Real bug found and fixed (2026-09-14): killer560 reported Auto Solve was "extremely
+                // slow" and correctly guessed why - this used to re-arm a fresh Target ± Variance window
+                // every time a new ROUND started, applying the full target duration to that round's
+                // handful of clicks alone (round 1 has just ONE click, so it waited the full ~12s target
+                // just to press it once). Now arms exactly once per full device attempt and paces across
+                // the real total of 15 clicks across all 5 rounds, so the target is genuinely the time
+                // for the WHOLE solve.
+                double targetNorm = (cfg.getClickTimerTargetMs() - 1000.0) / (60_000.0 - 1000.0);
+                widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18,
+                        Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"), targetNorm) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        cfg.setClickTimerTargetMs((int) Math.round(1000 + this.value * (60_000 - 1000)));
+                        cfg.save();
+                    }
+                });
+
+                double varianceNorm = cfg.getClickTimerVarianceMs() / 5000.0;
+                widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
+                        Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"), varianceNorm) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        cfg.setClickTimerVarianceMs((int) Math.round(this.value * 5000));
+                        cfg.save();
+                    }
+                });
+                y += 22;
+            }
         }
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
@@ -300,6 +328,10 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private static Component rotateText(SimonSaysConfig cfg) {
         return Component.literal(cfg.isAutoSolveRotate() ? "Mode: §bRotate" : "Mode: §bNo Rotate");
+    }
+
+    private static Component pacingModeText(SimonSaysConfig cfg) {
+        return Component.literal(cfg.isAutoSolveFixedDelayMode() ? "Pacing: §bFixed Delay" : "Pacing: §bTarget");
     }
 
     private static Component announceKeyText(SimonSaysConfig cfg) {

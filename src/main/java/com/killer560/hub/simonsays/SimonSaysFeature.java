@@ -105,6 +105,17 @@ public final class SimonSaysFeature {
     private static boolean wasGridReset = false;
     private static long solveStartedAtMs = 0L;
 
+    // --- whole-device completion timer (2026-09-14, killer560's own request): "send a message client
+    // side about how long it took from the first ss start click to the last click to finish dev." Unlike
+    // solveStartedAtMs above (which resets every round - it only ever measured ONE round, despite the
+    // old "Device completed" log name being misleading about that), these two track the REAL whole
+    // device: first click of round 1 to the final click of round 5, regardless of whether a person,
+    // Trigger Bot, or Auto Solve is doing the clicking. Reset only at firstPhase's own two real trigger
+    // points (fresh device encounter, real start-button press), never on the routine per-round reset -
+    // same treatment as the auto-solve pacing fields below, for the same reason.
+    private static long deviceStartedAtMs = 0L;
+    private static int totalClicksThisAttempt = 0;
+
     // --- announce keybind (renamed from "reset key" 2026-09-14 - see SimonSaysConfig's own doc comment:
     // it no longer resets any solve state itself, only sends the announce chat line on demand) ---
     private static boolean announceKeyWasDown = false;
@@ -261,6 +272,8 @@ public final class SimonSaysFeature {
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
+            deviceStartedAtMs = 0L;
+            totalClicksThisAttempt = 0;
         }
         wasActive = true;
 
@@ -357,6 +370,8 @@ public final class SimonSaysFeature {
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
+            deviceStartedAtMs = 0L;
+            totalClicksThisAttempt = 0;
             maybeAutoAnnounceReset(client, cfg);
         }
     }
@@ -455,6 +470,12 @@ public final class SimonSaysFeature {
             return;
         }
         clickNeeded = index + 1;
+        totalClicksThisAttempt++;
+        if (deviceStartedAtMs == 0L) {
+            // The very first real click of the whole device attempt (round 1, click 1) - killer560's own
+            // "from the first ss start click" anchor point.
+            deviceStartedAtMs = System.currentTimeMillis();
+        }
         // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only
         // sent on the LAST click of the current round (real Hypixel Simon Says is always exactly 5
         // rounds, round N has N steps, so clickInOrder.size() at round-completion IS the round number).
@@ -463,7 +484,19 @@ public final class SimonSaysFeature {
         }
         if (clickNeeded >= clickInOrder.size()) {
             long tookMs = solveStartedAtMs > 0 ? System.currentTimeMillis() - solveStartedAtMs : 0;
-            LOGGER.info("[SimonSays] Device completed in {} ms.", tookMs);
+            LOGGER.info("[SimonSays] Round completed in {} ms.", tookMs);
+            // Real whole-device completion (2026-09-14, killer560's own request) - TOTAL_REAL_CLICKS_
+            // PER_DEVICE (15) is the confirmed real total across all 5 rounds (1+2+3+4+5), so hitting it
+            // here IS the real "last click of the whole device" regardless of who did the clicking.
+            if (totalClicksThisAttempt >= TOTAL_REAL_CLICKS_PER_DEVICE && client.player != null) {
+                long deviceTookMs = deviceStartedAtMs > 0 ? System.currentTimeMillis() - deviceStartedAtMs : 0;
+                LOGGER.info("[SimonSays] Whole device completed in {} ms.", deviceTookMs);
+                // Client-side only (sendSystemMessage, same technique this mod's other features already
+                // use for a local-only notice) - killer560 asked for a message to himself, not a real
+                // party announcement.
+                client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
+                        "§6[Simon Says] §fWhole device solved in §e%.2fs", deviceTookMs / 1000.0)));
+            }
             resetSolveState();
             firstPhase = false;
         }
@@ -529,6 +562,24 @@ public final class SimonSaysFeature {
                 return;
             }
             long now = System.currentTimeMillis();
+            // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
+            // data show the Target/Variance model landing at a consistent but slow-feeling ~850ms/click) -
+            // a direct, immediately-understandable alternative to the overall-duration target below.
+            if (cfg.isAutoSolveFixedDelayMode()) {
+                boolean sameTargetFixed = nextButton.equals(lastAutoClickedPos);
+                long minDelayFixed = Math.max(cfg.getAutoSolveFixedDelayMs(), sameTargetFixed ? 300 : 0);
+                if (now - lastAutoClickAtMs >= minDelayFixed) {
+                    long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
+                    sendNoRotateInteract(client, nextButton);
+                    lastAutoClickAtMs = now;
+                    lastAutoClickedPos = nextButton;
+                    autoSolveClicksDoneThisAttempt++;
+                    LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay).",
+                            autoSolveClicksDoneThisAttempt, TOTAL_REAL_CLICKS_PER_DEVICE, sincePreviousMs,
+                            cfg.getAutoSolveFixedDelayMs());
+                }
+                return;
+            }
             if (!autoSolveArmed) {
                 // Arm the "Target ± Variance overall" pacing window ONCE per full device attempt (not
                 // once per round - see this field's own doc comment for the real "extremely slow" bug
