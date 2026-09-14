@@ -62,7 +62,8 @@ public class NewTab extends FolderTab {
                 new BetterPartyFinderTab(),
                 new CommandKeybindsTab(),
                 new RevertMasterStarsTab(),
-                new InventorySearchTab()
+                new InventorySearchTab(),
+                new ItemBrowserTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());

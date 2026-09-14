@@ -1,6 +1,7 @@
 package com.killer560.hub.inventorysearch;
 
 import com.killer560.hub.inventorysearch.mixin.ContainerScreenPositionAccessor;
+import com.killer560.hub.itembrowser.ItemBrowserConfig;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
@@ -37,6 +38,27 @@ public final class InventorySearchFeature {
     private InventorySearchFeature() {
     }
 
+    /** @return the real live search query, shared with {@link com.killer560.hub.itembrowser.ItemBrowserFeature}
+     *  so typing once drives both the real-inventory highlight here and the NEU-style panel's own item
+     *  filter - killer560's own "have searching in that bar effectively search through the not enough
+     *  items... then if I type something and do ctrl f it'll highlight items in my inventory" describes
+     *  one shared query feeding both, not two separate search boxes. */
+    public static String getQuery() {
+        return QUERY.toString();
+    }
+
+    public static boolean isListening() {
+        return listening;
+    }
+
+    /** Ctrl+F/typing is shared between this feature's own real-inventory highlight and
+     *  {@link com.killer560.hub.itembrowser.ItemBrowserFeature}'s NEU-style panel filter - it should
+     *  work whenever EITHER one is turned on, not only when this specific feature's own toggle is,
+     *  since killer560 described one shared search box driving both. */
+    private static boolean anyConsumerEnabled() {
+        return InventorySearchConfig.getInstance().isEnabled() || ItemBrowserConfig.getInstance().isEnabled();
+    }
+
     public static void register() {
         ScreenEvents.AFTER_INIT.register(InventorySearchFeature::onScreenInit);
     }
@@ -48,8 +70,7 @@ public final class InventorySearchFeature {
         listening = false;
 
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-            InventorySearchConfig cfg = InventorySearchConfig.getInstance();
-            if (!cfg.isEnabled()) {
+            if (!anyConsumerEnabled()) {
                 return true;
             }
             if (event.key() == InputConstants.KEY_F && event.hasControlDown()) {
@@ -75,7 +96,7 @@ public final class InventorySearchFeature {
         });
 
         ScreenKeyboardEvents.allowCharType(screen).register((s, event) -> {
-            if (!InventorySearchConfig.getInstance().isEnabled() || !listening) {
+            if (!anyConsumerEnabled() || !listening) {
                 return true;
             }
             QUERY.append(event.codepointAsString());
@@ -87,27 +108,36 @@ public final class InventorySearchFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
-        InventorySearchConfig cfg = InventorySearchConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        boolean highlightEnabled = InventorySearchConfig.getInstance().isEnabled();
+        // The NEU-style panel (when on) already has its own search bar built into its header, sharing
+        // this same query/listening state - drawing this standalone floating box too would just be a
+        // second, redundant search box on screen at the same time.
+        boolean panelHasOwnBox = ItemBrowserConfig.getInstance().isEnabled();
+        if (!highlightEnabled && !panelHasOwnBox) {
             return;
         }
 
-        int screenWidth = screen.width;
-        int screenHeight = screen.height;
-        int boxWidth = 140;
-        int boxHeight = 16;
-        int boxX = (screenWidth - boxWidth) / 2;
-        int boxY = screenHeight - 30;
+        if (!panelHasOwnBox) {
+            int screenWidth = screen.width;
+            int screenHeight = screen.height;
+            int boxWidth = 140;
+            int boxHeight = 16;
+            int boxX = (screenWidth - boxWidth) / 2;
+            int boxY = screenHeight - 30;
 
+            String boxQuery = QUERY.toString();
+            graphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xCC0D0D0D);
+            graphics.outline(boxX, boxY, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
+            String display = boxQuery.isEmpty() ? "§8Ctrl+F to search..." : boxQuery;
+            graphics.text(Minecraft.getInstance().font, display, boxX + 4, boxY + 4, 0xFFFFFFFF, false);
+        }
+
+        if (!highlightEnabled) {
+            return;
+        }
+        InventorySearchConfig cfg = InventorySearchConfig.getInstance();
         String query = QUERY.toString();
-        boolean searching = !query.isBlank();
-
-        graphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xCC0D0D0D);
-        graphics.outline(boxX, boxY, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
-        String display = query.isEmpty() ? "§8Ctrl+F to search..." : query;
-        graphics.text(Minecraft.getInstance().font, display, boxX + 4, boxY + 4, 0xFFFFFFFF, false);
-
-        if (!searching) {
+        if (query.isBlank()) {
             return;
         }
 
