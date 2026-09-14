@@ -1257,14 +1257,42 @@ public final class SimonSaysFeature {
                 // naturally, so reserving it again here would double-count it (the exact bug in the first
                 // fix attempt).
                 long activeWindowLeftMs = Math.max(0L, windowLeftMs - estimatedRemainingRevealMs());
-                autoSolveNextClickAtMs = now + Math.max(50, activeWindowLeftMs / remainingAfter);
+                long baseDelayMs = activeWindowLeftMs / remainingAfter;
+                // Real bug found and fixed (2026-09-14, killer560's own request: "Be careful to not make
+                // every button press the exact same x/15 amount, instead they should vary. Close one
+                // should be faster and ones further away should be longer. You can calculate the exact
+                // time as it goes on"): dividing the remaining window evenly gave every click the exact
+                // same delay regardless of real distance between buttons. Weights this specific delay by
+                // the REAL distance from the button just clicked to whichever one comes next IN THIS ROUND
+                // - clickInOrder is already fully known once revealed, so clickNeeded+1 (not yet
+                // incremented - that happens later, once the real block-state change from THIS click is
+                // detected) safely peeks the following real position - against a typical button-to-button
+                // hop in this grid (~2.5 blocks). Closer pairs get proportionally less time, farther pairs
+                // more, clamped so no single click swings wildly off the real remaining budget. Still
+                // "follows the guess": baseDelayMs itself is recomputed fresh every single click from
+                // whatever real time is actually left (see activeWindowLeftMs above), so giving one click
+                // more time here just means less remains for the others, which the NEXT recomputation
+                // accounts for automatically - the overall pacing keeps tracking toward the same real
+                // target even though individual clicks vary. Falls back to the flat baseDelayMs (no
+                // weighting) once no more real positions are known this round - the upcoming click belongs
+                // to a not-yet-revealed future round.
+                long delayMs = baseDelayMs;
+                int peekIndex = clickNeeded + 1;
+                if (peekIndex < clickInOrder.size()) {
+                    double distance = Math.sqrt(nextButton.distSqr(clickInOrder.get(peekIndex).west()));
+                    double weight = Mth.clamp(distance / 2.5, 0.5, 1.8);
+                    delayMs = (long) (baseDelayMs * weight);
+                }
+                autoSolveNextClickAtMs = now + Math.max(50, delayMs);
                 // Always-on (not gated behind Diagnostic Logging) while killer560's "still very delayed"
                 // report is unresolved (2026-09-14) - this is the exact data needed to see whether the
                 // delay is really coming from this pacing math or from something else entirely (e.g. real
                 // per-round reveal wait time, which this can't control).
-                LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms{}).",
+                LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms "
+                                + "[base {}ms, distance-weighted{}]{}).",
                         autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                        autoSolveNextClickAtMs - now, cfg.isAutoSolveRotate() ? ", rotate mode" : "");
+                        autoSolveNextClickAtMs - now, baseDelayMs, peekIndex < clickInOrder.size() ? "" : "=n/a",
+                        cfg.isAutoSolveRotate() ? ", rotate mode" : "");
             }
             return;
         }
