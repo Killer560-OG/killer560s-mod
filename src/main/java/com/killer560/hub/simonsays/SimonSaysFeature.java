@@ -1619,10 +1619,17 @@ public final class SimonSaysFeature {
         // so it's no longer possible to drift off the real face regardless of distance/viewing angle. Only
         // applies while actually looking at a real button (rememberedFirstButton != null) - the grid-
         // center fallback isn't a real block, so there's no face to clamp against there.
+        // Real bug found and fixed (2026-09-14, killer560's own report: "the drift on buttons should
+        // keep it still fairly close to the middle. It still has a tendency to drift right up to the
+        // very edge/corner"): 60% of the real half-extent kept each AXIS individually on the face, but
+        // yaw and pitch can both land near their own max at once - the real diagonal distance from center
+        // at that point is bigger than either axis alone suggests, reading as hugging the edge/corner
+        // rather than staying near the middle. Tightened to 25% so it stays visibly closer to center even
+        // at that worst-case diagonal.
         if (rememberedFirstButton != null) {
             float[] halfExtents = realButtonAngularHalfExtents(client, rememberedFirstButton, eyePos);
-            float maxYawSway = halfExtents[0] * 0.6f;
-            float maxPitchSway = halfExtents[1] * 0.6f;
+            float maxYawSway = halfExtents[0] * 0.25f;
+            float maxPitchSway = halfExtents[1] * 0.25f;
             swayYaw = Mth.clamp(swayYaw, -maxYawSway, maxYawSway);
             swayPitch = Mth.clamp(swayPitch, -maxPitchSway, maxPitchSway);
         }
