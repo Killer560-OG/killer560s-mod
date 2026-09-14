@@ -50,7 +50,8 @@ public class NewTab extends FolderTab {
                 new LividSolverTab(),
                 new QuiverDisplayTab(),
                 new PlayerStatsTab(),
-                new SpiritLeapOverlayTab()
+                new SpiritLeapOverlayTab(),
+                new EtherwarpOverlayTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());

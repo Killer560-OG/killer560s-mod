@@ -130,6 +130,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
+        com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         I4SensorsFeature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
