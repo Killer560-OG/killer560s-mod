@@ -74,6 +74,14 @@ public final class SimonSaysFeature {
 
     private static final List<BlockPos> GRID_LANTERNS = buildGrid(111);
     private static final List<BlockPos> GRID_BUTTONS = buildGrid(110);
+    // Real bug found and fixed (2026-09-14, killer560's own request: "after finishing the skip portion
+    // it should more or less look toward the middle of the screen to see where all the buttons are
+    // coming out cause that is what a normal human does"): the geometric center of the 4x4 button grid
+    // (y 120-123, z 92-95, each button's own real face center sitting roughly a half-block in) - used as
+    // idle's look target for the gap between Auto Start's burst finishing and the first light actually
+    // revealing, when there's no real button yet to look at and no reason left to still be staring at the
+    // start button.
+    private static final Vec3 GRID_CENTER_LOOK = new Vec3(109.95, 122.0, 94.0);
 
     private static List<BlockPos> buildGrid(int x) {
         List<BlockPos> list = new ArrayList<>();
@@ -1334,7 +1342,18 @@ public final class SimonSaysFeature {
         // Start/Auto Solve actively using the camera) at the exact moment a new round's first light
         // revealed, rememberedFirstButton would miss that update entirely and stay stale. Now runs
         // unconditionally every frame, regardless of whether idle is currently allowed to act on it.
-        if (!clickInOrder.isEmpty()) {
+        // Real bug found and fixed (2026-09-14, killer560's own request: "it doesnt auto look towards
+        // the very first button press but instead will track to the second... it should ignore the one
+        // that doesnt count then go to looking at the first after each phase"): on a landed skip, the
+        // very first light shown is exactly the one detectGridChanges is about to discard once the 3rd
+        // light confirms it (see that method's own "drop the first" doc comment) - but this update used
+        // to jump straight to it the instant it appeared, so idle would visibly snap to a button it was
+        // about to un-track a moment later. autoStartClickedThisPhase is already known true by then (set
+        // the instant Auto Start's own burst fires, well before any light appears), so a lone first light
+        // during that same firstPhase window is recognizably "the one that might not count" - skip
+        // tracking it until a real second light confirms which button actually survives.
+        boolean waitingOnPossiblyDiscardedFirstLight = firstPhase && autoStartClickedThisPhase && clickInOrder.size() < 2;
+        if (!clickInOrder.isEmpty() && !waitingOnPossiblyDiscardedFirstLight) {
             BlockPos currentFirst = clickInOrder.get(0).west();
             if (!currentFirst.equals(rememberedFirstButton)) {
                 LOGGER.info("[SimonSays][RotateFrame] rememberedFirstButton updated: {} -> {}", rememberedFirstButton, currentFirst);
@@ -1469,13 +1488,24 @@ public final class SimonSaysFeature {
      *  own field doc comment for why this replaced a continuous sine-wave sway). Falls back to
      *  whichever real button was most recently remembered as "the current round's first one" (see
      *  rememberedFirstButton's own doc comment - persists across ordinary round transitions, only clears
-     *  on a genuine full reset), or the real start button if nothing's been revealed yet this whole SS
-     *  attempt. */
+     *  on a genuine full reset). If nothing's been revealed yet this attempt: looks at the real start
+     *  button before Auto Start has fired (matches killer560's own "look at the start button as the phase
+     *  begins" request), or the grid's own geometric center once Auto Start's burst has already fired but
+     *  no light has revealed yet (2026-09-14, "after finishing the skip portion it should more or less
+     *  look toward the middle of the screen to see where all the buttons are coming out cause that is
+     *  what a normal human does" - staying locked on the now-irrelevant start button after finishing with
+     *  it isn't what a real person watching for the reveal would do). */
     private static void applyIdleSwayFrame(Minecraft client, double dtTicks) {
         var player = client.player;
-        BlockPos lookTarget = rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON;
         Vec3 eyePos = player.getEyePosition();
-        Vec3 target = realBlockCenter(client, lookTarget);
+        Vec3 target;
+        if (rememberedFirstButton != null) {
+            target = realBlockCenter(client, rememberedFirstButton);
+        } else if (autoStartClickedThisPhase) {
+            target = GRID_CENTER_LOOK;
+        } else {
+            target = realBlockCenter(client, START_BUTTON);
+        }
         Vec3 diff = target.subtract(eyePos);
         double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
         float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
