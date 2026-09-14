@@ -1007,6 +1007,18 @@ public final class SimonSaysFeature {
         if (autoStartClicksSent >= cfg.getAutoStartClicks()) {
             LOGGER.info("[SimonSays] Auto-start finished ({} of {} clicks sent).", autoStartClicksSent, cfg.getAutoStartClicks());
             autoStartRunning = false;
+            // Real bug found and fixed (2026-09-14, killer560's own report: "it is still staying on the
+            // start button after getting skip instead of looking at the middle of the obsidian... once
+            // the 2nd click comes out look at that button"): Round 123 moved idleSuppressedAfterCompletion's
+            // clear entirely into updateRememberedFirstButton (the 2nd-light/settle-timeout point) to stop
+            // idle jumping to a stale button the INSTANT the previous device finished - but that meant idle
+            // now stayed frozen on the start button all the way through the NEXT device's own skip burst
+            // too, with nothing to show the grid-center fallback until a real light existed. The real
+            // desired sequence is: freeze right after 5/5 (unchanged - still doesn't clear at grid-reset),
+            // then wake up specifically once THIS device's own skip burst finishes (here) - showing the
+            // grid center per the original request - then track the real 2nd light once it exists (already
+            // handled by updateRememberedFirstButton). Harmless no-op if it wasn't suppressed to begin with.
+            idleSuppressedAfterCompletion = false;
             return;
         }
         // Real bug found and fixed (2026-09-14, "the clicks are no longer separated by the right amount
