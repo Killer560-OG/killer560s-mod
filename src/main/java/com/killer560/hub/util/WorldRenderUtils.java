@@ -66,6 +66,37 @@ public final class WorldRenderUtils {
         poseStack.popPose();
     }
 
+    /** Draws a connected line strip through a real sequence of world-space points (e.g. a real puzzle
+     *  solve path) - each consecutive pair of points gets one line segment, in order. */
+    public static void renderLineStrip(LevelRenderContext context, java.util.List<Vec3> points,
+                                        float r, float g, float b, float a, float thickness) {
+        if (points.size() < 2) {
+            return;
+        }
+        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
+        if (bufferSource == null) {
+            return;
+        }
+        PoseStack poseStack = context.poseStack();
+        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        PoseStack.Pose pose = poseStack.last();
+        VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.LINES_TRANSLUCENT);
+
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec3 start = points.get(i);
+            Vec3 end = points.get(i + 1);
+            float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
+            float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
+            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+        }
+
+        poseStack.popPose();
+    }
+
     private static final int[] EDGES = {
             0, 1, 1, 5, 5, 4, 4, 0,
             3, 2, 2, 6, 6, 7, 7, 3,
