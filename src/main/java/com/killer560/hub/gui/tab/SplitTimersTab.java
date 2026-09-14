@@ -42,6 +42,13 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 24;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()), btn -> {
+                    cfg.setAnnounceDeviceTimes(!cfg.isAnnounceDeviceTimes());
+                    cfg.save();
+                    btn.setMessage(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()));
+                }).bounds(contentX, y, 220, 18).build());
+        y += 24;
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Covers F1-F7's real boss split points (Bonzo/Scarf/Professor/"),
                 Minecraft.getInstance().font));

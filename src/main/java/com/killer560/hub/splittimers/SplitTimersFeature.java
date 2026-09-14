@@ -171,6 +171,24 @@ public final class SplitTimersFeature {
         }
     }
 
+    /** For {@code DeviceTimesFeature}'s own "next to it" completion-time messages (killer560's own
+     *  request: "use the split timer to figure out when p2 started") - the real wall-clock moment the
+     *  CURRENTLY in-progress split segment began, i.e. exactly when the boss dialogue line that started
+     *  it fired. 0 if no run is being tracked. */
+    public static long getCurrentSegmentStartedAtMs() {
+        return run.lastSplitMs;
+    }
+
+    /** The real label (e.g. "P2") of the split segment currently in progress - the one
+     *  {@link #getCurrentSegmentStartedAtMs()}'s timestamp belongs to. Null if no run is being tracked or
+     *  every real split for this floor has already completed. */
+    public static String getCurrentSegmentLabel() {
+        if (run.splits.isEmpty() || run.nextIndex >= run.splits.size()) {
+            return null;
+        }
+        return run.splits.get(run.nextIndex).label();
+    }
+
     public static final class SplitTimersHudElement implements HudElement {
         @Override
         public String id() {
