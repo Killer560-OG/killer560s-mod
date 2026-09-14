@@ -136,7 +136,10 @@ public final class SimonSaysConfig {
             cfg.clickTimerVarianceMs = getInt(obj, "clickTimerVarianceMs", 100);
             cfg.autoStartEnabled = getBool(obj, "autoStartEnabled", false);
             cfg.autoStartClicks = getInt(obj, "autoStartClicks", 3);
-            cfg.autoStartClickDelayTicks = getInt(obj, "autoStartClickDelayTicks", 3);
+            // Routed through the setter's own clamp (not a direct field assignment like the rest of this
+            // method) so an old saved "0" from before the 0-tick option was removed (2026-09-14) gets
+            // corrected to the new 1-20 range on load, instead of silently staying at 0 forever.
+            cfg.setAutoStartClickDelayTicks(getInt(obj, "autoStartClickDelayTicks", 3));
             cfg.announceKeyCode = getInt(obj, "resetKeyCode", -1);
             cfg.autoSendResetMessage = getBool(obj, "autoSendResetMessage", false);
             cfg.resetMessageText = obj.has("resetMessageText") ? obj.get("resetMessageText").getAsString() : "Resetting Simon Says";
@@ -354,7 +357,9 @@ public final class SimonSaysConfig {
     }
 
     public void setAutoStartClickDelayTicks(int autoStartClickDelayTicks) {
-        this.autoStartClickDelayTicks = Math.max(0, Math.min(20, autoStartClickDelayTicks));
+        // Min 1, not 0 (2026-09-14, killer560's own call) - 0 ticks between clicks means every click
+        // fires on the same tick, which isn't a real "delay" option at all.
+        this.autoStartClickDelayTicks = Math.max(1, Math.min(20, autoStartClickDelayTicks));
     }
 
     public int getAnnounceKeyCode() {

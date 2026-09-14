@@ -109,6 +109,14 @@ public final class SimonSaysFeature {
     // it no longer resets any solve state itself, only sends the announce chat line on demand) ---
     private static boolean announceKeyWasDown = false;
 
+    // --- real start-button press timing logger (2026-09-14, killer560's own explicit request): "add a
+    // quick logger to see how I manually start it so we can get a good guess as to what time spacing for
+    // clicks actually gets the skip." Logs the real gap between consecutive real presses so a manually
+    // successful skip's actual click cadence can be read back out of logs/latest.log afterward, since
+    // trial-and-error on the Auto Start Clicks/Delay sliders alone hasn't found it. Always-on (not gated
+    // behind Diagnostic Logging) - this is the active investigation right now, not background noise.
+    private static long lastStartButtonPressAtMs = 0L;
+
     // --- auto-start pacing (real trigger + settings ported from NoammAddons) ---
     private static boolean autoStartRunning = false;
     private static int autoStartClicksSent = 0;
@@ -236,6 +244,7 @@ public final class SimonSaysFeature {
                 LOGGER.info("[SimonSays] Left device range/floor - clearing solve state.");
                 resetSolveState();
                 lastStartButtonState = null;
+                lastStartButtonPressAtMs = 0L;
             }
             wasActive = false;
             return;
@@ -336,6 +345,14 @@ public final class SimonSaysFeature {
         boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
         boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
         if (nowPowered && !oldPowered) {
+            long pressAtMs = System.currentTimeMillis();
+            if (lastStartButtonPressAtMs > 0) {
+                LOGGER.info("[SimonSays] Start button pressed - {}ms since previous press.",
+                        pressAtMs - lastStartButtonPressAtMs);
+            } else {
+                LOGGER.info("[SimonSays] Start button pressed (first press this attempt).");
+            }
+            lastStartButtonPressAtMs = pressAtMs;
             resetSolveState();
             firstPhase = true;
             autoSolveArmed = false;
@@ -532,6 +549,7 @@ public final class SimonSaysFeature {
                 // "No Rotate"/"Rotate" mode (cfg.isAutoSolveRotate()) - see SimonSaysConfig's own doc
                 // comment: "Rotate" is a placeholder for a future real-click-learning feature and is not
                 // wired to different behavior yet, so both modes click the same way for now.
+                long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
                 sendNoRotateInteract(client, nextButton);
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
@@ -539,6 +557,13 @@ public final class SimonSaysFeature {
                 int remainingAfter = Math.max(1, TOTAL_REAL_CLICKS_PER_DEVICE - autoSolveClicksDoneThisAttempt);
                 long windowLeftMs = autoSolveDeadlineMs - now;
                 autoSolveNextClickAtMs = now + Math.max(50, windowLeftMs / remainingAfter);
+                // Always-on (not gated behind Diagnostic Logging) while killer560's "still very delayed"
+                // report is unresolved (2026-09-14) - this is the exact data needed to see whether the
+                // delay is really coming from this pacing math or from something else entirely (e.g. real
+                // per-round reveal wait time, which this can't control).
+                LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms).",
+                        autoSolveClicksDoneThisAttempt, TOTAL_REAL_CLICKS_PER_DEVICE, sincePreviousMs,
+                        autoSolveNextClickAtMs - now);
             }
             return;
         }

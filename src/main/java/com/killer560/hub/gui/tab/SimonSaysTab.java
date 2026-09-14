@@ -266,7 +266,8 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
             }
         });
 
-        double delayNorm = cfg.getAutoStartClickDelayTicks() / 20.0;
+        // Range is 1-20, not 0-20 (killer560's own call - 0 ticks isn't a real delay option).
+        double delayNorm = (cfg.getAutoStartClickDelayTicks() - 1) / 19.0;
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
                 Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t"), delayNorm) {
             @Override
@@ -276,7 +277,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
             @Override
             protected void applyValue() {
-                cfg.setAutoStartClickDelayTicks((int) Math.round(this.value * 20));
+                cfg.setAutoStartClickDelayTicks(1 + (int) Math.round(this.value * 19));
                 cfg.save();
             }
         });
