@@ -193,10 +193,11 @@ public final class SimonSaysFeature {
     private static long autoSolveNextClickAtMs = 0L;
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
-    // Wall-clock time of the last tick the reveal-delay accounting above ran - lets it compute exactly
-    // how much real time passed since the last check, so it can extend the deadline by that much while
-    // blocked. Reset alongside autoSolveArmed so a stale value from a previous attempt never leaks in.
-    private static long autoSolveLastTickAtMs = 0L;
+    // Wall-clock time of the last tick the reveal-delay accounting below ran - lets it compute exactly
+    // how much real time passed since the last check. Renamed from autoSolveLastTickAtMs (2026-09-14) -
+    // this tracking is unconditional now (see tickAutoSolveAndTriggerBot's own doc comment), not specific
+    // to Auto Solve. Reset alongside the other per-attempt fields so a stale value never leaks in.
+    private static long lastBlockedTrackAtMs = 0L;
     // Running total of real time spent blocked (reveal-settle windows + waiting between rounds) across
     // the WHOLE attempt (2026-09-14, killer560's own request: "figure out how long it takes to actually
     // go through that transition phase because that needs to be factored into the overall time it
@@ -204,6 +205,11 @@ public final class SimonSaysFeature {
     // (growing with round size, ~8.1s total across all 4 transitions in a full 5-round solve) - reported
     // per-attempt here instead of hardcoding that one-run number, since it will vary run to run.
     private static long autoSolveBlockedMsThisAttempt = 0L;
+    // For the per-transition log (2026-09-14) - wasBlockedByReveal is the previous tick's blocked state
+    // (to edge-detect the exact moment a round becomes clickable), lastRoundCompletedAtMs is when the
+    // PREVIOUS round's last click landed (see onButtonPressed). Both unconditional, same as above.
+    private static boolean wasBlockedByReveal = false;
+    private static long lastRoundCompletedAtMs = 0L;
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
@@ -351,8 +357,10 @@ public final class SimonSaysFeature {
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
-            autoSolveLastTickAtMs = 0L;
+            lastBlockedTrackAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
+            wasBlockedByReveal = false;
+            lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
             expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
@@ -464,8 +472,10 @@ public final class SimonSaysFeature {
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
-            autoSolveLastTickAtMs = 0L;
+            lastBlockedTrackAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
+            wasBlockedByReveal = false;
+            lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
             expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
@@ -606,6 +616,10 @@ public final class SimonSaysFeature {
         if (clickNeeded >= clickInOrder.size()) {
             long tookMs = solveStartedAtMs > 0 ? System.currentTimeMillis() - solveStartedAtMs : 0;
             LOGGER.info("[SimonSays] Round completed in {} ms.", tookMs);
+            // Anchor for the per-transition log in tickAutoSolveAndTriggerBot - marks the exact moment
+            // this round's last click landed, so the NEXT round becoming clickable can report the real
+            // gap between them.
+            lastRoundCompletedAtMs = System.currentTimeMillis();
             // Real whole-device completion. Real bug found and fixed (2026-09-14): this used to check
             // totalClicksThisAttempt >= TOTAL_REAL_CLICKS_PER_DEVICE (15, i.e. 1+2+3+4+5) - correct for a
             // normal solve starting at round 1, but a real "SS skip" starts the attempt AFTER round 1
@@ -659,23 +673,19 @@ public final class SimonSaysFeature {
             return;
         }
         // "Look Only" mode (2026-09-14, killer560's own request, partly to test his own theory about why
-        // Auto Start "isn't working") - only actually clicks using the REAL crosshair raycast, same real
-        // interaction Trigger Bot itself uses, instead of a synthetic BlockHitResult. Waits here (doesn't
-        // burn through the click schedule) until the player is genuinely looking at the button.
+        // Auto Start "isn't working") - only actually clicks once the REAL crosshair raycast confirms the
+        // player is genuinely looking at the button (waits here, doesn't burn through the click schedule,
+        // until that's true). Real bug found and fixed the same day, "bug once-over" pass: this used to
+        // click straight through the raw real hitResult, which - with Full Block hitbox expansion on -
+        // could land anywhere inside the artificially enlarged hitbox. Killer560's own explicit rule
+        // (applies everywhere except Auto Solve's own already-centered synthetic clicking): "make sure it
+        // goes to center." The real raycast is still what CONFIRMS real aim; the actual click always lands
+        // on the button's true center now, via the same sendNoRotateInteract Aura mode already uses.
         if (cfg.isAutoStartLookOnlyMode()) {
             if (!(client.hitResult instanceof BlockHitResult lookHit) || !lookHit.getBlockPos().equals(START_BUTTON)) {
                 return;
             }
-            // Still this mod's own automated click, not a genuine manual one, even though it uses the
-            // real hit result - flagged the same as sendNoRotateInteract so onRealBlockInteractAttempt's
-            // manual-click logger doesn't mistake it for one.
-            syntheticClickInProgress = true;
-            try {
-                client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, lookHit);
-            } finally {
-                syntheticClickInProgress = false;
-            }
-            client.player.swing(InteractionHand.MAIN_HAND);
+            sendNoRotateInteract(client, START_BUTTON);
         } else {
             sendNoRotateInteract(client, START_BUTTON);
         }
@@ -722,19 +732,25 @@ public final class SimonSaysFeature {
         boolean blockedByReveal = firstPhase || isStillRevealing();
 
         // Track real time spent blocked - waiting for the next round's pattern to finish revealing (or
-        // between rounds entirely, before it starts revealing at all) - purely for REPORTING (the "Whole
-        // device solved in X.XXs (Y.YYs reveal delay)" message). Real bug found and fixed (2026-09-14):
-        // this used to also EXTEND the deadline/next-click time by the same amount, meaning a 12s target
-        // plus however long reveals took landed the whole attempt at ~20s real time. Killer560's own
-        // explicit correction: "It needs to be 12 with the reveal not 12 plus the reveal" - the reveal
-        // time counts AGAINST the 12s budget now, same as it always implicitly did before this feature
-        // existed; the deadline itself is a fixed wall-clock point from when it armed, never adjusted.
-        if (cfg.isAutoSolveEnabled() && !cfg.isAutoSolveFixedDelayMode() && autoSolveArmed) {
-            if (autoSolveLastTickAtMs > 0 && (noStepsPending || blockedByReveal)) {
-                autoSolveBlockedMsThisAttempt += now - autoSolveLastTickAtMs;
-            }
-            autoSolveLastTickAtMs = now;
+        // between rounds entirely, before it starts revealing at all) - for REPORTING (the "Whole device
+        // solved in X.XXs (Y.YYs reveal delay)" message) AND for the per-transition log below. Real bug
+        // found and fixed (2026-09-14): this used to only track while Auto Solve's Target/Variance mode
+        // was active, so killer560's own planned self-logging session (Full Block + Trigger Bot + Auto
+        // Start, no Auto Solve) would have gotten zero reveal-delay data - now unconditional, so it works
+        // regardless of which assist feature (if any) is doing the clicking.
+        if (lastBlockedTrackAtMs > 0 && (noStepsPending || blockedByReveal)) {
+            autoSolveBlockedMsThisAttempt += now - lastBlockedTrackAtMs;
         }
+        lastBlockedTrackAtMs = now;
+        // Real per-transition log (2026-09-14) - independent of any automation, so killer560's planned
+        // self-logging test (which won't use Auto Solve) still gets clean, structured per-transition
+        // timing data instead of only the lump-sum total in the completion message.
+        if (wasBlockedByReveal && !(noStepsPending || blockedByReveal) && lastRoundCompletedAtMs > 0) {
+            long transitionMs = now - lastRoundCompletedAtMs;
+            LOGGER.info("[SimonSays] Round transition took {} ms (now on round {}).", transitionMs, clickInOrder.size());
+            lastRoundCompletedAtMs = 0L;
+        }
+        wasBlockedByReveal = noStepsPending || blockedByReveal;
 
         if (noStepsPending) {
             return;
@@ -742,31 +758,33 @@ public final class SimonSaysFeature {
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
         BlockPos nextButton = nextLantern.west();
 
+        // Real bug found and fixed (2026-09-14): killer560 confirmed a real "SS skip" starts the attempt
+        // AFTER round 1 ("it starts on 2/5 and never 1/5"), but currentRoundNumber always started at 1 and
+        // only ever incremented by 1 per round completed - so after a skip, it was permanently off by
+        // however many rounds got skipped. Auto-detects the REAL round number the same way the "SS N/5"
+        // announce message already does: clickInOrder.size() IS the round number once its reveal has
+        // fully settled (round N always has exactly N steps), regardless of which round the attempt
+        // actually started on. Moved OUT of the Auto-Solve-only branch (2026-09-14) - this needs to stay
+        // accurate for Trigger Bot too, since killer560's planned self-logging test uses that, not Auto
+        // Solve. Only recomputes expectedTotalClicksThisAttempt once, on the very first round seen this
+        // attempt (detected via totalClicksThisAttempt, which counts ANY real completed click regardless
+        // of source - autoSolveClicksDoneThisAttempt would never move at all during a Trigger-Bot-only
+        // attempt) - it's the fixed total for the WHOLE remaining attempt, not a per-round value.
+        if (clickNeeded == 0) {
+            currentRoundNumber = clickInOrder.size();
+            if (totalClicksThisAttempt == 0) {
+                expectedTotalClicksThisAttempt = totalClicksFrom(currentRoundNumber);
+            }
+        }
+        // Real bug found and fixed (2026-09-14, "bug once-over" pass): Trigger Bot never had this same
+        // gate, so a real click during round 1's reveal-order-quirk window (firstPhase) could fire on a
+        // position clickInOrder.get(clickNeeded) that's about to be reinterpreted (reverse/drop-middle) -
+        // same real risk Auto Solve's own gate already protects against, just never applied here too.
+        if (blockedByReveal) {
+            return;
+        }
+
         if (cfg.isAutoSolveEnabled()) {
-            // Killer560's explicit request (2026-09-14): don't click at all while the lights are still
-            // being shown - this now applies to every round, not just round 1's firstPhase window (see
-            // isStillRevealing()'s own doc comment) - clicking mid-flash could fire on a position that's
-            // about to be reinterpreted (round 1) or simply isn't fully shown yet (any round).
-            if (blockedByReveal) {
-                return;
-            }
-            // Real bug found and fixed (2026-09-14): killer560 confirmed a real "SS skip" starts the
-            // attempt AFTER round 1 ("it starts on 2/5 and never 1/5"), but currentRoundNumber always
-            // started at 1 and only ever incremented by 1 per round completed - so after a skip, it was
-            // permanently off by however many rounds got skipped, feeding the WRONG transition estimates
-            // into estimatedRemainingRevealMs() for the rest of the attempt. Auto-detects the REAL round
-            // number the same way the "SS N/5" announce message already does: clickInOrder.size() IS the
-            // round number once its reveal has fully settled (round N always has exactly N steps),
-            // regardless of which round the attempt actually started on. Only recomputes
-            // expectedTotalClicksThisAttempt once, on the very first round seen this attempt (detected via
-            // no clicks sent yet) - it's the fixed total for the WHOLE remaining attempt, not a per-round
-            // value.
-            if (clickNeeded == 0) {
-                currentRoundNumber = clickInOrder.size();
-                if (autoSolveClicksDoneThisAttempt == 0) {
-                    expectedTotalClicksThisAttempt = totalClicksFrom(currentRoundNumber);
-                }
-            }
             // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
             // data show the Target/Variance model landing at a consistent but slow-feeling ~850ms/click) -
             // a direct, immediately-understandable alternative to the overall-duration target below.
@@ -834,9 +852,17 @@ public final class SimonSaysFeature {
 
         if (cfg.isTriggerBotEnabled() && client.hitResult instanceof BlockHitResult blockHit
                 && blockHit.getBlockPos().equals(nextButton) && !nextButton.equals(lastTriggerBotTarget)) {
-            client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, blockHit);
-            client.player.swing(InteractionHand.MAIN_HAND);
+            // Real bug found and fixed (2026-09-14, killer560's own explicit rule): this used to click
+            // through the REAL hitResult directly, which - with "Full Block" hitbox expansion on, which
+            // killer560 said he'll be testing with - could land anywhere inside the artificially enlarged
+            // hitbox, not necessarily anywhere near the button's real visual center. Killer560's own rule,
+            // to apply everywhere except Auto Solve's own already-centered synthetic clicking: "make sure
+            // it goes to center." Confirming real aim is on the button is still done via the real
+            // hitResult above; the actual click now always lands on the block's true center regardless.
+            sendNoRotateInteract(client, nextButton);
             lastTriggerBotTarget = nextButton;
+            LOGGER.info("[SimonSays] Trigger Bot click sent (round {}, total clicks {} so far this attempt).",
+                    currentRoundNumber, totalClicksThisAttempt);
         } else if (!(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(nextButton)) {
             lastTriggerBotTarget = null;
         }
