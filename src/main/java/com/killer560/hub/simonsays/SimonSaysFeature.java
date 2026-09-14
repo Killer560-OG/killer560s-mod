@@ -1076,7 +1076,7 @@ public final class SimonSaysFeature {
         rotateApproachElapsedTicks += (float) dtTicks;
 
         Vec3 eyePos = player.getEyePosition();
-        Vec3 target = Vec3.atCenterOf(buttonPos);
+        Vec3 target = realBlockCenter(client, buttonPos);
         Vec3 diff = target.subtract(eyePos);
         double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
         float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
@@ -1152,7 +1152,7 @@ public final class SimonSaysFeature {
         var player = client.player;
         BlockPos lookTarget = clickInOrder.isEmpty() ? START_BUTTON : clickInOrder.get(0).west();
         Vec3 eyePos = player.getEyePosition();
-        Vec3 target = Vec3.atCenterOf(lookTarget);
+        Vec3 target = realBlockCenter(client, lookTarget);
         Vec3 diff = target.subtract(eyePos);
         double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
         float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
@@ -1169,6 +1169,20 @@ public final class SimonSaysFeature {
         float frameSmoothing = 1f - (float) Math.pow(1.0 - 0.08, dtTicks);
         player.setYRot(currentYaw + yawDelta * frameSmoothing);
         player.setXRot(currentPitch + pitchDelta * frameSmoothing);
+    }
+
+    /** Real bug found and fixed (2026-09-14, "it is aiming to the left of the start button... aiming to
+     *  the left of normal buttons again as well"): a real vanilla {@code stone_button} isn't a full
+     *  block - it's a thin box mounted flush against whichever real face it's attached to, so its own
+     *  true visual/clickable center sits well off to one side of the FULL BLOCK's center, not in the
+     *  middle. {@link Vec3#atCenterOf} (the full-block center) was never the right aim point for a real
+     *  button; this reads the block's own real shape instead - same real technique already proven in
+     *  {@code EtherwarpOverlayFeature#realBoxFor} - so the aim point matches wherever this specific
+     *  button's real model actually sits, regardless of its real facing/attach-face. */
+    private static Vec3 realBlockCenter(Minecraft client, BlockPos pos) {
+        var shape = client.level.getBlockState(pos).getShape(client.level, pos);
+        AABB box = shape.isEmpty() ? new AABB(pos) : shape.bounds().move(pos);
+        return box.getCenter();
     }
 
     /** Interacts with a block without needing the player's crosshair on it - the "no rotate" click

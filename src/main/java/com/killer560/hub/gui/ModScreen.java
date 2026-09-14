@@ -183,7 +183,11 @@ public class ModScreen extends Screen {
             return;
         }
 
-        List<AbstractWidget> contentWidgets = tabs.get(selectedTab).buildWidgets(contentX, contentY, contentW, this::rebuild);
+        BaseTab selected = tabs.get(selectedTab);
+        if (selected instanceof FolderTab folderTab) {
+            folderTab.setSearchQuery(searchQuery);
+        }
+        List<AbstractWidget> contentWidgets = selected.buildWidgets(contentX, contentY, contentW, this::rebuild);
 
         int naturalBottom = contentY;
         for (AbstractWidget w : contentWidgets) {

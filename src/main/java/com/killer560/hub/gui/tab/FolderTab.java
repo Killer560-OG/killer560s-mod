@@ -24,17 +24,31 @@ public abstract class FolderTab extends BaseTab {
     private final List<BaseTab> subTabs;
     // Empty by default so everything starts collapsed, matching the reference screenshot.
     private final Set<Integer> expanded = new HashSet<>();
+    // Set by ModScreen right before buildWidgets, since a FolderTab has no other way to see the menu's
+    // own search field text (2026-09-14, killer560's own report: "if i search for simon says it shows
+    // the whole new category, it should hide everything in that category that isnt simon says" - the
+    // OUTER sidebar already narrowed to just this folder via matchesSearch, but the folder's own
+    // accordion list still showed every single sub-tab regardless of the query once you were inside it).
+    private String activeSearchQuery = "";
 
     protected FolderTab(String name, List<BaseTab> subTabs) {
         super(name);
         this.subTabs = subTabs;
     }
 
+    public void setSearchQuery(String query) {
+        this.activeSearchQuery = query == null ? "" : query;
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
+        boolean searching = !activeSearchQuery.isBlank();
         for (int i = 0; i < subTabs.size(); i++) {
+            if (searching && !subTabs.get(i).matchesSearch(activeSearchQuery)) {
+                continue;
+            }
             int index = i;
             boolean isExpanded = expanded.contains(index);
             String arrow = isExpanded ? "▼ " : "▶ ";
