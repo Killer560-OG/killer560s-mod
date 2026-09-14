@@ -16,6 +16,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -89,15 +90,16 @@ public final class SimonSaysFeature {
     private static int clickNeeded = 0;
     private static boolean firstPhase = true;
     // Real bug found and fixed (2026-09-14): this mod's port of the firstPhase reveal-order quirk
-    // (size 2 -> reverse, size 3 -> drop the middle) only ever cleared firstPhase after a FULL
-    // successful click-through - Odin's own real code instead clears it on a real TIMEOUT once the
+    // (size 2 -> reverse, size 3 -> drop the first - see detectGridChanges for the real size-3 rule,
+    // corrected same day from an earlier "drop the middle" guess) only ever cleared firstPhase after a
+    // FULL successful click-through - Odin's own real code instead clears it on a real TIMEOUT once the
     // reveal flash settles (see below), independent of whether you've clicked anything yet. Without
-    // that timeout, every subsequent lantern reveal past the 3rd kept re-triggering the same
-    // size-3-drops-the-middle correction forever (add a 4th -> size 3 again -> drop again -> stays at
-    // 2), which is exactly the real symptom killer560 reported: "only keeping 2 highlighted" and
-    // highlights "moving off early." lastLanternChangeTick counts ticks since the last real lantern
-    // step was recorded; once 10 ticks pass with the grid back to mostly real buttons (not still mid-
-    // flash), firstPhase clears for the rest of this device's reveal, matching Odin's own real logic.
+    // that timeout, every subsequent lantern reveal past the 3rd kept re-triggering the same size-3
+    // correction forever (add a 4th -> size 3 again -> correct again -> stays at 2), which is exactly
+    // the real symptom killer560 reported: "only keeping 2 highlighted" and highlights "moving off
+    // early." lastLanternChangeTick counts ticks since the last real lantern step was recorded; once 10
+    // ticks pass with the grid back to mostly real buttons (not still mid-flash), firstPhase clears for
+    // the rest of this device's reveal, matching Odin's own real logic.
     private static int lastLanternChangeTick = -1;
     private static BlockState lastStartButtonState = null;
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
@@ -193,6 +195,17 @@ public final class SimonSaysFeature {
     private static long autoSolveNextClickAtMs = 0L;
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
+    // --- Rotate Mode (killer560's own request, 2026-09-14) - real behavior for the "Rotate" toggle that
+    // previously did nothing (see SimonSaysConfig#isAutoSolveRotate's own doc comment: originally planned
+    // as record-and-replay of killer560's own manual solves, not built yet). This is a simpler real
+    // version: instead of a no-rotate synthetic click, actually turns the camera toward the target
+    // button's real center over several ticks (same real "bounded delta, never wrap/clamp the running
+    // yaw/pitch" technique already proven in BloodCampFeature's own aura mode) and only fires once the
+    // real crosshair raycast confirms genuine aim - works off the button's true, unmodified hitbox (no
+    // Full Block dependency), matching killer560's own "except not using fullblock" requirement. ---
+    private static BlockPos rotateInProgressTarget = null;
+    private static float rotateSmoothingThisApproach = 0.15f;
+    private static boolean rotateOvershootPendingThisApproach = false;
     // Wall-clock time of the last tick the reveal-delay accounting below ran - lets it compute exactly
     // how much real time passed since the last check. Renamed from autoSolveLastTickAtMs (2026-09-14) -
     // this tracking is unconditional now (see tickAutoSolveAndTriggerBot's own doc comment), not specific
@@ -365,6 +378,7 @@ public final class SimonSaysFeature {
             expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
+            rotateInProgressTarget = null;
         }
         wasActive = true;
 
@@ -480,6 +494,7 @@ public final class SimonSaysFeature {
             expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
+            rotateInProgressTarget = null;
             maybeAutoAnnounceReset(client, cfg);
         }
     }
@@ -487,8 +502,12 @@ public final class SimonSaysFeature {
     /** Ported from Odin's real {@code BlockUpdateEvent} handler, adapted to tick-polling: a lantern
      *  going from lit (sea lantern) to dark (obsidian) records that position as the next step in the
      *  real sequence order; a button (x=110) transitioning to powered advances progress. The
-     *  first-activation reveal quirk (size 2 -&gt; reverse, size 3 -&gt; reverse again + drop the
-     *  middle one) is Hypixel's own real behavior, confirmed by Odin against a live run - not a guess. */
+     *  first-activation reveal quirk (size 2 -&gt; reverse) is Hypixel's own real behavior, confirmed by
+     *  Odin against a live run. The size-3 case was corrected 2026-09-14 from an earlier "drop the
+     *  middle" guess to "drop the first" instead, per killer560's own direct real-attempt observation:
+     *  seeing 3 real lights light up before he'd clicked anything means a real Auto Start skip landed
+     *  successfully, and the real remaining sequence to click is only the LAST two of those three - the
+     *  first is stale history from the round the skip already satisfied, not something to click again. */
     private static void detectGridChanges(Minecraft client, SimonSaysConfig cfg) {
         for (BlockPos pos : GRID_LANTERNS) {
             BlockState now = client.level.getBlockState(pos);
@@ -506,7 +525,10 @@ public final class SimonSaysFeature {
                     if (clickInOrder.size() == 2) {
                         java.util.Collections.reverse(clickInOrder);
                     } else if (clickInOrder.size() == 3) {
-                        clickInOrder.remove(clickInOrder.size() - 2);
+                        // Drop the FIRST entry, not the middle (corrected 2026-09-14 - see this method's
+                        // own doc comment): 3 real lights before any click means a skip landed on a round
+                        // whose real remaining sequence is only the last two of those three.
+                        clickInOrder.remove(0);
                     }
                 }
                 if (cfg.isDiagnosticLoggingEnabled()) {
@@ -793,13 +815,17 @@ public final class SimonSaysFeature {
                 long minDelayFixed = Math.max(cfg.getAutoSolveFixedDelayMs(), sameTargetFixed ? 300 : 0);
                 if (now - lastAutoClickAtMs >= minDelayFixed) {
                     long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
-                    sendNoRotateInteract(client, nextButton);
-                    lastAutoClickAtMs = now;
-                    lastAutoClickedPos = nextButton;
-                    autoSolveClicksDoneThisAttempt++;
-                    LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay).",
-                            autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                            cfg.getAutoSolveFixedDelayMs());
+                    boolean clicked = cfg.isAutoSolveRotate()
+                            ? tickRotateClick(client, nextButton)
+                            : fireInstantClick(client, nextButton);
+                    if (clicked) {
+                        lastAutoClickAtMs = now;
+                        lastAutoClickedPos = nextButton;
+                        autoSolveClicksDoneThisAttempt++;
+                        LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay{}).",
+                                autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
+                                cfg.getAutoSolveFixedDelayMs(), cfg.isAutoSolveRotate() ? ", rotate mode" : "");
+                    }
                 }
                 return;
             }
@@ -823,11 +849,19 @@ public final class SimonSaysFeature {
             boolean sameTarget = nextButton.equals(lastAutoClickedPos);
             long minDelay = sameTarget ? 300 : 0;
             if (now >= autoSolveNextClickAtMs && now - lastAutoClickAtMs >= minDelay) {
-                // "No Rotate"/"Rotate" mode (cfg.isAutoSolveRotate()) - see SimonSaysConfig's own doc
-                // comment: "Rotate" is a placeholder for a future real-click-learning feature and is not
-                // wired to different behavior yet, so both modes click the same way for now.
+                // "No Rotate"/"Rotate" mode (cfg.isAutoSolveRotate()) - Rotate now has real behavior (see
+                // tickRotateClick's own doc comment): turns the camera toward the target over several
+                // ticks and only fires once real aim is confirmed, instead of an instant synthetic click.
+                // tickRotateClick returns false on ticks it's still mid-turn - this whole block (and its
+                // click-bookkeeping/pacing-timer update below) simply doesn't run again until it returns
+                // true, so a multi-tick approach never double-counts or reschedules early.
                 long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
-                sendNoRotateInteract(client, nextButton);
+                boolean clicked = cfg.isAutoSolveRotate()
+                        ? tickRotateClick(client, nextButton)
+                        : fireInstantClick(client, nextButton);
+                if (!clicked) {
+                    return;
+                }
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
                 autoSolveClicksDoneThisAttempt++;
@@ -843,9 +877,9 @@ public final class SimonSaysFeature {
                 // report is unresolved (2026-09-14) - this is the exact data needed to see whether the
                 // delay is really coming from this pacing math or from something else entirely (e.g. real
                 // per-round reveal wait time, which this can't control).
-                LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms).",
+                LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms{}).",
                         autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                        autoSolveNextClickAtMs - now);
+                        autoSolveNextClickAtMs - now, cfg.isAutoSolveRotate() ? ", rotate mode" : "");
             }
             return;
         }
@@ -868,10 +902,69 @@ public final class SimonSaysFeature {
         }
     }
 
+    /** Uniform wrapper around the instant no-rotate click so both click mechanisms (No Rotate, Rotate)
+     *  share the same "did a click actually fire this tick" boolean return the caller's pacing/bookkeeping
+     *  code relies on. */
+    private static boolean fireInstantClick(Minecraft client, BlockPos pos) {
+        sendNoRotateInteract(client, pos);
+        return true;
+    }
+
+    /** Rotate Mode's real click mechanism - see this class's own "Rotate Mode" field-group doc comment
+     *  above for the full real reasoning. Call every tick while a click is due; returns true only on the
+     *  tick the real click actually fires (once real aim is confirmed), false while still mid-turn - the
+     *  caller should only run its own click-bookkeeping (counters, timing) when this returns true. */
+    private static boolean tickRotateClick(Minecraft client, BlockPos buttonPos) {
+        if (client.player == null) {
+            return false;
+        }
+        if (!buttonPos.equals(rotateInProgressTarget)) {
+            // A fresh approach to a new target - re-roll the humanization so every turn looks like a
+            // slightly different real human flick rather than an identical robotic ease every time.
+            rotateInProgressTarget = buttonPos;
+            rotateSmoothingThisApproach = 0.12f + (float) (Math.random() * 0.10);
+            rotateOvershootPendingThisApproach = Math.random() < 0.35;
+        }
+
+        var player = client.player;
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 target = Vec3.atCenterOf(buttonPos);
+        Vec3 diff = target.subtract(eyePos);
+        double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
+        float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
+        float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
+
+        // A small, one-time random overshoot on the first tick of this approach, corrected naturally by
+        // the smoothing below over the next few ticks - real manual aim rarely lands dead-on in one
+        // motion, it settles onto the target instead.
+        if (rotateOvershootPendingThisApproach) {
+            rawTargetYaw += (float) ((Math.random() * 2 - 1) * 4.0);
+            rawTargetPitch += (float) ((Math.random() * 2 - 1) * 3.0);
+            rotateOvershootPendingThisApproach = false;
+        }
+
+        float currentYaw = player.getYRot();
+        float currentPitch = player.getXRot();
+        float yawDelta = Mth.wrapDegrees(rawTargetYaw - currentYaw);
+        float pitchDelta = Mth.wrapDegrees(rawTargetPitch - currentPitch);
+        player.setYRot(currentYaw + yawDelta * rotateSmoothingThisApproach);
+        player.setXRot(currentPitch + pitchDelta * rotateSmoothingThisApproach);
+
+        if (client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
+            // Real aim confirmed - the actual click still always lands on the button's true center
+            // (killer560's own standing rule), same real click-sender every other mode already uses.
+            sendNoRotateInteract(client, buttonPos);
+            rotateInProgressTarget = null;
+            return true;
+        }
+        return false;
+    }
+
     /** Interacts with a block without needing the player's crosshair on it - the "no rotate" click
      *  killer560 asked for ("just like QUOI"), which sends the interact packet directly via a synthetic
      *  {@link BlockHitResult} instead of first turning the camera to aim. Real automation - callers must
-     *  already be behind a {@code BuildVariant.CHEAT_FEATURES_ENABLED} check. */
+     *  already be behind a {@code BuildVariant.CHEAT_FEATURES_ENABLED} check. Also Rotate Mode's own
+     *  final click-fire step (see {@link #tickRotateClick}) once its own real aim is confirmed. */
     private static void sendNoRotateInteract(Minecraft client, BlockPos pos) {
         if (client.player == null || client.gameMode == null) {
             return;
