@@ -141,6 +141,9 @@ public final class SimonSaysFeature {
     private static boolean autoStartRunning = false;
     private static int autoStartClicksSent = 0;
     private static int autoStartTicksUntilNextClick = 0;
+    // Diagnostic-only (2026-09-14, "for ss it is now starting weird again... add loggers") - lets the
+    // interact-range gate log only on real state transitions, not every tick it's blocking.
+    private static boolean lastAutoStartTooFarLogged = false;
 
     // --- auto-solve pacing (Target ± Variance overall for the WHOLE device attempt - moved here from
     // Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
@@ -862,9 +865,18 @@ public final class SimonSaysFeature {
         // real window to pre-aim the camera at the first button WHILE still walking up, so by the time
         // this schedule does start, the camera's usually already close and the first click lands on time
         // too.
-        if (cfg.isAutoSolveRotate()
-                && client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)) > REAL_INTERACT_RANGE_SQ) {
-            return;
+        if (cfg.isAutoSolveRotate()) {
+            double distSqToStart = client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON));
+            boolean tooFar = distSqToStart > REAL_INTERACT_RANGE_SQ;
+            if (tooFar != lastAutoStartTooFarLogged) {
+                LOGGER.info("[SimonSays][AutoStart] Interact-range gate {} (distSq={}, need<={}).",
+                        tooFar ? "BLOCKING (too far)" : "PASSED (close enough)", String.format(Locale.US, "%.1f", distSqToStart),
+                        REAL_INTERACT_RANGE_SQ);
+                lastAutoStartTooFarLogged = tooFar;
+            }
+            if (tooFar) {
+                return;
+            }
         }
         if (autoStartTicksUntilNextClick > 0) {
             autoStartTicksUntilNextClick--;
@@ -1130,6 +1142,7 @@ public final class SimonSaysFeature {
      *  flick rather than an identical robotic ease every time - see this class's own "Rotate Mode"
      *  field-group doc comment for the full real reasoning behind each piece. */
     private static void beginRotateApproach(BlockPos buttonPos) {
+        LOGGER.info("[SimonSays][RotateFrame] Beginning approach to {} (was {}).", buttonPos, rotateInProgressTarget);
         rotateInProgressTarget = buttonPos;
         rotateApproachElapsedTicks = 0f;
         rotateSmoothingThisApproach = 0.30f + (float) (Math.random() * 0.15);
@@ -1154,6 +1167,16 @@ public final class SimonSaysFeature {
      *  since the last frame (in tick-equivalents, 1 tick = 50ms) to scale every per-tick-tuned constant
      *  below so the overall convergence SPEED stays the same regardless of framerate - only the
      *  smoothness of the steps in between changes. */
+    // Diagnostic-only (2026-09-14, killer560's own explicit request: "Add some loggers to see what
+    // exactly it is doing so you can fix it" - after repeated live reports that idle-look and Auto
+    // Start's own timing still aren't behaving as expected despite several real, understood fixes).
+    // Always-on while this investigation is unresolved, same convention this class already uses
+    // elsewhere (real click-timing logger, per-transition logger, etc.) - logs every real STATE
+    // TRANSITION (not every frame, which would spam thousands of lines/second) so a real log capture
+    // can show exactly which gate is blocking idle, or what target an approach is actually chasing, at
+    // the exact moment something looks wrong.
+    private static String lastLoggedRotateFrameState = "";
+
     private static void tickRotateFrame() {
         Minecraft client = Minecraft.getInstance();
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
@@ -1166,11 +1189,40 @@ public final class SimonSaysFeature {
         rotateLastFrameAtNanos = now;
         dtTicks = Mth.clamp(dtTicks, 0.0, 3.0); // guard against a lag spike/alt-tab producing one huge jump
 
+        // Real bug found and fixed (2026-09-14, "it still doesnt move back to the first button... it
+        // needs to remember it"): this update used to live inside applyIdleSwayFrame, which only ever
+        // runs once idle is ALREADY allowed to engage - meaning if idle happened to be blocked (Auto
+        // Start/Auto Solve actively using the camera) at the exact moment a new round's first light
+        // revealed, rememberedFirstButton would miss that update entirely and stay stale. Now runs
+        // unconditionally every frame, regardless of whether idle is currently allowed to act on it.
+        if (!clickInOrder.isEmpty()) {
+            BlockPos currentFirst = clickInOrder.get(0).west();
+            if (!currentFirst.equals(rememberedFirstButton)) {
+                LOGGER.info("[SimonSays][RotateFrame] rememberedFirstButton updated: {} -> {}", rememberedFirstButton, currentFirst);
+                rememberedFirstButton = currentFirst;
+            }
+        }
+
+        String state;
         if (rotateInProgressTarget != null) {
+            state = "APPROACH target=" + rotateInProgressTarget;
             applyRotateApproachFrame(client, rotateInProgressTarget, dtTicks);
-        } else if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase
-                && isNearIdleLookAnchor(client)) {
-            applyIdleSwayFrame(client, dtTicks);
+        } else {
+            boolean nearAnchor = isNearIdleLookAnchor(client);
+            if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor) {
+                state = "IDLE target=" + (rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON);
+                applyIdleSwayFrame(client, dtTicks);
+            } else {
+                double distSq = client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR);
+                state = String.format(Locale.US,
+                        "BLOCKED autoStartRunning=%b idleSuppressedAfterCompletion=%b goldorLineSeen=%b nearAnchor=%b (distSq=%.1f, need<=%.1f) rememberedFirstButton=%s clickInOrder.size=%d clickNeeded=%d",
+                        autoStartRunning, idleSuppressedAfterCompletion, goldorLineSeenThisPhase, nearAnchor,
+                        distSq, IDLE_LOOK_RANGE_SQ, rememberedFirstButton, clickInOrder.size(), clickNeeded);
+            }
+        }
+        if (!state.equals(lastLoggedRotateFrameState)) {
+            LOGGER.info("[SimonSays][RotateFrame] {}", state);
+            lastLoggedRotateFrameState = state;
         }
     }
 
@@ -1260,9 +1312,6 @@ public final class SimonSaysFeature {
      *  attempt. */
     private static void applyIdleSwayFrame(Minecraft client, double dtTicks) {
         var player = client.player;
-        if (!clickInOrder.isEmpty()) {
-            rememberedFirstButton = clickInOrder.get(0).west();
-        }
         BlockPos lookTarget = rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON;
         Vec3 eyePos = player.getEyePosition();
         Vec3 target = realBlockCenter(client, lookTarget);
