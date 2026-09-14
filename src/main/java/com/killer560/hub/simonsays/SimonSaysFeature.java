@@ -664,7 +664,20 @@ public final class SimonSaysFeature {
                 }
                 if (firstPhase) {
                     if (clickInOrder.size() == 2) {
-                        java.util.Collections.reverse(clickInOrder);
+                        // Real bug found and fixed (2026-09-14, killer560's own report: "it kept the first
+                        // one green removed the second and made the third orange" on a landed skip):
+                        // reversing here unconditionally corrupted the list order BEFORE a skip's own 3rd
+                        // light even arrived. The size==3 branch below assumes clickInOrder is still in
+                        // true chronological arrival order when it does remove(0) to drop "the first" -
+                        // but after this reverse ran on [A, B], the list was actually [B, A], so the later
+                        // remove(0) dropped B (the real 2nd light) instead of A (the real 1st), leaving
+                        // [A, C] instead of the intended [B, C]. The reverse is real Hypixel behavior only
+                        // for the ordinary NON-skip case (Odin's own confirmed reveal-order quirk) - a
+                        // skip attempt needs the list left in real arrival order so the size==3 drop below
+                        // can correctly remove the true first element.
+                        if (!autoStartClickedThisPhase) {
+                            java.util.Collections.reverse(clickInOrder);
+                        }
                     } else if (clickInOrder.size() == 3) {
                         // Real bug found and fixed (2026-09-14, "now it's bugged every time instead of
                         // just sometimes"): dropping the first unconditionally broke the ordinary,
@@ -752,6 +765,22 @@ public final class SimonSaysFeature {
                 LOGGER.info("[SimonSays] Grid reset detected ({} air blocks).", airCount);
             }
             resetSolveState();
+            // Real bug found and fixed (2026-09-14, killer560's own report: "it kept all 3 after i reset
+            // it"): the whole-device-completion trigger point (onButtonPressed) only re-arms firstPhase
+            // when a device attempt cleanly finishes all 5 rounds - it never fires for an attempt that
+            // gets abandoned or retried after a failed/confusing skip before any click of it ever lands
+            // (the real log showed exactly that: a 2nd device attempt's reveal got corrupted by the
+            // reverse-vs-drop bug above, never produced a "Round completed", and was followed straight by
+            // another Grid reset starting a 3rd attempt with firstPhase still stuck false from the 2nd's
+            // own 10-tick reveal-settle timeout). totalClicksThisAttempt is only ever incremented by a
+            // REAL landed click of the current attempt (see onButtonPressed) and is otherwise untouched by
+            // the routine per-round reset above - so it staying at 0 here means no click of THIS attempt
+            // has ever landed, i.e. this grid-reset is a genuine fresh-attempt boundary (first-ever
+            // encounter, after a clean completion, or after an abandoned retry) rather than an ordinary
+            // between-round transition within an attempt already in progress (where it's already >0).
+            if (totalClicksThisAttempt == 0) {
+                firstPhase = true;
+            }
         }
         wasGridReset = gridReset;
     }
@@ -1381,9 +1410,11 @@ public final class SimonSaysFeature {
         float rawPitchDeltaNoSway = Mth.wrapDegrees(rawTargetPitch - currentPitch);
         boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > 3.0f || Math.abs(rawPitchDeltaNoSway) > 3.0f;
 
+        // Real bug found and fixed (2026-09-14, "make the drift by the first one way less"): 0.5/0.35
+        // degree amplitude read as visibly wandering off the button rather than a small resting wobble.
         double t = System.currentTimeMillis() / 1000.0;
-        float swayYaw = (float) (Math.sin(t * 0.7) * 0.5);
-        float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.35);
+        float swayYaw = (float) (Math.sin(t * 0.7) * 0.12);
+        float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.08);
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch + swayPitch - currentPitch);
