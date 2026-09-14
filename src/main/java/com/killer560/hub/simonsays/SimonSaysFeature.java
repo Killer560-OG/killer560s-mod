@@ -196,18 +196,27 @@ public final class SimonSaysFeature {
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
     // --- Skip-vs-normal-flash distinguisher (2026-09-14, killer560's own real-attempt report) - true
-    // once Auto Start has actually sent at least one real click THIS phase (see tickAutoStart), reset at
-    // firstPhase's own two real trigger points (fresh device encounter, real start-button press). Needed
-    // because "3 real lights before any click" means two different real things depending on whether a
-    // skip was actually attempted: a landed skip (drop the first, real remaining sequence is the last
-    // two) if Auto Start ran, or Hypixel's own normal round-1 reveal-flash quirk (drop the middle
-    // instead, Odin's original confirmed behavior) if it didn't. Deliberately its own dedicated flag
-    // rather than reusing any click-COUNT field (clickNeeded/totalClicksThisAttempt) - killer560's own
-    // explicit caution ("make sure it doesn't count the button clicks to actually start it as well"):
-    // those two already only ever count real GRID button clicks (see onButtonPressed, which is only ever
-    // called for GRID_BUTTONS - the START button's own presses run through the completely separate
-    // tickStartButton path and never touch either counter), so this flag can't be confused with them.
+    // once either Auto Start OR a real player has actually sent 2+ real clicks on the start button THIS
+    // phase (see tickAutoStart and onRealBlockInteractAttempt), reset at firstPhase's own two real
+    // trigger points (fresh device encounter, real start-button press). Needed because "3 real lights
+    // before any click" means two different real things depending on whether a skip was actually
+    // attempted: a landed skip (drop the first, real remaining sequence is the last two) if a real skip
+    // attempt happened, or Hypixel's own normal round-1 reveal-flash quirk (drop the middle instead,
+    // Odin's original confirmed behavior) if it didn't. Real bug found and fixed (2026-09-14, "make sure
+    // that the solver works if it resets even for the skip detection"): this used to only ever get set
+    // by Auto Start's OWN synthetic clicks - Auto Start only ever fires once per real Goldor line, so a
+    // real MANUAL retry after a mid-attempt reset (a real player rapid-clicking start themselves,
+    // without Auto Start's help) would never set it, meaning a genuinely-landed skip on a retry attempt
+    // would still get the wrong (normal-flash) correction. Now also set by 2+ real (non-synthetic) start-
+    // button presses this phase, tracked independently of who's doing the clicking.
+    // Deliberately its own dedicated flag rather than reusing any click-COUNT field (clickNeeded/
+    // totalClicksThisAttempt) - killer560's own explicit caution ("make sure it doesn't count the button
+    // clicks to actually start it as well"): those two already only ever count real GRID button clicks
+    // (see onButtonPressed, which is only ever called for GRID_BUTTONS - the START button's own presses
+    // run through the completely separate tickStartButton/onRealBlockInteractAttempt paths and never
+    // touch either counter), so this flag can't be confused with them.
     private static boolean autoStartClickedThisPhase = false;
+    private static int realStartButtonPressCountThisPhase = 0;
 
     // --- Rotate Mode (killer560's own request, 2026-09-14) - real behavior for the "Rotate" toggle that
     // previously did nothing (see SimonSaysConfig#isAutoSolveRotate's own doc comment: originally planned
@@ -338,6 +347,13 @@ public final class SimonSaysFeature {
             LOGGER.info("[SimonSays] Real start-button click attempt (first this attempt).");
         }
         lastStartButtonPressAtMs = now;
+        // A single accidental press doesn't mean a skip was being attempted - a real skip needs multiple
+        // rapid presses in a row, whether that's Auto Start's own clicking or a real player manually
+        // rapid-clicking after a mid-attempt reset (see this flag's own field doc comment above).
+        realStartButtonPressCountThisPhase++;
+        if (realStartButtonPressCountThisPhase >= 2) {
+            autoStartClickedThisPhase = true;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -418,6 +434,8 @@ public final class SimonSaysFeature {
                 goldorLineSeenThisPhase = false;
                 rotateIdleAtStart = false;
                 rotateInProgressTarget = null;
+                autoStartClickedThisPhase = false;
+                realStartButtonPressCountThisPhase = 0;
             }
             wasActive = false;
             return;
@@ -444,6 +462,7 @@ public final class SimonSaysFeature {
             totalClicksThisAttempt = 0;
             rotateInProgressTarget = null;
             autoStartClickedThisPhase = false;
+            realStartButtonPressCountThisPhase = 0;
             rotateIdleAtStart = true;
         }
         wasActive = true;
@@ -561,7 +580,16 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             rotateInProgressTarget = null;
-            autoStartClickedThisPhase = false;
+            // Real bug found and fixed (2026-09-14, "make sure that the solver works if it resets even
+            // for the skip detection"): deliberately does NOT reset autoStartClickedThisPhase/
+            // realStartButtonPressCountThisPhase here, unlike the OTHER two real reset points (fresh
+            // device encounter, left device range). This specific reset fires off a real BLOCK-STATE
+            // edge, which (per this method's own doc comment above) can only ever catch the FIRST click
+            // of a rapid burst - the exact real click that's ABOUT to be, or was just, a genuine skip
+            // attempt. Clearing the flag/counter here would wipe out that very click's own contribution
+            // to the skip-detection count, before the burst's remaining clicks even land. Letting it
+            // carry over means a real manual retry's own rapid clicks keep counting toward "was a skip
+            // genuinely attempted", uninterrupted by this same reset.
             rotateIdleAtStart = true;
             maybeAutoAnnounceReset(client, cfg);
         }
@@ -750,10 +778,17 @@ public final class SimonSaysFeature {
             }
             resetSolveState();
             firstPhase = false;
-            // Killer560's own request: "after it finishes a phase it should go back to looking at the
-            // first button again."
+            // Real bug found and fixed (2026-09-14, "it goes down a bit or up a bit then over, make it
+            // much more straight and direct... after it finishes dont have it go back to the start
+            // button"): triggering idle-look here used to retarget the camera toward the start button
+            // right as resetSolveState() cleared clickInOrder to empty - but if a fresh round-1 reveal
+            // then began WHILE that idle ease was still mid-flight, applyIdleSwayFrame's own target
+            // (clickInOrder.isEmpty() ? START_BUTTON : clickInOrder.get(0)) would suddenly switch
+            // mid-ease from the start button to the new first lantern, splicing two separate straight
+            // eases into one visibly bent path. Killer560's own explicit fix: don't look back at the
+            // start button after a real completion at all - idle-look now only ever engages at a real
+            // phase START (fresh device encounter, real start-button press), never here.
             rotateInProgressTarget = null;
-            rotateIdleAtStart = true;
         }
     }
 
