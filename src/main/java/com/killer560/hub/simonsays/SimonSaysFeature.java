@@ -206,6 +206,16 @@ public final class SimonSaysFeature {
     private static long autoSolveNextClickAtMs = 0L;
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
+    // Diagnostic-only (2026-09-14, killer560's own report: "it is still no where near the propper time" -
+    // a real log capture for that report showed Auto Solve's Target/Variance path log exactly ONE click
+    // for a whole device that otherwise completed all 5 rounds, meaning something else finished the
+    // remaining 14 real clicks without it ever being confirmed WHY Auto Solve's own scheduling stopped
+    // firing). Tracks how long a click has been "due" (now >= autoSolveNextClickAtMs) for the SAME target
+    // without tickRotateClick ever actually firing it - logs a WARN with full state once that exceeds 2
+    // real seconds, so a repeat of this has hard evidence instead of another guess.
+    private static BlockPos autoSolveStallTarget = null;
+    private static long autoSolveStallSinceMs = 0L;
+    private static boolean autoSolveStallLogged = false;
     // --- Skip-vs-normal-flash distinguisher (2026-09-14, killer560's own real-attempt report) - true
     // once either Auto Start OR a real player has actually sent 2+ real clicks on the start button THIS
     // phase (see tickAutoStart and onRealBlockInteractAttempt), reset at firstPhase's own two real
@@ -313,6 +323,12 @@ public final class SimonSaysFeature {
     // holding one offset) - hard-clamped every frame to a real fraction of the button's own actual angular
     // size as seen from the player right now, so the exact raw amplitude barely matters anymore; the clamp
     // is what determines the real visible motion.
+    // Real bug found and fixed (2026-09-14, "make the movement happen sometimes on the waiting first
+    // button time and others itll more or less be exactly still"): toggles the sway on/off on a random
+    // timer so idle sometimes visibly fidgets and sometimes just holds still for a while, like a real
+    // resting person - see applyIdleSwayFrame for where this is consumed.
+    private static boolean idleSwayActive = true;
+    private static long idleSwayPhaseEndsAtMs = 0L;
     // Real bug found and fixed (2026-09-14, "For the going back to the first button to help remember
     // that once it detects the proper first button that one will be the same unless ss is reset for
     // that. For all stages"): clickInOrder gets cleared on every real per-ROUND transition (not just a
@@ -1282,8 +1298,23 @@ public final class SimonSaysFeature {
                         ? tickRotateClick(client, nextButton)
                         : fireInstantClick(client, nextButton);
                 if (!clicked) {
+                    // Diagnostic-only stall detector - see autoSolveStallTarget's own field doc comment.
+                    if (!nextButton.equals(autoSolveStallTarget)) {
+                        autoSolveStallTarget = nextButton;
+                        autoSolveStallSinceMs = now;
+                        autoSolveStallLogged = false;
+                    } else if (!autoSolveStallLogged && now - autoSolveStallSinceMs > 2000L) {
+                        LOGGER.warn("[SimonSays] Auto-solve click stalled - due for {}ms on target {} but "
+                                        + "tickRotateClick hasn't fired. rotateInProgressTarget={} "
+                                        + "rotateClickFiredFor={} rotateLastFiredTarget={} autoStartRunning={} "
+                                        + "blockedByReveal={} rotateEnabled={}.",
+                                now - autoSolveStallSinceMs, nextButton, rotateInProgressTarget, rotateClickFiredFor,
+                                rotateLastFiredTarget, autoStartRunning, blockedByReveal, cfg.isAutoSolveRotate());
+                        autoSolveStallLogged = true;
+                    }
                     return;
                 }
+                autoSolveStallTarget = null;
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
                 autoSolveClicksDoneThisAttempt++;
@@ -1649,9 +1680,39 @@ public final class SimonSaysFeature {
         // button just changed), eases in fast like a real approach; once genuinely close, drops back to
         // the slow sway-chasing smoothing so the small idle wobble still reads as a human resting on the
         // button, not a snappy flick.
+        // Real bug found and fixed (2026-09-14, killer560's own report: "please make the movement keep
+        // the mouse towards the middle it still likes to drift off really far"): stillCatchingUp used to
+        // compare the raw (no-sway) distance against a FIXED 3-degree threshold - fine when the sway's own
+        // max amplitude is small, but for a button close enough that its real face fills a large angular
+        // area, 25% of that real half-extent (maxSway, computed below) can itself exceed 3 degrees. Once
+        // the camera settles onto rawTarget + one extreme of the sway, the raw (no-sway) distance reads as
+        // "still far" every single frame even though it's just doing normal sway - permanently forcing the
+        // FAST 0.35 approach smoothing instead of the slow 0.08 resting smoothing, so the sway itself got
+        // dragged back and forth quickly across its whole range instead of gently wobbling - reading as a
+        // real, fast drift rather than a small resting movement. maxSway is now computed FIRST and
+        // stillCatchingUp compares against a multiple of it (never less than 3 degrees), so the sway's own
+        // motion can never by itself trigger the fast-approach path - only a genuine real distance can.
+        float maxSway = 0f;
+        if (rememberedFirstButton != null) {
+            float[] halfExtents = realButtonAngularHalfExtents(client, rememberedFirstButton, eyePos);
+            // Real bug found and fixed (2026-09-14, "it still has a tendency to drift right up to the very
+            // edge/corner"): yaw and pitch landing near their own max AT THE SAME TIME has a real diagonal
+            // distance from center bigger than either axis alone suggests - tightened from 60% to 25% of
+            // the real half-extent so even that worst case stays closer to the middle.
+            // Real bug found and fixed AGAIN (2026-09-14, "for buttons up high my cursor still drifts off
+            // of them"): projecting a real box into yaw/pitch space gets distorted at steep viewing angles
+            // (a button well above eye level, similar to how spherical coordinates misbehave near the
+            // poles) - one axis's own projected half-extent can come out larger than it should be for that
+            // specific angle, even though the OTHER axis's projection is still accurate. Uses the SMALLER
+            // of the two real half-extents for BOTH axes instead of each axis's own possibly-inflated
+            // bound - a more conservative bound that stays safe even when one axis's projection is off.
+            maxSway = Math.min(halfExtents[0], halfExtents[1]) * 0.25f;
+        }
         float rawYawDeltaNoSway = Mth.wrapDegrees(rawTargetYaw - currentYaw);
         float rawPitchDeltaNoSway = Mth.wrapDegrees(rawTargetPitch - currentPitch);
-        boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > 3.0f || Math.abs(rawPitchDeltaNoSway) > 3.0f;
+        float catchUpThreshold = Math.max(3.0f, maxSway * 1.5f);
+        boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > catchUpThreshold
+                || Math.abs(rawPitchDeltaNoSway) > catchUpThreshold;
 
         // Real bug found and fixed (2026-09-14, killer560's own report: "dont make it only go one way.
         // It should go down a little up a little may be sideways and whatnot"): the old discrete-twitch
@@ -1670,30 +1731,32 @@ public final class SimonSaysFeature {
         // face"): tuning a fixed degree amplitude was never a real guarantee - the same fixed value is
         // "safe" at one real distance/angle and "too much" at another. Hard-clamps the sway to a real
         // fraction of the button's own actual angular size as seen from the player's eye right now (see
-        // realButtonAngularHalfExtents) - a genuine geometric bound, not a tuned guess. The raw sine
+        // realButtonAngularHalfExtents above) - a genuine geometric bound, not a tuned guess. The raw sine
         // amplitude above (±1 degree) is deliberately larger than any real clamp bound is ever likely to
-        // be, so the clamp - not the raw generator - is what actually determines the real visible motion,
-        // automatically scaled correctly for whichever button/distance/angle it's currently looking at.
-        // Real bug found and fixed (2026-09-14, "it still has a tendency to drift right up to the very
-        // edge/corner"): yaw and pitch landing near their own max AT THE SAME TIME has a real diagonal
-        // distance from center bigger than either axis alone suggests - tightened from 60% to 25% of the
-        // real half-extent so even that worst case stays closer to the middle.
-        // Real bug found and fixed AGAIN (2026-09-14, "for buttons up high my cursor still drifts off of
-        // them"): projecting a real box into yaw/pitch space gets distorted at steep viewing angles (a
-        // button well above eye level, similar to how spherical coordinates misbehave near the poles) -
-        // one axis's own projected half-extent can come out larger than it should be for that specific
-        // angle, even though the OTHER axis's projection is still accurate. Using each axis's own
-        // (possibly-inflated) bound independently could let sway ride out along the inflated axis. Uses
-        // the SMALLER of the two real half-extents for BOTH axes instead - a more conservative bound that
-        // stays safe even when one axis's own projection is distorted.
+        // be, so the clamp - not the raw generator - is what actually determines the real visible motion.
         if (rememberedFirstButton != null) {
-            float[] halfExtents = realButtonAngularHalfExtents(client, rememberedFirstButton, eyePos);
-            float maxSway = Math.min(halfExtents[0], halfExtents[1]) * 0.25f;
             swayYaw = Mth.clamp(swayYaw, -maxSway, maxSway);
             swayPitch = Mth.clamp(swayPitch, -maxSway, maxSway);
         } else {
             swayYaw *= 0.03f;
             swayPitch *= 0.02f;
+        }
+        // Real bug found and fixed (2026-09-14, killer560's own request: "make the movement happen
+        // sometimes on the waiting first button time and others itll more or less be exactly still"):
+        // the sway used to run continuously with no variation in WHETHER it moves at all - a real resting
+        // human sometimes fidgets and sometimes just holds still for a while. Toggles between a "moving"
+        // phase (the sway above, as normal) and a "still" phase (sway zeroed, camera just holds on the
+        // raw target) on a random timer, each phase lasting a random 0.8-4 real seconds.
+        long nowMsForCalm = System.currentTimeMillis();
+        if (nowMsForCalm >= idleSwayPhaseEndsAtMs) {
+            idleSwayActive = !idleSwayActive;
+            long durationMs = idleSwayActive ? (1500L + (long) (Math.random() * 2500.0))
+                    : (800L + (long) (Math.random() * 2000.0));
+            idleSwayPhaseEndsAtMs = nowMsForCalm + durationMs;
+        }
+        if (!idleSwayActive) {
+            swayYaw = 0f;
+            swayPitch = 0f;
         }
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
