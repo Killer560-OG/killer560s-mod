@@ -20,10 +20,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * ISN'T the currently-correct target, and the bot never intentionally clicks a wrong one, so this can
  * never block the bot's own clicks by construction.
  * <p>
+ * Also doubles (2026-09-14) as the real click-timing logger for the start button - see
+ * {@link SimonSaysFeature#onRealBlockInteractAttempt}'s own doc comment for why that has to hook this
+ * exact method rather than poll block state (a real stone button doesn't emit a new state change for a
+ * second click while it's still powered from the first, so polling alone misses rapid repeat clicks).
+ * <p>
  * Deliberately narrow-scoped to avoid the real risk a Mixin on this specific method carries (it's
- * called for EVERY block interaction in the game, not just Simon Says): the HEAD-injected check bails
- * immediately unless the exact target position is one of the 16 real Simon Says grid button
- * coordinates, which only ever matters during an actively-tracked device.
+ * called for EVERY block interaction in the game, not just Simon Says): both hooks bail out immediately
+ * unless the exact target position is one this feature actually cares about.
  */
 @Mixin(MultiPlayerGameMode.class)
 public abstract class SimonSaysMisclickMixin {
@@ -31,6 +35,7 @@ public abstract class SimonSaysMisclickMixin {
     @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockMisclick(LocalPlayer player, InteractionHand hand, BlockHitResult hitResult,
                                               CallbackInfoReturnable<InteractionResult> cir) {
+        SimonSaysFeature.onRealBlockInteractAttempt(hitResult.getBlockPos());
         if (SimonSaysFeature.shouldBlockClick(hitResult.getBlockPos(), player.isShiftKeyDown())) {
             cir.setReturnValue(InteractionResult.FAIL);
         }

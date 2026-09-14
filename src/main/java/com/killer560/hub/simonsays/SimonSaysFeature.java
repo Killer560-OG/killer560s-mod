@@ -120,13 +120,20 @@ public final class SimonSaysFeature {
     // it no longer resets any solve state itself, only sends the announce chat line on demand) ---
     private static boolean announceKeyWasDown = false;
 
-    // --- real start-button press timing logger (2026-09-14, killer560's own explicit request): "add a
-    // quick logger to see how I manually start it so we can get a good guess as to what time spacing for
-    // clicks actually gets the skip." Logs the real gap between consecutive real presses so a manually
-    // successful skip's actual click cadence can be read back out of logs/latest.log afterward, since
-    // trial-and-error on the Auto Start Clicks/Delay sliders alone hasn't found it. Always-on (not gated
-    // behind Diagnostic Logging) - this is the active investigation right now, not background noise.
+    // --- real start-button CLICK ATTEMPT timing logger (2026-09-14, killer560's own explicit request):
+    // "add a quick logger to see how I manually start it so we can get a good guess as to what time
+    // spacing for clicks actually gets the skip." Hooked into the actual useItemOn call via
+    // SimonSaysMisclickMixin/onRealBlockInteractAttempt rather than polling the start button's own block
+    // state - a real stone button stays POWERED for about a second after being clicked, so clicking it
+    // again while still powered doesn't emit a new state transition, meaning polling could only ever see
+    // the FIRST click of a rapid burst (confirmed against a real log: killer560 said "it should be 3 or 4
+    // clicks really close together" but the block-state version only ever showed multi-second gaps).
+    // Always-on (not gated behind Diagnostic Logging) - this is the active investigation right now.
     private static long lastStartButtonPressAtMs = 0L;
+    // Set true for the duration of this mod's OWN synthetic useItemOn calls (Auto Solve/Auto Start/
+    // Trigger Bot) so onRealBlockInteractAttempt can tell a real player click apart from the bot's own -
+    // both funnel through the exact same real method, with no other distinguishing signal available.
+    private static boolean syntheticClickInProgress = false;
 
     // --- auto-start pacing (real trigger + settings ported from NoammAddons) ---
     private static boolean autoStartRunning = false;
@@ -143,6 +150,10 @@ public final class SimonSaysFeature {
     private static long autoSolveNextClickAtMs = 0L;
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
+    // Wall-clock time of the last tick the reveal-delay accounting above ran - lets it compute exactly
+    // how much real time passed since the last check, so it can extend the deadline by that much while
+    // blocked. Reset alongside autoSolveArmed so a stale value from a previous attempt never leaks in.
+    private static long autoSolveLastTickAtMs = 0L;
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
@@ -185,6 +196,24 @@ public final class SimonSaysFeature {
         }
         BlockPos correctButton = clickInOrder.get(clickNeeded).west();
         return !pos.equals(correctButton);
+    }
+
+    /** For {@code SimonSaysMisclickMixin} - called for every real {@code useItemOn} attempt, regardless
+     *  of block. Logs the real ms gap between consecutive REAL attempts specifically on the start button
+     *  (see {@link #lastStartButtonPressAtMs}'s own doc comment for why this has to hook the actual click
+     *  event rather than poll block state). Ignores this mod's own synthetic clicks via
+     *  {@link #syntheticClickInProgress}, and anything that isn't the start button. */
+    public static void onRealBlockInteractAttempt(BlockPos pos) {
+        if (syntheticClickInProgress || !pos.equals(START_BUTTON)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (lastStartButtonPressAtMs > 0) {
+            LOGGER.info("[SimonSays] Real start-button click attempt - {}ms since previous.", now - lastStartButtonPressAtMs);
+        } else {
+            LOGGER.info("[SimonSays] Real start-button click attempt (first this attempt).");
+        }
+        lastStartButtonPressAtMs = now;
     }
 
     // ------------------------------------------------------------------
@@ -272,6 +301,7 @@ public final class SimonSaysFeature {
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
+            autoSolveLastTickAtMs = 0L;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
         }
@@ -358,18 +388,18 @@ public final class SimonSaysFeature {
         boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
         boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
         if (nowPowered && !oldPowered) {
-            long pressAtMs = System.currentTimeMillis();
-            if (lastStartButtonPressAtMs > 0) {
-                LOGGER.info("[SimonSays] Start button pressed - {}ms since previous press.",
-                        pressAtMs - lastStartButtonPressAtMs);
-            } else {
-                LOGGER.info("[SimonSays] Start button pressed (first press this attempt).");
-            }
-            lastStartButtonPressAtMs = pressAtMs;
+            // Real click-timing logging moved to onRealBlockInteractAttempt (2026-09-14) - a real stone
+            // button stays POWERED for about a second after being clicked, and clicking it again WHILE
+            // still powered doesn't emit a new block-state transition (POWERED was already true), so this
+            // block-state-based edge can only ever catch the FIRST click of a rapid burst, never the
+            // rapid repeats killer560 specifically wanted timing on ("it should be 3 or 4 clicks really
+            // close together" - his real log only ever showed multi-SECOND gaps). See that method's own
+            // doc comment for the real fix: hooking the actual click event instead of polling state.
             resetSolveState();
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
+            autoSolveLastTickAtMs = 0L;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             maybeAutoAnnounceReset(client, cfg);
@@ -431,13 +461,22 @@ public final class SimonSaysFeature {
         // doc comment) - the reveal-order quirk only ever applies during the initial flash; 10 ticks
         // after the last real lantern change, once the grid has settled back to mostly real buttons,
         // firstPhase clears for the rest of THIS device so later reveals stop getting truncated.
-        if (firstPhase && lastLanternChangeTick >= 0) {
+        // Real bug found and fixed (2026-09-14): this increment used to be gated behind "if (firstPhase
+        // && ...)", so it only ever ran during round 1 - meaning lastLanternChangeTick never advanced
+        // past 0 for rounds 2-5, and isStillRevealing() (used to gate Auto Solve) would have stayed true
+        // forever after any later-round reveal. Killer560's own explicit report: "it is forgetting that
+        // there is a delay time in between when it shows a pattern... After finishing a set it has to
+        // show the new pattern, then it can click" - every round has this same reveal-settle window, not
+        // just the first, so the increment now always runs; only the firstPhase-clearing ACTION below
+        // stays scoped to round 1 (that quirk-correction is real round-1-only behavior, unrelated to
+        // whether the grid has visually settled).
+        if (lastLanternChangeTick >= 0) {
             lastLanternChangeTick++;
-            if (lastLanternChangeTick > 10 && stoneButtonCount > 8) {
-                firstPhase = false;
-                if (cfg.isDiagnosticLoggingEnabled()) {
-                    LOGGER.info("[SimonSays] Reveal flash settled - firstPhase quirk correction now off for this device.");
-                }
+        }
+        if (firstPhase && lastLanternChangeTick > 10 && stoneButtonCount > 8) {
+            firstPhase = false;
+            if (cfg.isDiagnosticLoggingEnabled()) {
+                LOGGER.info("[SimonSays] Reveal flash settled - firstPhase quirk correction now off for this device.");
             }
         }
         boolean gridReset = airCount > 8;
@@ -461,6 +500,15 @@ public final class SimonSaysFeature {
             maybeAutoAnnounceReset(client, cfg);
         }
         wasGridReset = gridReset;
+    }
+
+    /** True while within 10 ticks of the last real lantern reveal for the CURRENT round - i.e. the round's
+     *  pattern is still actively flashing, or has only just finished. Generalizes firstPhase's own
+     *  settle-timeout (see {@link #lastLanternChangeTick}'s doc comment) to every round, not just round 1
+     *  - killer560's own explicit report (2026-09-14): "After finishing a set it has to show the new
+     *  pattern, then it can click." Used to gate Auto Solve so it doesn't click mid-reveal on any round. */
+    private static boolean isStillRevealing() {
+        return lastLanternChangeTick >= 0 && lastLanternChangeTick <= 10;
     }
 
     private static void onButtonPressed(BlockPos buttonPos, SimonSaysConfig cfg, Minecraft client) {
@@ -547,7 +595,28 @@ public final class SimonSaysFeature {
     // ------------------------------------------------------------------
 
     private static void tickAutoSolveAndTriggerBot(Minecraft client, SimonSaysConfig cfg) {
-        if (clickNeeded >= clickInOrder.size()) {
+        long now = System.currentTimeMillis();
+        boolean noStepsPending = clickNeeded >= clickInOrder.size();
+        // Generalized (2026-09-14) beyond just firstPhase - see isStillRevealing()'s own doc comment:
+        // every round has a reveal-settle window, not just round 1.
+        boolean blockedByReveal = firstPhase || isStillRevealing();
+
+        // Extend the Target/Variance deadline by any real time spent blocked - waiting for the next
+        // round's pattern to finish revealing (or between rounds entirely, before it starts revealing at
+        // all) - so uncontrollable real reveal/flash time doesn't eat into the deliberate click-pacing
+        // budget. Killer560's own explicit report (2026-09-14): "it is forgetting that there is a delay
+        // time in between when it shows a pattern that it has to account for... That needs to be
+        // factored into the 12s timer." Fixed-delay mode doesn't use a budget, so it's skipped here.
+        if (cfg.isAutoSolveEnabled() && !cfg.isAutoSolveFixedDelayMode() && autoSolveArmed) {
+            if (autoSolveLastTickAtMs > 0 && (noStepsPending || blockedByReveal)) {
+                long blockedDelta = now - autoSolveLastTickAtMs;
+                autoSolveDeadlineMs += blockedDelta;
+                autoSolveNextClickAtMs += blockedDelta;
+            }
+            autoSolveLastTickAtMs = now;
+        }
+
+        if (noStepsPending) {
             return;
         }
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
@@ -555,13 +624,12 @@ public final class SimonSaysFeature {
 
         if (cfg.isAutoSolveEnabled()) {
             // Killer560's explicit request (2026-09-14): don't click at all while the lights are still
-            // being shown - firstPhase is exactly the initial ~10-tick reveal flash where the real
-            // lantern order is still being corrected (reverse/drop-middle quirk), so clicking mid-flash
-            // could easily fire on a position that's about to be reinterpreted.
-            if (firstPhase) {
+            // being shown - this now applies to every round, not just round 1's firstPhase window (see
+            // isStillRevealing()'s own doc comment) - clicking mid-flash could fire on a position that's
+            // about to be reinterpreted (round 1) or simply isn't fully shown yet (any round).
+            if (blockedByReveal) {
                 return;
             }
-            long now = System.currentTimeMillis();
             // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
             // data show the Target/Variance model landing at a consistent but slow-feeling ~850ms/click) -
             // a direct, immediately-understandable alternative to the overall-duration target below.
@@ -639,7 +707,14 @@ public final class SimonSaysFeature {
         }
         Vec3 hitVec = Vec3.atCenterOf(pos);
         BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.EAST, pos, false);
-        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hitResult);
+        // Flagged so onRealBlockInteractAttempt (called from the same useItemOn this goes through) knows
+        // to ignore this as one of the mod's own clicks rather than a real one.
+        syntheticClickInProgress = true;
+        try {
+            client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hitResult);
+        } finally {
+            syntheticClickInProgress = false;
+        }
         client.player.swing(InteractionHand.MAIN_HAND);
     }
 
