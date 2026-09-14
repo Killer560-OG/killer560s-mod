@@ -209,7 +209,14 @@ public class Killer560ModClient implements ClientModInitializer {
                                             ? "§b[Sim] Treating you as if you're in the real F7 boss fight."
                                             : "§7[Sim] Override off - back to real automatic detection.", 3000);
                                     return 1;
-                                }))));
+                                }))
+                        // "/killer560 profile ..." - killer560's custom settings-profile request. See
+                        // ProfileManager's class doc for why "load" needs a restart to fully apply.
+                        // Built as its own method (buildProfileCommand) rather than inlined here - this
+                        // whole command tree is already nested 4+ levels deep and another sub-tree
+                        // inlined by hand risks exactly the kind of mismatched-paren mistake that's easy
+                        // to make and hard to spot in a wall of closing parens.
+                        .then(buildProfileCommand())));
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the
@@ -301,6 +308,66 @@ public class Killer560ModClient implements ClientModInitializer {
                                 return 1;
                             })));
         });
+    }
+
+    /** Builds the whole "/killer560 profile ..." subcommand tree as its own self-contained node -
+     *  kept out of the main command registration chain (see the call site's comment) since nesting
+     *  this many more levels of {@code .then(...)} inline would make an already deep chain very easy
+     *  to mis-close by hand. */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> buildProfileCommand() {
+        return ClientCommands.literal("profile")
+                .then(ClientCommands.literal("save")
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    ModOverlayMessage.show(
+                                            com.killer560.hub.profiles.ProfileManager.saveCurrentAsProfile(name).message(), 4000);
+                                    return 1;
+                                })))
+                .then(ClientCommands.literal("load")
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    ModOverlayMessage.show(
+                                            com.killer560.hub.profiles.ProfileManager.applyProfile(name).message(), 5000);
+                                    return 1;
+                                })))
+                .then(ClientCommands.literal("delete")
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    ModOverlayMessage.show(
+                                            com.killer560.hub.profiles.ProfileManager.deleteProfile(name).message(), 3000);
+                                    return 1;
+                                })))
+                .then(ClientCommands.literal("export")
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    ModOverlayMessage.show(
+                                            com.killer560.hub.profiles.ProfileManager.exportProfile(name).message(), 6000);
+                                    return 1;
+                                })))
+                .then(ClientCommands.literal("import")
+                        .then(ClientCommands.argument("file", StringArgumentType.string())
+                                .then(ClientCommands.argument("newName", StringArgumentType.greedyString())
+                                        .executes(context -> {
+                                            String file = StringArgumentType.getString(context, "file");
+                                            String newName = StringArgumentType.getString(context, "newName");
+                                            ModOverlayMessage.show(
+                                                    com.killer560.hub.profiles.ProfileManager.importProfile(file, newName).message(), 5000);
+                                            return 1;
+                                        }))))
+                .then(ClientCommands.literal("list")
+                        .executes(context -> {
+                            java.util.List<String> profiles = com.killer560.hub.profiles.ProfileManager.listProfiles();
+                            String active = com.killer560.hub.profiles.ProfileManager.getActiveProfile();
+                            ModOverlayMessage.show(profiles.isEmpty()
+                                    ? "§7[Profiles] None saved yet."
+                                    : "§b[Profiles] " + String.join(", ", profiles) + " §7(active: " + (active != null ? active : "none") + ")",
+                                    5000);
+                            return 1;
+                        }));
     }
 
     /** Parses {@code /posmsg add <message...> <x> <y> <z> <radius>} - the message itself can contain

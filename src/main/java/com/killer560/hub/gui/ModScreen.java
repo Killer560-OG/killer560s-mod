@@ -11,6 +11,7 @@ import com.killer560.hub.gui.tab.HomeTab;
 import com.killer560.hub.gui.tab.HudElementsTab;
 import com.killer560.hub.gui.tab.KeyCaptureTab;
 import com.killer560.hub.gui.tab.NewTab;
+import com.killer560.hub.gui.tab.ProfilesTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -46,7 +47,11 @@ public class ModScreen extends Screen {
     private int contentX, contentY, contentW;
 
     private EditBox searchField;
-    private String searchQuery = "";
+    // Static for the same reason as tabs/selectedTab above (2026-09-14, per killer560's "reopening
+    // should keep my scroll position, tab, and search text" request) - an instance field would reset
+    // to "" the moment a fresh ModScreen is constructed on reopen, silently undoing whatever was typed
+    // last time even though the selected tab itself already survived.
+    private static String searchQuery = "";
 
     // Real bug found and fixed (2026-09-07), per killer560's screenshot showing accordion content
     // spilling straight past the bottom of the panel into the game world behind it: the content area
@@ -56,7 +61,9 @@ public class ModScreen extends Screen {
     // only actually added to the screen if it FULLY fits within the visible window after that shift
     // (simpler and just as effective as a real scissor clip here, since nothing partially spills past
     // the boundary either way - it just doesn't render until scrolled fully into view).
-    private int scrollOffset = 0;
+    // Static for the same reason as searchQuery above - survives closing and reopening the menu, not
+    // just switching tabs within one open.
+    private static int scrollOffset = 0;
     private int maxScroll = 0;
     private int visibleContentHeight = 0;
 
@@ -80,6 +87,7 @@ public class ModScreen extends Screen {
         if (tabs == null) {
             tabs = new ArrayList<>();
             tabs.add(new HomeTab());
+            tabs.add(new ProfilesTab());
             tabs.add(new NewTab());
             tabs.add(new GeneralTab());
             tabs.add(new DisplayTab());
