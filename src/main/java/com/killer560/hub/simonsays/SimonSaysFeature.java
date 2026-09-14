@@ -849,6 +849,32 @@ public final class SimonSaysFeature {
                 // light, matching "stop all things" literally. rememberedFirstButton is still cleared here
                 // so nothing stale carries over into that eventual first real update.
                 rememberedFirstButton = null;
+                // Real bug found and fixed (2026-09-14, killer560's own report: "it needs to take into
+                // account the set time as well. If i set it to 15 then it needs to be getting 15 wwith the
+                // variance accounted for. It is currently almost always the same speed"): this general
+                // fresh-attempt boundary only ever reset firstPhase/rememberedFirstButton - it never reset
+                // Auto Solve's own Target/Variance pacing state (autoSolveArmed, autoSolveDeadlineMs is
+                // derived from it, autoSolveClicksDoneThisAttempt, etc.), unlike the "entering range" and
+                // "real start-button press" trigger points, which already reset all of these. That's fine
+                // for an attempt that cleanly completes (the whole-device-completion branch in
+                // onButtonPressed already resets all of it there) - but an attempt that gets ABANDONED or
+                // RETRIED before completing (exactly what heavy skip-testing produces - see this same
+                // block's own earlier doc comment) never reaches that branch, so the retry inherited the
+                // FAILED attempt's still-armed, likely-already-expired autoSolveDeadlineMs. With the
+                // deadline already in the past, activeWindowLeftMs collapsed to 0 for every remaining
+                // click of the retry, regardless of the configured Timer Target - exactly "almost always
+                // the same [fast] speed" no matter what's set. Now resets the same full set of per-attempt
+                // pacing fields the other two trigger points already do, so a retried attempt re-arms its
+                // own fresh deadline from the real configured target instead of inheriting a dead one.
+                autoSolveArmed = false;
+                autoSolveClicksDoneThisAttempt = 0;
+                lastBlockedTrackAtMs = 0L;
+                autoSolveBlockedMsThisAttempt = 0L;
+                wasBlockedByReveal = false;
+                lastRoundCompletedAtMs = 0L;
+                currentRoundNumber = 1;
+                expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+                deviceStartedAtMs = 0L;
             }
         }
         wasGridReset = gridReset;
