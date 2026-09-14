@@ -76,13 +76,13 @@ public final class SimonSaysConfig {
     private int autoSolveFixedDelayMs = 150;
 
     private boolean autoStartEnabled = false;
-    // Real reference: NoammAddons' own SimonSays.kt ("Start Clicks" default 3, "Start Click Delay" in
-    // real TICKS default 3) - killer560 asked for exactly these two settings and nothing else here (no
-    // more per-mode presets - see the removed SkipMode enum's honesty note, which is why it's gone: this
-    // session had no confirmed real per-mode click counts, so rather than keep guessing, killer560 asked
-    // to drop the modes entirely for now and revisit with real data later). Range widened to 0-20
-    // (killer560's own explicit ask, both settings shown as drag sliders) - NoammAddons' own real ranges
-    // were narrower (1-10 clicks, 1-25 ticks) but this mod's slider UI needed one shared 0-20 range.
+    // Defaults ported from NoammAddons' own SimonSays.kt ("Start Clicks" default 3, "Start Click Delay"
+    // in real TICKS default 3), and since CONFIRMED as real, correct values (2026-09-14) - killer560 did
+    // several manual real skip attempts with the new onRealBlockInteractAttempt click logger running; the
+    // two that actually got a real skip both showed the exact same real pattern: 3 total clicks on the
+    // start button, ~150ms (~3 real ticks) apart. These are no longer just a ported guess. Range widened
+    // to 0-20 (killer560's own explicit ask, both settings shown as drag sliders) - NoammAddons' own real
+    // ranges were narrower (1-10 clicks, 1-25 ticks) but this mod's slider UI needed one shared 0-20 range.
     private int autoStartClicks = 3;
     private int autoStartClickDelayTicks = 3;
 

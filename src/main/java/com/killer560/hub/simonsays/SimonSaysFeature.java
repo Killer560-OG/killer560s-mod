@@ -154,6 +154,13 @@ public final class SimonSaysFeature {
     // how much real time passed since the last check, so it can extend the deadline by that much while
     // blocked. Reset alongside autoSolveArmed so a stale value from a previous attempt never leaks in.
     private static long autoSolveLastTickAtMs = 0L;
+    // Running total of real time spent blocked (reveal-settle windows + waiting between rounds) across
+    // the WHOLE attempt (2026-09-14, killer560's own request: "figure out how long it takes to actually
+    // go through that transition phase because that needs to be factored into the overall time it
+    // takes"). A single observed real run measured this at ~1.4s/1.9s/2.2s/2.6s per round transition
+    // (growing with round size, ~8.1s total across all 4 transitions in a full 5-round solve) - reported
+    // per-attempt here instead of hardcoding that one-run number, since it will vary run to run.
+    private static long autoSolveBlockedMsThisAttempt = 0L;
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
@@ -302,6 +309,7 @@ public final class SimonSaysFeature {
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
             autoSolveLastTickAtMs = 0L;
+            autoSolveBlockedMsThisAttempt = 0L;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
         }
@@ -400,6 +408,7 @@ public final class SimonSaysFeature {
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
             autoSolveLastTickAtMs = 0L;
+            autoSolveBlockedMsThisAttempt = 0L;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             maybeAutoAnnounceReset(client, cfg);
@@ -538,12 +547,23 @@ public final class SimonSaysFeature {
             // here IS the real "last click of the whole device" regardless of who did the clicking.
             if (totalClicksThisAttempt >= TOTAL_REAL_CLICKS_PER_DEVICE && client.player != null) {
                 long deviceTookMs = deviceStartedAtMs > 0 ? System.currentTimeMillis() - deviceStartedAtMs : 0;
-                LOGGER.info("[SimonSays] Whole device completed in {} ms.", deviceTookMs);
+                LOGGER.info("[SimonSays] Whole device completed in {} ms ({} ms of that was real reveal/transition delay).",
+                        deviceTookMs, autoSolveBlockedMsThisAttempt);
                 // Client-side only (sendSystemMessage, same technique this mod's other features already
                 // use for a local-only notice) - killer560 asked for a message to himself, not a real
-                // party announcement.
-                client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
-                        "§6[Simon Says] §fWhole device solved in §e%.2fs", deviceTookMs / 1000.0)));
+                // party announcement. Breaks out the real reveal/transition delay (2026-09-14, killer560's
+                // own request: "figure out how long it takes to actually go through that transition phase
+                // because that needs to be factored into the overall time it takes") whenever Auto Solve's
+                // Target/Variance mode measured any - only that mode tracks it, so a manual/Trigger Bot/
+                // Fixed-Delay solve just gets the plain total.
+                if (autoSolveBlockedMsThisAttempt > 0) {
+                    client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
+                            "§6[Simon Says] §fWhole device solved in §e%.2fs §7(§e%.2fs§7 reveal delay)",
+                            deviceTookMs / 1000.0, autoSolveBlockedMsThisAttempt / 1000.0)));
+                } else {
+                    client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
+                            "§6[Simon Says] §fWhole device solved in §e%.2fs", deviceTookMs / 1000.0)));
+                }
             }
             resetSolveState();
             firstPhase = false;
@@ -612,6 +632,7 @@ public final class SimonSaysFeature {
                 long blockedDelta = now - autoSolveLastTickAtMs;
                 autoSolveDeadlineMs += blockedDelta;
                 autoSolveNextClickAtMs += blockedDelta;
+                autoSolveBlockedMsThisAttempt += blockedDelta;
             }
             autoSolveLastTickAtMs = now;
         }
