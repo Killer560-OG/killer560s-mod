@@ -270,12 +270,35 @@ public final class SimonSaysFeature {
     // tickRotateFrame's own dispatch, not tracked here) UNLESS explicitly suppressed - the only real
     // reason to suppress it is right after a whole-device completion (killer560's own "after it finishes
     // dont have it go back to the start button"), until the next genuine phase-start clears it again.
-    // This also means idle now naturally resumes in the GAPS between Auto Start's own scheduled clicks
-    // (while autoStartTicksUntilNextClick is still counting down), not just once at the very start.
+    // Real bug found and fixed AGAIN (2026-09-14, "I tried start only without the solver on and it is
+    // doing some sort of weird movement while hovering that button... make sure the movement for auto
+    // start only happens from auto solve and that it always stays on the start button during that
+    // time"): idle resuming in the gaps between Auto Start's OWN scheduled clicks (the thing the comment
+    // above used to call out as a real benefit) was actually wrong - a real player who's already aiming
+    // at a button and about to click it again in a fraction of a second wouldn't randomly sway their aim
+    // in between, and that drift also meant each next click's approach had to re-converge from a
+    // slightly-off starting point instead of staying locked, throwing off the real configured pacing
+    // ("3 ticks with 3 presses isnt working"). Idle is now ALSO suppressed for the entire real duration
+    // of an Auto Start run (autoStartRunning), not just after a completion - the camera just holds
+    // perfectly still wherever the last click left it (already centered on the start button) until Auto
+    // Start either finishes or Auto Solve needs the camera for a real grid button next.
     private static boolean idleSuppressedAfterCompletion = false;
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
     private static final double IDLE_LOOK_RANGE_SQ = 3.0 * 3.0;
+    // Real bug found and fixed (2026-09-14, "For the going back to the first button to help remember
+    // that once it detects the proper first button that one will be the same unless ss is reset for
+    // that. For all stages"): clickInOrder gets cleared on every real per-ROUND transition (not just a
+    // full device reset - see resetSolveState's own doc comment on this), so idle's old fallback
+    // (clickInOrder.isEmpty() ? START_BUTTON : ...) briefly reverted to the start button at literally
+    // EVERY round boundary while waiting for the next round's own first light to reveal, causing the
+    // exact same kind of mid-flight retarget/bent-path symptom Round 109 already fixed for the
+    // whole-device-completion case specifically - just recurring at every ordinary round transition too.
+    // Remembers whichever real button was most recently confirmed as "the current round's first one" and
+    // keeps using THAT as the fallback instead of reverting to the start button, for every stage - only
+    // cleared back to null at a genuine full SS reset (the same two real trigger points firstPhase itself
+    // resets at), never on an ordinary round-to-round transition.
+    private static BlockPos rememberedFirstButton = null;
     // Real bug found and fixed (2026-09-14, "the clicks are no longer separated by the right amount of
     // time... does the first one then waits a second before doing more") - see tickAutoStart's own doc
     // comment for the full mechanism. Deliberately larger than IDLE_LOOK_RANGE_SQ (measured from a
@@ -452,6 +475,7 @@ public final class SimonSaysFeature {
                 rotateInProgressTarget = null;
                 autoStartClickedThisPhase = false;
                 realStartButtonPressCountThisPhase = 0;
+                rememberedFirstButton = null;
             }
             wasActive = false;
             return;
@@ -480,6 +504,7 @@ public final class SimonSaysFeature {
             autoStartClickedThisPhase = false;
             realStartButtonPressCountThisPhase = 0;
             idleSuppressedAfterCompletion = false;
+            rememberedFirstButton = null;
         }
         wasActive = true;
 
@@ -607,6 +632,7 @@ public final class SimonSaysFeature {
             // carry over means a real manual retry's own rapid clicks keep counting toward "was a skip
             // genuinely attempted", uninterrupted by this same reset.
             idleSuppressedAfterCompletion = false;
+            rememberedFirstButton = null;
             maybeAutoAnnounceReset(client, cfg);
         }
     }
@@ -1142,7 +1168,8 @@ public final class SimonSaysFeature {
 
         if (rotateInProgressTarget != null) {
             applyRotateApproachFrame(client, rotateInProgressTarget, dtTicks);
-        } else if (!idleSuppressedAfterCompletion && goldorLineSeenThisPhase && isNearIdleLookAnchor(client)) {
+        } else if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase
+                && isNearIdleLookAnchor(client)) {
             applyIdleSwayFrame(client, dtTicks);
         }
     }
@@ -1226,11 +1253,17 @@ public final class SimonSaysFeature {
     /** Idle look at the real first grid button of the current sequence ("the 1/5 button essentially, or
      *  the first one from 2/5" - killer560's own clarification, NOT the literal start/reset button) with
      *  a slight continuous sway, rather than a hard freeze. Two independent slow sine waves (different
-     *  periods/phases) so the movement doesn't read as an obvious mechanical loop. Falls back to the
-     *  real start button only before the very first lantern of the attempt has revealed yet. */
+     *  periods/phases) so the movement doesn't read as an obvious mechanical loop. Falls back to
+     *  whichever real button was most recently remembered as "the current round's first one" (see
+     *  rememberedFirstButton's own doc comment - persists across ordinary round transitions, only clears
+     *  on a genuine full reset), or the real start button if nothing's been revealed yet this whole SS
+     *  attempt. */
     private static void applyIdleSwayFrame(Minecraft client, double dtTicks) {
         var player = client.player;
-        BlockPos lookTarget = clickInOrder.isEmpty() ? START_BUTTON : clickInOrder.get(0).west();
+        if (!clickInOrder.isEmpty()) {
+            rememberedFirstButton = clickInOrder.get(0).west();
+        }
+        BlockPos lookTarget = rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON;
         Vec3 eyePos = player.getEyePosition();
         Vec3 target = realBlockCenter(client, lookTarget);
         Vec3 diff = target.subtract(eyePos);
