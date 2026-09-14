@@ -304,17 +304,15 @@ public final class SimonSaysFeature {
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
     private static final double IDLE_LOOK_RANGE_SQ = 3.0 * 3.0;
-    // Real bug found and fixed (2026-09-14, "it likes to hold this tiny drift up and to the left alot.
-    // Instead of that it should kind of have these twitches. Think microscopic movements then going back
-    // to middle of the button"): a continuous sine-wave sway spends roughly half of every ~9-12 second
-    // cycle sitting near one extreme before slowly crossing back, which reads as "always drifting that
-    // way" even though it's technically centered over a full period. Replaced with discrete micro-twitches
-    // instead - most of the time this sits at dead center, and every so often (see applyIdleSwayFrame)
-    // kicks a small random offset that decays fast back to zero, closer to how a resting human hand
-    // actually moves than a slow, sustained wander.
-    private static float idleTwitchYaw = 0f;
-    private static float idleTwitchPitch = 0f;
-    private static long idleNextTwitchAtMs = 0L;
+    // Real bug history (2026-09-14) on idle's resting sway, for context on the current design in
+    // applyIdleSwayFrame: started as one continuous slow sine wave (read as "always drifting one way"
+    // since it spends half of every ~9-12s cycle near one extreme) -> discrete random micro-twitches on a
+    // timer (read as "only goes one way" over a short real observation window, since only whichever couple
+    // of random directions happened to roll were ever visible) -> now two continuous sine waves at
+    // different, fairly fast frequencies (a real Lissajous-style path, always changing direction, never
+    // holding one offset) - hard-clamped every frame to a real fraction of the button's own actual angular
+    // size as seen from the player right now, so the exact raw amplitude barely matters anymore; the clamp
+    // is what determines the real visible motion.
     // Real bug found and fixed (2026-09-14, "For the going back to the first button to help remember
     // that once it detects the proper first button that one will be the same unless ss is reset for
     // that. For all stages"): clickInOrder gets cleared on every real per-ROUND transition (not just a
@@ -1552,9 +1550,10 @@ public final class SimonSaysFeature {
 
     /** Idle look at the real first grid button of the current sequence ("the 1/5 button essentially, or
      *  the first one from 2/5" - killer560's own clarification, NOT the literal start/reset button) with
-     *  a slight resting sway, rather than a hard freeze. Sits at dead center most of the time, with
-     *  brief random micro-twitches on a random timer that decay fast back to center (see idleTwitchYaw's
-     *  own field doc comment for why this replaced a continuous sine-wave sway). Falls back to
+     *  a slight resting sway, rather than a hard freeze. Two continuous sine waves at different
+     *  frequencies, hard-clamped every frame to a real fraction of the button's own actual angular size
+     *  (see the field-group doc comment above `idleSuppressedAfterCompletion` for the full real history
+     *  behind this design). Falls back to
      *  whichever real button was most recently remembered as "the current round's first one" (see
      *  rememberedFirstButton's own doc comment - persists across ordinary round transitions, only clears
      *  on a genuine full reset). If nothing's been revealed yet this attempt (including right after a
@@ -1589,49 +1588,47 @@ public final class SimonSaysFeature {
         float rawPitchDeltaNoSway = Mth.wrapDegrees(rawTargetPitch - currentPitch);
         boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > 3.0f || Math.abs(rawPitchDeltaNoSway) > 3.0f;
 
-        // Real bug found and fixed (2026-09-14, "it likes to hold this tiny drift up and to the left
-        // alot... it should kind of have these twitches. Think microscopic movements then going back to
-        // middle of the button"): replaced the old continuous sine-wave sway (see idleTwitchYaw's own
-        // field doc comment for why that read as sustained drift) with brief random twitches on a random
-        // timer, each decaying back toward dead center fast rather than lingering.
-        // Real bug found and fixed (2026-09-14, killer560's own report: "the start was very top left. The
-        // drift brought the cursor off of the face of it to the top left by a bit... it just doesn't look
-        // very human"): 0.12/0.08 degrees was still enough to carry the crosshair off a real button's own
-        // (real vanilla stone_button - a thin, off-center box, not a full block) clickable face at some
-        // real distances/viewing angles. Cut down again to a genuinely tiny tremor.
-        long nowMs = System.currentTimeMillis();
-        if (nowMs >= idleNextTwitchAtMs) {
-            idleTwitchYaw = (float) ((Math.random() * 2 - 1) * 0.06);
-            idleTwitchPitch = (float) ((Math.random() * 2 - 1) * 0.04);
-            idleNextTwitchAtMs = nowMs + 500L + (long) (Math.random() * 1500.0);
-        }
-        double twitchDecay = Math.pow(0.15, dtTicks);
-        idleTwitchYaw *= (float) twitchDecay;
-        idleTwitchPitch *= (float) twitchDecay;
-        float swayYaw = idleTwitchYaw;
-        float swayPitch = idleTwitchPitch;
+        // Real bug found and fixed (2026-09-14, killer560's own report: "dont make it only go one way.
+        // It should go down a little up a little may be sideways and whatnot"): the old discrete-twitch
+        // model (random kick then fast decay, long pause, repeat) meant most of what was actually visible
+        // in a short real observation window was just whichever one or two random directions happened to
+        // roll - not a real spread of directions. Replaced with two continuous sine waves at DIFFERENT,
+        // fairly fast frequencies for yaw vs pitch (a real Lissajous-style path) - the combined direction
+        // of travel keeps changing (mostly horizontal one moment, mostly vertical the next, diagonal in
+        // between) without ever settling into looking like it "only goes one way", and never pauses at a
+        // single held offset the way the original 9-12-second sine period (Round 118) did either.
+        double t = System.currentTimeMillis() / 1000.0;
+        float swayYaw = (float) Math.sin(t * 2.6);
+        float swayPitch = (float) Math.sin(t * 1.9 + 1.1);
         // Real bug found and fixed AGAIN (2026-09-14, killer560's own report: "it is still drifting up
         // too high and off of the face of the button. Make it so while drifting it cannot go off of the
-        // face"): tuning the fixed twitch amplitude down twice still wasn't a real guarantee - the same
-        // fixed degree value is "safe" at one real distance/angle and "too much" at another. Hard-clamps
-        // the twitch to a real fraction of the button's own actual angular size as seen from the player's
-        // eye right now (see realButtonAngularHalfExtents) - a genuine geometric bound, not a tuned guess,
-        // so it's no longer possible to drift off the real face regardless of distance/viewing angle. Only
-        // applies while actually looking at a real button (rememberedFirstButton != null) - the grid-
-        // center fallback isn't a real block, so there's no face to clamp against there.
-        // Real bug found and fixed (2026-09-14, killer560's own report: "the drift on buttons should
-        // keep it still fairly close to the middle. It still has a tendency to drift right up to the
-        // very edge/corner"): 60% of the real half-extent kept each AXIS individually on the face, but
-        // yaw and pitch can both land near their own max at once - the real diagonal distance from center
-        // at that point is bigger than either axis alone suggests, reading as hugging the edge/corner
-        // rather than staying near the middle. Tightened to 25% so it stays visibly closer to center even
-        // at that worst-case diagonal.
+        // face"): tuning a fixed degree amplitude was never a real guarantee - the same fixed value is
+        // "safe" at one real distance/angle and "too much" at another. Hard-clamps the sway to a real
+        // fraction of the button's own actual angular size as seen from the player's eye right now (see
+        // realButtonAngularHalfExtents) - a genuine geometric bound, not a tuned guess. The raw sine
+        // amplitude above (±1 degree) is deliberately larger than any real clamp bound is ever likely to
+        // be, so the clamp - not the raw generator - is what actually determines the real visible motion,
+        // automatically scaled correctly for whichever button/distance/angle it's currently looking at.
+        // Real bug found and fixed (2026-09-14, "it still has a tendency to drift right up to the very
+        // edge/corner"): yaw and pitch landing near their own max AT THE SAME TIME has a real diagonal
+        // distance from center bigger than either axis alone suggests - tightened from 60% to 25% of the
+        // real half-extent so even that worst case stays closer to the middle.
+        // Real bug found and fixed AGAIN (2026-09-14, "for buttons up high my cursor still drifts off of
+        // them"): projecting a real box into yaw/pitch space gets distorted at steep viewing angles (a
+        // button well above eye level, similar to how spherical coordinates misbehave near the poles) -
+        // one axis's own projected half-extent can come out larger than it should be for that specific
+        // angle, even though the OTHER axis's projection is still accurate. Using each axis's own
+        // (possibly-inflated) bound independently could let sway ride out along the inflated axis. Uses
+        // the SMALLER of the two real half-extents for BOTH axes instead - a more conservative bound that
+        // stays safe even when one axis's own projection is distorted.
         if (rememberedFirstButton != null) {
             float[] halfExtents = realButtonAngularHalfExtents(client, rememberedFirstButton, eyePos);
-            float maxYawSway = halfExtents[0] * 0.25f;
-            float maxPitchSway = halfExtents[1] * 0.25f;
-            swayYaw = Mth.clamp(swayYaw, -maxYawSway, maxYawSway);
-            swayPitch = Mth.clamp(swayPitch, -maxPitchSway, maxPitchSway);
+            float maxSway = Math.min(halfExtents[0], halfExtents[1]) * 0.25f;
+            swayYaw = Mth.clamp(swayYaw, -maxSway, maxSway);
+            swayPitch = Mth.clamp(swayPitch, -maxSway, maxSway);
+        } else {
+            swayYaw *= 0.03f;
+            swayPitch *= 0.02f;
         }
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
