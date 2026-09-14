@@ -296,6 +296,17 @@ public final class SimonSaysFeature {
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
     private static final double IDLE_LOOK_RANGE_SQ = 3.0 * 3.0;
+    // Real bug found and fixed (2026-09-14, "it likes to hold this tiny drift up and to the left alot.
+    // Instead of that it should kind of have these twitches. Think microscopic movements then going back
+    // to middle of the button"): a continuous sine-wave sway spends roughly half of every ~9-12 second
+    // cycle sitting near one extreme before slowly crossing back, which reads as "always drifting that
+    // way" even though it's technically centered over a full period. Replaced with discrete micro-twitches
+    // instead - most of the time this sits at dead center, and every so often (see applyIdleSwayFrame)
+    // kicks a small random offset that decays fast back to zero, closer to how a resting human hand
+    // actually moves than a slow, sustained wander.
+    private static float idleTwitchYaw = 0f;
+    private static float idleTwitchPitch = 0f;
+    private static long idleNextTwitchAtMs = 0L;
     // Real bug found and fixed (2026-09-14, "For the going back to the first button to help remember
     // that once it detects the proper first button that one will be the same unless ss is reset for
     // that. For all stages"): clickInOrder gets cleared on every real per-ROUND transition (not just a
@@ -1255,14 +1266,21 @@ public final class SimonSaysFeature {
         rotateInProgressTarget = buttonPos;
         rotateApproachElapsedTicks = 0f;
         rotateSmoothingThisApproach = 0.30f + (float) (Math.random() * 0.15);
-        if (Math.random() < 0.4) {
-            rotateOvershootYawRemaining = (float) ((Math.random() * 2 - 1) * 2.5);
-            rotateOvershootPitchRemaining = (float) ((Math.random() * 2 - 1) * 2.0);
+        // Real bug found and fixed (2026-09-14, "it is also kind of doing this really weird flick towards
+        // the buttons... it should more or less be on track to the button at all times just make it not
+        // be a perfectly straight line"): 2.5/2.0-degree overshoot plus a 3-degree curve, each rolling
+        // 40% of the time, could stack to 5+ degrees of deviation from the direct path - a huge detour for
+        // a target that might only be 10-20 degrees away, reading as a dramatic flick rather than a subtle
+        // human imperfection. Both cut down and made rarer so an approach mostly tracks straight at the
+        // target with only an occasional slight waver, never a real swing off to the side.
+        if (Math.random() < 0.2) {
+            rotateOvershootYawRemaining = (float) ((Math.random() * 2 - 1) * 1.0);
+            rotateOvershootPitchRemaining = (float) ((Math.random() * 2 - 1) * 0.8);
         } else {
             rotateOvershootYawRemaining = 0f;
             rotateOvershootPitchRemaining = 0f;
         }
-        rotateCurveOnThisApproach = Math.random() < 0.4;
+        rotateCurveOnThisApproach = Math.random() < 0.2;
         rotateCurveSign = Math.random() < 0.5 ? 1f : -1f;
         // Deliberately does NOT touch idleSuppressedAfterCompletion - see that field's own doc comment
         // for why this used to unconditionally disable idle here, and why that was the real cause of
@@ -1359,8 +1377,11 @@ public final class SimonSaysFeature {
             // Simple rise-then-fade envelope in continuous elapsed-tick-equivalents (not a discrete tick
             // counter) so it stays frame-rate-independent: ramps up over the first 3, decays ~20%/tick
             // after - doesn't need to know the approach's total real length in advance to look smooth.
+            // Real bug found and fixed (2026-09-14, "it should more or less be on track to the button at
+            // all times just make it not be a perfectly straight line"): a 3-degree peak read as a real
+            // detour off the direct path, not a subtle waver - cut to 1 degree.
             float t = rotateApproachElapsedTicks;
-            float curveMagnitude = t <= 3f ? (t / 3f) * 3.0f : (float) (3.0 * Math.pow(0.8, t - 3f));
+            float curveMagnitude = t <= 3f ? (t / 3f) * 1.0f : (float) (1.0 * Math.pow(0.8, t - 3f));
             float curveOffset = curveMagnitude * rotateCurveSign;
             if (yawDominant) {
                 rawTargetPitch += curveOffset;
@@ -1414,8 +1435,9 @@ public final class SimonSaysFeature {
 
     /** Idle look at the real first grid button of the current sequence ("the 1/5 button essentially, or
      *  the first one from 2/5" - killer560's own clarification, NOT the literal start/reset button) with
-     *  a slight continuous sway, rather than a hard freeze. Two independent slow sine waves (different
-     *  periods/phases) so the movement doesn't read as an obvious mechanical loop. Falls back to
+     *  a slight resting sway, rather than a hard freeze. Sits at dead center most of the time, with
+     *  brief random micro-twitches on a random timer that decay fast back to center (see idleTwitchYaw's
+     *  own field doc comment for why this replaced a continuous sine-wave sway). Falls back to
      *  whichever real button was most recently remembered as "the current round's first one" (see
      *  rememberedFirstButton's own doc comment - persists across ordinary round transitions, only clears
      *  on a genuine full reset), or the real start button if nothing's been revealed yet this whole SS
@@ -1447,12 +1469,22 @@ public final class SimonSaysFeature {
         float rawPitchDeltaNoSway = Mth.wrapDegrees(rawTargetPitch - currentPitch);
         boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > 3.0f || Math.abs(rawPitchDeltaNoSway) > 3.0f;
 
-        // Real bug found and fixed (2026-09-14, "make it move way less and it should more or less be
-        // perfectly centered on the buttons face"): 0.12/0.08 degrees was still visible drift, not the
-        // faint resting wobble intended - cut down again to a near-imperceptible tremor.
-        double t = System.currentTimeMillis() / 1000.0;
-        float swayYaw = (float) (Math.sin(t * 0.7) * 0.03);
-        float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.02);
+        // Real bug found and fixed (2026-09-14, "it likes to hold this tiny drift up and to the left
+        // alot... it should kind of have these twitches. Think microscopic movements then going back to
+        // middle of the button"): replaced the old continuous sine-wave sway (see idleTwitchYaw's own
+        // field doc comment for why that read as sustained drift) with brief random twitches on a random
+        // timer, each decaying back toward dead center fast rather than lingering.
+        long nowMs = System.currentTimeMillis();
+        if (nowMs >= idleNextTwitchAtMs) {
+            idleTwitchYaw = (float) ((Math.random() * 2 - 1) * 0.12);
+            idleTwitchPitch = (float) ((Math.random() * 2 - 1) * 0.08);
+            idleNextTwitchAtMs = nowMs + 500L + (long) (Math.random() * 1500.0);
+        }
+        double twitchDecay = Math.pow(0.15, dtTicks);
+        idleTwitchYaw *= (float) twitchDecay;
+        idleTwitchPitch *= (float) twitchDecay;
+        float swayYaw = idleTwitchYaw;
+        float swayPitch = idleTwitchPitch;
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch + swayPitch - currentPitch);
