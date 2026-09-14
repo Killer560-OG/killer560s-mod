@@ -54,7 +54,8 @@ public class NewTab extends FolderTab {
                 new EtherwarpOverlayTab(),
                 new SlotBindsTab(),
                 new ChatCommandsTab(),
-                new DoorKeysTab()
+                new DoorKeysTab(),
+                new TrajectoriesTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
