@@ -114,13 +114,16 @@ public final class SimonSaysFeature {
     private static int autoStartClicksSent = 0;
     private static int autoStartTicksUntilNextClick = 0;
 
-    // --- auto-solve pacing (Target ± Variance overall for the current round's remaining clicks - moved
-    // here from Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
+    // --- auto-solve pacing (Target ± Variance overall for the WHOLE device attempt - moved here from
+    // Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
+    private static final int TOTAL_REAL_CLICKS_PER_DEVICE = 1 + 2 + 3 + 4 + 5; // 15 - confirmed real:
+    // exactly 5 rounds, round N has N steps (see this class's own doc comment).
     private static long lastAutoClickAtMs = 0L;
     private static BlockPos lastAutoClickedPos = null;
     private static long autoSolveDeadlineMs = 0L;
     private static long autoSolveNextClickAtMs = 0L;
-    private static int autoSolveArmedForSize = -1;
+    private static boolean autoSolveArmed = false;
+    private static int autoSolveClicksDoneThisAttempt = 0;
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
@@ -244,8 +247,11 @@ public final class SimonSaysFeature {
             LOGGER.info("[SimonSays] Entered device range on F7/M7 at distance {} - now watching for grid changes.",
                     String.format(Locale.US, "%.1f", Math.sqrt(client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)))));
             // A fresh encounter with the device - one of firstPhase's two real trigger points (see
-            // resetSolveState's doc comment), matching Odin's own LevelEvent.Load reset.
+            // resetSolveState's doc comment), matching Odin's own LevelEvent.Load reset. Also re-arms
+            // Auto Solve's own once-per-attempt pacing window (see its field doc comment).
             firstPhase = true;
+            autoSolveArmed = false;
+            autoSolveClicksDoneThisAttempt = 0;
         }
         wasActive = true;
 
@@ -301,7 +307,13 @@ public final class SimonSaysFeature {
         autoStartRunning = false;
         autoStartClicksSent = 0;
         autoStartTicksUntilNextClick = 0;
-        autoSolveArmedForSize = -1;
+        // Deliberately does NOT touch autoSolveArmed/autoSolveClicksDoneThisAttempt - this method also
+        // runs on the routine per-round reset (same reasoning as firstPhase above), and the whole point
+        // of this pacing model is ONE Target ± Variance window across all 5 rounds of a single attempt,
+        // not a fresh one every round (that was the real bug killer560 found - "extremely slow" because
+        // the full target duration was being spent on each round's handful of clicks alone). Those two
+        // fields are only reset at firstPhase's own two real trigger points (fresh device encounter,
+        // real start-button press) - see below and tick()'s "entered device range" branch.
         lastAutoClickedPos = null;
         lastTriggerBotTarget = null;
         solveStartedAtMs = 0L;
@@ -326,6 +338,8 @@ public final class SimonSaysFeature {
         if (nowPowered && !oldPowered) {
             resetSolveState();
             firstPhase = true;
+            autoSolveArmed = false;
+            autoSolveClicksDoneThisAttempt = 0;
             maybeAutoAnnounceReset(client, cfg);
         }
     }
@@ -498,19 +512,20 @@ public final class SimonSaysFeature {
                 return;
             }
             long now = System.currentTimeMillis();
-            int remaining = clickInOrder.size() - clickNeeded;
-            if (autoSolveArmedForSize != clickInOrder.size()) {
-                // (Re-)arm a fresh "Target ± Variance overall" pacing window for this round's remaining
-                // clicks - moved here from Auto Start's old model (2026-09-14, see SimonSaysConfig's own
-                // doc comment). Re-arms automatically every time clickInOrder grows (i.e., every new
-                // round) - no manual "restart" toggle needed, matching killer560's own "unless it can be
-                // done automatically".
+            if (!autoSolveArmed) {
+                // Arm the "Target ± Variance overall" pacing window ONCE per full device attempt (not
+                // once per round - see this field's own doc comment for the real "extremely slow" bug
+                // this fixes), moved here from Auto Start's old model (2026-09-14, see SimonSaysConfig's
+                // own doc comment). Re-arms automatically on the next real fresh-attempt trigger - no
+                // manual "restart" toggle needed, matching killer560's own "unless it can be done
+                // automatically".
                 int variance = cfg.getClickTimerVarianceMs();
                 long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
                 autoSolveDeadlineMs = now + cfg.getClickTimerTargetMs() + jitter;
                 autoSolveNextClickAtMs = now;
-                autoSolveArmedForSize = clickInOrder.size();
+                autoSolveArmed = true;
             }
+            int remaining = Math.max(1, TOTAL_REAL_CLICKS_PER_DEVICE - autoSolveClicksDoneThisAttempt);
             boolean sameTarget = nextButton.equals(lastAutoClickedPos);
             long minDelay = sameTarget ? 300 : 0;
             if (now >= autoSolveNextClickAtMs && now - lastAutoClickAtMs >= minDelay) {
@@ -520,8 +535,10 @@ public final class SimonSaysFeature {
                 sendNoRotateInteract(client, nextButton);
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
+                autoSolveClicksDoneThisAttempt++;
+                int remainingAfter = Math.max(1, TOTAL_REAL_CLICKS_PER_DEVICE - autoSolveClicksDoneThisAttempt);
                 long windowLeftMs = autoSolveDeadlineMs - now;
-                autoSolveNextClickAtMs = remaining > 1 ? now + Math.max(50, windowLeftMs / remaining) : now;
+                autoSolveNextClickAtMs = now + Math.max(50, windowLeftMs / remainingAfter);
             }
             return;
         }

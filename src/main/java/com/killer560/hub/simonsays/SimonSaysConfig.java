@@ -57,20 +57,26 @@ public final class SimonSaysConfig {
     // exists yet - this toggle is wired into the UI now (so the setting persists and has a home) but
     // "Rotate" currently behaves identically to "No Rotate" until that real system is actually built.
     private boolean autoSolveRotate = false;
-    // Auto-solve's own pacing: land the CURRENT round's remaining clicks within Target ± Variance overall
-    // (jittered), rather than a flat per-click delay. Moved here (2026-09-14) from what used to be Auto
-    // Start's timer-with-variance model - killer560's own call, since Auto Start's real trigger/pacing
-    // (see below, ported from NoammAddons) doesn't need a target window, but Auto Solve pacing its own
-    // click-through speed is exactly "the spot where it will be used."
+    // Auto-solve's own pacing: land the WHOLE device attempt (all 5 rounds, 15 real clicks total) within
+    // Target ± Variance overall (jittered), rather than a flat per-click delay. Moved here (2026-09-14)
+    // from what used to be Auto Start's timer-with-variance model - killer560's own call, since Auto
+    // Start's real trigger/pacing (see below, ported from NoammAddons) doesn't need a target window, but
+    // Auto Solve pacing its own click-through speed is exactly "the spot where it will be used." Real bug
+    // found and fixed the same day: this used to re-arm a fresh window every ROUND instead of once per
+    // attempt, so the full target duration got spent on each round's handful of clicks alone (round 1 has
+    // just ONE click) - killer560's own correct diagnosis: "extremely slow... thinking that is per stage
+    // of it not overall."
     private int clickTimerTargetMs = 12_800;
     private int clickTimerVarianceMs = 100;
 
     private boolean autoStartEnabled = false;
-    // Real reference: NoammAddons' own SimonSays.kt ("Start Clicks" 1-10 default 3, "Start Click Delay"
-    // 1-25 TICKS default 3) - killer560 asked for exactly these two settings and nothing else here
-    // (no more per-mode presets - see the removed SkipMode enum's honesty note, which is why it's gone:
-    // this session had no confirmed real per-mode click counts, so rather than keep guessing, killer560
-    // asked to drop the modes entirely for now and revisit with real data later).
+    // Real reference: NoammAddons' own SimonSays.kt ("Start Clicks" default 3, "Start Click Delay" in
+    // real TICKS default 3) - killer560 asked for exactly these two settings and nothing else here (no
+    // more per-mode presets - see the removed SkipMode enum's honesty note, which is why it's gone: this
+    // session had no confirmed real per-mode click counts, so rather than keep guessing, killer560 asked
+    // to drop the modes entirely for now and revisit with real data later). Range widened to 0-20
+    // (killer560's own explicit ask, both settings shown as drag sliders) - NoammAddons' own real ranges
+    // were narrower (1-10 clicks, 1-25 ticks) but this mod's slider UI needed one shared 0-20 range.
     private int autoStartClicks = 3;
     private int autoStartClickDelayTicks = 3;
 
@@ -340,7 +346,7 @@ public final class SimonSaysConfig {
     }
 
     public void setAutoStartClicks(int autoStartClicks) {
-        this.autoStartClicks = Math.max(1, Math.min(10, autoStartClicks));
+        this.autoStartClicks = Math.max(0, Math.min(20, autoStartClicks));
     }
 
     public int getAutoStartClickDelayTicks() {
@@ -348,7 +354,7 @@ public final class SimonSaysConfig {
     }
 
     public void setAutoStartClickDelayTicks(int autoStartClickDelayTicks) {
-        this.autoStartClickDelayTicks = Math.max(1, Math.min(25, autoStartClickDelayTicks));
+        this.autoStartClickDelayTicks = Math.max(0, Math.min(20, autoStartClickDelayTicks));
     }
 
     public int getAnnounceKeyCode() {
