@@ -258,6 +258,13 @@ public final class SimonSaysFeature {
     // tick-based caller that owns that target, so click-bookkeeping/pacing still only ever runs once
     // per real click, from the same tick-based code as every other click mode.
     private static BlockPos rotateClickFiredFor = null;
+    // Real bug found and fixed (2026-09-14, killer560's own report: "the tick delay was off... its still
+    // set to 2 but i can tell its not going off every 2 ticks"): unlike rotateInProgressTarget (nulled
+    // the instant a click fires), this persists across a fire - lets tickRotateClick tell "repeat-clicking
+    // the SAME button we just clicked" (Auto Start's own rapid burst on the start button, which never
+    // moves) apart from "a genuinely new target". See tickRotateClick's own doc comment for why that
+    // distinction matters for real click timing.
+    private static BlockPos rotateLastFiredTarget = null;
     // Whenever there's no real click actively due (killer560's own request), the camera should be
     // looking at the first real grid button ("the 1/5 button... or the first one from 2/5" - not the
     // literal start/reset button) with a slight idle sway, not frozen. Only while actually near the
@@ -476,6 +483,7 @@ public final class SimonSaysFeature {
                 goldorLineSeenThisPhase = false;
                 idleSuppressedAfterCompletion = false;
                 rotateInProgressTarget = null;
+                rotateLastFiredTarget = null;
                 autoStartClickedThisPhase = false;
                 realStartButtonPressCountThisPhase = 0;
                 rememberedFirstButton = null;
@@ -504,6 +512,7 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             rotateInProgressTarget = null;
+            rotateLastFiredTarget = null;
             autoStartClickedThisPhase = false;
             realStartButtonPressCountThisPhase = 0;
             idleSuppressedAfterCompletion = false;
@@ -624,6 +633,7 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             rotateInProgressTarget = null;
+            rotateLastFiredTarget = null;
             // Real bug found and fixed (2026-09-14, "make sure that the solver works if it resets even
             // for the skip detection"): deliberately does NOT reset autoStartClickedThisPhase/
             // realStartButtonPressCountThisPhase here, unlike the OTHER two real reset points (fresh
@@ -780,6 +790,18 @@ public final class SimonSaysFeature {
             // between-round transition within an attempt already in progress (where it's already >0).
             if (totalClicksThisAttempt == 0) {
                 firstPhase = true;
+                // Real bug found and fixed (2026-09-14, killer560's own report: "i reset it and did it
+                // again with skip and this time it didnt go back to 1 after each time"): idleSuppressed-
+                // AfterCompletion has the exact same missing-trigger-point gap firstPhase just had - it
+                // only ever cleared back to false at "entering range fresh" and "real start-button press",
+                // never on a genuine device-to-device transition via Auto Start's own skip (no button
+                // press, no leaving range). So the FIRST device of a visit correctly un-suppressed idle
+                // the whole time (it starts false), but the moment that device completed it latched true
+                // and, without a real button press or leaving range in between, stayed true through every
+                // later device in the same visit - exactly matching "it is going back to 1 the first time
+                // i did it" then "this time it didnt". Same fresh-attempt boundary as firstPhase above, so
+                // it un-suppresses here too.
+                idleSuppressedAfterCompletion = false;
             }
         }
         wasGridReset = gridReset;
@@ -1206,7 +1228,21 @@ public final class SimonSaysFeature {
             return true;
         }
         if (!buttonPos.equals(rotateInProgressTarget)) {
-            beginRotateApproach(buttonPos);
+            if (buttonPos.equals(rotateLastFiredTarget)) {
+                // Real bug found and fixed (2026-09-14, "the tick delay was off... its still set to 2 but
+                // i can tell its not going off every 2 ticks"): beginRotateApproach rolls a FRESH humanized
+                // approach every time - new overshoot chance, new curve chance, elapsed-ticks back to 0 -
+                // meant for genuinely turning toward a new, different target. Auto Start's own rapid burst
+                // re-clicks this exact same button several times in a row without it ever moving, so the
+                // camera is already sitting right on it - re-rolling a fresh approach anyway (random
+                // overshoot up to 2.5-degrees, random curve) added variable extra settle time on top of
+                // the configured tick delay every single repeat click, so a "3 clicks, 2 ticks apart"
+                // burst never actually landed evenly 2 ticks apart. Just keep aiming at the same spot
+                // instead - the delta is already ~0, so the very next frame settles and fires immediately.
+                rotateInProgressTarget = buttonPos;
+            } else {
+                beginRotateApproach(buttonPos);
+            }
         }
         return false;
     }
@@ -1370,6 +1406,7 @@ public final class SimonSaysFeature {
             // (killer560's own standing rule), same real click-sender every other mode already uses.
             sendNoRotateInteract(client, buttonPos);
             rotateClickFiredFor = buttonPos;
+            rotateLastFiredTarget = buttonPos;
             rotateInProgressTarget = null;
             rotateApproachElapsedTicks = 0f;
         }
@@ -1410,11 +1447,12 @@ public final class SimonSaysFeature {
         float rawPitchDeltaNoSway = Mth.wrapDegrees(rawTargetPitch - currentPitch);
         boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > 3.0f || Math.abs(rawPitchDeltaNoSway) > 3.0f;
 
-        // Real bug found and fixed (2026-09-14, "make the drift by the first one way less"): 0.5/0.35
-        // degree amplitude read as visibly wandering off the button rather than a small resting wobble.
+        // Real bug found and fixed (2026-09-14, "make it move way less and it should more or less be
+        // perfectly centered on the buttons face"): 0.12/0.08 degrees was still visible drift, not the
+        // faint resting wobble intended - cut down again to a near-imperceptible tremor.
         double t = System.currentTimeMillis() / 1000.0;
-        float swayYaw = (float) (Math.sin(t * 0.7) * 0.12);
-        float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.08);
+        float swayYaw = (float) (Math.sin(t * 0.7) * 0.03);
+        float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.02);
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch + swayPitch - currentPitch);
