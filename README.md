@@ -69,6 +69,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Water Board Solver — identifies the real Water Board layout and shows a real live countdown above every remaining lever click, highlighting the soonest one. Never clicks anything for you
 - Creeper Beams Solver — highlights real currently-connected Sea Lantern pairs with matching colors, updating live as panes are rotated. Never touches anything
 - Blaze Solver — ranks real blazes in the Lower/Higher Blaze puzzle by HP and highlights the correct next few kill targets in order. Never attacks anything
+- Livid Solver — identifies the real correct Livid on Floor 5 from the wool color clue and highlights it, plus a countdown for its opening invulnerability window. Never attacks anything
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
