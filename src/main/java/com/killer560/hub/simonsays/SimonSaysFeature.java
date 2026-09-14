@@ -1610,6 +1610,22 @@ public final class SimonSaysFeature {
         idleTwitchPitch *= (float) twitchDecay;
         float swayYaw = idleTwitchYaw;
         float swayPitch = idleTwitchPitch;
+        // Real bug found and fixed AGAIN (2026-09-14, killer560's own report: "it is still drifting up
+        // too high and off of the face of the button. Make it so while drifting it cannot go off of the
+        // face"): tuning the fixed twitch amplitude down twice still wasn't a real guarantee - the same
+        // fixed degree value is "safe" at one real distance/angle and "too much" at another. Hard-clamps
+        // the twitch to a real fraction of the button's own actual angular size as seen from the player's
+        // eye right now (see realButtonAngularHalfExtents) - a genuine geometric bound, not a tuned guess,
+        // so it's no longer possible to drift off the real face regardless of distance/viewing angle. Only
+        // applies while actually looking at a real button (rememberedFirstButton != null) - the grid-
+        // center fallback isn't a real block, so there's no face to clamp against there.
+        if (rememberedFirstButton != null) {
+            float[] halfExtents = realButtonAngularHalfExtents(client, rememberedFirstButton, eyePos);
+            float maxYawSway = halfExtents[0] * 0.6f;
+            float maxPitchSway = halfExtents[1] * 0.6f;
+            swayYaw = Mth.clamp(swayYaw, -maxYawSway, maxYawSway);
+            swayPitch = Mth.clamp(swayPitch, -maxPitchSway, maxPitchSway);
+        }
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch + swayPitch - currentPitch);
@@ -1631,6 +1647,44 @@ public final class SimonSaysFeature {
         var shape = client.level.getBlockState(pos).getShape(client.level, pos);
         AABB box = shape.isEmpty() ? new AABB(pos) : shape.bounds().move(pos);
         return box.getCenter();
+    }
+
+    /** Real bug found and fixed (2026-09-14, killer560's own report: "the drift brought the cursor off
+     *  of the face of it... make it so while drifting it cannot go off of the face"): tuning the idle
+     *  twitch's fixed degree amplitude down (twice) still weren't a real guarantee - a real button's own
+     *  clickable face can appear smaller or larger depending on real distance/viewing angle, so no single
+     *  fixed degree value is ever truly safe at every real position. This instead measures the button's
+     *  own real angular size AS SEEN FROM THE PLAYER'S EYE right now: projects all 8 corners of its real
+     *  shape (same real shape {@link #realBlockCenter} already reads, so it's exactly the same box, not
+     *  an approximation) into yaw/pitch space and returns half the real spread in each - a hard geometric
+     *  bound the sway can be clamped against, not just a tuned guess. */
+    private static float[] realButtonAngularHalfExtents(Minecraft client, BlockPos pos, Vec3 eyePos) {
+        var shape = client.level.getBlockState(pos).getShape(client.level, pos);
+        AABB box = shape.isEmpty() ? new AABB(pos) : shape.bounds().move(pos);
+        double minYaw = Double.POSITIVE_INFINITY;
+        double maxYaw = Double.NEGATIVE_INFINITY;
+        double minPitch = Double.POSITIVE_INFINITY;
+        double maxPitch = Double.NEGATIVE_INFINITY;
+        for (int cx = 0; cx < 2; cx++) {
+            double x = cx == 0 ? box.minX : box.maxX;
+            for (int cy = 0; cy < 2; cy++) {
+                double y = cy == 0 ? box.minY : box.maxY;
+                for (int cz = 0; cz < 2; cz++) {
+                    double z = cz == 0 ? box.minZ : box.maxZ;
+                    double dx = x - eyePos.x;
+                    double dy = y - eyePos.y;
+                    double dz = z - eyePos.z;
+                    double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+                    double yaw = Mth.atan2(dz, dx) * (180.0 / Math.PI) - 90.0;
+                    double pitch = -(Mth.atan2(dy, horizontalDist) * (180.0 / Math.PI));
+                    minYaw = Math.min(minYaw, yaw);
+                    maxYaw = Math.max(maxYaw, yaw);
+                    minPitch = Math.min(minPitch, pitch);
+                    maxPitch = Math.max(maxPitch, pitch);
+                }
+            }
+        }
+        return new float[] {(float) ((maxYaw - minYaw) / 2.0), (float) ((maxPitch - minPitch) / 2.0)};
     }
 
     /** Interacts with a block without needing the player's crosshair on it - the "no rotate" click
