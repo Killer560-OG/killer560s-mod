@@ -125,6 +125,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.BlazeSolverFeature.register();
         com.killer560.hub.boss.LividSolverFeature.register();
         HudElementRegistry.register(new com.killer560.hub.boss.LividSolverFeature.InvulnTimerHudElement());
+        com.killer560.hub.quiver.QuiverDisplayFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.quiver.QuiverDisplayFeature.QuiverHudElement());
         I4SensorsFeature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());

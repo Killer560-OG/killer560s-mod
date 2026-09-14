@@ -31,6 +31,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Jumpscare — randomly plays a full-screen image with sound to startle you (just for fun)
 
 **Helpers**
+- Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
 - Experimentation Table Solver — solves Chronomatron, Ultrasequencer, and Superpairs in a highlight-only "Solver Only" mode (you click, it just shows you the answer). The **cheat** build additionally has a fully autonomous mode that clicks for you - see [Which jar do I download?](#installing) below.
 - Storage Overlay — see the contents of every Ender Chest page and Backpack live, right alongside your open inventory
 - Screenshot Copy — automatically copies a screenshot to your clipboard the moment you take it
