@@ -1117,6 +1117,18 @@ public final class SimonSaysFeature {
         if (blockedByReveal) {
             return;
         }
+        // Real bug found and fixed (2026-09-14, "it undergoes this crazy rotation then basically snaps
+        // back to the button"): this method and tickAutoStart both independently drive the SAME shared
+        // rotateInProgressTarget/rotateClickFiredFor state via tickRotateClick, with no mutual exclusion
+        // between them. If Auto Start's own burst (aimed at START_BUTTON) was still resolving its last
+        // click in the exact tick window this method started trying to click a freshly-revealed grid
+        // button, each call would stomp the other's target - whipping the camera toward whichever one ran
+        // last that tick, back and forth, until Auto Start's burst finally finished and stopped competing.
+        // Auto Solve/Trigger Bot now waits for Auto Start to fully finish before touching the camera at
+        // all - the same principle idle's own existing !autoStartRunning gate already uses.
+        if (autoStartRunning) {
+            return;
+        }
 
         if (cfg.isAutoSolveEnabled()) {
             // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
@@ -1408,6 +1420,23 @@ public final class SimonSaysFeature {
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch - currentPitch);
+        // Diagnostic-only (2026-09-14, killer560's own report: "it undergoes this crazy rotation then
+        // basically snaps back to the button... hopefully your sensors will show you that"): a large raw
+        // delta on the very FIRST frame of a fresh approach is normal (the target can genuinely be far
+        // from wherever the camera was looking before). A large raw delta appearing well INTO an already-
+        // in-progress approach (elapsed ticks > 2, i.e. it should already be most of the way there) is not
+        // normal and means the effective target moved out from under this approach somehow - logs every
+        // real piece of state that could explain it, so a repeat of this report has hard evidence instead
+        // of another guess.
+        if (rotateApproachElapsedTicks > 2f && (Math.abs(yawDelta) > 20f || Math.abs(pitchDelta) > 20f)) {
+            LOGGER.warn("[SimonSays][RotateFrame] Large mid-approach jump - target={} elapsedTicks={} "
+                            + "rawTargetYaw={} rawTargetPitch={} currentYaw={} currentPitch={} yawDelta={} "
+                            + "pitchDelta={} overshootYaw={} overshootPitch={} curveOn={} dtTicks={} "
+                            + "autoStartRunning={}.",
+                    buttonPos, rotateApproachElapsedTicks, rawTargetYaw, rawTargetPitch, currentYaw,
+                    currentPitch, yawDelta, pitchDelta, rotateOvershootYawRemaining, rotateOvershootPitchRemaining,
+                    rotateCurveOnThisApproach, dtTicks, autoStartRunning);
+        }
         // Same real exponential-decay identity as the overshoot above, applied to the main ease-toward-
         // target smoothing factor - keeps the overall turn SPEED matching what rotateSmoothingThisApproach
         // was tuned for per-tick, regardless of how many frames actually render per tick.
