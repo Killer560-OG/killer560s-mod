@@ -144,16 +144,31 @@ public final class SimonSaysFeature {
     // Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
     private static final int TOTAL_REAL_CLICKS_PER_DEVICE = 1 + 2 + 3 + 4 + 5; // 15 - confirmed real:
     // exactly 5 rounds, round N has N steps (see this class's own doc comment).
-    // Measured directly from two real full-device runs (2026-09-14): the real reveal/transition overhead
-    // across all 4 round boundaries of a full 5-round solve consistently landed at ~8.0-8.1s. Real bug
-    // found and fixed the same day: without subtracting this UP FRONT at arm time, the fixed deadline
-    // only "discovers" this overhead as it happens, so early rounds get paced at the full naive rate
-    // (target/15) while later rounds - by which point most of the budget is already gone to reveal
-    // waiting - have to compress harder and harder to catch up, which killer560 correctly described as
-    // "increasing exponentially in speed." Subtracting this estimate up front means the ACTIVE portion of
-    // the budget is sized correctly from click 1, so the pace stays roughly even across all 5 rounds
-    // instead of starting slow and rushing at the end.
-    private static final long ESTIMATED_REVEAL_OVERHEAD_MS = 8_000L;
+    // Measured directly from real full-device runs (2026-09-14): the real reveal/transition overhead at
+    // each of the 4 round boundaries (round1->2, 2->3, 3->4, 4->5) consistently grows with the size of the
+    // round being revealed - roughly 1.4s, 1.9s, 2.2s, 2.6s (~8.1s total for a full 5-round solve). Real
+    // bug found and fixed TWICE the same day: subtracting the 8.1s LUMP SUM from the target once at arm
+    // time (first fix) double-counted it, since real reveal time ALSO keeps eating the (now-shrunk) fixed
+    // deadline as it actually happens - killer560's own real data caught this immediately (target 12s,
+    // actual 9.05s, nowhere close to 12). The real fix has to be dynamic: at every click, only RESERVE the
+    // overhead for TRANSITIONS STILL AHEAD (indexed by the current round number) from whatever real time
+    // is left before the deadline, never touching the deadline itself. That way already-elapsed reveal
+    // time (which already shows up naturally in "time left before deadline") is never subtracted twice.
+    private static final long[] TRANSITION_OVERHEAD_MS = {1400L, 1900L, 2200L, 2600L};
+    private static int currentRoundNumber = 1;
+
+    /** Sum of {@link #TRANSITION_OVERHEAD_MS} for every round transition still ahead of the CURRENT
+     *  round - e.g. round 1 (nothing completed yet) has all 4 ahead (~8.1s); round 4 (working on the
+     *  4th round) has only the round4->5 transition ahead (~2.6s); round 5 has none left (0). */
+    private static long estimatedRemainingRevealMs() {
+        long total = 0L;
+        for (int i = currentRoundNumber - 1; i < TRANSITION_OVERHEAD_MS.length; i++) {
+            if (i >= 0) {
+                total += TRANSITION_OVERHEAD_MS[i];
+            }
+        }
+        return total;
+    }
     private static long lastAutoClickAtMs = 0L;
     private static BlockPos lastAutoClickedPos = null;
     private static long autoSolveDeadlineMs = 0L;
@@ -320,6 +335,7 @@ public final class SimonSaysFeature {
             autoSolveClicksDoneThisAttempt = 0;
             autoSolveLastTickAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
+            currentRoundNumber = 1;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
         }
@@ -406,6 +422,18 @@ public final class SimonSaysFeature {
         boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
         boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
         if (nowPowered && !oldPowered) {
+            // Real bug found and fixed (2026-09-14): while Auto Start is actively clicking, its OWN
+            // first click powers this exact button - which used to trip this same "real press" branch
+            // below and call resetSolveState(), which unconditionally sets autoStartRunning=false. That
+            // silently killed the rest of Auto Start's own click sequence after just ONE click, every
+            // single time - confirmed directly from a real log: every "Auto-start triggered... N clicks"
+            // line was followed by exactly one "click 1/N sent" line and never a 2nd or 3rd, no matter
+            // what N or the tick delay was set to. This is (almost certainly) never a genuine "the device
+            // is restarting from scratch" press while our own sequence is actively mid-click, so skip the
+            // reset entirely in that case and let Auto Start finish what it started.
+            if (autoStartRunning) {
+                return;
+            }
             // Real click-timing logging moved to onRealBlockInteractAttempt (2026-09-14) - a real stone
             // button stays POWERED for about a second after being clicked, and clicking it again WHILE
             // still powered doesn't emit a new block-state transition (POWERED was already true), so this
@@ -419,6 +447,7 @@ public final class SimonSaysFeature {
             autoSolveClicksDoneThisAttempt = 0;
             autoSolveLastTickAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
+            currentRoundNumber = 1;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             maybeAutoAnnounceReset(client, cfg);
@@ -582,6 +611,10 @@ public final class SimonSaysFeature {
             }
             resetSolveState();
             firstPhase = false;
+            // Advances even past round 5 (harmless - estimatedRemainingRevealMs() just returns 0 once
+            // currentRoundNumber exceeds the transition table) - reset back to 1 happens at the two real
+            // fresh-attempt trigger points below, not here.
+            currentRoundNumber++;
         }
     }
 
@@ -721,13 +754,10 @@ public final class SimonSaysFeature {
                 // automatically".
                 int variance = cfg.getClickTimerVarianceMs();
                 long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
-                // Subtract the KNOWN reveal overhead up front (see ESTIMATED_REVEAL_OVERHEAD_MS's own doc
-                // comment for the real "exponentially increasing speed" bug this fixes) so the very first
-                // pacing calculation already sizes the ACTIVE portion correctly, instead of assuming the
-                // full target is available for clicking and having to violently compress later once
-                // reveal time actually shows up.
-                long activeBudgetMs = Math.max(1000L, cfg.getClickTimerTargetMs() - ESTIMATED_REVEAL_OVERHEAD_MS);
-                autoSolveDeadlineMs = now + activeBudgetMs + jitter;
+                // Deadline is the RAW target - no upfront subtraction (see TRANSITION_OVERHEAD_MS's own
+                // doc comment for why an upfront lump-sum subtraction double-counted reveal time). Future
+                // reveal overhead is reserved dynamically per click instead, below.
+                autoSolveDeadlineMs = now + cfg.getClickTimerTargetMs() + jitter;
                 autoSolveNextClickAtMs = now;
                 autoSolveArmed = true;
             }
@@ -745,7 +775,12 @@ public final class SimonSaysFeature {
                 autoSolveClicksDoneThisAttempt++;
                 int remainingAfter = Math.max(1, TOTAL_REAL_CLICKS_PER_DEVICE - autoSolveClicksDoneThisAttempt);
                 long windowLeftMs = autoSolveDeadlineMs - now;
-                autoSolveNextClickAtMs = now + Math.max(50, windowLeftMs / remainingAfter);
+                // Reserve only the overhead for transitions STILL AHEAD (never touching the deadline
+                // itself) - already-elapsed reveal time is already reflected in windowLeftMs shrinking
+                // naturally, so reserving it again here would double-count it (the exact bug in the first
+                // fix attempt).
+                long activeWindowLeftMs = Math.max(0L, windowLeftMs - estimatedRemainingRevealMs());
+                autoSolveNextClickAtMs = now + Math.max(50, activeWindowLeftMs / remainingAfter);
                 // Always-on (not gated behind Diagnostic Logging) while killer560's "still very delayed"
                 // report is unresolved (2026-09-14) - this is the exact data needed to see whether the
                 // delay is really coming from this pacing math or from something else entirely (e.g. real
