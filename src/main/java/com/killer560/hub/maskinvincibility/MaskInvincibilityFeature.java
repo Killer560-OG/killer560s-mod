@@ -4,6 +4,7 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -79,7 +80,11 @@ public final class MaskInvincibilityFeature {
         if (!cfg.isEnabled()) {
             return;
         }
-        String raw = message.getString();
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): matched the raw un-stripped
+        // string - real Hypixel chat lines are confirmed (DungeonState's own BOSS_START_PATTERN fix) to
+        // embed §-codes mid-word, which can silently break a regex match.
+        String plain = ChatFormatting.stripFormatting(message.getString());
+        String raw = plain != null ? plain : message.getString();
         for (Type t : Type.values()) {
             if (t.pattern.matcher(raw).matches()) {
                 activeRemaining.put(t, t.activeTicks);
@@ -130,9 +135,14 @@ public final class MaskInvincibilityFeature {
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
+            // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to also zero
+            // cooldownRemaining here, but a real mask/pet cooldown is a real Hypixel-side item timer
+            // independent of location - it keeps ticking whether you're in a dungeon or not. Zeroing it
+            // on dungeon exit made the HUD claim "Ready" the instant a run ended even with, say, 150s of
+            // a real 180s Bonzo's Mask cooldown still remaining. The active (currently-invincible) window
+            // genuinely does end when leaving, so that part is still cleared.
             for (Type t : Type.values()) {
                 activeRemaining.put(t, 0);
-                cooldownRemaining.put(t, 0);
             }
         }
         wasInDungeon = inDungeon;

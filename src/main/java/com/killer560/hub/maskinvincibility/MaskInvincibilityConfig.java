@@ -51,8 +51,13 @@ public final class MaskInvincibilityConfig {
             cfg.showSpirit = !obj.has("showSpirit") || obj.get("showSpirit").getAsBoolean();
             cfg.showBonzo = !obj.has("showBonzo") || obj.get("showBonzo").getAsBoolean();
             cfg.showPhoenix = !obj.has("showPhoenix") || obj.get("showPhoenix").getAsBoolean();
-            cfg.autoSwapEnabled = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                    && obj.has("autoSwapEnabled") && obj.get("autoSwapEnabled").getAsBoolean();
+            // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to also gate
+            // on CHEAT_FEATURES_ENABLED here, forcing the raw field itself to false in memory on a legit
+            // build even if the saved file said true - isAutoSwapEnabled() below already applies that
+            // same gate on every read, so gating here too just meant a legit-build session that saved ANY
+            // other unrelated setting afterward would silently persist "false" back to disk, permanently
+            // losing a cheat-build user's real setting the next time they switched builds.
+            cfg.autoSwapEnabled = obj.has("autoSwapEnabled") && obj.get("autoSwapEnabled").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new MaskInvincibilityConfig();

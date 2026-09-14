@@ -125,19 +125,30 @@ public final class ProximityVoiceFeature {
             running = true;
             localSessionId = UUID.randomUUID();
 
-            receiveThread = new Thread(ProximityVoiceFeature::receiveLoop, "killer560smod-voice-recv");
-            receiveThread.setDaemon(true);
-            receiveThread.start();
-
             startMicCapture();
 
             ModOverlayMessage.show("§b[ProxVoice] Enabled - discovering your public address...", 2500);
+            // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): receiveThread used to
+            // start immediately, reading from this SAME socket, right as the STUN discovery thread below
+            // was ALSO about to read its one reply from it. receiveThread almost always won that race
+            // (it was already blocked in socket.receive() by the time the STUN server replied), so the
+            // real STUN response got misread as a garbage voice packet (real "phantom noise" playback via
+            // playAudio) while StunClient's own read timed out and logged a false "STUN discovery
+            // failed" - every single time, on every dungeon entry. Now the real peer-receive loop only
+            // starts once STUN discovery has fully finished (success or failure), so nothing else is
+            // competing for packets on this socket during that window.
             new Thread(() -> {
                 try {
                     StunClient.Result result = StunClient.discoverPublicAddress(socket);
                     LOGGER.info("[ProximityVoice] Public address: {}:{}", result.ip(), result.port());
                 } catch (Exception e) {
                     LOGGER.warn("[ProximityVoice] STUN discovery failed - proximity voice may not reach peers behind strict NATs", e);
+                } finally {
+                    if (running) {
+                        receiveThread = new Thread(ProximityVoiceFeature::receiveLoop, "killer560smod-voice-recv");
+                        receiveThread.setDaemon(true);
+                        receiveThread.start();
+                    }
                 }
             }, "killer560smod-voice-stun").start();
         } catch (Exception e) {

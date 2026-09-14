@@ -42,6 +42,13 @@ public final class AbilityTimersConfig {
 
     public static void load() {
         AbilityTimersConfig cfg = new AbilityTimersConfig();
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass, same fix as PosmsgConfig): a
+        // genuine parse failure here used to be silently swallowed and then this method unconditionally
+        // saved the freshly-defaulted config right back over the corrupted file a moment later -
+        // permanently destroying every custom timer/keybind/duration before killer560 ever noticed. Now
+        // skips the auto-save specifically when parsing actually failed, leaving the broken file on disk
+        // untouched instead of instantly overwriting it with blank defaults.
+        boolean parseFailed = false;
         if (Files.exists(CONFIG_PATH)) {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
@@ -61,7 +68,9 @@ public final class AbilityTimersConfig {
                         cfg.entries.add(e);
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                parseFailed = true;
+                cfg = new AbilityTimersConfig();
             }
         }
         if (!cfg.presetsSeeded) {
@@ -73,7 +82,9 @@ public final class AbilityTimersConfig {
             cfg.presetsSeeded = true;
         }
         instance = cfg;
-        instance.save();
+        if (!parseFailed) {
+            instance.save();
+        }
     }
 
     private static String getString(JsonObject obj, String key, String fallback) {

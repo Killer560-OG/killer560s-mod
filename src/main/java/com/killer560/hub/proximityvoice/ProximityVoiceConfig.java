@@ -48,8 +48,12 @@ public final class ProximityVoiceConfig {
             cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
             cfg.pushToTalk = !obj.has("pushToTalk") || obj.get("pushToTalk").getAsBoolean();
             cfg.pushToTalkKeyCode = obj.has("pushToTalkKeyCode") ? obj.get("pushToTalkKeyCode").getAsInt() : -1;
-            cfg.maxRange = obj.has("maxRange") ? obj.get("maxRange").getAsDouble() : 40.0;
-            cfg.outputVolume = obj.has("outputVolume") ? obj.get("outputVolume").getAsFloat() : 1.0f;
+            // Routed through the real setters (not a direct field assignment) so a hand-edited or
+            // corrupted value (e.g. maxRange 0 or negative) gets clamped back into a valid range on load
+            // instead of silently making proximity voice permanently inaudible with no visible error -
+            // real bug found and fixed 2026-09-14, pre-testing bug-review pass.
+            cfg.setMaxRange(obj.has("maxRange") ? obj.get("maxRange").getAsDouble() : 40.0);
+            cfg.setOutputVolume(obj.has("outputVolume") ? obj.get("outputVolume").getAsFloat() : 1.0f);
             cfg.mutedSelf = obj.has("mutedSelf") && obj.get("mutedSelf").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {

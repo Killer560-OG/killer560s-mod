@@ -72,6 +72,16 @@ public final class VoiceToTextFeature {
         VoiceToTextConfig cfg = VoiceToTextConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         if (!cfg.isEnabled() || cfg.getPushToTalkKeyCode() < 0 || client.getWindow() == null) {
+            // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to just
+            // return here with no regard for an in-progress recording - disabling the feature, or
+            // rebinding the push-to-talk key away, WHILE the key was physically still held down left the
+            // microphone (TargetDataLine) open forever and the capture thread spinning forever, with no
+            // way back to a working state short of restarting the game (onKeyPressed() itself no-ops
+            // while state == RECORDING). Now stops recording the same way releasing the key normally
+            // would, so the mic always gets closed regardless of why tick() stopped polling it.
+            if (state == State.RECORDING) {
+                stopRecordingAndTranscribe();
+            }
             keyWasDown = false;
             return;
         }

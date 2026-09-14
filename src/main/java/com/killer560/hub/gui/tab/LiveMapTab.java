@@ -59,20 +59,21 @@ public class LiveMapTab extends BaseTab {
                     }).bounds(contentX, y, 160, 18).build());
         y += 24;
 
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this text was written
+        // before the 2026-09-13 update that wired real room-name lookups into LiveMapFeature via
+        // RoomDatabase - it was stale/misleading (claiming names aren't shown at all, when they now are
+        // once the database loads), confirmed against LiveMapFeature's own class doc and its HUD element
+        // actually rendering current.name.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Shows real room/door shapes and live positions - no room names,"),
+                Component.literal("§7Shows real room/door shapes, live positions, and room names once the"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7secrets, or mimic detection yet (needs a room database this session"),
+                Component.literal("§7room database loads - no secrets or mimic detection yet. Recolor by"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7doesn't have access to). Recolor by Class uses the Leap Menu's"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7class assignments."),
+                Component.literal("§7Class uses the Leap Menu's class assignments."),
                 Minecraft.getInstance().font));
 
         return widgets;

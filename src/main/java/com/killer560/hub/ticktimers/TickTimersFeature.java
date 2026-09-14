@@ -5,6 +5,7 @@ import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
@@ -56,7 +57,12 @@ public final class TickTimersFeature {
         if (!TickTimersConfig.getInstance().isEnabled()) {
             return;
         }
-        String raw = message.getString();
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to match the raw
+        // un-stripped string - DungeonState's own BOSS_START_PATTERN fix already confirmed real Hypixel
+        // boss/sidebar lines embed §-codes mid-word, which silently breaks an exact/regex match unless
+        // formatting is stripped first. Every trigger here is real boss dialogue of that exact kind.
+        String plain = ChatFormatting.stripFormatting(message.getString());
+        String raw = plain != null ? plain : message.getString();
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
@@ -88,9 +94,15 @@ public final class TickTimersFeature {
         if (!TickTimersConfig.getInstance().isEnabled() || !DungeonState.isBossPhaseActive()) {
             return;
         }
-        if (goldorTickTime == 0 && goldorStartTime <= 0) {
-            goldorTickTime = 60;
-        }
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): Goldor's tick is a one-shot
+        // 60-tick countdown (GOLDOR_REGEX in onChatMessage already sets it exactly once, for real), not a
+        // repeating timer like Storm's pad (padTickTime, which legitimately does re-arm itself below -
+        // this block looks like an incompletely-adapted copy of that same pattern). CORE_OPENING_REGEX
+        // resets goldorStartTime to -1 BEFORE Goldor's own taunt line ever fires, so by the time
+        // goldorTickTime first reached 0 here, goldorStartTime was already <=0 forever after - meaning
+        // this rearm condition was permanently true and the "Tick:" line looped every 60 ticks (3s) for
+        // the rest of the Necron fight on every real F7/M7 clear. Removed entirely; onChatMessage is the
+        // only real trigger point now.
         if (goldorStartTime >= 0) {
             goldorStartTime--;
         }

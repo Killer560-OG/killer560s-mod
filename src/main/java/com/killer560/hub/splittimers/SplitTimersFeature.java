@@ -5,6 +5,7 @@ import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
@@ -126,7 +127,14 @@ public final class SplitTimersFeature {
         if (!SplitTimersConfig.getInstance().isEnabled()) {
             return;
         }
-        String raw = message.getString();
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to match the raw
+        // un-stripped string - real Hypixel boss/sidebar lines are confirmed (DungeonState's own
+        // BOSS_START_PATTERN fix) to embed §-codes mid-word. The exact-equality "Starting in 1 second."
+        // check is the single trigger that starts an entire run - if Hypixel ever embeds a stray code in
+        // that line, Split Timers silently never starts at all, and the same risk applies to every real
+        // boss-dialogue split trigger below.
+        String plain = ChatFormatting.stripFormatting(message.getString());
+        String raw = plain != null ? plain : message.getString();
 
         if ("Starting in 1 second.".equals(raw)) {
             RunState fresh = new RunState();

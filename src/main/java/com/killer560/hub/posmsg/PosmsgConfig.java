@@ -44,6 +44,13 @@ public final class PosmsgConfig {
 
     public static void load() {
         PosmsgConfig cfg = new PosmsgConfig();
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): a genuine parse failure
+        // here used to be silently swallowed and then this method unconditionally saved the freshly-
+        // defaulted config right back over the corrupted file a moment later - permanently destroying
+        // whatever was recoverable (custom waypoints, captured positions) before killer560 ever noticed.
+        // Now skips the auto-save specifically when parsing actually failed, leaving the broken file on
+        // disk untouched instead of instantly overwriting it with blank defaults.
+        boolean parseFailed = false;
         if (Files.exists(CONFIG_PATH)) {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
@@ -72,7 +79,9 @@ public final class PosmsgConfig {
                         cfg.entries.add(e);
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                parseFailed = true;
+                cfg = new PosmsgConfig();
             }
         }
         if (!cfg.presetsSeeded) {
@@ -80,7 +89,9 @@ public final class PosmsgConfig {
             cfg.presetsSeeded = true;
         }
         instance = cfg;
-        instance.save();
+        if (!parseFailed) {
+            instance.save();
+        }
     }
 
     /** Adds the built-in room presets exactly once (first-ever load) - never re-added after that, even

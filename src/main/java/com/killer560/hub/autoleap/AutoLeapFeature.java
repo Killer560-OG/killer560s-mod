@@ -154,7 +154,19 @@ public final class AutoLeapFeature {
             return;
         }
         String target = AutoLeapConfig.getInstance().getTargetName().toLowerCase(Locale.ROOT);
-        for (Slot slot : screen.getMenu().slots) {
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to search
+        // screen.getMenu().slots in full, which - same real Hypixel container layout Terminal Solver's
+        // own doc comment already confirms - always appends the player's own 36 inventory+hotbar slots
+        // after the container's real rows. If the configured target name is typo'd, or the teammate
+        // isn't actually listed in this leap menu, the search fell through into the player's OWN
+        // inventory and could match an unrelated held item whose name happens to contain the target
+        // substring - then PICKUP-clicked it, putting it on the cursor with nothing to place it back down
+        // (real item-loss risk mid-boss-fight if the screen then closes). Bounded the same way Terminal
+        // Solver already does, to the container's own real slots only.
+        java.util.List<Slot> slots = screen.getMenu().slots;
+        int containerSlotCount = Math.max(0, slots.size() - 36);
+        for (int i = 0; i < containerSlotCount; i++) {
+            Slot slot = slots.get(i);
             ItemStack item = slot.getItem();
             if (item.isEmpty()) {
                 continue;

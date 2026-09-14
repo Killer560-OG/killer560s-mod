@@ -35,6 +35,15 @@ public final class AbilityTimersFeature {
             return;
         }
         Minecraft client = Minecraft.getInstance();
+        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to poll raw key
+        // state unconditionally, with no check for a screen being open - typing a timer's own bound key
+        // into party chat, or into this tab's own "Name" EditBox, silently restarted that timer as if the
+        // ability had just been used. The render side already guarded on this same check; tick() didn't.
+        // Skips the whole loop (rather than updating keyWasDown from unreliable-while-typing key state)
+        // so closing the screen doesn't itself cause a false "just pressed" edge on the next real tick.
+        if (client.screen != null) {
+            return;
+        }
         for (AbilityTimerEntry e : cfg.entries()) {
             if (!e.enabled || e.keyCode < 0) {
                 continue;
