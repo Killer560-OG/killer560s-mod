@@ -52,7 +52,8 @@ public class NewTab extends FolderTab {
                 new PlayerStatsTab(),
                 new SpiritLeapOverlayTab(),
                 new EtherwarpOverlayTab(),
-                new SlotBindsTab()
+                new SlotBindsTab(),
+                new ChatCommandsTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
