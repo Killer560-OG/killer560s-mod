@@ -1417,7 +1417,17 @@ public final class SimonSaysFeature {
         // i.e. another approach is about to begin on the very next tick regardless - so idle must not
         // touch the camera during that gap at all; holding still (falling into BLOCKED, which doesn't move
         // the camera) until that next approach begins is exactly what a real person's aim would do.
-        boolean solveStepsPending = !clickInOrder.isEmpty() && clickNeeded < clickInOrder.size();
+        // Real bug found and fixed (2026-09-14, killer560's own report: "it should go from looking at
+        // middle to looking at that button as soon as it appears... not look after all 3 go out"): this
+        // used to just check "is there an unclicked step in clickInOrder", which is true for the ENTIRE
+        // reveal too, not just the actual clicking phase - clickNeeded never advances while lights are
+        // still popping up, since nothing is being clicked yet. That blocked idle from tracking a freshly
+        // revealed button the whole time it was still revealing, only letting go once the round had
+        // already been solved and reset. Now also requires the reveal to have actually finished
+        // (mirrors tickAutoSolveAndTriggerBot's own blockedByReveal gate) - a pending step only means
+        // "don't touch the camera, an approach is imminent" once clicking can genuinely start.
+        boolean revealStillBlocking = firstPhase || isStillRevealing();
+        boolean solveStepsPending = !revealStillBlocking && !clickInOrder.isEmpty() && clickNeeded < clickInOrder.size();
 
         String state;
         if (rotateInProgressTarget != null) {
