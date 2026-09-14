@@ -195,6 +195,20 @@ public final class SimonSaysFeature {
     private static long autoSolveNextClickAtMs = 0L;
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
+    // --- Skip-vs-normal-flash distinguisher (2026-09-14, killer560's own real-attempt report) - true
+    // once Auto Start has actually sent at least one real click THIS phase (see tickAutoStart), reset at
+    // firstPhase's own two real trigger points (fresh device encounter, real start-button press). Needed
+    // because "3 real lights before any click" means two different real things depending on whether a
+    // skip was actually attempted: a landed skip (drop the first, real remaining sequence is the last
+    // two) if Auto Start ran, or Hypixel's own normal round-1 reveal-flash quirk (drop the middle
+    // instead, Odin's original confirmed behavior) if it didn't. Deliberately its own dedicated flag
+    // rather than reusing any click-COUNT field (clickNeeded/totalClicksThisAttempt) - killer560's own
+    // explicit caution ("make sure it doesn't count the button clicks to actually start it as well"):
+    // those two already only ever count real GRID button clicks (see onButtonPressed, which is only ever
+    // called for GRID_BUTTONS - the START button's own presses run through the completely separate
+    // tickStartButton path and never touch either counter), so this flag can't be confused with them.
+    private static boolean autoStartClickedThisPhase = false;
+
     // --- Rotate Mode (killer560's own request, 2026-09-14) - real behavior for the "Rotate" toggle that
     // previously did nothing (see SimonSaysConfig#isAutoSolveRotate's own doc comment: originally planned
     // as record-and-replay of killer560's own manual solves, not built yet). This is a simpler real
@@ -202,10 +216,25 @@ public final class SimonSaysFeature {
     // button's real center over several ticks (same real "bounded delta, never wrap/clamp the running
     // yaw/pitch" technique already proven in BloodCampFeature's own aura mode) and only fires once the
     // real crosshair raycast confirms genuine aim - works off the button's true, unmodified hitbox (no
-    // Full Block dependency), matching killer560's own "except not using fullblock" requirement. ---
+    // Full Block dependency), matching killer560's own "except not using fullblock" requirement.
+    // Revised same day per killer560's own live-test feedback ("really slow and kind of choppy... far
+    // away buttons... overshoot just a hair too far... some slightly curved movement... dont make it
+    // freeze"): base turn speed raised, the old one-shot overshoot (which snapped back to the true target
+    // the instant the next tick ran - the real cause of the reported choppiness) replaced with a
+    // smoothly-decaying offset, an optional decaying perpendicular-axis "curve" added for occasional
+    // arced paths, and an idle sway added for whenever it's genuinely just looking at something and not
+    // mid-approach (see tickIdleLookAtStart). ---
     private static BlockPos rotateInProgressTarget = null;
-    private static float rotateSmoothingThisApproach = 0.15f;
-    private static boolean rotateOvershootPendingThisApproach = false;
+    private static float rotateSmoothingThisApproach = 0.30f;
+    private static float rotateOvershootYawRemaining = 0f;
+    private static float rotateOvershootPitchRemaining = 0f;
+    private static boolean rotateCurveOnThisApproach = false;
+    private static float rotateCurveSign = 1f;
+    private static int rotateApproachTick = 0;
+    // Whenever a real phase starts or finishes (killer560's own request), the camera should be looking
+    // at the start button - with a slight idle sway, not frozen - until a real approach (Auto Start
+    // toward the start button, or Auto Solve toward a grid button) actually takes over.
+    private static boolean rotateIdleAtStart = false;
     // Wall-clock time of the last tick the reveal-delay accounting below ran - lets it compute exactly
     // how much real time passed since the last check. Renamed from autoSolveLastTickAtMs (2026-09-14) -
     // this tracking is unconditional now (see tickAutoSolveAndTriggerBot's own doc comment), not specific
@@ -379,6 +408,8 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             rotateInProgressTarget = null;
+            autoStartClickedThisPhase = false;
+            rotateIdleAtStart = true;
         }
         wasActive = true;
 
@@ -387,6 +418,7 @@ public final class SimonSaysFeature {
         detectGridChanges(client, cfg);
         tickAutoStart(client, cfg);
         tickAutoSolveAndTriggerBot(client, cfg);
+        tickRotateIdle(client, cfg);
     }
 
     private static void tickAnnounceKeybind(Minecraft client, SimonSaysConfig cfg) {
@@ -495,6 +527,8 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             rotateInProgressTarget = null;
+            autoStartClickedThisPhase = false;
+            rotateIdleAtStart = true;
             maybeAutoAnnounceReset(client, cfg);
         }
     }
@@ -525,10 +559,18 @@ public final class SimonSaysFeature {
                     if (clickInOrder.size() == 2) {
                         java.util.Collections.reverse(clickInOrder);
                     } else if (clickInOrder.size() == 3) {
-                        // Drop the FIRST entry, not the middle (corrected 2026-09-14 - see this method's
-                        // own doc comment): 3 real lights before any click means a skip landed on a round
-                        // whose real remaining sequence is only the last two of those three.
-                        clickInOrder.remove(0);
+                        // Real bug found and fixed (2026-09-14, "now it's bugged every time instead of
+                        // just sometimes"): dropping the first unconditionally broke the ordinary,
+                        // non-skip case - Odin's own confirmed real behavior for THAT case is drop the
+                        // MIDDLE. The two cases look identical (firstPhase true, size reaches 3, before
+                        // any click) unless something else distinguishes them: whether Auto Start
+                        // actually sent a real click this phase. Only when it did is a landed skip the
+                        // real explanation, and only then should the first (not the middle) be dropped.
+                        if (autoStartClickedThisPhase) {
+                            clickInOrder.remove(0);
+                        } else {
+                            clickInOrder.remove(clickInOrder.size() - 2);
+                        }
                     }
                 }
                 if (cfg.isDiagnosticLoggingEnabled()) {
@@ -674,6 +716,10 @@ public final class SimonSaysFeature {
             }
             resetSolveState();
             firstPhase = false;
+            // Killer560's own request: "after it finishes a phase it should go back to looking at the
+            // first button again."
+            rotateInProgressTarget = null;
+            rotateIdleAtStart = true;
         }
     }
 
@@ -703,7 +749,15 @@ public final class SimonSaysFeature {
         // (applies everywhere except Auto Solve's own already-centered synthetic clicking): "make sure it
         // goes to center." The real raycast is still what CONFIRMS real aim; the actual click always lands
         // on the button's true center now, via the same sendNoRotateInteract Aura mode already uses.
-        if (cfg.isAutoStartLookOnlyMode()) {
+        // Rotate Mode (killer560's own request: "whenever the phase starts it should look at the start
+        // button if not already doing it") takes priority over both existing Auto Start aim modes when
+        // on - the camera actually turns toward the real start button over several ticks instead of
+        // either clicking instantly (aura) or waiting on the PLAYER's own real aim (Look Only).
+        if (cfg.isAutoSolveRotate()) {
+            if (!tickRotateClick(client, START_BUTTON)) {
+                return;
+            }
+        } else if (cfg.isAutoStartLookOnlyMode()) {
             if (!(client.hitResult instanceof BlockHitResult lookHit) || !lookHit.getBlockPos().equals(START_BUTTON)) {
                 return;
             }
@@ -712,6 +766,7 @@ public final class SimonSaysFeature {
             sendNoRotateInteract(client, START_BUTTON);
         }
         autoStartClicksSent++;
+        autoStartClickedThisPhase = true;
         autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
         // Always-on (not gated behind Diagnostic Logging) while killer560's "isn't working" report is
         // unresolved (2026-09-14) - includes the button's own POWERED state at send-time to directly
@@ -724,7 +779,8 @@ public final class SimonSaysFeature {
                 && startButtonState.getValue(BlockStateProperties.POWERED);
         LOGGER.info("[SimonSays] Auto-start click {}/{} sent ({} mode, button currently powered={}).",
                 autoStartClicksSent, cfg.getAutoStartClicks(),
-                cfg.isAutoStartLookOnlyMode() ? "look-only" : "aura", startButtonPowered);
+                cfg.isAutoSolveRotate() ? "rotate" : cfg.isAutoStartLookOnlyMode() ? "look-only" : "aura",
+                startButtonPowered);
     }
 
     /** Real trigger ported from NoammAddons' own SimonSays.kt: the moment Goldor's real "Who dares
@@ -921,10 +977,34 @@ public final class SimonSaysFeature {
         if (!buttonPos.equals(rotateInProgressTarget)) {
             // A fresh approach to a new target - re-roll the humanization so every turn looks like a
             // slightly different real human flick rather than an identical robotic ease every time.
+            // Revised (2026-09-14, "really slow and kind of choppy" feedback): base speed raised from
+            // 0.12-0.22 to 0.30-0.45 so a full turn settles in well under a second, matching how quickly
+            // a real player actually snaps to the next button.
             rotateInProgressTarget = buttonPos;
-            rotateSmoothingThisApproach = 0.12f + (float) (Math.random() * 0.10);
-            rotateOvershootPendingThisApproach = Math.random() < 0.35;
+            rotateApproachTick = 0;
+            rotateSmoothingThisApproach = 0.30f + (float) (Math.random() * 0.15);
+            // Persistent, smoothly-DECAYING overshoot (replaces the old one-shot version, which added a
+            // random offset on tick 1 then removed it completely on tick 2 - recomputing the aim target
+            // that abruptly is the real cause of the reported choppiness, since it looked like a snap
+            // rather than a settle). A small FIXED range regardless of turn distance, so it doesn't get
+            // proportionally worse on long turns (killer560's own "far away buttons... overshoot just a
+            // hair too far" report - the old version's fixed-degree offset was barely noticeable on a
+            // short turn but read as a real miss on a long one relative to how far it still had to go).
+            if (Math.random() < 0.4) {
+                rotateOvershootYawRemaining = (float) ((Math.random() * 2 - 1) * 2.5);
+                rotateOvershootPitchRemaining = (float) ((Math.random() * 2 - 1) * 2.0);
+            } else {
+                rotateOvershootYawRemaining = 0f;
+                rotateOvershootPitchRemaining = 0f;
+            }
+            // Occasional curved path (killer560's own request) - a temporary bump on whichever axis
+            // ISN'T doing most of the real turning, rising over the first few ticks then fading, so the
+            // path arcs slightly instead of moving in a perfectly straight line every single time.
+            rotateCurveOnThisApproach = Math.random() < 0.4;
+            rotateCurveSign = Math.random() < 0.5 ? 1f : -1f;
+            rotateIdleAtStart = false;
         }
+        rotateApproachTick++;
 
         var player = client.player;
         Vec3 eyePos = player.getEyePosition();
@@ -934,17 +1014,36 @@ public final class SimonSaysFeature {
         float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
         float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
 
-        // A small, one-time random overshoot on the first tick of this approach, corrected naturally by
-        // the smoothing below over the next few ticks - real manual aim rarely lands dead-on in one
-        // motion, it settles onto the target instead.
-        if (rotateOvershootPendingThisApproach) {
-            rawTargetYaw += (float) ((Math.random() * 2 - 1) * 4.0);
-            rawTargetPitch += (float) ((Math.random() * 2 - 1) * 3.0);
-            rotateOvershootPendingThisApproach = false;
-        }
-
         float currentYaw = player.getYRot();
         float currentPitch = player.getXRot();
+
+        if (rotateCurveOnThisApproach) {
+            boolean yawDominant = Math.abs(Mth.wrapDegrees(rawTargetYaw - currentYaw))
+                    >= Math.abs(Mth.wrapDegrees(rawTargetPitch - currentPitch));
+            // Simple rise-then-fade envelope: ramps up over the first 3 ticks, decays ~20%/tick after -
+            // doesn't need to know the approach's total real length in advance to still look smooth.
+            float curveMagnitude = rotateApproachTick <= 3
+                    ? (rotateApproachTick / 3f) * 3.0f
+                    : (float) (3.0 * Math.pow(0.8, rotateApproachTick - 3));
+            float curveOffset = curveMagnitude * rotateCurveSign;
+            if (yawDominant) {
+                rawTargetPitch += curveOffset;
+            } else {
+                rawTargetYaw += curveOffset;
+            }
+        }
+
+        rawTargetYaw += rotateOvershootYawRemaining;
+        rawTargetPitch += rotateOvershootPitchRemaining;
+        rotateOvershootYawRemaining *= 0.6f;
+        rotateOvershootPitchRemaining *= 0.6f;
+        if (Math.abs(rotateOvershootYawRemaining) < 0.05f) {
+            rotateOvershootYawRemaining = 0f;
+        }
+        if (Math.abs(rotateOvershootPitchRemaining) < 0.05f) {
+            rotateOvershootPitchRemaining = 0f;
+        }
+
         float yawDelta = Mth.wrapDegrees(rawTargetYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch - currentPitch);
         player.setYRot(currentYaw + yawDelta * rotateSmoothingThisApproach);
@@ -955,9 +1054,45 @@ public final class SimonSaysFeature {
             // (killer560's own standing rule), same real click-sender every other mode already uses.
             sendNoRotateInteract(client, buttonPos);
             rotateInProgressTarget = null;
+            rotateApproachTick = 0;
             return true;
         }
         return false;
+    }
+
+    /** Idle look at the start button with a slight continuous sway, rather than a hard freeze - killer560's
+     *  own explicit request. Two independent slow sine waves (different periods/phases) so the movement
+     *  doesn't read as an obvious mechanical loop. Not a real "approach" (no click ever fires from this -
+     *  {@link #tickRotateClick} takes over the instant a real click is actually due). */
+    private static void tickIdleLookAtStart(Minecraft client) {
+        var player = client.player;
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 target = Vec3.atCenterOf(START_BUTTON);
+        Vec3 diff = target.subtract(eyePos);
+        double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
+        float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
+        float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
+
+        double t = System.currentTimeMillis() / 1000.0;
+        float swayYaw = (float) (Math.sin(t * 0.7) * 0.5);
+        float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.35);
+
+        float currentYaw = player.getYRot();
+        float currentPitch = player.getXRot();
+        float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
+        float pitchDelta = Mth.wrapDegrees(rawTargetPitch + swayPitch - currentPitch);
+        player.setYRot(currentYaw + yawDelta * 0.08f);
+        player.setXRot(currentPitch + pitchDelta * 0.08f);
+    }
+
+    /** Runs the idle look-at-start-button behavior whenever Rotate Mode is on, a phase-start/phase-end
+     *  has flagged it as due, and nothing is actively being approached for a real click right now. */
+    private static void tickRotateIdle(Minecraft client, SimonSaysConfig cfg) {
+        if (!cfg.isAutoSolveRotate() || !rotateIdleAtStart || rotateInProgressTarget != null
+                || client.player == null) {
+            return;
+        }
+        tickIdleLookAtStart(client);
     }
 
     /** Interacts with a block without needing the player's crosshair on it - the "no rotate" click
