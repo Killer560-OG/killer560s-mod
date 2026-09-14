@@ -40,6 +40,14 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Dungeon**
 - RNG Meter — tracks your Hypixel Skyblock RNG/pity progress on dungeon floors
 - Leap Message — sends a message when you leap to someone in dungeons
+- Leap Order — a full-screen menu for sorting the party's leap order, display mode, GUI scale, and class/customize editors
+- Fast Leap — one-click quick-travel buttons, one per configured Posmsg waypoint (including a built-in "Mel" preset)
+- Posmsg — position-message waypoints for real dungeon rooms (preloaded presets like Simon Says/EE2/EE3/Outpour/Recor/Necron's Platform, plus custom ones you add), each with its own radius, display, and once-vs-repeating toggles
+- Ability Timers — a generic list of named countdown timers, each with its own keybind to start/restart it the moment you use that real ability
+- Dungeon Info — a secrets-found HUD, run-time tracker, score-milestone messages, and mimic/prince/bat keyword alerts
+- Mob ESP — highlights star-tier dungeon mobs by name filter (real vanilla Glowing); legit mode only glows what you can already see via a real raycast, the **cheat** build can glow through walls too
+- Mapping — a data-gathering tool for building future map features ("Dump Held Map Now"); funny map/mimic highlight/class recolor are reserved settings that don't draw anything yet
+- Etherwarp Waypoints — per-run-only reminders for secret etherwarp spots you've marked, never saved to disk
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free
 - Full Block — **cheat build only.** Expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click, with a master on/off toggle - see [Which jar do I download?](#installing) below.
