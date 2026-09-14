@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -40,7 +41,9 @@ import java.util.regex.Pattern;
  * compiling implementations for this exact Minecraft version (both pin {@code minecraft_version=26.1.2}
  * in their {@code gradle.properties}) - not guessed. The button grid is a 4x4 wall at x=110 (stone
  * buttons) with a matching sea-lantern wall at x=111, y in [120,123], z in [92,95], with the device's
- * start button at (110, 121, 91).
+ * start button at (110, 121, 91). The real "P1 starts" auto-start trigger and its two settings are
+ * ported from NoammAddons' own {@code SimonSays.kt} (cloned reference, 2026-09-14) - see
+ * {@link #AUTO_START_TRIGGER_PATTERN}'s doc comment.
  * <p>
  * This mod has no {@code BlockUpdateEvent}-style hook (Odin/QUOI each define their own via a Mixin this
  * codebase hasn't added, deliberately - see this mod's standing "no unconfirmed Mixin target" rule), so
@@ -60,6 +63,13 @@ public final class SimonSaysFeature {
     // teammates running Odin or QUOI, not just other killer560s-mod users.
     private static final Pattern PROGRESS_PATTERN = Pattern.compile("(?:^|[:>\\]]\\s*)(\\S+?)\\s*:\\s*SS (\\d+)/(\\d+)");
     private static final Pattern PROGRESS_PATTERN_SIMPLE = Pattern.compile("SS (\\d+)/(\\d+)");
+
+    // Real chat line (ported from NoammAddons' own SimonSays.kt `startRegex`, confirmed against this
+    // exact Minecraft version's F7/M7 boss fight) marking the moment the SS device's boss phase actually
+    // begins - killer560's own "the second p1 starts" request. Matched on plain text with formatting
+    // stripped first, same established convention DungeonState's own BOSS_START_PATTERN uses.
+    private static final Pattern AUTO_START_TRIGGER_PATTERN =
+            Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");
 
     private static final List<BlockPos> GRID_LANTERNS = buildGrid(111);
     private static final List<BlockPos> GRID_BUTTONS = buildGrid(110);
@@ -95,28 +105,28 @@ public final class SimonSaysFeature {
     private static boolean wasGridReset = false;
     private static long solveStartedAtMs = 0L;
 
-    // --- reset keybind ---
-    private static boolean resetKeyWasDown = false;
+    // --- announce keybind (renamed from "reset key" 2026-09-14 - see SimonSaysConfig's own doc comment:
+    // it no longer resets any solve state itself, only sends the announce chat line on demand) ---
+    private static boolean announceKeyWasDown = false;
 
-    // --- auto-start (skip) pacing ---
+    // --- auto-start pacing (real trigger + settings ported from NoammAddons) ---
     private static boolean autoStartRunning = false;
     private static int autoStartClicksSent = 0;
-    private static long autoStartNextClickAtMs = 0L;
-    private static long autoStartDeadlineMs = 0L;
+    private static int autoStartTicksUntilNextClick = 0;
 
-    // --- auto-solve (no-rotate) pacing ---
+    // --- auto-solve pacing (Target ± Variance overall for the current round's remaining clicks - moved
+    // here from Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
     private static long lastAutoClickAtMs = 0L;
     private static BlockPos lastAutoClickedPos = null;
+    private static long autoSolveDeadlineMs = 0L;
+    private static long autoSolveNextClickAtMs = 0L;
+    private static int autoSolveArmedForSize = -1;
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
 
     // --- party progress tracker: sender name -> progress ---
     private static final Map<String, PartyProgress> partyProgress = new HashMap<>();
-
-    // --- legacy diagnostic logger state ---
-    private static Map<BlockPos, BlockState> diagnosticLastStates = new HashMap<>();
-    private static boolean diagnosticWasActive = false;
 
     private SimonSaysFeature() {
     }
@@ -167,6 +177,16 @@ public final class SimonSaysFeature {
             LOGGER.info("[SimonSays] Chat line mentioning Simon Says: \"{}\"", raw);
         }
 
+        // Real auto-start trigger (ported from NoammAddons) - fires the moment Goldor's real boss line
+        // appears, regardless of whether the player is near the device yet (tickAutoStart below only
+        // actually clicks once in range, so this just arms the sequence to begin as soon as possible).
+        if (cfg.isAutoStartEnabled() && DungeonState.isF7OrM7()) {
+            String plain = ChatFormatting.stripFormatting(raw);
+            if (plain != null && AUTO_START_TRIGGER_PATTERN.matcher(plain).find()) {
+                beginAutoStart(cfg);
+            }
+        }
+
         if (!cfg.isPartyProgressTrackerEnabled()) {
             return;
         }
@@ -198,7 +218,7 @@ public final class SimonSaysFeature {
     }
 
     // ------------------------------------------------------------------
-    // Tick: detection, auto-start pacing, auto-solve pacing, trigger bot, reset key
+    // Tick: detection, auto-start pacing, auto-solve pacing, trigger bot, announce key
     // ------------------------------------------------------------------
 
     private static void tick() {
@@ -206,8 +226,7 @@ public final class SimonSaysFeature {
         Minecraft client = Minecraft.getInstance();
         boolean active = cfg.isEnabled() && client.player != null && client.level != null && isDeviceInRange(client);
 
-        tickResetKeybind(client, cfg);
-        tickLegacyDiagnostics(cfg, client, active);
+        tickAnnounceKeybind(client, cfg);
 
         if (!active) {
             if (wasActive) {
@@ -230,27 +249,37 @@ public final class SimonSaysFeature {
         }
         wasActive = true;
 
-        tickStartButton(client);
+        tickStartButton(client, cfg);
 
         detectGridChanges(client, cfg);
         tickAutoStart(client, cfg);
         tickAutoSolveAndTriggerBot(client, cfg);
     }
 
-    private static void tickResetKeybind(Minecraft client, SimonSaysConfig cfg) {
-        if (cfg.getResetKeyCode() < 0 || client.getWindow() == null) {
-            resetKeyWasDown = false;
+    private static void tickAnnounceKeybind(Minecraft client, SimonSaysConfig cfg) {
+        if (cfg.getAnnounceKeyCode() < 0 || client.getWindow() == null) {
+            announceKeyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), cfg.getResetKeyCode());
-        if (down && !resetKeyWasDown) {
-            LOGGER.info("[SimonSays] Manual reset via keybind.");
-            resetSolveState();
-            if (cfg.isAutoSendResetMessage() && client.player != null) {
+        boolean down = InputConstants.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
+        if (down && !announceKeyWasDown) {
+            LOGGER.info("[SimonSays] Manual announce via keybind.");
+            if (client.player != null) {
                 client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
             }
         }
-        resetKeyWasDown = down;
+        announceKeyWasDown = down;
+    }
+
+    /** Sends the real announce/reset party-chat line, if "Auto Message" is on - wired into BOTH real
+     *  automatic reset-detection paths (a real start-button press, and a grid-reset transition), not
+     *  just the manual "Announce Reset Key" press. Killer560's explicit request (2026-09-14): "make sure
+     *  that works if i ever press the reset button after the first time or if you sense it reset via
+     *  removing all buttons and no new highlights." */
+    private static void maybeAutoAnnounceReset(Minecraft client, SimonSaysConfig cfg) {
+        if (cfg.isAutoSendResetMessage() && client.player != null) {
+            client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
+        }
     }
 
     private static void resetSolveState() {
@@ -271,6 +300,8 @@ public final class SimonSaysFeature {
         lastGridStates.clear();
         autoStartRunning = false;
         autoStartClicksSent = 0;
+        autoStartTicksUntilNextClick = 0;
+        autoSolveArmedForSize = -1;
         lastAutoClickedPos = null;
         lastTriggerBotTarget = null;
         solveStartedAtMs = 0L;
@@ -280,8 +311,10 @@ public final class SimonSaysFeature {
      *  {@code pos == startButton}. This is firstPhase's OTHER real trigger point besides entering
      *  device range fresh (see resetSolveState's doc comment) - a real press means the attempt is
      *  restarting from scratch (e.g. after a failure), so the reveal-order quirk needs to apply again
-     *  for the new reveal that follows. */
-    private static void tickStartButton(Minecraft client) {
+     *  for the new reveal that follows. Also fires "Auto Message" (2026-09-14) - a real press of this
+     *  button is exactly "the reset button" killer560 meant, and this fires on every real press, not
+     *  just the first. */
+    private static void tickStartButton(Minecraft client, SimonSaysConfig cfg) {
         BlockState now = client.level.getBlockState(START_BUTTON);
         BlockState old = lastStartButtonState;
         lastStartButtonState = now;
@@ -293,6 +326,7 @@ public final class SimonSaysFeature {
         if (nowPowered && !oldPowered) {
             resetSolveState();
             firstPhase = true;
+            maybeAutoAnnounceReset(client, cfg);
         }
     }
 
@@ -367,16 +401,18 @@ public final class SimonSaysFeature {
         // clears lastGridStates - so on almost every tick (since normally only a few of 16 slots are
         // lit at once, the other 8+ read as air and trip this), the "old" state needed to compare
         // against next tick got wiped before a real transition could ever be caught. A real p3sim.net
-        // log proved it: a real button/lantern change was independently confirmed (by the separate
-        // player-centered diagnostic below) at the exact same coordinates on the exact same tick this
-        // logged "16 air blocks" and cleared the map - so the transition was always one tick too late to
-        // compare against. Edge-triggered now, same pattern as the enter/leave device-range logging
-        // above - lastGridStates only gets wiped once, on the real transition into a reset state.
+        // log proved it: a real button/lantern change was independently confirmed at the exact same
+        // coordinates on the exact same tick this logged "16 air blocks" and cleared the map - so the
+        // transition was always one tick too late to compare against. Edge-triggered now, same pattern
+        // as the enter/leave device-range logging above - lastGridStates only gets wiped once, on the
+        // real transition into a reset state. Also fires "Auto Message" (2026-09-14) - this IS the real
+        // "removing all buttons and no new highlights" reset killer560 described.
         if (gridReset && !wasGridReset) {
             if (cfg.isDiagnosticLoggingEnabled()) {
                 LOGGER.info("[SimonSays] Grid reset detected ({} air blocks).", airCount);
             }
             resetSolveState();
+            maybeAutoAnnounceReset(client, cfg);
         }
         wasGridReset = gridReset;
     }
@@ -391,8 +427,6 @@ public final class SimonSaysFeature {
         // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only
         // sent on the LAST click of the current round (real Hypixel Simon Says is always exactly 5
         // rounds, round N has N steps, so clickInOrder.size() at round-completion IS the round number).
-        // Killer560's explicit fix request (2026-09-14): this used to send on every single click
-        // ("1/2 2/2 1/3...", the click index within the current round), not just once per round.
         if (cfg.isAnnounceProgress() && client.player != null && clickNeeded >= clickInOrder.size()) {
             client.player.connection.sendCommand("pc SS " + clickInOrder.size() + "/5");
         }
@@ -405,48 +439,43 @@ public final class SimonSaysFeature {
     }
 
     // ------------------------------------------------------------------
-    // Auto-start (skip presets) - timer-with-variance pacing instead of a flat per-click delay
+    // Auto-start - real trigger + settings ported from NoammAddons' own SimonSays.kt
     // ------------------------------------------------------------------
 
     private static void tickAutoStart(Minecraft client, SimonSaysConfig cfg) {
-        if (!cfg.isAutoStartEnabled()) {
+        if (!cfg.isAutoStartEnabled() || !autoStartRunning) {
+            return;
+        }
+        if (autoStartClicksSent >= cfg.getAutoStartClicks()) {
+            LOGGER.info("[SimonSays] Auto-start finished ({} of {} clicks sent).", autoStartClicksSent, cfg.getAutoStartClicks());
             autoStartRunning = false;
             return;
         }
-        long now = System.currentTimeMillis();
-        int totalClicks = cfg.getSkipClicks(cfg.getAutoStartMode());
-
-        if (!autoStartRunning) {
-            return;
-        }
-        if (now >= autoStartDeadlineMs || autoStartClicksSent >= totalClicks) {
-            LOGGER.info("[SimonSays] Auto-start finished ({} of {} clicks sent).", autoStartClicksSent, totalClicks);
-            autoStartRunning = false;
-            return;
-        }
-        if (now < autoStartNextClickAtMs) {
+        if (autoStartTicksUntilNextClick > 0) {
+            autoStartTicksUntilNextClick--;
             return;
         }
         sendNoRotateInteract(client, START_BUTTON);
         autoStartClicksSent++;
-        autoStartNextClickAtMs = now + cfg.getAutoStartClickDelayMs();
+        autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
         if (cfg.isDiagnosticLoggingEnabled()) {
-            LOGGER.info("[SimonSays] Auto-start click {}/{} sent.", autoStartClicksSent, totalClicks);
+            LOGGER.info("[SimonSays] Auto-start click {}/{} sent.", autoStartClicksSent, cfg.getAutoStartClicks());
         }
     }
 
-    /** Call from the GUI's "Start" button to begin the timer-paced auto-start sequence. */
-    public static void beginAutoStart() {
-        SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        long now = System.currentTimeMillis();
-        int variance = cfg.getClickTimerVarianceMs();
-        long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
-        autoStartDeadlineMs = now + cfg.getClickTimerTargetMs() + jitter;
-        autoStartNextClickAtMs = now;
+    /** Real trigger ported from NoammAddons' own SimonSays.kt: the moment Goldor's real "Who dares
+     *  trespass into my domain?" boss line appears (see {@link #AUTO_START_TRIGGER_PATTERN}), begin
+     *  auto-clicking the real start button. Clicks/delay are both directly configurable, matching
+     *  NoammAddons' own two settings exactly ("Start Clicks" 1-10, "Start Click Delay" 1-25 ticks)
+     *  instead of this mod's old guessed six-preset "skip mode" system (removed 2026-09-14 - killer560's
+     *  own call, since this session never had confirmed real per-mode click counts). Only actually
+     *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
+    private static void beginAutoStart(SimonSaysConfig cfg) {
         autoStartClicksSent = 0;
+        autoStartTicksUntilNextClick = 0;
         autoStartRunning = true;
-        LOGGER.info("[SimonSays] Auto-start armed: mode={}, target clicks={}, window={}ms",
-                cfg.getAutoStartMode(), cfg.getSkipClicks(cfg.getAutoStartMode()), cfg.getClickTimerTargetMs());
+        LOGGER.info("[SimonSays] Auto-start triggered by real Goldor phase-start line: {} clicks, {} ticks apart.",
+                cfg.getAutoStartClicks(), cfg.getAutoStartClickDelayTicks());
     }
 
     // ------------------------------------------------------------------
@@ -457,20 +486,42 @@ public final class SimonSaysFeature {
         if (clickNeeded >= clickInOrder.size()) {
             return;
         }
-        if (cfg.isSkipCompatibility() && cfg.isAutoStartEnabled() && autoStartRunning) {
-            return;
-        }
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
         BlockPos nextButton = nextLantern.west();
 
         if (cfg.isAutoSolveEnabled()) {
+            // Killer560's explicit request (2026-09-14): don't click at all while the lights are still
+            // being shown - firstPhase is exactly the initial ~10-tick reveal flash where the real
+            // lantern order is still being corrected (reverse/drop-middle quirk), so clicking mid-flash
+            // could easily fire on a position that's about to be reinterpreted.
+            if (firstPhase) {
+                return;
+            }
             long now = System.currentTimeMillis();
+            int remaining = clickInOrder.size() - clickNeeded;
+            if (autoSolveArmedForSize != clickInOrder.size()) {
+                // (Re-)arm a fresh "Target ± Variance overall" pacing window for this round's remaining
+                // clicks - moved here from Auto Start's old model (2026-09-14, see SimonSaysConfig's own
+                // doc comment). Re-arms automatically every time clickInOrder grows (i.e., every new
+                // round) - no manual "restart" toggle needed, matching killer560's own "unless it can be
+                // done automatically".
+                int variance = cfg.getClickTimerVarianceMs();
+                long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
+                autoSolveDeadlineMs = now + cfg.getClickTimerTargetMs() + jitter;
+                autoSolveNextClickAtMs = now;
+                autoSolveArmedForSize = clickInOrder.size();
+            }
             boolean sameTarget = nextButton.equals(lastAutoClickedPos);
-            long minDelay = sameTarget ? 400 : 0;
-            if (now - lastAutoClickAtMs >= Math.max(150, minDelay)) {
+            long minDelay = sameTarget ? 300 : 0;
+            if (now >= autoSolveNextClickAtMs && now - lastAutoClickAtMs >= minDelay) {
+                // "No Rotate"/"Rotate" mode (cfg.isAutoSolveRotate()) - see SimonSaysConfig's own doc
+                // comment: "Rotate" is a placeholder for a future real-click-learning feature and is not
+                // wired to different behavior yet, so both modes click the same way for now.
                 sendNoRotateInteract(client, nextButton);
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
+                long windowLeftMs = autoSolveDeadlineMs - now;
+                autoSolveNextClickAtMs = remaining > 1 ? now + Math.max(50, windowLeftMs / remaining) : now;
             }
             return;
         }
@@ -508,9 +559,6 @@ public final class SimonSaysFeature {
         if (!cfg.isEnabled() || !cfg.isSolverEnabled() || clickInOrder.isEmpty()) {
             return;
         }
-        if (cfg.isSkipCompatibility() && cfg.isAutoStartEnabled() && autoStartRunning) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return;
@@ -540,11 +588,6 @@ public final class SimonSaysFeature {
             }
 
             if (cfg.isNumberOverlay()) {
-                // Real bug found and fixed (2026-09-14): this used to render at the full block's
-                // center (x+0.5/y+0.5/z+0.5), NOT the highlight box's own center - killer560's report
-                // ("the number thing isn't on") was very likely this number rendering ~0.55 blocks away
-                // from the actual highlight, potentially clipped inside the wall behind the lantern.
-                // Now uses the box's real center directly, matching "exact same spot as the highlight."
                 renderNumber(context, box.getCenter().x, box.getCenter().y, box.getCenter().z,
                         index - clickNeeded + 1, cfg.getNumberScale());
             }
@@ -574,53 +617,17 @@ public final class SimonSaysFeature {
 
         float width = font.width(text);
         int background = (int) (0.4f * 255f) << 24;
+        // Real bug found and fixed (2026-09-14): this used Font.DisplayMode.NORMAL (depth-tested), but
+        // the highlight box itself sits right at the button/lantern face boundary (see the AABB above) -
+        // almost exactly where the button's own rendered geometry is, so the number was very likely
+        // being depth-occluded by the button model itself ("rendered inside the button", killer560's own
+        // guess). SEE_THROUGH ignores depth test - confirmed the correct real fix by checking how
+        // NoammAddons and Odin render their own equivalent Simon Says numbers: both explicitly pass a
+        // "through walls"/"phase" flag to their text renderer for exactly this reason.
         font.drawInBatch(text, -width / 2f, 0f, 0xFFFFFFFF, false, poseStack.last().pose(),
-                bufferSource, Font.DisplayMode.NORMAL, background, 0xF000F0);
+                bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();
-    }
-
-    // ------------------------------------------------------------------
-    // Legacy diagnostic block-state logger (kept as an optional supplementary data source)
-    // ------------------------------------------------------------------
-
-    private static void tickLegacyDiagnostics(SimonSaysConfig cfg, Minecraft client, boolean deviceActive) {
-        boolean active = cfg.isDiagnosticLoggingEnabled() && DungeonState.isInDungeon()
-                && client.player != null && client.level != null;
-
-        if (!active) {
-            if (diagnosticWasActive) {
-                diagnosticLastStates = new HashMap<>();
-            }
-            diagnosticWasActive = false;
-            return;
-        }
-        if (!diagnosticWasActive) {
-            LOGGER.info("[SimonSays] Diagnostic logging started - watching a {}x{}x{} box around you.",
-                    cfg.getHorizontalRadius() * 2 + 1, cfg.getVerticalRadius() * 2 + 1, cfg.getHorizontalRadius() * 2 + 1);
-            diagnosticLastStates = new HashMap<>();
-        }
-        diagnosticWasActive = true;
-
-        BlockPos center = client.player.blockPosition();
-        int hr = cfg.getHorizontalRadius();
-        int vr = cfg.getVerticalRadius();
-        Map<BlockPos, BlockState> currentStates = new HashMap<>();
-
-        for (int dx = -hr; dx <= hr; dx++) {
-            for (int dy = -vr; dy <= vr; dy++) {
-                for (int dz = -hr; dz <= hr; dz++) {
-                    BlockPos pos = center.offset(dx, dy, dz);
-                    BlockState state = client.level.getBlockState(pos);
-                    currentStates.put(pos, state);
-                    BlockState previous = diagnosticLastStates.get(pos);
-                    if (previous != null && !previous.equals(state)) {
-                        LOGGER.info("[SimonSays] Block changed at {}: {} -> {}", pos, previous, state);
-                    }
-                }
-            }
-        }
-        diagnosticLastStates = currentStates;
     }
 
     // ------------------------------------------------------------------

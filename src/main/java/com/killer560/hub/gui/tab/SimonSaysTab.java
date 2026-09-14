@@ -4,24 +4,24 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.simonsays.SimonSaysConfig;
-import com.killer560.hub.simonsays.SimonSaysFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Simon Says solver + automation settings - see {@link SimonSaysFeature}'s class doc for the real
- *  device layout/detection logic this is built on (ported from Odin/QUOI, confirmed against this exact
- *  Minecraft version). Auto-solve/trigger-bot/auto-start rows only appear on the cheat build - the
- *  legit build can't run them even with a copied config.json (see the config getters' own gating). */
+/** Simon Says solver + automation settings - see {@link com.killer560.hub.simonsays.SimonSaysFeature}'s
+ *  class doc for the real device layout/detection logic this is built on (ported from Odin/QUOI/
+ *  NoammAddons, confirmed against this exact Minecraft version). Auto-solve/trigger-bot/auto-start rows
+ *  only appear on the cheat build - the legit build can't run them even with a copied config.json (see
+ *  the config getters' own gating). Restructured 2026-09-14 per killer560's own layout request - no more
+ *  section-header/explanation text, just the controls themselves. */
 public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
-    private boolean capturingResetKey = false;
+    private boolean capturingAnnounceKey = false;
 
     public SimonSaysTab() {
         super("Simon Says");
@@ -47,36 +47,32 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Solver Display"), Minecraft.getInstance().font));
-        y += 14;
-
         widgets.add(SettingsButtonWidget.builder(onOff("Show Highlights", cfg.isSolverEnabled()), btn -> {
                     cfg.setSolverEnabled(!cfg.isSolverEnabled());
                     cfg.save();
                     btn.setMessage(onOff("Show Highlights", cfg.isSolverEnabled()));
-                }).bounds(col1, y, 100, 18).build());
+                }).bounds(col1, y, 108, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Numbers", cfg.isNumberOverlay()), btn -> {
+                    cfg.setNumberOverlay(!cfg.isNumberOverlay());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(col2, y, 108, 18).build());
+        y += 20;
 
         widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
                     cfg.setStyle(nextStyle(cfg.getStyle()));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
-                }).bounds(col2, y, 100, 18).build());
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Numbers", cfg.isNumberOverlay()), btn -> {
-                    cfg.setNumberOverlay(!cfg.isNumberOverlay());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col3, y, 108, 18).build());
-        y += 20;
+                }).bounds(col1, y, 108, 18).build());
 
         if (cfg.isNumberOverlay()) {
             double scaleNorm = (cfg.getNumberScale() - 0.25) / (3.0 - 0.25);
-            widgets.add(new ThemedSliderButton(contentX, y, 220, 18,
-                    Component.literal(String.format(java.util.Locale.US, "Number Scale: %.2fx", cfg.getNumberScale())), scaleNorm) {
+            widgets.add(new ThemedSliderButton(col2, y, 108, 18,
+                    Component.literal(String.format(java.util.Locale.US, "Scale: %.2fx", cfg.getNumberScale())), scaleNorm) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal(String.format(java.util.Locale.US, "Number Scale: %.2fx", cfg.getNumberScale())));
+                    setMessage(Component.literal(String.format(java.util.Locale.US, "Scale: %.2fx", cfg.getNumberScale())));
                 }
 
                 @Override
@@ -85,8 +81,8 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                 }
             });
-            y += 20;
         }
+        y += 20;
 
         // Opens a real color-picker screen (hue bar + saturation/value square + alpha) instead of
         // cycling a fixed palette - killer560's explicit request. Each button's own click handler
@@ -118,93 +114,39 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                         cfg.save();
                     }));
                 }).bounds(col3, y, 108, 18).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Safety"), Minecraft.getInstance().font));
-        y += 14;
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Prevent Misclicks", cfg.isPreventMisclicksEnabled()), btn -> {
                     cfg.setPreventMisclicksEnabled(!cfg.isPreventMisclicksEnabled());
                     cfg.save();
                     btn.setMessage(onOff("Prevent Misclicks", cfg.isPreventMisclicksEnabled()));
                 }).bounds(col1, y, 160, 18).build());
-        y += 20;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Blocks a real click on the wrong button (not the bot's own clicks -"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7it never targets a wrong one). Hold Shift to click anyway."),
-                Minecraft.getInstance().font));
-        y += 22;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Chat"), Minecraft.getInstance().font));
-        y += 14;
+        y += 24;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Announce Progress", cfg.isAnnounceProgress()), btn -> {
                     cfg.setAnnounceProgress(!cfg.isAnnounceProgress());
                     cfg.save();
                     btn.setMessage(onOff("Announce Progress", cfg.isAnnounceProgress()));
-                }).bounds(col1, y, 160, 18).build());
+                }).bounds(col1, y, 108, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Party Tracker", cfg.isPartyProgressTrackerEnabled()), btn -> {
                     cfg.setPartyProgressTrackerEnabled(!cfg.isPartyProgressTrackerEnabled());
                     cfg.save();
                     btn.setMessage(onOff("Party Tracker", cfg.isPartyProgressTrackerEnabled()));
-                }).bounds(col3, y, 108, 18).build());
-        y += 20;
+                }).bounds(col2, y, 108, 18).build());
+        y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7\"Announce Progress\" sends real \"SS n/total\" party chat lines that"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Odin/QUOI's own trackers also read - and this mod's tracker reads theirs."),
-                Minecraft.getInstance().font));
-        y += 22;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Diagnostics"), Minecraft.getInstance().font));
-        y += 14;
-
-        // Real bug found and fixed (2026-09-14): this toggle existed in SimonSaysConfig and
-        // SimonSaysFeature already checked it, but no tab ever exposed it - there was no way to
-        // actually turn it on. Found while investigating a real p3sim.net report where this exact
-        // logger was the tool needed to see whether the real block grid even exists there.
-        widgets.add(SettingsButtonWidget.builder(onOff("Log Block Changes", cfg.isDiagnosticLoggingEnabled()), btn -> {
-                    cfg.setDiagnosticLoggingEnabled(!cfg.isDiagnosticLoggingEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Log Block Changes", cfg.isDiagnosticLoggingEnabled()));
-                }).bounds(col1, y, 160, 18).build());
-        y += 20;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Logs every block that changes state in a box around you to"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7logs/latest.log, tagged [SimonSays] - real diagnostic data, not a solver."),
-                Minecraft.getInstance().font));
-        y += 22;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Reset"), Minecraft.getInstance().font));
-        y += 14;
-
-        Component keyLabel = capturingResetKey ? Component.literal("Press any key...") : resetKeyText(cfg);
+        Component keyLabel = capturingAnnounceKey ? Component.literal("Press any key...") : announceKeyText(cfg);
         widgets.add(SettingsButtonWidget.builder(keyLabel, btn -> {
-                    capturingResetKey = true;
+                    capturingAnnounceKey = true;
                     btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(col1, y, 100, 18).build());
+                }).bounds(col1, y, 108, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Message", cfg.isAutoSendResetMessage()), btn -> {
                     cfg.setAutoSendResetMessage(!cfg.isAutoSendResetMessage());
                     cfg.save();
                     btn.setMessage(onOff("Auto Message", cfg.isAutoSendResetMessage()));
-                }).bounds(col2, y, 100, 18).build());
+                }).bounds(col2, y, 108, 18).build());
         y += 20;
 
         EditBox resetMsgField = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
@@ -219,118 +161,74 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         y += 26;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Trigger bot / auto-solve / auto-start are cheat-build only."),
-                    Minecraft.getInstance().font));
             return widgets;
         }
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lCheat Build - Automation"), Minecraft.getInstance().font));
-        y += 14;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {
                     cfg.setTriggerBotEnabled(!cfg.isTriggerBotEnabled());
                     cfg.save();
                     btn.setMessage(onOff("Trigger Bot", cfg.isTriggerBotEnabled()));
-                }).bounds(col1, y, 100, 18).build());
+                }).bounds(col1, y, 108, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Solve", cfg.isAutoSolveEnabled()), btn -> {
                     cfg.setAutoSolveEnabled(!cfg.isAutoSolveEnabled());
                     cfg.save();
-                    btn.setMessage(onOff("Auto Solve", cfg.isAutoSolveEnabled()));
-                }).bounds(col2, y, 100, 18).build());
+                    requestRebuild.run();
+                }).bounds(col2, y, 108, 18).build());
+        y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Skip Compat", cfg.isSkipCompatibility()), btn -> {
-                    cfg.setSkipCompatibility(!cfg.isSkipCompatibility());
-                    cfg.save();
-                    btn.setMessage(onOff("Skip Compat", cfg.isSkipCompatibility()));
-                }).bounds(col3, y, 108, 18).build());
-        y += 20;
+        if (cfg.isAutoSolveEnabled()) {
+            widgets.add(SettingsButtonWidget.builder(rotateText(cfg), btn -> {
+                        cfg.setAutoSolveRotate(!cfg.isAutoSolveRotate());
+                        cfg.save();
+                        btn.setMessage(rotateText(cfg));
+                    }).bounds(col1, y, 220, 18).build());
+            y += 20;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Auto Solve/Trigger Bot never rotate your camera (\"no-rotate\", like QUOI)."),
-                Minecraft.getInstance().font));
-        y += 22;
+            widgets.add(SettingsButtonWidget.builder(
+                        Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"), btn -> {
+                            int next = cfg.getClickTimerTargetMs() + 500;
+                            cfg.setClickTimerTargetMs(next > 30_000 ? 1000 : next);
+                            cfg.save();
+                            btn.setMessage(Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"));
+                        }).bounds(col1, y, 108, 18).build());
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Auto Start (skip)"), Minecraft.getInstance().font));
-        y += 14;
+            widgets.add(SettingsButtonWidget.builder(
+                        Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"), btn -> {
+                            int next = cfg.getClickTimerVarianceMs() + 50;
+                            cfg.setClickTimerVarianceMs(next > 2000 ? 0 : next);
+                            cfg.save();
+                            btn.setMessage(Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"));
+                        }).bounds(col2, y, 108, 18).build());
+            y += 24;
+        }
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
                     cfg.setAutoStartEnabled(!cfg.isAutoStartEnabled());
                     cfg.save();
-                    btn.setMessage(onOff("Auto Start", cfg.isAutoStartEnabled()));
                     requestRebuild.run();
-                }).bounds(col1, y, 100, 18).build());
+                }).bounds(col1, y, 108, 18).build());
+        y += 20;
 
         if (!cfg.isAutoStartEnabled()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Start Now"), btn ->
-                    SimonSaysFeature.beginAutoStart()
-                ).bounds(col2, y, 100, 18).build());
-        y += 20;
-
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
-                    cfg.setAutoStartMode(nextMode(cfg.getAutoStartMode()));
-                    cfg.save();
-                    btn.setMessage(modeText(cfg));
-                }).bounds(col1, y, 220, 18).build());
-        y += 20;
-
-        SimonSaysConfig.SkipMode mode = cfg.getAutoStartMode();
         widgets.add(SettingsButtonWidget.builder(
-                    Component.literal("Clicks for this mode: " + cfg.getSkipClicks(mode)), btn -> {
-                        int next = cfg.getSkipClicks(mode) + 1;
-                        cfg.setSkipClicks(mode, next > 10 ? 1 : next);
+                    Component.literal("Clicks: " + cfg.getAutoStartClicks()), btn -> {
+                        int next = cfg.getAutoStartClicks() + 1;
+                        cfg.setAutoStartClicks(next > 10 ? 1 : next);
                         cfg.save();
-                        btn.setMessage(Component.literal("Clicks for this mode: " + cfg.getSkipClicks(mode)));
-                    }).bounds(col1, y, 220, 18).build());
-        y += 20;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Real click counts per skip mode are unconfirmed - correct these after"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7testing a real skip in a dungeon."),
-                Minecraft.getInstance().font));
-        y += 20;
-
-        widgets.add(SettingsButtonWidget.builder(
-                    Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"), btn -> {
-                        int next = cfg.getClickTimerTargetMs() + 500;
-                        cfg.setClickTimerTargetMs(next > 30_000 ? 1000 : next);
-                        cfg.save();
-                        btn.setMessage(Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"));
+                        btn.setMessage(Component.literal("Clicks: " + cfg.getAutoStartClicks()));
                     }).bounds(col1, y, 108, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(
-                    Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"), btn -> {
-                        int next = cfg.getClickTimerVarianceMs() + 50;
-                        cfg.setClickTimerVarianceMs(next > 2000 ? 0 : next);
+                    Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t"), btn -> {
+                        int next = cfg.getAutoStartClickDelayTicks() + 1;
+                        cfg.setAutoStartClickDelayTicks(next > 25 ? 1 : next);
                         cfg.save();
-                        btn.setMessage(Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"));
+                        btn.setMessage(Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t"));
                     }).bounds(col2, y, 108, 18).build());
-
-        widgets.add(SettingsButtonWidget.builder(
-                    Component.literal("Click Delay: " + cfg.getAutoStartClickDelayMs() + "ms"), btn -> {
-                        int next = cfg.getAutoStartClickDelayMs() + 50;
-                        cfg.setAutoStartClickDelayMs(next > 1000 ? 50 : next);
-                        cfg.save();
-                        btn.setMessage(Component.literal("Click Delay: " + cfg.getAutoStartClickDelayMs() + "ms"));
-                    }).bounds(col3, y, 108, 18).build());
-        y += 20;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Paces clicks to land within Target ± Variance overall, instead of a"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7flat per-click delay."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }
@@ -338,11 +236,6 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
     private static SimonSaysConfig.Style nextStyle(SimonSaysConfig.Style style) {
         SimonSaysConfig.Style[] values = SimonSaysConfig.Style.values();
         return values[(style.ordinal() + 1) % values.length];
-    }
-
-    private static SimonSaysConfig.SkipMode nextMode(SimonSaysConfig.SkipMode mode) {
-        SimonSaysConfig.SkipMode[] values = SimonSaysConfig.SkipMode.values();
-        return values[(mode.ordinal() + 1) % values.length];
     }
 
     private static Component styleText(SimonSaysConfig cfg) {
@@ -353,14 +246,14 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         });
     }
 
-    private static Component modeText(SimonSaysConfig cfg) {
-        return Component.literal("Mode: " + cfg.getAutoStartMode().label);
+    private static Component rotateText(SimonSaysConfig cfg) {
+        return Component.literal(cfg.isAutoSolveRotate() ? "Mode: §bRotate" : "Mode: §bNo Rotate");
     }
 
-    private static Component resetKeyText(SimonSaysConfig cfg) {
-        String name = cfg.getResetKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getResetKeyCode()).getDisplayName().getString();
-        return Component.literal("Reset Key: §b" + name);
+    private static Component announceKeyText(SimonSaysConfig cfg) {
+        String name = cfg.getAnnounceKeyCode() < 0 ? "Not Set"
+                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getAnnounceKeyCode()).getDisplayName().getString();
+        return Component.literal("Announce Key: §b" + name);
     }
 
     private static Component onOff(String label, boolean value) {
@@ -369,14 +262,14 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public boolean isListeningForKey() {
-        return capturingResetKey;
+        return capturingAnnounceKey;
     }
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        capturingResetKey = false;
+        capturingAnnounceKey = false;
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        cfg.setResetKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        cfg.setAnnounceKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
         cfg.save();
     }
 }
