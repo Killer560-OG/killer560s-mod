@@ -32,6 +32,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Helpers**
 - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
+- Player Stats HUD — reads real Health/Mana/Defense from the real action bar and shows them as their own always-on-screen HUD line, without touching the real action bar itself
 - Experimentation Table Solver — solves Chronomatron, Ultrasequencer, and Superpairs in a highlight-only "Solver Only" mode (you click, it just shows you the answer). The **cheat** build additionally has a fully autonomous mode that clicks for you - see [Which jar do I download?](#installing) below.
 - Storage Overlay — see the contents of every Ender Chest page and Backpack live, right alongside your open inventory
 - Screenshot Copy — automatically copies a screenshot to your clipboard the moment you take it
