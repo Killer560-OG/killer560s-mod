@@ -276,6 +276,12 @@ public final class SimonSaysFeature {
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
     private static final double IDLE_LOOK_RANGE_SQ = 3.0 * 3.0;
+    // Real bug found and fixed (2026-09-14, "the clicks are no longer separated by the right amount of
+    // time... does the first one then waits a second before doing more") - see tickAutoStart's own doc
+    // comment for the full mechanism. Deliberately larger than IDLE_LOOK_RANGE_SQ (measured from a
+    // different, nearby real anchor point) so idle-look's own tighter gate opens no later than this one
+    // during a normal walk-up, giving it a real window to pre-aim the camera before this gate does.
+    private static final double REAL_INTERACT_RANGE_SQ = 8.0 * 8.0;
     // Wall-clock time of the last tick the reveal-delay accounting below ran - lets it compute exactly
     // how much real time passed since the last check. Renamed from autoSolveLastTickAtMs (2026-09-14) -
     // this tracking is unconditional now (see tickAutoSolveAndTriggerBot's own doc comment), not specific
@@ -815,6 +821,23 @@ public final class SimonSaysFeature {
         if (autoStartClicksSent >= cfg.getAutoStartClicks()) {
             LOGGER.info("[SimonSays] Auto-start finished ({} of {} clicks sent).", autoStartClicksSent, cfg.getAutoStartClicks());
             autoStartRunning = false;
+            return;
+        }
+        // Real bug found and fixed (2026-09-14, "the clicks are no longer separated by the right amount
+        // of time... does the first one then waits a second before doing more"): the schedule countdown
+        // used to start ticking down the moment the player entered the general 30-block ACTIVE_RANGE_SQ
+        // zone (a loose check meant for passive state tracking, not "close enough to actually interact")
+        // - meaning it could reach 0 and start the real Rotate Mode approach while the player was still
+        // many blocks away and not yet facing anywhere near the button, forcing a large one-time turn
+        // that ate up to a real second before the first click could actually fire. Every click after
+        // that landed on schedule because the camera was already sitting right at the button - only the
+        // FIRST one paid this cost. Real fix: don't even start the countdown until genuinely close enough
+        // to interact (same real ballpark as vanilla's own reach distance) - this also gives idle-look a
+        // real window to pre-aim the camera at the first button WHILE still walking up, so by the time
+        // this schedule does start, the camera's usually already close and the first click lands on time
+        // too.
+        if (cfg.isAutoSolveRotate()
+                && client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)) > REAL_INTERACT_RANGE_SQ) {
             return;
         }
         if (autoStartTicksUntilNextClick > 0) {
