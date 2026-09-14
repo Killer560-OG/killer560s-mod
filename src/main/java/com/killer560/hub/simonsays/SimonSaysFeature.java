@@ -1159,7 +1159,18 @@ public final class SimonSaysFeature {
         // was active, so killer560's own planned self-logging session (Full Block + Trigger Bot + Auto
         // Start, no Auto Solve) would have gotten zero reveal-delay data - now unconditional, so it works
         // regardless of which assist feature (if any) is doing the clicking.
-        if (lastBlockedTrackAtMs > 0 && (noStepsPending || blockedByReveal)) {
+        // Real bug found and fixed AGAIN (2026-09-14, killer560's own report: "something is off with the
+        // reveal delay too... Whole device solved in 10.90s (27.05s reveal delay)" - the reported reveal
+        // delay was bigger than the whole device time it's supposed to be a sub-component of): this
+        // accumulates starting the moment the player is simply in range with nothing pending (which
+        // includes the real Goldor-dialogue wait AND Auto Start's own burst, both BEFORE the device's
+        // first real click even lands), but deviceTookMs (used for the total in that same message) is
+        // only measured starting from deviceStartedAtMs - the first real click. Two different starting
+        // points measuring two different windows, so the "sub-component" was routinely bigger than the
+        // whole. Now only accumulates once the device attempt has actually started (deviceStartedAtMs
+        // set), so it measures blocked time within the SAME window deviceTookMs does, and can never
+        // exceed it again.
+        if (lastBlockedTrackAtMs > 0 && deviceStartedAtMs > 0 && (noStepsPending || blockedByReveal)) {
             autoSolveBlockedMsThisAttempt += now - lastBlockedTrackAtMs;
         }
         lastBlockedTrackAtMs = now;
