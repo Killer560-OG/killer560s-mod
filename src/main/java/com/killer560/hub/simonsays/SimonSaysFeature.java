@@ -820,6 +820,15 @@ public final class SimonSaysFeature {
                     client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
                             "§6[Simon Says] §fWhole device solved in §e%.2fs", deviceTookMs / 1000.0)));
                 }
+                // Real bug found and fixed (2026-09-14, real boot-test log evidence: idleSuppressedAfter-
+                // Completion flipped true right after round 1's own "Round completed in 900 ms." - at that
+                // exact moment clickInOrder.size() was only 1, not >=5 - and then never reverted for the
+                // rest of the whole 5-round attempt, so idle-look never engaged again after round 1. This
+                // flag must only suppress idle after the WHOLE device (round 5) finishes, matching the
+                // original intent below ("after it finishes dont have it go back to the start button" -
+                // "it finishes" meant the whole device, not each individual round) - moved inside this
+                // round-5-only block instead of running unconditionally on every round completion.
+                idleSuppressedAfterCompletion = true;
             }
             resetSolveState();
             firstPhase = false;
@@ -831,11 +840,11 @@ public final class SimonSaysFeature {
             // (clickInOrder.isEmpty() ? START_BUTTON : clickInOrder.get(0)) would suddenly switch
             // mid-ease from the start button to the new first lantern, splicing two separate straight
             // eases into one visibly bent path. Killer560's own explicit fix: don't look back at the
-            // start button after a real completion at all - idle-look is suppressed right here, and only
-            // un-suppressed again at a real phase START (fresh device encounter, real start-button
-            // press), never automatically just because a fresh reveal happens to begin.
+            // start button after a real completion at all - idle-look is suppressed right here (only on
+            // whole-device completion, see above), and only un-suppressed again at a real phase START
+            // (fresh device encounter, real start-button press), never automatically just because a fresh
+            // reveal happens to begin.
             rotateInProgressTarget = null;
-            idleSuppressedAfterCompletion = true;
         }
     }
 
