@@ -89,6 +89,7 @@ public final class SimonSaysFeature {
     // step was recorded; once 10 ticks pass with the grid back to mostly real buttons (not still mid-
     // flash), firstPhase clears for the rest of this device's reveal, matching Odin's own real logic.
     private static int lastLanternChangeTick = -1;
+    private static BlockState lastStartButtonState = null;
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
     private static boolean wasActive = false;
     private static boolean wasGridReset = false;
@@ -212,6 +213,7 @@ public final class SimonSaysFeature {
             if (wasActive) {
                 LOGGER.info("[SimonSays] Left device range/floor - clearing solve state.");
                 resetSolveState();
+                lastStartButtonState = null;
             }
             wasActive = false;
             return;
@@ -222,8 +224,13 @@ public final class SimonSaysFeature {
             // detected nothing" (a real question that came up investigating a p3sim.net report).
             LOGGER.info("[SimonSays] Entered device range on F7/M7 at distance {} - now watching for grid changes.",
                     String.format(Locale.US, "%.1f", Math.sqrt(client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)))));
+            // A fresh encounter with the device - one of firstPhase's two real trigger points (see
+            // resetSolveState's doc comment), matching Odin's own LevelEvent.Load reset.
+            firstPhase = true;
         }
         wasActive = true;
+
+        tickStartButton(client);
 
         detectGridChanges(client, cfg);
         tickAutoStart(client, cfg);
@@ -249,7 +256,17 @@ public final class SimonSaysFeature {
     private static void resetSolveState() {
         clickInOrder.clear();
         clickNeeded = 0;
-        firstPhase = true;
+        // Deliberately does NOT touch firstPhase - matching Odin's own real resetSolution(), which
+        // never does either. Real bug found and fixed (2026-09-14): this used to force firstPhase=true
+        // right here, unconditionally - but this method is also called on the routine "grid reset
+        // detected" between EVERY round of a real multi-round device (the sequence genuinely grows and
+        // replays from the top each round, like classic Simon Says), not just once per device. That
+        // silently re-armed the reveal-order quirk (reverse at size 2, drop-the-middle at size 3) for
+        // round 2 onward, scrambling a sequence that should never have gotten that correction again -
+        // exactly killer560's report ("first one should always be the first one", seeing only the last
+        // two entries highlighted). firstPhase is now set true ONLY at its own two real trigger points:
+        // entering device range fresh, and a real start-button press (see below) - both matching Odin's
+        // own explicit reset sites, never the general per-round reset.
         lastLanternChangeTick = -1;
         lastGridStates.clear();
         autoStartRunning = false;
@@ -257,6 +274,26 @@ public final class SimonSaysFeature {
         lastAutoClickedPos = null;
         lastTriggerBotTarget = null;
         solveStartedAtMs = 0L;
+    }
+
+    /** Real start-button-press detection, ported from Odin's own {@code BlockUpdateEvent} check for
+     *  {@code pos == startButton}. This is firstPhase's OTHER real trigger point besides entering
+     *  device range fresh (see resetSolveState's doc comment) - a real press means the attempt is
+     *  restarting from scratch (e.g. after a failure), so the reveal-order quirk needs to apply again
+     *  for the new reveal that follows. */
+    private static void tickStartButton(Minecraft client) {
+        BlockState now = client.level.getBlockState(START_BUTTON);
+        BlockState old = lastStartButtonState;
+        lastStartButtonState = now;
+        if (old == null) {
+            return;
+        }
+        boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
+        boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
+        if (nowPowered && !oldPowered) {
+            resetSolveState();
+            firstPhase = true;
+        }
     }
 
     /** Ported from Odin's real {@code BlockUpdateEvent} handler, adapted to tick-polling: a lantern
