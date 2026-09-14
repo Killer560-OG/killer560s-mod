@@ -80,6 +80,7 @@ public final class SimonSaysFeature {
     private static boolean firstPhase = true;
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
     private static boolean wasActive = false;
+    private static boolean wasGridReset = false;
     private static long solveStartedAtMs = 0L;
 
     // --- reset keybind ---
@@ -271,12 +272,25 @@ public final class SimonSaysFeature {
                 onButtonPressed(pos, cfg, client);
             }
         }
-        if (airCount > 8) {
+        boolean gridReset = airCount > 8;
+        // THE real bug behind "Simon Says does nothing on p3sim.net" (2026-09-14) - not just noisy
+        // logging. This used to call resetSolveState() every single tick for as long as the grid
+        // looked reset (16 air blocks), not just on the transition into that state. resetSolveState()
+        // clears lastGridStates - so on almost every tick (since normally only a few of 16 slots are
+        // lit at once, the other 8+ read as air and trip this), the "old" state needed to compare
+        // against next tick got wiped before a real transition could ever be caught. A real p3sim.net
+        // log proved it: a real button/lantern change was independently confirmed (by the separate
+        // player-centered diagnostic below) at the exact same coordinates on the exact same tick this
+        // logged "16 air blocks" and cleared the map - so the transition was always one tick too late to
+        // compare against. Edge-triggered now, same pattern as the enter/leave device-range logging
+        // above - lastGridStates only gets wiped once, on the real transition into a reset state.
+        if (gridReset && !wasGridReset) {
             if (cfg.isDiagnosticLoggingEnabled()) {
                 LOGGER.info("[SimonSays] Grid reset detected ({} air blocks).", airCount);
             }
             resetSolveState();
         }
+        wasGridReset = gridReset;
     }
 
     private static void onButtonPressed(BlockPos buttonPos, SimonSaysConfig cfg, Minecraft client) {
