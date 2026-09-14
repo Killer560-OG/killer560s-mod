@@ -56,7 +56,8 @@ public class NewTab extends FolderTab {
                 new ChatCommandsTab(),
                 new DoorKeysTab(),
                 new TrajectoriesTab(),
-                new LoadoutKeybindsTab()
+                new LoadoutKeybindsTab(),
+                new AbilityKeybindsTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
