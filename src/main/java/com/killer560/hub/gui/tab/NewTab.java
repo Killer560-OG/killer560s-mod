@@ -40,7 +40,8 @@ public class NewTab extends FolderTab {
                 new ProximityVoiceTab(),
                 new AutoCloseChestTab(),
                 new BloodCampTab(),
-                new BoulderSolverTab()
+                new BoulderSolverTab(),
+                new QuizSolverTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());

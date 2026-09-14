@@ -117,6 +117,7 @@ public class Killer560ModClient implements ClientModInitializer {
         AutoLeapFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.register();
         com.killer560.hub.puzzlesolvers.BoulderSolverFeature.register();
+        com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
         I4SensorsFeature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
