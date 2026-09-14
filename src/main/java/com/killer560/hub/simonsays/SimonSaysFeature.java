@@ -704,8 +704,20 @@ public final class SimonSaysFeature {
                         // for the ordinary NON-skip case (Odin's own confirmed reveal-order quirk) - a
                         // skip attempt needs the list left in real arrival order so the size==3 drop below
                         // can correctly remove the true first element.
-                        if (!autoStartClickedThisPhase) {
+                        if (autoStartClickedThisPhase) {
+                            // Real bug found and fixed (2026-09-14, killer560's own request: "whatever it
+                            // senses as the second button is the one it should go towards to hold until it
+                            // is able to click"): the just-added SECOND light is the one that survives a
+                            // correct "drop the first" once a real 3rd light confirms it - track it now,
+                            // tentatively, rather than the first light (which might get dropped) or waiting
+                            // in silence until the drop actually happens.
+                            updateRememberedFirstButton(clickInOrder.get(clickInOrder.size() - 1));
+                        } else {
                             java.util.Collections.reverse(clickInOrder);
+                            // Post-reverse, index 0 IS the real first button for this ordinary round - same
+                            // "track the second light shown" idea, since reversing [X, Y] makes Y (the
+                            // second real light) the new first.
+                            updateRememberedFirstButton(clickInOrder.get(0));
                         }
                     } else if (clickInOrder.size() == 3) {
                         // Real bug found and fixed (2026-09-14, "now it's bugged every time instead of
@@ -720,6 +732,13 @@ public final class SimonSaysFeature {
                         } else {
                             clickInOrder.remove(clickInOrder.size() - 2);
                         }
+                        // Real bug found and fixed (2026-09-14, killer560's own request: "if it ends up not
+                        // being the first then flick to the first like normal but 99% of the time that will
+                        // be the right button"): the tentative 2nd-light guess above is usually already
+                        // correct, but this is the definitive, always-correct answer once the real 3rd
+                        // light has resolved which one actually survives - updates again in case they
+                        // differ (a real, expected, occasional correction, not a bug).
+                        updateRememberedFirstButton(clickInOrder.get(0));
                     }
                 }
                 if (cfg.isDiagnosticLoggingEnabled()) {
@@ -766,6 +785,17 @@ public final class SimonSaysFeature {
         }
         if (firstPhase && lastLanternChangeTick > 10 && stoneButtonCount > 8) {
             firstPhase = false;
+            // Real bug found and fixed (2026-09-14, killer560's own request: "whatever it senses as the
+            // second button is the one it should go towards to hold until it is able to click"): the
+            // size==2/size==3 branches above only ever update rememberedFirstButton once a REAL second
+            // light arrives - but a real round 1 with only a single total step (the single most common
+            // non-skip case) never reaches size 2 at all, so it would otherwise never get tracked. Once
+            // the reveal has genuinely settled with nothing more coming, if nothing's been tracked yet
+            // this is exactly that case - the lone light already recorded IS the real (and only) first
+            // button, safe to show now.
+            if (rememberedFirstButton == null && !clickInOrder.isEmpty()) {
+                updateRememberedFirstButton(clickInOrder.get(0));
+            }
             if (cfg.isDiagnosticLoggingEnabled()) {
                 LOGGER.info("[SimonSays] Reveal flash settled - firstPhase quirk correction now off for this device.");
             }
@@ -809,31 +839,34 @@ public final class SimonSaysFeature {
             // between-round transition within an attempt already in progress (where it's already >0).
             if (totalClicksThisAttempt == 0) {
                 firstPhase = true;
-                // Real bug found and fixed (2026-09-14, killer560's own report: "i reset it and did it
-                // again with skip and this time it didnt go back to 1 after each time"): idleSuppressed-
-                // AfterCompletion has the exact same missing-trigger-point gap firstPhase just had - it
-                // only ever cleared back to false at "entering range fresh" and "real start-button press",
-                // never on a genuine device-to-device transition via Auto Start's own skip (no button
-                // press, no leaving range). So the FIRST device of a visit correctly un-suppressed idle
-                // the whole time (it starts false), but the moment that device completed it latched true
-                // and, without a real button press or leaving range in between, stayed true through every
-                // later device in the same visit - exactly matching "it is going back to 1 the first time
-                // i did it" then "this time it didnt". Same fresh-attempt boundary as firstPhase above, so
-                // it un-suppresses here too.
-                idleSuppressedAfterCompletion = false;
-                // Real bug found and fixed (2026-09-14, killer560's own report: "after ss finishes dont
-                // have it move its crosshair from the last button for the 5/5"): rememberedFirstButton
-                // was NOT cleared at this same boundary, so the instant idleSuppressedAfterCompletion
-                // above lifted (right as the very next device's grid reset fires - which happens almost
-                // immediately after "Whole device completed", well before any new light reveals), idle
-                // would immediately start easing away from wherever round 5's last click left the camera,
-                // toward the PREVIOUS device's own remembered first button - a real, visible, unwanted
-                // jump right after finishing. Clearing it here too means idle's target correctly falls
-                // through to the grid-center fallback (see applyIdleSwayFrame) instead of a stale button.
+                // Real bug found and fixed (2026-09-14, killer560's own report: "dont make it go back to
+                // middle after doing 5/5. If it ever gets 5/5 it can stop all things"): idleSuppressed-
+                // AfterCompletion used to also clear right here, at this same grid-reset boundary - but
+                // that transition fires almost immediately after "Whole device completed" (well before any
+                // new light actually reveals), so un-suppressing this early meant idle immediately started
+                // moving again (toward the grid center, or a stale remembered button) with nothing real to
+                // look at yet. Un-suppressing now happens inside updateRememberedFirstButton instead - the
+                // single point where a real button actually becomes known for the new attempt - so nothing
+                // moves at all between a whole-device completion and the next attempt's own first real
+                // light, matching "stop all things" literally. rememberedFirstButton is still cleared here
+                // so nothing stale carries over into that eventual first real update.
                 rememberedFirstButton = null;
             }
         }
         wasGridReset = gridReset;
+    }
+
+    /** Updates idle's own remembered "first button" target and, the first time it actually gets a real
+     *  value for a new attempt, lifts {@link #idleSuppressedAfterCompletion} - see that field's own doc
+     *  comment and this round's fix for why suppression now lifts HERE specifically (the single point a
+     *  real button becomes known) rather than at the earlier, still-nothing-to-look-at grid-reset point. */
+    private static void updateRememberedFirstButton(BlockPos lanternPos) {
+        BlockPos button = lanternPos.west();
+        if (!button.equals(rememberedFirstButton)) {
+            LOGGER.info("[SimonSays][RotateFrame] rememberedFirstButton updated: {} -> {}", rememberedFirstButton, button);
+            rememberedFirstButton = button;
+        }
+        idleSuppressedAfterCompletion = false;
     }
 
     /** True while within 10 ticks of the last real lantern reveal for the CURRENT round - i.e. the round's
@@ -1347,29 +1380,16 @@ public final class SimonSaysFeature {
         dtTicks = Mth.clamp(dtTicks, 0.0, 3.0); // guard against a lag spike/alt-tab producing one huge jump
 
         // Real bug found and fixed (2026-09-14, "it still doesnt move back to the first button... it
-        // needs to remember it"): this update used to live inside applyIdleSwayFrame, which only ever
-        // runs once idle is ALREADY allowed to engage - meaning if idle happened to be blocked (Auto
-        // Start/Auto Solve actively using the camera) at the exact moment a new round's first light
-        // revealed, rememberedFirstButton would miss that update entirely and stay stale. Now runs
-        // unconditionally every frame, regardless of whether idle is currently allowed to act on it.
-        // Real bug found and fixed (2026-09-14, killer560's own request: "it doesnt auto look towards
-        // the very first button press but instead will track to the second... it should ignore the one
-        // that doesnt count then go to looking at the first after each phase"): on a landed skip, the
-        // very first light shown is exactly the one detectGridChanges is about to discard once the 3rd
-        // light confirms it (see that method's own "drop the first" doc comment) - but this update used
-        // to jump straight to it the instant it appeared, so idle would visibly snap to a button it was
-        // about to un-track a moment later. autoStartClickedThisPhase is already known true by then (set
-        // the instant Auto Start's own burst fires, well before any light appears), so a lone first light
-        // during that same firstPhase window is recognizably "the one that might not count" - skip
-        // tracking it until a real second light confirms which button actually survives.
-        boolean waitingOnPossiblyDiscardedFirstLight = firstPhase && autoStartClickedThisPhase && clickInOrder.size() < 2;
-        if (!clickInOrder.isEmpty() && !waitingOnPossiblyDiscardedFirstLight) {
-            BlockPos currentFirst = clickInOrder.get(0).west();
-            if (!currentFirst.equals(rememberedFirstButton)) {
-                LOGGER.info("[SimonSays][RotateFrame] rememberedFirstButton updated: {} -> {}", rememberedFirstButton, currentFirst);
-                rememberedFirstButton = currentFirst;
-            }
-        }
+        // needs to remember it" / later refined per "whatever it senses as the second button..."):
+        // rememberedFirstButton's own update used to live HERE, running every frame regardless of
+        // firstPhase - but that meant it always just mirrored clickInOrder.get(0) live, unable to tell
+        // "the first light, which might still get dropped/reordered" apart from "the real resolved first
+        // button". That update now lives entirely in detectGridChanges instead, at the exact moments
+        // (the size==2 and size==3 firstPhase branches, plus the reveal-settle timeout for a genuine
+        // single-step round) where the real answer is actually known - see updateRememberedFirstButton's
+        // own doc comment. Rounds 2-5 never need a fresh update at all: the growing-sequence mechanic
+        // replays the SAME physical first button every round, so whatever round 1 already resolved stays
+        // correct for the rest of the device untouched.
 
         // Real bug found and fixed (2026-09-14, killer560's own report: "it just did that large weird
         // flick again... it is always right after a button press and it moves a ton then right back"):
