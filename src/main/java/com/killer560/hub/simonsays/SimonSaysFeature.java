@@ -144,6 +144,16 @@ public final class SimonSaysFeature {
     // Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
     private static final int TOTAL_REAL_CLICKS_PER_DEVICE = 1 + 2 + 3 + 4 + 5; // 15 - confirmed real:
     // exactly 5 rounds, round N has N steps (see this class's own doc comment).
+    // Measured directly from two real full-device runs (2026-09-14): the real reveal/transition overhead
+    // across all 4 round boundaries of a full 5-round solve consistently landed at ~8.0-8.1s. Real bug
+    // found and fixed the same day: without subtracting this UP FRONT at arm time, the fixed deadline
+    // only "discovers" this overhead as it happens, so early rounds get paced at the full naive rate
+    // (target/15) while later rounds - by which point most of the budget is already gone to reveal
+    // waiting - have to compress harder and harder to catch up, which killer560 correctly described as
+    // "increasing exponentially in speed." Subtracting this estimate up front means the ACTIVE portion of
+    // the budget is sized correctly from click 1, so the pace stays roughly even across all 5 rounds
+    // instead of starting slow and rushing at the end.
+    private static final long ESTIMATED_REVEAL_OVERHEAD_MS = 8_000L;
     private static long lastAutoClickAtMs = 0L;
     private static BlockPos lastAutoClickedPos = null;
     private static long autoSolveDeadlineMs = 0L;
@@ -499,14 +509,19 @@ public final class SimonSaysFeature {
         // coordinates on the exact same tick this logged "16 air blocks" and cleared the map - so the
         // transition was always one tick too late to compare against. Edge-triggered now, same pattern
         // as the enter/leave device-range logging above - lastGridStates only gets wiped once, on the
-        // real transition into a reset state. Also fires "Auto Message" (2026-09-14) - this IS the real
-        // "removing all buttons and no new highlights" reset killer560 described.
+        // real transition into a reset state.
+        // Real bug found and fixed (2026-09-14): this used to also fire "Auto Message" here, on the
+        // theory that this WAS the real "removing all buttons and no new highlights" reset killer560
+        // described - but a real device clears its whole grid to blank between EVERY round, not just on
+        // a genuine failure, so Auto Message was announcing "Resetting Simon Says" after every normal
+        // round advance (killer560's own report: it fired right after the "4/5", "3/5" progress
+        // messages). The real per-button-press reset in tickStartButton is the correct, much rarer
+        // signal for a genuine reset/restart - this transition is expected and silent now.
         if (gridReset && !wasGridReset) {
             if (cfg.isDiagnosticLoggingEnabled()) {
                 LOGGER.info("[SimonSays] Grid reset detected ({} air blocks).", airCount);
             }
             resetSolveState();
-            maybeAutoAnnounceReset(client, cfg);
         }
         wasGridReset = gridReset;
     }
@@ -587,12 +602,41 @@ public final class SimonSaysFeature {
             autoStartTicksUntilNextClick--;
             return;
         }
-        sendNoRotateInteract(client, START_BUTTON);
+        // "Look Only" mode (2026-09-14, killer560's own request, partly to test his own theory about why
+        // Auto Start "isn't working") - only actually clicks using the REAL crosshair raycast, same real
+        // interaction Trigger Bot itself uses, instead of a synthetic BlockHitResult. Waits here (doesn't
+        // burn through the click schedule) until the player is genuinely looking at the button.
+        if (cfg.isAutoStartLookOnlyMode()) {
+            if (!(client.hitResult instanceof BlockHitResult lookHit) || !lookHit.getBlockPos().equals(START_BUTTON)) {
+                return;
+            }
+            // Still this mod's own automated click, not a genuine manual one, even though it uses the
+            // real hit result - flagged the same as sendNoRotateInteract so onRealBlockInteractAttempt's
+            // manual-click logger doesn't mistake it for one.
+            syntheticClickInProgress = true;
+            try {
+                client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, lookHit);
+            } finally {
+                syntheticClickInProgress = false;
+            }
+            client.player.swing(InteractionHand.MAIN_HAND);
+        } else {
+            sendNoRotateInteract(client, START_BUTTON);
+        }
         autoStartClicksSent++;
         autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
-        if (cfg.isDiagnosticLoggingEnabled()) {
-            LOGGER.info("[SimonSays] Auto-start click {}/{} sent.", autoStartClicksSent, cfg.getAutoStartClicks());
-        }
+        // Always-on (not gated behind Diagnostic Logging) while killer560's "isn't working" report is
+        // unresolved (2026-09-14) - includes the button's own POWERED state at send-time to directly
+        // answer his own question ("is it still clicking the start button while it is already pressed
+        // still?"): this code never skips a scheduled click based on that state, so if the log shows 3
+        // clicks land exactly on schedule regardless of powered state, the click-sending itself isn't
+        // the problem - something server-side is.
+        BlockState startButtonState = client.level.getBlockState(START_BUTTON);
+        boolean startButtonPowered = startButtonState.is(Blocks.STONE_BUTTON)
+                && startButtonState.getValue(BlockStateProperties.POWERED);
+        LOGGER.info("[SimonSays] Auto-start click {}/{} sent ({} mode, button currently powered={}).",
+                autoStartClicksSent, cfg.getAutoStartClicks(),
+                cfg.isAutoStartLookOnlyMode() ? "look-only" : "aura", startButtonPowered);
     }
 
     /** Real trigger ported from NoammAddons' own SimonSays.kt: the moment Goldor's real "Who dares
@@ -677,7 +721,13 @@ public final class SimonSaysFeature {
                 // automatically".
                 int variance = cfg.getClickTimerVarianceMs();
                 long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
-                autoSolveDeadlineMs = now + cfg.getClickTimerTargetMs() + jitter;
+                // Subtract the KNOWN reveal overhead up front (see ESTIMATED_REVEAL_OVERHEAD_MS's own doc
+                // comment for the real "exponentially increasing speed" bug this fixes) so the very first
+                // pacing calculation already sizes the ACTIVE portion correctly, instead of assuming the
+                // full target is available for clicking and having to violently compress later once
+                // reveal time actually shows up.
+                long activeBudgetMs = Math.max(1000L, cfg.getClickTimerTargetMs() - ESTIMATED_REVEAL_OVERHEAD_MS);
+                autoSolveDeadlineMs = now + activeBudgetMs + jitter;
                 autoSolveNextClickAtMs = now;
                 autoSolveArmed = true;
             }

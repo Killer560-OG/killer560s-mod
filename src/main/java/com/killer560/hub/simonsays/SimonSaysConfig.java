@@ -85,6 +85,13 @@ public final class SimonSaysConfig {
     // ranges were narrower (1-10 clicks, 1-25 ticks) but this mod's slider UI needed one shared 0-20 range.
     private int autoStartClicks = 3;
     private int autoStartClickDelayTicks = 3;
+    // "Aura" (default, unchanged) = the existing no-rotate synthetic click, works regardless of where the
+    // player is looking. "Look Only" (2026-09-14, killer560's own request, partly to test his own theory
+    // about why Auto Start "isn't working") = only actually clicks using the REAL crosshair raycast
+    // result, i.e. only when genuinely looking at the start button - same real interaction Trigger Bot
+    // itself uses, as opposed to a synthetic BlockHitResult. Waits (doesn't burn through the click
+    // schedule) until the player is actually looking at it.
+    private boolean autoStartLookOnlyMode = false;
 
     // Reset / announce
     // Renamed from "reset key" (2026-09-14) - killer560's own correction: this key no longer resets any
@@ -148,6 +155,7 @@ public final class SimonSaysConfig {
             // method) so an old saved "0" from before the 0-tick option was removed (2026-09-14) gets
             // corrected to the new 1-20 range on load, instead of silently staying at 0 forever.
             cfg.setAutoStartClickDelayTicks(getInt(obj, "autoStartClickDelayTicks", 3));
+            cfg.autoStartLookOnlyMode = getBool(obj, "autoStartLookOnlyMode", false);
             cfg.announceKeyCode = getInt(obj, "resetKeyCode", -1);
             cfg.autoSendResetMessage = getBool(obj, "autoSendResetMessage", false);
             cfg.resetMessageText = obj.has("resetMessageText") ? obj.get("resetMessageText").getAsString() : "Resetting Simon Says";
@@ -183,6 +191,7 @@ public final class SimonSaysConfig {
             obj.addProperty("autoStartEnabled", autoStartEnabled);
             obj.addProperty("autoStartClicks", autoStartClicks);
             obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
+            obj.addProperty("autoStartLookOnlyMode", autoStartLookOnlyMode);
             obj.addProperty("resetKeyCode", announceKeyCode);
             obj.addProperty("autoSendResetMessage", autoSendResetMessage);
             obj.addProperty("resetMessageText", resetMessageText);
@@ -386,6 +395,14 @@ public final class SimonSaysConfig {
         // Min 1, not 0 (2026-09-14, killer560's own call) - 0 ticks between clicks means every click
         // fires on the same tick, which isn't a real "delay" option at all.
         this.autoStartClickDelayTicks = Math.max(1, Math.min(20, autoStartClickDelayTicks));
+    }
+
+    public boolean isAutoStartLookOnlyMode() {
+        return autoStartLookOnlyMode;
+    }
+
+    public void setAutoStartLookOnlyMode(boolean autoStartLookOnlyMode) {
+        this.autoStartLookOnlyMode = autoStartLookOnlyMode;
     }
 
     public int getAnnounceKeyCode() {

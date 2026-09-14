@@ -309,6 +309,16 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             }
         });
+        y += 22;
+
+        // "Aura" (no-rotate, works anywhere) vs "Look Only" (only clicks using the real crosshair
+        // raycast, same as Trigger Bot) - killer560's own request (2026-09-14), partly to test his own
+        // theory about why Auto Start "isn't working" against a real skip.
+        widgets.add(SettingsButtonWidget.builder(clickModeText(cfg), btn -> {
+                    cfg.setAutoStartLookOnlyMode(!cfg.isAutoStartLookOnlyMode());
+                    cfg.save();
+                    btn.setMessage(clickModeText(cfg));
+                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
     }
@@ -332,6 +342,10 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private static Component pacingModeText(SimonSaysConfig cfg) {
         return Component.literal(cfg.isAutoSolveFixedDelayMode() ? "Pacing: §bFixed Delay" : "Pacing: §bTarget");
+    }
+
+    private static Component clickModeText(SimonSaysConfig cfg) {
+        return Component.literal(cfg.isAutoStartLookOnlyMode() ? "Click Mode: §bLook Only" : "Click Mode: §bAura");
     }
 
     private static Component announceKeyText(SimonSaysConfig cfg) {
