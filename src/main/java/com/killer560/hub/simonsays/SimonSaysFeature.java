@@ -1594,10 +1594,15 @@ public final class SimonSaysFeature {
         // middle of the button"): replaced the old continuous sine-wave sway (see idleTwitchYaw's own
         // field doc comment for why that read as sustained drift) with brief random twitches on a random
         // timer, each decaying back toward dead center fast rather than lingering.
+        // Real bug found and fixed (2026-09-14, killer560's own report: "the start was very top left. The
+        // drift brought the cursor off of the face of it to the top left by a bit... it just doesn't look
+        // very human"): 0.12/0.08 degrees was still enough to carry the crosshair off a real button's own
+        // (real vanilla stone_button - a thin, off-center box, not a full block) clickable face at some
+        // real distances/viewing angles. Cut down again to a genuinely tiny tremor.
         long nowMs = System.currentTimeMillis();
         if (nowMs >= idleNextTwitchAtMs) {
-            idleTwitchYaw = (float) ((Math.random() * 2 - 1) * 0.12);
-            idleTwitchPitch = (float) ((Math.random() * 2 - 1) * 0.08);
+            idleTwitchYaw = (float) ((Math.random() * 2 - 1) * 0.06);
+            idleTwitchPitch = (float) ((Math.random() * 2 - 1) * 0.04);
             idleNextTwitchAtMs = nowMs + 500L + (long) (Math.random() * 1500.0);
         }
         double twitchDecay = Math.pow(0.15, dtTicks);
