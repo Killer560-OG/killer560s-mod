@@ -10,8 +10,13 @@ import java.nio.charset.StandardCharsets;
  * {@code strings}/grep scan of the jar, nothing more. The key is split into two halves and XORed
  * against a repeating pad rather than kept as a single string constant, so the class file itself
  * contains no contiguous string that looks like a credential.
+ * <p>
+ * Widened to {@code public} (2026-09-14) so {@link com.killer560.hub.partyfinder.BetterPartyFinderFeature}
+ * can reuse this exact same key for its own real Hypixel API lookups instead of needing (or asking
+ * killer560 for) a second one - per his own correction that this mod "already has one," there was never
+ * a reason for a second embedded key.
  */
-final class HypixelApiKeyProvider {
+public final class HypixelApiKeyProvider {
 
     private static final byte[] PAD = {0x4B, 0x69, 0x6C, 0x6C, 0x65, 0x72, 0x35, 0x36, 0x30};
     private static final int[] CIPHER_PART_1 =
@@ -21,7 +26,7 @@ final class HypixelApiKeyProvider {
 
     private static String cachedKey;
 
-    static synchronized String getKey() {
+    public static synchronized String getKey() {
         if (cachedKey == null) {
             int[] cipher = new int[CIPHER_PART_1.length + CIPHER_PART_2.length];
             System.arraycopy(CIPHER_PART_1, 0, cipher, 0, CIPHER_PART_1.length);

@@ -58,7 +58,8 @@ public class NewTab extends FolderTab {
                 new TrajectoriesTab(),
                 new LoadoutKeybindsTab(),
                 new AbilityKeybindsTab(),
-                new P4PlatformHighlightTab()
+                new P4PlatformHighlightTab(),
+                new BetterPartyFinderTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
