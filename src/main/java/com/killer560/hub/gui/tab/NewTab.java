@@ -39,7 +39,8 @@ public class NewTab extends FolderTab {
                 new SecretWaypointsTab(),
                 new ProximityVoiceTab(),
                 new AutoCloseChestTab(),
-                new BloodCampTab()
+                new BloodCampTab(),
+                new BoulderSolverTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());

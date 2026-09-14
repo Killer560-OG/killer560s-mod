@@ -220,6 +220,25 @@ public final class LiveMapFeature {
         return roomEntryGrid[cell[0] + cell[1] * GRID];
     }
 
+    /** For real puzzle solvers (e.g. {@code BoulderSolverFeature}) that need to translate a puzzle's own
+     *  stored relative coordinates into real world positions for THIS run, the same way
+     *  {@link #identifiedRoomsWithRotation()} already does for Secret Waypoints - just narrowed to
+     *  whichever single room the player is currently standing in. @return
+     *  {@code [clayX, clayZ, rotationDegrees]}, or null if the current room's identity/rotation aren't
+     *  both known yet. */
+    public static int[] currentRoomClayAndRotation() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return null;
+        }
+        int[] cell = gridCellFor(client.player.position());
+        int idx = cell[0] + cell[1] * GRID;
+        if (roomEntryGrid[idx] == null || rotationGrid[idx] < 0) {
+            return null;
+        }
+        return new int[]{clayXGrid[idx], clayZGrid[idx], rotationGrid[idx]};
+    }
+
     public static final class LiveMapHudElement implements HudElement {
         @Override
         public String id() {

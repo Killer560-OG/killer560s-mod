@@ -54,6 +54,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Secret Waypoints — real, preloaded per-room secret positions (chests, items, wither skulls, bats, redstone keys) once a room is identified, downloaded from the same public room database NoammAddons itself uses. Includes real mimic-chest detection (an extra trapped chest beyond what a room should have)
 - Auto Close Chest — instantly closes a real secret reward chest ("Chest"/"Large Chest"/"Trapped Chest") the moment it opens in a dungeon, before it's ever shown on screen
 - Blood Camp — tracks the real F7 boss-fight Watcher and blood mobs by their real skull skins, predicting where each mob is about to resettle and showing a real countdown until it's vulnerable again. The **cheat** build additionally has a Trigger Bot (clicks once the countdown expires and you're looking at it, with auto ping-based or manual tick-offset timing) and an Aura that turns to face the predicted spot in advance
+- Boulder Solver — reads the real Boulder puzzle room's floor pattern and highlights the real solution tile(s) to click, ported from a known 8-pattern solution database. Never clicks for you
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
