@@ -11,7 +11,14 @@ import java.util.List;
  *  from here (it only ever lived in {@code DisplayTab} anyway - no tab to move back). Leap Menu, Fast
  *  Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, and Etherwarp (landed just before this
  *  session) were added 2026-09-14 per killer560's "add things like posmsg and whatnot... everything I
- *  haven't tested" request - untested is untested regardless of which session built it. */
+ *  haven't tested" request - untested is untested regardless of which session built it.
+ *  <p>
+ *  {@code LeapMenuTab} (2026-09-14, later same day) is now a consolidated tab combining what used to be
+ *  4 separate ones - the old "Leap Order" tab, {@code SpiritLeapOverlayTab} ("Custom Leap Menu"),
+ *  {@code FastLeapTab}, and {@code LeapMessageTab} (moved in from the Dungeon tab) - per killer560's own
+ *  "everything related to spirit leaps should be under one setting called leap menu" request. Stays here
+ *  in New for now per his own instruction; the plan is for the whole consolidated tab to move to Dungeon
+ *  once confirmed working, same as everything else in this list eventually does. */
 public class NewTab extends FolderTab {
 
     public NewTab() {
@@ -21,7 +28,6 @@ public class NewTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new LeapMenuTab(),
-                new FastLeapTab(),
                 new PosmsgTab(),
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),
@@ -50,7 +56,6 @@ public class NewTab extends FolderTab {
                 new LividSolverTab(),
                 new QuiverDisplayTab(),
                 new PlayerStatsTab(),
-                new SpiritLeapOverlayTab(),
                 new EtherwarpOverlayTab(),
                 new SlotBindsTab(),
                 new ChatCommandsTab(),

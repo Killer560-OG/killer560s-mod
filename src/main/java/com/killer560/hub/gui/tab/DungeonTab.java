@@ -3,12 +3,13 @@ package com.killer560.hub.gui.tab;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Folder tab grouping dungeon-related features: RNG Meter, Leap Message, the Terminal Solver
- *  (moved in from Helpers, 2026-09-09, per killer560's re-categorization request), and Termism
- *  (2026-09-09, killer560's terminal-practice request) on every build; Full Block/hitboxes and Auto
- *  Terminals (2026-09-10, cheat build only - per killer560's "cheat variant should have hitbox's auto
- *  etable and auto terms" request) are omitted from this list entirely on the legit build, which has
- *  neither feature at all, not just a disabled-looking version of them. */
+/** Folder tab grouping dungeon-related features: RNG Meter, the Terminal Solver (moved in from Helpers,
+ *  2026-09-09, per killer560's re-categorization request), and Termism (2026-09-09, killer560's
+ *  terminal-practice request) on every build; Full Block/hitboxes and Auto Terminals (2026-09-10, cheat
+ *  build only - per killer560's "cheat variant should have hitbox's auto etable and auto terms" request)
+ *  are omitted from this list entirely on the legit build, which has neither feature at all, not just a
+ *  disabled-looking version of them. Leap Message moved OUT of here (2026-09-14) into the New tab's
+ *  consolidated {@code LeapMenuTab} - see that class's own doc for why. */
 public class DungeonTab extends FolderTab {
 
     public DungeonTab() {
@@ -18,7 +19,6 @@ public class DungeonTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new RngMeterTab(),
-                new LeapMessageTab(),
                 new TerminalSolverTab(),
                 new TermismTab()
         ));
