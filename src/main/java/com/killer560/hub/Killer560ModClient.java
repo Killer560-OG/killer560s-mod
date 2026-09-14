@@ -184,7 +184,21 @@ public class Killer560ModClient implements ClientModInitializer {
                                             String message = StringArgumentType.getString(context, "message");
                                             ModOverlayMessage.show(com.killer560.hub.modchat.ModChatFeature.send(message), 3000);
                                             return 1;
-                                        })))));
+                                        })))
+                        // "/killer560 sim" (2026-09-14) - killer560's own request: p3sim.net's real
+                        // sidebar/chat format isn't something this session can observe directly, so
+                        // rather than guess at matching it, this is a manual override telling every
+                        // F7/M7-gated feature "treat me as if I'm in the real F7 boss fight right now."
+                        // See DungeonState#toggleSimOverride's doc comment for exactly when it
+                        // auto-clears (a real floor gets detected, or the world unloads).
+                        .then(ClientCommands.literal("sim")
+                                .executes(context -> {
+                                    boolean nowActive = com.killer560.hub.secrets.DungeonState.toggleSimOverride();
+                                    ModOverlayMessage.show(nowActive
+                                            ? "§b[Sim] Treating you as if you're in the real F7 boss fight."
+                                            : "§7[Sim] Override off - back to real automatic detection.", 3000);
+                                    return 1;
+                                }))));
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the

@@ -67,6 +67,16 @@ public final class DungeonState {
     // actually holds a non-null objective, and the raw text read from it - so the next real dungeon run
     // shows definitively whether SIDEBAR itself is populated, some other slot is, or none are.
     private static int diagnosticTickCounter = 0;
+    // "/killer560 sim" (2026-09-14) - killer560's own request, since p3sim.net's real sidebar/chat
+    // format is unknown and this session has no way to connect and observe it directly. Rather than
+    // guess at matching p3sim's real text (this class's own history above is full of real, hard-won
+    // lessons about guessing at Hypixel's exact text/formatting instead of confirming it), this is a
+    // manual escape hatch: killer560 tells the mod directly "I am in the F7 boss fight right now"
+    // instead of the mod trying to detect it automatically. Resets itself the moment a real dungeon
+    // floor IS detected normally (so it can't silently linger and misfire once real detection starts
+    // working, whether that's from leaving and rejoining Hypixel itself or from p3sim's format turning
+    // out to already partially work) or when the world unloads entirely (server switch/disconnect).
+    private static boolean simOverrideActive = false;
     // Per killer560's "relook through the other mods... otherwise put some sort of logging into my game"
     // request (2026-09-09, round 12) - re-checked NoammAddons' own LocationUtils (decompiled) for how it
     // tracks the same dungeon state; its approach is architecturally different (a one-shot "detect
@@ -91,12 +101,20 @@ public final class DungeonState {
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.level == null && simOverrideActive) {
+                LOGGER.info("[Secrets] World unloaded - clearing /killer560 sim override.");
+                simOverrideActive = false;
+            }
             diagnosticTickCounter++;
             if (diagnosticTickCounter >= 60) {
                 diagnosticTickCounter = 0;
                 logSidebarDiagnostic();
             }
             String floor = computeCurrentFloor();
+            if (simOverrideActive && floor != null) {
+                LOGGER.info("[Secrets] Real dungeon floor detected ('{}') while /killer560 sim override was on - clearing the override.", floor);
+                simOverrideActive = false;
+            }
             if (!Objects.equals(floor, cachedFloor)) {
                 // Includes a snippet of the raw sidebar text this round - if the DisplaySlot fallback fix
                 // (2026-09-09, round 13) still isn't enough, this is the next thing to check: is a real
@@ -131,22 +149,35 @@ public final class DungeonState {
     }
 
     public static boolean isInDungeon() {
-        return cachedFloor != null;
+        return simOverrideActive || cachedFloor != null;
     }
 
     /** @return the raw floor string (e.g. "F7", "M3"), or null outside a dungeon run - added for
      *  {@link com.killer560.hub.splittimers.SplitTimersFeature}, which needs to pick the right split
-     *  list per floor rather than just the boolean F7/M7 check the rest of this mod uses. */
+     *  list per floor rather than just the boolean F7/M7 check the rest of this mod uses. Forced to
+     *  "F7" while {@link #isSimOverrideActive()}. */
     public static String getFloor() {
-        return cachedFloor;
+        return simOverrideActive ? "F7" : cachedFloor;
     }
 
     public static boolean isF7OrM7() {
-        return "F7".equals(cachedFloor) || "M7".equals(cachedFloor);
+        return simOverrideActive || "F7".equals(cachedFloor) || "M7".equals(cachedFloor);
     }
 
     public static boolean isBossPhaseActive() {
-        return bossPhaseActive && isF7OrM7();
+        return simOverrideActive || (bossPhaseActive && isF7OrM7());
+    }
+
+    public static boolean isSimOverrideActive() {
+        return simOverrideActive;
+    }
+
+    /** For {@code /killer560 sim} - killer560's own manual override for testing on p3sim.net, whose
+     *  real sidebar/chat format this session has no way to observe directly. @return the new state. */
+    public static boolean toggleSimOverride() {
+        simOverrideActive = !simOverrideActive;
+        LOGGER.info("[Secrets] /killer560 sim override toggled {}", simOverrideActive ? "ON" : "OFF");
+        return simOverrideActive;
     }
 
     /** @return the floor string (e.g. "F7", "M7", "E") from the sidebar scoreboard, or null if not
