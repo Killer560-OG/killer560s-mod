@@ -60,6 +60,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Weirdos Solver — reads the real Three Weirdos NPC dialogue lines and highlights the real correct chest (and, optionally, ruled-out ones) the moment a line gives it away
 - Water Board Solver — identifies the real Water Board layout and shows a real live countdown above every remaining lever click, highlighting the soonest one. Never clicks anything for you
 - Creeper Beams Solver — highlights real currently-connected Sea Lantern pairs with matching colors, updating live as panes are rotated. Never touches anything
+- Blaze Solver — ranks real blazes in the Lower/Higher Blaze puzzle by HP and highlights the correct next few kill targets in order. Never attacks anything
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
