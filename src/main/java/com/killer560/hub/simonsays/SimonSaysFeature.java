@@ -821,6 +821,16 @@ public final class SimonSaysFeature {
                 // i did it" then "this time it didnt". Same fresh-attempt boundary as firstPhase above, so
                 // it un-suppresses here too.
                 idleSuppressedAfterCompletion = false;
+                // Real bug found and fixed (2026-09-14, killer560's own report: "after ss finishes dont
+                // have it move its crosshair from the last button for the 5/5"): rememberedFirstButton
+                // was NOT cleared at this same boundary, so the instant idleSuppressedAfterCompletion
+                // above lifted (right as the very next device's grid reset fires - which happens almost
+                // immediately after "Whole device completed", well before any new light reveals), idle
+                // would immediately start easing away from wherever round 5's last click left the camera,
+                // toward the PREVIOUS device's own remembered first button - a real, visible, unwanted
+                // jump right after finishing. Clearing it here too means idle's target correctly falls
+                // through to the grid-center fallback (see applyIdleSwayFrame) instead of a stale button.
+                rememberedFirstButton = null;
             }
         }
         wasGridReset = gridReset;
@@ -1505,24 +1515,16 @@ public final class SimonSaysFeature {
      *  own field doc comment for why this replaced a continuous sine-wave sway). Falls back to
      *  whichever real button was most recently remembered as "the current round's first one" (see
      *  rememberedFirstButton's own doc comment - persists across ordinary round transitions, only clears
-     *  on a genuine full reset). If nothing's been revealed yet this attempt: looks at the real start
-     *  button before Auto Start has fired (matches killer560's own "look at the start button as the phase
-     *  begins" request), or the grid's own geometric center once Auto Start's burst has already fired but
-     *  no light has revealed yet (2026-09-14, "after finishing the skip portion it should more or less
-     *  look toward the middle of the screen to see where all the buttons are coming out cause that is
-     *  what a normal human does" - staying locked on the now-irrelevant start button after finishing with
-     *  it isn't what a real person watching for the reveal would do). */
+     *  on a genuine full reset). If nothing's been revealed yet this attempt (including right after a
+     *  genuine reset - 2026-09-14, killer560's own request: "make sure that it will go back to looking at
+     *  the middle if the dev is reset"): looks at the grid's own geometric center instead - a real person
+     *  watching for a reveal looks at the grid, not fixates on the start button (2026-09-14, "after
+     *  finishing the skip portion it should more or less look toward the middle of the screen to see
+     *  where all the buttons are coming out cause that is what a normal human does"). */
     private static void applyIdleSwayFrame(Minecraft client, double dtTicks) {
         var player = client.player;
         Vec3 eyePos = player.getEyePosition();
-        Vec3 target;
-        if (rememberedFirstButton != null) {
-            target = realBlockCenter(client, rememberedFirstButton);
-        } else if (autoStartClickedThisPhase) {
-            target = GRID_CENTER_LOOK;
-        } else {
-            target = realBlockCenter(client, START_BUTTON);
-        }
+        Vec3 target = rememberedFirstButton != null ? realBlockCenter(client, rememberedFirstButton) : GRID_CENTER_LOOK;
         Vec3 diff = target.subtract(eyePos);
         double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
         float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
