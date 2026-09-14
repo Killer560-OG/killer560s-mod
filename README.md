@@ -10,6 +10,8 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 ## Features
 
+> **New tab:** every feature that's new or was just changed lives in the mod menu's **New** tab first, so it's easy to find what still needs testing. Once confirmed working it moves to its normal category tab below.
+
 **Chat**
 - Translate — auto-translates your chat messages into another language before sending
 - Auto Correct — fixes common typos before you send
@@ -20,6 +22,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Cringe — random one-liner messages for fun
 - Spotify Mod — posts the lyrics of whatever you're playing on Spotify into chat, synced to the song
 - Mod Chat — `/killer560 chat <message>` tags a message so other mod users get it as a highlighted overlay; sent over real Party/Guild chat, so it's not actually private from non-mod-users there (Hypixel doesn't offer a private client-only channel)
+- Voice To Text — hold a push-to-talk key, speak, release to send the transcription to chat. Fully offline (Vosk), downloads its small speech model automatically on first use so there's no manual setup. **Untested with a real microphone** - see the New tab
 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay

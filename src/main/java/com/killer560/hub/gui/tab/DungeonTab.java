@@ -27,15 +27,13 @@ public class DungeonTab extends FolderTab {
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),
                 new MobEspTab(),
-                new SimonSaysTab(),
                 new MappingTab(),
-                new EtherwarpTab(),
-                new TickTimersTab(),
-                new SplitTimersTab(),
-                new MaskInvincibilityTab(),
-                new I4SensorsTab(),
-                new LiveMapTab()
+                new EtherwarpTab()
         ));
+        // Simon Says, Tick Timers, Split Timers, Mask Invincibility, I4 Sensors, Live Map, and (cheat
+        // build) Auto Leap Out are all new/rewritten this session (2026-09-13) - per killer560's
+        // explicit request they live in the "New" tab only until he's confirmed each one actually works,
+        // then move back here.
         // Per killer560's explicit "cheat variant should have hitbox's auto etable and auto terms"
         // request (2026-09-10) - Full Block (hitbox expansion) moved from always-available to cheat-only
         // here, joining Auto Terminals; the legit build has neither tab at all, not just a
@@ -43,7 +41,6 @@ public class DungeonTab extends FolderTab {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new SecretsTab());
             tabs.add(new AutoTerminalTab());
-            tabs.add(new AutoLeapTab());
         }
         return tabs;
     }

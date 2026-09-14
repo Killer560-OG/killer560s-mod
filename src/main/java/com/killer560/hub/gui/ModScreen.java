@@ -10,6 +10,7 @@ import com.killer560.hub.gui.tab.HelpersTab;
 import com.killer560.hub.gui.tab.HomeTab;
 import com.killer560.hub.gui.tab.HudElementsTab;
 import com.killer560.hub.gui.tab.KeyCaptureTab;
+import com.killer560.hub.gui.tab.NewTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -79,6 +80,7 @@ public class ModScreen extends Screen {
         if (tabs == null) {
             tabs = new ArrayList<>();
             tabs.add(new HomeTab());
+            tabs.add(new NewTab());
             tabs.add(new GeneralTab());
             tabs.add(new DisplayTab());
             tabs.add(new ChatTab());

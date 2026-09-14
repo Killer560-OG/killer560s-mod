@@ -44,6 +44,7 @@ import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import com.killer560.hub.ticktimers.TickTimersFeature;
 import com.killer560.hub.termism.TermismMenuScreen;
 import com.killer560.hub.translate.TranslateConfig;
+import com.killer560.hub.voicetotext.VoiceToTextFeature;
 import com.killer560.hub.translate.TranslateLanguages;
 import com.killer560.hub.window.WindowModeFeature;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -112,6 +113,7 @@ public class Killer560ModClient implements ClientModInitializer {
         I4SensorsFeature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
+        VoiceToTextFeature.register();
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());

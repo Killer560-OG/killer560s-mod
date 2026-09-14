@@ -35,6 +35,18 @@ dependencies {
 	include(implementation("com.googlecode.soundlibs:mp3spi:1.9.5.4"))
 	include(implementation("com.googlecode.soundlibs:jlayer:1.0.1.4"))
 	include(implementation("com.googlecode.soundlibs:tritonus-share:0.3.7.4"))
+
+	// Offline speech-to-text for the Voice To Text feature - killer560's "hears what I say via a
+	// keybind... and sends it to chat" request, with the explicit requirement that it work with zero
+	// setup for him and his friends (no API key, no paid service). Vosk is a real, actively maintained
+	// offline speech recognizer with prebuilt native libraries for Windows/Mac/Linux bundled directly
+	// in its own jar (confirmed by inspecting the real jar from Maven Central before adding this -
+	// win32-x86-64/libvosk.dll etc.) - no separate native install step. It depends on JNA for the
+	// actual native calls. Both bundled Jar-in-Jar like the libraries above. The acoustic MODEL itself
+	// (tens of MB) is deliberately NOT bundled here - VoiceToTextFeature downloads a small one to the
+	// config folder on first real use instead, keeping this mod's own distributed jar size sane.
+	include(implementation("com.alphacephei:vosk:0.3.45"))
+	include(implementation("net.java.dev.jna:jna:5.14.0"))
 }
 
 processResources {
