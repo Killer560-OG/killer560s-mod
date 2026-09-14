@@ -37,6 +37,7 @@ import com.killer560.hub.posmsg.PosmsgHudElement;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.rngmeter.MagicFindTracker;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.SimDiagnosticFeature;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngMeterOverlay;
 import com.killer560.hub.simonsays.SimonSaysFeature;
@@ -95,6 +96,7 @@ public class Killer560ModClient implements ClientModInitializer {
         JumpscareFeature.register();
         StorageOverlayFeature.register();
         DungeonState.register();
+        SimDiagnosticFeature.register();
         PosmsgFeature.register();
         HudElementRegistry.register(new PosmsgHudElement());
         AbilityTimersFeature.register();
