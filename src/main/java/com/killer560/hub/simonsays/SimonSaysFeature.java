@@ -255,14 +255,24 @@ public final class SimonSaysFeature {
     // tick-based caller that owns that target, so click-bookkeeping/pacing still only ever runs once
     // per real click, from the same tick-based code as every other click mode.
     private static BlockPos rotateClickFiredFor = null;
-    // Whenever a real phase starts or finishes (killer560's own request), the camera should be looking
-    // at the first real grid button ("the 1/5 button... or the first one from 2/5" - not the literal
-    // start/reset button) - with a slight idle sway, not frozen - until a real approach (Auto Start
-    // toward the start button, or Auto Solve toward a grid button) actually takes over. Only while
-    // actually near the device (within 3 blocks of x=108,y=120,z=94 - killer560's own real coordinates,
-    // tighter than the general 30-block ACTIVE_RANGE_SQ detection radius) and only after the real
-    // Goldor phase-start line has been seen this phase.
-    private static boolean rotateIdleAtStart = false;
+    // Whenever there's no real click actively due (killer560's own request), the camera should be
+    // looking at the first real grid button ("the 1/5 button... or the first one from 2/5" - not the
+    // literal start/reset button) with a slight idle sway, not frozen. Only while actually near the
+    // device (within 3 blocks of x=108,y=120,z=94 - killer560's own real coordinates, tighter than the
+    // general 30-block ACTIVE_RANGE_SQ detection radius) and only after the real Goldor phase-start line
+    // has been seen this phase.
+    // Real bug found and fixed (2026-09-14, "it is back to not looking at the first button at all"):
+    // this used to be a one-shot "arm it, a real approach starting anywhere consumes it" flag
+    // (rotateIdleAtStart) - but Auto Start's own very first click fires with ZERO initial delay, so its
+    // approach toward the start button began in the exact same tick as the "just entered range" trigger
+    // that armed idle, before idle ever got even one visible frame. INVERTED to the opposite default
+    // (2026-09-14): idle now runs any time nothing is actively being approached (checked in
+    // tickRotateFrame's own dispatch, not tracked here) UNLESS explicitly suppressed - the only real
+    // reason to suppress it is right after a whole-device completion (killer560's own "after it finishes
+    // dont have it go back to the start button"), until the next genuine phase-start clears it again.
+    // This also means idle now naturally resumes in the GAPS between Auto Start's own scheduled clicks
+    // (while autoStartTicksUntilNextClick is still counting down), not just once at the very start.
+    private static boolean idleSuppressedAfterCompletion = false;
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
     private static final double IDLE_LOOK_RANGE_SQ = 3.0 * 3.0;
@@ -432,7 +442,7 @@ public final class SimonSaysFeature {
                 lastStartButtonState = null;
                 lastStartButtonPressAtMs = 0L;
                 goldorLineSeenThisPhase = false;
-                rotateIdleAtStart = false;
+                idleSuppressedAfterCompletion = false;
                 rotateInProgressTarget = null;
                 autoStartClickedThisPhase = false;
                 realStartButtonPressCountThisPhase = 0;
@@ -463,7 +473,7 @@ public final class SimonSaysFeature {
             rotateInProgressTarget = null;
             autoStartClickedThisPhase = false;
             realStartButtonPressCountThisPhase = 0;
-            rotateIdleAtStart = true;
+            idleSuppressedAfterCompletion = false;
         }
         wasActive = true;
 
@@ -590,7 +600,7 @@ public final class SimonSaysFeature {
             // to the skip-detection count, before the burst's remaining clicks even land. Letting it
             // carry over means a real manual retry's own rapid clicks keep counting toward "was a skip
             // genuinely attempted", uninterrupted by this same reset.
-            rotateIdleAtStart = true;
+            idleSuppressedAfterCompletion = false;
             maybeAutoAnnounceReset(client, cfg);
         }
     }
@@ -780,15 +790,17 @@ public final class SimonSaysFeature {
             firstPhase = false;
             // Real bug found and fixed (2026-09-14, "it goes down a bit or up a bit then over, make it
             // much more straight and direct... after it finishes dont have it go back to the start
-            // button"): triggering idle-look here used to retarget the camera toward the start button
+            // button"): re-arming idle-look here used to retarget the camera toward the start button
             // right as resetSolveState() cleared clickInOrder to empty - but if a fresh round-1 reveal
             // then began WHILE that idle ease was still mid-flight, applyIdleSwayFrame's own target
             // (clickInOrder.isEmpty() ? START_BUTTON : clickInOrder.get(0)) would suddenly switch
             // mid-ease from the start button to the new first lantern, splicing two separate straight
             // eases into one visibly bent path. Killer560's own explicit fix: don't look back at the
-            // start button after a real completion at all - idle-look now only ever engages at a real
-            // phase START (fresh device encounter, real start-button press), never here.
+            // start button after a real completion at all - idle-look is suppressed right here, and only
+            // un-suppressed again at a real phase START (fresh device encounter, real start-button
+            // press), never automatically just because a fresh reveal happens to begin.
             rotateInProgressTarget = null;
+            idleSuppressedAfterCompletion = true;
         }
     }
 
@@ -861,7 +873,15 @@ public final class SimonSaysFeature {
      *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
     private static void beginAutoStart(SimonSaysConfig cfg) {
         autoStartClicksSent = 0;
-        autoStartTicksUntilNextClick = 0;
+        // Real bug found and fixed (2026-09-14, "make sure the auto start isnt starting it itself and is
+        // instead doing the auto start clicks only... it is clicking once then the auto start fires"):
+        // this used to be 0, so the very first click fired the INSTANT the player came in range - with
+        // no delay at all, unlike every other click in the sequence. Since "in range" also happens to be
+        // the exact same tick firstPhase/idle-look reset, that zero-delay first click looked like a
+        // separate, disconnected event from the real evenly-paced sequence that followed it. Now uses
+        // the same real configured delay as every other click, so the whole sequence (including the
+        // first click) reads as one consistent, evenly-spaced Auto Start run.
+        autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
         autoStartRunning = true;
         LOGGER.info("[SimonSays] Auto-start triggered by real Goldor phase-start line: {} clicks, {} ticks apart.",
                 cfg.getAutoStartClicks(), cfg.getAutoStartClickDelayTicks());
@@ -1073,7 +1093,9 @@ public final class SimonSaysFeature {
         }
         rotateCurveOnThisApproach = Math.random() < 0.4;
         rotateCurveSign = Math.random() < 0.5 ? 1f : -1f;
-        rotateIdleAtStart = false;
+        // Deliberately does NOT touch idleSuppressedAfterCompletion - see that field's own doc comment
+        // for why this used to unconditionally disable idle here, and why that was the real cause of
+        // idle never getting a visible chance to run at all.
     }
 
     /** Real per-FRAME rotation step, registered on {@code LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES}
@@ -1097,7 +1119,7 @@ public final class SimonSaysFeature {
 
         if (rotateInProgressTarget != null) {
             applyRotateApproachFrame(client, rotateInProgressTarget, dtTicks);
-        } else if (rotateIdleAtStart && goldorLineSeenThisPhase && isNearIdleLookAnchor(client)) {
+        } else if (!idleSuppressedAfterCompletion && goldorLineSeenThisPhase && isNearIdleLookAnchor(client)) {
             applyIdleSwayFrame(client, dtTicks);
         }
     }
