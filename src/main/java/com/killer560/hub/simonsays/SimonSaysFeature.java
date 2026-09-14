@@ -216,6 +216,10 @@ public final class SimonSaysFeature {
     private static BlockPos autoSolveStallTarget = null;
     private static long autoSolveStallSinceMs = 0L;
     private static boolean autoSolveStallLogged = false;
+    // Diagnostic-only (2026-09-14) - state-transition logger for tickAutoSolveAndTriggerBot's own gating
+    // decisions (NO_STEPS_PENDING / BLOCKED_BY_REVEAL / BLOCKED_BY_AUTOSTART / DISPATCH), same
+    // only-log-on-change convention as [SimonSays][RotateFrame] - see logAutoSolveState.
+    private static String lastLoggedAutoSolveState = "";
     // --- Skip-vs-normal-flash distinguisher (2026-09-14, killer560's own real-attempt report) - true
     // once either Auto Start OR a real player has actually sent 2+ real clicks on the start button THIS
     // phase (see tickAutoStart and onRealBlockInteractAttempt), reset at firstPhase's own two real
@@ -1161,6 +1165,15 @@ public final class SimonSaysFeature {
     // Auto-solve (no-rotate) + trigger bot
     // ------------------------------------------------------------------
 
+    /** Diagnostic-only - logs {@code state} only when it actually changes, same convention as
+     *  {@code tickRotateFrame}'s own [RotateFrame] logger. See {@link #lastLoggedAutoSolveState}. */
+    private static void logAutoSolveState(String state) {
+        if (!state.equals(lastLoggedAutoSolveState)) {
+            LOGGER.info("[SimonSays][AutoSolve] {}", state);
+            lastLoggedAutoSolveState = state;
+        }
+    }
+
     private static void tickAutoSolveAndTriggerBot(Minecraft client, SimonSaysConfig cfg) {
         long now = System.currentTimeMillis();
         boolean noStepsPending = clickNeeded >= clickInOrder.size();
@@ -1201,6 +1214,7 @@ public final class SimonSaysFeature {
         wasBlockedByReveal = noStepsPending || blockedByReveal;
 
         if (noStepsPending) {
+            logAutoSolveState("NO_STEPS_PENDING clickNeeded=" + clickNeeded + " clickInOrder.size=" + clickInOrder.size());
             return;
         }
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
@@ -1229,6 +1243,8 @@ public final class SimonSaysFeature {
         // position clickInOrder.get(clickNeeded) that's about to be reinterpreted (reverse/drop-middle) -
         // same real risk Auto Solve's own gate already protects against, just never applied here too.
         if (blockedByReveal) {
+            logAutoSolveState("BLOCKED_BY_REVEAL target=" + nextButton + " firstPhase=" + firstPhase
+                    + " isStillRevealing=" + isStillRevealing());
             return;
         }
         // Real bug found and fixed (2026-09-14, "it undergoes this crazy rotation then basically snaps
@@ -1241,8 +1257,23 @@ public final class SimonSaysFeature {
         // Auto Solve/Trigger Bot now waits for Auto Start to fully finish before touching the camera at
         // all - the same principle idle's own existing !autoStartRunning gate already uses.
         if (autoStartRunning) {
+            logAutoSolveState("BLOCKED_BY_AUTOSTART target=" + nextButton);
             return;
         }
+        // Diagnostic-only (2026-09-14, killer560's own report: "it is still no where near the propper
+        // time" - confirmed via a real log capture that NEITHER an "Auto-solve click" NOR a "Trigger Bot
+        // click" line appeared even once for a whole device that still fully completed, despite killer560
+        // confirming Auto Solve was toggled on, Trigger Bot off, and no manual clicking - meaning
+        // something is preventing this method from ever reaching its own click-dispatch code at all, not
+        // just failing to fire once there). Logs the exact config state and gating values reaching this
+        // point, right before dispatch - the single most direct way to see WHY neither branch below ever
+        // fires, if that happens again.
+        logAutoSolveState(String.format(Locale.US,
+                "DISPATCH target=%s autoSolveEnabled=%b autoSolveRotate=%b autoSolveFixedDelay=%b "
+                        + "triggerBotEnabled=%b autoSolveArmed=%b now-autoSolveNextClickAtMs=%dms "
+                        + "now-lastAutoClickAtMs=%dms",
+                nextButton, cfg.isAutoSolveEnabled(), cfg.isAutoSolveRotate(), cfg.isAutoSolveFixedDelayMode(),
+                cfg.isTriggerBotEnabled(), autoSolveArmed, now - autoSolveNextClickAtMs, now - lastAutoClickAtMs));
 
         if (cfg.isAutoSolveEnabled()) {
             // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
