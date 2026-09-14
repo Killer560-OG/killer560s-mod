@@ -220,6 +220,20 @@ public final class RoomDatabase {
         return rotated.offset(clayX, 0, clayZ);
     }
 
+    /** Real absolute-to-relative secret coordinate transform - the exact inverse of {@link #toRealCoord},
+     *  needed by puzzle solvers (e.g. {@code WeirdosSolver}) that read a real LIVE entity's own world
+     *  position and need to reason about it in the room's own relative coordinate space (to then apply a
+     *  further relative-space offset before converting back). */
+    public static RoomEntry.Pos toRelativeCoord(BlockPos real, int clayX, int clayZ, int rotationDegrees) {
+        BlockPos offset = real.offset(-clayX, 0, -clayZ);
+        BlockPos unrotated = rotate(offset.getX(), offset.getY(), offset.getZ(), (360 - (rotationDegrees % 360)) % 360);
+        RoomEntry.Pos result = new RoomEntry.Pos();
+        result.x = unrotated.getX();
+        result.y = unrotated.getY();
+        result.z = unrotated.getZ();
+        return result;
+    }
+
     private static BlockPos rotate(int x, int y, int z, int degrees) {
         int normalized = ((degrees % 360) + 360) % 360;
         return switch (normalized) {

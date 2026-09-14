@@ -57,6 +57,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Boulder Solver — reads the real Boulder puzzle room's floor pattern and highlights the real solution tile(s) to click, ported from a known 8-pattern solution database. Never clicks for you
 - Quiz Solver — reads the real Oruo the Omniscient trivia question and lettered answer options in chat, looks up the correct answer in a bundled real question database, and highlights that option's floor tile. Never answers for you
 - Ice Fill Solver — identifies each of the real Ice Fill puzzle's 3 floor layouts and draws the real known-safe walking path across all of them. Never walks for you
+- Weirdos Solver — reads the real Three Weirdos NPC dialogue lines and highlights the real correct chest (and, optionally, ruled-out ones) the moment a line gives it away
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
