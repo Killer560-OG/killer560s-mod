@@ -78,6 +78,17 @@ public final class SimonSaysFeature {
     private static final List<BlockPos> clickInOrder = new ArrayList<>();
     private static int clickNeeded = 0;
     private static boolean firstPhase = true;
+    // Real bug found and fixed (2026-09-14): this mod's port of the firstPhase reveal-order quirk
+    // (size 2 -> reverse, size 3 -> drop the middle) only ever cleared firstPhase after a FULL
+    // successful click-through - Odin's own real code instead clears it on a real TIMEOUT once the
+    // reveal flash settles (see below), independent of whether you've clicked anything yet. Without
+    // that timeout, every subsequent lantern reveal past the 3rd kept re-triggering the same
+    // size-3-drops-the-middle correction forever (add a 4th -> size 3 again -> drop again -> stays at
+    // 2), which is exactly the real symptom killer560 reported: "only keeping 2 highlighted" and
+    // highlights "moving off early." lastLanternChangeTick counts ticks since the last real lantern
+    // step was recorded; once 10 ticks pass with the grid back to mostly real buttons (not still mid-
+    // flash), firstPhase clears for the rest of this device's reveal, matching Odin's own real logic.
+    private static int lastLanternChangeTick = -1;
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
     private static boolean wasActive = false;
     private static boolean wasGridReset = false;
@@ -120,6 +131,27 @@ public final class SimonSaysFeature {
     private static boolean isDeviceInRange(Minecraft client) {
         return DungeonState.isF7OrM7() && client.player != null
                 && client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)) <= ACTIVE_RANGE_SQ;
+    }
+
+    /** For {@code SimonSaysMisclickMixin} - "Prevent Misclicks", killer560's own request, same real
+     *  behavior as Odin's own "Block Wrong Clicks" toggle: only blocks a real click on one of the 16
+     *  main grid buttons that ISN'T the one you actually need next, and shift always overrides it (so a
+     *  manual "click it anyway" is never fully locked out). Never blocks the start button, and never
+     *  blocks anything once the device isn't actively being tracked - this is a safety net during a
+     *  real attempt, not a general block-interaction filter. */
+    public static boolean shouldBlockClick(BlockPos pos, boolean shiftDown) {
+        SimonSaysConfig cfg = SimonSaysConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isPreventMisclicksEnabled() || !wasActive || shiftDown) {
+            return false;
+        }
+        if (!GRID_BUTTONS.contains(pos)) {
+            return false;
+        }
+        if (clickNeeded >= clickInOrder.size()) {
+            return true;
+        }
+        BlockPos correctButton = clickInOrder.get(clickNeeded).west();
+        return !pos.equals(correctButton);
     }
 
     // ------------------------------------------------------------------
@@ -218,6 +250,7 @@ public final class SimonSaysFeature {
         clickInOrder.clear();
         clickNeeded = 0;
         firstPhase = true;
+        lastLanternChangeTick = -1;
         lastGridStates.clear();
         autoStartRunning = false;
         autoStartClicksSent = 0;
@@ -240,6 +273,7 @@ public final class SimonSaysFeature {
             }
             if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)) {
                 clickInOrder.add(pos.immutable());
+                lastLanternChangeTick = 0;
                 if (clickInOrder.size() == 1) {
                     solveStartedAtMs = System.currentTimeMillis();
                 }
@@ -257,11 +291,15 @@ public final class SimonSaysFeature {
         }
 
         int airCount = 0;
+        int stoneButtonCount = 0;
         for (BlockPos pos : GRID_BUTTONS) {
             BlockState now = client.level.getBlockState(pos);
             BlockState old = lastGridStates.put(pos, now);
             if (now.isAir()) {
                 airCount++;
+            }
+            if (now.is(Blocks.STONE_BUTTON)) {
+                stoneButtonCount++;
             }
             if (old == null) {
                 continue;
@@ -270,6 +308,19 @@ public final class SimonSaysFeature {
             boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
             if (nowPowered && !oldPowered) {
                 onButtonPressed(pos, cfg, client);
+            }
+        }
+        // Real timeout ported from Odin's own TickEvent.Server check (see this class's firstPhase field
+        // doc comment) - the reveal-order quirk only ever applies during the initial flash; 10 ticks
+        // after the last real lantern change, once the grid has settled back to mostly real buttons,
+        // firstPhase clears for the rest of THIS device so later reveals stop getting truncated.
+        if (firstPhase && lastLanternChangeTick >= 0) {
+            lastLanternChangeTick++;
+            if (lastLanternChangeTick > 10 && stoneButtonCount > 8) {
+                firstPhase = false;
+                if (cfg.isDiagnosticLoggingEnabled()) {
+                    LOGGER.info("[SimonSays] Reveal flash settled - firstPhase quirk correction now off for this device.");
+                }
             }
         }
         boolean gridReset = airCount > 8;

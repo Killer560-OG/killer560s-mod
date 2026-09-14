@@ -85,6 +85,26 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         y += 24;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Safety"), Minecraft.getInstance().font));
+        y += 14;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Prevent Misclicks", cfg.isPreventMisclicksEnabled()), btn -> {
+                    cfg.setPreventMisclicksEnabled(!cfg.isPreventMisclicksEnabled());
+                    cfg.save();
+                    btn.setMessage(onOff("Prevent Misclicks", cfg.isPreventMisclicksEnabled()));
+                }).bounds(col1, y, 160, 18).build());
+        y += 20;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Blocks a real click on the wrong button (not the bot's own clicks -"),
+                Minecraft.getInstance().font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7it never targets a wrong one). Hold Shift to click anyway."),
+                Minecraft.getInstance().font));
+        y += 22;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Chat"), Minecraft.getInstance().font));
         y += 14;
 

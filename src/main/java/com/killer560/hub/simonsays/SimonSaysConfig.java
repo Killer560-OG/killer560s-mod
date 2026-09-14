@@ -59,6 +59,10 @@ public final class SimonSaysConfig {
     private int firstColor = 0xFF55FF55;
     private int secondColor = 0xFFFFAA00;
     private int thirdColor = 0xFFFF5555;
+    // Not cheat-gated - blocks a real click, doesn't send one, same real-vs-automation distinction
+    // Odin's own "Block Wrong Clicks" toggle makes (it isn't cheat-gated there either). Shift always
+    // overrides it, matching Odin's own real behavior, so a manual override is never fully locked out.
+    private boolean preventMisclicksEnabled = false;
 
     // Chat progress
     private boolean announceProgress = false;
@@ -123,6 +127,7 @@ public final class SimonSaysConfig {
             cfg.firstColor = getInt(obj, "firstColor", 0xFF55FF55);
             cfg.secondColor = getInt(obj, "secondColor", 0xFFFFAA00);
             cfg.thirdColor = getInt(obj, "thirdColor", 0xFFFF5555);
+            cfg.preventMisclicksEnabled = getBool(obj, "preventMisclicksEnabled", false);
             cfg.announceProgress = getBool(obj, "announceProgress", false);
             cfg.partyProgressTrackerEnabled = getBool(obj, "partyProgressTrackerEnabled", true);
             cfg.triggerBotEnabled = getBool(obj, "triggerBotEnabled", false);
@@ -164,6 +169,7 @@ public final class SimonSaysConfig {
             obj.addProperty("firstColor", firstColor);
             obj.addProperty("secondColor", secondColor);
             obj.addProperty("thirdColor", thirdColor);
+            obj.addProperty("preventMisclicksEnabled", preventMisclicksEnabled);
             obj.addProperty("announceProgress", announceProgress);
             obj.addProperty("partyProgressTrackerEnabled", partyProgressTrackerEnabled);
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
@@ -263,6 +269,14 @@ public final class SimonSaysConfig {
 
     public void setThirdColor(int thirdColor) {
         this.thirdColor = thirdColor;
+    }
+
+    public boolean isPreventMisclicksEnabled() {
+        return preventMisclicksEnabled;
+    }
+
+    public void setPreventMisclicksEnabled(boolean preventMisclicksEnabled) {
+        this.preventMisclicksEnabled = preventMisclicksEnabled;
     }
 
     public boolean isAnnounceProgress() {
