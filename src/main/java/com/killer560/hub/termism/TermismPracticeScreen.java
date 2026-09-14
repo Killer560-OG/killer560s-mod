@@ -1,10 +1,10 @@
 package com.killer560.hub.termism;
 
+import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminals.TerminalSolverConfig;
 import com.killer560.hub.terminals.TerminalSolverFeature;
 import com.killer560.hub.terminals.TerminalType;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.component.DataComponents;
@@ -230,12 +230,12 @@ public class TermismPracticeScreen extends Screen {
     @Override
     protected void init() {
         generatePuzzle();
-        this.addRenderableWidget(Button.builder(Component.literal("New Puzzle"), btn -> {
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("New Puzzle"), btn -> {
                     type = TermismMenuScreen.PRACTICE_TYPES.get(random.nextInt(TermismMenuScreen.PRACTICE_TYPES.size()));
                     generatePuzzle();
                 })
                 .bounds(this.width / 2 - 105, this.height - 30, 100, 20).build());
-        this.addRenderableWidget(Button.builder(Component.literal("Done"), btn -> onClose())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(this.width / 2 + 5, this.height - 30, 100, 20).build());
     }
 

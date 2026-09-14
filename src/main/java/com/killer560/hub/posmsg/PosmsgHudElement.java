@@ -19,7 +19,7 @@ import java.util.Locale;
  *  verified hook for yet - see the Posmsg tab's own note on this). */
 public final class PosmsgHudElement implements HudElement {
 
-    private static final int RECEIVED_DEFAULT_COLOR = 0xFF14B8A6;
+    private static final int RECEIVED_DEFAULT_COLOR = 0xFFCC6600;
 
     @Override
     public String id() {

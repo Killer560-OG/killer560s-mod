@@ -4,7 +4,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminals.TerminalType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -60,7 +59,7 @@ public class TermismMenuScreen extends Screen {
                 .bounds(x, y, width, 20).build());
         y += 30;
 
-        this.addRenderableWidget(Button.builder(Component.literal("Done"), btn -> onClose())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(x, y, width, 20).build());
     }
 

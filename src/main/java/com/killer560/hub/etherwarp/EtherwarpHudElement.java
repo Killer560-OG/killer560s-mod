@@ -13,7 +13,7 @@ import java.util.Locale;
  *  see that class's own note on why this codebase has no verified hook for real 3D world rendering yet). */
 public final class EtherwarpHudElement implements HudElement {
 
-    private static final int COLOR = 0xFF60A5FA;
+    private static final int COLOR = 0xFFCC6600;
 
     @Override
     public String id() {

@@ -1,7 +1,7 @@
 package com.killer560.hub.hud;
 
+import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -26,7 +26,7 @@ public class HudEditorScreen extends Screen {
 
     private static final int BOX_BG = 0x55FFFFFF;
     private static final int BOX_BG_DRAGGING = 0x8055FF55;
-    private static final int BOX_OUTLINE = 0xFF55FFFF;
+    private static final int BOX_OUTLINE = 0xFFCC6600;
     private static final float SCALE_STEP = 0.1f;
     // No upper bound; only a small positive floor so scale can't hit zero/negative (which would
     // make the element invisible or flip it) - killer560 explicitly wants the old 0.5x-3x range gone.
@@ -47,7 +47,7 @@ public class HudEditorScreen extends Screen {
             liveScales.put(element.id(), HudElementRegistry.resolveScale(element));
         }
 
-        this.addRenderableWidget(Button.builder(Component.literal("Done"), btn -> onClose())
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(this.width / 2 - 40, this.height - 28, 80, 20).build());
     }
 
