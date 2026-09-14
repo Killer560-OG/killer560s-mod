@@ -140,11 +140,24 @@ public class TerminalSolverTab extends BaseTab {
                 Minecraft.getInstance().font));
         y += 22;
 
+        widgets.add(SettingsButtonWidget.builder(announceCompletionTimeText(), btn -> {
+                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                    cfg.setAnnounceCompletionTime(!cfg.isAnnounceCompletionTime());
+                    cfg.save();
+                    btn.setMessage(announceCompletionTimeText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Highlights the correct slot(s) to click - never clicks for you."),
                 Minecraft.getInstance().font));
 
         return widgets;
+    }
+
+    private static Component announceCompletionTimeText() {
+        return Component.literal("Announce Completion Time: "
+                + (TerminalSolverConfig.getInstance().isAnnounceCompletionTime() ? "§aON" : "§cOFF"));
     }
 
     private static Component enabledText() {

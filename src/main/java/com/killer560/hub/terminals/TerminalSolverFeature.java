@@ -7,6 +7,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
@@ -128,6 +129,12 @@ public final class TerminalSolverFeature {
     );
 
     private static TerminalType currentType;
+    // Real wall-clock time the currently-tracked terminal was first detected - killer560's own request:
+    // "show how long each individual terminal took... clientside message of 'numbers took 1.8s to
+    // complete'." Reset every time a genuinely different (or first) terminal opens; read and reported the
+    // moment tracking stops (the screen closes or stops matching a real terminal), which in normal real
+    // play means the terminal was actually finished, not just glanced at.
+    private static long terminalOpenedAtMs = 0L;
     private static Map<Integer, SlotHighlight> currentHighlights = Map.of();
     private static int currentTerminalSlotCount;
     private static boolean wasHoldingCarriedItem;
@@ -214,6 +221,27 @@ public final class TerminalSolverFeature {
     private TerminalSolverFeature() {
     }
 
+    /** Sends the real "X took Y.Ys to complete" client-side message killer560 asked for, if a terminal
+     *  was actually being tracked. Client-side only (sendSystemMessage, same technique this mod's other
+     *  features already use for a local-only notice) - a personal timing readout, not a party
+     *  announcement. Called right before {@link #currentType}/{@link #terminalOpenedAtMs} get overwritten
+     *  by whatever comes next (a different terminal opening, or none at all), so it always reports on the
+     *  terminal that just finished being tracked, never the new one replacing it. */
+    private static void reportTerminalCompletion() {
+        if (currentType == null || terminalOpenedAtMs <= 0) {
+            return;
+        }
+        double seconds = (System.currentTimeMillis() - terminalOpenedAtMs) / 1000.0;
+        // Reset unconditionally (even if the toggle below is off) so a stale opened-at timestamp from
+        // before the toggle was turned off never leaks into a bogus duration if it's turned back on later.
+        terminalOpenedAtMs = 0L;
+        Minecraft client = Minecraft.getInstance();
+        if (TerminalSolverConfig.getInstance().isAnnounceCompletionTime() && client.player != null) {
+            client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
+                    "§6[Terminal] §f%s took §e%.1fs §fto complete", currentType.displayName(), seconds)));
+        }
+    }
+
     /** Real bug found and fixed (2026-09-09), per killer560's report of a real, if brief, flash of the
      *  raw unmodified terminal on open before Custom GUI kicks in: state used to only refresh once per
      *  client TICK (~50ms), but rendering happens far more often than that (every frame, up to several
@@ -227,6 +255,7 @@ public final class TerminalSolverFeature {
     public static void refreshState() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
+            reportTerminalCompletion();
             currentType = null;
             currentHighlights = Map.of();
             wasHoldingCarriedItem = false;
@@ -237,6 +266,7 @@ public final class TerminalSolverFeature {
         String title = screen.getTitle().getString();
         TerminalType type = matchType(title, cfg);
         if (type == null) {
+            reportTerminalCompletion();
             currentType = null;
             currentHighlights = Map.of();
             wasHoldingCarriedItem = false;
@@ -245,6 +275,8 @@ public final class TerminalSolverFeature {
             return;
         }
         if (type != currentType) {
+            reportTerminalCompletion();
+            terminalOpenedAtMs = System.currentTimeMillis();
             lastGoodBounds = null;
             // A genuinely different terminal (or the very first one) just opened - whatever was
             // highlighted before belongs to a different board entirely, so it must not carry over even

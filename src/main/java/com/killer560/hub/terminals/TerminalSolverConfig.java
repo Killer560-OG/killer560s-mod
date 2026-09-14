@@ -76,6 +76,10 @@ public final class TerminalSolverConfig {
     // Block Input toggle protects against (that one defaults off; this one defaults ON per killer560's
     // explicit request here specifically).
     private boolean blockInputWhileAutoClicking = true;
+    // Killer560's own explicit request (2026-09-14): "it should send a clientside message of 'numbers
+    // took 1.8s to complete' ect." Defaults on, matching that request being a definite ask, not
+    // conditional.
+    private boolean announceCompletionTime = true;
     // Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks... 0-4
     // max" - when Melody's real-time detection finds a correct match at some row, this many TOTAL
     // consecutive rows (starting from that one) get clicked in one burst instead of just the one that
@@ -140,6 +144,8 @@ public final class TerminalSolverConfig {
                     ? clampAutoClickDelay(obj.get("autoClickMaxDelayMs").getAsInt()) : 200;
             cfg.blockInputWhileAutoClicking = !obj.has("blockInputWhileAutoClicking")
                     || obj.get("blockInputWhileAutoClicking").getAsBoolean();
+            cfg.announceCompletionTime = !obj.has("announceCompletionTime")
+                    || obj.get("announceCompletionTime").getAsBoolean();
             cfg.melodyLookaheadClicks = obj.has("melodyLookaheadClicks")
                     ? clampMelodyLookahead(obj.get("melodyLookaheadClicks").getAsInt()) : 0;
             cfg.melodySkipMode = parseMelodySkipMode(obj.has("melodySkipMode") ? obj.get("melodySkipMode").getAsString() : null);
@@ -173,6 +179,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
+            obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -379,6 +386,14 @@ public final class TerminalSolverConfig {
 
     public boolean isBlockInputWhileAutoClicking() {
         return blockInputWhileAutoClicking;
+    }
+
+    public boolean isAnnounceCompletionTime() {
+        return announceCompletionTime;
+    }
+
+    public void setAnnounceCompletionTime(boolean announceCompletionTime) {
+        this.announceCompletionTime = announceCompletionTime;
     }
 
     public void setBlockInputWhileAutoClicking(boolean blockInputWhileAutoClicking) {
