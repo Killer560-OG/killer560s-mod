@@ -801,7 +801,8 @@ public final class SimonSaysFeature {
             // same fact the "SS N/5" announce message above already relies on) - checking for round 5
             // specifically is skip-proof, since round 5 is always the last regardless of which round the
             // attempt started on.
-            if (clickInOrder.size() >= 5 && client.player != null) {
+            boolean wholeDeviceCompleted = clickInOrder.size() >= 5;
+            if (wholeDeviceCompleted && client.player != null) {
                 long deviceTookMs = deviceStartedAtMs > 0 ? System.currentTimeMillis() - deviceStartedAtMs : 0;
                 LOGGER.info("[SimonSays] Whole device completed in {} ms ({} ms of that was real reveal/transition delay).",
                         deviceTookMs, autoSolveBlockedMsThisAttempt);
@@ -832,6 +833,40 @@ public final class SimonSaysFeature {
             }
             resetSolveState();
             firstPhase = false;
+            if (wholeDeviceCompleted) {
+                // Real bug found and fixed (2026-09-14, killer560's own report: "the solver is messing
+                // up. It is keeping all 3 lighted buttons as options when it should discard the first.
+                // Make sure it resets the discard first one every time ss is reset"): a real boot-test log
+                // proved firstPhase (which gates the size==3 "drop the first" skip-detection correction in
+                // detectGridChanges) was only ever getting re-armed at its two documented trigger points
+                // (fresh device encounter, real start-button press mid-attempt) - NEITHER of which fires
+                // when one device attempt finishes and Hypixel moves straight into a brand new one while
+                // the player never left range and never manually pressed start. The log showed exactly
+                // that: firstPhase went false after device 1's round 1 and simply never came back, so
+                // devices 2 and 3 both kept all 3 lanterns from a landed skip's reveal instead of dropping
+                // the first. Whole-device completion is functionally identical to those other two trigger
+                // points - a guaranteed brand new attempt is about to begin - so it now resets the same
+                // per-attempt bookkeeping fresh device encounter does (see tick()'s own "entered device
+                // range" branch), not just firstPhase alone, so nothing about the next attempt starts
+                // stale. Runs AFTER the unconditional firstPhase=false right above (which would otherwise
+                // immediately undo this same-event firstPhase=true). Deliberately excludes
+                // idleSuppressedAfterCompletion and rememberedFirstButton - those two are idle-look's own
+                // state, not solve state, and must survive until the next attempt's actual reveal begins
+                // (see their own doc comments).
+                firstPhase = true;
+                autoSolveArmed = false;
+                autoSolveClicksDoneThisAttempt = 0;
+                lastBlockedTrackAtMs = 0L;
+                autoSolveBlockedMsThisAttempt = 0L;
+                wasBlockedByReveal = false;
+                lastRoundCompletedAtMs = 0L;
+                currentRoundNumber = 1;
+                expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+                deviceStartedAtMs = 0L;
+                totalClicksThisAttempt = 0;
+                autoStartClickedThisPhase = false;
+                realStartButtonPressCountThisPhase = 0;
+            }
             // Real bug found and fixed (2026-09-14, "it goes down a bit or up a bit then over, make it
             // much more straight and direct... after it finishes dont have it go back to the start
             // button"): re-arming idle-look here used to retarget the camera toward the start button
@@ -1329,15 +1364,31 @@ public final class SimonSaysFeature {
         float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
         float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
 
+        float currentYaw = player.getYRot();
+        float currentPitch = player.getXRot();
+
+        // Real bug found and fixed (2026-09-14, "it is going back to 1 but it is slow now. Make it more
+        // snappy like the rest of the movement, but a human that sits on the button for awhile will have
+        // small mouse movements so imitate that as well as possible"): the initial snap-back to the first
+        // button and the small resting sway once already looking at it used to share ONE slow smoothing
+        // constant (0.08), tuned only for the sway's own tiny amplitude - so the snap-back inherited that
+        // same sluggish pace. Measures distance to the RAW target (no sway added) to tell the two apart:
+        // while still far away (just switched here from an approach/BLOCKED state, or the remembered
+        // button just changed), eases in fast like a real approach; once genuinely close, drops back to
+        // the slow sway-chasing smoothing so the small idle wobble still reads as a human resting on the
+        // button, not a snappy flick.
+        float rawYawDeltaNoSway = Mth.wrapDegrees(rawTargetYaw - currentYaw);
+        float rawPitchDeltaNoSway = Mth.wrapDegrees(rawTargetPitch - currentPitch);
+        boolean stillCatchingUp = Math.abs(rawYawDeltaNoSway) > 3.0f || Math.abs(rawPitchDeltaNoSway) > 3.0f;
+
         double t = System.currentTimeMillis() / 1000.0;
         float swayYaw = (float) (Math.sin(t * 0.7) * 0.5);
         float swayPitch = (float) (Math.sin(t * 0.5 + 1.3) * 0.35);
 
-        float currentYaw = player.getYRot();
-        float currentPitch = player.getXRot();
         float yawDelta = Mth.wrapDegrees(rawTargetYaw + swayYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch + swayPitch - currentPitch);
-        float frameSmoothing = 1f - (float) Math.pow(1.0 - 0.08, dtTicks);
+        float perTickSmoothing = stillCatchingUp ? 0.35f : 0.08f;
+        float frameSmoothing = 1f - (float) Math.pow(1.0 - perTickSmoothing, dtTicks);
         player.setYRot(currentYaw + yawDelta * frameSmoothing);
         player.setXRot(currentPitch + pitchDelta * frameSmoothing);
     }
