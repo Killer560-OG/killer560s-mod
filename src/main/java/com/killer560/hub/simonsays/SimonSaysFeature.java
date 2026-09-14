@@ -183,6 +183,13 @@ public final class SimonSaysFeature {
             wasActive = false;
             return;
         }
+        if (!wasActive) {
+            // Missing before 2026-09-14 - only the "left" transition was logged, so a real test log
+            // could never distinguish "never got in range" from "was in range the whole time but
+            // detected nothing" (a real question that came up investigating a p3sim.net report).
+            LOGGER.info("[SimonSays] Entered device range on F7/M7 at distance {} - now watching for grid changes.",
+                    String.format(Locale.US, "%.1f", Math.sqrt(client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)))));
+        }
         wasActive = true;
 
         detectGridChanges(client, cfg);

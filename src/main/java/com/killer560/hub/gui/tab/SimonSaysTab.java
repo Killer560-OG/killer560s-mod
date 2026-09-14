@@ -111,6 +111,30 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Diagnostics"), Minecraft.getInstance().font));
+        y += 14;
+
+        // Real bug found and fixed (2026-09-14): this toggle existed in SimonSaysConfig and
+        // SimonSaysFeature already checked it, but no tab ever exposed it - there was no way to
+        // actually turn it on. Found while investigating a real p3sim.net report where this exact
+        // logger was the tool needed to see whether the real block grid even exists there.
+        widgets.add(SettingsButtonWidget.builder(onOff("Log Block Changes", cfg.isDiagnosticLoggingEnabled()), btn -> {
+                    cfg.setDiagnosticLoggingEnabled(!cfg.isDiagnosticLoggingEnabled());
+                    cfg.save();
+                    btn.setMessage(onOff("Log Block Changes", cfg.isDiagnosticLoggingEnabled()));
+                }).bounds(col1, y, 160, 18).build());
+        y += 20;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Logs every block that changes state in a box around you to"),
+                Minecraft.getInstance().font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7logs/latest.log, tagged [SimonSays] - real diagnostic data, not a solver."),
+                Minecraft.getInstance().font));
+        y += 22;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Reset"), Minecraft.getInstance().font));
         y += 14;
 
