@@ -16,6 +16,8 @@ public class NewTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
+                new FullbrightTab(),
+                new DungeonInfoTab(),
                 new SimonSaysTab(),
                 new TickTimersTab(),
                 new SplitTimersTab(),
@@ -23,7 +25,9 @@ public class NewTab extends FolderTab {
                 new ModChatTab(),
                 new VoiceToTextTab(),
                 new I4SensorsTab(),
-                new LiveMapTab()
+                new LiveMapTab(),
+                new SecretWaypointsTab(),
+                new ProximityVoiceTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());

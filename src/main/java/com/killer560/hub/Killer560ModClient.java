@@ -26,6 +26,8 @@ import com.killer560.hub.mapping.MappingFeature;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.modchat.ModChatFeature;
+import com.killer560.hub.proximityvoice.ProximityVoiceFeature;
+import com.killer560.hub.secretwaypoints.SecretWaypointsFeature;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.posmsg.PosmsgConfig;
@@ -114,6 +116,8 @@ public class Killer560ModClient implements ClientModInitializer {
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
         VoiceToTextFeature.register();
+        SecretWaypointsFeature.register();
+        ProximityVoiceFeature.register();
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());

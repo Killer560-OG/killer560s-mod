@@ -23,6 +23,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Spotify Mod — posts the lyrics of whatever you're playing on Spotify into chat, synced to the song
 - Mod Chat — `/killer560 chat <message>` tags a message so other mod users get it as a highlighted overlay; sent over real Party/Guild chat, so it's not actually private from non-mod-users there (Hypixel doesn't offer a private client-only channel)
 - Voice To Text — hold a push-to-talk key, speak, release to send the transcription to chat. Fully offline (Vosk), downloads its small speech model automatically on first use so there's no manual setup. **Untested with a real microphone** - see the New tab
+- Proximity Voice — real peer-to-peer voice chat with distance-based volume falloff, no server required (uses a free public STUN server for NAT traversal + Party Chat to exchange connection info). No audio compression (raw PCM, to avoid a second unverified native-library dependency) and doesn't work through every home network (no relay server to fall back on for strict NATs). **Untested with a real microphone or a second player** - see the New tab
 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
@@ -48,7 +49,8 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Mask Invincibility Timers — automatic active/cooldown timers for Spirit Mask, Bonzo's Mask, and Phoenix Pet, detected off the real "saved your life" chat lines. The **cheat** build additionally has Auto Swap: right-clicks your other mask into place the moment the worn one procs, if it's off cooldown
 - I4 Sensors — a diagnostic block-state logger for the real "Pre4" area (right before Necron's P4 starts), for gathering the real data an i4 solver would need
 - Auto Leap Out — **cheat build only.** Automatically opens Spirit Leap and jumps to a configured player (or "Mel") on real F7 triggers: the i4 device completing, Storm's death, the middle/P4 approach, relic pickup, and pad crushes
-- Live Map — a self-drawn room/door map for the current dungeon run, using the dungeon's real fixed 11x11 room grid and real door-type detection, plus live teammate positions (colored by their assigned class from the Leap Menu). Doesn't show room names, secrets, or mimic detection yet - that needs a room database this mod doesn't have access to
+- Live Map — a self-drawn room/door map for the current dungeon run, using the dungeon's real fixed 11x11 room grid, real door-type detection, and (new) real room NAMES from the same room database Secret Waypoints uses, plus live teammate positions (colored by their assigned class from the Leap Menu)
+- Secret Waypoints — real, preloaded per-room secret positions (chests, items, wither skulls, bats, redstone keys) once a room is identified, downloaded from the same public room database NoammAddons itself uses. Includes real mimic-chest detection (an extra trapped chest beyond what a room should have)
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
