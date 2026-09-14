@@ -68,14 +68,15 @@ public final class DungeonState {
     // shows definitively whether SIDEBAR itself is populated, some other slot is, or none are.
     private static int diagnosticTickCounter = 0;
     // "/killer560 sim" (2026-09-14) - killer560's own request, since p3sim.net's real sidebar/chat
-    // format is unknown and this session has no way to connect and observe it directly. Rather than
+    // format was unknown and this session had no way to connect and observe it directly. Rather than
     // guess at matching p3sim's real text (this class's own history above is full of real, hard-won
     // lessons about guessing at Hypixel's exact text/formatting instead of confirming it), this is a
     // manual escape hatch: killer560 tells the mod directly "I am in the F7 boss fight right now"
-    // instead of the mod trying to detect it automatically. Resets itself the moment a real dungeon
-    // floor IS detected normally (so it can't silently linger and misfire once real detection starts
-    // working, whether that's from leaving and rejoining Hypixel itself or from p3sim's format turning
-    // out to already partially work) or when the world unloads entirely (server switch/disconnect).
+    // instead of the mod trying to detect it automatically. Purely manual - only clears when killer560
+    // toggles it off himself, or when the world unloads entirely (server switch/disconnect). A real
+    // p3sim.net test (2026-09-14) proved auto-clearing on "any real floor detected" was wrong - real
+    // detection can succeed for one signal (floor) while the override is still doing real work for
+    // another (e.g. boss-phase state that hasn't caught up yet), so that auto-clear was removed.
     private static boolean simOverrideActive = false;
     // Per killer560's "relook through the other mods... otherwise put some sort of logging into my game"
     // request (2026-09-09, round 12) - re-checked NoammAddons' own LocationUtils (decompiled) for how it
@@ -111,10 +112,14 @@ public final class DungeonState {
                 logSidebarDiagnostic();
             }
             String floor = computeCurrentFloor();
-            if (simOverrideActive && floor != null) {
-                LOGGER.info("[Secrets] Real dungeon floor detected ('{}') while /killer560 sim override was on - clearing the override.", floor);
-                simOverrideActive = false;
-            }
+            // Real bug found and fixed (2026-09-14): this used to auto-clear the override the instant
+            // ANY real floor was detected, on the theory that real detection had "taken over" - but a
+            // real p3sim.net test showed real floor detection succeeding within the same second the
+            // override was toggled on, self-cancelling it almost immediately even though the override
+            // might still have been needed for something else (e.g. boss-phase state that hadn't
+            // caught up yet). Floor detection alone isn't sufficient evidence the override is no longer
+            // needed - only a real disconnect/world-unload (handled above) does that now. The override
+            // is purely manual again: on until killer560 turns it off himself.
             if (!Objects.equals(floor, cachedFloor)) {
                 // Includes a snippet of the raw sidebar text this round - if the DisplaySlot fallback fix
                 // (2026-09-09, round 13) still isn't enough, this is the next thing to check: is a real
