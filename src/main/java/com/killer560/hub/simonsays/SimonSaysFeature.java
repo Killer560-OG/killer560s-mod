@@ -156,6 +156,13 @@ public final class SimonSaysFeature {
     // time (which already shows up naturally in "time left before deadline") is never subtracted twice.
     private static final long[] TRANSITION_OVERHEAD_MS = {1400L, 1900L, 2200L, 2600L};
     private static int currentRoundNumber = 1;
+    // The real total click count for the REST of this attempt - normally 15 (1+2+3+4+5), but a real "SS
+    // skip" can start the attempt after round 1 (killer560's own report: "it starts on 2/5 and never
+    // 1/5"), making the real total for that attempt smaller (e.g. 2+3+4+5=14 for a 1-round skip). Set
+    // once per attempt, the first time the real starting round is detected (see
+    // tickAutoSolveAndTriggerBot's own currentRoundNumber detection) - defaults to the normal full total
+    // until then.
+    private static int expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
 
     /** Sum of {@link #TRANSITION_OVERHEAD_MS} for every round transition still ahead of the CURRENT
      *  round - e.g. round 1 (nothing completed yet) has all 4 ahead (~8.1s); round 4 (working on the
@@ -166,6 +173,17 @@ public final class SimonSaysFeature {
             if (i >= 0) {
                 total += TRANSITION_OVERHEAD_MS[i];
             }
+        }
+        return total;
+    }
+
+    /** Real total clicks from {@code startRound} through round 5 inclusive (round N always has exactly N
+     *  steps) - e.g. {@code totalClicksFrom(2)} = 2+3+4+5 = 14, the real total for an attempt that skipped
+     *  round 1 entirely. */
+    private static int totalClicksFrom(int startRound) {
+        int total = 0;
+        for (int r = startRound; r <= 5; r++) {
+            total += r;
         }
         return total;
     }
@@ -336,6 +354,7 @@ public final class SimonSaysFeature {
             autoSolveLastTickAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
             currentRoundNumber = 1;
+            expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
         }
@@ -448,6 +467,7 @@ public final class SimonSaysFeature {
             autoSolveLastTickAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
             currentRoundNumber = 1;
+            expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             maybeAutoAnnounceReset(client, cfg);
@@ -586,10 +606,17 @@ public final class SimonSaysFeature {
         if (clickNeeded >= clickInOrder.size()) {
             long tookMs = solveStartedAtMs > 0 ? System.currentTimeMillis() - solveStartedAtMs : 0;
             LOGGER.info("[SimonSays] Round completed in {} ms.", tookMs);
-            // Real whole-device completion (2026-09-14, killer560's own request) - TOTAL_REAL_CLICKS_
-            // PER_DEVICE (15) is the confirmed real total across all 5 rounds (1+2+3+4+5), so hitting it
-            // here IS the real "last click of the whole device" regardless of who did the clicking.
-            if (totalClicksThisAttempt >= TOTAL_REAL_CLICKS_PER_DEVICE && client.player != null) {
+            // Real whole-device completion. Real bug found and fixed (2026-09-14): this used to check
+            // totalClicksThisAttempt >= TOTAL_REAL_CLICKS_PER_DEVICE (15, i.e. 1+2+3+4+5) - correct for a
+            // normal solve starting at round 1, but a real "SS skip" starts the attempt AFTER round 1
+            // (killer560's own report: "it starts on 2/5 and never 1/5"), so the real total for that
+            // attempt is only 2+3+4+5=14, which the hardcoded 15 check would never reach - the whole-
+            // device message simply never fired after a skip. clickInOrder.size() at THIS exact
+            // completion point already IS the real round number (round N always has exactly N steps,
+            // same fact the "SS N/5" announce message above already relies on) - checking for round 5
+            // specifically is skip-proof, since round 5 is always the last regardless of which round the
+            // attempt started on.
+            if (clickInOrder.size() >= 5 && client.player != null) {
                 long deviceTookMs = deviceStartedAtMs > 0 ? System.currentTimeMillis() - deviceStartedAtMs : 0;
                 LOGGER.info("[SimonSays] Whole device completed in {} ms ({} ms of that was real reveal/transition delay).",
                         deviceTookMs, autoSolveBlockedMsThisAttempt);
@@ -611,10 +638,6 @@ public final class SimonSaysFeature {
             }
             resetSolveState();
             firstPhase = false;
-            // Advances even past round 5 (harmless - estimatedRemainingRevealMs() just returns 0 once
-            // currentRoundNumber exceeds the transition table) - reset back to 1 happens at the two real
-            // fresh-attempt trigger points below, not here.
-            currentRoundNumber++;
         }
     }
 
@@ -727,6 +750,23 @@ public final class SimonSaysFeature {
             if (blockedByReveal) {
                 return;
             }
+            // Real bug found and fixed (2026-09-14): killer560 confirmed a real "SS skip" starts the
+            // attempt AFTER round 1 ("it starts on 2/5 and never 1/5"), but currentRoundNumber always
+            // started at 1 and only ever incremented by 1 per round completed - so after a skip, it was
+            // permanently off by however many rounds got skipped, feeding the WRONG transition estimates
+            // into estimatedRemainingRevealMs() for the rest of the attempt. Auto-detects the REAL round
+            // number the same way the "SS N/5" announce message already does: clickInOrder.size() IS the
+            // round number once its reveal has fully settled (round N always has exactly N steps),
+            // regardless of which round the attempt actually started on. Only recomputes
+            // expectedTotalClicksThisAttempt once, on the very first round seen this attempt (detected via
+            // no clicks sent yet) - it's the fixed total for the WHOLE remaining attempt, not a per-round
+            // value.
+            if (clickNeeded == 0) {
+                currentRoundNumber = clickInOrder.size();
+                if (autoSolveClicksDoneThisAttempt == 0) {
+                    expectedTotalClicksThisAttempt = totalClicksFrom(currentRoundNumber);
+                }
+            }
             // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
             // data show the Target/Variance model landing at a consistent but slow-feeling ~850ms/click) -
             // a direct, immediately-understandable alternative to the overall-duration target below.
@@ -740,7 +780,7 @@ public final class SimonSaysFeature {
                     lastAutoClickedPos = nextButton;
                     autoSolveClicksDoneThisAttempt++;
                     LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay).",
-                            autoSolveClicksDoneThisAttempt, TOTAL_REAL_CLICKS_PER_DEVICE, sincePreviousMs,
+                            autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
                             cfg.getAutoSolveFixedDelayMs());
                 }
                 return;
@@ -761,7 +801,7 @@ public final class SimonSaysFeature {
                 autoSolveNextClickAtMs = now;
                 autoSolveArmed = true;
             }
-            int remaining = Math.max(1, TOTAL_REAL_CLICKS_PER_DEVICE - autoSolveClicksDoneThisAttempt);
+            int remaining = Math.max(1, expectedTotalClicksThisAttempt - autoSolveClicksDoneThisAttempt);
             boolean sameTarget = nextButton.equals(lastAutoClickedPos);
             long minDelay = sameTarget ? 300 : 0;
             if (now >= autoSolveNextClickAtMs && now - lastAutoClickAtMs >= minDelay) {
@@ -773,7 +813,7 @@ public final class SimonSaysFeature {
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
                 autoSolveClicksDoneThisAttempt++;
-                int remainingAfter = Math.max(1, TOTAL_REAL_CLICKS_PER_DEVICE - autoSolveClicksDoneThisAttempt);
+                int remainingAfter = Math.max(1, expectedTotalClicksThisAttempt - autoSolveClicksDoneThisAttempt);
                 long windowLeftMs = autoSolveDeadlineMs - now;
                 // Reserve only the overhead for transitions STILL AHEAD (never touching the deadline
                 // itself) - already-elapsed reveal time is already reflected in windowLeftMs shrinking
@@ -786,7 +826,7 @@ public final class SimonSaysFeature {
                 // delay is really coming from this pacing math or from something else entirely (e.g. real
                 // per-round reveal wait time, which this can't control).
                 LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms).",
-                        autoSolveClicksDoneThisAttempt, TOTAL_REAL_CLICKS_PER_DEVICE, sincePreviousMs,
+                        autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
                         autoSolveNextClickAtMs - now);
             }
             return;
