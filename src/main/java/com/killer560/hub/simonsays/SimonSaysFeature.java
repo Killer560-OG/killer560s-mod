@@ -621,18 +621,17 @@ public final class SimonSaysFeature {
         // every round has a reveal-settle window, not just round 1.
         boolean blockedByReveal = firstPhase || isStillRevealing();
 
-        // Extend the Target/Variance deadline by any real time spent blocked - waiting for the next
-        // round's pattern to finish revealing (or between rounds entirely, before it starts revealing at
-        // all) - so uncontrollable real reveal/flash time doesn't eat into the deliberate click-pacing
-        // budget. Killer560's own explicit report (2026-09-14): "it is forgetting that there is a delay
-        // time in between when it shows a pattern that it has to account for... That needs to be
-        // factored into the 12s timer." Fixed-delay mode doesn't use a budget, so it's skipped here.
+        // Track real time spent blocked - waiting for the next round's pattern to finish revealing (or
+        // between rounds entirely, before it starts revealing at all) - purely for REPORTING (the "Whole
+        // device solved in X.XXs (Y.YYs reveal delay)" message). Real bug found and fixed (2026-09-14):
+        // this used to also EXTEND the deadline/next-click time by the same amount, meaning a 12s target
+        // plus however long reveals took landed the whole attempt at ~20s real time. Killer560's own
+        // explicit correction: "It needs to be 12 with the reveal not 12 plus the reveal" - the reveal
+        // time counts AGAINST the 12s budget now, same as it always implicitly did before this feature
+        // existed; the deadline itself is a fixed wall-clock point from when it armed, never adjusted.
         if (cfg.isAutoSolveEnabled() && !cfg.isAutoSolveFixedDelayMode() && autoSolveArmed) {
             if (autoSolveLastTickAtMs > 0 && (noStepsPending || blockedByReveal)) {
-                long blockedDelta = now - autoSolveLastTickAtMs;
-                autoSolveDeadlineMs += blockedDelta;
-                autoSolveNextClickAtMs += blockedDelta;
-                autoSolveBlockedMsThisAttempt += blockedDelta;
+                autoSolveBlockedMsThisAttempt += now - autoSolveLastTickAtMs;
             }
             autoSolveLastTickAtMs = now;
         }
