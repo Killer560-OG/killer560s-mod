@@ -138,6 +138,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature.register();
         com.killer560.hub.abilitykeybinds.AbilityKeybindsFeature.register();
         com.killer560.hub.p4platform.P4PlatformHighlightFeature.register();
+        com.killer560.hub.diorite.DioriteGlassFeature.register();
         I4SensorsFeature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
