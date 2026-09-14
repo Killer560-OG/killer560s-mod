@@ -58,6 +58,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Trajectories — predicts where a real bow shot or Ender Pearl throw would land using the real vanilla drag/gravity physics for each. Never fires anything
 - Loadout Keybinds — on the real "(N/M) Loadout" screen, use number-row keys and left/right arrows to click a loadout slot or page instead of the mouse
 - Ability Keybinds — bind any key to your real dungeon class Ability or Ultimate (the same real vanilla drop-item/drop-stack action Hypixel already reads), instead of the fixed Q/Ctrl+Q
+- P4 Platform Highlight — highlights the real fixed 3x3 platform you need to mine after Goldor dies, before dropping into Necron's fight
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free
 - Full Block — **cheat build only.** Expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click, with a master on/off toggle - see [Which jar do I download?](#installing) below.
