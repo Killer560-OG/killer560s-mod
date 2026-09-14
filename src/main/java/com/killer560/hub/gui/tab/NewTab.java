@@ -44,7 +44,8 @@ public class NewTab extends FolderTab {
                 new QuizSolverTab(),
                 new IceFillSolverTab(),
                 new WeirdosSolverTab(),
-                new WaterSolverTab()
+                new WaterSolverTab(),
+                new BeamsSolverTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
