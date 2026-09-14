@@ -1,6 +1,8 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.simonsays.SimonSaysConfig;
 import com.killer560.hub.simonsays.SimonSaysFeature;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -64,23 +66,57 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(onOff("Numbers", cfg.isNumberOverlay()), btn -> {
                     cfg.setNumberOverlay(!cfg.isNumberOverlay());
                     cfg.save();
-                    btn.setMessage(onOff("Numbers", cfg.isNumberOverlay()));
+                    requestRebuild.run();
                 }).bounds(col3, y, 108, 18).build());
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("1st Color: ■"), btn -> {
-                    cfg.setFirstColor(nextColor(cfg.getFirstColor()));
+        if (cfg.isNumberOverlay()) {
+            double scaleNorm = (cfg.getNumberScale() - 0.25) / (3.0 - 0.25);
+            widgets.add(new ThemedSliderButton(contentX, y, 220, 18,
+                    Component.literal(String.format(java.util.Locale.US, "Number Scale: %.2fx", cfg.getNumberScale())), scaleNorm) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal(String.format(java.util.Locale.US, "Number Scale: %.2fx", cfg.getNumberScale())));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setNumberScale((float) (0.25 + this.value * (3.0 - 0.25)));
                     cfg.save();
+                }
+            });
+            y += 20;
+        }
+
+        // Opens a real color-picker screen (hue bar + saturation/value square + alpha) instead of
+        // cycling a fixed palette - killer560's explicit request. Each button's own click handler
+        // captures a fresh Minecraft/Screen reference each press so re-opening after a rebuild still
+        // points at the current tab's own screen instance.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("1st Color: ■"), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "First Color",
+                            cfg.getFirstColor(), SimonSaysConfig.DEFAULT_FIRST_COLOR, argb -> {
+                        cfg.setFirstColor(argb);
+                        cfg.save();
+                    }));
                 }).bounds(col1, y, 100, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("2nd Color: ■"), btn -> {
-                    cfg.setSecondColor(nextColor(cfg.getSecondColor()));
-                    cfg.save();
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Second Color",
+                            cfg.getSecondColor(), SimonSaysConfig.DEFAULT_SECOND_COLOR, argb -> {
+                        cfg.setSecondColor(argb);
+                        cfg.save();
+                    }));
                 }).bounds(col2, y, 100, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("3rd Color: ■"), btn -> {
-                    cfg.setThirdColor(nextColor(cfg.getThirdColor()));
-                    cfg.save();
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Third Color+",
+                            cfg.getThirdColor(), SimonSaysConfig.DEFAULT_THIRD_COLOR, argb -> {
+                        cfg.setThirdColor(argb);
+                        cfg.save();
+                    }));
                 }).bounds(col3, y, 108, 18).build());
         y += 24;
 
@@ -307,21 +343,6 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
     private static SimonSaysConfig.SkipMode nextMode(SimonSaysConfig.SkipMode mode) {
         SimonSaysConfig.SkipMode[] values = SimonSaysConfig.SkipMode.values();
         return values[(mode.ordinal() + 1) % values.length];
-    }
-
-    // Same "cycle through a fixed palette" convention PosmsgTab already established - this codebase
-    // doesn't have a full RGB slider widget yet.
-    private static final int[] COLOR_CYCLE = {
-            0xFF55FF55, 0xFFFFAA00, 0xFFFF5555, 0xFF55FFFF, 0xFFAA55FF, 0xFFFFFFFF
-    };
-
-    private static int nextColor(int current) {
-        for (int i = 0; i < COLOR_CYCLE.length; i++) {
-            if (COLOR_CYCLE[i] == current) {
-                return COLOR_CYCLE[(i + 1) % COLOR_CYCLE.length];
-            }
-        }
-        return COLOR_CYCLE[0];
     }
 
     private static Component styleText(SimonSaysConfig cfg) {

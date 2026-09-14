@@ -16,6 +16,12 @@ import java.util.Map;
  *  every other new feature in this mod. */
 public final class SimonSaysConfig {
 
+    // Real default colors (green/orange/red) - exposed as public constants so the color-picker's own
+    // "Set Default" button can reset to exactly these without duplicating the literals.
+    public static final int DEFAULT_FIRST_COLOR = 0xFF55FF55;
+    public static final int DEFAULT_SECOND_COLOR = 0xFFFFAA00;
+    public static final int DEFAULT_THIRD_COLOR = 0xFFFF5555;
+
     /** How the "skip" trick is set up - a party-size dependent number of clicks on the start button
      *  during the device's inactive window rather than actually solving the sequence.
      *  <p>
@@ -56,6 +62,7 @@ public final class SimonSaysConfig {
     private boolean solverEnabled = true;
     private Style style = Style.FILLED_OUTLINE;
     private boolean numberOverlay = true;
+    private float numberScale = 1.0f;
     private int firstColor = 0xFF55FF55;
     private int secondColor = 0xFFFFAA00;
     private int thirdColor = 0xFFFF5555;
@@ -124,6 +131,7 @@ public final class SimonSaysConfig {
             cfg.solverEnabled = getBool(obj, "solverEnabled", true);
             cfg.style = getEnum(obj, "style", Style.class, Style.FILLED_OUTLINE);
             cfg.numberOverlay = getBool(obj, "numberOverlay", true);
+            cfg.numberScale = obj.has("numberScale") ? obj.get("numberScale").getAsFloat() : 1.0f;
             cfg.firstColor = getInt(obj, "firstColor", 0xFF55FF55);
             cfg.secondColor = getInt(obj, "secondColor", 0xFFFFAA00);
             cfg.thirdColor = getInt(obj, "thirdColor", 0xFFFF5555);
@@ -166,6 +174,7 @@ public final class SimonSaysConfig {
             obj.addProperty("solverEnabled", solverEnabled);
             obj.addProperty("style", style.name());
             obj.addProperty("numberOverlay", numberOverlay);
+            obj.addProperty("numberScale", numberScale);
             obj.addProperty("firstColor", firstColor);
             obj.addProperty("secondColor", secondColor);
             obj.addProperty("thirdColor", thirdColor);
@@ -245,6 +254,14 @@ public final class SimonSaysConfig {
 
     public void setNumberOverlay(boolean numberOverlay) {
         this.numberOverlay = numberOverlay;
+    }
+
+    public float getNumberScale() {
+        return numberScale;
+    }
+
+    public void setNumberScale(float numberScale) {
+        this.numberScale = Math.max(0.25f, Math.min(3.0f, numberScale));
     }
 
     public int getFirstColor() {

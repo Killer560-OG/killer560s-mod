@@ -388,8 +388,13 @@ public final class SimonSaysFeature {
             return;
         }
         clickNeeded = index + 1;
-        if (cfg.isAnnounceProgress() && client.player != null) {
-            client.player.connection.sendCommand("pc SS " + clickNeeded + "/" + clickInOrder.size());
+        // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only
+        // sent on the LAST click of the current round (real Hypixel Simon Says is always exactly 5
+        // rounds, round N has N steps, so clickInOrder.size() at round-completion IS the round number).
+        // Killer560's explicit fix request (2026-09-14): this used to send on every single click
+        // ("1/2 2/2 1/3...", the click index within the current round), not just once per round.
+        if (cfg.isAnnounceProgress() && client.player != null && clickNeeded >= clickInOrder.size()) {
+            client.player.connection.sendCommand("pc SS " + clickInOrder.size() + "/5");
         }
         if (clickNeeded >= clickInOrder.size()) {
             long tookMs = solveStartedAtMs > 0 ? System.currentTimeMillis() - solveStartedAtMs : 0;
@@ -535,14 +540,21 @@ public final class SimonSaysFeature {
             }
 
             if (cfg.isNumberOverlay()) {
-                renderNumber(context, x + 0.5, y + 0.5, z + 0.5, index - clickNeeded + 1);
+                // Real bug found and fixed (2026-09-14): this used to render at the full block's
+                // center (x+0.5/y+0.5/z+0.5), NOT the highlight box's own center - killer560's report
+                // ("the number thing isn't on") was very likely this number rendering ~0.55 blocks away
+                // from the actual highlight, potentially clipped inside the wall behind the lantern.
+                // Now uses the box's real center directly, matching "exact same spot as the highlight."
+                renderNumber(context, box.getCenter().x, box.getCenter().y, box.getCenter().z,
+                        index - clickNeeded + 1, cfg.getNumberScale());
             }
         }
     }
 
     /** Billboard text - the same "translate to the world position, rotate to face the camera, draw
      *  through the font" technique vanilla itself uses for entity name tags. */
-    private static void renderNumber(LevelRenderContext context, double worldX, double worldY, double worldZ, int number) {
+    private static void renderNumber(LevelRenderContext context, double worldX, double worldY, double worldZ,
+                                      int number, float scaleMultiplier) {
         var bufferSource = context.bufferSource();
         if (bufferSource == null) {
             return;
@@ -552,7 +564,7 @@ public final class SimonSaysFeature {
         var mainCamera = client.gameRenderer.getMainCamera();
         Vec3 cam = mainCamera.position();
         String text = String.valueOf(number);
-        float scale = 0.02f;
+        float scale = 0.02f * scaleMultiplier;
 
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
