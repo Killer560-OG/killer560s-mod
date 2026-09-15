@@ -565,6 +565,10 @@ public final class SimonSaysFeature {
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
+    // Trigger Bot delay: the button the crosshair settled on and when it got there. The click itself also fires
+    // from the per-frame hook (tickTriggerBotFrame) so the delay is honoured to the millisecond, not the 50ms tick.
+    private static BlockPos triggerAimTarget = null;
+    private static long triggerAimSinceMs = 0L;
 
     // --- party progress tracker: sender name -> progress ---
     private static final Map<String, PartyProgress> partyProgress = new HashMap<>();
@@ -582,6 +586,7 @@ public final class SimonSaysFeature {
         // it's as smooth as real mouse look (see this class's own "Rotate Mode" field-group doc comment
         // for the full real reasoning).
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> tickRotateFrame());
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> tickTriggerBotFrame());
     }
 
     /** High-frequency Simon Says diagnostics (per click / per frame state / once-a-second idle) - only written
@@ -848,6 +853,7 @@ public final class SimonSaysFeature {
         // real start-button press) - see below and tick()'s "entered device range" branch.
         lastAutoClickedPos = null;
         lastTriggerBotTarget = null;
+        triggerAimTarget = null;
         solveStartedAtMs = 0L;
         // Found in the 2026-09-14 review pass: an approach still in progress when the grid/round resets
         // (e.g. a failed attempt) used to keep aiming at - and eventually click - its now-stale button,
@@ -1809,13 +1815,46 @@ public final class SimonSaysFeature {
             // to apply everywhere except Auto Solve's own already-centered synthetic clicking: "make sure
             // it goes to center." Confirming real aim is on the button is still done via the real
             // hitResult above; the actual click now always lands on the block's true center regardless.
-            sendNoRotateInteract(client, nextButton);
-            lastTriggerBotTarget = nextButton;
-            LOGGER.info("[SimonSays] Trigger Bot click sent (round {}, total clicks {} so far this attempt).",
-                    currentRoundNumber, totalClicksThisAttempt);
+            if (!nextButton.equals(triggerAimTarget)) {
+                triggerAimTarget = nextButton;
+                triggerAimSinceMs = now;
+            }
+            fireTriggerBotIfDue(client, cfg, now);
         } else if (!(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(nextButton)) {
             lastTriggerBotTarget = null;
+            triggerAimTarget = null;
         }
+    }
+
+    /** Clicks the aimed button once it has been under the crosshair for the configured Trigger Bot delay. */
+    private static void fireTriggerBotIfDue(Minecraft client, SimonSaysConfig cfg, long now) {
+        BlockPos target = triggerAimTarget;
+        if (target == null || now - triggerAimSinceMs < cfg.getTriggerBotDelayMs()) {
+            return;
+        }
+        sendNoRotateInteract(client, target);
+        lastTriggerBotTarget = target;
+        triggerAimTarget = null;
+        LOGGER.info("[SimonSays] Trigger Bot click sent after {}ms on target (delay {}ms, round {}, total clicks {} so far this attempt).",
+                now - triggerAimSinceMs, cfg.getTriggerBotDelayMs(), currentRoundNumber, totalClicksThisAttempt);
+    }
+
+    /** Per-frame half of the Trigger Bot delay: fires as soon as the delay elapses, as long as the crosshair is
+     *  still on that same button and it is still the next button to press. */
+    private static void tickTriggerBotFrame() {
+        BlockPos target = triggerAimTarget;
+        if (target == null) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        SimonSaysConfig cfg = SimonSaysConfig.getInstance();
+        if (client.player == null || client.screen != null || !cfg.isTriggerBotEnabled()
+                || target.equals(lastTriggerBotTarget)
+                || clickNeeded >= clickInOrder.size() || !target.equals(clickInOrder.get(clickNeeded))
+                || !(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(target)) {
+            return; // the tick re-validates (and clears the aim timer if the crosshair left)
+        }
+        fireTriggerBotIfDue(client, cfg, System.currentTimeMillis());
     }
 
     /** Books a pending Rotate Mode click - called at the very START of every tick, before tickStartButton/

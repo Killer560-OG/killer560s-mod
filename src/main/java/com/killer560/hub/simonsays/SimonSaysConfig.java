@@ -50,6 +50,10 @@ public final class SimonSaysConfig {
 
     // Assist / automation (cheat-build gated, see isTriggerBotEnabled/isAutoSolveEnabled/isAutoStartEnabled)
     private boolean triggerBotEnabled = false;
+    // Trigger Bot reaction delay (2026-09-15, killer560: "a slider in ms of how long from the ms it detects it is on
+    // the right button to when it will actually click").
+    public static final int MAX_TRIGGER_BOT_DELAY_MS = 500;
+    private int triggerBotDelayMs = 0;
     private boolean autoSolveEnabled = false;
     // Placeholder for a future feature killer560 described (2026-09-14): recording his own real manual
     // solves over many attempts to learn realistic camera movement, then replaying THAT instead of a
@@ -153,6 +157,7 @@ public final class SimonSaysConfig {
             cfg.announceProgress = getBool(obj, "announceProgress", false);
             cfg.partyProgressTrackerEnabled = getBool(obj, "partyProgressTrackerEnabled", true);
             cfg.triggerBotEnabled = getBool(obj, "triggerBotEnabled", false);
+            cfg.setTriggerBotDelayMs(getInt(obj, "triggerBotDelayMs", 0));
             cfg.autoSolveEnabled = getBool(obj, "autoSolveEnabled", false);
             cfg.autoSolveRotate = getBool(obj, "autoSolveRotate", false);
             // Through the setter's clamp so a value saved under the old 1-60s range lands inside 11-13s.
@@ -194,6 +199,7 @@ public final class SimonSaysConfig {
             obj.addProperty("announceProgress", announceProgress);
             obj.addProperty("partyProgressTrackerEnabled", partyProgressTrackerEnabled);
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
+            obj.addProperty("triggerBotDelayMs", triggerBotDelayMs);
             obj.addProperty("autoSolveEnabled", autoSolveEnabled);
             obj.addProperty("autoSolveRotate", autoSolveRotate);
             obj.addProperty("clickTimerTargetMs", clickTimerTargetMs);
@@ -325,6 +331,14 @@ public final class SimonSaysConfig {
      *  macro, same pattern as Auto Terminals. */
     public boolean isTriggerBotEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && triggerBotEnabled;
+    }
+
+    public int getTriggerBotDelayMs() {
+        return triggerBotDelayMs;
+    }
+
+    public void setTriggerBotDelayMs(int ms) {
+        this.triggerBotDelayMs = Math.max(0, Math.min(MAX_TRIGGER_BOT_DELAY_MS, ms));
     }
 
     public void setTriggerBotEnabled(boolean triggerBotEnabled) {

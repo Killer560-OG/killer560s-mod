@@ -186,7 +186,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {
                     cfg.setTriggerBotEnabled(!cfg.isTriggerBotEnabled());
                     cfg.save();
-                    btn.setMessage(onOff("Trigger Bot", cfg.isTriggerBotEnabled()));
+                    requestRebuild.run();
                 }).bounds(col2aX, y, col2W, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Solve", cfg.isAutoSolveEnabled()), btn -> {
@@ -195,6 +195,24 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
+
+        if (cfg.isTriggerBotEnabled()) {
+            double triggerDelayNorm = cfg.getTriggerBotDelayMs() / (double) SimonSaysConfig.MAX_TRIGGER_BOT_DELAY_MS;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
+                    Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + "ms"), triggerDelayNorm) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + "ms"));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setTriggerBotDelayMs((int) Math.round(this.value * SimonSaysConfig.MAX_TRIGGER_BOT_DELAY_MS));
+                    cfg.save();
+                }
+            });
+            y += 22;
+        }
 
         if (cfg.isAutoSolveEnabled()) {
             widgets.add(SettingsButtonWidget.builder(rotateText(cfg), btn -> {
