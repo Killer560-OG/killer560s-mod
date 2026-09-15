@@ -1729,8 +1729,15 @@ public final class SimonSaysFeature {
         // remaining delta is small enough that the aim has actually settled near center - previously
         // fired the instant the raycast first crossed onto the right block's face at all, which could be
         // right at an edge rather than the middle.
+        // Real bug found and fixed AGAIN (2026-09-14, killer560's own report: "it is waiting on buttons
+        // really long before going to the next one" - confirmed as "camera sits frozen on the button, not
+        // clicking"): requiring overshoot to be EXACTLY zero meant a tiny, visually-invisible residual
+        // (anything down to the 0.05-degree hard-zero snap below) fully blocked firing even though the
+        // camera already looked perfectly settled - exponential decay's long tail means crossing that
+        // exact threshold can take noticeably longer than the motion stays visible. Loosened to "close
+        // enough to gone" (0.3 degrees, still imperceptible) instead of demanding a hard zero.
         boolean settledNearCenter = Math.abs(yawDelta) < 1.5f && Math.abs(pitchDelta) < 1.5f
-                && rotateOvershootYawRemaining == 0f && rotateOvershootPitchRemaining == 0f;
+                && Math.abs(rotateOvershootYawRemaining) < 0.3f && Math.abs(rotateOvershootPitchRemaining) < 0.3f;
         if (settledNearCenter && client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
             // Real aim confirmed - the actual click still always lands on the button's true center
             // (killer560's own standing rule), same real click-sender every other mode already uses.
