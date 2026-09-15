@@ -2,9 +2,9 @@
 	"required": true,
 	"minVersion": "0.8",
 	"compatibilityLevel": "JAVA_25",
-	"package": "com.killer560.hub.jumpscare.mixin",
+	"package": "com.killer560.hub.ambience.mixin",
 	"client": [
-		"JumpscareGuiMixin"
+		"AmbienceGuiMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

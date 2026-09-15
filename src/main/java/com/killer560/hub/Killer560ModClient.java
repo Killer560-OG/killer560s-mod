@@ -17,7 +17,7 @@ import com.killer560.hub.gui.ModScreen;
 import com.killer560.hub.gui.tab.TranslateTab;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
-import com.killer560.hub.jumpscare.JumpscareFeature;
+import com.killer560.hub.ambience.AmbienceFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.i4sensors.I4SensorsFeature;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -92,7 +92,7 @@ public class Killer560ModClient implements ClientModInitializer {
         DvdFeature.register();
         AutoMeowFeature.register();
         ExperimentsFeature.register();
-        JumpscareFeature.register();
+        AmbienceFeature.register();
         StorageOverlayFeature.register();
         DungeonState.register();
         SimDiagnosticFeature.register();

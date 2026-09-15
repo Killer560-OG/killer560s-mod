@@ -29,7 +29,6 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
-- Jumpscare — randomly plays a full-screen image with sound to startle you (just for fun)
 - YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. **Untested** - see the New tab
 
 **Helpers**

@@ -1,4 +1,4 @@
-package com.killer560.hub.jumpscare;
+package com.killer560.hub.ambience;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -24,7 +24,7 @@ import java.util.Random;
 import java.util.stream.Stream;
 
 /**
- * Super Scary Jumpscare: on average once every {@link #AVERAGE_INTERVAL_SECONDS} of actual play time
+ * Ambience: on average once every {@link #AVERAGE_INTERVAL_SECONDS} of actual play time
  * (checked once per real second while the client is ticking, so time with the game closed doesn't
  * count), plays a sound and flashes a full-screen image at the same time, the image lasting half as
  * long as the sound does. killer560 supplies his own image/sound by dropping them into {@link #folder()}
@@ -35,9 +35,9 @@ import java.util.stream.Stream;
  * uses, rather than duplicating that logic - a plain static image just skips GifDecoder's GIF-specific
  * frame compositing and decodes straight from {@link ImageIO} instead.
  */
-public final class JumpscareFeature {
+public final class AmbienceFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-jumpscare");
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ambience");
 
     // Field-tested successfully at 10s (2026-09-06) - reverted to the real 24-hour average. Rolled
     // once per real second the client is ticking, with probability 1/AVERAGE_INTERVAL_SECONDS each
@@ -46,9 +46,9 @@ public final class JumpscareFeature {
     private static final int AVERAGE_INTERVAL_SECONDS = 86400;
 
     private static final Path FOLDER =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-jumpscare");
+            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ambience");
     private static final Path CACHE_FOLDER =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-jumpscare-cache");
+            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ambience-cache");
 
     // Field-tested (2026-09-06): requiring an exact filename ("image.png") silently failed the very
     // first real test because killer560's file was named "attachment.gif" - not wrong in spirit, just a
@@ -70,7 +70,7 @@ public final class JumpscareFeature {
         try {
             Files.createDirectories(FOLDER);
         } catch (IOException e) {
-            LOGGER.error("Failed to create jumpscare folder", e);
+            LOGGER.error("Failed to create ambience folder", e);
         }
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
@@ -102,7 +102,7 @@ public final class JumpscareFeature {
         Path imageFile = findFileByExtension(IMAGE_EXTENSIONS);
         Path soundFile = findFileByExtension(SOUND_EXTENSIONS);
         if (imageFile == null || soundFile == null) {
-            LOGGER.warn("Jumpscare due but missing files in {} (image present={}, sound present={})",
+            LOGGER.warn("ambience due but missing files in {} (image present={}, sound present={})",
                     FOLDER, imageFile != null, soundFile != null);
             return;
         }
@@ -111,14 +111,14 @@ public final class JumpscareFeature {
         try {
             durationMs = playSound(soundFile);
         } catch (Exception e) {
-            LOGGER.error("Failed to play jumpscare sound: {}", soundFile.getFileName(), e);
+            LOGGER.error("Failed to play ambience sound: {}", soundFile.getFileName(), e);
             return;
         }
 
         try {
             loadImage(imageFile);
         } catch (Exception e) {
-            LOGGER.error("Failed to load jumpscare image: {}", imageFile.getFileName(), e);
+            LOGGER.error("Failed to load ambience image: {}", imageFile.getFileName(), e);
             if (activeClip != null) {
                 activeClip.stop();
                 activeClip.close();
@@ -130,7 +130,7 @@ public final class JumpscareFeature {
         active = true;
         long imageDurationMs = durationMs / 2;
         activeUntilMs = now + imageDurationMs;
-        LOGGER.info("Jumpscare triggered - sound {}ms, image {}ms", durationMs, imageDurationMs);
+        LOGGER.info("ambience triggered - sound {}ms, image {}ms", durationMs, imageDurationMs);
     }
 
     private static long playSound(Path soundFile) throws Exception {
@@ -165,9 +165,9 @@ public final class JumpscareFeature {
         if (activeTexture != null) {
             activeTexture.close();
         }
-        activeTexture = new DynamicTexture(() -> "killer560smod jumpscare", nativeImage);
+        activeTexture = new DynamicTexture(() -> "killer560smod ambience", nativeImage);
         Minecraft.getInstance().getTextureManager().register(
-                Identifier.fromNamespaceAndPath("killer560smod", "jumpscare"), activeTexture);
+                Identifier.fromNamespaceAndPath("killer560smod", "ambience"), activeTexture);
     }
 
     private static Path findFileByExtension(List<String> extensions) {
@@ -184,7 +184,7 @@ public final class JumpscareFeature {
         }
     }
 
-    /** Called every frame from {@link com.killer560.hub.jumpscare.mixin.JumpscareGuiMixin}. */
+    /** Called every frame from {@link com.killer560.hub.ambience.mixin.AmbienceGuiMixin}. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
         if (!active || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
@@ -201,6 +201,6 @@ public final class JumpscareFeature {
         com.killer560.hub.gifplayer.GifTextureUtil.blit(graphics, activeTexture, 0, 0, screenWidth, screenHeight);
     }
 
-    private JumpscareFeature() {
+    private AmbienceFeature() {
     }
 }
