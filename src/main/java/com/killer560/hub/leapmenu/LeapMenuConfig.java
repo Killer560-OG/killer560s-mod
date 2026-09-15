@@ -16,63 +16,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Persisted Leap Menu settings - sort mode, name-vs-class display, a custom GUI scale independent of
- *  Minecraft's own, which of the two assignment modes is active, the actual class-per-player
- *  assignments (also read by future teammate ESP/map-color features per killer560's own note that
- *  those don't exist yet but should read from the same source), and the freeform member ordering used
- *  by Customize mode. */
+/** Leap Order settings: per class YOU are playing, which teammate goes in each of the 4 leap menu spots, plus the
+ *  class last picked in the editor. (The old sort/display/assign/customize/GUI-scale settings were removed
+ *  2026-09-15 with the class-first Leap Order redo.) */
 public final class LeapMenuConfig {
-
-    public enum SortMode {
-        PARTY_ORDER("Party Order"),
-        ALPHABETICAL("Alphabetical"),
-        BY_CLASS("By Class"),
-        BY_DISTANCE("By Distance");
-
-        public final String label;
-
-        SortMode(String label) {
-            this.label = label;
-        }
-
-        public SortMode next() {
-            SortMode[] v = values();
-            return v[(ordinal() + 1) % v.length];
-        }
-    }
-
-    public enum DisplayMode {
-        NAME("By Name"), CLASS("By Class");
-
-        public final String label;
-
-        DisplayMode(String label) {
-            this.label = label;
-        }
-
-        public DisplayMode next() {
-            DisplayMode[] v = values();
-            return v[(ordinal() + 1) % v.length];
-        }
-    }
-
-    public enum AssignMode {
-        CLASS("Assign by Class"), CUSTOMIZE("Customize Order");
-
-        public final String label;
-
-        AssignMode(String label) {
-            this.label = label;
-        }
-
-        public AssignMode next() {
-            AssignMode[] v = values();
-            return v[(ordinal() + 1) % v.length];
-        }
-    }
-
-    public static final float MIN_SCALE = 0.5f;
-    public static final float MAX_SCALE = 2.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -80,19 +27,9 @@ public final class LeapMenuConfig {
 
     private static LeapMenuConfig instance;
 
-    private SortMode sortMode = SortMode.PARTY_ORDER;
-    private DisplayMode displayMode = DisplayMode.NAME;
-    private AssignMode assignMode = AssignMode.CLASS;
-    private float guiScale = 1.0f;
-    /** Player name (lowercase) -&gt; DungeonClass name, or absent for "no class assigned". */
-    private final Map<String, String> classAssignments = new LinkedHashMap<>();
-    /** Player names (lowercase) in the order Customize mode placed them; anyone not listed falls back
-     *  to whatever order they show up in the party. */
-    private final List<String> customOrder = new ArrayList<>();
-    /** Leap Order (2026-09-15 redo): per class YOU are playing, the teammate name placed in each of the 4 leap menu
-     *  spots (top-left, top-right, bottom-left, bottom-right); "" = spot left for auto-fill. */
+    /** Class name -&gt; the teammate name in each of the 4 spots (top-left, top-right, bottom-left, bottom-right);
+     *  "" = spot left for auto-fill. */
     private final Map<String, List<String>> classOrders = new LinkedHashMap<>();
-    /** The class last picked in the Leap Order editor - used when the tab list hasn't shown your class. */
     private String lastEditedClass = null;
 
     private LeapMenuConfig() {
@@ -109,36 +46,22 @@ public final class LeapMenuConfig {
         LeapMenuConfig cfg = new LeapMenuConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
-                String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-                JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-                cfg.sortMode = enumOr(root, "sortMode", SortMode.class, SortMode.PARTY_ORDER);
-                cfg.displayMode = enumOr(root, "displayMode", DisplayMode.class, DisplayMode.NAME);
-                cfg.assignMode = enumOr(root, "assignMode", AssignMode.class, AssignMode.CLASS);
-                cfg.guiScale = root.has("guiScale") ? root.get("guiScale").getAsFloat() : 1.0f;
-                if (root.has("classAssignments")) {
-                    JsonObject map = root.getAsJsonObject("classAssignments");
-                    for (String key : map.keySet()) {
-                        cfg.classAssignments.put(key, map.get(key).getAsString());
-                    }
-                }
-                if (root.has("classOrders")) {
+                JsonObject root = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+                if (root.has("classOrders") && root.get("classOrders").isJsonObject()) {
                     JsonObject orders = root.getAsJsonObject("classOrders");
                     for (String key : orders.keySet()) {
-                        List<String> slots = new ArrayList<>();
-                        for (var el : orders.getAsJsonArray(key)) {
-                            slots.add(el.getAsString());
+                        try {
+                            List<String> slots = new ArrayList<>();
+                            for (var el : orders.getAsJsonArray(key)) {
+                                slots.add(el.isJsonPrimitive() ? el.getAsString() : "");
+                            }
+                            cfg.classOrders.put(key, normalizeSlots(slots));
+                        } catch (RuntimeException ignored) {
                         }
-                        cfg.classOrders.put(key, normalizeSlots(slots));
                     }
                 }
-                if (root.has("lastEditedClass")) {
+                if (root.has("lastEditedClass") && root.get("lastEditedClass").isJsonPrimitive()) {
                     cfg.lastEditedClass = root.get("lastEditedClass").getAsString();
-                }
-                if (root.has("customOrder")) {
-                    JsonArray arr = root.getAsJsonArray("customOrder");
-                    for (var el : arr) {
-                        cfg.customOrder.add(el.getAsString());
-                    }
                 }
             } catch (Exception ignored) {
             }
@@ -146,31 +69,10 @@ public final class LeapMenuConfig {
         instance = cfg;
     }
 
-    private static <E extends Enum<E>> E enumOr(JsonObject obj, String key, Class<E> type, E fallback) {
-        if (!obj.has(key)) {
-            return fallback;
-        }
-        try {
-            return Enum.valueOf(type, obj.get(key).getAsString());
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject root = new JsonObject();
-            root.addProperty("sortMode", sortMode.name());
-            root.addProperty("displayMode", displayMode.name());
-            root.addProperty("assignMode", assignMode.name());
-            root.addProperty("guiScale", guiScale);
-            JsonObject map = new JsonObject();
-            classAssignments.forEach(map::addProperty);
-            root.add("classAssignments", map);
-            JsonArray arr = new JsonArray();
-            customOrder.forEach(arr::add);
-            root.add("customOrder", arr);
             JsonObject orders = new JsonObject();
             classOrders.forEach((key, slots) -> {
                 JsonArray a = new JsonArray();
@@ -183,60 +85,6 @@ public final class LeapMenuConfig {
             }
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
-        }
-    }
-
-    public SortMode getSortMode() {
-        return sortMode;
-    }
-
-    public void setSortMode(SortMode sortMode) {
-        this.sortMode = sortMode;
-    }
-
-    public DisplayMode getDisplayMode() {
-        return displayMode;
-    }
-
-    public void setDisplayMode(DisplayMode displayMode) {
-        this.displayMode = displayMode;
-    }
-
-    public AssignMode getAssignMode() {
-        return assignMode;
-    }
-
-    public void setAssignMode(AssignMode assignMode) {
-        this.assignMode = assignMode;
-    }
-
-    public float getGuiScale() {
-        return guiScale;
-    }
-
-    public void setGuiScale(float guiScale) {
-        this.guiScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, guiScale));
-    }
-
-    /** @return the class assigned to this player, or null if none - the single source of truth future
-     *  teammate ESP/map-dot recoloring should read from once those features exist. */
-    public DungeonClass getAssignedClass(String playerName) {
-        // The live class Hypixel shows (tab list / Party Finder) wins: the 2026-09-15 redo removed the manual
-        // assignment UI, so an old saved assignment could otherwise never be corrected or cleared.
-        DungeonClass live = PartyTracker.classOf(playerName);
-        if (live != null) {
-            return live;
-        }
-        String value = classAssignments.get(playerName.toLowerCase(java.util.Locale.US));
-        return value == null ? null : DungeonClass.byName(value);
-    }
-
-    public void setAssignedClass(String playerName, DungeonClass dungeonClass) {
-        String key = playerName.toLowerCase(java.util.Locale.US);
-        if (dungeonClass == null) {
-            classAssignments.remove(key);
-        } else {
-            classAssignments.put(key, dungeonClass.name());
         }
     }
 
@@ -274,26 +122,8 @@ public final class LeapMenuConfig {
         this.lastEditedClass = playing == null ? null : playing.name();
     }
 
-    public List<String> getCustomOrder() {
-        return customOrder;
-    }
-
-    public void moveInCustomOrder(List<String> fullNamesLowercase, String playerName, int delta) {
-        // Ensure every currently-visible name has an entry in customOrder (appended at the end, in
-        // whatever order they were already being shown) before reordering, so "put members wherever"
-        // works even the very first time Customize mode is used this run.
-        for (String name : fullNamesLowercase) {
-            if (!customOrder.contains(name)) {
-                customOrder.add(name);
-            }
-        }
-        int index = customOrder.indexOf(playerName.toLowerCase(java.util.Locale.US));
-        int target = index + delta;
-        if (index < 0 || target < 0 || target >= customOrder.size()) {
-            return;
-        }
-        String tmp = customOrder.get(index);
-        customOrder.set(index, customOrder.get(target));
-        customOrder.set(target, tmp);
+    /** A teammate's class from the dungeon tab list (read by the leap menu colours and the Live Map). */
+    public DungeonClass getAssignedClass(String playerName) {
+        return PartyTracker.classOf(playerName);
     }
 }
