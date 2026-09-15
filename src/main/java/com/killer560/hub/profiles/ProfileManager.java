@@ -44,7 +44,11 @@ public final class ProfileManager {
             "killer560smod-session-login.json",
             "killer560smod-account-proxies.json",
             "killer560smod-rng-item-log.json",
-            "killer560smod-storageoverlay-cache.json"
+            "killer560smod-storageoverlay-cache.json",
+            // Croesus Profit Logger's claim history + totals - real run data, not a setting.
+            "killer560smod-croesus-log.json",
+            // Experimentation Table profit tracker's session log + totals - also real run data.
+            "killer560smod-experiments-profit.json"
     );
 
     private ProfileManager() {
