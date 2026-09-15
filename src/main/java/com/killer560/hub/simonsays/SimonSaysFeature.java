@@ -1521,7 +1521,13 @@ public final class SimonSaysFeature {
         LOGGER.info("[SimonSays][RotateFrame] Beginning approach to {} (was {}).", buttonPos, rotateInProgressTarget);
         rotateInProgressTarget = buttonPos;
         rotateApproachElapsedTicks = 0f;
-        rotateSmoothingThisApproach = 0.30f + (float) (Math.random() * 0.15);
+        // Real bug found and fixed (2026-09-14, killer560's own report: "it still just got 14.7 when set
+        // to 11.2" - a real per-click log confirmed the real physical floor: 14 clicks' worth of camera-
+        // turn time plus real reveal waiting added up to more than the configured target could ever allow,
+        // regardless of how the pacing schedule was tuned - no amount of scheduling math can make a turn
+        // finish faster than the turn itself takes): sped up the base turn rate (was 0.30-0.45 per-tick
+        // smoothing) so Rotate Mode can physically reach lower configured targets.
+        rotateSmoothingThisApproach = 0.45f + (float) (Math.random() * 0.20);
         // Real bug found and fixed (2026-09-14, "it is also kind of doing this really weird flick towards
         // the buttons... it should more or less be on track to the button at all times just make it not
         // be a perfectly straight line"): 2.5/2.0-degree overshoot plus a 3-degree curve, each rolling
@@ -1677,7 +1683,12 @@ public final class SimonSaysFeature {
         // this used to, before the frame-rate-independence pass) decayed several times faster at high
         // framerate than intended - scaled by dtTicks via a real exponential-decay identity instead, so
         // the real decay SPEED (in wall-clock time) stays constant regardless of framerate.
-        double overshootDecay = Math.pow(0.6, dtTicks);
+        // Real bug found and fixed (2026-09-14, killer560's own report: "it sits waiting to click buttons
+        // for a bit"): a click can't fire until overshoot fully decays below the 0.05-degree threshold
+        // (see below) - the camera can look like it's already arrived while still silently waiting on
+        // this decay tail. Sped up from 0.6 (~60% remaining per tick) to 0.35 (~35% remaining per tick) so
+        // that tail resolves faster without removing the overshoot effect itself.
+        double overshootDecay = Math.pow(0.35, dtTicks);
         rotateOvershootYawRemaining *= (float) overshootDecay;
         rotateOvershootPitchRemaining *= (float) overshootDecay;
         if (Math.abs(rotateOvershootYawRemaining) < 0.05f) {
