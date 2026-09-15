@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
@@ -41,9 +42,21 @@ public final class I4SolverFeature {
     private static final String TAG = "[AutoI4]";
     // Bigger (2026-09-14, killer560: "make them a bit bigger").
     // Much bigger flat plates (2026-09-14, killer560: "the little squares telling me where to aim... they are almost
-    // impossible to see") - 0.6 blocks wide, drawn in the user's Aim Marker Color (default bright cyan).
+    // impossible to see") - 0.6 blocks wide, drawn in the user's Aim Marker Color (default neon yellow).
     private static final double DOT_HALF = 0.3;
     private static final double DOT_DEPTH_HALF = 0.03;
+
+    // killer560 (2026-09-14): "maybe you can hide the pane right behind it to make it pop more" - the stained
+    // glass around each aim spot (the glass columns x65/x67 between the target columns, on the wall plane and the
+    // layer in front of it) is replaced with air CLIENT-SIDE ONLY while the Solver is active at the device, and
+    // put back when it stops. Only glass is ever touched; the server re-sends real blocks on any update anyway.
+    private static final int[] HIDE_X = {65, 67};
+    private static final int[] HIDE_Y = {130, 128, 126};
+    private static final int[] HIDE_Z = {49, 50};
+    // Flags 2|16: tell the renderer, but skip neighbour shape updates so adjacent panes don't re-connect oddly.
+    private static final int CLIENT_ONLY_FLAGS = 18;
+    private static final Map<BlockPos, BlockState> hiddenGlass = new HashMap<>();
+    private static Object hiddenInLevel = null;
 
     private static final Set<BlockPos> hits = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
@@ -82,6 +95,15 @@ public final class I4SolverFeature {
             LOGGER.info("{} {} Solver {}", TAG, I4SensorsFeature.clock(), state);
             lastState = state;
         }
+        if (client.level != hiddenInLevel) {
+            hiddenGlass.clear(); // a different world - nothing of ours is left to restore
+            hiddenInLevel = client.level;
+        }
+        if (active) {
+            hideGlass(client);
+        } else if (!hiddenGlass.isEmpty()) {
+            restoreGlass(client);
+        }
         if (!active) {
             if (wasActive) {
                 hits.clear();
@@ -110,6 +132,38 @@ public final class I4SolverFeature {
                 hits.clear();
             }
         }
+    }
+
+    private static void hideGlass(Minecraft client) {
+        for (int x : HIDE_X) {
+            for (int y : HIDE_Y) {
+                for (int z : HIDE_Z) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = client.level.getBlockState(pos);
+                    if (!I4SensorsFeature.blockId(state).contains("glass")) {
+                        continue;
+                    }
+                    if (!hiddenGlass.containsKey(pos)) {
+                        LOGGER.info("{} {} Solver: hiding {} at {} (client-side only)", TAG, I4SensorsFeature.clock(),
+                                I4SensorsFeature.blockId(state), pos);
+                    }
+                    hiddenGlass.put(pos, state);
+                    client.level.setBlock(pos, Blocks.AIR.defaultBlockState(), CLIENT_ONLY_FLAGS);
+                }
+            }
+        }
+    }
+
+    private static void restoreGlass(Minecraft client) {
+        if (client.level != null) {
+            for (Map.Entry<BlockPos, BlockState> entry : hiddenGlass.entrySet()) {
+                if (client.level.getBlockState(entry.getKey()).isAir()) {
+                    client.level.setBlock(entry.getKey(), entry.getValue(), CLIENT_ONLY_FLAGS);
+                }
+            }
+            LOGGER.info("{} {} Solver: restored {} hidden glass block(s).", TAG, I4SensorsFeature.clock(), hiddenGlass.size());
+        }
+        hiddenGlass.clear();
     }
 
     private static void render(LevelRenderContext context) {

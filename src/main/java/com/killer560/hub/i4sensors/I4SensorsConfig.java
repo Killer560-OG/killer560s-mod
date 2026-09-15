@@ -67,7 +67,10 @@ public final class I4SensorsConfig {
     private boolean solverEnabled = false;
     // Aim marker color (2026-09-14, killer560: the aim squares were "almost impossible to see") - user-pickable;
     // bright cyan contrasts with the purple glass and grey wall. Hit targets stay orange.
-    public static final int DEFAULT_SOLVER_COLOR = 0xFF00FFFF;
+    // Neon yellow (2026-09-14, killer560: "super bright color and really noticeable") - yellow is purple's
+    // complement, so it pops hardest against the i4 wall's purple glass. Cyan was the previous default.
+    public static final int DEFAULT_SOLVER_COLOR = 0xFFFFFF00;
+    private static final int PREVIOUS_DEFAULT_SOLVER_COLOR = 0xFF00FFFF;
     private int solverColor = DEFAULT_SOLVER_COLOR;
     private boolean autoI4Enabled = false;
     // Same Rotate / No Rotate split as Simon Says (killer560's own request, 2026-09-14): Rotate turns the
@@ -106,6 +109,9 @@ public final class I4SensorsConfig {
             cfg.legacyVerboseEnabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
             cfg.solverEnabled = obj.has("solverEnabled") && obj.get("solverEnabled").getAsBoolean();
             cfg.solverColor = obj.has("solverColor") ? obj.get("solverColor").getAsInt() : DEFAULT_SOLVER_COLOR;
+            if (cfg.solverColor == PREVIOUS_DEFAULT_SOLVER_COLOR) {
+                cfg.solverColor = DEFAULT_SOLVER_COLOR; // saved only because it was the old default, not a real pick
+            }
             cfg.autoI4Enabled = obj.has("autoI4Enabled") && obj.get("autoI4Enabled").getAsBoolean();
             cfg.autoI4Rotate = !obj.has("autoI4Rotate") || obj.get("autoI4Rotate").getAsBoolean();
             cfg.setAutoI4RotationTimeMs(obj.has("autoI4RotationTimeMs") ? obj.get("autoI4RotationTimeMs").getAsInt() : 170);
