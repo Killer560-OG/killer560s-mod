@@ -37,6 +37,13 @@ public class NewTab extends FolderTab {
                 new TickTimersTab(),
                 new SplitTimersTab(),
                 new TerminalTimersTab(),
+                new ItemRarityTab(),
+                new ShortsTab(),
+                new DungeonAlertsTab(),
+                new NameChangerTab(),
+                new PackDisablerTab(),
+                new CroesusTab(),
+                new HeldItemTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
                 new VoiceToTextTab(),
@@ -72,6 +79,7 @@ public class NewTab extends FolderTab {
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
+            tabs.add(new CheatUtilsTab());
             tabs.add(new DungeonBreakerTab());
             tabs.add(new DioriteGlassTab());
         }

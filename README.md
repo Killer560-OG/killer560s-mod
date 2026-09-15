@@ -15,6 +15,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Chat**
 - Translate — auto-translates your chat messages into another language before sending
 - Auto Correct — fixes common typos before you send
+- Command Auto Correct — optional: fixes typos in command names you type ("/wardorbe" → "/wardrobe") against the server's real command list, never touching arguments
 - Chat Emotes — shortcuts that turn into fun chat emotes
 - Click Translate — click a chat message to see it translated
 - Copy Chat — Shift+Click a message to copy the whole thing, or Shift+Right-Click to copy just one line of it
@@ -29,11 +30,13 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
 - Jumpscare — randomly plays a full-screen image with sound to startle you (just for fun)
+- YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. **Untested** - see the New tab
 
 **Helpers**
 - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
 - Player Stats HUD — reads real Health/Mana/Defense from the real action bar and shows them as their own always-on-screen HUD line, without touching the real action bar itself
 - Experimentation Table Solver — solves Chronomatron, Ultrasequencer, and Superpairs in a highlight-only "Solver Only" mode (you click, it just shows you the answer). The **cheat** build additionally has a fully autonomous mode that clicks for you - see [Which jar do I download?](#installing) below.
+- Experimentation Table Profit Tracker — logs every claimed experiment (game, clicks, rewards, XP, bits) with coin values and running totals, plus a max-clicks chat notice in both Solver Only and Autonomous modes
 - Storage Overlay — see the contents of every Ender Chest page and Backpack live, right alongside your open inventory
 - Screenshot Copy — automatically copies a screenshot to your clipboard the moment you take it
 - No Fire — removes the on-screen fire overlay so burning doesn't block your view mid-fight
@@ -41,12 +44,16 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Dungeon**
 - RNG Meter — tracks your Hypixel Skyblock RNG/pity progress on dungeon floors
+- Chest Profit — shows the value of every reward, the cost, and the profit next to any open dungeon reward chest (end-of-run room or Croesus), and in a Croesus run view lists every chest's profit with the best one highlighted green. Uses the RNG Meter's live Bazaar/AH prices
+- Croesus Profit Logger — logs every chest you actually claim (time, floor, chest, items with prices, cost, profit) to `config/killer560smod-croesus-log.json`, with session and all-time totals per floor, a Reset Totals button, and a chat summary after each claim
+- Auto Croesus — **cheat build only.** Open Croesus yourself and it opens each unopened run and claims its single most profitable chest if it clears your Min Profit, with random Min/Max click delays; skips anything below the minimum, never rerolls or uses keys, and stops on any unexpected screen (close the menu to stop)
 - Leap Message — sends a message when you leap to someone in dungeons
 - Leap Order — a full-screen menu for sorting the party's leap order, display mode, GUI scale, and class/customize editors
 - Fast Leap — one-click quick-travel buttons, one per configured Posmsg waypoint (including a built-in "Mel" preset)
 - Posmsg — position-message waypoints for real dungeon rooms (preloaded presets like Simon Says/EE2/EE3/Outpour/Recor/Necron's Platform, plus custom ones you add), each with its own radius, display, and once-vs-repeating toggles
 - Ability Timers — a generic list of named countdown timers, each with its own keybind to start/restart it the moment you use that real ability
 - Dungeon Info — a secrets-found HUD (from the tab list), run-time tracker, score-milestone messages, and mimic/prince/bat kill alerts (dungeons only)
+- Dungeon Alerts — Shadow Assassin alert, secret-collected sound, F6/M6 Terracotta timers, Spring Boots height HUD, Ragnarock cast/buff alerts, dungeon class colors on nametags and tab, and room-entry alerts
 - Mob ESP — highlights star-tier dungeon mobs by name filter (real vanilla Glowing); legit mode only glows what you can already see via a real raycast, the **cheat** build can glow through walls too
 - Mapping — a data-gathering tool for building future map features ("Dump Held Map Now"); funny map/mimic highlight/class recolor are reserved settings that don't draw anything yet
 - Etherwarp Waypoints — per-run-only reminders for secret etherwarp spots you've marked, never saved to disk
@@ -65,6 +72,9 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Revert Master Stars — shows Master Star items with the old all-red-stars look instead of Hypixel's numbered pip (cosmetic only)
 - Inventory Search — Ctrl+F in any inventory-type screen to search and highlight matching items by name/lore
 - Item Browser — a NEU-referenced searchable panel on the right of any inventory screen showing the real, complete Skyblock item catalog with real icons
+- Item Rarity Backgrounds — colors the slot behind every Skyblock item by its rarity (Common through Divine/Special/Ultimate, pets included) in inventories and optionally the hotbar, with Square/Circle/Outline styles and adjustable opacity (visual only)
+- Name Changer — client-side only: change how your own name shows, rename specific players, or randomize everyone else's names (chat, nametags, tab list, GUIs)
+- Pack Disabler — stops Hypixel's forced Skyblock resource pack from loading, without getting kicked for required packs
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free
 - Full Block — **cheat build only.** Expands the clickable area of levers, buttons, chests, and Wither Essence blocks so real secrets are easier to click, with a master on/off toggle - see [Which jar do I download?](#installing) below.
@@ -80,6 +90,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Secret Waypoints — real, preloaded per-room secret positions (chests, items, wither skulls, bats, redstone keys) once a room is identified, downloaded from the same public room database NoammAddons itself uses. Includes real mimic-chest detection (an extra trapped chest beyond what a room should have)
 - Auto Close Chest — instantly closes a real secret reward chest ("Chest"/"Large Chest"/"Trapped Chest") the moment it opens in a dungeon, before it's ever shown on screen
 - Blood Camp — tracks the real F7 boss-fight Watcher and blood mobs by their real skull skins, predicting where each mob is about to resettle and showing a real countdown until it's vulnerable again. The **cheat** build additionally has a Trigger Bot (clicks once the countdown expires and you're looking at it, with auto ping-based or manual tick-offset timing) and an Aura that turns to face the predicted spot in advance
+- Cheat Utilities — **cheat build only.** Wither ESP (F7 boss), Secret Aura (auto-clicks chests/levers/essence in reach), Auto GFS (sack refills), Auto Ult (Healer/Tank at the right boss moments), and Auto Chocolate Factory
 - Boulder Solver — reads the real Boulder puzzle room's floor pattern and highlights the real solution tile(s) to click, ported from a known 8-pattern solution database. Never clicks for you
 - Quiz Solver — reads the real Oruo the Omniscient trivia question and lettered answer options in chat, looks up the correct answer in a bundled real question database, and highlights that option's floor tile. Never answers for you
 - Ice Fill Solver — identifies each of the real Ice Fill puzzle's 3 floor layouts and draws the real known-safe walking path across all of them. Never walks for you

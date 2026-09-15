@@ -112,6 +112,16 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new SplitTimersFeature.SplitTimersHudElement());
         com.killer560.hub.splittimers.DeviceTimesFeature.register();
         com.killer560.hub.splittimers.TerminalTimersFeature.register();
+        com.killer560.hub.itemrarity.ItemRarityFeature.register();
+        com.killer560.hub.cheatutils.CheatUtils.register();
+        com.killer560.hub.shorts.ShortsFeature.register();
+        com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
+        com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);
+        com.killer560.hub.namechanger.NameChangerFeature.register();
+        com.killer560.hub.packdisabler.PackDisablerFeature.register();
+        com.killer560.hub.croesus.ChestProfitFeature.register();
+        com.killer560.hub.croesus.AutoCroesusFeature.register();
+        com.killer560.hub.hud.HudInGameRenderer.register();
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
         ModChatFeature.register();
