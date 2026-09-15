@@ -19,7 +19,6 @@ import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.jumpscare.JumpscareFeature;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
-import com.killer560.hub.autoleap.AutoLeapFeature;
 import com.killer560.hub.i4sensors.I4SensorsFeature;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.mapping.MappingFeature;
@@ -125,7 +124,8 @@ public class Killer560ModClient implements ClientModInitializer {
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
         ModChatFeature.register();
-        AutoLeapFeature.register();
+        // Auto Leap Out replaced by the QUOI AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
+        com.killer560.hub.fastleap.FastLeapFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.register();
         com.killer560.hub.puzzlesolvers.BoulderSolverFeature.register();
         com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
@@ -135,6 +135,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.storagesearch.StorageSearchFeature.register();
         com.killer560.hub.routes.WaypointRoutesFeature.register();
         com.killer560.hub.dungeonextras.DungeonExtrasFeature.register();
+        com.killer560.hub.dungeonqueue.DungeonQueueFeature.register();
         com.killer560.hub.puzzlesolvers.WaterSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BeamsSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BlazeSolverFeature.register();
@@ -142,8 +143,11 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new com.killer560.hub.boss.LividSolverFeature.InvulnTimerHudElement());
         com.killer560.hub.quiver.QuiverDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.quiver.QuiverDisplayFeature.QuiverHudElement());
+        com.killer560.hub.inventoryhud.InventoryHudFeature.register();
+        HudElementRegistry.register(com.killer560.hub.inventoryhud.InventoryHudFeature.InventoryHudElement.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
+        com.killer560.hub.util.SkyblockGate.register();
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
         com.killer560.hub.leapmenu.PartyTracker.register();
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();

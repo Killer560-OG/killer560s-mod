@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -49,11 +50,12 @@ public final class MobEspConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             MobEspConfig cfg = new MobEspConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.cheatMode = obj.has("cheatMode") && obj.get("cheatMode").getAsBoolean();
-            cfg.nameFilter = obj.has("nameFilter") ? obj.get("nameFilter").getAsString() : "✯";
-            cfg.colorHex = obj.has("colorHex") ? obj.get("colorHex").getAsString() : "FFD700";
-            cfg.range = obj.has("range") ? obj.get("range").getAsDouble() : 40.0;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.cheatMode = ConfigJson.getBool(obj, "cheatMode", false);
+            cfg.nameFilter = ConfigJson.getString(obj, "nameFilter", "✯");
+            cfg.colorHex = ConfigJson.getString(obj, "colorHex", "FFD700");
+            // Through the clamping setter so a hand-edited out-of-range value gets the same 5..128 clamp.
+            cfg.setRange(ConfigJson.getDouble(obj, "range", 40.0));
             instance = cfg;
         } catch (Exception e) {
             instance = new MobEspConfig();

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -60,14 +61,17 @@ public final class StorageOverlayConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             StorageOverlayConfig cfg = new StorageOverlayConfig();
-            cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
-            cfg.darkMode = !obj.has("darkMode") || obj.get("darkMode").getAsBoolean();
-            cfg.scale = obj.has("scale") ? clampScale(obj.get("scale").getAsFloat()) : 1.0f;
-            cfg.columns = obj.has("columns") ? clampColumns(obj.get("columns").getAsInt()) : 3;
-            if (obj.has("customNames")) {
-                JsonObject names = obj.getAsJsonObject("customNames");
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.darkMode = ConfigJson.getBool(obj, "darkMode", true);
+            cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
+            cfg.columns = clampColumns(ConfigJson.getInt(obj, "columns", 3));
+            JsonObject names = ConfigJson.getObject(obj, "customNames");
+            if (names != null) {
                 for (String key : names.keySet()) {
-                    cfg.customNames.put(key, names.get(key).getAsString());
+                    String name = ConfigJson.getString(names, key, null);
+                    if (name != null && !name.isBlank()) {
+                        cfg.customNames.put(key, name);
+                    }
                 }
             }
             instance = cfg;

@@ -2,9 +2,12 @@ package com.killer560.hub.proxy.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.proxy.Socks4ProxyHandler;
 import io.netty.handler.proxy.Socks5ProxyHandler;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -58,9 +61,19 @@ public final class ProxyConfig {
         }
         try {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            ProxyConfig loaded = GSON.fromJson(json, ProxyConfig.class);
-            instance = (loaded != null) ? loaded : new ProxyConfig();
-            instance.normalize();
+            // Per-key reads (2026-09-15 persistence audit) instead of GSON.fromJson(whole class): one
+            // malformed value (e.g. "port": "abc") used to throw and reset EVERY proxy field. Keys are
+            // the same field names Gson writes in save().
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            ProxyConfig loaded = new ProxyConfig();
+            loaded.type = ConfigJson.getEnum(obj, "type", ProxyType.class, ProxyType.SOCKS5);
+            loaded.host = ConfigJson.getString(obj, "host", "");
+            loaded.port = ConfigJson.getInt(obj, "port", 1080);
+            loaded.username = ConfigJson.getString(obj, "username", "");
+            loaded.password = ConfigJson.getString(obj, "password", "");
+            loaded.enabled = ConfigJson.getBool(obj, "enabled", false);
+            loaded.normalize();
+            instance = loaded;
         } catch (Exception e) {
             // Corrupt config: keep defaults rather than crashing the client.
             instance = new ProxyConfig();

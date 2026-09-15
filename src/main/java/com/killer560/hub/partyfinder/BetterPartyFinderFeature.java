@@ -5,11 +5,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.rngmeter.HypixelApiKeyProvider;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 
 import java.net.URI;
@@ -74,9 +74,11 @@ public final class BetterPartyFinderFeature {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
+        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
+        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
+        ChatObserver.subscribe(BetterPartyFinderFeature::onChatMessage);
     }
 
     private static void onChatMessage(Component message) {

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -42,9 +43,10 @@ public final class ItemBrowserConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ItemBrowserConfig cfg = new ItemBrowserConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.columns = obj.has("columns") ? obj.get("columns").getAsInt() : 5;
-            cfg.rows = obj.has("rows") ? obj.get("rows").getAsInt() : 6;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            // Through the clamping setters so a hand-edited out-of-range value can't break the panel layout.
+            cfg.setColumns(ConfigJson.getInt(obj, "columns", 5));
+            cfg.setRows(ConfigJson.getInt(obj, "rows", 6));
             instance = cfg;
         } catch (Exception e) {
             instance = new ItemBrowserConfig();

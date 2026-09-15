@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -45,16 +46,16 @@ public final class ProximityVoiceConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ProximityVoiceConfig cfg = new ProximityVoiceConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.pushToTalk = !obj.has("pushToTalk") || obj.get("pushToTalk").getAsBoolean();
-            cfg.pushToTalkKeyCode = obj.has("pushToTalkKeyCode") ? obj.get("pushToTalkKeyCode").getAsInt() : -1;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.pushToTalk = ConfigJson.getBool(obj, "pushToTalk", true);
+            cfg.pushToTalkKeyCode = ConfigJson.getInt(obj, "pushToTalkKeyCode", -1);
             // Routed through the real setters (not a direct field assignment) so a hand-edited or
             // corrupted value (e.g. maxRange 0 or negative) gets clamped back into a valid range on load
             // instead of silently making proximity voice permanently inaudible with no visible error -
             // real bug found and fixed 2026-09-14, pre-testing bug-review pass.
-            cfg.setMaxRange(obj.has("maxRange") ? obj.get("maxRange").getAsDouble() : 40.0);
-            cfg.setOutputVolume(obj.has("outputVolume") ? obj.get("outputVolume").getAsFloat() : 1.0f);
-            cfg.mutedSelf = obj.has("mutedSelf") && obj.get("mutedSelf").getAsBoolean();
+            cfg.setMaxRange(ConfigJson.getDouble(obj, "maxRange", 40.0));
+            cfg.setOutputVolume(ConfigJson.getFloat(obj, "outputVolume", 1.0f));
+            cfg.mutedSelf = ConfigJson.getBool(obj, "mutedSelf", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new ProximityVoiceConfig();

@@ -157,6 +157,19 @@ public final class StorageOverlayFeature {
                 return;
             }
             captureIfChanged(menu, key);
+            // Review fix (2026-09-15): the per-frame re-capture in onContainerScreenRender only runs while
+            // the overlay is ENABLED, so with it off the only capture was this one at init - before Hypixel's
+            // contents packet arrives - which overwrote the cached page with an empty one (and Storage Search
+            // reads this cache with the overlay off). Re-capture every tick while the overlay is off.
+            ScreenEvents.afterTick(screen).register(s -> {
+                try {
+                    if (!StorageOverlayConfig.getInstance().isEnabled()) {
+                        captureIfChanged(menu, key);
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Failed to re-log storage screen", e);
+                }
+            });
         } catch (Exception e) {
             LOGGER.error("Failed to log storage screen", e);
         }
@@ -167,6 +180,20 @@ public final class StorageOverlayFeature {
      *  and self-heals a too-early capture (see {@link #onScreenOpen}) the moment real data arrives
      *  without writing to disk on every single frame once the scan has stabilized. */
     private static void captureIfChanged(ChestMenu menu, String key) {
+        // Review fix (2026-09-15): at screen init the menu is still completely empty (the contents packet
+        // comes after the open-screen packet), and capturing then replaced a good cached page with an empty
+        // one. Hypixel's chrome row (real slots 0-8, see below) is always populated once contents have
+        // synced, so an entirely empty chrome row means "not synced yet" - skip until it isn't.
+        boolean synced = false;
+        for (Slot slot : menu.slots) {
+            if (slot.index < 9 && slot.hasItem()) {
+                synced = true;
+                break;
+            }
+        }
+        if (!synced) {
+            return;
+        }
         List<ItemStack> contents = new ArrayList<>();
         int containerSlotCount = Math.max(0, menu.slots.size() - 36);
         // Real slots 0-8 (row 1 of the container) are Hypixel's own menu chrome - a "Go Back" barrier,

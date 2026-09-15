@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -46,14 +47,15 @@ public final class SlotBindsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SlotBindsConfig cfg = new SlotBindsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.bindKey = obj.has("bindKey") ? obj.get("bindKey").getAsInt() : -1;
-            if (obj.has("binds")) {
-                JsonObject binds = obj.getAsJsonObject("binds");
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.bindKey = ConfigJson.getInt(obj, "bindKey", -1);
+            JsonObject binds = ConfigJson.getObject(obj, "binds");
+            if (binds != null) {
                 for (String key : binds.keySet()) {
+                    // Per-element: one malformed entry is skipped instead of dropping every bind.
                     try {
-                        cfg.binds.put(Integer.parseInt(key), binds.get(key).getAsInt());
-                    } catch (NumberFormatException ignored) {
+                        cfg.binds.put(Integer.parseInt(key.trim()), binds.get(key).getAsInt());
+                    } catch (Exception ignored) {
                     }
                 }
             }
@@ -102,6 +104,10 @@ public final class SlotBindsConfig {
     /** Real semantics ported from Odin: a bind links two slots symmetrically for swap purposes - either
      *  end can be shift-clicked to swap with the other, matching {@link SlotBindsFeature}'s real lookup. */
     public void addBind(int slotA, int slotB) {
+        // Clear both slots' existing pairs first (2026-09-15 persistence audit): binding A->B then A->C used
+        // to overwrite only A's and C's entries, leaving a stale B->A that still swapped B with A.
+        removeBind(slotA);
+        removeBind(slotB);
         binds.put(slotA, slotB);
         binds.put(slotB, slotA);
     }

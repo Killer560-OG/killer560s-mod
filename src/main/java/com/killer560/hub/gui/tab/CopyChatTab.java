@@ -31,7 +31,7 @@ public class CopyChatTab extends BaseTab {
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Ctrl+Click any chat message to copy its plain text"),
+                Component.literal("Shift+Click any chat message (right-click: just that line) to copy its plain text"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,

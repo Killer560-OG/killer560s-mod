@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.autoleap.AutoLeapConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.i4sensors.I4SensorsConfig;
@@ -161,13 +160,9 @@ public class I4SensorsTab extends BaseTab {
             y += 22;
         }
 
-        // Same setting as Auto Leap's "I4 Device" trigger - mirrored here so everything i4 is in one place.
-        AutoLeapConfig leapCfg = AutoLeapConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Leap When i4 Done", leapCfg.isLeapOnI4Device()), btn -> {
-                    leapCfg.setLeapOnI4Device(!leapCfg.isLeapOnI4Device());
-                    leapCfg.save();
-                    btn.setMessage(onOff("Auto Leap When i4 Done", leapCfg.isLeapOnI4Device()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        // i4 Leap Out (2026-09-15): its own section, independent of the general auto leaps (QUOI AutoLeap port).
+        y += 6;
+        y = com.killer560.hub.fastleap.I4LeapSection.build(widgets, contentX, y, contentWidth, requestRebuild);
 
         return widgets;
     }

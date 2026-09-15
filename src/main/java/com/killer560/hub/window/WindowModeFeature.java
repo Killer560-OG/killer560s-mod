@@ -26,7 +26,27 @@ public final class WindowModeFeature {
         }
         appliedStartupState = true;
         if (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled()) {
-            enable(client);
+            enable(client, true);
+        }
+    }
+
+    /** Profile switch ({@code ProfileManager#applyProfile}): after {@link WindowModeConfig#load()} picked up
+     *  a different borderless setting, puts the real window into that state so the next toggle doesn't go
+     *  the wrong way. Before the first tick has applied the startup state this does nothing - that tick
+     *  reads the freshly loaded config itself. */
+    public static void applyConfigAfterReload(boolean wasEnabled) {
+        if (!appliedStartupState) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        boolean nowEnabled = WindowModeConfig.getInstance().isBorderlessFullscreenEnabled();
+        if (nowEnabled == wasEnabled) {
+            return;
+        }
+        if (nowEnabled) {
+            enable(client, false);
+        } else {
+            disable(client);
         }
     }
 
@@ -40,17 +60,21 @@ public final class WindowModeFeature {
         } else {
             cfg.setBorderlessFullscreenEnabled(true);
             cfg.save();
-            enable(client);
+            enable(client, false);
         }
     }
 
-    private static void enable(Minecraft client) {
+    /** @param fromStartup true when re-applying the saved state on the first tick after boot. The window
+     *  at that point is just Minecraft's default startup window, not a size the user chose, so it must not
+     *  replace already-saved windowed bounds (2026-09-15 persistence audit: it did, so leaving borderless
+     *  after every restart snapped back to the startup size instead of the user's real windowed bounds). */
+    private static void enable(Minecraft client, boolean fromStartup) {
         Window window = client.getWindow();
         WindowModeConfig cfg = WindowModeConfig.getInstance();
 
         if (window.isFullscreen()) {
             window.setWindowed(cfg.getSavedWindowedWidth(), cfg.getSavedWindowedHeight());
-        } else {
+        } else if (!fromStartup || !cfg.hasSavedWindowedBounds()) {
             cfg.saveWindowedBounds(window.getX(), window.getY(), window.getWidth(), window.getHeight());
             cfg.save();
         }

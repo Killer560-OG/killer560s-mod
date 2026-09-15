@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -111,17 +112,19 @@ public final class HeldItemConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-                cfg.separateOffHand = obj.has("separateOffHand") && obj.get("separateOffHand").getAsBoolean();
-                cfg.noSwing = obj.has("noSwing") && obj.get("noSwing").getAsBoolean();
-                cfg.noEquip = obj.has("noEquip") && obj.get("noEquip").getAsBoolean();
-                cfg.noHandSway = obj.has("noHandSway") && obj.get("noHandSway").getAsBoolean();
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+                cfg.separateOffHand = ConfigJson.getBool(obj, "separateOffHand", cfg.separateOffHand);
+                cfg.noSwing = ConfigJson.getBool(obj, "noSwing", cfg.noSwing);
+                cfg.noEquip = ConfigJson.getBool(obj, "noEquip", cfg.noEquip);
+                cfg.noHandSway = ConfigJson.getBool(obj, "noHandSway", cfg.noHandSway);
                 cfg.swingSpeed = clamp(getFloat(obj, "swingSpeed", 1.0f), MIN_SWING_SPEED, MAX_SWING_SPEED);
-                if (obj.has("mainHand") && obj.get("mainHand").isJsonObject()) {
-                    cfg.mainHand.fromJson(obj.getAsJsonObject("mainHand"));
+                JsonObject main = ConfigJson.getObject(obj, "mainHand");
+                if (main != null) {
+                    cfg.mainHand.fromJson(main);
                 }
-                if (obj.has("offHand") && obj.get("offHand").isJsonObject()) {
-                    cfg.offHand.fromJson(obj.getAsJsonObject("offHand"));
+                JsonObject off = ConfigJson.getObject(obj, "offHand");
+                if (off != null) {
+                    cfg.offHand.fromJson(off);
                 }
             } catch (Exception e) {
                 cfg = new HeldItemConfig();
@@ -223,11 +226,7 @@ public final class HeldItemConfig {
     }
 
     private static float getFloat(JsonObject obj, String key, float def) {
-        try {
-            return obj.has(key) ? obj.get(key).getAsFloat() : def;
-        } catch (Exception e) {
-            return def;
-        }
+        return ConfigJson.getFloat(obj, key, def);
     }
 
     static float clamp(float v, float min, float max) {

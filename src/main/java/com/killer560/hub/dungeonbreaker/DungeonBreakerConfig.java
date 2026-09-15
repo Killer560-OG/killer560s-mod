@@ -43,8 +43,8 @@ public final class DungeonBreakerConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DungeonBreakerConfig cfg = new DungeonBreakerConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.fatigueOnly = obj.has("fatigueOnly") && obj.get("fatigueOnly").getAsBoolean();
+            cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.fatigueOnly = com.killer560.hub.util.ConfigJson.getBool(obj, "fatigueOnly", cfg.fatigueOnly);
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonBreakerConfig();

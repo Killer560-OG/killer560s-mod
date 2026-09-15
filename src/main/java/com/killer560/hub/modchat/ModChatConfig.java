@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -56,13 +57,8 @@ public final class ModChatConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ModChatConfig cfg = new ModChatConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            if (obj.has("channel")) {
-                try {
-                    cfg.channel = Channel.valueOf(obj.get("channel").getAsString());
-                } catch (Exception ignored) {
-                }
-            }
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.channel = ConfigJson.getEnum(obj, "channel", Channel.class, Channel.PARTY);
             instance = cfg;
         } catch (Exception e) {
             instance = new ModChatConfig();

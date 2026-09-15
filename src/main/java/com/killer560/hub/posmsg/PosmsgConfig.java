@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -55,28 +56,35 @@ public final class PosmsgConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-                cfg.enabled = !root.has("enabled") || root.get("enabled").getAsBoolean();
-                cfg.presetsSeeded = root.has("presetsSeeded") && root.get("presetsSeeded").getAsBoolean();
-                if (root.has("entries")) {
-                    JsonArray array = root.getAsJsonArray("entries");
+                cfg.enabled = ConfigJson.getBool(root, "enabled", true);
+                cfg.presetsSeeded = ConfigJson.getBool(root, "presetsSeeded", false);
+                JsonArray array = ConfigJson.getArray(root, "entries");
+                if (array != null) {
                     for (var el : array) {
-                        JsonObject obj = el.getAsJsonObject();
-                        PosmsgEntry e = new PosmsgEntry();
-                        e.id = getString(obj, "id", e.id);
-                        e.name = getString(obj, "name", e.name);
-                        e.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
-                        e.x = obj.has("x") ? obj.get("x").getAsDouble() : 0;
-                        e.y = obj.has("y") ? obj.get("y").getAsDouble() : 0;
-                        e.z = obj.has("z") ? obj.get("z").getAsDouble() : 0;
-                        e.radius = obj.has("radius") ? obj.get("radius").getAsDouble() : 3.0;
-                        e.configured = obj.has("configured") && obj.get("configured").getAsBoolean();
-                        e.showRadius = !obj.has("showRadius") || obj.get("showRadius").getAsBoolean();
-                        e.showDisplay = !obj.has("showDisplay") || obj.get("showDisplay").getAsBoolean();
-                        e.colorHex = getString(obj, "colorHex", e.colorHex);
-                        e.showOnlyInsideRadius = obj.has("showOnlyInsideRadius") && obj.get("showOnlyInsideRadius").getAsBoolean();
-                        e.onceOnlyPerRun = obj.has("onceOnlyPerRun") && obj.get("onceOnlyPerRun").getAsBoolean();
-                        e.builtin = obj.has("builtin") && obj.get("builtin").getAsBoolean();
-                        cfg.entries.add(e);
+                        try {
+                            if (el == null || !el.isJsonObject()) {
+                                continue;
+                            }
+                            JsonObject obj = el.getAsJsonObject();
+                            PosmsgEntry e = new PosmsgEntry();
+                            e.id = ConfigJson.getString(obj, "id", e.id);
+                            e.name = ConfigJson.getString(obj, "name", e.name);
+                            e.enabled = ConfigJson.getBool(obj, "enabled", true);
+                            e.x = ConfigJson.getDouble(obj, "x", 0);
+                            e.y = ConfigJson.getDouble(obj, "y", 0);
+                            e.z = ConfigJson.getDouble(obj, "z", 0);
+                            e.radius = ConfigJson.getDouble(obj, "radius", 3.0);
+                            e.configured = ConfigJson.getBool(obj, "configured", false);
+                            e.showRadius = ConfigJson.getBool(obj, "showRadius", true);
+                            e.showDisplay = ConfigJson.getBool(obj, "showDisplay", true);
+                            e.colorHex = ConfigJson.getString(obj, "colorHex", e.colorHex);
+                            e.showOnlyInsideRadius = ConfigJson.getBool(obj, "showOnlyInsideRadius", false);
+                            e.onceOnlyPerRun = ConfigJson.getBool(obj, "onceOnlyPerRun", false);
+                            e.builtin = ConfigJson.getBool(obj, "builtin", false);
+                            cfg.entries.add(e);
+                        } catch (Exception ignored) {
+                            // Skip just this malformed waypoint; the rest of the list still loads.
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -120,10 +128,6 @@ public final class PosmsgConfig {
         e.builtin = true;
         e.configured = false;
         entries.add(e);
-    }
-
-    private static String getString(JsonObject obj, String key, String fallback) {
-        return obj.has(key) ? obj.get(key).getAsString() : fallback;
     }
 
     public void save() {

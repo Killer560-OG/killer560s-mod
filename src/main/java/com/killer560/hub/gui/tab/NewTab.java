@@ -47,6 +47,7 @@ public class NewTab extends FolderTab {
                 new StorageSearchTab(),
                 new WaypointRoutesTab(),
                 new DungeonExtrasTab(),
+                new DungeonQueueTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
                 new VoiceToTextTab(),
@@ -65,6 +66,7 @@ public class NewTab extends FolderTab {
                 new BlazeSolverTab(),
                 new LividSolverTab(),
                 new QuiverDisplayTab(),
+                new InventoryHudTab(),
                 new PlayerStatsTab(),
                 new EtherwarpOverlayTab(),
                 new SlotBindsTab(),
@@ -81,7 +83,6 @@ public class NewTab extends FolderTab {
                 new ItemBrowserTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            tabs.add(new AutoLeapTab());
             tabs.add(new AutoPuzzlesTab());
             tabs.add(new CheatUtilsTab());
             tabs.add(new DungeonBreakerTab());

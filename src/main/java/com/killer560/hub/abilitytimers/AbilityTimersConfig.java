@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -53,19 +54,27 @@ public final class AbilityTimersConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-                cfg.enabled = !root.has("enabled") || root.get("enabled").getAsBoolean();
-                cfg.presetsSeeded = root.has("presetsSeeded") && root.get("presetsSeeded").getAsBoolean();
-                if (root.has("entries")) {
-                    for (var el : root.getAsJsonArray("entries")) {
-                        JsonObject obj = el.getAsJsonObject();
-                        AbilityTimerEntry e = new AbilityTimerEntry();
-                        e.id = getString(obj, "id", e.id);
-                        e.name = getString(obj, "name", e.name);
-                        e.durationMs = obj.has("durationMs") ? obj.get("durationMs").getAsInt() : e.durationMs;
-                        e.keyCode = obj.has("keyCode") ? obj.get("keyCode").getAsInt() : -1;
-                        e.colorHex = getString(obj, "colorHex", e.colorHex);
-                        e.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
-                        cfg.entries.add(e);
+                cfg.enabled = ConfigJson.getBool(root, "enabled", true);
+                cfg.presetsSeeded = ConfigJson.getBool(root, "presetsSeeded", false);
+                JsonArray arr = ConfigJson.getArray(root, "entries");
+                if (arr != null) {
+                    for (var el : arr) {
+                        // One malformed entry is skipped instead of dropping every timer.
+                        try {
+                            if (el == null || !el.isJsonObject()) {
+                                continue;
+                            }
+                            JsonObject obj = el.getAsJsonObject();
+                            AbilityTimerEntry e = new AbilityTimerEntry();
+                            e.id = getString(obj, "id", e.id);
+                            e.name = getString(obj, "name", e.name);
+                            e.durationMs = ConfigJson.getInt(obj, "durationMs", e.durationMs);
+                            e.keyCode = ConfigJson.getInt(obj, "keyCode", -1);
+                            e.colorHex = getString(obj, "colorHex", e.colorHex);
+                            e.enabled = ConfigJson.getBool(obj, "enabled", true);
+                            cfg.entries.add(e);
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -88,7 +97,8 @@ public final class AbilityTimersConfig {
     }
 
     private static String getString(JsonObject obj, String key, String fallback) {
-        return obj.has(key) ? obj.get(key).getAsString() : fallback;
+        String v = ConfigJson.getString(obj, key, fallback);
+        return v == null ? fallback : v;
     }
 
     public void save() {

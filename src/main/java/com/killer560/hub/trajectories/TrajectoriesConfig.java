@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -45,10 +46,11 @@ public final class TrajectoriesConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             TrajectoriesConfig cfg = new TrajectoriesConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.showBows = obj.has("showBows") && obj.get("showBows").getAsBoolean();
-            cfg.showPearls = !obj.has("showPearls") || obj.get("showPearls").getAsBoolean();
-            cfg.range = obj.has("range") ? obj.get("range").getAsInt() : 30;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showBows = ConfigJson.getBool(obj, "showBows", false);
+            cfg.showPearls = ConfigJson.getBool(obj, "showPearls", true);
+            // Same 5-120 clamp setRange() applies (was loaded unclamped).
+            cfg.setRange(ConfigJson.getInt(obj, "range", 30));
             instance = cfg;
         } catch (Exception e) {
             instance = new TrajectoriesConfig();

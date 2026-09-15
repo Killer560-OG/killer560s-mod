@@ -6,6 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -70,20 +71,25 @@ public final class NameChangerConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-                cfg.ownNameEnabled = !obj.has("ownNameEnabled") || obj.get("ownNameEnabled").getAsBoolean();
-                cfg.ownDisplayName = obj.has("ownDisplayName") ? obj.get("ownDisplayName").getAsString() : "";
-                cfg.mappingsEnabled = !obj.has("mappingsEnabled") || obj.get("mappingsEnabled").getAsBoolean();
-                cfg.randomizeOthers = obj.has("randomizeOthers") && obj.get("randomizeOthers").getAsBoolean();
-                if (obj.has("mappings") && obj.get("mappings").isJsonArray()) {
-                    for (JsonElement el : obj.getAsJsonArray("mappings")) {
-                        if (!el.isJsonObject()) {
-                            continue;
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+                cfg.ownNameEnabled = ConfigJson.getBool(obj, "ownNameEnabled", true);
+                cfg.ownDisplayName = ConfigJson.getString(obj, "ownDisplayName", "");
+                cfg.mappingsEnabled = ConfigJson.getBool(obj, "mappingsEnabled", true);
+                cfg.randomizeOthers = ConfigJson.getBool(obj, "randomizeOthers", false);
+                JsonArray arr = ConfigJson.getArray(obj, "mappings");
+                if (arr != null) {
+                    for (JsonElement el : arr) {
+                        try {
+                            if (el == null || !el.isJsonObject()) {
+                                continue;
+                            }
+                            JsonObject m = el.getAsJsonObject();
+                            cfg.mappings.add(new Mapping(
+                                    ConfigJson.getString(m, "real", ""),
+                                    ConfigJson.getString(m, "display", "")));
+                        } catch (Exception ignored) {
+                            // Skip just this malformed row.
                         }
-                        JsonObject m = el.getAsJsonObject();
-                        cfg.mappings.add(new Mapping(
-                                m.has("real") ? m.get("real").getAsString() : "",
-                                m.has("display") ? m.get("display").getAsString() : ""));
                     }
                 }
             } catch (Exception e) {

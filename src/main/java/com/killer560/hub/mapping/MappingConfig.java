@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -57,11 +58,11 @@ public final class MappingConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             MappingConfig cfg = new MappingConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.funnyMapEnabled = obj.has("funnyMapEnabled") && obj.get("funnyMapEnabled").getAsBoolean();
-            cfg.extraInfoEnabled = obj.has("extraInfoEnabled") && obj.get("extraInfoEnabled").getAsBoolean();
-            cfg.mimicRoomHighlightEnabled = obj.has("mimicRoomHighlightEnabled") && obj.get("mimicRoomHighlightEnabled").getAsBoolean();
-            cfg.classRecolorEnabled = obj.has("classRecolorEnabled") && obj.get("classRecolorEnabled").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.funnyMapEnabled = ConfigJson.getBool(obj, "funnyMapEnabled", false);
+            cfg.extraInfoEnabled = ConfigJson.getBool(obj, "extraInfoEnabled", false);
+            cfg.mimicRoomHighlightEnabled = ConfigJson.getBool(obj, "mimicRoomHighlightEnabled", false);
+            cfg.classRecolorEnabled = ConfigJson.getBool(obj, "classRecolorEnabled", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new MappingConfig();

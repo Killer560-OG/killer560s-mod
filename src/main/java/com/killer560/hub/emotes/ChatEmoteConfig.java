@@ -40,7 +40,7 @@ public final class ChatEmoteConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ChatEmoteConfig cfg = new ChatEmoteConfig();
-            cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
+            cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.enabled);
             instance = cfg;
         } catch (Exception e) {
             instance = new ChatEmoteConfig();

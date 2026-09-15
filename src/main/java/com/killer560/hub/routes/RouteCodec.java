@@ -29,6 +29,7 @@ public final class RouteCodec {
 
     private static final String SKYTILS_PREFIX = "<Skytils-Waypoint-Data>(V";
     private static final String SKYBLOCKER_PREFIX = "[Skyblocker";
+    private static final int MAX_INFLATED_BYTES = 8 * 1024 * 1024;
 
     private RouteCodec() {
     }
@@ -148,7 +149,12 @@ public final class RouteCodec {
             return 0xFF000000 | (ri << 16) | (gi << 8) | bi;
         }
         if (o.has("color") && o.get("color").isJsonPrimitive()) {
-            return 0xFF000000 | (o.get("color").getAsInt() & 0xFFFFFF);
+            // Review fix (2026-09-15): a non-numeric color (e.g. "#ff0000") used to throw and fail the whole import.
+            try {
+                return 0xFF000000 | (o.get("color").getAsInt() & 0xFFFFFF);
+            } catch (RuntimeException ignored) {
+                return null;
+            }
         }
         return null;
     }
@@ -183,7 +189,13 @@ public final class RouteCodec {
     private static String gunzipBase64(String data) throws Exception {
         byte[] bytes = Base64.getDecoder().decode(data.replaceAll("\\s", ""));
         try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(bytes))) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            // Review fix (2026-09-15): cap the inflated size so a hostile/garbage clipboard gzip can't OOM the
+            // client on the render thread (the import button runs there).
+            byte[] out = in.readNBytes(MAX_INFLATED_BYTES + 1);
+            if (out.length > MAX_INFLATED_BYTES) {
+                throw new IllegalArgumentException("Waypoint data too large");
+            }
+            return new String(out, StandardCharsets.UTF_8);
         }
     }
 

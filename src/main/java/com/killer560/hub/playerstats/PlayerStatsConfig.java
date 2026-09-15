@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -45,10 +46,10 @@ public final class PlayerStatsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             PlayerStatsConfig cfg = new PlayerStatsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.showHealth = !obj.has("showHealth") || obj.get("showHealth").getAsBoolean();
-            cfg.showMana = !obj.has("showMana") || obj.get("showMana").getAsBoolean();
-            cfg.showDefense = !obj.has("showDefense") || obj.get("showDefense").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showHealth = ConfigJson.getBool(obj, "showHealth", true);
+            cfg.showMana = ConfigJson.getBool(obj, "showMana", true);
+            cfg.showDefense = ConfigJson.getBool(obj, "showDefense", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new PlayerStatsConfig();

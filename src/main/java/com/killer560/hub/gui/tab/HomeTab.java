@@ -65,6 +65,12 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
                 ).bounds(contentX, y, 220, 20).build());
         y += 26;
 
+        widgets.add(SettingsButtonWidget.builder(skyblockOnlyText(), btn -> {
+                    com.killer560.hub.util.SkyblockGate.setEnabled(!com.killer560.hub.util.SkyblockGate.isEnabled());
+                    btn.setMessage(skyblockOnlyText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 26;
+
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit HUD Positions"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new HudEditorScreen(client.screen));
@@ -80,6 +86,10 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
+    }
+
+    private static Component skyblockOnlyText() {
+        return Component.literal("Skyblock Only: " + (com.killer560.hub.util.SkyblockGate.isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private void onUpdateCheckResult(UpdateCheckFeature.Result result, SettingsButtonWidget btn) {
@@ -104,7 +114,8 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
 
     public void onKeyCaptured(int keyCode) {
         listening = false;
-        HudConfig.getInstance().setEditKeyCode(keyCode);
+        // Escape unbinds (-1), same convention as every other KeyCaptureTab - it used to bind Escape itself.
+        HudConfig.getInstance().setEditKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
         HudConfig.getInstance().save();
     }
 

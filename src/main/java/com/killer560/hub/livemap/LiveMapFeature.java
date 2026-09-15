@@ -16,7 +16,9 @@ import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.secretwaypoints.SecretWaypointsConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -26,7 +28,12 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A live, self-drawn dungeon room/door map - killer560's "reference Noamm for the map, essentially
@@ -43,6 +50,13 @@ import java.util.List;
  * {@link RoomDatabase}) to identify each room's actual NAME by hashing its blocks and matching against
  * ~140 known rooms, and its real ROTATION/corner by finding the real blue-terracotta roof marker - the
  * same technique {@link com.killer560.hub.roomdatabase} ported directly from NoammAddons' own code.
+ * <li><b>Multi-tile rooms (2026-09-15 update):</b> 1x2/1x3/1x4/2x2/L rooms are grouped into ONE room
+ * the way NoammAddons' {@code UniqueRoom}/{@code RoomTile.addToUnique} does - tiles sharing a database
+ * name join one room, and "connector" cells (the filled gap between two tiles of the same room, from the
+ * world scan or from the vanilla dungeon map item via {@link DungeonMapScanner}) join the tiles on either
+ * side. A room's name, rotation/corner, map state and label are shared by every tile of it. Merges that
+ * would contradict the database (two different names, or more tiles than the room's shape has) are
+ * refused, so missing/odd data just falls back to single tiles.
  * </ul>
  * So this draws real room shapes, real names, real door types, and real live player dots. Room name
  * identification needs the database to finish its (small, ~30KB) download on first use - until then
@@ -60,7 +74,10 @@ public final class LiveMapFeature {
     }
 
     private static final Tile[] grid = new Tile[GRID * GRID];
+    /** Per-tile core-hash match (even cells only). Room-level identity lives on {@link RoomGroup#entry}. */
     private static final RoomEntry[] roomEntryGrid = new RoomEntry[GRID * GRID];
+    /** Rotation/corner, stored on the tile whose corner (or, for bounding-box hits, the group's main tile)
+     *  carried the marker; resolved per room by {@link #rotationSourceIdx(RoomGroup)}. */
     private static final int[] rotationGrid = new int[GRID * GRID];
     private static final int[] clayXGrid = new int[GRID * GRID];
     private static final int[] clayZGrid = new int[GRID * GRID];
@@ -77,6 +94,14 @@ public final class LiveMapFeature {
      *  ticks after a level change, nor while still exactly at the placeholder. */
     private static final int BOSS_LATCH_GRACE_TICKS = 20;
     private static int bossLatchGraceTicks = 0;
+
+    // ---- multi-tile room grouping (rebuilt only when the grid, a tile identity, or the map changes) ----
+    private static final int[] groupOfCell = new int[GRID * GRID];
+    private static final List<RoomGroup> groups = new ArrayList<>();
+    private static boolean groupsDirty = true;
+    /** Per-room secrets found, from the action bar's "x/y Secrets" (NoammAddons' ActionBarParser). */
+    private static final Map<String, Integer> foundSecretsByRoom = new HashMap<>();
+    private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d+)/(\\d+) Secrets");
 
     // Boss room bounds per floor 1..7 - copied verbatim from NoammAddons' own (26.1.2 upstream)
     // LocationUtils.bossRoomBounds; {x1, y1, z1, x2, y2, z2}, min/max normalized by AABB's constructor.
@@ -97,18 +122,81 @@ public final class LiveMapFeature {
     private static final boolean[] loggedNoRotation = new boolean[GRID * GRID];
     private static String lastLoggedPlayerRoom = null;
     private static String lastLoggedSummary = null;
+    private static String lastLoggedGroups = null;
     private static long lastSummaryCheckMs = 0;
 
     static {
         java.util.Arrays.fill(grid, Tile.UNKNOWN);
         java.util.Arrays.fill(rotationGrid, -1);
+        java.util.Arrays.fill(groupOfCell, -1);
     }
 
     private LiveMapFeature() {
     }
 
+    /** One real dungeon room - one or more grid tiles plus the connector cells between them. */
+    static final class RoomGroup {
+        /** Top-left tile (smallest grid x, then z) - NoammAddons' {@code UniqueRoom.mainRoom}. */
+        final int mainIdx;
+        /** Even (room) cells. */
+        final int[] tiles;
+        /** Every cell of the room, tiles and connectors. */
+        final int[] cells;
+        final RoomEntry entry;
+        final int minGX;
+        final int maxGX;
+        final int minGZ;
+        final int maxGZ;
+        /** Label center in grid units (QUOI's {@code OdonRoom.textPlacement}). */
+        final float labelGX;
+        final float labelGZ;
+        final String[] nameLines;
+
+        RoomGroup(int mainIdx, int[] tiles, int[] cells, RoomEntry entry) {
+            this.mainIdx = mainIdx;
+            this.tiles = tiles;
+            this.cells = cells;
+            this.entry = entry;
+            int mnX = GRID;
+            int mxX = -1;
+            int mnZ = GRID;
+            int mxZ = -1;
+            for (int t : tiles) {
+                mnX = Math.min(mnX, t % GRID);
+                mxX = Math.max(mxX, t % GRID);
+                mnZ = Math.min(mnZ, t / GRID);
+                mxZ = Math.max(mxZ, t / GRID);
+            }
+            minGX = mnX;
+            maxGX = mxX;
+            minGZ = mnZ;
+            maxGZ = mxZ;
+            float lx = (mnX + mxX) / 2f;
+            float lz = (mnZ + mxZ) / 2f;
+            if (tiles.length == 3) {
+                // L-shape: center on the horizontal pair (QUOI textPlacement).
+                for (int a = 0; a < 3; a++) {
+                    for (int b = a + 1; b < 3; b++) {
+                        if (tiles[a] / GRID == tiles[b] / GRID) {
+                            lx = (tiles[a] % GRID + tiles[b] % GRID) / 2f;
+                            lz = tiles[a] / GRID;
+                        }
+                    }
+                }
+            }
+            labelGX = lx;
+            labelGZ = lz;
+            nameLines = entry != null && entry.name != null ? entry.name.split(" ") : new String[0];
+        }
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (overlay) {
+                onActionBar(message.getString());
+            }
+        });
     }
 
     private static void resetGrid(String reason) {
@@ -118,7 +206,13 @@ public final class LiveMapFeature {
         java.util.Arrays.fill(lastLoggedCore, 0);
         java.util.Arrays.fill(loggedNoRotation, false);
         java.util.Arrays.fill(rotationRetryAtMs, 0L);
+        java.util.Arrays.fill(groupOfCell, -1);
+        groups.clear();
+        groupsDirty = true;
+        foundSecretsByRoom.clear();
+        DungeonMapScanner.reset();
         lastLoggedSummary = null;
+        lastLoggedGroups = null;
         bossLatched = false;
         LOGGER.info("[LiveMap] {} - grid reset (floor={})", reason, DungeonState.getFloor());
     }
@@ -188,6 +282,9 @@ public final class LiveMapFeature {
             return;
         }
         lastScanAtMs = now;
+        if (DungeonMapScanner.update(client)) {
+            groupsDirty = true;
+        }
         scan();
     }
 
@@ -205,18 +302,13 @@ public final class LiveMapFeature {
                 boolean rowEven = z % 2 == 0;
                 boolean colEven = x % 2 == 0;
 
-                // Room identity/rotation can still be filled in after the tile itself was already
-                // marked (e.g. the database finished loading after this cell was first scanned), so
-                // this part re-checks even on an already-known ROOM tile; only the tile classification
-                // itself is skip-if-known.
-                // Real bug found and fixed (2026-09-14, code review): this used to retry only while
-                // roomEntryGrid[idx]==null, so a room identified BEFORE its blue-terracotta corner marker
-                // loaded never got a rotation -> no waypoints and no solver for that room all run.
-                // Identified-but-unrotated cells now keep retrying rotation too.
-                if (grid[idx] == Tile.ROOM && rowEven && colEven
-                        && ((roomEntryGrid[idx] == null && RoomDatabase.isReady()) || rotationGrid[idx] < 0)
+                // Room identity can still be filled in after the tile itself was already marked (e.g. the
+                // database finished loading after this cell was first scanned), so this re-checks even on
+                // an already-known ROOM tile - unless another tile of the same room already identified it.
+                if (grid[idx] == Tile.ROOM && rowEven && colEven && roomEntryGrid[idx] == null
+                        && RoomDatabase.isReady() && roomEntryAt(idx) == null
                         && client.level.isLoaded(new BlockPos(wx, 70, wz))) {
-                    identifyRoom(client, idx, wx, wz);
+                    identifyTile(client, idx, wx, wz);
                 }
                 if (grid[idx] != Tile.UNKNOWN) {
                     continue;
@@ -233,58 +325,322 @@ public final class LiveMapFeature {
 
                 if (rowEven && colEven) {
                     grid[idx] = Tile.ROOM;
+                    groupsDirty = true;
                     LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> ROOM", x, z, wx, wz, roofHeight);
-                    identifyRoom(client, idx, wx, wz);
+                    identifyTile(client, idx, wx, wz);
                 } else if (roofHeight == 73 || roofHeight == 74 || roofHeight == 81 || roofHeight == 82) {
                     grid[idx] = classifyDoor(client, wx, wz);
+                    groupsDirty = true;
                     LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> {} (y69 block={})", x, z, wx, wz,
                             roofHeight, grid[idx], client.level.getBlockState(new BlockPos(wx, 69, wz)).getBlock());
                 } else {
-                    // Corridor/connector for a larger room - copies the parent room's identity when
-                    // known, same simplification NoammAddons itself only avoids via full multi-tile
-                    // grouping this port doesn't replicate.
+                    // Connector between two tiles of one larger room (or a 2x2 room's center) - the filled
+                    // wall gap. Joins the neighbouring tiles into one room in rebuildGroups().
                     grid[idx] = Tile.ROOM;
+                    groupsDirty = true;
                     LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> ROOM (connector)", x, z, wx, wz, roofHeight);
                 }
             }
         }
+
+        ensureGroups();
+        long nowMs = System.currentTimeMillis();
+        for (RoomGroup group : groups) {
+            if (rotationSourceIdx(group) >= 0 || nowMs < rotationRetryAtMs[group.mainIdx]) {
+                continue;
+            }
+            // Throttled to 1s per room: each attempt is a full 255-block roof column scan per tile.
+            rotationRetryAtMs[group.mainIdx] = nowMs + 1000;
+            findRoomRotation(client, group);
+        }
     }
 
-    private static void identifyRoom(Minecraft client, int idx, int wx, int wz) {
-        if (roomEntryGrid[idx] == null && RoomDatabase.isReady()) {
-            int core = RoomDatabase.getCore(client.level, wx, wz);
-            RoomEntry entry = RoomDatabase.lookup(core);
-            if (entry != null) {
-                roomEntryGrid[idx] = entry;
-                LOGGER.info("[LiveMap] Room identified at cell ({},{}) world=({},{}): \"{}\" type={} shape={} secrets={} core={} (rotationKnown={})",
-                        idx % GRID, idx / GRID, wx, wz, entry.name, entry.type, entry.shape, entry.secrets, core,
-                        rotationGrid[idx] >= 0);
-            } else if (lastLoggedCore[idx] != core) {
-                // Retried every 250ms until matched - only log when the computed hash actually changes.
-                lastLoggedCore[idx] = core;
-                LOGGER.info("[LiveMap] No room DB match at cell ({},{}) world=({},{}) core={} (will retry)",
-                        idx % GRID, idx / GRID, wx, wz, core);
+    private static void identifyTile(Minecraft client, int idx, int wx, int wz) {
+        if (roomEntryGrid[idx] != null || !RoomDatabase.isReady()) {
+            return;
+        }
+        int core = RoomDatabase.getCore(client.level, wx, wz);
+        RoomEntry entry = RoomDatabase.lookup(core);
+        if (entry != null) {
+            roomEntryGrid[idx] = entry;
+            groupsDirty = true;
+            LOGGER.info("[LiveMap] Room identified at cell ({},{}) world=({},{}): \"{}\" type={} shape={} secrets={} core={} (rotationKnown={})",
+                    idx % GRID, idx / GRID, wx, wz, entry.name, entry.type, entry.shape, entry.secrets, core,
+                    rotationGrid[idx] >= 0);
+        } else if (lastLoggedCore[idx] != core) {
+            // Retried every 250ms until matched - only log when the computed hash actually changes.
+            lastLoggedCore[idx] = core;
+            LOGGER.info("[LiveMap] No room DB match at cell ({},{}) world=({},{}) core={} (will retry)",
+                    idx % GRID, idx / GRID, wx, wz, core);
+        }
+    }
+
+    /** Port of NoammAddons' {@code UniqueRoom.findRotation}: Fairy has no marker (fixed corner, rotation 0);
+     *  a complete non-L room checks the 4 corners of the bounding box around all its tiles; L-shaped rooms,
+     *  incomplete rooms and rooms with no database match fall back to each tile's own 4 corners (the
+     *  pre-grouping behaviour). */
+    private static void findRoomRotation(Minecraft client, RoomGroup group) {
+        List<Integer> worldTiles = new ArrayList<>();
+        for (int t : group.tiles) {
+            if (grid[t] == Tile.ROOM) {
+                worldTiles.add(t);
             }
         }
-        long nowMs = System.currentTimeMillis();
-        if (rotationGrid[idx] < 0 && nowMs >= rotationRetryAtMs[idx]) {
-            // Throttled to 1s per cell: non-corner cells of multi-tile rooms may never have a marker of
-            // their own, and each attempt is a full 255-block roof column scan.
-            rotationRetryAtMs[idx] = nowMs + 1000;
+        if (worldTiles.isEmpty()) {
+            return;
+        }
+        RoomEntry entry = group.entry;
+        int mainIdx = worldTiles.contains(group.mainIdx) ? group.mainIdx : worldTiles.get(0);
+        int mainX = START_X + (mainIdx % GRID) * HALF_ROOM;
+        int mainZ = START_Z + (mainIdx / GRID) * HALF_ROOM;
+        if (entry != null && "FAIRY".equals(entry.type) && group.tiles.length == 1) {
+            setRotation(mainIdx, mainX - 15, mainZ - 15, 0, -1, group, "fairy");
+            return;
+        }
+        if (entry != null && !"L".equals(entry.shape) && worldTiles.size() > 1
+                && worldTiles.size() >= RoomDatabase.shapeTileCount(entry.shape)
+                && client.level.isLoaded(new BlockPos(mainX, 70, mainZ))) {
+            int minX = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE;
+            int minZ = Integer.MAX_VALUE;
+            int maxZ = Integer.MIN_VALUE;
+            for (int t : worldTiles) {
+                int tx = START_X + (t % GRID) * HALF_ROOM;
+                int tz = START_Z + (t / GRID) * HALF_ROOM;
+                minX = Math.min(minX, tx);
+                maxX = Math.max(maxX, tx);
+                minZ = Math.min(minZ, tz);
+                maxZ = Math.max(maxZ, tz);
+            }
+            int roofHeight = getHighestY(client, mainX, mainZ);
+            if (roofHeight > 0) {
+                int[] rot = RoomDatabase.findRotationAndCorner(client.level, minX, minZ, maxX, maxZ, roofHeight);
+                if (rot != null) {
+                    setRotation(mainIdx, rot[0], rot[1], rot[2], roofHeight, group, "bounds");
+                    return;
+                }
+            }
+        }
+        for (int t : worldTiles) {
+            int wx = START_X + (t % GRID) * HALF_ROOM;
+            int wz = START_Z + (t / GRID) * HALF_ROOM;
+            if (!client.level.isLoaded(new BlockPos(wx, 70, wz))) {
+                continue;
+            }
             int roofHeight = getHighestY(client, wx, wz);
             int[] rot = RoomDatabase.findRotationAndCorner(client.level, wx, wz, roofHeight);
             if (rot != null) {
-                clayXGrid[idx] = rot[0];
-                clayZGrid[idx] = rot[1];
-                rotationGrid[idx] = rot[2];
-                LOGGER.info("[LiveMap] Rotation found at cell ({},{}): clay=({},{}) rotation={} roofY={} room={} lateRetry={}",
-                        idx % GRID, idx / GRID, rot[0], rot[1], rot[2], roofHeight,
-                        roomEntryGrid[idx] != null ? "\"" + roomEntryGrid[idx].name + "\"" : "null", loggedNoRotation[idx]);
-            } else if (!loggedNoRotation[idx]) {
-                loggedNoRotation[idx] = true;
-                LOGGER.info("[LiveMap] No blue-terracotta corner marker at cell ({},{}) world=({},{}) roofY={} (roomIdentified={})",
-                        idx % GRID, idx / GRID, wx, wz, roofHeight, roomEntryGrid[idx] != null);
+                setRotation(t, rot[0], rot[1], rot[2], roofHeight, group, "tile");
+                return;
             }
+        }
+        if (!loggedNoRotation[group.mainIdx]) {
+            loggedNoRotation[group.mainIdx] = true;
+            LOGGER.info("[LiveMap] No blue-terracotta corner marker for room at cell ({},{}) tiles={} (roomIdentified={})",
+                    group.mainIdx % GRID, group.mainIdx / GRID, group.tiles.length, entry != null);
+        }
+    }
+
+    private static void setRotation(int idx, int clayX, int clayZ, int rotation, int roofHeight, RoomGroup group, String how) {
+        clayXGrid[idx] = clayX;
+        clayZGrid[idx] = clayZ;
+        rotationGrid[idx] = rotation;
+        LOGGER.info("[LiveMap] Rotation found at cell ({},{}) via {}: clay=({},{}) rotation={} roofY={} room={} tiles={} lateRetry={}",
+                idx % GRID, idx / GRID, how, clayX, clayZ, rotation, roofHeight,
+                group.entry != null ? "\"" + group.entry.name + "\"" : "null", group.tiles.length,
+                loggedNoRotation[group.mainIdx]);
+    }
+
+    /** @return the tile index holding this room's rotation/corner (main tile first), or -1. */
+    private static int rotationSourceIdx(RoomGroup group) {
+        if (rotationGrid[group.mainIdx] >= 0) {
+            return group.mainIdx;
+        }
+        for (int t : group.tiles) {
+            if (rotationGrid[t] >= 0) {
+                return t;
+            }
+        }
+        return -1;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Grouping
+    // ---------------------------------------------------------------------------------------------
+
+    private static void ensureGroups() {
+        if (groupsDirty) {
+            groupsDirty = false;
+            rebuildGroups();
+        }
+    }
+
+    /** Union-find over the 121 cells. Real sources, in order: (1) connector cells join their neighbours -
+     *  NoammAddons' {@code DungeonScanner.scanTile} "connection between large rooms"/"2x2 center" branches,
+     *  plus {@code HotbarMapScanner.getConnected} for map-only cells; (2) tiles with the same database name
+     *  join - {@code DungeonScanner.uniqueRooms} keyed by name. A union is refused when both sides have
+     *  different names or the result would exceed the room's shape tile count, so bad data degrades to
+     *  single tiles instead of wrong merges. */
+    private static void rebuildGroups() {
+        int n = GRID * GRID;
+        int[] parent = new int[n];
+        int[] tileCount = new int[n];
+        RoomEntry[] rootEntry = new RoomEntry[n];
+        boolean[] roomish = new boolean[n];
+        boolean[] isTile = new boolean[n];
+        for (int idx = 0; idx < n; idx++) {
+            int gx = idx % GRID;
+            int gz = idx / GRID;
+            boolean even = gx % 2 == 0 && gz % 2 == 0;
+            int mapKind = DungeonMapScanner.kindAt(idx);
+            boolean worldRoom = grid[idx] == Tile.ROOM;
+            boolean worldUnknown = grid[idx] == Tile.UNKNOWN;
+            if (even) {
+                isTile[idx] = worldRoom || (worldUnknown && mapKind == DungeonMapScanner.KIND_ROOM);
+                roomish[idx] = isTile[idx];
+            } else {
+                roomish[idx] = worldRoom || (worldUnknown && mapKind == DungeonMapScanner.KIND_SEPARATOR);
+            }
+            parent[idx] = idx;
+            tileCount[idx] = isTile[idx] ? 1 : 0;
+            rootEntry[idx] = isTile[idx] ? roomEntryGrid[idx] : null;
+        }
+
+        int refused = 0;
+        for (int idx = 0; idx < n; idx++) {
+            int gx = idx % GRID;
+            int gz = idx / GRID;
+            if (!roomish[idx] || (gx % 2 == 0 && gz % 2 == 0)) {
+                continue;
+            }
+            if (gx > 0 && roomish[idx - 1] && !union(parent, tileCount, rootEntry, idx, idx - 1)) refused++;
+            if (gx < GRID - 1 && roomish[idx + 1] && !union(parent, tileCount, rootEntry, idx, idx + 1)) refused++;
+            if (gz > 0 && roomish[idx - GRID] && !union(parent, tileCount, rootEntry, idx, idx - GRID)) refused++;
+            if (gz < GRID - 1 && roomish[idx + GRID] && !union(parent, tileCount, rootEntry, idx, idx + GRID)) refused++;
+        }
+        Map<String, Integer> firstByName = new HashMap<>();
+        for (int idx = 0; idx < n; idx++) {
+            if (!isTile[idx] || roomEntryGrid[idx] == null || roomEntryGrid[idx].name == null) {
+                continue;
+            }
+            Integer first = firstByName.putIfAbsent(roomEntryGrid[idx].name, idx);
+            if (first != null && !union(parent, tileCount, rootEntry, first, idx)) {
+                refused++;
+            }
+        }
+
+        java.util.Arrays.fill(groupOfCell, -1);
+        groups.clear();
+        Map<Integer, List<Integer>> tilesByRoot = new HashMap<>();
+        Map<Integer, List<Integer>> cellsByRoot = new HashMap<>();
+        for (int idx = 0; idx < n; idx++) {
+            if (!roomish[idx]) {
+                continue;
+            }
+            int root = find(parent, idx);
+            if (tileCount[root] == 0) {
+                continue; // connector with no tile attached (yet) - drawn as a plain cell
+            }
+            cellsByRoot.computeIfAbsent(root, k -> new ArrayList<>()).add(idx);
+            if (isTile[idx]) {
+                tilesByRoot.computeIfAbsent(root, k -> new ArrayList<>()).add(idx);
+            }
+        }
+        StringBuilder multi = new StringBuilder();
+        for (Map.Entry<Integer, List<Integer>> e : cellsByRoot.entrySet()) {
+            List<Integer> tileList = tilesByRoot.get(e.getKey());
+            if (tileList == null || tileList.isEmpty()) {
+                continue;
+            }
+            int main = tileList.get(0);
+            for (int t : tileList) {
+                int tx = t % GRID;
+                int mx = main % GRID;
+                if (tx < mx || (tx == mx && t / GRID < main / GRID)) {
+                    main = t;
+                }
+            }
+            int[] tiles = tileList.stream().mapToInt(Integer::intValue).toArray();
+            int[] cells = e.getValue().stream().mapToInt(Integer::intValue).toArray();
+            RoomGroup group = new RoomGroup(main, tiles, cells, rootEntry[e.getKey()]);
+            int gid = groups.size();
+            groups.add(group);
+            for (int c : cells) {
+                groupOfCell[c] = gid;
+            }
+            if (tiles.length > 1) {
+                multi.append(group.entry != null ? group.entry.name : "?").append("@(").append(main % GRID)
+                        .append(',').append(main / GRID).append(")x").append(tiles.length).append(' ');
+            }
+        }
+        String summary = "rooms=" + groups.size() + " refusedMerges=" + refused + " multiTile=[" + multi.toString().trim()
+                + "] mapCalibrated=" + DungeonMapScanner.isCalibrated();
+        if (!summary.equals(lastLoggedGroups)) {
+            LOGGER.info("[LiveMap] Room groups rebuilt: {}", summary);
+            lastLoggedGroups = summary;
+        }
+    }
+
+    private static int find(int[] parent, int i) {
+        while (parent[i] != i) {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        return i;
+    }
+
+    private static boolean union(int[] parent, int[] tileCount, RoomEntry[] rootEntry, int a, int b) {
+        int ra = find(parent, a);
+        int rb = find(parent, b);
+        if (ra == rb) {
+            return true;
+        }
+        RoomEntry ea = rootEntry[ra];
+        RoomEntry eb = rootEntry[rb];
+        if (ea != null && eb != null && ea.name != null && !ea.name.equals(eb.name)) {
+            return false;
+        }
+        RoomEntry merged = ea != null ? ea : eb;
+        int count = tileCount[ra] + tileCount[rb];
+        if (count > RoomDatabase.shapeTileCount(merged != null ? merged.shape : null)) {
+            return false;
+        }
+        parent[rb] = ra;
+        tileCount[ra] = count;
+        rootEntry[ra] = merged;
+        return true;
+    }
+
+    private static RoomGroup groupAt(int idx) {
+        ensureGroups();
+        int gid = idx >= 0 && idx < GRID * GRID ? groupOfCell[idx] : -1;
+        return gid >= 0 ? groups.get(gid) : null;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    /** NoammAddons {@code ActionBarParser}: the action bar's "x/y Secrets" is the current room's count;
+     *  only trusted when y matches the room's database secret total. */
+    private static void onActionBar(String text) {
+        if (text == null || !DungeonState.isInDungeon() || isInBoss() || !text.contains("Secrets")) {
+            return;
+        }
+        Matcher m = ACTION_BAR_SECRETS.matcher(text);
+        if (!m.find()) {
+            return;
+        }
+        int idx = currentRoomIndex();
+        RoomGroup group = idx < 0 ? null : groupAt(idx);
+        if (group == null || group.entry == null || group.entry.name == null) {
+            return;
+        }
+        try {
+            int found = Integer.parseInt(m.group(1));
+            int max = Integer.parseInt(m.group(2));
+            if (max == group.entry.secrets) {
+                foundSecretsByRoom.put(group.entry.name, found);
+            }
+        } catch (NumberFormatException ignored) {
         }
     }
 
@@ -296,9 +652,12 @@ public final class LiveMapFeature {
         }
         int[] cell = gridCellFor(client.player.position());
         int idx = cell[0] + cell[1] * GRID;
-        RoomEntry entry = roomEntryGrid[idx];
+        RoomEntry entry = roomEntryAt(idx);
+        RoomGroup group = groupAt(idx);
+        int rotIdx = group != null ? rotationSourceIdx(group) : (rotationGrid[idx] >= 0 ? idx : -1);
         String key = "cell=(" + cell[0] + "," + cell[1] + ") tile=" + grid[idx]
-                + " room=" + (entry != null ? entry.name : "null") + " rotation=" + rotationGrid[idx]
+                + " room=" + (entry != null ? entry.name : "null") + " roomTiles=" + (group != null ? group.tiles.length : 0)
+                + " rotation=" + (rotIdx >= 0 ? rotationGrid[rotIdx] : -1)
                 + " matchable=" + (currentRoomIndex() >= 0) + " inBoss=" + isInBoss();
         if (!key.equals(lastLoggedPlayerRoom)) {
             var pos = client.player.position();
@@ -333,9 +692,12 @@ public final class LiveMapFeature {
                 rotated++;
             }
         }
+        ensureGroups();
         String summary = "knownCells=" + known + "/" + (GRID * GRID) + " roomCells=" + rooms + " identified=" + identified
-                + " withRotation=" + rotated + " identifiedAndRotated=" + identifiedRoomsWithRotation().size()
-                + " unloadedRoomCells=" + unloadedRoomCells + " roomDbReady=" + RoomDatabase.isReady();
+                + " withRotation=" + rotated + " rooms=" + groups.size()
+                + " identifiedAndRotated=" + identifiedRoomsWithRotation().size()
+                + " unloadedRoomCells=" + unloadedRoomCells + " roomDbReady=" + RoomDatabase.isReady()
+                + " mapCalibrated=" + DungeonMapScanner.isCalibrated();
         if (!summary.equals(lastLoggedSummary)) {
             LOGGER.info("[LiveMap] Scan summary: {}", summary);
             lastLoggedSummary = summary;
@@ -377,21 +739,52 @@ public final class LiveMapFeature {
         return new int[]{gx, gz};
     }
 
-    /** For {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature} - a snapshot of every grid
-     *  cell that has both a known room identity AND a known rotation/corner (needed to translate that
-     *  room's stored relative secret coordinates into real world positions for THIS run). */
+    /** For {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature} - one entry per identified
+     *  ROOM (not per tile) that has both a known identity AND a known rotation/corner (needed to translate
+     *  that room's stored relative secret coordinates into real world positions for THIS run):
+     *  {@code [mainTileIdx, clayX, clayZ, rotationDegrees]}. */
     public static List<int[]> identifiedRoomsWithRotation() {
-        List<int[]> result = new java.util.ArrayList<>();
-        for (int idx = 0; idx < GRID * GRID; idx++) {
-            if (roomEntryGrid[idx] != null && rotationGrid[idx] >= 0) {
-                result.add(new int[]{idx, clayXGrid[idx], clayZGrid[idx], rotationGrid[idx]});
+        ensureGroups();
+        List<int[]> result = new ArrayList<>();
+        for (RoomGroup group : groups) {
+            if (group.entry == null) {
+                continue;
+            }
+            int r = rotationSourceIdx(group);
+            if (r >= 0) {
+                result.add(new int[]{group.mainIdx, clayXGrid[r], clayZGrid[r], rotationGrid[r]});
             }
         }
         return result;
     }
 
+    /** @return the room identity for any cell of a room (every tile/connector of a multi-tile room gives
+     *  the same entry), or null. */
     public static RoomEntry roomEntryAt(int idx) {
-        return roomEntryGrid[idx];
+        if (idx < 0 || idx >= GRID * GRID) {
+            return null;
+        }
+        RoomGroup group = groupAt(idx);
+        return group != null ? group.entry : roomEntryGrid[idx];
+    }
+
+    /** @return every grid cell index (tiles and connectors) of the room containing {@code idx}, or just
+     *  {@code idx} when it isn't part of a known room. */
+    public static int[] roomCellIndices(int idx) {
+        RoomGroup group = groupAt(idx);
+        return group != null ? group.cells.clone() : new int[]{idx};
+    }
+
+    /** @return {@code [minX, minZ, maxX, maxZ]} world bounds of the whole room containing {@code idx} (each
+     *  tile's 32x32 footprint, same box {@code SecretWaypointsFeature}'s mimic check builds per tile). */
+    public static int[] roomWorldBounds(int idx) {
+        RoomGroup group = groupAt(idx);
+        int minGX = group != null ? group.minGX : idx % GRID;
+        int maxGX = group != null ? group.maxGX : idx % GRID;
+        int minGZ = group != null ? group.minGZ : idx / GRID;
+        int maxGZ = group != null ? group.maxGZ : idx / GRID;
+        return new int[]{START_X + minGX * HALF_ROOM - 16, START_Z + minGZ * HALF_ROOM - 16,
+                START_X + maxGX * HALF_ROOM + 16, START_Z + maxGZ * HALF_ROOM + 16};
     }
 
     /** Real bug found and fixed (2026-09-14, code review + NoammAddons e42d3316 "reset when entering
@@ -454,21 +847,30 @@ public final class LiveMapFeature {
 
     public static RoomEntry currentRoomEntry() {
         int idx = currentRoomIndex();
-        return idx < 0 ? null : roomEntryGrid[idx];
+        return idx < 0 ? null : roomEntryAt(idx);
     }
 
     /** For real puzzle solvers (e.g. {@code BoulderSolverFeature}) that need to translate a puzzle's own
      *  stored relative coordinates into real world positions for THIS run, the same way
      *  {@link #identifiedRoomsWithRotation()} already does for Secret Waypoints - just narrowed to
-     *  whichever single room the player is currently standing in. @return
+     *  whichever single room the player is currently standing in (any tile of it). @return
      *  {@code [clayX, clayZ, rotationDegrees]}, or null if the current room's identity/rotation aren't
      *  both known yet. */
     public static int[] currentRoomClayAndRotation() {
         int idx = currentRoomIndex();
-        if (idx < 0 || roomEntryGrid[idx] == null || rotationGrid[idx] < 0) {
+        if (idx < 0) {
             return null;
         }
-        return new int[]{clayXGrid[idx], clayZGrid[idx], rotationGrid[idx]};
+        RoomGroup group = groupAt(idx);
+        if (group == null) {
+            return roomEntryGrid[idx] == null || rotationGrid[idx] < 0 ? null
+                    : new int[]{clayXGrid[idx], clayZGrid[idx], rotationGrid[idx]};
+        }
+        int r = rotationSourceIdx(group);
+        if (group.entry == null || r < 0) {
+            return null;
+        }
+        return new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
     public static final class LiveMapHudElement implements HudElement {
@@ -510,26 +912,57 @@ public final class LiveMapFeature {
             }
             int cell = cfg.getCellSize();
             Minecraft client = Minecraft.getInstance();
+            ensureGroups();
 
             graphics.fill(x, y, x + GRID * cell, y + GRID * cell, 0x99000000);
 
             for (int gx = 0; gx < GRID; gx++) {
                 for (int gz = 0; gz < GRID; gz++) {
-                    Tile tile = grid[gx + gz * GRID];
+                    int idx = gx + gz * GRID;
+                    Tile tile = grid[idx];
+                    int gid = groupOfCell[idx];
+                    boolean mapOnly = false;
                     if (tile == Tile.UNKNOWN) {
-                        continue;
+                        // Not loaded in the world yet - fall back to what the dungeon map item shows.
+                        Tile mapDoor = DungeonMapScanner.doorTileAt(idx);
+                        if (gid >= 0) {
+                            tile = Tile.ROOM;
+                        } else if (mapDoor != Tile.UNKNOWN) {
+                            tile = mapDoor;
+                        } else {
+                            continue;
+                        }
+                        mapOnly = true;
                     }
                     int color = switch (tile) {
-                        case ROOM -> 0xFF555555;
-                        case DOOR_NORMAL -> 0xFF888888;
+                        case ROOM -> mapOnly ? 0xFF3A3A3A : 0xFF555555;
+                        case DOOR_NORMAL -> mapOnly ? 0xFF5A5A5A : 0xFF888888;
                         case DOOR_WITHER -> 0xFF222222;
-                        case DOOR_BLOOD -> 0xFFAA0000;
-                        case DOOR_ENTRANCE -> 0xFF6699FF;
+                        case DOOR_BLOOD -> mapOnly ? 0xFF700000 : 0xFFAA0000;
+                        case DOOR_ENTRANCE -> mapOnly ? 0xFF44669F : 0xFF6699FF;
                         default -> 0x00000000;
                     };
+                    // Merged drawing: no 1px gap on sides shared with another cell of the same room.
+                    int left = 1;
+                    int top = 1;
+                    int right = 1;
+                    int bottom = 1;
+                    if (gid >= 0) {
+                        if (gx > 0 && groupOfCell[idx - 1] == gid) left = 0;
+                        if (gx < GRID - 1 && groupOfCell[idx + 1] == gid) right = 0;
+                        if (gz > 0 && groupOfCell[idx - GRID] == gid) top = 0;
+                        if (gz < GRID - 1 && groupOfCell[idx + GRID] == gid) bottom = 0;
+                    }
                     int cx = x + gx * cell;
                     int cy = y + gz * cell;
-                    graphics.fill(cx + 1, cy + 1, cx + cell - 1, cy + cell - 1, color);
+                    graphics.fill(cx + left, cy + top, cx + cell - right, cy + cell - bottom, color);
+                }
+            }
+
+            int labelStyle = cfg.getRoomLabels();
+            if (labelStyle != 0) {
+                for (RoomGroup group : groups) {
+                    drawRoomLabel(graphics, client.font, group, x, y, cell, labelStyle);
                 }
             }
 
@@ -560,6 +993,78 @@ public final class LiveMapFeature {
             RoomEntry current = currentRoomEntry();
             String label = current != null ? current.name : (RoomDatabase.isReady() ? "Unknown Room" : "Loading room data...");
             graphics.text(Minecraft.getInstance().font, label, x, y + GRID * cell + 1, 0xFFFFFFFF, false);
+        }
+
+        /** One label per room, centered on the combined shape - NoammAddons' {@code MapRenderer.renderText}
+         *  (styles: Checkmarks / Secrets / Room Name / Room Name + Secrets, "Limit Room Name Size" scaling). */
+        private static void drawRoomLabel(GuiGraphicsExtractor graphics, Font font, RoomGroup group, int x, int y,
+                                          int cell, int style) {
+            int state = DungeonMapScanner.stateAt(group.mainIdx);
+            RoomEntry entry = group.entry;
+            int color = switch (state) {
+                case DungeonMapScanner.STATE_GREEN -> 0xFF55FF55;
+                case DungeonMapScanner.STATE_FAILED -> 0xFFFF0000;
+                case DungeonMapScanner.STATE_CLEARED -> 0xFFFFFFFF;
+                default -> 0xFFAAAAAA;
+            };
+            float centerX = x + (group.labelGX + 0.5f) * cell;
+            float centerY = y + (group.labelGZ + 0.5f) * cell;
+            float boxW = (group.tiles.length == 3 ? 3 : group.maxGX - group.minGX + 1) * cell;
+            float boxH = (group.tiles.length == 3 ? 1 : group.maxGZ - group.minGZ + 1) * cell;
+
+            List<String> lines = new ArrayList<>();
+            if (style == 1 || entry == null) {
+                String mark = switch (state) {
+                    case DungeonMapScanner.STATE_CLEARED, DungeonMapScanner.STATE_GREEN -> "✔";
+                    case DungeonMapScanner.STATE_FAILED -> "✖";
+                    case DungeonMapScanner.STATE_UNOPENED -> "?";
+                    default -> null;
+                };
+                if (mark == null) {
+                    return;
+                }
+                lines.add(mark);
+                boxW = cell;
+                boxH = cell;
+            } else {
+                String secrets;
+                Integer found = foundSecretsByRoom.get(entry.name);
+                int foundCount = state == DungeonMapScanner.STATE_GREEN ? entry.secrets : (found != null ? found : 0);
+                secrets = entry.secrets == 0 ? "0" : foundCount + "/" + entry.secrets;
+                if (style == 2) {
+                    lines.add(secrets);
+                } else {
+                    if ("ENTRANCE".equals(entry.type)) {
+                        return;
+                    }
+                    java.util.Collections.addAll(lines, group.nameLines);
+                    if (style == 4 && entry.secrets > 0) {
+                        lines.add(secrets);
+                    }
+                }
+            }
+            if (lines.isEmpty()) {
+                return;
+            }
+            int maxLineW = 0;
+            for (String line : lines) {
+                maxLineW = Math.max(maxLineW, font.width(line));
+            }
+            int lineH = font.lineHeight;
+            float totalH = lines.size() * lineH;
+            float scale = 1f;
+            if (maxLineW > 0) {
+                scale = Math.max(0.39f, Math.min(1f, Math.min(boxW / maxLineW, boxH / totalH)));
+            }
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(centerX, centerY);
+            graphics.pose().scale(scale, scale);
+            int top = Math.round(-totalH / 2f);
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                graphics.text(font, line, -font.width(line) / 2, top + i * lineH, color, true);
+            }
+            graphics.pose().popMatrix();
         }
     }
 }

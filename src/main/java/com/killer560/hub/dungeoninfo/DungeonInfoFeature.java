@@ -3,8 +3,8 @@ package com.killer560.hub.dungeoninfo;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.translate.TranslateFeature;
+import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -77,13 +77,11 @@ public final class DungeonInfoFeature {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message.getString()));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay) {
-                onChatMessage(message.getString());
-            }
-        });
+        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
+        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
+        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
+        ChatObserver.subscribe(message -> onChatMessage(message.getString()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 

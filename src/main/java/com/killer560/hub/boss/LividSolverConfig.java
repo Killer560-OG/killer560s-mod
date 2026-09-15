@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -43,8 +44,8 @@ public final class LividSolverConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             LividSolverConfig cfg = new LividSolverConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.showTimer = !obj.has("showTimer") || obj.get("showTimer").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showTimer = ConfigJson.getBool(obj, "showTimer", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new LividSolverConfig();

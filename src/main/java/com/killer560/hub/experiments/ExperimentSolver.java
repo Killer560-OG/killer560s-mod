@@ -169,7 +169,35 @@ final class ExperimentSolver {
     // within a second each), while the 3000ms timeouts observed in that same log hit on clicks whose
     // state genuinely never changed at all across the full wait, not just slow ones. So 1000ms cuts the
     // wasted wait on truly-dead clicks without risking cutting off a real still-in-flight confirm.
+    // Since the 2026-09-15 roadmap ("adaptive Superpairs confirm-timeout based on real measured ping"),
+    // this flat value is only the fallback: used whenever Adaptive Timeout is off, or on but no latency
+    // sample exists yet. See #superpairsConfirmTimeoutMs.
     private static final long SUPERPAIRS_CONFIRM_TIMEOUT_MS = 1000;
+    /** Adaptive timeout = clamp(K * latencyEstimate + margin) - same EMA approach (0.7/0.3) and
+     *  latency-multiplier idea as {@code TerminalSolverFeature#retryTimeoutMs}, with bounds wide enough to
+     *  cover both a good connection (dead clicks give up fast) and a lag spike (slow confirms aren't cut
+     *  off). */
+    private static final double SUPERPAIRS_ADAPTIVE_LATENCY_MULTIPLIER = 2.0;
+    private static final long SUPERPAIRS_ADAPTIVE_MIN_TIMEOUT_MS = 400;
+    private static final long SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS = 3000;
+    /** Samples above this are clamped before entering the EMA, so one freak stall can't poison it. */
+    private static final long SUPERPAIRS_MAX_LATENCY_SAMPLE_MS = SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS;
+    /** Log a state-change line only when the effective timeout moves by more than this. */
+    private static final long SUPERPAIRS_TIMEOUT_LOG_THRESHOLD_MS = 25;
+    /** Session-wide (NOT reset per board, same as TerminalSolverFeature's confirmLatencyEmaMs) EMA of real
+     *  send -> observed-slot-change latency for Superpairs clicks; -1 until the first sample. */
+    private static double superpairsConfirmLatencyEmaMs = -1;
+    /** Most recent tab-list latency for the local player (PlayerInfo#getLatency), pushed in by
+     *  ExperimentsFeature; -1 if unknown. Used as a floor under the EMA (tab ping excludes server-side
+     *  processing and tick granularity, so it can only under-estimate the real confirm round-trip). */
+    private static int superpairsTabListLatencyMs = -1;
+    private static long superpairsLastLoggedTimeoutMs = SUPERPAIRS_CONFIRM_TIMEOUT_MS;
+    /** A non-powerup click that timed out is still watched for a LATE confirm (up to the adaptive max) so
+     *  slow confirms still feed the EMA - otherwise a short timeout would censor exactly the slow samples
+     *  it needs in order to grow. Cleared once sampled, expired, re-clicked, or on board reset. */
+    private Integer superpairsLateConfirmSlot;
+    private Cell superpairsLateConfirmPriorCell;
+    private long superpairsLateConfirmSentAtMs;
     /** Real timestamp the most recently SENT Superpairs click actually went out - per killer560's explicit
      *  request (2026-09-07) after seeing genuinely-instant-confirmed reveals/matches fire back-to-back
      *  in the same second: even though that's not a bug (it's the confirm-based "click again the
@@ -592,11 +620,24 @@ final class ExperimentSolver {
         // rest of this class already relies on for identity-tracking (itself switched to SkyHanni's
         // real display-name-pattern approach), so "changed" means the same thing everywhere in this
         // file: covered -> revealed, or revealed -> empty/claimed.
+        if (superpairsLateConfirmSlot != null) {
+            Cell late = bySlot.get(superpairsLateConfirmSlot);
+            long lateLatency = now - superpairsLateConfirmSentAtMs;
+            if (superpairsSlotChanged(superpairsLateConfirmPriorCell, late)) {
+                LOGGER.info("Superpairs slot {} confirmed LATE, {}ms after send", superpairsLateConfirmSlot, lateLatency);
+                recordSuperpairsConfirmLatency(lateLatency);
+                superpairsLateConfirmSlot = null;
+                superpairsLateConfirmPriorCell = null;
+            } else if (lateLatency > SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS) {
+                superpairsLateConfirmSlot = null;
+                superpairsLateConfirmPriorCell = null;
+            }
+        }
+
         if (superpairsAwaitingConfirmSlot != null) {
             Cell current = bySlot.get(superpairsAwaitingConfirmSlot);
-            boolean changed = current != null
-                    && (isRevealedPair(current) != isRevealedPair(superpairsAwaitingConfirmPriorCell)
-                        || current.empty() != superpairsAwaitingConfirmPriorCell.empty());
+            boolean changed = superpairsSlotChanged(superpairsAwaitingConfirmPriorCell, current);
+            long confirmTimeoutMs = superpairsConfirmTimeoutMs();
             // Real bug found and fixed (2026-09-06) from a real log: with no timeout at all, a single
             // dropped/ignored click left this gate permanently stuck (confirmed: exactly one "Clicking
             // slot 9" line, then total silence for 31 seconds until the round timed out on its own) -
@@ -608,12 +649,15 @@ final class ExperimentSolver {
             // decided-but-not-yet-jittered-out click has no real-world effect to wait on yet, so it
             // must never be treated as "timed out."
             boolean timedOut = superpairsClickSent
-                    && now - superpairsAwaitingConfirmSinceMs > SUPERPAIRS_CONFIRM_TIMEOUT_MS;
+                    && now - superpairsAwaitingConfirmSinceMs > confirmTimeoutMs;
+            if (changed && superpairsClickSent) {
+                recordSuperpairsConfirmLatency(now - superpairsAwaitingConfirmSinceMs);
+            }
             if (changed || timedOut) {
                 if (timedOut && !changed) {
                     LOGGER.warn("Superpairs click on slot {} never confirmed within {}ms - prior=[itemId={}, "
                             + "empty={}, name='{}'] current={} - giving up waiting and letting the next decision proceed",
-                            superpairsAwaitingConfirmSlot, SUPERPAIRS_CONFIRM_TIMEOUT_MS,
+                            superpairsAwaitingConfirmSlot, confirmTimeoutMs,
                             superpairsAwaitingConfirmPriorCell.itemId(), superpairsAwaitingConfirmPriorCell.empty(),
                             superpairsAwaitingConfirmPriorCell.name(),
                             current == null ? "null (slot missing from snapshot!)"
@@ -654,6 +698,13 @@ final class ExperimentSolver {
                     // again forever. Leaving it queued is correct here - the tile's already spent.
                     if (!superpairsAwaitingConfirmSlot.equals(superpairsPowerupActivationSlot)) {
                         queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
+                        // A powerup tile never visibly changes, so only real reveal/pair clicks are
+                        // worth watching for a late confirm.
+                        if (current != null) {
+                            superpairsLateConfirmSlot = superpairsAwaitingConfirmSlot;
+                            superpairsLateConfirmPriorCell = superpairsAwaitingConfirmPriorCell;
+                            superpairsLateConfirmSentAtMs = superpairsAwaitingConfirmSinceMs;
+                        }
                     }
                     superpairsPowerupActivationSlot = null;
                 }
@@ -717,6 +768,11 @@ final class ExperimentSolver {
         OptionalInt click = decideSuperpairsClickInternal(cells, valuableOnly);
         if (click.isPresent()) {
             int slot = click.getAsInt();
+            if (superpairsLateConfirmSlot != null && superpairsLateConfirmSlot == slot) {
+                // Re-clicking the same slot: a change from here on can't be attributed to the old send.
+                superpairsLateConfirmSlot = null;
+                superpairsLateConfirmPriorCell = null;
+            }
             superpairsAwaitingConfirmSlot = slot;
             superpairsAwaitingConfirmPriorCell = cell(cells, slot);
             superpairsAwaitingConfirmSinceMs = now;
@@ -730,6 +786,46 @@ final class ExperimentSolver {
      *  timeout clock from here rather than from the earlier decision time. A no-op if {@code slot} isn't
      *  (or is no longer) the slot currently being waited on, so it's safe to call unconditionally from
      *  every click site, not just Superpairs ones. */
+    /** "Changed" in the exact sense {@link #observeSuperpairs}'s confirm gate has always used: covered ->
+     *  revealed, or revealed -> empty/claimed. */
+    private static boolean superpairsSlotChanged(Cell prior, Cell current) {
+        return prior != null && current != null
+                && (isRevealedPair(current) != isRevealedPair(prior) || current.empty() != prior.empty());
+    }
+
+    private static void recordSuperpairsConfirmLatency(long latencyMs) {
+        long sample = Math.max(0, Math.min(latencyMs, SUPERPAIRS_MAX_LATENCY_SAMPLE_MS));
+        superpairsConfirmLatencyEmaMs = superpairsConfirmLatencyEmaMs < 0
+                ? sample : superpairsConfirmLatencyEmaMs * 0.7 + sample * 0.3;
+        superpairsConfirmTimeoutMs();
+    }
+
+    /** Pushed by {@code ExperimentsFeature} from the local player's tab-list entry; values <= 0 (not yet
+     *  reported by the server) are treated as unknown. */
+    static void noteTabListLatencyMs(int latencyMs) {
+        superpairsTabListLatencyMs = latencyMs > 0 ? latencyMs : -1;
+    }
+
+    /** @return the effective Superpairs confirm timeout. Adaptive Timeout off, or no latency sample yet
+     *  (neither a confirmed click nor a tab-list ping): the flat {@link #SUPERPAIRS_CONFIRM_TIMEOUT_MS}.
+     *  Otherwise clamp(K * max(confirmEma, tabPing) + margin). Logs whenever the value moves > 25ms. */
+    static long superpairsConfirmTimeoutMs() {
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        long timeout = SUPERPAIRS_CONFIRM_TIMEOUT_MS;
+        double estimate = Math.max(superpairsConfirmLatencyEmaMs, superpairsTabListLatencyMs);
+        if (cfg.isSuperpairsAdaptiveTimeout() && estimate > 0) {
+            long raw = Math.round(SUPERPAIRS_ADAPTIVE_LATENCY_MULTIPLIER * estimate) + cfg.getSuperpairsTimeoutMarginMs();
+            timeout = Math.max(SUPERPAIRS_ADAPTIVE_MIN_TIMEOUT_MS, Math.min(SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS, raw));
+        }
+        if (Math.abs(timeout - superpairsLastLoggedTimeoutMs) > SUPERPAIRS_TIMEOUT_LOG_THRESHOLD_MS) {
+            LOGGER.info("Superpairs confirm timeout {}ms -> {}ms (adaptive={}, confirmLatencyEma={}ms, tabListPing={}ms, margin={}ms)",
+                    superpairsLastLoggedTimeoutMs, timeout, cfg.isSuperpairsAdaptiveTimeout(),
+                    Math.round(superpairsConfirmLatencyEmaMs), superpairsTabListLatencyMs, cfg.getSuperpairsTimeoutMarginMs());
+            superpairsLastLoggedTimeoutMs = timeout;
+        }
+        return timeout;
+    }
+
     void superpairsClickSent(int slot, long sentAtMs) {
         if (superpairsAwaitingConfirmSlot != null && superpairsAwaitingConfirmSlot == slot) {
             superpairsClickSent = true;
@@ -972,6 +1068,9 @@ final class ExperimentSolver {
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;
         superpairsClickSent = false;
+        superpairsLateConfirmSlot = null;
+        superpairsLateConfirmPriorCell = null;
+        superpairsLateConfirmSentAtMs = 0;
         // Real bug found and fixed (2026-09-07) from a real log: this used to reset to 0, and
         // decideSuperpairsClick's minimum-delay gate checks "now - superpairsLastClickSentAtMs <
         // minDelayMs" - with a real System.currentTimeMillis() timestamp, "now - 0" is always some huge

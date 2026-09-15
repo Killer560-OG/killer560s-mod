@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -64,7 +65,7 @@ public final class TickTimersConfig {
     }
 
     private static boolean getBool(JsonObject obj, String key, boolean def) {
-        return obj.has(key) ? obj.get(key).getAsBoolean() : def;
+        return ConfigJson.getBool(obj, key, def);
     }
 
     public void save() {

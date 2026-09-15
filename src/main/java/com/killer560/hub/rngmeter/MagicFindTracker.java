@@ -1,6 +1,6 @@
 package com.killer560.hub.rngmeter;
 
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import com.killer560.hub.util.ChatObserver;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,9 +26,10 @@ public final class MagicFindTracker {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onMessage(message.getString()));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onMessage(message.getString()));
+        // ChatObserver, not Fabric CHAT/GAME: drop lines are exactly the kind other mods cancel via ALLOW_GAME
+        // and re-add (rewritten) straight to ChatComponent, which Fabric listeners never see. This mod never
+        // prints a "(N% ... Magic Find)" line itself, so its own client messages can't match.
+        ChatObserver.subscribe(message -> onMessage(message.getString()));
     }
 
     private static void onMessage(String text) {

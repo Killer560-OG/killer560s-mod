@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -63,15 +64,25 @@ public final class AccountProxyStore {
             String json = Files.readString(STORE_PATH, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             for (Map.Entry<String, com.google.gson.JsonElement> entry : root.entrySet()) {
-                JsonObject obj = entry.getValue().getAsJsonObject();
-                AccountProxyProfile profile = new AccountProxyProfile();
-                profile.setType(obj.has("type") ? ProxyType.valueOf(obj.get("type").getAsString()) : ProxyType.SOCKS5);
-                String host = obj.has("host") ? obj.get("host").getAsString() : "";
-                int port = obj.has("port") ? obj.get("port").getAsInt() : 1080;
-                profile.parseAndSetAddress(host + ":" + port);
-                profile.setUsername(obj.has("username") ? obj.get("username").getAsString() : "");
-                profile.setPassword(obj.has("password") ? obj.get("password").getAsString() : "");
-                result.put(entry.getKey(), profile);
+                // Per-entry (2026-09-15 persistence audit): one malformed account entry used to throw out
+                // of the whole loop, return an empty map, and the next set/remove then wrote that empty
+                // map over EVERY account's saved proxy. Now just that one entry is skipped.
+                try {
+                    if (entry.getValue() == null || !entry.getValue().isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject obj = entry.getValue().getAsJsonObject();
+                    AccountProxyProfile profile = new AccountProxyProfile();
+                    profile.setType(ConfigJson.getEnum(obj, "type", ProxyType.class, ProxyType.SOCKS5));
+                    String host = ConfigJson.getString(obj, "host", "");
+                    int port = ConfigJson.getInt(obj, "port", 1080);
+                    profile.parseAndSetAddress(host + ":" + port);
+                    profile.setUsername(ConfigJson.getString(obj, "username", ""));
+                    profile.setPassword(ConfigJson.getString(obj, "password", ""));
+                    result.put(entry.getKey(), profile);
+                } catch (Exception ignored) {
+                    // Skip just this entry - never log its contents (it can hold proxy credentials).
+                }
             }
         } catch (Exception ignored) {
             // Corrupt or unreadable file - treat as empty rather than failing the whole screen.

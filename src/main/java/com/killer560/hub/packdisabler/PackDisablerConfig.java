@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -62,16 +63,10 @@ public final class PackDisablerConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             PackDisablerConfig cfg = new PackDisablerConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.hypixelOnly = !obj.has("hypixelOnly") || obj.get("hypixelOnly").getAsBoolean();
-            cfg.chatNotice = !obj.has("chatNotice") || obj.get("chatNotice").getAsBoolean();
-            if (obj.has("mode")) {
-                try {
-                    cfg.mode = Mode.valueOf(obj.get("mode").getAsString());
-                } catch (IllegalArgumentException ignored) {
-                    cfg.mode = Mode.SMART;
-                }
-            }
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.hypixelOnly = ConfigJson.getBool(obj, "hypixelOnly", true);
+            cfg.chatNotice = ConfigJson.getBool(obj, "chatNotice", true);
+            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.SMART);
             instance = cfg;
         } catch (Exception e) {
             instance = new PackDisablerConfig();

@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,10 +65,17 @@ public final class SpiritLeapOverlayFeature {
         return screen != null && screen == activeScreen && SpiritLeapOverlayConfig.getInstance().isEnabled();
     }
 
+    /** Exact titles only (QUOI uses equalsOneOf("Spirit Leap", "Teleport to Player")) - a substring match would also
+     *  hijack and hide e.g. a Bazaar/AH page for the Spirit Leap item. */
     private static boolean isLeapTitle(String title) {
-        String t = title.toLowerCase(Locale.ROOT);
-        return t.contains("spirit leap") || t.contains("teleport to player");
+        String plain = ChatFormatting.stripFormatting(title);
+        String t = plain == null ? "" : plain.trim();
+        return t.equalsIgnoreCase("Spirit Leap") || t.equalsIgnoreCase("Teleport to Player");
     }
+
+    /** One leap per press: a double-click or a held 1-4 key (key repeat reaches keyPressed) would otherwise send a
+     *  second container click before Hypixel closes the menu. */
+    private static final long LEAP_DEBOUNCE_MS = 750L;
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
         if (!SpiritLeapOverlayConfig.getInstance().isEnabled()
@@ -84,6 +91,7 @@ public final class SpiritLeapOverlayFeature {
         });
 
         AtomicReference<List<LeapTarget>> current = new AtomicReference<>(List.of());
+        AtomicLong lastLeapAtMs = new AtomicLong(0L);
         LOGGER.info("[SpiritLeap] Leap screen '{}' opened (containerId={}), playing class {}",
                 containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, LeapMenuFeature.playingClass());
 
@@ -106,7 +114,7 @@ public final class SpiritLeapOverlayFeature {
             LeapTarget[] spots = layout(readTargets(containerScreen));
             int spot = spotFor(event.x(), event.y(), s.width, s.height);
             if (spot >= 0 && spots[spot] != null) {
-                leap(client, containerScreen, spots[spot], "click spot " + spot);
+                leap(client, containerScreen, spots[spot], "click spot " + spot, lastLeapAtMs);
             }
             return false; // never let a click reach the hidden chest/inventory
         });
@@ -122,7 +130,7 @@ public final class SpiritLeapOverlayFeature {
                 LeapTarget[] spots = layout(readTargets(containerScreen));
                 LeapTarget t = spots[key - InputConstants.KEY_1];
                 if (t != null) {
-                    leap(client, containerScreen, t, "key " + (key - InputConstants.KEY_1 + 1));
+                    leap(client, containerScreen, t, "key " + (key - InputConstants.KEY_1 + 1), lastLeapAtMs);
                 }
                 return false;
             }
@@ -132,10 +140,15 @@ public final class SpiritLeapOverlayFeature {
         });
     }
 
-    private static void leap(Minecraft client, AbstractContainerScreen<?> screen, LeapTarget target, String how) {
+    private static void leap(Minecraft client, AbstractContainerScreen<?> screen, LeapTarget target, String how, AtomicLong lastLeapAtMs) {
         if (client.gameMode == null || client.player == null) {
             return;
         }
+        long now = System.currentTimeMillis();
+        if (now - lastLeapAtMs.get() < LEAP_DEBOUNCE_MS) {
+            return;
+        }
+        lastLeapAtMs.set(now);
         LOGGER.info("[SpiritLeap] Leap to \"{}\" via {} (slot {}, containerId={})", target.name(), how,
                 target.slotIndex(), screen.getMenu().containerId);
         client.gameMode.handleContainerInput(screen.getMenu().containerId, target.slotIndex(), 0,
@@ -210,7 +223,10 @@ public final class SpiritLeapOverlayFeature {
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(target.name());
             int color = SpiritLeapOverlayConfig.getInstance().isUseClassColors() && cls != null ? cls.color() : 0xFFCC6600;
 
-            graphics.fill(x0, y0, x0 + boxW, y0 + boxH, spot == hovered ? 0xE0262626 : 0xCC0D0D0D);
+            // Dead teammates (tab list "(DEAD)") get a red-tinted box - no extra text, and the click still goes through.
+            boolean dead = PartyTracker.isDead(target.name());
+            int fill = dead ? (spot == hovered ? 0xE0501414 : 0xCC350A0A) : (spot == hovered ? 0xE0262626 : 0xCC0D0D0D);
+            graphics.fill(x0, y0, x0 + boxW, y0 + boxH, fill);
             graphics.outline(x0, y0, boxW, boxH, color);
             float textScale = Math.max(1.0f, scale * 1.5f);
             graphics.pose().pushMatrix();

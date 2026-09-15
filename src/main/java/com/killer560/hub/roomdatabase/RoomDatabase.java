@@ -233,27 +233,54 @@ public final class RoomDatabase {
     /** Real corner/rotation detection, ported from NoammAddons' own {@code UniqueRoom.findRotation} -
      *  a room's roof always has a real {@code BLUE_TERRACOTTA} marker block at exactly one of its 4
      *  corners, whose position identifies both the corner (for secret-coordinate translation) and the
-     *  room's rotation (corner index * 90 degrees). Scoped down from NoammAddons' own multi-tile
-     *  "UniqueRoom" grouping - this checks only the single grid cell's own 32x32 footprint, which is
-     *  correct for every 1x1 room and a reasonable approximation for larger ones.
+     *  room's rotation (corner index * 90 degrees). This overload checks one grid tile's own 32x32
+     *  footprint - NoammAddons' per-tile path (used by it for L-shaped rooms, and here as the fallback
+     *  for any room whose full tile set isn't known yet).
      *  @return {@code [clayX, clayZ, rotationDegrees]}, or null if no corner marker was found (yet). */
     public static int[] findRotationAndCorner(Level level, int roomCenterX, int roomCenterZ, int roofHeight) {
+        return findRotationAndCorner(level, roomCenterX, roomCenterZ, roomCenterX, roomCenterZ, roofHeight);
+    }
+
+    /** Multi-tile version of {@link #findRotationAndCorner(Level, int, int, int)} - NoammAddons'
+     *  {@code UniqueRoom.findRotation} for non-L rooms: the marker sits at one of the 4 corners of the
+     *  bounding box spanning every tile center of the room ({@code min - 15} / {@code max + 15}).
+     *  Unloaded corners are skipped. @return {@code [clayX, clayZ, rotationDegrees]}, or null. */
+    public static int[] findRotationAndCorner(Level level, int minCenterX, int minCenterZ, int maxCenterX,
+                                              int maxCenterZ, int roofHeight) {
         int h = 15;
-        int minX = roomCenterX - h;
-        int maxX = roomCenterX + h;
-        int minZ = roomCenterZ - h;
-        int maxZ = roomCenterZ + h;
+        int minX = minCenterX - h;
+        int maxX = maxCenterX + h;
+        int minZ = minCenterZ - h;
+        int maxZ = maxCenterZ + h;
         int[][] corners = {
                 {minX, minZ}, {maxX, minZ}, {maxX, maxZ}, {minX, maxZ}
         };
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int i = 0; i < 4; i++) {
             pos.set(corners[i][0], roofHeight, corners[i][1]);
+            if (!level.isLoaded(pos)) {
+                continue;
+            }
             if (level.getBlockState(pos).is(Blocks.BLUE_TERRACOTTA)) {
                 return new int[]{corners[i][0], corners[i][1], i * 90};
             }
         }
         return null;
+    }
+
+    /** @return how many grid tiles a room of this database {@code shape} ("1x1", "1x2", "1x3", "1x4",
+     *  "2x2", "L") covers - NoammAddons' {@code RoomShape.tileCount}; 4 (the largest real room) when the
+     *  shape is missing or unrecognised. */
+    public static int shapeTileCount(String shape) {
+        if (shape == null) {
+            return 4;
+        }
+        return switch (shape) {
+            case "1x1" -> 1;
+            case "1x2" -> 2;
+            case "1x3", "L" -> 3;
+            default -> 4;
+        };
     }
 
     /** Real relative-to-absolute secret coordinate transform, ported from NoammAddons' own

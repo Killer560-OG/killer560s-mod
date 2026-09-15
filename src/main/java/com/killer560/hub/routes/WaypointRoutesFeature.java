@@ -421,20 +421,27 @@ public final class WaypointRoutesFeature {
         float s = 0.025f * scaleMul * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
 
         PoseStack poseStack = context.poseStack();
+        if (poseStack == null) {
+            return;
+        }
         poseStack.pushPose();
-        poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-        poseStack.mulPose(camera.rotation());
-        poseStack.scale(s, -s, s);
-        float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
-        if (line1 != null) {
-            font.drawInBatch(line1, -font.width(line1) / 2f, yOff, color1, false, poseStack.last().pose(),
-                    bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
-            yOff += font.lineHeight + 1;
+        try {
+            poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
+            poseStack.mulPose(camera.rotation());
+            poseStack.scale(s, -s, s);
+            float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
+            if (line1 != null) {
+                font.drawInBatch(line1, -font.width(line1) / 2f, yOff, color1, false, poseStack.last().pose(),
+                        bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                yOff += font.lineHeight + 1;
+            }
+            if (line2 != null) {
+                font.drawInBatch(line2, -font.width(line2) / 2f, yOff, color2, false, poseStack.last().pose(),
+                        bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            }
+        } finally {
+            // Review fix (2026-09-15): never leave the shared level PoseStack unbalanced if a draw throws.
+            poseStack.popPose();
         }
-        if (line2 != null) {
-            font.drawInBatch(line2, -font.width(line2) / 2f, yOff, color2, false, poseStack.last().pose(),
-                    bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
-        }
-        poseStack.popPose();
     }
 }

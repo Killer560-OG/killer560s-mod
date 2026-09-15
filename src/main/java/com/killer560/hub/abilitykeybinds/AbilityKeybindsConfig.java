@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -44,9 +45,9 @@ public final class AbilityKeybindsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             AbilityKeybindsConfig cfg = new AbilityKeybindsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.abilityKeyCode = obj.has("abilityKeyCode") ? obj.get("abilityKeyCode").getAsInt() : -1;
-            cfg.ultimateKeyCode = obj.has("ultimateKeyCode") ? obj.get("ultimateKeyCode").getAsInt() : -1;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.abilityKeyCode = ConfigJson.getInt(obj, "abilityKeyCode", -1);
+            cfg.ultimateKeyCode = ConfigJson.getInt(obj, "ultimateKeyCode", -1);
             instance = cfg;
         } catch (Exception e) {
             instance = new AbilityKeybindsConfig();

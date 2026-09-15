@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -46,10 +47,10 @@ public final class TerminalTimersConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             TerminalTimersConfig cfg = new TerminalTimersConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.solveTimes = !obj.has("solveTimes") || obj.get("solveTimes").getAsBoolean();
-            cfg.splits = !obj.has("splits") || obj.get("splits").getAsBoolean();
-            cfg.simonSaysTime = !obj.has("simonSaysTime") || obj.get("simonSaysTime").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.solveTimes = ConfigJson.getBool(obj, "solveTimes", true);
+            cfg.splits = ConfigJson.getBool(obj, "splits", true);
+            cfg.simonSaysTime = ConfigJson.getBool(obj, "simonSaysTime", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalTimersConfig();

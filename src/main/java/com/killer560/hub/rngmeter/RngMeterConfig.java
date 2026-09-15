@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -45,10 +46,9 @@ public final class RngMeterConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             RngMeterConfig cfg = new RngMeterConfig();
-            cfg.useInstantBuyPrice = obj.has("useInstantBuyPrice") && obj.get("useInstantBuyPrice").getAsBoolean();
-            cfg.refreshIntervalMinutes = obj.has("refreshIntervalMinutes")
-                    ? Math.max(1, obj.get("refreshIntervalMinutes").getAsInt()) : 10;
-            cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
+            cfg.useInstantBuyPrice = ConfigJson.getBool(obj, "useInstantBuyPrice", false);
+            cfg.setRefreshIntervalMinutes(ConfigJson.getInt(obj, "refreshIntervalMinutes", 10));
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new RngMeterConfig();

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -44,10 +45,10 @@ public final class DoorKeysConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DoorKeysConfig cfg = new DoorKeysConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.highlightWither = !obj.has("highlightWither") || obj.get("highlightWither").getAsBoolean();
-            cfg.highlightBlood = !obj.has("highlightBlood") || obj.get("highlightBlood").getAsBoolean();
-            cfg.showTracer = !obj.has("showTracer") || obj.get("showTracer").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.highlightWither = ConfigJson.getBool(obj, "highlightWither", cfg.highlightWither);
+            cfg.highlightBlood = ConfigJson.getBool(obj, "highlightBlood", cfg.highlightBlood);
+            cfg.showTracer = ConfigJson.getBool(obj, "showTracer", cfg.showTracer);
             instance = cfg;
         } catch (Exception e) {
             instance = new DoorKeysConfig();

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -50,19 +51,14 @@ public final class SecretWaypointsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SecretWaypointsConfig cfg = new SecretWaypointsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            if (obj.has("style")) {
-                try {
-                    cfg.style = Style.valueOf(obj.get("style").getAsString());
-                } catch (Exception ignored) {
-                }
-            }
-            cfg.mimicDetection = !obj.has("mimicDetection") || obj.get("mimicDetection").getAsBoolean();
-            cfg.chestColor = obj.has("chestColor") ? obj.get("chestColor").getAsInt() : cfg.chestColor;
-            cfg.itemColor = obj.has("itemColor") ? obj.get("itemColor").getAsInt() : cfg.itemColor;
-            cfg.witherColor = obj.has("witherColor") ? obj.get("witherColor").getAsInt() : cfg.witherColor;
-            cfg.batColor = obj.has("batColor") ? obj.get("batColor").getAsInt() : cfg.batColor;
-            cfg.redstoneKeyColor = obj.has("redstoneKeyColor") ? obj.get("redstoneKeyColor").getAsInt() : cfg.redstoneKeyColor;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.FILL_OUTLINE);
+            cfg.mimicDetection = ConfigJson.getBool(obj, "mimicDetection", true);
+            cfg.chestColor = ConfigJson.getInt(obj, "chestColor", cfg.chestColor);
+            cfg.itemColor = ConfigJson.getInt(obj, "itemColor", cfg.itemColor);
+            cfg.witherColor = ConfigJson.getInt(obj, "witherColor", cfg.witherColor);
+            cfg.batColor = ConfigJson.getInt(obj, "batColor", cfg.batColor);
+            cfg.redstoneKeyColor = ConfigJson.getInt(obj, "redstoneKeyColor", cfg.redstoneKeyColor);
             instance = cfg;
         } catch (Exception e) {
             instance = new SecretWaypointsConfig();

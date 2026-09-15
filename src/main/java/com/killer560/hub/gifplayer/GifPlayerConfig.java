@@ -2,8 +2,10 @@ package com.killer560.hub.gifplayer;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -20,6 +22,10 @@ public final class GifPlayerConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-gifplayer.json");
+
+    /** Same range as GifPlayerTab's speed slider/field. */
+    private static final float MIN_SPEED = 0.25f;
+    private static final float MAX_SPEED = 4.0f;
 
     private static GifPlayerConfig instance;
 
@@ -54,10 +60,11 @@ public final class GifPlayerConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             GifPlayerConfig cfg = new GifPlayerConfig();
-            cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
-            cfg.audioEnabled = !obj.has("audioEnabled") || obj.get("audioEnabled").getAsBoolean();
-            cfg.speedMultiplier = obj.has("speedMultiplier") ? obj.get("speedMultiplier").getAsFloat() : 1.0f;
-            cfg.volume = obj.has("volume") ? obj.get("volume").getAsFloat() : 0.5f;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.audioEnabled = ConfigJson.getBool(obj, "audioEnabled", cfg.audioEnabled);
+            // Same ranges GifPlayerTab's sliders / Set buttons clamp to.
+            cfg.speedMultiplier = Math.max(MIN_SPEED, Math.min(MAX_SPEED, ConfigJson.getFloat(obj, "speedMultiplier", cfg.speedMultiplier)));
+            cfg.volume = Math.max(0f, Math.min(1f, ConfigJson.getFloat(obj, "volume", cfg.volume)));
             readFileMap(obj, "gifFileEnabled", cfg.gifFileEnabled);
             readFileMap(obj, "audioFileEnabled", cfg.audioFileEnabled);
             instance = cfg;
@@ -66,13 +73,20 @@ public final class GifPlayerConfig {
         }
     }
 
+    /** One bad per-file value is skipped on its own instead of failing the whole file. */
     private static void readFileMap(JsonObject obj, String key, Map<String, Boolean> target) {
-        if (!obj.has(key)) {
+        JsonObject map = ConfigJson.getObject(obj, key);
+        if (map == null) {
             return;
         }
-        JsonObject map = obj.getAsJsonObject(key);
         for (String filename : map.keySet()) {
-            target.put(filename, map.get(filename).getAsBoolean());
+            try {
+                JsonElement el = map.get(filename);
+                if (el != null && el.isJsonPrimitive()) {
+                    target.put(filename, el.getAsBoolean());
+                }
+            } catch (Exception ignored) {
+            }
         }
     }
 

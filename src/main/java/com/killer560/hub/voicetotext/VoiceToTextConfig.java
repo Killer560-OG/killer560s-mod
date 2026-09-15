@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -42,9 +43,9 @@ public final class VoiceToTextConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             VoiceToTextConfig cfg = new VoiceToTextConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.pushToTalkKeyCode = obj.has("pushToTalkKeyCode") ? obj.get("pushToTalkKeyCode").getAsInt() : -1;
-            cfg.sendToPartyChat = !obj.has("sendToPartyChat") || obj.get("sendToPartyChat").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.pushToTalkKeyCode = ConfigJson.getInt(obj, "pushToTalkKeyCode", -1);
+            cfg.sendToPartyChat = ConfigJson.getBool(obj, "sendToPartyChat", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new VoiceToTextConfig();

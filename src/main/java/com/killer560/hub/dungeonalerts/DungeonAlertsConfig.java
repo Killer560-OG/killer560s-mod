@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,7 @@ public final class DungeonAlertsConfig {
                 cfg.shadowAssassinEnabled = bool(o, "shadowAssassinEnabled", cfg.shadowAssassinEnabled);
                 cfg.shadowAssassinPartyChat = bool(o, "shadowAssassinPartyChat", cfg.shadowAssassinPartyChat);
                 cfg.secretSoundEnabled = bool(o, "secretSoundEnabled", cfg.secretSoundEnabled);
-                cfg.secretSoundId = o.has("secretSoundId") ? o.get("secretSoundId").getAsString() : cfg.secretSoundId;
+                cfg.secretSoundId = ConfigJson.getString(o, "secretSoundId", cfg.secretSoundId);
                 cfg.secretSoundVolume = clamp(flt(o, "secretSoundVolume", cfg.secretSoundVolume), 0f, 1f);
                 cfg.secretSoundPitch = clamp(flt(o, "secretSoundPitch", cfg.secretSoundPitch), 0f, 2f);
                 cfg.terracottaEnabled = bool(o, "terracottaEnabled", cfg.terracottaEnabled);
@@ -101,7 +102,7 @@ public final class DungeonAlertsConfig {
                 cfg.classColorsNametags = bool(o, "classColorsNametags", cfg.classColorsNametags);
                 cfg.roomAlertsEnabled = bool(o, "roomAlertsEnabled", cfg.roomAlertsEnabled);
                 cfg.roomAlertsPuzzles = bool(o, "roomAlertsPuzzles", cfg.roomAlertsPuzzles);
-                cfg.roomAlertsNames = o.has("roomAlertsNames") ? o.get("roomAlertsNames").getAsString() : cfg.roomAlertsNames;
+                cfg.roomAlertsNames = ConfigJson.getString(o, "roomAlertsNames", cfg.roomAlertsNames);
                 cfg.roomAlertsTitle = bool(o, "roomAlertsTitle", cfg.roomAlertsTitle);
                 cfg.roomAlertsChat = bool(o, "roomAlertsChat", cfg.roomAlertsChat);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
@@ -150,11 +151,11 @@ public final class DungeonAlertsConfig {
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {
-        return o.has(key) ? o.get(key).getAsBoolean() : def;
+        return ConfigJson.getBool(o, key, def);
     }
 
     private static float flt(JsonObject o, String key, float def) {
-        return o.has(key) ? o.get(key).getAsFloat() : def;
+        return ConfigJson.getFloat(o, key, def);
     }
 
     static float clamp(float v, float min, float max) {

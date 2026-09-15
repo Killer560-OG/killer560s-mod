@@ -105,6 +105,19 @@ public final class DvdFeature {
         }
     }
 
+    /** For a profile switch ({@code ProfileManager#applyProfile}) after {@link DvdConfig#load()} replaced
+     *  every {@link DvdEntry}: drops every runtime (closing its texture) so each box is rebuilt from the
+     *  new entries with {@code loadedGifFileName == null} - i.e. the profile's saved Width/Height are kept
+     *  instead of being treated as a fresh gif pick. If the first render hasn't synced yet, it will. */
+    public static void reloadFromConfig() {
+        for (String id : List.copyOf(runtimes.keySet())) {
+            closeAndRemove(id);
+        }
+        if (initialSyncDone) {
+            reload();
+        }
+    }
+
     private static Runtime createRuntime(DvdEntry e) {
         Runtime rt = new Runtime();
         rt.entry = e;
@@ -142,6 +155,10 @@ public final class DvdFeature {
             rt.texture = null;
         }
         rt.gif = null;
+        // Captured before overwriting: null means this runtime never had a gif file selected this session
+        // (fresh launch, or a profile reload), so the file in the config is the one already saved WITH its
+        // box width/height - see the resize below.
+        String previousGifFileName = rt.loadedGifFileName;
         rt.loadedGifFileName = e.gifFileName;
         if (e.gifFileName.isBlank()) {
             return;
@@ -153,12 +170,18 @@ public final class DvdFeature {
             rt.frameIndex = 0;
             rt.lastFrameChangeAtMs = System.currentTimeMillis();
             // Default to the gif's real decoded size the moment it's picked, instead of the
-            // generic Width/Height defaults - only happens here (a genuinely new file selection,
-            // gated by the equals-check above), so it doesn't fight with dimensions killer560
-            // deliberately changed afterward for that same file.
-            e.boxWidth = decoded.width();
-            e.boxHeight = decoded.height();
-            DvdConfig.getInstance().save();
+            // generic Width/Height defaults - only for a genuinely new file selection, so it doesn't
+            // fight with dimensions killer560 deliberately changed afterward for that same file.
+            // Bug fix (2026-09-15 persistence audit): after a restart loadedGifFileName starts null, so
+            // the equals-check above alone treated the saved file as "new" and overwrote the saved
+            // Width/Height with the gif's native size on every launch. A real pick in the tab always has
+            // a non-null previous name (the wizard's GIF step syncs the blank "" name first, or the
+            // previously shown file when cycling), so only resize then.
+            if (previousGifFileName != null) {
+                e.boxWidth = decoded.width();
+                e.boxHeight = decoded.height();
+                DvdConfig.getInstance().save();
+            }
             NativeImage image = new NativeImage(decoded.width(), decoded.height(), false);
             GifTextureUtil.writeFrame(image, decoded.frames().get(0).argb());
             rt.texture = new DynamicTexture(() -> "killer560smod dvd: " + e.id, image);

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -49,7 +50,7 @@ public final class CommandKeybindsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             CommandKeybindsConfig cfg = new CommandKeybindsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.petsKey = getInt(obj, "petsKey", -1);
             cfg.storageKey = getInt(obj, "storageKey", -1);
             cfg.armorKey = getInt(obj, "armorKey", -1);
@@ -65,7 +66,7 @@ public final class CommandKeybindsConfig {
     }
 
     private static int getInt(JsonObject obj, String key, int def) {
-        return obj.has(key) ? obj.get(key).getAsInt() : def;
+        return ConfigJson.getInt(obj, key, def);
     }
 
     public void save() {

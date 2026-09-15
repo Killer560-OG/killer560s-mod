@@ -53,6 +53,7 @@ public final class BreakerAuraFeature {
     private static final String DUNGEON_BREAKER_SKYBLOCK_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES_PATTERN = Pattern.compile("Charges: (\\d+)/(\\d+)");
     private static final long RETRY_MS = 1_500L;
+    private static final double FLOOR_CLEARANCE = 0.1;
 
     private static final Set<Block> BLACKLIST = Set.of(
             Blocks.BARRIER, Blocks.BEDROCK, Blocks.COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK,
@@ -183,7 +184,10 @@ public final class BreakerAuraFeature {
         for (double t = 0; t <= reach; t += 0.25) {
             double cx = feet.x + dir.x * t;
             double cz = feet.z + dir.z * t;
-            AABB box = new AABB(cx - 0.3, feet.y, cz - 0.3, cx + 0.3, feet.y + 1.8, cz + 0.3);
+            // Review fix (2026-09-15): start the swept box FLOOR_CLEARANCE above the feet. At exactly feet.y a
+            // player whose y is a hair under an integer (float error, soul sand/farmland, setbacks) got the
+            // block they are STANDING ON counted as "in the path" and broken out from under them.
+            AABB box = new AABB(cx - 0.3, feet.y + FLOOR_CLEARANCE, cz - 0.3, cx + 0.3, feet.y + 1.8, cz + 0.3);
             int minX = (int) Math.floor(box.minX), maxX = (int) Math.floor(box.maxX);
             int minY = (int) Math.floor(box.minY), maxY = (int) Math.floor(box.maxY - 1.0E-4);
             int minZ = (int) Math.floor(box.minZ), maxZ = (int) Math.floor(box.maxZ);

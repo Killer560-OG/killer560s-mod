@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -59,19 +60,19 @@ public final class DungeonInfoConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DungeonInfoConfig cfg = new DungeonInfoConfig();
-            cfg.secretsHudEnabled = obj.has("secretsHudEnabled") && obj.get("secretsHudEnabled").getAsBoolean();
-            cfg.mimicMessageEnabled = obj.has("mimicMessageEnabled") && obj.get("mimicMessageEnabled").getAsBoolean();
+            cfg.secretsHudEnabled = ConfigJson.getBool(obj, "secretsHudEnabled", cfg.secretsHudEnabled);
+            cfg.mimicMessageEnabled = ConfigJson.getBool(obj, "mimicMessageEnabled", cfg.mimicMessageEnabled);
             cfg.mimicMessage = migrateOldDefault(getString(obj, "mimicMessage", cfg.mimicMessage), "Mimic found!", cfg.mimicMessage);
-            cfg.princeMessageEnabled = obj.has("princeMessageEnabled") && obj.get("princeMessageEnabled").getAsBoolean();
+            cfg.princeMessageEnabled = ConfigJson.getBool(obj, "princeMessageEnabled", cfg.princeMessageEnabled);
             cfg.princeMessage = migrateOldDefault(getString(obj, "princeMessage", cfg.princeMessage), "Prince spawned!", cfg.princeMessage);
-            cfg.batMessageEnabled = obj.has("batMessageEnabled") && obj.get("batMessageEnabled").getAsBoolean();
+            cfg.batMessageEnabled = ConfigJson.getBool(obj, "batMessageEnabled", cfg.batMessageEnabled);
             cfg.batMessage = migrateOldDefault(getString(obj, "batMessage", cfg.batMessage), "Party bat found!", cfg.batMessage);
-            cfg.score270Enabled = obj.has("score270Enabled") && obj.get("score270Enabled").getAsBoolean();
+            cfg.score270Enabled = ConfigJson.getBool(obj, "score270Enabled", cfg.score270Enabled);
             cfg.score270Message = getString(obj, "score270Message", cfg.score270Message);
-            cfg.score300Enabled = obj.has("score300Enabled") && obj.get("score300Enabled").getAsBoolean();
+            cfg.score300Enabled = ConfigJson.getBool(obj, "score300Enabled", cfg.score300Enabled);
             cfg.score300Message = getString(obj, "score300Message", cfg.score300Message);
-            cfg.timeTrackerEnabled = obj.has("timeTrackerEnabled") && obj.get("timeTrackerEnabled").getAsBoolean();
-            cfg.sendTimeWithoutLag = !obj.has("sendTimeWithoutLag") || obj.get("sendTimeWithoutLag").getAsBoolean();
+            cfg.timeTrackerEnabled = ConfigJson.getBool(obj, "timeTrackerEnabled", cfg.timeTrackerEnabled);
+            cfg.sendTimeWithoutLag = ConfigJson.getBool(obj, "sendTimeWithoutLag", cfg.sendTimeWithoutLag);
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonInfoConfig();
@@ -79,7 +80,7 @@ public final class DungeonInfoConfig {
     }
 
     private static String getString(JsonObject obj, String key, String fallback) {
-        return obj.has(key) ? obj.get(key).getAsString() : fallback;
+        return ConfigJson.getString(obj, key, fallback);
     }
 
     /** A saved message still equal to the old spawn-worded default becomes the new kill-worded default;

@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -53,13 +54,17 @@ public final class LoadoutKeybindsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             LoadoutKeybindsConfig cfg = new LoadoutKeybindsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.nextPageKey = obj.has("nextPageKey") ? obj.get("nextPageKey").getAsInt() : InputConstants.KEY_RIGHT;
-            cfg.previousPageKey = obj.has("previousPageKey") ? obj.get("previousPageKey").getAsInt() : InputConstants.KEY_LEFT;
-            if (obj.has("slotKeys")) {
-                JsonArray arr = obj.getAsJsonArray("slotKeys");
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.nextPageKey = ConfigJson.getInt(obj, "nextPageKey", InputConstants.KEY_RIGHT);
+            cfg.previousPageKey = ConfigJson.getInt(obj, "previousPageKey", InputConstants.KEY_LEFT);
+            JsonArray arr = ConfigJson.getArray(obj, "slotKeys");
+            if (arr != null) {
                 for (int i = 0; i < cfg.slotKeys.length && i < arr.size(); i++) {
-                    cfg.slotKeys[i] = arr.get(i).getAsInt();
+                    try {
+                        cfg.slotKeys[i] = arr.get(i).getAsInt();
+                    } catch (Exception ignored) {
+                        // Malformed element: keep that slot's default key.
+                    }
                 }
             }
             instance = cfg;

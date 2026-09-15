@@ -4,12 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Random;
 
 /**
@@ -126,7 +126,7 @@ public final class CheatUtilsConfig {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.witherEspEnabled = bool(o, "witherEspEnabled", false);
-                cfg.witherPhaseFilter = parsePhase(str(o, "witherPhaseFilter", "P3"));
+                cfg.witherPhaseFilter = ConfigJson.getEnum(o, "witherPhaseFilter", WitherPhaseFilter.class, WitherPhaseFilter.P3);
                 cfg.maxorColor = integer(o, "maxorColor", DEFAULT_MAXOR_COLOR);
                 cfg.stormColor = integer(o, "stormColor", DEFAULT_STORM_COLOR);
                 cfg.goldorColor = integer(o, "goldorColor", DEFAULT_GOLDOR_COLOR);
@@ -137,8 +137,8 @@ public final class CheatUtilsConfig {
                 cfg.auraLevers = bool(o, "auraLevers", true);
                 cfg.auraEssence = bool(o, "auraEssence", true);
                 cfg.auraBossLevers = bool(o, "auraBossLevers", false);
-                cfg.setAuraRange(o.has("auraRange") ? o.get("auraRange").getAsDouble() : 6.2);
-                cfg.setAuraSkullRange(o.has("auraSkullRange") ? o.get("auraSkullRange").getAsDouble() : 4.7);
+                cfg.setAuraRange(ConfigJson.getDouble(o, "auraRange", 6.2));
+                cfg.setAuraSkullRange(ConfigJson.getDouble(o, "auraSkullRange", 4.7));
                 cfg.setAuraCooldownMs(integer(o, "auraCooldownMs", 150));
                 cfg.auraSwing = bool(o, "auraSwing", false);
                 cfg.auraPauseWhileSneaking = bool(o, "auraPauseWhileSneaking", true);
@@ -156,7 +156,7 @@ public final class CheatUtilsConfig {
                 cfg.autoUltEnabled = bool(o, "autoUltEnabled", false);
                 cfg.ultMaxorEnraged = bool(o, "ultMaxorEnraged", true);
                 cfg.ultGoldorFactory = bool(o, "ultGoldorFactory", true);
-                cfg.ultClassOverride = str(o, "ultClassOverride", "AUTO");
+                cfg.ultClassOverride = normalizeUltClass(str(o, "ultClassOverride", "AUTO"));
 
                 cfg.chocolateEnabled = bool(o, "chocolateEnabled", false);
                 cfg.cfClickCookie = bool(o, "cfClickCookie", true);
@@ -224,27 +224,35 @@ public final class CheatUtilsConfig {
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {
-        return o.has(key) ? o.get(key).getAsBoolean() : def;
+        return ConfigJson.getBool(o, key, def);
     }
 
     private static int integer(JsonObject o, String key, int def) {
-        return o.has(key) ? o.get(key).getAsInt() : def;
+        return ConfigJson.getInt(o, key, def);
     }
 
     private static String str(JsonObject o, String key, String def) {
-        return o.has(key) ? o.get(key).getAsString() : def;
+        String v = ConfigJson.getString(o, key, def);
+        return v == null ? def : v;
     }
 
     private static int clamp(int v, int min, int max) {
         return Math.max(min, Math.min(max, v));
     }
 
-    private static WitherPhaseFilter parsePhase(String s) {
-        try {
-            return WitherPhaseFilter.valueOf(s.toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return WitherPhaseFilter.P3;
+    private static final String[] ULT_CLASS_ORDER = {"AUTO", "HEALER", "TANK", "MAGE", "ARCHER", "BERSERKER"};
+
+    /** Unknown/blank values (hand-edit) fall back to AUTO - a blank one used to crash the Cheat Utils tab's
+     *  class label ({@code charAt(0)}). */
+    private static String normalizeUltClass(String s) {
+        if (s != null) {
+            for (String c : ULT_CLASS_ORDER) {
+                if (c.equalsIgnoreCase(s.trim())) {
+                    return c;
+                }
+            }
         }
+        return "AUTO";
     }
 
     private static boolean cheat() {
@@ -319,7 +327,7 @@ public final class CheatUtilsConfig {
     public void setUltGoldorFactory(boolean v) { ultGoldorFactory = v; }
     public String getUltClassOverride() { return ultClassOverride; }
     public void cycleUltClassOverride() {
-        String[] order = {"AUTO", "HEALER", "TANK", "MAGE", "ARCHER", "BERSERKER"};
+        String[] order = ULT_CLASS_ORDER;
         int idx = 0;
         for (int i = 0; i < order.length; i++) {
             if (order[i].equalsIgnoreCase(ultClassOverride)) {

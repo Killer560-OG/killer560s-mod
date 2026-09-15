@@ -221,8 +221,14 @@ public final class LeapMenuConfig {
     /** @return the class assigned to this player, or null if none - the single source of truth future
      *  teammate ESP/map-dot recoloring should read from once those features exist. */
     public DungeonClass getAssignedClass(String playerName) {
+        // The live class Hypixel shows (tab list / Party Finder) wins: the 2026-09-15 redo removed the manual
+        // assignment UI, so an old saved assignment could otherwise never be corrected or cleared.
+        DungeonClass live = PartyTracker.classOf(playerName);
+        if (live != null) {
+            return live;
+        }
         String value = classAssignments.get(playerName.toLowerCase(java.util.Locale.US));
-        return value == null ? PartyTracker.classOf(playerName) : DungeonClass.byName(value);
+        return value == null ? null : DungeonClass.byName(value);
     }
 
     public void setAssignedClass(String playerName, DungeonClass dungeonClass) {

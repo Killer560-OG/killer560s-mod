@@ -1,9 +1,9 @@
 package com.killer560.hub.p4platform;
 
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
@@ -46,9 +46,11 @@ public final class P4PlatformHighlightFeature {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
+        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
+        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
+        ChatObserver.subscribe(P4PlatformHighlightFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(P4PlatformHighlightFeature::onWorldRender);
     }

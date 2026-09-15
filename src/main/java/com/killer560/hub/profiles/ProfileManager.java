@@ -48,8 +48,24 @@ public final class ProfileManager {
             // Croesus Profit Logger's claim history + totals - real run data, not a setting.
             "killer560smod-croesus-log.json",
             // Experimentation Table profit tracker's session log + totals - also real run data.
-            "killer560smod-experiments-profit.json"
+            "killer560smod-experiments-profit.json",
+            // Item Browser's downloaded Hypixel item list - a network cache, not a setting (2026-09-15 audit).
+            "killer560smod-itembrowser-items-cache.json",
+            // Storage Search's per-page "last seen" times - tied to the storage-overlay cache above.
+            "killer560smod-storagesearch-timestamps.json"
     );
+
+    /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
+     *  save AND on apply/import/export (2026-09-15 audit): previously apply/import copied EVERY {@code *.json}
+     *  in the profile folder / zip straight into the config dir, so a shared zip that happened to contain
+     *  {@code killer560smod-session-login.json} or {@code killer560smod-account-proxies.json} (or any other
+     *  mod's config name) silently overwrote this user's own login token / proxy assignments. */
+    private static boolean isProfileSettingFile(String fileName) {
+        return fileName != null
+                && fileName.startsWith("killer560smod-")
+                && fileName.endsWith(".json")
+                && !EXCLUDED_FILES.contains(fileName);
+    }
 
     private ProfileManager() {
     }
@@ -97,7 +113,7 @@ public final class ProfileManager {
         List<Path> files = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(CONFIG_DIR, "killer560smod-*.json")) {
             for (Path entry : stream) {
-                if (Files.isRegularFile(entry) && !EXCLUDED_FILES.contains(entry.getFileName().toString())) {
+                if (Files.isRegularFile(entry) && isProfileSettingFile(entry.getFileName().toString())) {
                     files.add(entry);
                 }
             }
@@ -130,6 +146,9 @@ public final class ProfileManager {
      *  active. Does NOT reload any already-running feature's cached settings - see class doc. */
     public static Result applyProfile(String rawName) {
         String name = sanitize(rawName);
+        if (name.isEmpty()) {
+            return new Result(false, "§cProfile name can't be empty.");
+        }
         Path dir = PROFILES_DIR.resolve(name);
         if (!Files.isDirectory(dir)) {
             return new Result(false, "§cNo profile named \"" + name + "\".");
@@ -138,6 +157,9 @@ public final class ProfileManager {
             int count = 0;
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
                 for (Path file : stream) {
+                    if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) {
+                        continue;
+                    }
                     Files.copy(file, CONFIG_DIR.resolve(file.getFileName()), StandardCopyOption.REPLACE_EXISTING);
                     count++;
                 }
@@ -152,6 +174,10 @@ public final class ProfileManager {
 
     public static Result deleteProfile(String rawName) {
         String name = sanitize(rawName);
+        if (name.isEmpty()) {
+            // resolve("") is PROFILES_DIR itself - without this guard a blank name deleted every exported .zip.
+            return new Result(false, "§cProfile name can't be empty.");
+        }
         Path dir = PROFILES_DIR.resolve(name);
         if (!Files.isDirectory(dir)) {
             return new Result(false, "§cNo profile named \"" + name + "\".");
@@ -176,6 +202,9 @@ public final class ProfileManager {
      *  file the user can hand to a friend (Discord attachment, etc.) with no path guessing needed. */
     public static Result exportProfile(String rawName) {
         String name = sanitize(rawName);
+        if (name.isEmpty()) {
+            return new Result(false, "§cProfile name can't be empty.");
+        }
         Path dir = PROFILES_DIR.resolve(name);
         if (!Files.isDirectory(dir)) {
             return new Result(false, "§cNo profile named \"" + name + "\".");
@@ -185,6 +214,9 @@ public final class ProfileManager {
              ZipOutputStream zos = new ZipOutputStream(fos);
              DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
             for (Path file : stream) {
+                if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) {
+                    continue;
+                }
                 zos.putNextEntry(new ZipEntry(file.getFileName().toString()));
                 Files.copy(file, zos);
                 zos.closeEntry();
@@ -203,11 +235,16 @@ public final class ProfileManager {
         if (name.isEmpty()) {
             return new Result(false, "§cProfile name can't be empty.");
         }
-        Path zipPath = Path.of(source);
-        if (!Files.isRegularFile(zipPath)) {
-            zipPath = PROFILES_DIR.resolve(source);
+        Path zipPath = null;
+        try {
+            zipPath = Path.of(source);
+            if (!Files.isRegularFile(zipPath)) {
+                zipPath = PROFILES_DIR.resolve(source);
+            }
+        } catch (RuntimeException ignored) {
+            // InvalidPathException for a malformed typed path - falls through to "couldn't find".
         }
-        if (!Files.isRegularFile(zipPath)) {
+        if (zipPath == null || !Files.isRegularFile(zipPath)) {
             return new Result(false, "§cCouldn't find a file at \"" + source
                     + "\" (checked that path directly, and inside config/killer560smod-profiles/).");
         }
@@ -218,8 +255,17 @@ public final class ProfileManager {
             try (InputStream fis = Files.newInputStream(zipPath); ZipInputStream zis = new ZipInputStream(fis)) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
-                    String entryName = Path.of(entry.getName()).getFileName().toString();
-                    if (entry.isDirectory() || !entryName.endsWith(".json")) {
+                    if (entry.isDirectory()) {
+                        continue;
+                    }
+                    String entryName;
+                    try {
+                        Path entryFile = Path.of(entry.getName()).getFileName();
+                        entryName = entryFile == null ? "" : entryFile.toString();
+                    } catch (RuntimeException badName) {
+                        continue;
+                    }
+                    if (!isProfileSettingFile(entryName)) {
                         continue;
                     }
                     Files.copy(zis, dir.resolve(entryName), StandardCopyOption.REPLACE_EXISTING);

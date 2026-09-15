@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -51,12 +52,12 @@ public final class BloodCampConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             BloodCampConfig cfg = new BloodCampConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.showOverlay = !obj.has("showOverlay") || obj.get("showOverlay").getAsBoolean();
-            cfg.triggerBotEnabled = obj.has("triggerBotEnabled") && obj.get("triggerBotEnabled").getAsBoolean();
-            cfg.auraEnabled = obj.has("auraEnabled") && obj.get("auraEnabled").getAsBoolean();
-            cfg.autoDetectLag = !obj.has("autoDetectLag") || obj.get("autoDetectLag").getAsBoolean();
-            cfg.setManualTickOffset(obj.has("manualTickOffset") ? obj.get("manualTickOffset").getAsInt() : 0);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showOverlay = ConfigJson.getBool(obj, "showOverlay", true);
+            cfg.triggerBotEnabled = ConfigJson.getBool(obj, "triggerBotEnabled", false);
+            cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
+            cfg.autoDetectLag = ConfigJson.getBool(obj, "autoDetectLag", true);
+            cfg.setManualTickOffset(ConfigJson.getInt(obj, "manualTickOffset", 0));
             instance = cfg;
         } catch (Exception e) {
             instance = new BloodCampConfig();

@@ -23,6 +23,8 @@ public final class LiveMapConfig {
     private boolean showTeammates = true;
     private boolean classRecolorTeammates = true;
     private int cellSize = 8;
+    /** 0 Off, 1 Checkmarks, 2 Secrets, 3 Room Name, 4 Room Name + Secrets - NoammAddons' Checkmark Style. */
+    private int roomLabels = 1;
 
     private LiveMapConfig() {
     }
@@ -47,6 +49,7 @@ public final class LiveMapConfig {
             cfg.showTeammates = !obj.has("showTeammates") || obj.get("showTeammates").getAsBoolean();
             cfg.classRecolorTeammates = !obj.has("classRecolorTeammates") || obj.get("classRecolorTeammates").getAsBoolean();
             cfg.cellSize = obj.has("cellSize") ? obj.get("cellSize").getAsInt() : 8;
+            cfg.setRoomLabels(obj.has("roomLabels") ? obj.get("roomLabels").getAsInt() : 1);
             instance = cfg;
         } catch (Exception e) {
             instance = new LiveMapConfig();
@@ -61,6 +64,7 @@ public final class LiveMapConfig {
             obj.addProperty("showTeammates", showTeammates);
             obj.addProperty("classRecolorTeammates", classRecolorTeammates);
             obj.addProperty("cellSize", cellSize);
+            obj.addProperty("roomLabels", roomLabels);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -96,5 +100,15 @@ public final class LiveMapConfig {
 
     public void setCellSize(int cellSize) {
         this.cellSize = Math.max(4, Math.min(16, cellSize));
+    }
+
+    public static final String[] ROOM_LABEL_NAMES = {"Off", "Checkmarks", "Secrets", "Room Name", "Room Name + Secrets"};
+
+    public int getRoomLabels() {
+        return roomLabels;
+    }
+
+    public void setRoomLabels(int roomLabels) {
+        this.roomLabels = roomLabels < 0 || roomLabels >= ROOM_LABEL_NAMES.length ? 1 : roomLabels;
     }
 }

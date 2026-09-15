@@ -1,7 +1,7 @@
 package com.killer560.hub.secrets;
 
+import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -173,13 +173,13 @@ public final class DungeonState {
     }
 
     public static void register() {
-        // Both channels, matching AutoMeowFeature/MagicFindTracker's own established reasoning: Hypixel
-        // sends what looks like normal chat through either the signed player-chat path or the
-        // system-message path depending on the message, and an NPC/boss line is exactly the kind that's
-        // easy to get wrong by only listening on one.
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        // ChatObserver covers both Fabric channels (signed player-chat and system-message paths - an NPC/boss
+        // line can arrive through either) AND lines another mod (Odin/NoammAddons/Skyblocker) cancelled via
+        // ALLOW_GAME and re-added straight to ChatComponent, which Fabric listeners never see. The boss-phase
+        // trigger is Maxor's full, exact opening sentence, so this mod's own client-side messages (also
+        // delivered by ChatObserver) can't start the boss phase; they can only show up in the log-only
+        // keyword diagnostics below. Overlay (action bar) lines are not delivered - none needed here.
+        ChatObserver.subscribe(DungeonState::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.level == null && simOverrideActive) {
                 LOGGER.info("[Secrets] World unloaded - clearing /killer560 sim override.");

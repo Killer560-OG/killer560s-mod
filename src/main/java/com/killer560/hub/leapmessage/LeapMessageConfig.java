@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -47,10 +48,10 @@ public final class LeapMessageConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             LeapMessageConfig cfg = new LeapMessageConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.cringeEnabled = obj.has("cringeEnabled") && obj.get("cringeEnabled").getAsBoolean();
-            cfg.leapingToEnabled = obj.has("leapingToEnabled") && obj.get("leapingToEnabled").getAsBoolean();
-            cfg.customMessage = obj.has("customMessage") ? obj.get("customMessage").getAsString() : DEFAULT_CUSTOM_MESSAGE;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.cringeEnabled = ConfigJson.getBool(obj, "cringeEnabled", false);
+            cfg.leapingToEnabled = ConfigJson.getBool(obj, "leapingToEnabled", false);
+            cfg.customMessage = ConfigJson.getString(obj, "customMessage", DEFAULT_CUSTOM_MESSAGE);
             instance = cfg;
         } catch (Exception e) {
             instance = new LeapMessageConfig();

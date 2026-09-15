@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -46,11 +47,11 @@ public final class ChatCommandsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ChatCommandsConfig cfg = new ChatCommandsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.partyEnabled = !obj.has("partyEnabled") || obj.get("partyEnabled").getAsBoolean();
-            cfg.guildEnabled = obj.has("guildEnabled") && obj.get("guildEnabled").getAsBoolean();
-            cfg.privateEnabled = !obj.has("privateEnabled") || obj.get("privateEnabled").getAsBoolean();
-            cfg.coopEnabled = !obj.has("coopEnabled") || obj.get("coopEnabled").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.partyEnabled = ConfigJson.getBool(obj, "partyEnabled", true);
+            cfg.guildEnabled = ConfigJson.getBool(obj, "guildEnabled", false);
+            cfg.privateEnabled = ConfigJson.getBool(obj, "privateEnabled", true);
+            cfg.coopEnabled = ConfigJson.getBool(obj, "coopEnabled", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new ChatCommandsConfig();

@@ -3,6 +3,7 @@ package com.killer560.hub.spotify;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -70,30 +71,19 @@ public final class SpotifyLyricsFeature {
         try {
             if (Files.exists(CONFIG_FILE)) {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_FILE)).getAsJsonObject();
-                enabled = obj.has("enabled") ? obj.get("enabled").getAsBoolean() : true;
-                lastFmApiKey = obj.has("apiKey") ? obj.get("apiKey").getAsString() : "";
-                lastFmUsername = obj.has("username") ? obj.get("username").getAsString() : "";
-                lyricTimingOffsetMs = obj.has("timingOffsetMs")
-                        ? Math.max(0, Math.min(15_000, obj.get("timingOffsetMs").getAsInt()))
-                        : 5_000;
-                chatDestination = obj.has("chatDestination")
-                        ? parseEnum(ChatDestination.class, obj.get("chatDestination").getAsString(), ChatDestination.PARTY)
-                        : ChatDestination.PARTY;
-                fullLyrics = obj.has("fullLyrics") ? obj.get("fullLyrics").getAsBoolean() : true;
-                profanityLevel = obj.has("profanityLevel")
-                        ? parseEnum(ProfanityLevel.class, obj.get("profanityLevel").getAsString(), ProfanityLevel.ALL)
-                        : ProfanityLevel.ALL;
+                // Per-key reads (2026-09-15 persistence audit): every key used to share one try/catch, so a
+                // single malformed value skipped every later key - and the next saveConfig() then wrote
+                // blank Last.fm credentials back to disk. Now only the bad key falls back to its default.
+                enabled = ConfigJson.getBool(obj, "enabled", true);
+                lastFmApiKey = ConfigJson.getString(obj, "apiKey", "");
+                lastFmUsername = ConfigJson.getString(obj, "username", "");
+                lyricTimingOffsetMs = Math.max(0, Math.min(15_000, ConfigJson.getInt(obj, "timingOffsetMs", 5_000)));
+                chatDestination = ConfigJson.getEnum(obj, "chatDestination", ChatDestination.class, ChatDestination.PARTY);
+                fullLyrics = ConfigJson.getBool(obj, "fullLyrics", true);
+                profanityLevel = ConfigJson.getEnum(obj, "profanityLevel", ProfanityLevel.class, ProfanityLevel.ALL);
             }
         } catch (Exception e) {
             LOGGER.warn("Could not read Spotify Lyrics config: {}", e.getMessage());
-        }
-    }
-
-    private static <E extends Enum<E>> E parseEnum(Class<E> type, String name, E fallback) {
-        try {
-            return Enum.valueOf(type, name);
-        } catch (IllegalArgumentException e) {
-            return fallback;
         }
     }
 

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -61,14 +62,14 @@ public final class SecretsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SecretsConfig cfg = new SecretsConfig();
-            cfg.masterEnabled = obj.has("masterEnabled") && obj.get("masterEnabled").getAsBoolean();
-            cfg.leversEnabled = obj.has("leversEnabled") && obj.get("leversEnabled").getAsBoolean();
-            cfg.buttonsEnabled = obj.has("buttonsEnabled") && obj.get("buttonsEnabled").getAsBoolean();
-            cfg.buttonsFullBox = obj.has("buttonsFullBox") && obj.get("buttonsFullBox").getAsBoolean();
-            cfg.chestsEnabled = obj.has("chestsEnabled") && obj.get("chestsEnabled").getAsBoolean();
-            cfg.essenceEnabled = obj.has("essenceEnabled") && obj.get("essenceEnabled").getAsBoolean();
-            cfg.dungeonsOnly = obj.has("dungeonsOnly") && obj.get("dungeonsOnly").getAsBoolean();
-            cfg.bossOnly = obj.has("bossOnly") && obj.get("bossOnly").getAsBoolean();
+            cfg.masterEnabled = ConfigJson.getBool(obj, "masterEnabled", false);
+            cfg.leversEnabled = ConfigJson.getBool(obj, "leversEnabled", false);
+            cfg.buttonsEnabled = ConfigJson.getBool(obj, "buttonsEnabled", false);
+            cfg.buttonsFullBox = ConfigJson.getBool(obj, "buttonsFullBox", false);
+            cfg.chestsEnabled = ConfigJson.getBool(obj, "chestsEnabled", false);
+            cfg.essenceEnabled = ConfigJson.getBool(obj, "essenceEnabled", false);
+            cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", false);
+            cfg.bossOnly = ConfigJson.getBool(obj, "bossOnly", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new SecretsConfig();

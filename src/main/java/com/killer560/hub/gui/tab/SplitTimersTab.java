@@ -42,6 +42,15 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 24;
 
+        // Read by DeviceTimesFeature (appends the P3 split time to each device/lever completion line) -
+        // was saved/loaded but had no toggle anywhere (2026-09-15 persistence audit).
+        widgets.add(SettingsButtonWidget.builder(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()), btn -> {
+                    cfg.setAnnounceDeviceTimes(!cfg.isAnnounceDeviceTimes());
+                    cfg.save();
+                    btn.setMessage(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()));
+                }).bounds(contentX, y, 220, 18).build());
+        y += 24;
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Odin's splits: Blood Open/Clear, Portal Entry, each boss phase"),
                 Minecraft.getInstance().font));

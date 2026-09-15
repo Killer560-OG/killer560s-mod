@@ -92,6 +92,40 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(contentX + half + GAP, y, half, 20).build());
             y += 24;
 
+            // 2026-09-15 roadmap: Superpairs confirm-timeout scaled from measured latency (see
+            // ExperimentSolver#superpairsConfirmTimeoutMs). Margin slider only shown while it's on.
+            widgets.add(SettingsButtonWidget.builder(adaptiveTimeoutText(), btn -> {
+                        ExperimentsConfig c = ExperimentsConfig.getInstance();
+                        c.setSuperpairsAdaptiveTimeout(!c.isSuperpairsAdaptiveTimeout());
+                        c.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, half, 20).build());
+            if (cfg.isSuperpairsAdaptiveTimeout()) {
+                int marginRange = ExperimentsConfig.MAX_SUPERPAIRS_TIMEOUT_MARGIN_MS - ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS;
+                double marginNormalized = (cfg.getSuperpairsTimeoutMarginMs() - ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS)
+                        / (double) marginRange;
+                widgets.add(new ThemedSliderButton(contentX + half + GAP, y, half, 20, timeoutMarginText(), marginNormalized) {
+                    private static final int SNAP_STEP = 50;
+
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(timeoutMarginText());
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        ExperimentsConfig c = ExperimentsConfig.getInstance();
+                        int raw = ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS + (int) Math.round(this.value * marginRange);
+                        int snapped = Math.round(raw / (float) SNAP_STEP) * SNAP_STEP;
+                        c.setSuperpairsTimeoutMarginMs(snapped);
+                        c.save();
+                        this.value = (c.getSuperpairsTimeoutMarginMs() - ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS)
+                                / (double) marginRange;
+                    }
+                });
+            }
+            y += 24;
+
             // Per killer560's request: Block Input and Auto-Swap Guardian side by side instead of stacked.
             widgets.add(SettingsButtonWidget.builder(blockInputText(), btn -> {
                         ExperimentsConfig c = ExperimentsConfig.getInstance();
@@ -367,6 +401,15 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
     private static Component superpairsFilterText() {
         return Component.literal("Superpairs Pairs: §b"
                 + (ExperimentsConfig.getInstance().isSuperpairsValuableOnly() ? "Skip Plain XP" : "Every Pair"));
+    }
+
+    private static Component adaptiveTimeoutText() {
+        return Component.literal("Adaptive Timeout: "
+                + (ExperimentsConfig.getInstance().isSuperpairsAdaptiveTimeout() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component timeoutMarginText() {
+        return Component.literal("Timeout Margin: §b" + ExperimentsConfig.getInstance().getSuperpairsTimeoutMarginMs() + "ms");
     }
 
     private static Component modeText() {

@@ -108,7 +108,15 @@ public final class RouteStore {
                 routes.add(route);
             }
         } catch (Exception e) {
-            LOGGER.warn("[WaypointRoutes] Failed to load routes file, starting empty", e);
+            // Review fix (2026-09-15): every later mutation calls save(), which would silently overwrite the
+            // unreadable file with only what parsed so far - keep a copy of the original first.
+            LOGGER.warn("[WaypointRoutes] Failed to load routes file ({} route(s) recovered), backing it up", routes.size(), e);
+            try {
+                Files.copy(PATH, PATH.resolveSibling("killer560smod-waypointroutes-routes.broken-"
+                        + System.currentTimeMillis() + ".json"));
+            } catch (Exception backupError) {
+                LOGGER.warn("[WaypointRoutes] Could not back up the unreadable routes file", backupError);
+            }
         }
     }
 

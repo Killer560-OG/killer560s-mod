@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -43,8 +44,8 @@ public final class BoulderSolverConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             BoulderSolverConfig cfg = new BoulderSolverConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.showAllClicks = obj.has("showAllClicks") && obj.get("showAllClicks").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showAllClicks = ConfigJson.getBool(obj, "showAllClicks", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new BoulderSolverConfig();

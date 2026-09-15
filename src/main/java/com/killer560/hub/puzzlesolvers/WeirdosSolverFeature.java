@@ -4,9 +4,9 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
@@ -41,7 +41,9 @@ import java.util.regex.Pattern;
  */
 public final class WeirdosSolverFeature {
 
-    private static final Pattern NPC_LINE = Pattern.compile("\\[NPC] (.+): (.+)\\.?");
+    // Anchored to line start (2026-09-15, ChatObserver migration): ChatObserver also delivers this mod's own
+    // client-side lines, so an unanchored find() could pick an "[NPC] ..." quote out of the middle of one.
+    private static final Pattern NPC_LINE = Pattern.compile("^\\[NPC] (.+): (.+)\\.?");
 
     private static final List<Pattern> SOLUTIONS = List.of(
             Pattern.compile("The reward is not in my chest!"),
@@ -77,9 +79,11 @@ public final class WeirdosSolverFeature {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onMessage(message));
+        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
+        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
+        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
+        ChatObserver.subscribe(WeirdosSolverFeature::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
             boolean inBoss = LiveMapFeature.isInBoss();

@@ -1,8 +1,8 @@
 package com.killer560.hub.diorite;
 
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -53,9 +53,11 @@ public final class DioriteGlassFeature {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
+        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
+        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
+        ChatObserver.subscribe(DioriteGlassFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
     }
 

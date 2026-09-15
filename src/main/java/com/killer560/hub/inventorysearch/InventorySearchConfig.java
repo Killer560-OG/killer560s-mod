@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -44,10 +45,10 @@ public final class InventorySearchConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             InventorySearchConfig cfg = new InventorySearchConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.searchLore = !obj.has("searchLore") || obj.get("searchLore").getAsBoolean();
-            cfg.ignoreCase = !obj.has("ignoreCase") || obj.get("ignoreCase").getAsBoolean();
-            cfg.highlightColor = obj.has("highlightColor") ? obj.get("highlightColor").getAsInt() : 0xFFFF5555;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.searchLore = ConfigJson.getBool(obj, "searchLore", true);
+            cfg.ignoreCase = ConfigJson.getBool(obj, "ignoreCase", true);
+            cfg.highlightColor = ConfigJson.getInt(obj, "highlightColor", 0xFFFF5555);
             instance = cfg;
         } catch (Exception e) {
             instance = new InventorySearchConfig();

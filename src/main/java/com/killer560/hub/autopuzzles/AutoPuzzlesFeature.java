@@ -7,9 +7,9 @@ import com.killer560.hub.puzzlesolvers.WeirdosSolverConfig;
 import com.killer560.hub.puzzlesolvers.WeirdosSolverFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -87,18 +87,23 @@ public final class AutoPuzzlesFeature {
     private static long lastNpcClickMs = 0L;
 
     private static ClientLevel lastLevel = null;
+    // Review fix (2026-09-15): the solvers' state is static and only resets on their own conditions
+    // (leave dungeon / boss / room change). Across a quick requeue into a new instance (new level) their
+    // old answer/chest could still be set when a same-layout room is entered, so nothing is clicked in a
+    // level until the solver has been observed EMPTY at least once in that level - i.e. the answer/chest
+    // it later reports was really produced in this instance.
+    private static boolean quizSolverClearedThisLevel = false;
+    private static boolean weirdosSolverClearedThisLevel = false;
 
     private AutoPuzzlesFeature() {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay) {
-                onMessage(message);
-            }
-        });
+        // ChatObserver, same as QuizSolverFeature (whose reset this re-arm mirrors): Odin/NoammAddons/Skyblocker can
+        // cancel a server line via ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric
+        // listeners never see - on Fabric CHAT/GAME the solver would reset but this would never re-arm. The trigger
+        // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
+        ChatObserver.subscribe(AutoPuzzlesFeature::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(AutoPuzzlesFeature::onTick);
         LOGGER.info("[AutoPuzzles] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
@@ -127,6 +132,14 @@ public final class AutoPuzzlesFeature {
             resetWeirdos();
             quizSolverOffWarned = false;
             weirdosSolverOffWarned = false;
+            quizSolverClearedThisLevel = false;
+            weirdosSolverClearedThisLevel = false;
+        }
+        if (QuizSolverFeature.getCorrectAnswerPos() == null) {
+            quizSolverClearedThisLevel = true;
+        }
+        if (WeirdosSolverFeature.getCorrectChestPos() == null && WeirdosSolverFeature.getWrongChestCount() == 0) {
+            weirdosSolverClearedThisLevel = true;
         }
         if (client.player == null || client.level == null || client.gameMode == null) {
             return;
@@ -176,6 +189,13 @@ public final class AutoPuzzlesFeature {
             return;
         }
         if (quizActed) {
+            return;
+        }
+        if (!quizSolverClearedThisLevel) {
+            if (!quizWaitLogged) {
+                quizWaitLogged = true;
+                LOGGER.info("[AutoPuzzles] Quiz: answer {} predates this world - not clicking until the solver resets", answer);
+            }
             return;
         }
         long now = System.currentTimeMillis();
@@ -274,6 +294,13 @@ public final class AutoPuzzlesFeature {
             tryTalkToNpc(client, now);
         }
         if (!solved) {
+            return;
+        }
+        if (!weirdosSolverClearedThisLevel) {
+            if (!weirdosWaitLogged) {
+                weirdosWaitLogged = true;
+                LOGGER.info("[AutoPuzzles] Weirdos: chest {} predates this world - not opening until the solver resets", chest);
+            }
             return;
         }
         if (!chest.equals(weirdosPendingPos)) {

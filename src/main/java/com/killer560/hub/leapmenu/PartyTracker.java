@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -47,12 +48,17 @@ public final class PartyTracker {
     private static final Pattern PARTY_CHAT = Pattern.compile("^Party > " + NAME + ": .*$");
     private static final Pattern LEFT = Pattern.compile("^" + NAME + " (?:has left the party\\.|has been removed from the party\\.|was removed from your party because they disconnected\\.?)$");
     private static final Pattern KICKED_OFFLINE = Pattern.compile("^Kicked " + NAME + " because they were offline\\.$");
+    // Odin/NoammAddons/QUOI PartyUtils transferLeave: the old leader left (no separate "has left the party." line).
+    private static final Pattern TRANSFER_LEAVE = Pattern.compile("^The party was transferred to " + NAME + " because " + NAME + " left$");
     private static final Pattern CLEARED = Pattern.compile("^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by .+|"
             + ".+ has disbanded the party!|The party was disbanded because .+|You are not in a party.*)$");
 
     /** Names as Hypixel spells them, in listing order. Includes yourself when Hypixel lists you. */
     private static final Set<String> MEMBERS = new LinkedHashSet<>();
     private static final Map<String, DungeonClass> CLASSES = new HashMap<>();
+    /** Lowercase names the dungeon tab list currently shows as "(DEAD)". */
+    private static final Set<String> DEAD = new HashSet<>();
+    private static boolean wasInDungeon = false;
     private static boolean readingList = false;
     private static int tickCounter = 0;
     private static String lastLogged = "";
@@ -120,6 +126,9 @@ public final class PartyTracker {
             }
         } else if ((m = LEFT.matcher(plain)).matches() || (m = KICKED_OFFLINE.matcher(plain)).matches()) {
             remove(m.group(1));
+        } else if ((m = TRANSFER_LEAVE.matcher(plain)).matches()) {
+            add(m.group(1));
+            remove(m.group(2));
         } else if (CLEARED.matcher(plain).matches()) {
             MEMBERS.clear();
         } else {
@@ -129,9 +138,18 @@ public final class PartyTracker {
     }
 
     private static void readTabList(Minecraft client) {
-        if (client.getConnection() == null || !DungeonState.isInDungeon()) {
+        boolean inDungeon = client.getConnection() != null && DungeonState.isInDungeon();
+        if (!inDungeon) {
+            if (wasInDungeon) {
+                // Classes/deaths from the finished run must not leak into the next one (or into p3sim, where the tab
+                // list has no class entries and selfClass() would otherwise keep returning last run's class).
+                wasInDungeon = false;
+                CLASSES.clear();
+                DEAD.clear();
+            }
             return;
         }
+        wasInDungeon = true;
         List<String> fromTab = new ArrayList<>();
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             Component display = info.getTabListDisplayName();
@@ -148,6 +166,11 @@ public final class PartyTracker {
             }
             String name = m.group(1);
             fromTab.add(name);
+            if ("DEAD".equals(m.group(2))) {
+                DEAD.add(name.toLowerCase(Locale.US));
+            } else {
+                DEAD.remove(name.toLowerCase(Locale.US));
+            }
             // "DEAD" / "EMPTY" keep whatever class was known before (same as NoammAddons).
             DungeonClass c = parseClass(m.group(2));
             if (c != null) {
@@ -213,6 +236,11 @@ public final class PartyTracker {
             }
         }
         return out;
+    }
+
+    /** True while the dungeon tab list shows this teammate as dead. */
+    public static boolean isDead(String name) {
+        return name != null && DEAD.contains(name.toLowerCase(Locale.US));
     }
 
     public static DungeonClass classOf(String name) {

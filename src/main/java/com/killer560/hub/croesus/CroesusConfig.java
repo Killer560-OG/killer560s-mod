@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -53,20 +54,18 @@ public final class CroesusConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             CroesusConfig cfg = new CroesusConfig();
-            cfg.chestProfitEnabled = obj.has("chestProfitEnabled") && obj.get("chestProfitEnabled").getAsBoolean();
-            cfg.includeEssence = !obj.has("includeEssence") || obj.get("includeEssence").getAsBoolean();
-            cfg.highlightBest = !obj.has("highlightBest") || obj.get("highlightBest").getAsBoolean();
-            cfg.loggerEnabled = obj.has("loggerEnabled") && obj.get("loggerEnabled").getAsBoolean();
-            cfg.loggerChatSummary = !obj.has("loggerChatSummary") || obj.get("loggerChatSummary").getAsBoolean();
-            cfg.autoCroesusEnabled = obj.has("autoCroesusEnabled") && obj.get("autoCroesusEnabled").getAsBoolean();
-            if (obj.has("autoMinProfitK")) {
-                cfg.autoMinProfitK = clamp(obj.get("autoMinProfitK").getAsInt(), 0, MAX_MIN_PROFIT_K);
-            }
-            if (obj.has("autoMinDelayMs")) {
-                cfg.autoMinDelayMs = clamp(obj.get("autoMinDelayMs").getAsInt(), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
-            }
-            if (obj.has("autoMaxDelayMs")) {
-                cfg.autoMaxDelayMs = clamp(obj.get("autoMaxDelayMs").getAsInt(), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
+            cfg.chestProfitEnabled = ConfigJson.getBool(obj, "chestProfitEnabled", cfg.chestProfitEnabled);
+            cfg.includeEssence = ConfigJson.getBool(obj, "includeEssence", cfg.includeEssence);
+            cfg.highlightBest = ConfigJson.getBool(obj, "highlightBest", cfg.highlightBest);
+            cfg.loggerEnabled = ConfigJson.getBool(obj, "loggerEnabled", cfg.loggerEnabled);
+            cfg.loggerChatSummary = ConfigJson.getBool(obj, "loggerChatSummary", cfg.loggerChatSummary);
+            cfg.autoCroesusEnabled = ConfigJson.getBool(obj, "autoCroesusEnabled", cfg.autoCroesusEnabled);
+            cfg.autoMinProfitK = clamp(ConfigJson.getInt(obj, "autoMinProfitK", cfg.autoMinProfitK), 0, MAX_MIN_PROFIT_K);
+            cfg.autoMinDelayMs = clamp(ConfigJson.getInt(obj, "autoMinDelayMs", cfg.autoMinDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
+            cfg.autoMaxDelayMs = clamp(ConfigJson.getInt(obj, "autoMaxDelayMs", cfg.autoMaxDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
+            // Same min <= max invariant the setters enforce (a hand-edit could otherwise load min > max).
+            if (cfg.autoMaxDelayMs < cfg.autoMinDelayMs) {
+                cfg.autoMaxDelayMs = cfg.autoMinDelayMs;
             }
             instance = cfg;
         } catch (Exception e) {

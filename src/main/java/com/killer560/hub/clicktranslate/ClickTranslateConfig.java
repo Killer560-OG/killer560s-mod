@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -42,8 +43,8 @@ public final class ClickTranslateConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ClickTranslateConfig cfg = new ClickTranslateConfig();
-            cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
-            cfg.targetLanguageCode = obj.has("targetLanguageCode") ? obj.get("targetLanguageCode").getAsString() : "en";
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.setTargetLanguageCode(ConfigJson.getString(obj, "targetLanguageCode", "en"));
             instance = cfg;
         } catch (Exception e) {
             instance = new ClickTranslateConfig();

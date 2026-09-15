@@ -691,6 +691,9 @@ public final class ExperimentsFeature {
                     tryExitFinishedRound(screen, menu, now);
                     return;
                 }
+                if (mode == ExperimentSolver.Mode.SUPERPAIRS && cfg.isSuperpairsAdaptiveTimeout()) {
+                    ExperimentSolver.noteTabListLatencyMs(tabListLatencyMs(client));
+                }
                 OptionalInt click = SOLVER.nextClick(cells, cfg.isSuperpairsEnabled(), cfg.isSuperpairsValuableOnly(),
                         now, lastClickAtMs, cfg.getDelayMs(), cfg.getFirstClickDelayMs());
                 if (click.isPresent()) {
@@ -1360,6 +1363,17 @@ public final class ExperimentsFeature {
         }
         long fireAtMs = now + ThreadLocalRandom.current().nextInt(maxJitter + 1);
         pendingActions.add(new PendingAction(action, fireAtMs));
+    }
+
+    /** @return the local player's own tab-list latency (javap-verified: ClientPacketListener#getPlayerInfo(UUID),
+     *  PlayerInfo#getLatency()), or -1 if unavailable - feeds Superpairs' adaptive confirm timeout. */
+    private static int tabListLatencyMs(Minecraft client) {
+        var connection = client.getConnection();
+        if (connection == null || client.player == null) {
+            return -1;
+        }
+        var info = connection.getPlayerInfo(client.player.getUUID());
+        return info == null ? -1 : info.getLatency();
     }
 
     private static void scheduleClick(int containerId, int slot, long now, ExperimentsConfig cfg) {

@@ -44,9 +44,9 @@ public final class EtherwarpOverlayConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             EtherwarpOverlayConfig cfg = new EtherwarpOverlayConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.showWhenFailed = !obj.has("showWhenFailed") || obj.get("showWhenFailed").getAsBoolean();
-            cfg.fullBlock = obj.has("fullBlock") && obj.get("fullBlock").getAsBoolean();
+            cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.showWhenFailed = com.killer560.hub.util.ConfigJson.getBool(obj, "showWhenFailed", cfg.showWhenFailed);
+            cfg.fullBlock = com.killer560.hub.util.ConfigJson.getBool(obj, "fullBlock", cfg.fullBlock);
             instance = cfg;
         } catch (Exception e) {
             instance = new EtherwarpOverlayConfig();

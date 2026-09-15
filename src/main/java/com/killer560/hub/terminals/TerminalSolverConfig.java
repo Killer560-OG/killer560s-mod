@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -121,34 +122,33 @@ public final class TerminalSolverConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             TerminalSolverConfig cfg = new TerminalSolverConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.scale = obj.has("scale") ? clampScale(obj.get("scale").getAsFloat()) : 1.0f;
-            cfg.panesEnabled = !obj.has("panesEnabled") || obj.get("panesEnabled").getAsBoolean();
-            cfg.rubixEnabled = !obj.has("rubixEnabled") || obj.get("rubixEnabled").getAsBoolean();
-            cfg.numbersEnabled = !obj.has("numbersEnabled") || obj.get("numbersEnabled").getAsBoolean();
-            cfg.startsWithEnabled = !obj.has("startsWithEnabled") || obj.get("startsWithEnabled").getAsBoolean();
-            cfg.selectEnabled = !obj.has("selectEnabled") || obj.get("selectEnabled").getAsBoolean();
-            cfg.melodyEnabled = !obj.has("melodyEnabled") || obj.get("melodyEnabled").getAsBoolean();
-            cfg.customGuiEnabled = obj.has("customGuiEnabled") && obj.get("customGuiEnabled").getAsBoolean();
-            cfg.numbersThreeTierReveal = obj.has("numbersThreeTierReveal") && obj.get("numbersThreeTierReveal").getAsBoolean();
-            cfg.autoTerminalsEnabled = obj.has("autoTerminalsEnabled") && obj.get("autoTerminalsEnabled").getAsBoolean();
-            cfg.autoPanesEnabled = obj.has("autoPanesEnabled") && obj.get("autoPanesEnabled").getAsBoolean();
-            cfg.autoRubixEnabled = obj.has("autoRubixEnabled") && obj.get("autoRubixEnabled").getAsBoolean();
-            cfg.autoNumbersEnabled = obj.has("autoNumbersEnabled") && obj.get("autoNumbersEnabled").getAsBoolean();
-            cfg.autoStartsWithEnabled = obj.has("autoStartsWithEnabled") && obj.get("autoStartsWithEnabled").getAsBoolean();
-            cfg.autoSelectEnabled = obj.has("autoSelectEnabled") && obj.get("autoSelectEnabled").getAsBoolean();
-            cfg.autoMelodyEnabled = obj.has("autoMelodyEnabled") && obj.get("autoMelodyEnabled").getAsBoolean();
-            cfg.autoClickMinDelayMs = obj.has("autoClickMinDelayMs")
-                    ? clampAutoClickDelay(obj.get("autoClickMinDelayMs").getAsInt()) : 120;
-            cfg.autoClickMaxDelayMs = obj.has("autoClickMaxDelayMs")
-                    ? clampAutoClickDelay(obj.get("autoClickMaxDelayMs").getAsInt()) : 200;
-            cfg.blockInputWhileAutoClicking = !obj.has("blockInputWhileAutoClicking")
-                    || obj.get("blockInputWhileAutoClicking").getAsBoolean();
-            cfg.announceCompletionTime = !obj.has("announceCompletionTime")
-                    || obj.get("announceCompletionTime").getAsBoolean();
-            cfg.melodyLookaheadClicks = obj.has("melodyLookaheadClicks")
-                    ? clampMelodyLookahead(obj.get("melodyLookaheadClicks").getAsInt()) : 0;
-            cfg.melodySkipMode = parseMelodySkipMode(obj.has("melodySkipMode") ? obj.get("melodySkipMode").getAsString() : null);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
+            cfg.panesEnabled = ConfigJson.getBool(obj, "panesEnabled", true);
+            cfg.rubixEnabled = ConfigJson.getBool(obj, "rubixEnabled", true);
+            cfg.numbersEnabled = ConfigJson.getBool(obj, "numbersEnabled", true);
+            cfg.startsWithEnabled = ConfigJson.getBool(obj, "startsWithEnabled", true);
+            cfg.selectEnabled = ConfigJson.getBool(obj, "selectEnabled", true);
+            cfg.melodyEnabled = ConfigJson.getBool(obj, "melodyEnabled", true);
+            cfg.customGuiEnabled = ConfigJson.getBool(obj, "customGuiEnabled", false);
+            cfg.numbersThreeTierReveal = ConfigJson.getBool(obj, "numbersThreeTierReveal", false);
+            cfg.autoTerminalsEnabled = ConfigJson.getBool(obj, "autoTerminalsEnabled", false);
+            cfg.autoPanesEnabled = ConfigJson.getBool(obj, "autoPanesEnabled", false);
+            cfg.autoRubixEnabled = ConfigJson.getBool(obj, "autoRubixEnabled", false);
+            cfg.autoNumbersEnabled = ConfigJson.getBool(obj, "autoNumbersEnabled", false);
+            cfg.autoStartsWithEnabled = ConfigJson.getBool(obj, "autoStartsWithEnabled", false);
+            cfg.autoSelectEnabled = ConfigJson.getBool(obj, "autoSelectEnabled", false);
+            cfg.autoMelodyEnabled = ConfigJson.getBool(obj, "autoMelodyEnabled", false);
+            cfg.autoClickMinDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMinDelayMs", 120));
+            cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 200));
+            // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
+            if (cfg.autoClickMaxDelayMs < cfg.autoClickMinDelayMs) {
+                cfg.autoClickMaxDelayMs = cfg.autoClickMinDelayMs;
+            }
+            cfg.blockInputWhileAutoClicking = ConfigJson.getBool(obj, "blockInputWhileAutoClicking", true);
+            cfg.announceCompletionTime = ConfigJson.getBool(obj, "announceCompletionTime", true);
+            cfg.melodyLookaheadClicks = clampMelodyLookahead(ConfigJson.getInt(obj, "melodyLookaheadClicks", 0));
+            cfg.melodySkipMode = ConfigJson.getEnum(obj, "melodySkipMode", MelodySkipMode.class, MelodySkipMode.EDGES);
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalSolverConfig();
@@ -197,17 +197,6 @@ public final class TerminalSolverConfig {
 
     private static int clampMelodyLookahead(int value) {
         return Math.max(MIN_MELODY_LOOKAHEAD, Math.min(MAX_MELODY_LOOKAHEAD, value));
-    }
-
-    private static MelodySkipMode parseMelodySkipMode(String value) {
-        if (value == null) {
-            return MelodySkipMode.EDGES;
-        }
-        try {
-            return MelodySkipMode.valueOf(value);
-        } catch (IllegalArgumentException e) {
-            return MelodySkipMode.EDGES;
-        }
     }
 
     public boolean isEnabled() {
@@ -413,6 +402,6 @@ public final class TerminalSolverConfig {
     }
 
     public void setMelodySkipMode(MelodySkipMode melodySkipMode) {
-        this.melodySkipMode = melodySkipMode;
+        this.melodySkipMode = melodySkipMode != null ? melodySkipMode : MelodySkipMode.EDGES;
     }
 }

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -42,14 +43,25 @@ public final class HudConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-                cfg.editKeyCode = obj.has("editKeyCode") ? obj.get("editKeyCode").getAsInt() : -1;
-                if (obj.has("positions")) {
-                    JsonObject positions = obj.getAsJsonObject("positions");
+                cfg.editKeyCode = ConfigJson.getInt(obj, "editKeyCode", -1);
+                JsonObject positions = ConfigJson.getObject(obj, "positions");
+                if (positions != null) {
                     for (String id : positions.keySet()) {
-                        JsonObject pos = positions.getAsJsonObject(id);
-                        cfg.positions.put(id, new int[]{pos.get("x").getAsInt(), pos.get("y").getAsInt()});
-                        if (pos.has("scale")) {
-                            cfg.scales.put(id, pos.get("scale").getAsFloat());
+                        // One bad element is skipped on its own instead of dropping every HUD position.
+                        JsonObject pos = ConfigJson.getObject(positions, id);
+                        if (pos == null) {
+                            continue;
+                        }
+                        if (pos.has("x") && pos.has("y")) {
+                            int x = ConfigJson.getInt(pos, "x", Integer.MIN_VALUE);
+                            int y = ConfigJson.getInt(pos, "y", Integer.MIN_VALUE);
+                            if (x != Integer.MIN_VALUE && y != Integer.MIN_VALUE) {
+                                cfg.positions.put(id, new int[]{x, y});
+                            }
+                        }
+                        float scale = ConfigJson.getFloat(pos, "scale", Float.NaN);
+                        if (!Float.isNaN(scale) && scale > 0f) {
+                            cfg.scales.put(id, scale);
                         }
                     }
                 }
@@ -71,6 +83,16 @@ public final class HudConfig {
                 pos.addProperty("y", entry.getValue()[1]);
                 pos.addProperty("scale", scales.getOrDefault(entry.getKey(), 1.0f));
                 positions.add(entry.getKey(), pos);
+            }
+            // Bug fix (2026-09-15 persistence audit): an element resized with the scroll wheel in the HUD
+            // editor but never dragged has a scale and no position - it used to be dropped here, so the
+            // resize reset on restart. Write it scale-only; load() leaves its position on the default.
+            for (Map.Entry<String, Float> entry : this.scales.entrySet()) {
+                if (!this.positions.containsKey(entry.getKey())) {
+                    JsonObject pos = new JsonObject();
+                    pos.addProperty("scale", entry.getValue());
+                    positions.add(entry.getKey(), pos);
+                }
             }
             obj.add("positions", positions);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -74,11 +75,11 @@ public final class ItemRarityConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             ItemRarityConfig cfg = new ItemRarityConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.style = obj.has("style") ? Style.parse(obj.get("style").getAsString()) : Style.SQUARE;
-            cfg.opacity = obj.has("opacity") ? clampOpacity(obj.get("opacity").getAsInt()) : 50;
-            cfg.showInHotbar = !obj.has("showInHotbar") || obj.get("showInHotbar").getAsBoolean();
-            cfg.skyblockOnly = !obj.has("skyblockOnly") || obj.get("skyblockOnly").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.SQUARE);
+            cfg.opacity = clampOpacity(ConfigJson.getInt(obj, "opacity", 50));
+            cfg.showInHotbar = ConfigJson.getBool(obj, "showInHotbar", true);
+            cfg.skyblockOnly = ConfigJson.getBool(obj, "skyblockOnly", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new ItemRarityConfig();

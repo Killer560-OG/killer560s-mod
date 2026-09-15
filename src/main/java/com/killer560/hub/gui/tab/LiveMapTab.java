@@ -57,6 +57,13 @@ public class LiveMapTab extends BaseTab {
                         cfg.save();
                         btn.setMessage(Component.literal("Cell Size: " + cfg.getCellSize() + "px"));
                     }).bounds(contentX, y, 160, 18).build());
+        y += 20;
+
+        widgets.add(SettingsButtonWidget.builder(roomLabelsText(cfg), btn -> {
+                    cfg.setRoomLabels((cfg.getRoomLabels() + 1) % LiveMapConfig.ROOM_LABEL_NAMES.length);
+                    cfg.save();
+                    btn.setMessage(roomLabelsText(cfg));
+                }).bounds(contentX, y, 160, 18).build());
         y += 24;
 
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this text was written
@@ -77,6 +84,10 @@ public class LiveMapTab extends BaseTab {
                 Minecraft.getInstance().font));
 
         return widgets;
+    }
+
+    private static Component roomLabelsText(LiveMapConfig cfg) {
+        return Component.literal("Room Labels: " + LiveMapConfig.ROOM_LABEL_NAMES[cfg.getRoomLabels()]);
     }
 
     private static Component onOff(String label, boolean value) {

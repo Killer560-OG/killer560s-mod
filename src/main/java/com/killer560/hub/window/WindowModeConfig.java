@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -48,14 +49,17 @@ public final class WindowModeConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             WindowModeConfig cfg = new WindowModeConfig();
-            cfg.borderlessFullscreenEnabled = obj.has("borderlessFullscreenEnabled")
-                    && obj.get("borderlessFullscreenEnabled").getAsBoolean();
-            cfg.hasSavedWindowedBounds = obj.has("hasSavedWindowedBounds")
-                    && obj.get("hasSavedWindowedBounds").getAsBoolean();
-            cfg.savedWindowedX = obj.has("savedWindowedX") ? obj.get("savedWindowedX").getAsInt() : 0;
-            cfg.savedWindowedY = obj.has("savedWindowedY") ? obj.get("savedWindowedY").getAsInt() : 0;
-            cfg.savedWindowedWidth = obj.has("savedWindowedWidth") ? obj.get("savedWindowedWidth").getAsInt() : 854;
-            cfg.savedWindowedHeight = obj.has("savedWindowedHeight") ? obj.get("savedWindowedHeight").getAsInt() : 480;
+            cfg.borderlessFullscreenEnabled = ConfigJson.getBool(obj, "borderlessFullscreenEnabled", false);
+            cfg.hasSavedWindowedBounds = ConfigJson.getBool(obj, "hasSavedWindowedBounds", false);
+            cfg.savedWindowedX = ConfigJson.getInt(obj, "savedWindowedX", 0);
+            cfg.savedWindowedY = ConfigJson.getInt(obj, "savedWindowedY", 0);
+            cfg.savedWindowedWidth = ConfigJson.getInt(obj, "savedWindowedWidth", 854);
+            cfg.savedWindowedHeight = ConfigJson.getInt(obj, "savedWindowedHeight", 480);
+            // A zero/negative size would hand GLFW an invalid window when leaving borderless.
+            if (cfg.savedWindowedWidth <= 0 || cfg.savedWindowedHeight <= 0) {
+                cfg.savedWindowedWidth = 854;
+                cfg.savedWindowedHeight = 480;
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new WindowModeConfig();

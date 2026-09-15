@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -46,10 +47,9 @@ public final class AutoMeowConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             AutoMeowConfig cfg = new AutoMeowConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.playCatNoises = !obj.has("playCatNoises") || obj.get("playCatNoises").getAsBoolean();
-            cfg.catVolume = obj.has("catVolume")
-                    ? Math.max(0f, Math.min(2f, obj.get("catVolume").getAsFloat())) : 1.0f;
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.playCatNoises = ConfigJson.getBool(obj, "playCatNoises", true);
+            cfg.setCatVolume(ConfigJson.getFloat(obj, "catVolume", 1.0f));
             instance = cfg;
         } catch (Exception e) {
             instance = new AutoMeowConfig();
@@ -89,6 +89,11 @@ public final class AutoMeowConfig {
     }
 
     public void setCatVolume(float catVolume) {
+        // A typed "NaN" in the tab's Set field used to survive the clamp (Math.max/min pass NaN through)
+        // and get stored/saved as the volume - ignore non-finite input, keep the current value.
+        if (!Float.isFinite(catVolume)) {
+            return;
+        }
         this.catVolume = Math.max(0f, Math.min(2f, catVolume));
     }
 }

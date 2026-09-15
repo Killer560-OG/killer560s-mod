@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -46,18 +47,18 @@ public final class MaskInvincibilityConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             MaskInvincibilityConfig cfg = new MaskInvincibilityConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.announceInChat = !obj.has("announceInChat") || obj.get("announceInChat").getAsBoolean();
-            cfg.showSpirit = !obj.has("showSpirit") || obj.get("showSpirit").getAsBoolean();
-            cfg.showBonzo = !obj.has("showBonzo") || obj.get("showBonzo").getAsBoolean();
-            cfg.showPhoenix = !obj.has("showPhoenix") || obj.get("showPhoenix").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", true);
+            cfg.showSpirit = ConfigJson.getBool(obj, "showSpirit", true);
+            cfg.showBonzo = ConfigJson.getBool(obj, "showBonzo", true);
+            cfg.showPhoenix = ConfigJson.getBool(obj, "showPhoenix", true);
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to also gate
             // on CHEAT_FEATURES_ENABLED here, forcing the raw field itself to false in memory on a legit
             // build even if the saved file said true - isAutoSwapEnabled() below already applies that
             // same gate on every read, so gating here too just meant a legit-build session that saved ANY
             // other unrelated setting afterward would silently persist "false" back to disk, permanently
             // losing a cheat-build user's real setting the next time they switched builds.
-            cfg.autoSwapEnabled = obj.has("autoSwapEnabled") && obj.get("autoSwapEnabled").getAsBoolean();
+            cfg.autoSwapEnabled = ConfigJson.getBool(obj, "autoSwapEnabled", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new MaskInvincibilityConfig();

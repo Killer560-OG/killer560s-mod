@@ -581,6 +581,19 @@ public final class SimonSaysFeature {
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        com.killer560.hub.util.ChatObserver.subscribe(message -> {
+            if (!DungeonState.isF7OrM7()) {
+                return;
+            }
+            String plain = com.killer560.hub.util.ChatObserver.strip(message);
+            if (AUTO_START_TRIGGER_PATTERN.matcher(plain).find()) {
+                goldorLineSeenThisPhase = true;
+                SimonSaysConfig c = SimonSaysConfig.getInstance();
+                if (c.isAutoStartEnabled()) {
+                    beginAutoStart(c);
+                }
+            }
+        });
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SimonSaysFeature::onWorldRender);
         // Rotate Mode's own real rotation-applying step - deliberately every FRAME, not every tick, so
         // it's as smooth as real mouse look (see this class's own "Rotate Mode" field-group doc comment
@@ -681,15 +694,9 @@ public final class SimonSaysFeature {
         // goldorLineSeenThisPhase is tracked independently of isAutoStartEnabled() - killer560's own
         // gate for the idle-look-at-first-button behavior ("only after the line...") applies to Rotate
         // Mode generally, not just when Auto Start specifically is turned on.
-        if (DungeonState.isF7OrM7()) {
-            String plain = ChatFormatting.stripFormatting(raw);
-            if (plain != null && AUTO_START_TRIGGER_PATTERN.matcher(plain).find()) {
-                goldorLineSeenThisPhase = true;
-                if (cfg.isAutoStartEnabled()) {
-                    beginAutoStart(cfg);
-                }
-            }
-        }
+        // The Goldor trigger itself moved to ChatObserver (see register()) so it still fires when Odin/NoammAddons
+        // cancel and re-add the boss line; the party progress part stays here (matched anywhere in the line, so it
+        // must not see this mod's own "SS n/5" messages, which ChatObserver would deliver).
 
         if (!cfg.isPartyProgressTrackerEnabled()) {
             return;
@@ -1650,6 +1657,7 @@ public final class SimonSaysFeature {
 
         if (noStepsPending) {
             logAutoSolveState("NO_STEPS_PENDING clickNeeded=" + clickNeeded + " clickInOrder.size=" + clickInOrder.size());
+            triggerAimTarget = null; // gate closed - the per-frame Trigger Bot path must not fire on a stale aim
             return;
         }
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
@@ -1706,6 +1714,7 @@ public final class SimonSaysFeature {
         if (blockedByReveal) {
             logAutoSolveState("BLOCKED_BY_REVEAL target=" + nextButton + " firstPhase=" + firstPhase
                     + " isStillRevealing=" + isStillRevealing());
+            triggerAimTarget = null;
             return;
         }
         // Real bug found and fixed (2026-09-14, "it undergoes this crazy rotation then basically snaps
@@ -1719,6 +1728,7 @@ public final class SimonSaysFeature {
         // all - the same principle idle's own existing !autoStartRunning gate already uses.
         if (autoStartRunning) {
             logAutoSolveState("BLOCKED_BY_AUTOSTART target=" + nextButton);
+            triggerAimTarget = null;
             return;
         }
         // Diagnostic-only (2026-09-14, killer560's own report: "it is still no where near the propper
@@ -1746,6 +1756,7 @@ public final class SimonSaysFeature {
         }
 
         if (cfg.isAutoSolveEnabled()) {
+            triggerAimTarget = null; // Auto Solve owns clicking - Trigger Bot must not also fire from the frame path
             // Real bug found and fixed (2026-09-14, killer560's own report: "Whole device solved in 11.55s
             // (6.65s reveal delay)... it is set to 11.2" - a real log showed every click after the first
             // scheduled with "base 0ms" yet still landing 350-400ms apart): this block used to also do the
@@ -1839,22 +1850,36 @@ public final class SimonSaysFeature {
                 now - triggerAimSinceMs, cfg.getTriggerBotDelayMs(), currentRoundNumber, totalClicksThisAttempt);
     }
 
-    /** Per-frame half of the Trigger Bot delay: fires as soon as the delay elapses, as long as the crosshair is
-     *  still on that same button and it is still the next button to press. */
+    /** Per-frame half of the Trigger Bot delay: starts the aim timer the frame the crosshair lands on the next
+     *  button (hitResult is re-picked every frame) and fires as soon as the delay elapses. Applies every gate the
+     *  tick path applies before its Trigger Bot branch (device active/in range, steps pending, reveal, Auto Start,
+     *  Auto Solve taking over); clickInOrder holds LANTERN positions, the button is {@code .west()}. */
     private static void tickTriggerBotFrame() {
-        BlockPos target = triggerAimTarget;
-        if (target == null) {
+        SimonSaysConfig cfg = SimonSaysConfig.getInstance();
+        if (!cfg.isTriggerBotEnabled()) {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (client.player == null || client.screen != null || !cfg.isTriggerBotEnabled()
-                || target.equals(lastTriggerBotTarget)
-                || clickNeeded >= clickInOrder.size() || !target.equals(clickInOrder.get(clickNeeded))
-                || !(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(target)) {
-            return; // the tick re-validates (and clears the aim timer if the crosshair left)
+        if (client.player == null || client.level == null || client.screen != null || !cfg.isEnabled() || !wasActive
+                || !isDeviceInRange(client) || cfg.isAutoSolveEnabled() || firstPhase || isStillRevealing()
+                || autoStartRunning || clickNeeded >= clickInOrder.size()) {
+            return; // tick() owns these gates and clears the aim timer when they close
         }
-        fireTriggerBotIfDue(client, cfg, System.currentTimeMillis());
+        BlockPos nextButton = clickInOrder.get(clickNeeded).west();
+        if (!(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(nextButton)) {
+            lastTriggerBotTarget = null;
+            triggerAimTarget = null;
+            return;
+        }
+        if (nextButton.equals(lastTriggerBotTarget)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (!nextButton.equals(triggerAimTarget)) {
+            triggerAimTarget = nextButton;
+            triggerAimSinceMs = now;
+        }
+        fireTriggerBotIfDue(client, cfg, now);
     }
 
     /** Books a pending Rotate Mode click - called at the very START of every tick, before tickStartButton/

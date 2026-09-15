@@ -98,7 +98,17 @@ public final class CroesusProfitLog {
                 entries = root.getAsJsonArray("entries");
             }
         } catch (Exception e) {
-            LOGGER.warn("[Croesus] Could not read {} - starting a fresh log", PATH.getFileName(), e);
+            // 2026-09-15 persistence audit: the next record() saves over PATH, which used to silently
+            // destroy the whole unreadable claim history - keep a copy of the original file first.
+            Path backup = PATH.resolveSibling(PATH.getFileName() + ".corrupt-" + System.currentTimeMillis());
+            try {
+                Files.copy(PATH, backup);
+                LOGGER.warn("[Croesus] Could not read {} - backed it up to {} and starting a fresh log",
+                        PATH.getFileName(), backup.getFileName(), e);
+            } catch (Exception backupError) {
+                LOGGER.warn("[Croesus] Could not read {} - starting a fresh log (backup copy also failed: {})",
+                        PATH.getFileName(), backupError.toString(), e);
+            }
         }
     }
 

@@ -95,11 +95,13 @@ public class LeapMenuTab extends BaseTab {
     }
 
     private int buildFastLeapSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Runnable requestRebuild) {
+        // QUOI AutoLeap port (fast leap + auto leaps) - cheat build only. The i4 leap lives in the Sharp Shooter tab.
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return y;
         }
         widgets.add(sectionHeader(contentX, y, contentWidth, "Fast Leap"));
         y += 14;
+        y = com.killer560.hub.fastleap.FastLeapSection.build(widgets, contentX, y, contentWidth, requestRebuild);
         return y + 8;
     }
 
@@ -139,6 +141,11 @@ public class LeapMenuTab extends BaseTab {
                 Component.literal("Leaping To message"));
         messageField.setMaxLength(200);
         messageField.setValue(LeapMessageConfig.getInstance().getCustomMessage());
+        messageField.setResponder(text -> {
+            LeapMessageConfig cfg = LeapMessageConfig.getInstance();
+            cfg.setCustomMessage(text);
+            cfg.save();
+        });
         widgets.add(messageField);
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     LeapMessageConfig cfg = LeapMessageConfig.getInstance();

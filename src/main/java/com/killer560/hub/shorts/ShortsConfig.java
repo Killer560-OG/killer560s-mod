@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
@@ -77,19 +78,14 @@ public final class ShortsConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = o.has("enabled") && o.get("enabled").getAsBoolean();
-                if (o.has("anchor")) {
-                    try {
-                        cfg.anchor = Anchor.valueOf(o.get("anchor").getAsString());
-                    } catch (IllegalArgumentException ignored) {
-                    }
-                }
+                cfg.enabled = ConfigJson.getBool(o, "enabled", false);
+                cfg.anchor = ConfigJson.getEnum(o, "anchor", Anchor.class, Anchor.RIGHT_CENTER);
                 cfg.sizePercent = clamp(intOr(o, "sizePercent", 60), MIN_SIZE_PERCENT, MAX_SIZE_PERCENT);
                 cfg.margin = clamp(intOr(o, "margin", 10), 0, MAX_MARGIN);
                 cfg.opacity = clamp(intOr(o, "opacity", 100), MIN_OPACITY, 100);
-                cfg.hideWhenUnfocused = o.has("hideWhenUnfocused") && o.get("hideWhenUnfocused").getAsBoolean();
-                cfg.hidden = o.has("hidden") && o.get("hidden").getAsBoolean();
-                cfg.pauseWhenHidden = o.has("pauseWhenHidden") && o.get("pauseWhenHidden").getAsBoolean();
+                cfg.hideWhenUnfocused = ConfigJson.getBool(o, "hideWhenUnfocused", false);
+                cfg.hidden = ConfigJson.getBool(o, "hidden", false);
+                cfg.pauseWhenHidden = ConfigJson.getBool(o, "pauseWhenHidden", false);
                 cfg.volume = clamp(intOr(o, "volume", -1), -1, 100);
                 cfg.toggleKey = intOr(o, "toggleKey", -1);
                 cfg.nextKey = intOr(o, "nextKey", -1);
@@ -127,11 +123,7 @@ public final class ShortsConfig {
     }
 
     private static int intOr(JsonObject o, String key, int def) {
-        try {
-            return o.has(key) ? o.get(key).getAsInt() : def;
-        } catch (Exception e) {
-            return def;
-        }
+        return ConfigJson.getInt(o, key, def);
     }
 
     private static int clamp(int v, int min, int max) {
