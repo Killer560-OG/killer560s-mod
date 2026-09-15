@@ -65,6 +65,10 @@ public final class I4SensorsConfig {
 
     private boolean legacyVerboseEnabled = false;
     private boolean solverEnabled = false;
+    // killer560 (2026-09-14): "make the highlight color something besides orange, something that will be really
+    // easy to see" - bright cyan contrasts with both the purple glass and the grey wall; user-pickable.
+    public static final int DEFAULT_SOLVER_COLOR = 0xFF00FFFF;
+    private int solverColor = DEFAULT_SOLVER_COLOR;
     private boolean autoI4Enabled = false;
     // Same Rotate / No Rotate split as Simon Says (killer560's own request, 2026-09-14): Rotate turns the
     // real camera to each target before shooting; No Rotate aims server-side only for the shot.
@@ -101,6 +105,7 @@ public final class I4SensorsConfig {
             I4SensorsConfig cfg = new I4SensorsConfig();
             cfg.legacyVerboseEnabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
             cfg.solverEnabled = obj.has("solverEnabled") && obj.get("solverEnabled").getAsBoolean();
+            cfg.solverColor = obj.has("solverColor") ? obj.get("solverColor").getAsInt() : DEFAULT_SOLVER_COLOR;
             cfg.autoI4Enabled = obj.has("autoI4Enabled") && obj.get("autoI4Enabled").getAsBoolean();
             cfg.autoI4Rotate = !obj.has("autoI4Rotate") || obj.get("autoI4Rotate").getAsBoolean();
             cfg.setAutoI4RotationTimeMs(obj.has("autoI4RotationTimeMs") ? obj.get("autoI4RotationTimeMs").getAsInt() : 170);
@@ -128,6 +133,7 @@ public final class I4SensorsConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", legacyVerboseEnabled);
             obj.addProperty("solverEnabled", solverEnabled);
+            obj.addProperty("solverColor", solverColor);
             obj.addProperty("autoI4Enabled", autoI4Enabled);
             obj.addProperty("autoI4Rotate", autoI4Rotate);
             obj.addProperty("autoI4RotationTimeMs", autoI4RotationTimeMs);
@@ -153,6 +159,14 @@ public final class I4SensorsConfig {
 
     public boolean isSolverEnabled() {
         return solverEnabled;
+    }
+
+    public int getSolverColor() {
+        return solverColor;
+    }
+
+    public void setSolverColor(int solverColor) {
+        this.solverColor = solverColor;
     }
 
     public void setSolverEnabled(boolean solverEnabled) {

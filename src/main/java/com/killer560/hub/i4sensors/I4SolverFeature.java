@@ -113,12 +113,13 @@ public final class I4SolverFeature {
         if (!wasActive || !gate(Minecraft.getInstance()).isEmpty()) {
             return;
         }
+        // Filled and easy to see, in the user's Highlight Color (default bright cyan - killer560: orange blended in
+        // with the orange-ish glass/lava surroundings, "make the highlight color something... really easy to see").
+        float[] rgba = WorldRenderUtils.argbToFloats(I4SensorsConfig.getInstance().getSolverColor());
         for (BlockPos pos : hits) {
-            // Orange, filled and easy to see (2026-09-14, killer560: "make the highlights orange and more noticeable.
-            // Right now they blend in with the glass... Make them filled and easy to see") - the mod's orange accent.
             AABB box = new AABB(pos).inflate(0.03);
-            WorldRenderUtils.renderFilledBox(context, box, 1f, 0.5f, 0f, 0.75f);
-            WorldRenderUtils.renderOutlineBox(context, box, 1f, 0.6f, 0.1f, 1f, 3f);
+            WorldRenderUtils.renderFilledBox(context, box, rgba[0], rgba[1], rgba[2], 0.8f);
+            WorldRenderUtils.renderOutlineBox(context, box, rgba[0], rgba[1], rgba[2], 1f, 3f);
         }
         List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
         for (int row = 0; row < 3; row++) {
@@ -143,8 +144,8 @@ public final class I4SolverFeature {
     private static void dot(LevelRenderContext context, double x, double y) {
         // Just in front of the wall's front face (z 50) so it isn't hidden inside the blocks.
         AABB box = new AABB(x - DOT_HALF, y - DOT_HALF, 49.9 - DOT_HALF, x + DOT_HALF, y + DOT_HALF, 49.9 + DOT_HALF);
-        // Bright white core with an orange rim so the aim dots stand out on both glass and the orange hit boxes.
+        // Bright white core with a black rim so the aim dots stand out on glass, walls, and any highlight color.
         WorldRenderUtils.renderFilledBox(context, box, 1f, 1f, 1f, 1f);
-        WorldRenderUtils.renderOutlineBox(context, box, 1f, 0.5f, 0f, 1f, 2.5f);
+        WorldRenderUtils.renderOutlineBox(context, box, 0f, 0f, 0f, 1f, 2.5f);
     }
 }
