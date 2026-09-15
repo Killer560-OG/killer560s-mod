@@ -12,9 +12,9 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Secrets-found HUD, run-time tracker, score-milestone messages, and mimic/prince/bat keyword
- *  alerts - see {@link com.killer560.hub.dungeoninfo.DungeonInfoFeature}'s own doc for the honest
- *  caveat on secrets-count/keyword accuracy (unverified against a live game this session). */
+/** Secrets-found HUD, run-time tracker, score-milestone messages, and mimic/prince/bat KILL party
+ *  alerts - see {@link com.killer560.hub.dungeoninfo.DungeonInfoFeature}'s own doc for what each one
+ *  triggers on. */
 public class DungeonInfoTab extends BaseTab {
 
     public DungeonInfoTab() {
@@ -28,11 +28,11 @@ public class DungeonInfoTab extends BaseTab {
         DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Secrets-count parsing and keyword text below are best-effort - not"),
+                Component.literal("§7Secrets count is read from the tab list. Kill alerts only fire in a"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7verified against a live game yet. Check the log if something's off."),
+                Component.literal("§7dungeon, once per run. Check the log if something's off."),
                 Minecraft.getInstance().font));
         y += 20;
 
@@ -66,17 +66,19 @@ public class DungeonInfoTab extends BaseTab {
                 .bounds(contentX + 168, y, 100, 18).build());
         y += 24;
 
-        y = buildKeywordRow(widgets, "Mimic", contentX, y, contentWidth,
+        // Real bug found and fixed (2026-09-14, first real F7 run log): the keyword boxes are gone - a plain
+        // "bat" substring matched every "Combat Wisdom" line. Each alert now has a fixed, confirmed trigger.
+        y = buildAlertRow(widgets, "Mimic Killed Msg", "§7Trigger: baby zombie (mimic) dies, F6/F7 clear",
+                contentX, y, contentWidth,
                 cfg.isMimicMessageEnabled(), cfg::setMimicMessageEnabled,
-                cfg.getMimicKeyword(), cfg::setMimicKeyword,
                 cfg.getMimicMessage(), cfg::setMimicMessage);
-        y = buildKeywordRow(widgets, "Prince", contentX, y, contentWidth,
+        y = buildAlertRow(widgets, "Prince Killed Msg", "§7Trigger: \"A Prince falls. +1 Bonus Score\"",
+                contentX, y, contentWidth,
                 cfg.isPrinceMessageEnabled(), cfg::setPrinceMessageEnabled,
-                cfg.getPrinceKeyword(), cfg::setPrinceKeyword,
                 cfg.getPrinceMessage(), cfg::setPrinceMessage);
-        y = buildKeywordRow(widgets, "Bat", contentX, y, contentWidth,
+        y = buildAlertRow(widgets, "Bat Killed Msg", "§7Trigger: \"A Bat has been slain. +1 Bonus Score\"",
+                contentX, y, contentWidth,
                 cfg.isBatMessageEnabled(), cfg::setBatMessageEnabled,
-                cfg.getBatKeyword(), cfg::setBatKeyword,
                 cfg.getBatMessage(), cfg::setBatMessage);
 
         y += 6;
@@ -141,24 +143,19 @@ public class DungeonInfoTab extends BaseTab {
         void set(boolean value);
     }
 
-    private int buildKeywordRow(List<AbstractWidget> widgets, String label, int contentX, int y, int contentWidth,
-                                 boolean enabled, BoolSetter enabledSetter,
-                                 String keyword, StringSetter keywordSetter,
-                                 String message, StringSetter messageSetter) {
-        widgets.add(SettingsButtonWidget.builder(onOff(label, enabled), btn -> {
-                    enabledSetter.set(!enabled);
+    private int buildAlertRow(List<AbstractWidget> widgets, String label, String triggerText, int contentX, int y, int contentWidth,
+                               boolean enabled, BoolSetter enabledSetter,
+                               String message, StringSetter messageSetter) {
+        boolean[] state = {enabled};
+        widgets.add(SettingsButtonWidget.builder(onOff(label, state[0]), btn -> {
+                    state[0] = !state[0];
+                    enabledSetter.set(state[0]);
                     DungeonInfoConfig.getInstance().save();
-                    btn.setMessage(onOff(label, !enabled));
-                }).bounds(contentX, y, 140, 18).build());
+                    btn.setMessage(onOff(label, state[0]));
+                }).bounds(contentX, y, 160, 18).build());
 
-        EditBox keywordField = new EditBox(Minecraft.getInstance().font, contentX + 146, y, 80, 18, Component.literal(label + " keyword"));
-        keywordField.setMaxLength(30);
-        keywordField.setValue(keyword);
-        keywordField.setResponder(text -> {
-            keywordSetter.set(text);
-            DungeonInfoConfig.getInstance().save();
-        });
-        widgets.add(keywordField);
+        widgets.add(new StringWidget(contentX + 166, y + 5, Math.max(0, contentWidth - 166), 12,
+                Component.literal(triggerText), Minecraft.getInstance().font));
         y += 20;
 
         EditBox messageField = new EditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18, Component.literal(label + " message"));

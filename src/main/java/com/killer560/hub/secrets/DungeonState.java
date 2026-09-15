@@ -50,6 +50,9 @@ public final class DungeonState {
     private static final Pattern BOSS_START_PATTERN =
             Pattern.compile("\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!");
 
+    /** Logging filter only - e.g. {@code Maxor's Frenzy hit you for 1,959.3 damage.} (real run log). */
+    private static final Pattern BOSS_DAMAGE_SPAM_PATTERN = Pattern.compile("^(?!\\[BOSS]).*'s .+ hit you for [\\d,.]+ damage\\.?$");
+
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrets");
 
     private static boolean bossPhaseActive = false;
@@ -63,7 +66,7 @@ public final class DungeonState {
     // contradicting this class's own round-13 "Hypixel uses a TEAM_* slot instead" theory, which was
     // never independently confirmed against a real log and looks to have been the wrong diagnosis.
     // Rather than guess again on this HIGH-RISK-adjacent detection code, this logs the full picture
-    // every ~3s (not just on change, since it may never be changing at all) - which DisplaySlot (if any)
+    // (polled every ~3s; since 2026-09-14 only logged when it changes) - which DisplaySlot (if any)
     // actually holds a non-null objective, and the raw text read from it - so the next real dungeon run
     // shows definitively whether SIDEBAR itself is populated, some other slot is, or none are.
     private static int diagnosticTickCounter = 0;
@@ -223,7 +226,10 @@ public final class DungeonState {
         // Broad safety net - if the plain-text match below still somehow misses the real line, this
         // logs the EXACT raw text (formatting codes and all) of anything boss-related so the actual
         // wording/codes can be compared directly instead of guessing again.
-        if (raw.contains("Maxor") || raw.contains("[BOSS]")) {
+        // Real bug found and fixed (2026-09-14, first real F7 run log): this also logged Maxor's damage
+        // spam ("Maxor's Frenzy/Shadow Wave/Wither TNT hit you for N damage.") - 24 of 123 lines in one
+        // fight. Damage lines are skipped now; real [BOSS] dialogue and other Maxor lines still log.
+        if ((raw.contains("Maxor") || raw.contains("[BOSS]")) && !BOSS_DAMAGE_SPAM_PATTERN.matcher(Objects.requireNonNullElse(ChatFormatting.stripFormatting(raw), raw)).find()) {
             LOGGER.info("[Secrets] Boss-related chat line seen: \"{}\" (pos={} floor={} bossPhaseRaw={})",
                     raw, playerPosForLog(), cachedFloor, bossPhaseActive);
         }
@@ -304,8 +310,8 @@ public final class DungeonState {
      *  the plain {@code DisplaySlot.SIDEBAR} objective is populated, and if not, EVERY other
      *  {@code DisplaySlot} that has a non-null objective (not just the first one found, unlike
      *  {@link #readSidebarText()}) - plus the actual raw text {@link #readSidebarText()} ends up reading.
-     *  Runs every ~3 real seconds (60 client ticks) regardless of whether the floor value has changed,
-     *  since the bug being chased is that it may never be changing at all. */
+     *  Polled every ~3 real seconds (60 client ticks), but only LOGS when the sidebar changes (digits
+     *  masked) - see the 2026-09-14 note in the body. */
     private static void logSidebarDiagnostic() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {
@@ -324,11 +330,22 @@ public final class DungeonState {
             }
         }
         String raw = readSidebarText();
-        String snippet = raw.length() > 200 ? raw.substring(0, 200) + "..." : raw;
-        LOGGER.info("[Secrets] Sidebar diagnostic: plainSidebar={} otherPopulatedSlots=[{}] readSidebarText=\"{}\"",
-                plainSidebar != null ? "'" + plainSidebar.getDisplayName().getString() + "'" : "null",
-                others.toString().trim(), snippet.replace("\n", "\\n"));
+        String plainSidebarName = plainSidebar != null ? "'" + plainSidebar.getDisplayName().getString() + "'" : "null";
+        // Real bug found and fixed (2026-09-14, first real F7 run log): this logged every 60 ticks all
+        // session, hub included (~20 identical lines/min), truncated to 200 chars so the dungeon lines past
+        // "Time Elapsed:" were cut off. Now logs the FULL text, only when the sidebar changes. Digits are
+        // masked for the change check only - the clock, Time Elapsed, Purse and teammate HP tick
+        // constantly and would otherwise make every poll a "change".
+        String changeKey = (plainSidebarName + "|" + others + "|" + raw).replaceAll("\\d", "#");
+        if (changeKey.equals(lastSidebarDiagnosticKey)) {
+            return;
+        }
+        lastSidebarDiagnosticKey = changeKey;
+        LOGGER.info("[Secrets] Sidebar diagnostic (changed): plainSidebar={} otherPopulatedSlots=[{}] readSidebarText=\"{}\"",
+                plainSidebarName, others.toString().trim(), raw.replace("\n", "\\n"));
     }
+
+    private static String lastSidebarDiagnosticKey = null;
 
     /** Real bug found and fixed (2026-09-09, round 22) - your own log from a real F7 clear (Maxor's
      *  opening chat line included) showed the actual root cause: {@code DisplaySlot.SIDEBAR} WAS

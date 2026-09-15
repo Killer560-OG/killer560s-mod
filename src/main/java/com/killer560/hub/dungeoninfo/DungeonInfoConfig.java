@@ -21,15 +21,16 @@ public final class DungeonInfoConfig {
     private static DungeonInfoConfig instance;
 
     private boolean secretsHudEnabled = false;
+    // Real bug found and fixed (2026-09-14, first real F7 run log): the user-editable "keyword" fields
+    // (default "mimic"/"prince"/"bat", plain substring match) were removed - "bat" matched every
+    // "Combat Wisdom" chat line. DungeonInfoFeature now triggers on confirmed KILL signals only, so the
+    // old SPAWN/FOUND-worded default messages were reworded too (and migrated on load, below).
     private boolean mimicMessageEnabled = false;
-    private String mimicKeyword = "mimic";
-    private String mimicMessage = "Mimic found!";
+    private String mimicMessage = "Mimic Killed!";
     private boolean princeMessageEnabled = false;
-    private String princeKeyword = "prince";
-    private String princeMessage = "Prince spawned!";
+    private String princeMessage = "Prince Killed!";
     private boolean batMessageEnabled = false;
-    private String batKeyword = "bat";
-    private String batMessage = "Party bat found!";
+    private String batMessage = "Bat Killed!";
 
     private boolean score270Enabled = false;
     private String score270Message = "270 score - carrying/leaving is fine from here!";
@@ -60,14 +61,11 @@ public final class DungeonInfoConfig {
             DungeonInfoConfig cfg = new DungeonInfoConfig();
             cfg.secretsHudEnabled = obj.has("secretsHudEnabled") && obj.get("secretsHudEnabled").getAsBoolean();
             cfg.mimicMessageEnabled = obj.has("mimicMessageEnabled") && obj.get("mimicMessageEnabled").getAsBoolean();
-            cfg.mimicKeyword = getString(obj, "mimicKeyword", cfg.mimicKeyword);
-            cfg.mimicMessage = getString(obj, "mimicMessage", cfg.mimicMessage);
+            cfg.mimicMessage = migrateOldDefault(getString(obj, "mimicMessage", cfg.mimicMessage), "Mimic found!", cfg.mimicMessage);
             cfg.princeMessageEnabled = obj.has("princeMessageEnabled") && obj.get("princeMessageEnabled").getAsBoolean();
-            cfg.princeKeyword = getString(obj, "princeKeyword", cfg.princeKeyword);
-            cfg.princeMessage = getString(obj, "princeMessage", cfg.princeMessage);
+            cfg.princeMessage = migrateOldDefault(getString(obj, "princeMessage", cfg.princeMessage), "Prince spawned!", cfg.princeMessage);
             cfg.batMessageEnabled = obj.has("batMessageEnabled") && obj.get("batMessageEnabled").getAsBoolean();
-            cfg.batKeyword = getString(obj, "batKeyword", cfg.batKeyword);
-            cfg.batMessage = getString(obj, "batMessage", cfg.batMessage);
+            cfg.batMessage = migrateOldDefault(getString(obj, "batMessage", cfg.batMessage), "Party bat found!", cfg.batMessage);
             cfg.score270Enabled = obj.has("score270Enabled") && obj.get("score270Enabled").getAsBoolean();
             cfg.score270Message = getString(obj, "score270Message", cfg.score270Message);
             cfg.score300Enabled = obj.has("score300Enabled") && obj.get("score300Enabled").getAsBoolean();
@@ -84,19 +82,22 @@ public final class DungeonInfoConfig {
         return obj.has(key) ? obj.get(key).getAsString() : fallback;
     }
 
+    /** A saved message still equal to the old spawn-worded default becomes the new kill-worded default;
+     *  anything the user customised is kept as-is. */
+    private static String migrateOldDefault(String loaded, String oldDefault, String newDefault) {
+        return oldDefault.equals(loaded) ? newDefault : loaded;
+    }
+
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("secretsHudEnabled", secretsHudEnabled);
             obj.addProperty("mimicMessageEnabled", mimicMessageEnabled);
-            obj.addProperty("mimicKeyword", mimicKeyword);
             obj.addProperty("mimicMessage", mimicMessage);
             obj.addProperty("princeMessageEnabled", princeMessageEnabled);
-            obj.addProperty("princeKeyword", princeKeyword);
             obj.addProperty("princeMessage", princeMessage);
             obj.addProperty("batMessageEnabled", batMessageEnabled);
-            obj.addProperty("batKeyword", batKeyword);
             obj.addProperty("batMessage", batMessage);
             obj.addProperty("score270Enabled", score270Enabled);
             obj.addProperty("score270Message", score270Message);
@@ -125,14 +126,6 @@ public final class DungeonInfoConfig {
         this.mimicMessageEnabled = v;
     }
 
-    public String getMimicKeyword() {
-        return mimicKeyword;
-    }
-
-    public void setMimicKeyword(String v) {
-        this.mimicKeyword = v;
-    }
-
     public String getMimicMessage() {
         return mimicMessage;
     }
@@ -149,14 +142,6 @@ public final class DungeonInfoConfig {
         this.princeMessageEnabled = v;
     }
 
-    public String getPrinceKeyword() {
-        return princeKeyword;
-    }
-
-    public void setPrinceKeyword(String v) {
-        this.princeKeyword = v;
-    }
-
     public String getPrinceMessage() {
         return princeMessage;
     }
@@ -171,14 +156,6 @@ public final class DungeonInfoConfig {
 
     public void setBatMessageEnabled(boolean v) {
         this.batMessageEnabled = v;
-    }
-
-    public String getBatKeyword() {
-        return batKeyword;
-    }
-
-    public void setBatKeyword(String v) {
-        this.batKeyword = v;
     }
 
     public String getBatMessage() {
