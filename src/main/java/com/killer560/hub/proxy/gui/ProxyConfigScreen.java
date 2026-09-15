@@ -17,6 +17,7 @@ import net.minecraft.network.chat.Component;
 public class ProxyConfigScreen extends Screen {
 
     private final Screen parent;
+    private final ProxyConfig target;
 
     private EditBox addressField;
     private EditBox usernameField;
@@ -46,14 +47,20 @@ public class ProxyConfigScreen extends Screen {
     private static final int FIELD_BORDER_FOCUSED = 0xFFCC6600;
 
     public ProxyConfigScreen(Screen parent) {
-        super(Component.literal("Proxy Configuration"));
+        this(parent, ProxyConfig.getInstance());
+    }
+
+    /** @param target the per-instance proxy ({@link ProxyConfig#getInstance()}) or the shared universal one. */
+    public ProxyConfigScreen(Screen parent, ProxyConfig target) {
+        super(Component.literal(target.isUniversal() ? "Universal Proxy" : "Instance Proxy"));
         this.parent = parent;
-        this.selectedType = ProxyConfig.getInstance().getType();
+        this.target = target;
+        this.selectedType = target.getType();
     }
 
     @Override
     protected void init() {
-        ProxyConfig config = ProxyConfig.getInstance();
+        ProxyConfig config = this.target;
         this.selectedType = config.getType();
 
         int centerX = this.width / 2;
@@ -129,19 +136,26 @@ public class ProxyConfigScreen extends Screen {
     }
 
     private void apply() {
-        ProxyConfig config = ProxyConfig.getInstance();
+        ProxyConfig config = this.target;
         config.setType(this.selectedType);
         config.parseAndSetAddress(this.addressField.getValue());
         config.setUsername(this.usernameField.getValue());
         config.setPassword(this.passwordField.getValue());
-        // Enable only when there is actually somewhere to connect.
-        config.setEnabled(config.hasValidAddress());
+        // Instance proxy: enable only when there is actually somewhere to connect. The universal proxy has its own
+        // on/off toggle in the account switcher, so Apply only turns it off if the address was cleared.
+        if (config.isUniversal()) {
+            if (!config.hasValidAddress()) {
+                config.setEnabled(false);
+            }
+        } else {
+            config.setEnabled(config.hasValidAddress());
+        }
         config.save();
         onClose();
     }
 
     private void reset() {
-        ProxyConfig config = ProxyConfig.getInstance();
+        ProxyConfig config = this.target;
         this.addressField.setValue("");
         this.usernameField.setValue("");
         this.passwordField.setValue("");

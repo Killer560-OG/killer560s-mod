@@ -127,6 +127,32 @@ public class AccountSwitcherScreen extends Screen {
                         Minecraft.getInstance().setScreen(new DirectSessionLoginScreen(this, this.parent)))
                 .bounds(this.width / 2 - buttonWidth / 2, belowListY + 26, buttonWidth, 20)
                 .build());
+
+        // Proxy controls (2026-09-15: moved here from the multiplayer screen). "Instance Proxy" is this instance's own
+        // proxy (also set automatically by an account's saved proxy on swap); "Universal Proxy" is shared by every
+        // instance and, while ON, is used for every connection regardless of the instance/account proxy.
+        int proxyY = belowListY + 58;
+        int half = (buttonWidth - 4) / 2;
+        this.addRenderableWidget(SettingsButtonWidget.builder(instanceProxyLabel(), btn ->
+                        Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this)))
+                .bounds(this.width / 2 - buttonWidth / 2, proxyY, buttonWidth, 20)
+                .build());
+        this.addRenderableWidget(SettingsButtonWidget.builder(universalToggleLabel(), btn -> {
+                    ProxyConfig u = ProxyConfig.universal();
+                    if (!u.isEnabled() && !u.hasValidAddress()) {
+                        Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this, u));
+                        return;
+                    }
+                    u.setEnabled(!u.isEnabled());
+                    u.save();
+                    rebuild();
+                })
+                .bounds(this.width / 2 - buttonWidth / 2, proxyY + 26, half, 20)
+                .build());
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Edit Universal"), btn ->
+                        Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this, ProxyConfig.universal())))
+                .bounds(this.width / 2 - buttonWidth / 2 + half + 4, proxyY + 26, half, 20)
+                .build());
     }
 
     /** Black + amber theme (2026-09-09), matching {@link com.killer560.hub.gui.ModScreen} - per
@@ -201,6 +227,18 @@ public class AccountSwitcherScreen extends Screen {
 
     private void onBack() {
         Minecraft.getInstance().setScreen(this.parent);
+    }
+
+    private static Component instanceProxyLabel() {
+        ProxyConfig c = ProxyConfig.getInstance();
+        boolean overridden = ProxyConfig.universal().isEnabled() && ProxyConfig.universal().hasValidAddress();
+        String state = c.isEnabled() ? "§aEnabled" : "§cDisabled";
+        return Component.literal("Instance Proxy: " + state + (overridden ? " §7(universal on)" : ""));
+    }
+
+    private static Component universalToggleLabel() {
+        ProxyConfig u = ProxyConfig.universal();
+        return Component.literal("Universal: " + (u.isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component proxyButtonLabel(PrismAccount account) {

@@ -30,7 +30,8 @@ public class ChannelInitializerMixin {
 
     @Inject(method = "initChannel", at = @At("HEAD"), remap = false)
     private void killer560smod$injectProxy(Channel channel, CallbackInfo ci) {
-        ProxyConfig config = ProxyConfig.getInstance();
+        // Universal proxy (shared by every instance) wins when it's on; otherwise this instance's own proxy.
+        ProxyConfig config = ProxyConfig.effective();
         if (!config.isEnabled()) {
             return;
         }

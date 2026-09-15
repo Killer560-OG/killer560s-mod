@@ -4,7 +4,6 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.proxy.mixin",
 	"client": [
-		"JoinMultiplayerScreenMixin",
 		"ChannelInitializerMixin"
 	],
 	"injectors": {

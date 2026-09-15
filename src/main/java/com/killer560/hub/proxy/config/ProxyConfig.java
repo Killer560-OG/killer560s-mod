@@ -30,6 +30,17 @@ public final class ProxyConfig {
 
     private static ProxyConfig instance;
 
+    /** Universal proxy (2026-09-15, killer560: "if I select it then it'll use that proxy no matter what instance or
+     *  what the predefined one is"). Lives in Prism's shared data folder so every instance reads the same file;
+     *  re-read whenever the file changes so toggling it in one instance applies to the others' next connection. */
+    private static final Path UNIVERSAL_PATH = com.killer560.hub.accounts.core.PrismAccountStore.prismRootDir()
+            .resolve("prismaccountswitcher").resolve("universal-proxy.json");
+    private static ProxyConfig universal;
+    private static long universalMtime = Long.MIN_VALUE;
+
+    /** Where this config is saved - the per-instance file or the shared universal one. Not serialized. */
+    private transient Path path = CONFIG_PATH;
+
     // ---- Persisted fields (serialized by Gson) ----
     private ProxyType type = ProxyType.SOCKS5;
     private String host = "";
@@ -55,12 +66,42 @@ public final class ProxyConfig {
      * malformed files fall back to defaults (and are left untouched).
      */
     public static void load() {
-        if (!Files.exists(CONFIG_PATH)) {
-            instance = new ProxyConfig();
-            return;
+        instance = readFrom(CONFIG_PATH);
+    }
+
+    /** The shared universal proxy, re-read from disk if another instance changed it. Never null. */
+    public static synchronized ProxyConfig universal() {
+        long mtime;
+        try {
+            mtime = Files.exists(UNIVERSAL_PATH) ? Files.getLastModifiedTime(UNIVERSAL_PATH).toMillis() : -1L;
+        } catch (IOException e) {
+            mtime = -1L;
+        }
+        if (universal == null || mtime != universalMtime) {
+            universal = readFrom(UNIVERSAL_PATH);
+            universalMtime = mtime;
+        }
+        return universal;
+    }
+
+    /** The proxy a new connection should use: the universal one when it's on, otherwise this instance's. */
+    public static ProxyConfig effective() {
+        ProxyConfig u = universal();
+        return u.isEnabled() && u.hasValidAddress() ? u : getInstance();
+    }
+
+    public boolean isUniversal() {
+        return UNIVERSAL_PATH.equals(path);
+    }
+
+    private static ProxyConfig readFrom(Path file) {
+        ProxyConfig fallback = new ProxyConfig();
+        fallback.path = file;
+        if (!Files.exists(file)) {
+            return fallback;
         }
         try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
+            String json = Files.readString(file, StandardCharsets.UTF_8);
             // Per-key reads (2026-09-15 persistence audit) instead of GSON.fromJson(whole class): one
             // malformed value (e.g. "port": "abc") used to throw and reset EVERY proxy field. Keys are
             // the same field names Gson writes in save().
@@ -73,18 +114,24 @@ public final class ProxyConfig {
             loaded.password = ConfigJson.getString(obj, "password", "");
             loaded.enabled = ConfigJson.getBool(obj, "enabled", false);
             loaded.normalize();
-            instance = loaded;
+            loaded.path = file;
+            return loaded;
         } catch (Exception e) {
             // Corrupt config: keep defaults rather than crashing the client.
-            instance = new ProxyConfig();
+            return fallback;
         }
     }
 
     /** Writes the current config to disk. Failures are swallowed (logged to stderr). */
     public void save() {
         try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            Files.writeString(CONFIG_PATH, GSON.toJson(this), StandardCharsets.UTF_8);
+            Files.createDirectories(path.getParent());
+            Files.writeString(path, GSON.toJson(this), StandardCharsets.UTF_8);
+            if (isUniversal()) {
+                synchronized (ProxyConfig.class) {
+                    universalMtime = Files.getLastModifiedTime(path).toMillis();
+                }
+            }
         } catch (IOException e) {
             System.err.println("[proxyclient] Failed to save config: " + e.getMessage());
         }
