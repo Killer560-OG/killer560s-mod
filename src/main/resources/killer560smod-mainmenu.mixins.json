@@ -1,0 +1,16 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.mainmenu.mixin",
+	"client": [
+		"MainMenuButtonMixin",
+		"MainMenuCopyrightMixin",
+		"MainMenuPanoramaMixin",
+		"MainMenuSplashMixin",
+		"MainMenuTitleScreenMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

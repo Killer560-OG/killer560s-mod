@@ -88,6 +88,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Live Map rooms — multi-tile rooms (1x2 to 2x2 and L shapes) drawn and identified as one room, with room-state from the dungeon map and label styles (checkmarks, secrets, names)
 - Custom Scoreboard — SkyHanni-style replacement sidebar (ported from SkyHanni and SkyBlock Custom Scoreboard): reorderable lines and events, alignment, background with rounded corners and border; unknown lines still show
 - Profile Viewer — `/pv [name]`: NEU-style Skyblock profile viewer (skills, slayers, dungeons with floor times, inventories/ender chest/backpacks/wardrobe/accessories, pets) with a 3D skin preview
+- Themed Main Menu — the title screen in the mod's black/orange theme: themed buttons, dark animated background with drifting embers (toggle in Display)
 - Pack Disabler — stops Hypixel's forced Skyblock resource pack from loading, without getting kicked for required packs
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free
@@ -120,7 +121,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Accounts**
 - Account Switcher — swap between your saved Microsoft accounts from the main menu, with each one's Hypixel ban status shown; each account can also have its own SOCKS proxy assigned, applied automatically every time you swap to it
-- Proxy Client — optionally route your connection through a SOCKS proxy
+- Proxy Client — optionally route your connection through a SOCKS proxy; set it from Swap Accounts on the main menu, per instance, or turn on a Universal proxy that every instance uses no matter what
 
 **Home**
 - A HUD editor to drag and resize the mod's on-screen elements wherever you want them

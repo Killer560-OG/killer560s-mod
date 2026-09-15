@@ -253,6 +253,7 @@ public final class ProfileManager {
                 com.killer560.hub.leapmessage.LeapMessageConfig::load,
                 com.killer560.hub.livemap.LiveMapConfig::load,
                 com.killer560.hub.loadoutkeybinds.LoadoutKeybindsConfig::load,
+                com.killer560.hub.mainmenu.MainMenuThemeConfig::load,
                 com.killer560.hub.mapping.MappingConfig::load,
                 com.killer560.hub.maskinvincibility.MaskInvincibilityConfig::load,
                 com.killer560.hub.mobesp.MobEspConfig::load,

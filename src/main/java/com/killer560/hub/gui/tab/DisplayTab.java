@@ -2,6 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.fullbright.FullbrightConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.mainmenu.MainMenuThemeConfig;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
 import net.minecraft.client.Minecraft;
@@ -42,6 +43,23 @@ public class DisplayTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(fullbrightText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 22;
+
+        // Black+orange title screen (mainmenu package) - default ON; OFF restores the vanilla main menu.
+        widgets.add(SettingsButtonWidget.builder(themedMainMenuText(), btn -> {
+                    MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    btn.setMessage(themedMainMenuText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(mainMenuEmbersText(), btn -> {
+                    MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
+                    cfg.setParticles(!cfg.isParticles());
+                    cfg.save();
+                    btn.setMessage(mainMenuEmbersText());
+                }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
     }
@@ -49,6 +67,16 @@ public class DisplayTab extends BaseTab {
     private static Component borderlessText() {
         return Component.literal("Borderless Fullscreen: "
                 + (WindowModeConfig.getInstance().isBorderlessFullscreenEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component themedMainMenuText() {
+        return Component.literal("Themed Main Menu: "
+                + (MainMenuThemeConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component mainMenuEmbersText() {
+        return Component.literal("Main Menu Embers: "
+                + (MainMenuThemeConfig.getInstance().isParticles() ? "§aON" : "§cOFF"));
     }
 
     private static Component fullbrightText() {
