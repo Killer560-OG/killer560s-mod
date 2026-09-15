@@ -69,6 +69,7 @@ public final class I4SolverFeature {
     private static final Set<BlockPos> hits = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
     private static boolean wasActive = false;
+    private static boolean wasOnPad = false;
     private static String lastState = "";
 
     private I4SolverFeature() {
@@ -121,6 +122,16 @@ public final class I4SolverFeature {
             return;
         }
         wasActive = true;
+        // Wipe progress when the player steps off the pressure pad (2026-09-14, killer560: "if it detects I walk off of
+        // the pressure pad or the dev cancels then wipe the progress of the solver") - Hypixel cancels the device's
+        // progress then. A device cancelled while still standing on it shows up as a hit target lighting again,
+        // which already clears below.
+        boolean onPad = I4SensorsFeature.isOnDevice(client.player.position());
+        if (wasOnPad && !onPad && !hits.isEmpty()) {
+            LOGGER.info("{} {} Solver: stepped off the pressure pad - wiping {} highlight(s).", TAG, I4SensorsFeature.clock(), hits.size());
+            hits.clear();
+        }
+        wasOnPad = onPad;
         boolean first = lastWall.isEmpty();
         for (BlockPos pos : I4SensorsFeature.DEV_BLOCKS) {
             BlockState now = client.level.getBlockState(pos);
