@@ -65,8 +65,8 @@ public final class I4SensorsConfig {
 
     private boolean legacyVerboseEnabled = false;
     private boolean solverEnabled = false;
-    // killer560 (2026-09-14): "make the highlight color something besides orange, something that will be really
-    // easy to see" - bright cyan contrasts with both the purple glass and the grey wall; user-pickable.
+    // Aim marker color (2026-09-14, killer560: the aim squares were "almost impossible to see") - user-pickable;
+    // bright cyan contrasts with the purple glass and grey wall. Hit targets stay orange.
     public static final int DEFAULT_SOLVER_COLOR = 0xFF00FFFF;
     private int solverColor = DEFAULT_SOLVER_COLOR;
     private boolean autoI4Enabled = false;
