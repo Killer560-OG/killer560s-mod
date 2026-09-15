@@ -3,7 +3,10 @@ package com.killer560.hub.mainmenu;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
@@ -51,6 +54,31 @@ public final class MainMenuTheme {
      *  shared widget classes (AbstractButton, PlainTextButton) so other screens stay vanilla. */
     public static boolean activeOnTitleScreen() {
         return active() && Minecraft.getInstance().screen instanceof TitleScreen;
+    }
+
+    /** Widget theming scope (buttons, text fields, sliders, checkboxes, lists...): the title screen, plus -
+     *  while "Themed Menus" is on - every other open screen except container screens (chests, inventories,
+     *  terminals keep vanilla/feature visuals). Applies in and out of a world. */
+    public static boolean activeOnMenus() {
+        if (!active()) {
+            return false;
+        }
+        Screen screen = Minecraft.getInstance().screen;
+        if (screen == null) {
+            return false;
+        }
+        if (screen instanceof TitleScreen) {
+            return true;
+        }
+        // Chat (and InBedChatScreen's Leave Bed button / mod-added chat widgets) stays vanilla, like the HUD.
+        return MainMenuThemeConfig.getInstance().isOtherMenus() && !(screen instanceof AbstractContainerScreen<?>)
+                && !(screen instanceof ChatScreen);
+    }
+
+    /** Background scope: {@link #activeOnMenus()} and no world loaded, so in-game menus keep the blurred
+     *  world behind them and only out-of-world menus swap the panorama for the themed background. */
+    public static boolean activeOnMenuBackground() {
+        return activeOnMenus() && Minecraft.getInstance().level == null;
     }
 
     public static void fail(String where, Throwable t) {

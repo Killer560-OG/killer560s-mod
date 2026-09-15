@@ -24,6 +24,8 @@ public final class MainMenuThemeConfig {
 
     private boolean enabled = true;
     private boolean particles = true;
+    /** Extends the theme past the title screen (multiplayer, options, world select, other mods' menus). */
+    private boolean otherMenus = true;
 
     private MainMenuThemeConfig() {
     }
@@ -44,6 +46,7 @@ public final class MainMenuThemeConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
                 cfg.particles = ConfigJson.getBool(obj, "particles", cfg.particles);
+                cfg.otherMenus = ConfigJson.getBool(obj, "otherMenus", cfg.otherMenus);
             }
         } catch (Exception ignored) {
             // Unparseable file: keep defaults for this session (per-key reads above handle single bad keys).
@@ -57,6 +60,7 @@ public final class MainMenuThemeConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("particles", particles);
+            obj.addProperty("otherMenus", otherMenus);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -77,5 +81,13 @@ public final class MainMenuThemeConfig {
 
     public void setParticles(boolean particles) {
         this.particles = particles;
+    }
+
+    public boolean isOtherMenus() {
+        return otherMenus;
+    }
+
+    public void setOtherMenus(boolean otherMenus) {
+        this.otherMenus = otherMenus;
     }
 }

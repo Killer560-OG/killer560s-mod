@@ -88,7 +88,8 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Live Map rooms — multi-tile rooms (1x2 to 2x2 and L shapes) drawn and identified as one room, with room-state from the dungeon map and label styles (checkmarks, secrets, names)
 - Custom Scoreboard — SkyHanni-style replacement sidebar (ported from SkyHanni and SkyBlock Custom Scoreboard): reorderable lines and events, alignment, background with rounded corners and border; unknown lines still show
 - Profile Viewer — `/pv [name]`: NEU-style Skyblock profile viewer (skills, slayers, dungeons with floor times, inventories/ender chest/backpacks/wardrobe/accessories, pets) with a 3D skin preview
-- Themed Main Menu — the title screen in the mod's black/orange theme: themed buttons, dark animated background with drifting embers (toggle in Display)
+- Themed Main Menu — the title screen in the mod's black/orange theme: themed buttons, dark animated background with drifting embers, a cleaner button column (no Realms/language/accessibility buttons, Swap Accounts in the column) (toggle in Display)
+- Themed Other Menus — the same black/orange look on every other menu: multiplayer, options, world select, mod list and other mods' screens get themed buttons, text fields, sliders, checkboxes, tabs, lists, scrollbars and tooltips; chests and inventories stay normal (toggle in Display)
 - Arrow Align — F7/M7 third device solver: clicks-needed numbers on each frame, Prevent Misclicks (crouch to override); **cheat build:** Trigger Bot with delay and Aura
 - Secret Triggerbot — **cheat build only.** Clicks a secret (chest, lever, redstone key, wither essence) when you look at it, after a delay; never re-clicks a looted secret; optional slot swap
 - Dungeon ESP — boxes or glow on starred mobs, secret bats and (cheat build) the F7/M7 wither bosses, each with its own colour

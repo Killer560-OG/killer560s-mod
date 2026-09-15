@@ -60,6 +60,15 @@ public class DisplayTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(mainMenuEmbersText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 22;
+
+        // Same theme on every other menu (multiplayer, options, world select...) - default ON.
+        widgets.add(SettingsButtonWidget.builder(themedOtherMenusText(), btn -> {
+                    MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
+                    cfg.setOtherMenus(!cfg.isOtherMenus());
+                    cfg.save();
+                    btn.setMessage(themedOtherMenusText());
+                }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
     }
@@ -77,6 +86,11 @@ public class DisplayTab extends BaseTab {
     private static Component mainMenuEmbersText() {
         return Component.literal("Main Menu Embers: "
                 + (MainMenuThemeConfig.getInstance().isParticles() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component themedOtherMenusText() {
+        return Component.literal("Themed Other Menus: "
+                + (MainMenuThemeConfig.getInstance().isOtherMenus() ? "§aON" : "§cOFF"));
     }
 
     private static Component fullbrightText() {

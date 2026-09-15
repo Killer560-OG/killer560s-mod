@@ -672,6 +672,7 @@ final class SettingTooltipsData {
         d.put("fullbright", "Renders the world at full brightness no matter the light level or your brightness slider.");
         d.put("themed main menu", "Replaces the vanilla title screen with the mod's black and orange one. OFF brings back the normal main menu.");
         d.put("main menu embers", "Drifting ember particles behind the themed main menu. Only shows while Themed Main Menu is ON.");
+        d.put("themed other menus", "Uses the black and orange theme on every other menu too: multiplayer, options, world select, and other mods' screens. Needs Themed Main Menu ON. Chests and inventories stay normal.");
         d.put("auto join skyblock", "Sends /skyblock a few seconds after you join Hypixel. Skipped if you type a command first, and doesn't re-trigger after /lobby.");
         d.put("profile name", "Name for a new settings profile. Type it here, then click Save Current As New.");
         d.put("save current as new", "Saves all of your current mod settings as a new profile with the name typed to the left.");

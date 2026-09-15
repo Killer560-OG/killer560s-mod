@@ -89,6 +89,7 @@ public class Killer560ModClient implements ClientModInitializer {
         LeapMessageFeature.register();
         GifPlayerFeature.register();
         DvdFeature.register();
+        com.killer560.hub.mainmenu.MainMenuTitleLayout.register();
         AutoMeowFeature.register();
         ExperimentsFeature.register();
         StorageOverlayFeature.register();

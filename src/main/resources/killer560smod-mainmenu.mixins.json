@@ -8,7 +8,22 @@
 		"MainMenuCopyrightMixin",
 		"MainMenuPanoramaMixin",
 		"MainMenuSplashMixin",
-		"MainMenuTitleScreenMixin"
+		"MainMenuTitleScreenMixin",
+		"MainMenuRealmsNotificationsMixin",
+		"MenuCheckboxMixin",
+		"MenuEditBoxMixin",
+		"MenuLockIconButtonMixin",
+		"MenuSliderMixin",
+		"MenuTabButtonMixin",
+		"MenuTextAndIconButtonMixin",
+		"MenuTextAreaMixin",
+		"MenuTooltipMixin",
+		"MenuListMixin",
+		"MenuModMenuListMixin",
+		"MenuScreenBackgroundMixin",
+		"MenuScrollbarMixin",
+		"MenuTextureMixin",
+		"MenuTabNavigationBarMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
