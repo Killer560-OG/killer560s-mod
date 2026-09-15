@@ -90,6 +90,14 @@ public final class AutoI4Feature {
     private static final Set<BlockPos> doneTargets = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
     private static final Map<BlockPos, Integer> predictionCounts = new HashMap<>();
+    // Continuous prefire (2026-09-14, killer560: "for i4 can you make it prefire more it doesnt really prefire much"):
+    // Noamm only fires ONE prediction per newly lit target, then idles until the next one lights. Once the device has
+    // started (first target lit this attempt), any moment nothing is lit/queued/aiming, it now keeps prefiring the
+    // remaining unhit spots at the normal shot cadence, least-prefired spot first - so arrows are already in the air
+    // wherever the next light can appear. Lit targets and the watchdog re-shoot always take priority (they're queued
+    // first; a newly lit target also interrupts a prefire mid-aim).
+    private static boolean deviceStarted = false;
+    private static boolean noPredictionLogged = false;
     private static BlockPos activeTarget = null;
     private static long lastShotAtActiveMs = 0L;
     private static boolean completed = false;
@@ -262,6 +270,13 @@ public final class AutoI4Feature {
                     I4SensorsFeature.clock(), indexOf(activeTarget), now - lastShotAtActiveMs);
             shotQueue.add(activeTarget);
         }
+        if (currentShot == null && shotQueue.isEmpty() && deviceStarted && cfg.isAutoI4Predictions()
+                && now - lastFireAtMs >= MIN_SHOT_GAP_MS) {
+            BlockPos prefire = predictNext(activeTarget);
+            if (prefire != null) {
+                shotQueue.add(prefire);
+            }
+        }
         if (currentShot == null && !shotQueue.isEmpty()) {
             startShot(client, cfg, player, shotQueue.remove(0));
         }
@@ -348,6 +363,7 @@ public final class AutoI4Feature {
 
     private static void setActiveTarget(BlockPos pos, String why) {
         activeTarget = pos;
+        deviceStarted = true;
         lastShotAtActiveMs = 0L;
         LOGGER.info("{} {} New target #{} {} - {}. Interrupting {}.", TAG, I4SensorsFeature.clock(), indexOf(pos), pos, why,
                 currentShot == null ? "nothing" : "shot at #" + indexOf(currentShot.target) + (currentShot.prediction ? " (prediction)" : ""));
@@ -417,6 +433,7 @@ public final class AutoI4Feature {
         doneTargets.clear();
         lastWall.clear();
         predictionCounts.clear();
+        deviceStarted = false;
         activeTarget = null;
         lastShotAtActiveMs = 0L;
         completed = false;
@@ -690,17 +707,23 @@ public final class AutoI4Feature {
             }
         }
         if (valid.isEmpty()) {
-            LOGGER.info("{} {} No prediction - no unhit blue_terracotta targets left.", TAG, I4SensorsFeature.clock());
+            if (!noPredictionLogged) {
+                LOGGER.info("{} {} No prediction - no unhit blue_terracotta targets left.", TAG, I4SensorsFeature.clock());
+                noPredictionLogged = true; // continuous prefire asks every tick - log the dry spell once
+            }
             return null;
+        }
+        noPredictionLogged = false;
+        // Least-prefired spots first (continuous prefire cycles through every remaining spot instead of hammering one).
+        int fewest = Integer.MAX_VALUE;
+        for (BlockPos pos : valid) {
+            fewest = Math.min(fewest, predictionCounts.getOrDefault(pos, 0));
         }
         List<BlockPos> candidates = new ArrayList<>();
         for (BlockPos pos : valid) {
-            if (predictionCounts.getOrDefault(pos, 0) < 2) {
+            if (predictionCounts.getOrDefault(pos, 0) == fewest) {
                 candidates.add(pos);
             }
-        }
-        if (candidates.isEmpty()) {
-            candidates = valid;
         }
         List<BlockPos> paired = new ArrayList<>();
         for (BlockPos a : candidates) {
