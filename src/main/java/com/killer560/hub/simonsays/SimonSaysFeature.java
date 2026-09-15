@@ -147,6 +147,20 @@ public final class SimonSaysFeature {
 
     // --- auto-start pacing (real trigger + settings ported from NoammAddons) ---
     private static boolean autoStartRunning = false;
+    // True while the running start-button burst is a RESTART (Auto Restart SS / Restart Key) rather than Auto Start's
+    // own Goldor-line trigger - so it runs even with Auto Start switched off, and waits for interact range.
+    private static boolean autoStartIsRestart = false;
+    // --- device-break detection (ported from NoammAddons' own SimonSays.kt "SS Broke" check, newest upstream):
+    // once the device has shown a lit lantern, a stretch with NO lit lantern AND all 16 buttons gone means the
+    // device broke (a wrong click / reset) - a normal round change always lights the next pattern well before
+    // that. Noamm waits 12 server ticks from the last lantern; this counts consecutive ticks of "no lantern lit
+    // and every button air" and uses a longer 30-tick window so a slow reveal-to-buttons handoff can never
+    // false-trigger a restart (which would reset a device that was actually fine).
+    private static final int BREAK_CONFIRM_TICKS = 30;
+    private static final int AUTO_RESTART_SETTLE_TICKS = 10;
+    private static boolean breakArmed = false;
+    private static int blankGridTicks = 0;
+    private static boolean restartKeyWasDown = false;
     private static int autoStartClicksSent = 0;
     private static int autoStartTicksUntilNextClick = 0;
     // Diagnostic-only (2026-09-14, "for ss it is now starting weird again... add loggers") - lets the
@@ -500,6 +514,8 @@ public final class SimonSaysFeature {
     // A first grid click this long after the anchor can't belong to the same start (the first reveal plays
     // right after the start click) - fall back to anchoring on the grid click itself.
     private static final long START_ANCHOR_MAX_AGE_MS = 10_000L;
+    // See the deadline arming in bookAutoSolveClick - measured 11.70 target -> 12.03 on Hypixel's timer.
+    private static final long SERVER_TIMER_COMPENSATION_MS = 330L;
 
     private static void noteStartButtonClick(long atMs, String source) {
         boolean freshStart = startClickAnchorMs == 0L || totalClicksThisAttempt > 0
@@ -727,6 +743,8 @@ public final class SimonSaysFeature {
             }
             rotateClickFiredFor = null;
             startClickAnchorMs = 0L;
+            breakArmed = false;
+            blankGridTicks = 0;
             wasActive = false;
             return;
         }
@@ -769,6 +787,8 @@ public final class SimonSaysFeature {
         tickStartButton(client, cfg);
 
         detectGridChanges(client, cfg);
+        tickBreakDetection(client, cfg);
+        tickRestartKeybind(client, cfg);
         tickAutoStart(client, cfg);
         tickAutoSolveAndTriggerBot(client, cfg);
     }
@@ -816,6 +836,7 @@ public final class SimonSaysFeature {
         lastLanternChangeTick = -1;
         lastGridStates.clear();
         autoStartRunning = false;
+        autoStartIsRestart = false;
         autoStartClicksSent = 0;
         autoStartTicksUntilNextClick = 0;
         // Deliberately does NOT touch autoSolveArmed/autoSolveClicksDoneThisAttempt - this method also
@@ -1245,6 +1266,7 @@ public final class SimonSaysFeature {
                 // "it finishes" meant the whole device, not each individual round) - moved inside this
                 // round-5-only block instead of running unconditionally on every round completion.
                 idleSuppressedAfterCompletion = true;
+                breakArmed = false; // a finished device goes blank for good - that's not a break
             }
             resetSolveState();
             firstPhase = false;
@@ -1341,13 +1363,78 @@ public final class SimonSaysFeature {
     // Auto-start - real trigger + settings ported from NoammAddons' own SimonSays.kt
     // ------------------------------------------------------------------
 
+    /** Noamm-style "SS broke" detection - see {@link #BREAK_CONFIRM_TICKS}. Restarts it when Auto Restart SS is on. */
+    private static void tickBreakDetection(Minecraft client, SimonSaysConfig cfg) {
+        boolean anyLanternLit = false;
+        for (BlockPos lantern : GRID_LANTERNS) {
+            if (!client.level.getBlockState(lantern).is(Blocks.OBSIDIAN)) {
+                anyLanternLit = true;
+                break;
+            }
+        }
+        if (anyLanternLit) {
+            breakArmed = true;
+            blankGridTicks = 0;
+            return;
+        }
+        boolean allButtonsGone = true;
+        for (BlockPos button : GRID_BUTTONS) {
+            if (!client.level.getBlockState(button).isAir()) {
+                allButtonsGone = false;
+                break;
+            }
+        }
+        if (!breakArmed || autoStartRunning || !allButtonsGone) {
+            blankGridTicks = 0;
+            return;
+        }
+        if (++blankGridTicks < BREAK_CONFIRM_TICKS) {
+            return;
+        }
+        breakArmed = false;
+        blankGridTicks = 0;
+        LOGGER.warn("[SimonSays] Device BROKE - no lit lantern and no buttons for {} ticks (round {}, {} of {} steps clicked, "
+                        + "{} clicks this attempt). Auto Restart SS={}.", BREAK_CONFIRM_TICKS, currentRoundNumber, clickNeeded,
+                clickInOrder.size(), totalClicksThisAttempt, cfg.isAutoRestartEnabled());
+        if (cfg.isAutoRestartEnabled()) {
+            com.killer560.hub.util.ModChat.send("Simon Says", com.killer560.hub.util.ModChat.bad("Device broke"),
+                    com.killer560.hub.util.ModChat.text(" - restarting."));
+            maybeAutoAnnounceReset(client, cfg);
+            beginAutoStart(cfg, "auto restart after break", AUTO_RESTART_SETTLE_TICKS);
+        } else {
+            com.killer560.hub.util.ModChat.send("Simon Says", com.killer560.hub.util.ModChat.bad("Device broke."));
+        }
+    }
+
+    /** Manual restart keybind (only while at the device, and not while a menu/chat is open). */
+    private static void tickRestartKeybind(Minecraft client, SimonSaysConfig cfg) {
+        int key = cfg.getRestartKeyCode();
+        if (key < 0 || client.getWindow() == null) {
+            restartKeyWasDown = false;
+            return;
+        }
+        boolean down = InputConstants.isKeyDown(client.getWindow(), key);
+        if (down && !restartKeyWasDown && client.screen == null) {
+            if (autoStartRunning) {
+                LOGGER.info("[SimonSays] Restart key pressed but a start-button burst is already running - ignored.");
+            } else {
+                LOGGER.info("[SimonSays] Restart key pressed - restarting Simon Says.");
+                maybeAutoAnnounceReset(client, cfg);
+                beginAutoStart(cfg, "manual restart key", 0);
+            }
+        }
+        restartKeyWasDown = down;
+    }
+
     private static void tickAutoStart(Minecraft client, SimonSaysConfig cfg) {
-        if (!cfg.isAutoStartEnabled() || !autoStartRunning) {
+        if ((!cfg.isAutoStartEnabled() && !autoStartIsRestart) || !autoStartRunning) {
             return;
         }
         if (autoStartClicksSent >= cfg.getAutoStartClicks()) {
-            LOGGER.info("[SimonSays] Auto-start finished ({} of {} clicks sent).", autoStartClicksSent, cfg.getAutoStartClicks());
+            LOGGER.info("[SimonSays] {} finished ({} of {} clicks sent).", autoStartIsRestart ? "Restart" : "Auto-start",
+                    autoStartClicksSent, cfg.getAutoStartClicks());
             autoStartRunning = false;
+            autoStartIsRestart = false;
             // Real bug found and fixed (2026-09-14, killer560's own report: "it is still staying on the
             // start button after getting skip instead of looking at the middle of the obsidian... once
             // the 2nd click comes out look at that button"): Round 123 moved idleSuppressedAfterCompletion's
@@ -1375,7 +1462,7 @@ public final class SimonSaysFeature {
         // real window to pre-aim the camera at the first button WHILE still walking up, so by the time
         // this schedule does start, the camera's usually already close and the first click lands on time
         // too.
-        if (rotateActive(cfg)) {
+        if (rotateActive(cfg) || autoStartIsRestart) {
             double distSqToStart = client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON));
             boolean tooFar = distSqToStart > REAL_INTERACT_RANGE_SQ;
             if (tooFar != lastAutoStartTooFarLogged) {
@@ -1442,6 +1529,12 @@ public final class SimonSaysFeature {
      *  own call, since this session never had confirmed real per-mode click counts). Only actually
      *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
     private static void beginAutoStart(SimonSaysConfig cfg) {
+        beginAutoStart(cfg, null, 0);
+    }
+
+    /** @param restartReason non-null for Auto Restart SS / Restart Key (runs even with Auto Start off);
+     *  @param extraInitialTicks extra wait before the first click (lets a just-broken device settle). */
+    private static void beginAutoStart(SimonSaysConfig cfg, String restartReason, int extraInitialTicks) {
         // Real bug found and fixed (2026-09-14, killer560's own report: "for some reason simon says is no longer
         // updating for skip"): a real log showed p3sim restarting Simon Says (a new Goldor "Who dares trespass" line)
         // while the previous attempt was still mid-round with 5 clicks booked. Nothing treated that as a fresh
@@ -1484,11 +1577,15 @@ public final class SimonSaysFeature {
         // separate, disconnected event from the real evenly-paced sequence that followed it. Now uses
         // the same real configured delay as every other click, so the whole sequence (including the
         // first click) reads as one consistent, evenly-spaced Auto Start run.
-        autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
+        autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks() + Math.max(0, extraInitialTicks);
         autoStartRunning = true;
+        autoStartIsRestart = restartReason != null;
+        breakArmed = false;
+        blankGridTicks = 0;
         diagLastAutoStartFireAtMs = 0L;
-        LOGGER.info("[SimonSays] Auto-start triggered by real Goldor phase-start line: {} clicks, {} ticks apart.",
-                cfg.getAutoStartClicks(), cfg.getAutoStartClickDelayTicks());
+        LOGGER.info("[SimonSays] {}: {} clicks, {} ticks apart ({} mode).",
+                restartReason != null ? "Restart triggered (" + restartReason + ")" : "Auto-start triggered by real Goldor phase-start line",
+                cfg.getAutoStartClicks(), cfg.getAutoStartClickDelayTicks(), rotateActive(cfg) ? "look-only (rotate)" : "aura");
     }
 
     // ------------------------------------------------------------------
@@ -1813,7 +1910,11 @@ public final class SimonSaysFeature {
             boolean anchoredOnStart = startClickAnchorMs > 0 && startClickAnchorMs <= clickedAtMs
                     && clickedAtMs - startClickAnchorMs <= START_ANCHOR_MAX_AGE_MS;
             long anchorMs = anchoredOnStart ? startClickAnchorMs : clickedAtMs;
-            autoSolveDeadlineMs = anchorMs + cfg.getClickTimerTargetMs() + jitter;
+            // Server-side compensation (2026-09-14, killer560's own report: "when set to 11.7 it is getting 12.03
+            // serverside" - it "needs bumped by about .3s"): Hypixel's own device timer runs ~330ms longer than this
+            // client-side start-click -> last-click clock (click packet latency at both ends plus the server's own
+            // completion processing), so the deadline aims that much earlier to land the SERVER'S number on target.
+            autoSolveDeadlineMs = anchorMs + cfg.getClickTimerTargetMs() + jitter - SERVER_TIMER_COMPENSATION_MS;
             autoSolveArmed = true;
             diagArmedAtMs = anchorMs;
             diagArmedJitterMs = jitter;

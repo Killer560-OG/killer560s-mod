@@ -106,6 +106,11 @@ public final class SimonSaysConfig {
     // Message sends automatically. Kept the same "resetKeyCode" JSON property name so an existing
     // keybind carries over rather than silently resetting to "Not Set".
     private int announceKeyCode = -1;
+    // killer560 (2026-09-14): "add a setting titled auto restart ss where if it detects ss failed then itll restart it
+    // (follow the same aura vs looking logic for auto start) also add an option for manual restart where I set a
+    // keybind and upon press itll restart it". Both cheat-only (they click the start button).
+    private boolean autoRestartEnabled = false;
+    private int restartKeyCode = -1;
     private boolean autoSendResetMessage = false;
     private String resetMessageText = "Resetting Simon Says";
 
@@ -162,6 +167,8 @@ public final class SimonSaysConfig {
             // corrected to the new 1-20 range on load, instead of silently staying at 0 forever.
             cfg.setAutoStartClickDelayTicks(getInt(obj, "autoStartClickDelayTicks", 3));
             cfg.announceKeyCode = getInt(obj, "resetKeyCode", -1);
+            cfg.autoRestartEnabled = getBool(obj, "autoRestartEnabled", false);
+            cfg.restartKeyCode = getInt(obj, "restartKeyCode", -1);
             cfg.autoSendResetMessage = getBool(obj, "autoSendResetMessage", false);
             cfg.resetMessageText = obj.has("resetMessageText") ? obj.get("resetMessageText").getAsString() : "Resetting Simon Says";
             cfg.diagnosticLoggingEnabled = getBool(obj, "diagnosticLoggingEnabled", false);
@@ -197,6 +204,8 @@ public final class SimonSaysConfig {
             obj.addProperty("autoStartClicks", autoStartClicks);
             obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
             obj.addProperty("resetKeyCode", announceKeyCode);
+            obj.addProperty("autoRestartEnabled", autoRestartEnabled);
+            obj.addProperty("restartKeyCode", restartKeyCode);
             obj.addProperty("autoSendResetMessage", autoSendResetMessage);
             obj.addProperty("resetMessageText", resetMessageText);
             obj.addProperty("diagnosticLoggingEnabled", diagnosticLoggingEnabled);
@@ -399,6 +408,28 @@ public final class SimonSaysConfig {
         // Min 1, not 0 (2026-09-14, killer560's own call) - 0 ticks between clicks means every click
         // fires on the same tick, which isn't a real "delay" option at all.
         this.autoStartClickDelayTicks = Math.max(1, Math.min(20, autoStartClickDelayTicks));
+    }
+
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - clicks the start button. */
+    public boolean isAutoRestartEnabled() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoRestartEnabled;
+    }
+
+    public boolean getAutoRestartRaw() {
+        return autoRestartEnabled;
+    }
+
+    public void setAutoRestartEnabled(boolean autoRestartEnabled) {
+        this.autoRestartEnabled = autoRestartEnabled;
+    }
+
+    /** -1 when unset, or on the legit build (cheat-gated like the other start-button clicks). */
+    public int getRestartKeyCode() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? restartKeyCode : -1;
+    }
+
+    public void setRestartKeyCode(int restartKeyCode) {
+        this.restartKeyCode = restartKeyCode;
     }
 
     public int getAnnounceKeyCode() {

@@ -26,6 +26,7 @@ import java.util.List;
 public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private boolean capturingAnnounceKey = false;
+    private boolean capturingRestartKey = false;
 
     public SimonSaysTab() {
         super("Simon Says");
@@ -149,6 +150,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         Component keyLabel = capturingAnnounceKey ? Component.literal("Press any key...") : announceKeyText(cfg);
         widgets.add(SettingsButtonWidget.builder(keyLabel, btn -> {
                     capturingAnnounceKey = true;
+                    capturingRestartKey = false;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(col2aX, y, col2W, 18).build());
 
@@ -270,6 +272,22 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
             }
         }
 
+        // Auto Restart SS + Restart Key (2026-09-14, killer560's own request) - independent of Auto Start being on;
+        // they use Auto Start's Clicks/Delay and the same aura vs look-only rule.
+        widgets.add(SettingsButtonWidget.builder(onOff("Auto Restart SS", cfg.getAutoRestartRaw()), btn -> {
+                    cfg.setAutoRestartEnabled(!cfg.getAutoRestartRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Auto Restart SS", cfg.getAutoRestartRaw()));
+                }).bounds(col2aX, y, col2W, 18).build());
+
+        Component restartKeyLabel = capturingRestartKey ? Component.literal("Press any key...") : restartKeyText(cfg);
+        widgets.add(SettingsButtonWidget.builder(restartKeyLabel, btn -> {
+                    capturingRestartKey = true;
+                    capturingAnnounceKey = false;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
                     cfg.setAutoStartEnabled(!cfg.isAutoStartEnabled());
                     cfg.save();
@@ -337,6 +355,12 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(cfg.isAutoSolveFixedDelayMode() ? "Pacing: §bFixed Delay" : "Pacing: §bTarget");
     }
 
+    private static Component restartKeyText(SimonSaysConfig cfg) {
+        String name = cfg.getRestartKeyCode() < 0 ? "Not Set"
+                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getRestartKeyCode()).getDisplayName().getString();
+        return Component.literal("Restart Key: \u00a7b" + name);
+    }
+
     private static Component announceKeyText(SimonSaysConfig cfg) {
         String name = cfg.getAnnounceKeyCode() < 0 ? "Not Set"
                 : InputConstants.Type.KEYSYM.getOrCreate(cfg.getAnnounceKeyCode()).getDisplayName().getString();
@@ -349,14 +373,20 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public boolean isListeningForKey() {
-        return capturingAnnounceKey;
+        return capturingAnnounceKey || capturingRestartKey;
     }
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        capturingAnnounceKey = false;
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        cfg.setAnnounceKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        if (capturingRestartKey) {
+            cfg.setRestartKeyCode(code);
+        } else {
+            cfg.setAnnounceKeyCode(code);
+        }
+        capturingAnnounceKey = false;
+        capturingRestartKey = false;
         cfg.save();
     }
 }
