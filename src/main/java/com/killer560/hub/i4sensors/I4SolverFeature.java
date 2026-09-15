@@ -50,13 +50,18 @@ public final class I4SolverFeature {
     // glass around each aim spot (the glass columns x65/x67 between the target columns, on the wall plane and the
     // layer in front of it) is replaced with air CLIENT-SIDE ONLY while the Solver is active at the device, and
     // put back when it stops. Only glass is ever touched; the server re-sends real blocks on any update anyway.
-    private static final int[] HIDE_X = {65, 67};
-    private static final int[] HIDE_Y = {130, 128, 126};
-    private static final int[] HIDE_Z = {49, 50};
-    // Flags 2|16: tell the renderer, but skip neighbour shape updates so adjacent panes don't re-connect oddly.
+    // Blackout (2026-09-14, killer560: "make it so it only shows the 9 purple blocks and everything else in that radius
+    // is pure black so it is easier to see") - CLIENT-SIDE ONLY while the Solver is active at the device, restored
+    // when it stops. On the wall plane (z 50) every block of the device frame and a ring around it (x 62-70,
+    // y 124-132) except the 9 targets becomes black concrete; anything glass in the layer just in front (z 49) is
+    // hidden so nothing tints the markers. The 9 targets are never touched, so hit tracking is unaffected.
+    private static final int MASK_MIN_X = 62, MASK_MAX_X = 70, MASK_MIN_Y = 124, MASK_MAX_Y = 132;
+    private static final int WALL_Z = 50;
+    private static final int FRONT_Z = 49;
+    // Flags 2|16: tell the renderer, but skip neighbour shape updates.
     private static final int CLIENT_ONLY_FLAGS = 18;
-    private static final Map<BlockPos, BlockState> hiddenGlass = new HashMap<>();
-    private static Object hiddenInLevel = null;
+    private static final Map<BlockPos, BlockState> maskedOriginals = new HashMap<>();
+    private static Object maskedInLevel = null;
 
     private static final Set<BlockPos> hits = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
@@ -95,14 +100,14 @@ public final class I4SolverFeature {
             LOGGER.info("{} {} Solver {}", TAG, I4SensorsFeature.clock(), state);
             lastState = state;
         }
-        if (client.level != hiddenInLevel) {
-            hiddenGlass.clear(); // a different world - nothing of ours is left to restore
-            hiddenInLevel = client.level;
+        if (client.level != maskedInLevel) {
+            maskedOriginals.clear(); // a different world - nothing of ours is left to restore
+            maskedInLevel = client.level;
         }
         if (active) {
-            hideGlass(client);
-        } else if (!hiddenGlass.isEmpty()) {
-            restoreGlass(client);
+            maskWall(client);
+        } else if (!maskedOriginals.isEmpty()) {
+            restoreWall(client);
         }
         if (!active) {
             if (wasActive) {
@@ -134,36 +139,51 @@ public final class I4SolverFeature {
         }
     }
 
-    private static void hideGlass(Minecraft client) {
-        for (int x : HIDE_X) {
-            for (int y : HIDE_Y) {
-                for (int z : HIDE_Z) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    BlockState state = client.level.getBlockState(pos);
-                    if (!I4SensorsFeature.blockId(state).contains("glass")) {
-                        continue;
-                    }
-                    if (!hiddenGlass.containsKey(pos)) {
-                        LOGGER.info("{} {} Solver: hiding {} at {} (client-side only)", TAG, I4SensorsFeature.clock(),
-                                I4SensorsFeature.blockId(state), pos);
-                    }
-                    hiddenGlass.put(pos, state);
-                    client.level.setBlock(pos, Blocks.AIR.defaultBlockState(), CLIENT_ONLY_FLAGS);
+    private static void maskWall(Minecraft client) {
+        BlockState black = Blocks.BLACK_CONCRETE.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        int newlyMasked = 0;
+        for (int x = MASK_MIN_X; x <= MASK_MAX_X; x++) {
+            for (int y = MASK_MIN_Y; y <= MASK_MAX_Y; y++) {
+                BlockPos wall = new BlockPos(x, y, WALL_Z);
+                if (!I4SensorsFeature.DEV_BLOCKS.contains(wall)) {
+                    newlyMasked += mask(client, wall, black);
+                }
+                BlockPos front = new BlockPos(x, y, FRONT_Z);
+                if (I4SensorsFeature.blockId(client.level.getBlockState(front)).contains("glass")) {
+                    newlyMasked += mask(client, front, air);
                 }
             }
+        }
+        if (newlyMasked > 0) {
+            LOGGER.info("{} {} Solver: blacked out {} block(s) around the targets (client-side only, {} tracked).", TAG,
+                    I4SensorsFeature.clock(), newlyMasked, maskedOriginals.size());
         }
     }
 
-    private static void restoreGlass(Minecraft client) {
+    /** @return 1 if the block had to be (re)placed - first time, or the server re-sent the real block. */
+    private static int mask(Minecraft client, BlockPos pos, BlockState replacement) {
+        BlockState current = client.level.getBlockState(pos);
+        if (current == replacement) {
+            return 0;
+        }
+        maskedOriginals.put(pos, current);
+        client.level.setBlock(pos, replacement, CLIENT_ONLY_FLAGS);
+        return 1;
+    }
+
+    private static void restoreWall(Minecraft client) {
         if (client.level != null) {
-            for (Map.Entry<BlockPos, BlockState> entry : hiddenGlass.entrySet()) {
-                if (client.level.getBlockState(entry.getKey()).isAir()) {
+            BlockState black = Blocks.BLACK_CONCRETE.defaultBlockState();
+            for (Map.Entry<BlockPos, BlockState> entry : maskedOriginals.entrySet()) {
+                BlockState current = client.level.getBlockState(entry.getKey());
+                if (current == black || current.isAir()) {
                     client.level.setBlock(entry.getKey(), entry.getValue(), CLIENT_ONLY_FLAGS);
                 }
             }
-            LOGGER.info("{} {} Solver: restored {} hidden glass block(s).", TAG, I4SensorsFeature.clock(), hiddenGlass.size());
+            LOGGER.info("{} {} Solver: restored {} blacked-out block(s).", TAG, I4SensorsFeature.clock(), maskedOriginals.size());
         }
-        hiddenGlass.clear();
+        maskedOriginals.clear();
     }
 
     private static void render(LevelRenderContext context) {
@@ -200,7 +220,7 @@ public final class I4SolverFeature {
         // Just in front of the wall's front face (z 50) so it isn't hidden inside the blocks.
         AABB box = new AABB(x - DOT_HALF, y - DOT_HALF, 49.9 - DOT_DEPTH_HALF, x + DOT_HALF, y + DOT_HALF, 49.9 + DOT_DEPTH_HALF);
         float[] rgba = WorldRenderUtils.argbToFloats(I4SensorsConfig.getInstance().getSolverColor());
+        // No border (2026-09-14, killer560: "please remove the border around the markers").
         WorldRenderUtils.renderFilledBox(context, box, rgba[0], rgba[1], rgba[2], 1f);
-        WorldRenderUtils.renderOutlineBox(context, box, 0f, 0f, 0f, 1f, 3f);
     }
 }

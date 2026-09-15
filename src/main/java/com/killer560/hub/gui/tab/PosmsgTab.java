@@ -135,10 +135,10 @@ public class PosmsgTab extends BaseTab {
         }
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Color: ■"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Color", e.color()), btn -> {
                     e.colorHex = nextColor(e.colorHex);
                     PosmsgConfig.getInstance().save();
-                    btn.setMessage(Component.literal("Color: ■"));
+                    btn.setMessage(com.killer560.hub.gui.ColorSwatch.label("Color", e.color()));
                     requestRebuild.run();
                 }).bounds(col1, y, 100, 18).build());
         y += 20;

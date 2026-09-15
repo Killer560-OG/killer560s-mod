@@ -98,7 +98,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         // cycling a fixed palette - killer560's explicit request. Each button's own click handler
         // captures a fresh Minecraft/Screen reference each press so re-opening after a rebuild still
         // points at the current tab's own screen instance.
-        widgets.add(SettingsButtonWidget.builder(Component.literal("1st Color: ■"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("1st Color", cfg.getFirstColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new ColorPickerScreen(client.screen, "First Color",
                             cfg.getFirstColor(), SimonSaysConfig.DEFAULT_FIRST_COLOR, argb -> {
@@ -107,7 +107,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                     }));
                 }).bounds(col3aX, y, col3W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("2nd Color: ■"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("2nd Color", cfg.getSecondColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new ColorPickerScreen(client.screen, "Second Color",
                             cfg.getSecondColor(), SimonSaysConfig.DEFAULT_SECOND_COLOR, argb -> {
@@ -116,7 +116,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                     }));
                 }).bounds(col3bX, y, col3W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("3rd Color: ■"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("3rd Color", cfg.getThirdColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new ColorPickerScreen(client.screen, "Third Color+",
                             cfg.getThirdColor(), SimonSaysConfig.DEFAULT_THIRD_COLOR, argb -> {
