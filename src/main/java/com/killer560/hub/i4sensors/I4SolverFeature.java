@@ -200,6 +200,18 @@ public final class I4SolverFeature {
             WorldRenderUtils.renderOutlineBox(context, box, 1f, 0.6f, 0.1f, 1f, 3f);
         }
         List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
+        // Targets still to shoot: a vivid purple fill so they stand out against the blacked-out wall (2026-09-14,
+        // killer560: "make the purple blocks I need to shoot a bit more purple though and easier to see"). An overlay,
+        // not a client-side block swap - hit tracking reads the real emerald -> blue_terracotta change. Lit (emerald)
+        // targets are left as-is so the green "shoot this now" still reads clearly.
+        net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
+        for (BlockPos pos : dev) {
+            if (hits.contains(pos) || level == null
+                    || I4SensorsFeature.blockId(level.getBlockState(pos)).equals("emerald_block")) {
+                continue;
+            }
+            WorldRenderUtils.renderFilledBox(context, new AABB(pos).inflate(0.02), 0.72f, 0.2f, 1f, 0.7f);
+        }
         for (int row = 0; row < 3; row++) {
             boolean col0 = !hits.contains(dev.get(row * 3));
             boolean col1 = !hits.contains(dev.get(row * 3 + 1));
