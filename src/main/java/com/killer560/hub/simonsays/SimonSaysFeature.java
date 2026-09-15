@@ -206,6 +206,20 @@ public final class SimonSaysFeature {
     private static long autoSolveNextClickAtMs = 0L;
     private static boolean autoSolveArmed = false;
     private static int autoSolveClicksDoneThisAttempt = 0;
+    // Real bug found and fixed (2026-09-14, killer560's own report: "It is now still not going the right
+    // speed. I set it to 11.2 and it got like 15s"): now that tickRotateClick actually reports success
+    // (see its own doc comment), the pacing schedule itself is real - but it only ever reserved budget
+    // for real REVEAL overhead (estimatedRemainingRevealMs), never for the real TIME Rotate Mode's own
+    // humanized camera turn takes between the schedule saying "click now" and the approach actually
+    // settling and firing. A real log confirmed it: "since previous click" gaps were routinely 2-3x
+    // longer than what was scheduled for them, purely from real turn time never budgeted for at all -
+    // across 14 real clicks that adds up to exactly the kind of overage reported. Tracks a rolling
+    // estimate of that real per-click overhead (actual gap minus what was scheduled for it) and reserves
+    // it for all remaining clicks too, the same way reveal overhead already is - self-correcting within a
+    // single device's own run as real data comes in, same "calculate as it goes" approach the distance
+    // weighting already uses.
+    private static long autoApproachOverheadEmaMs = 0L;
+    private static long lastScheduledDelayMs = 0L;
     // Diagnostic-only (2026-09-14, killer560's own report: "it is still no where near the propper time" -
     // a real log capture for that report showed Auto Solve's Target/Variance path log exactly ONE click
     // for a whole device that otherwise completed all 5 rounds, meaning something else finished the
@@ -542,6 +556,8 @@ public final class SimonSaysFeature {
             autoSolveClicksDoneThisAttempt = 0;
             lastBlockedTrackAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
+            autoApproachOverheadEmaMs = 0L;
+            lastScheduledDelayMs = 0L;
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
@@ -663,6 +679,8 @@ public final class SimonSaysFeature {
             autoSolveClicksDoneThisAttempt = 0;
             lastBlockedTrackAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
+            autoApproachOverheadEmaMs = 0L;
+            lastScheduledDelayMs = 0L;
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
@@ -890,6 +908,8 @@ public final class SimonSaysFeature {
                 autoSolveClicksDoneThisAttempt = 0;
                 lastBlockedTrackAtMs = 0L;
                 autoSolveBlockedMsThisAttempt = 0L;
+                autoApproachOverheadEmaMs = 0L;
+                lastScheduledDelayMs = 0L;
                 wasBlockedByReveal = false;
                 lastRoundCompletedAtMs = 0L;
                 currentRoundNumber = 1;
@@ -1015,6 +1035,8 @@ public final class SimonSaysFeature {
                 autoSolveClicksDoneThisAttempt = 0;
                 lastBlockedTrackAtMs = 0L;
                 autoSolveBlockedMsThisAttempt = 0L;
+                autoApproachOverheadEmaMs = 0L;
+                lastScheduledDelayMs = 0L;
                 wasBlockedByReveal = false;
                 lastRoundCompletedAtMs = 0L;
                 currentRoundNumber = 1;
@@ -1346,6 +1368,20 @@ public final class SimonSaysFeature {
                     return;
                 }
                 autoSolveStallTarget = null;
+                // Real bug found and fixed (2026-09-14, killer560's own report: "It is now still not
+                // going the right speed. I set it to 11.2 and it got like 15s"): the budget only ever
+                // reserved real REVEAL overhead - never the real time Rotate Mode's own humanized camera
+                // turn takes between the schedule saying "click now" and the approach actually settling
+                // and firing. A real log confirmed "since previous click" gaps routinely 2-3x longer than
+                // what was scheduled for them, purely from real turn time never budgeted for - across a
+                // whole device's worth of clicks that adds up to exactly this kind of overage. Tracks a
+                // rolling estimate (simple EMA) of that real per-click overhead, comparing THIS click's
+                // real gap against what was actually scheduled for it last time, and folds it into the
+                // budget below - self-correcting within a single device's own run as real data comes in.
+                if (lastScheduledDelayMs > 0) {
+                    long observedOverheadMs = Math.max(0L, sincePreviousMs - lastScheduledDelayMs);
+                    autoApproachOverheadEmaMs = (autoApproachOverheadEmaMs * 3 + observedOverheadMs) / 4;
+                }
                 lastAutoClickAtMs = now;
                 lastAutoClickedPos = nextButton;
                 autoSolveClicksDoneThisAttempt++;
@@ -1354,8 +1390,10 @@ public final class SimonSaysFeature {
                 // Reserve only the overhead for transitions STILL AHEAD (never touching the deadline
                 // itself) - already-elapsed reveal time is already reflected in windowLeftMs shrinking
                 // naturally, so reserving it again here would double-count it (the exact bug in the first
-                // fix attempt).
-                long activeWindowLeftMs = Math.max(0L, windowLeftMs - estimatedRemainingRevealMs());
+                // fix attempt). Also reserves the real per-click approach overhead estimated above for
+                // every remaining click, same reasoning.
+                long activeWindowLeftMs = Math.max(0L, windowLeftMs - estimatedRemainingRevealMs()
+                        - autoApproachOverheadEmaMs * remainingAfter);
                 long baseDelayMs = activeWindowLeftMs / remainingAfter;
                 // Real bug found and fixed (2026-09-14, killer560's own request: "Be careful to not make
                 // every button press the exact same x/15 amount, instead they should vary. Close one
@@ -1383,15 +1421,16 @@ public final class SimonSaysFeature {
                     delayMs = (long) (baseDelayMs * weight);
                 }
                 autoSolveNextClickAtMs = now + Math.max(50, delayMs);
+                lastScheduledDelayMs = autoSolveNextClickAtMs - now;
                 // Always-on (not gated behind Diagnostic Logging) while killer560's "still very delayed"
                 // report is unresolved (2026-09-14) - this is the exact data needed to see whether the
                 // delay is really coming from this pacing math or from something else entirely (e.g. real
                 // per-round reveal wait time, which this can't control).
                 LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms "
-                                + "[base {}ms, distance-weighted{}]{}).",
+                                + "[base {}ms, distance-weighted{}, approachOverheadEma={}ms]{}).",
                         autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
                         autoSolveNextClickAtMs - now, baseDelayMs, peekIndex < clickInOrder.size() ? "" : "=n/a",
-                        cfg.isAutoSolveRotate() ? ", rotate mode" : "");
+                        autoApproachOverheadEmaMs, cfg.isAutoSolveRotate() ? ", rotate mode" : "");
             }
             return;
         }
