@@ -69,10 +69,37 @@ public final class AmbienceFeature {
     public static void register() {
         try {
             Files.createDirectories(FOLDER);
+            installBundledDefaults();
         } catch (IOException e) {
             LOGGER.error("Failed to create ambience folder", e);
         }
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+    }
+
+    /** Files shipped inside the jar at assets/killer560smod/ambience/ (named image.<ext> and sound.<ext>) are
+     *  copied into the config folder on launch, but only for a type (image or sound) the folder doesn't already
+     *  have - so every player gets the defaults, and anyone can still swap in their own files. */
+    private static void installBundledDefaults() {
+        copyBundledIfMissing("image", IMAGE_EXTENSIONS);
+        copyBundledIfMissing("sound", SOUND_EXTENSIONS);
+    }
+
+    private static void copyBundledIfMissing(String baseName, List<String> extensions) {
+        if (findFileByExtension(extensions) != null) {
+            return;
+        }
+        for (String ext : extensions) {
+            try (java.io.InputStream in = AmbienceFeature.class.getResourceAsStream("/assets/killer560smod/ambience/" + baseName + ext)) {
+                if (in == null) {
+                    continue;
+                }
+                Files.copy(in, FOLDER.resolve(baseName + ext));
+                LOGGER.info("Installed bundled ambience {}{}", baseName, ext);
+                return;
+            } catch (IOException e) {
+                LOGGER.warn("Couldn't install bundled ambience {}{}: {}", baseName, ext, e.toString());
+            }
+        }
     }
 
     public static Path folder() {
