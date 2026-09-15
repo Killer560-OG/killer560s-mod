@@ -326,6 +326,14 @@ public final class SimonSaysFeature {
     // Wall-clock time the frame-driven side actually fired rotateClickFiredFor - so Auto Solve's pacing
     // books the click at its REAL fire moment, not whenever the next tick happened to get around to it.
     private static long rotateClickFiredAtMs = 0L;
+    // Real bug found and fixed (2026-09-14, killer560's own real log + request: "please fix the auto spacing.
+    // I need 150 to be perfectly optimal"): Auto Start's "2t" really spaced clicks 198-200ms (4 ticks) apart -
+    // the tick-side countdown was off by one (N ticks set -> N+1 ticks waited), and in Rotate mode each click
+    // also had to wait for the NEXT tick to consume the previous fire before re-aiming, adding up to another
+    // tick. Spacing is now wall-clock exact: when a start-button click fires with more of the burst left, the
+    // frame-driven side keeps aiming at the start button and arms this "not before" time = that fire +
+    // Delay x 50ms, and fires on the first frame at or past it. 0 = no hold (every other click).
+    private static long rotateFireNotBeforeMs = 0L;
     // Real bug found and fixed (2026-09-14, killer560's own report: "it is drifting off of the button
     // again for the one it should be going back to"): between rounds Hypixel removes all 16 grid buttons
     // (the "Grid reset detected (16 air blocks)" log line), and that's exactly the window idle spends
@@ -754,6 +762,7 @@ public final class SimonSaysFeature {
         // (e.g. a failed attempt) used to keep aiming at - and eventually click - its now-stale button,
         // possibly mid-way through the next reveal. Nothing left in progress belongs to the new state.
         rotateInProgressTarget = null;
+        rotateFireNotBeforeMs = 0L;
         autoSolveStallTarget = null;
     }
 
@@ -1319,7 +1328,11 @@ public final class SimonSaysFeature {
         noteStartButtonClick(autoStartFiredAtMs, "Auto Start");
         autoStartClicksSent++;
         autoStartClickedThisPhase = true;
-        autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
+        // Rotate: the frame-driven side already holds the next click for exactly Delay x 50ms from this
+        // fire (see rotateFireNotBeforeMs) - no extra tick countdown on top. Aura fires from this tick loop,
+        // so wait exactly Delay ticks: the countdown below decrements-and-returns once per tick and fires on
+        // the tick after it reaches 0, so Delay - 1 here is Delay real ticks (was Delay + 1 before).
+        autoStartTicksUntilNextClick = cfg.isAutoSolveRotate() ? 0 : cfg.getAutoStartClickDelayTicks() - 1;
         // Always-on (not gated behind Diagnostic Logging) while killer560's "isn't working" report is
         // unresolved (2026-09-14) - includes the button's own POWERED state at send-time to directly
         // answer his own question ("is it still clicking the start button while it is already pressed
@@ -1761,6 +1774,7 @@ public final class SimonSaysFeature {
             return true;
         }
         if (!buttonPos.equals(rotateInProgressTarget)) {
+            rotateFireNotBeforeMs = 0L;
             if (buttonPos.equals(rotateLastFiredTarget)) {
                 // Real bug found and fixed (2026-09-14, "the tick delay was off... its still set to 2 but
                 // i can tell its not going off every 2 ticks"): beginRotateApproach rolls a FRESH humanized
@@ -2149,7 +2163,11 @@ public final class SimonSaysFeature {
         // enough to gone" (0.3 degrees, still imperceptible) instead of demanding a hard zero.
         boolean settledNearCenter = Math.abs(yawDelta) < 1.5f && Math.abs(pitchDelta) < 1.5f
                 && Math.abs(rotateOvershootYawRemaining) < 0.3f && Math.abs(rotateOvershootPitchRemaining) < 0.3f;
-        if (settledNearCenter && client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
+        // rotateClickFiredFor must be consumed first so two fires can never collapse into one booked click,
+        // and a held Auto Start click waits for its exact spacing time (see rotateFireNotBeforeMs).
+        boolean fireAllowed = rotateClickFiredFor == null && System.currentTimeMillis() >= rotateFireNotBeforeMs;
+        if (settledNearCenter && fireAllowed
+                && client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
             // Real aim confirmed - the actual click still always lands on the button's true center
             // (killer560's own standing rule), same real click-sender every other mode already uses.
             sendNoRotateInteract(client, buttonPos);
@@ -2168,6 +2186,17 @@ public final class SimonSaysFeature {
             rotateInProgressTarget = null;
             rotateApproachElapsedTicks = 0f;
             rotateApproachStallLogged = false;
+            rotateFireNotBeforeMs = 0L;
+            SimonSaysConfig spacingCfg = SimonSaysConfig.getInstance();
+            // autoStartClicksSent only counts CONSUMED clicks, and the fireAllowed guard above guarantees the
+            // previous one was consumed - so this fire is click autoStartClicksSent + 1 of the burst.
+            if (buttonPos.equals(START_BUTTON) && autoStartRunning
+                    && autoStartClicksSent + 1 < spacingCfg.getAutoStartClicks()) {
+                rotateInProgressTarget = START_BUTTON;
+                rotateFireNotBeforeMs = rotateClickFiredAtMs + spacingCfg.getAutoStartClickDelayTicks() * 50L;
+                diagApproachBeganAtMs = rotateClickFiredAtMs;
+                diagApproachReaim = true;
+            }
         } else if (!rotateApproachStallLogged && rotateApproachElapsedTicks > 30f) {
             // Diagnostic-only - see rotateApproachStallLogged's own field doc comment. 30 ticks (~1.5s) is
             // already well beyond how long a real settle should ever take at the current turn speed.
