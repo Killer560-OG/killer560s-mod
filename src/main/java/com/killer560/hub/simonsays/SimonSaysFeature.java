@@ -518,6 +518,16 @@ public final class SimonSaysFeature {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> tickRotateFrame());
     }
 
+    /** High-frequency Simon Says diagnostics (per click / per frame state / once-a-second idle) - only written
+     *  with Diagnostic Logging on (2026-09-14, killer560: "remove the verbose sensor logging from stuff that
+     *  doesn't need it" - Simon Says is confirmed working). Per-device summaries, click lines and warnings stay
+     *  always-on. */
+    private static void verboseLog(String format, Object... args) {
+        if (SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled()) {
+            LOGGER.info(format, args);
+        }
+    }
+
     private static boolean isDeviceInRange(Minecraft client) {
         return DungeonState.isF7OrM7() && client.player != null
                 && client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)) <= ACTIVE_RANGE_SQ;
@@ -558,9 +568,9 @@ public final class SimonSaysFeature {
         }
         long now = System.currentTimeMillis();
         if (lastStartButtonPressAtMs > 0) {
-            LOGGER.info("[SimonSays] Real start-button click attempt - {}ms since previous.", now - lastStartButtonPressAtMs);
+            verboseLog("[SimonSays] Real start-button click attempt - {}ms since previous.", now - lastStartButtonPressAtMs);
         } else {
-            LOGGER.info("[SimonSays] Real start-button click attempt (first this attempt).");
+            verboseLog("[SimonSays] Real start-button click attempt (first this attempt).");
         }
         lastStartButtonPressAtMs = now;
         noteStartButtonClick(now, "real click");
@@ -1058,7 +1068,7 @@ public final class SimonSaysFeature {
     private static void updateRememberedFirstButton(BlockPos lanternPos) {
         BlockPos button = lanternPos.west();
         if (!button.equals(rememberedFirstButton)) {
-            LOGGER.info("[SimonSays][RotateFrame] rememberedFirstButton updated: {} -> {}", rememberedFirstButton, button);
+            verboseLog("[SimonSays][RotateFrame] rememberedFirstButton updated: {} -> {}", rememberedFirstButton, button);
             rememberedFirstButton = button;
         }
         idleSuppressedAfterCompletion = false;
@@ -1082,7 +1092,7 @@ public final class SimonSaysFeature {
             diagConfirmCount++;
             diagConfirmLatencySumMs += latencyMs;
             diagConfirmLatencyMaxMs = Math.max(diagConfirmLatencyMaxMs, latencyMs);
-            LOGGER.info("[SimonSays] Click on {} server-confirmed {}ms after fire ({} fire(s), {}ms since first fire).",
+            verboseLog("[SimonSays] Click on {} server-confirmed {}ms after fire ({} fire(s), {}ms since first fire).",
                     buttonPos, latencyMs, diagPendingConfirmFires, confirmedAtMs - diagPendingConfirmFirstFiredAtMs);
             diagPendingConfirmButton = null;
         }
@@ -1143,16 +1153,26 @@ public final class SimonSaysFeature {
                 if (!com.killer560.hub.splittimers.TerminalTimersConfig.getInstance().isSimonSaysTime()) {
                     // Bundled into Terminal Timers (2026-09-14, killer560's own request) - the log line above still records it.
                 } else if (fromStartMs >= 0) {
-                    client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
-                            "§6[Simon Says] §fWhole device solved in §e%.2fs §7from start click (§e%.2fs§7 from first grid click, §e%.2fs§7 reveal delay)",
-                            fromStartMs / 1000.0, deviceTookMs / 1000.0, autoSolveBlockedMsThisAttempt / 1000.0)));
+                    // Orange theme (2026-09-14, killer560: "all client side stuff should be that orange theme").
+                    com.killer560.hub.util.ModChat.send("Simon Says",
+                            com.killer560.hub.util.ModChat.text("Whole device solved in "),
+                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", fromStartMs / 1000.0)),
+                            com.killer560.hub.util.ModChat.dim(" from start click ("),
+                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)),
+                            com.killer560.hub.util.ModChat.dim(" from first grid click, "),
+                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", autoSolveBlockedMsThisAttempt / 1000.0)),
+                            com.killer560.hub.util.ModChat.dim(" reveal delay)"));
                 } else if (autoSolveBlockedMsThisAttempt > 0) {
-                    client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
-                            "§6[Simon Says] §fWhole device solved in §e%.2fs §7(§e%.2fs§7 reveal delay)",
-                            deviceTookMs / 1000.0, autoSolveBlockedMsThisAttempt / 1000.0)));
+                    com.killer560.hub.util.ModChat.send("Simon Says",
+                            com.killer560.hub.util.ModChat.text("Whole device solved in "),
+                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)),
+                            com.killer560.hub.util.ModChat.dim(" ("),
+                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", autoSolveBlockedMsThisAttempt / 1000.0)),
+                            com.killer560.hub.util.ModChat.dim(" reveal delay)"));
                 } else {
-                    client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
-                            "§6[Simon Says] §fWhole device solved in §e%.2fs", deviceTookMs / 1000.0)));
+                    com.killer560.hub.util.ModChat.send("Simon Says",
+                            com.killer560.hub.util.ModChat.text("Whole device solved in "),
+                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)));
                 }
                 // Real bug found and fixed (2026-09-14, real boot-test log evidence: idleSuppressedAfter-
                 // Completion flipped true right after round 1's own "Round completed in 900 ms." - at that
@@ -1296,7 +1316,7 @@ public final class SimonSaysFeature {
             double distSqToStart = client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON));
             boolean tooFar = distSqToStart > REAL_INTERACT_RANGE_SQ;
             if (tooFar != lastAutoStartTooFarLogged) {
-                LOGGER.info("[SimonSays][AutoStart] Interact-range gate {} (distSq={}, need<={}).",
+                verboseLog("[SimonSays][AutoStart] Interact-range gate {} (distSq={}, need<={}).",
                         tooFar ? "BLOCKING (too far)" : "PASSED (close enough)", String.format(Locale.US, "%.1f", distSqToStart),
                         REAL_INTERACT_RANGE_SQ);
                 lastAutoStartTooFarLogged = tooFar;
@@ -1383,7 +1403,7 @@ public final class SimonSaysFeature {
      *  {@code tickRotateFrame}'s own [RotateFrame] logger. See {@link #lastLoggedAutoSolveState}. */
     private static void logAutoSolveState(String state) {
         if (!state.equals(lastLoggedAutoSolveState)) {
-            LOGGER.info("[SimonSays][AutoSolve] {}", state);
+            verboseLog("[SimonSays][AutoSolve] {}", state);
             lastLoggedAutoSolveState = state;
         }
     }
@@ -1519,7 +1539,7 @@ public final class SimonSaysFeature {
                 cfg.isTriggerBotEnabled(), autoSolveArmed));
         if (now - diagLastDispatchTimingLogAtMs >= 1000L) {
             diagLastDispatchTimingLogAtMs = now;
-            LOGGER.info("[SimonSays][AutoSolve] DISPATCH timing target={} now-autoSolveNextClickAtMs={}ms "
+            verboseLog("[SimonSays][AutoSolve] DISPATCH timing target={} now-autoSolveNextClickAtMs={}ms "
                             + "now-lastAutoClickAtMs={}ms deadline in {}ms",
                     nextButton, now - autoSolveNextClickAtMs, now - lastAutoClickAtMs,
                     autoSolveArmed ? autoSolveDeadlineMs - now : -1);
@@ -1814,7 +1834,7 @@ public final class SimonSaysFeature {
      *  flick rather than an identical robotic ease every time - see this class's own "Rotate Mode"
      *  field-group doc comment for the full real reasoning behind each piece. */
     private static void beginRotateApproach(BlockPos buttonPos, BlockPos nextHint) {
-        LOGGER.info("[SimonSays][RotateFrame] Beginning approach to {} (was {}).", buttonPos, rotateInProgressTarget);
+        verboseLog("[SimonSays][RotateFrame] Beginning approach to {} (was {}).", buttonPos, rotateInProgressTarget);
         rotateInProgressTarget = buttonPos;
         rotateApproachElapsedTicks = 0f;
         rotateApproachStallLogged = false;
@@ -1974,7 +1994,7 @@ public final class SimonSaysFeature {
             }
         }
         if (!state.equals(lastLoggedRotateFrameState)) {
-            LOGGER.info("[SimonSays][RotateFrame] {}", state);
+            verboseLog("[SimonSays][RotateFrame] {}", state);
             lastLoggedRotateFrameState = state;
         }
     }
@@ -2003,7 +2023,7 @@ public final class SimonSaysFeature {
         float[] half = realButtonAngularHalfExtents(client, target, eyePos);
         boolean withinFace = Math.abs(dYaw) <= half[0] && Math.abs(dPitch) <= half[1];
         boolean raycastOnTarget = client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(target);
-        LOGGER.info("[SimonSays][Idle] target={} air={} box={} aim=({}) dYaw={} dPitch={} halfExtent=({}) "
+        verboseLog("[SimonSays][Idle] target={} air={} box={} aim=({}) dYaw={} dPitch={} halfExtent=({}) "
                         + "withinFace={} raycastOnTarget={} realHit={} swayActive={}",
                 target, state.isAir(), boxSource,
                 String.format(Locale.US, "%.3f, %.3f, %.3f", aim.x, aim.y, aim.z),
@@ -2177,7 +2197,7 @@ public final class SimonSaysFeature {
             rotateClickFiredAtMs = System.currentTimeMillis();
             // Diagnostic-only (2026-09-14) - once per real fire, covers both Auto Solve grid clicks and
             // Auto Start's look-only start-button clicks.
-            LOGGER.info("[SimonSays][RotateFrame] Approach fired on {} {}ms after {} (elapsedTicks={}, "
+            verboseLog("[SimonSays][RotateFrame] Approach fired on {} {}ms after {} (elapsedTicks={}, "
                             + "overshootRolled={} curveRolled={} feintRolled={}, final yawDelta={} pitchDelta={}).",
                     buttonPos, diagApproachBeganAtMs > 0 ? rotateClickFiredAtMs - diagApproachBeganAtMs : -1,
                     diagApproachReaim ? "re-aim begin (same target, no roll)" : "approach begin",
@@ -2510,14 +2530,21 @@ public final class SimonSaysFeature {
             }
 
             if (cfg.isNumberOverlay()) {
-                renderNumber(context, box.getCenter().x, box.getCenter().y, box.getCenter().z,
-                        index - clickNeeded + 1, cfg.getNumberScale());
+                // Real bug found and fixed (2026-09-14, killer560's own report: "If i click 1 and 2 is still up
+                // dont change 2 to 1 keep it as 2"): the label was the position relative to the NEXT click
+                // (index - clickNeeded + 1), so every click renumbered everything left. It's now the button's
+                // own fixed place in the round's sequence. Drawn flat on the button's west face (x=110.875, the
+                // side the player clicks), centered on the button (y+0.5, z+0.5) - see renderNumber.
+                renderNumber(context, lanternPos.getX() - 0.135, y + 0.5, z + 0.5, index + 1, cfg.getNumberScale());
             }
         }
     }
 
-    /** Billboard text - the same "translate to the world position, rotate to face the camera, draw
-     *  through the font" technique vanilla itself uses for entity name tags. */
+    /** Text lying flat on the button face, facing straight out of the wall toward the player side (-X) - NOT a
+     *  billboard (2026-09-14, killer560's own request: "make them always in the center of the button facing
+     *  straight out not kind of face me like they do now"). Uses exactly the orientation vanilla's camera would
+     *  have looking due east (+X) with zero pitch - Camera.setRotation builds rotationYXZ(PI - yaw, -pitch, 0),
+     *  and east is yaw -90 - so the same (+s, -s, +s) text transform as the nametag path below stays correct. */
     private static void renderNumber(LevelRenderContext context, double worldX, double worldY, double worldZ,
                                       int number, float scaleMultiplier) {
         var bufferSource = context.bufferSource();
@@ -2534,7 +2561,7 @@ public final class SimonSaysFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(mainCamera.rotation());
+        poseStack.mulPose(new org.joml.Quaternionf().rotationYXZ((float) (Math.PI + Math.PI / 2.0), 0f, 0f));
         // Real bug found and fixed (2026-09-14, killer560's own report: "the numbers that go on the
         // buttons still do not show up. They never have."): this scaled by (-s, -s, s) - the OLD
         // (pre-1.21.2) nametag transform. In 26.1.2 the camera quaternion is already the flipped
