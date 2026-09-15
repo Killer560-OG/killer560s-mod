@@ -2577,7 +2577,8 @@ public final class SimonSaysFeature {
         poseStack.scale(scale, -scale, scale);
 
         float width = font.width(text);
-        int background = (int) (0.4f * 255f) << 24;
+        // Fully transparent (2026-09-14, killer560: "remove the grey outline around the numbers").
+        int background = 0;
         // Real bug found and fixed (2026-09-14): this used Font.DisplayMode.NORMAL (depth-tested), but
         // the highlight box itself sits right at the button/lantern face boundary (see the AABB above) -
         // almost exactly where the button's own rendered geometry is, so the number was very likely

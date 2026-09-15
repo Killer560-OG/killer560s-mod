@@ -76,6 +76,9 @@ public final class I4SensorsConfig {
     private boolean autoSwapToBow = false;
     private boolean autoMask = false;
     private int maskOrderIndex = 0;
+    // killer560 (2026-09-14): "add a shot accuracy percentage. This is the chance that it aims a little too low or
+    // high missing the shot." 100 = every shot aimed exactly.
+    private int shotAccuracyPercent = 100;
 
     private I4SensorsConfig() {
     }
@@ -112,6 +115,7 @@ public final class I4SensorsConfig {
             cfg.autoSwapToBow = obj.has("autoSwapToBow") && obj.get("autoSwapToBow").getAsBoolean();
             cfg.autoMask = obj.has("autoMask") && obj.get("autoMask").getAsBoolean();
             cfg.setMaskOrderIndex(obj.has("maskOrderIndex") ? obj.get("maskOrderIndex").getAsInt() : 0);
+            cfg.setShotAccuracyPercent(obj.has("shotAccuracyPercent") ? obj.get("shotAccuracyPercent").getAsInt() : 100);
             instance = cfg;
         } catch (Exception e) {
             instance = new I4SensorsConfig();
@@ -132,12 +136,21 @@ public final class I4SensorsConfig {
             obj.addProperty("autoSwapToBow", autoSwapToBow);
             obj.addProperty("autoMask", autoMask);
             obj.addProperty("maskOrderIndex", maskOrderIndex);
+            obj.addProperty("shotAccuracyPercent", shotAccuracyPercent);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
     /** Visual only - available on both builds. */
+    public int getShotAccuracyPercent() {
+        return shotAccuracyPercent;
+    }
+
+    public void setShotAccuracyPercent(int percent) {
+        this.shotAccuracyPercent = Math.max(0, Math.min(100, percent));
+    }
+
     public boolean isSolverEnabled() {
         return solverEnabled;
     }

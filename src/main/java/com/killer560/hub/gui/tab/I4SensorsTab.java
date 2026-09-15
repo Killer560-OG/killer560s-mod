@@ -107,6 +107,21 @@ public class I4SensorsTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
 
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
+                    Component.literal(accuracyLabel(cfg)), cfg.getShotAccuracyPercent() / 100.0) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal(accuracyLabel(cfg)));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setShotAccuracyPercent((int) Math.round(this.value * 100));
+                    cfg.save();
+                }
+            });
+            y += 22;
+
             widgets.add(SettingsButtonWidget.builder(onOff("Auto Mask", cfg.isAutoMask()), btn -> {
                         cfg.setAutoMask(!cfg.isAutoMask());
                         cfg.save();
@@ -131,6 +146,10 @@ public class I4SensorsTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
+    }
+
+    private static String accuracyLabel(I4SensorsConfig cfg) {
+        return "Shot Accuracy: " + cfg.getShotAccuracyPercent() + "%";
     }
 
     private static String rotationLabel(I4SensorsConfig cfg) {

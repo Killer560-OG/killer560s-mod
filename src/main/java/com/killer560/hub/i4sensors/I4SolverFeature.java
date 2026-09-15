@@ -39,7 +39,8 @@ public final class I4SolverFeature {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoi4");
     private static final String TAG = "[AutoI4]";
-    private static final double DOT_HALF = 0.09;
+    // Bigger (2026-09-14, killer560: "make them a bit bigger").
+    private static final double DOT_HALF = 0.16;
 
     private static final Set<BlockPos> hits = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
@@ -124,7 +125,10 @@ public final class I4SolverFeature {
             boolean col2 = !hits.contains(dev.get(row * 3 + 2));
             boolean left = col0 || (col1 && !col2);   // x 67.5 covers x68 + x66
             boolean right = col2 || (col1 && !left);  // x 65.5 covers x66 + x64
-            double y = 131 - 2.0 * row;
+            // Centered on the row's blocks (2026-09-14, killer560: "in the middle of the blocks, right now they are
+            // at the very top of them") - Auto i4's own aim height (131 - 2*row) includes arrow-drop compensation;
+            // a manual player just needs to see which gap to aim at, so the marker sits at the block's center.
+            double y = 130.5 - 2.0 * row;
             if (left) {
                 dot(context, 67.5, y);
             }

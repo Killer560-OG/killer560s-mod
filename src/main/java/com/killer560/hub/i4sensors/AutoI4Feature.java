@@ -579,6 +579,18 @@ public final class AutoI4Feature {
             return;
         }
         Vec3 aim = aimPointFor(target);
+        // Shot Accuracy (2026-09-14, killer560's own request): with probability (100 - accuracy)%, aim a little
+        // too high or too low so the arrow misses. Rows are 2 blocks apart, so ~1 block up/down lands the arrow in
+        // the empty gap between rows instead of on a neighbouring target. A missed target stays lit and gets
+        // picked up again by the normal re-shoot logic.
+        String missNote = "";
+        int accuracy = cfg.getShotAccuracyPercent();
+        if (accuracy < 100 && Math.random() * 100.0 >= accuracy) {
+            double offset = (0.9 + Math.random() * 0.2) * (Math.random() < 0.5 ? -1.0 : 1.0);
+            aim = aim.add(0.0, offset, 0.0);
+            missNote = String.format(java.util.Locale.US, " MISS ROLL (accuracy %d%%): aim %s by %.2f", accuracy,
+                    offset > 0 ? "high" : "low", Math.abs(offset));
+        }
         Vec3 eye = player.getEyePosition();
         Vec3 diff = aim.subtract(eye);
         double horizontal = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
@@ -593,10 +605,10 @@ public final class AutoI4Feature {
                 && Math.abs(targetPitch - currentPitch) <= ALREADY_AIMED_TOLERANCE_DEG;
         long duration = cfg.isAutoI4Rotate() && !alreadyAimed ? cfg.getAutoI4RotationTimeMs() : 0L;
         currentShot = new Shot(target, prediction, aim, currentYaw, currentPitch, targetYaw, targetPitch, duration);
-        LOGGER.info("{} {} Aiming at #{}{} aimPoint={} eye={} yaw {} -> {} pitch {} -> {} ({}, {}, {}ms).", TAG,
+        LOGGER.info("{} {} Aiming at #{}{} aimPoint={} eye={} yaw {} -> {} pitch {} -> {} ({}, {}, {}ms){}.", TAG,
                 I4SensorsFeature.clock(), indexOf(target), prediction ? " (PREDICTION)" : "", I4SensorsFeature.fmt(aim),
                 I4SensorsFeature.fmt(eye), fmt2(currentYaw), fmt2(targetYaw), fmt2(currentPitch), fmt2(targetPitch),
-                cfg.getAutoI4Weapon().label, cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate", duration);
+                cfg.getAutoI4Weapon().label, cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate", duration, missNote);
     }
 
     /** Rotate mode - runs every render frame so the turn is as smooth as real mouse look. */
