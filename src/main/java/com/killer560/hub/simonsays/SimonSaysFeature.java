@@ -185,13 +185,63 @@ public final class SimonSaysFeature {
      *  round - e.g. round 1 (nothing completed yet) has all 4 ahead (~8.1s); round 4 (working on the
      *  4th round) has only the round4->5 transition ahead (~2.6s); round 5 has none left (0). */
     private static long estimatedRemainingRevealMs() {
-        long total = 0L;
-        for (int i = currentRoundNumber - 1; i < TRANSITION_OVERHEAD_MS.length; i++) {
+        double[] estimates = transitionEstimates();
+        double total = 0.0;
+        for (int i = currentRoundNumber - 1; i < estimates.length; i++) {
             if (i >= 0) {
-                total += TRANSITION_OVERHEAD_MS[i];
+                total += estimates[i] * attemptRevealScale;
             }
         }
-        return total;
+        return (long) total;
+    }
+
+    // Real bug found and fixed (2026-09-14, killer560's own report: "it still really likes saving up time towards the
+    // end of the click cycle and waiting on the last click which normally makes it end up being late"): the reveal
+    // reserve was a fixed table, but real round transitions differ by server - p3sim measured 1748/2151/2550ms,
+    // Hypixel 2148/2398/2798ms. On sim every transition came in 150-250ms UNDER the reserve, so that time sat unused
+    // until round 5 (no reveals left to reserve for) and all of it landed there: round 5 clicks slowed to 300-500ms
+    // with the longest wait right before the last click. On a laggier server the opposite happens and the device
+    // runs late. The reserve now adapts: per-server learned estimates (starting from the table, averaged toward every
+    // real transition seen) and, within one device, remaining reveals scaled by how the transitions already seen
+    // compared to their estimates.
+    private static final Map<String, double[]> learnedTransitionMs = new HashMap<>();
+    private static double attemptRevealScale = 1.0;
+    private static double attemptObservedTransitionMs = 0.0;
+    private static double attemptExpectedTransitionMs = 0.0;
+
+    private static double[] transitionEstimates() {
+        Minecraft client = Minecraft.getInstance();
+        String server = client.getCurrentServer() != null ? client.getCurrentServer().ip.toLowerCase(Locale.ROOT) : "local";
+        return learnedTransitionMs.computeIfAbsent(server, key -> {
+            double[] initial = new double[TRANSITION_OVERHEAD_MS.length];
+            for (int i = 0; i < initial.length; i++) {
+                initial[i] = TRANSITION_OVERHEAD_MS[i];
+            }
+            return initial;
+        });
+    }
+
+    /** A real round transition into round {@code nowOnRound} took {@code observedMs}. */
+    private static void learnTransition(int nowOnRound, long observedMs) {
+        int index = nowOnRound - 2; // index 0 = round 1 -> 2
+        double[] estimates = transitionEstimates();
+        if (index < 0 || index >= estimates.length || observedMs <= 0 || observedMs > 10_000L) {
+            return;
+        }
+        double expected = estimates[index];
+        attemptObservedTransitionMs += observedMs;
+        attemptExpectedTransitionMs += expected;
+        attemptRevealScale = Mth.clamp(attemptObservedTransitionMs / attemptExpectedTransitionMs, 0.6, 1.4);
+        estimates[index] = expected * 0.5 + observedMs * 0.5;
+        LOGGER.info("[SimonSays] Reveal estimate for round {} transition: expected {}ms, real {}ms -> learned {}ms; "
+                        + "remaining reveals this device scaled x{}.", nowOnRound, (long) expected, observedMs,
+                (long) estimates[index], String.format(Locale.US, "%.2f", attemptRevealScale));
+    }
+
+    private static void resetRevealScale() {
+        attemptRevealScale = 1.0;
+        attemptObservedTransitionMs = 0.0;
+        attemptExpectedTransitionMs = 0.0;
     }
 
     /** Real total clicks from {@code startRound} through round 5 inclusive (round N always has exactly N
@@ -703,6 +753,7 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetDeviceDiagnostics();
+            resetRevealScale();
             startClickAnchorMs = 0L;
             rotateInProgressTarget = null;
             rotateLastFiredTarget = null;
@@ -836,6 +887,7 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetDeviceDiagnostics();
+            resetRevealScale();
             rotateInProgressTarget = null;
             rotateLastFiredTarget = null;
             // Real bug found and fixed (2026-09-14, "make sure that the solver works if it resets even
@@ -1065,6 +1117,7 @@ public final class SimonSaysFeature {
                 expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
                 deviceStartedAtMs = 0L;
                 resetDeviceDiagnostics();
+                resetRevealScale();
             }
         }
         wasGridReset = gridReset;
@@ -1229,6 +1282,7 @@ public final class SimonSaysFeature {
                 deviceStartedAtMs = 0L;
                 totalClicksThisAttempt = 0;
                 resetDeviceDiagnostics();
+                resetRevealScale();
                 startClickAnchorMs = 0L;
                 autoStartClickedThisPhase = false;
                 realStartButtonPressCountThisPhase = 0;
@@ -1277,7 +1331,7 @@ public final class SimonSaysFeature {
                         + "reserved estimate {}ms) | clicks booked {}/{} confirmed {} | re-clicks {} ignored {} | "
                         + "confirm latency avg {}ms max {}ms | approachOverheadEma={}ms | revealBlocked={}ms",
                 pacing, deviceTookMs, diagTransitionMs, transitionSumMs,
-                java.util.Arrays.toString(TRANSITION_OVERHEAD_MS), autoSolveClicksDoneThisAttempt,
+                java.util.Arrays.toString(transitionEstimates()), autoSolveClicksDoneThisAttempt,
                 expectedTotalClicksThisAttempt, totalClicksThisAttempt, diagReClicks, diagIgnoredClicks,
                 diagConfirmCount > 0 ? diagConfirmLatencySumMs / diagConfirmCount : -1, diagConfirmLatencyMaxMs,
                 autoApproachOverheadEmaMs, autoSolveBlockedMsThisAttempt);
@@ -1453,6 +1507,7 @@ public final class SimonSaysFeature {
             long transitionMs = now - lastRoundCompletedAtMs;
             LOGGER.info("[SimonSays] Round transition took {} ms (now on round {}).", transitionMs, clickInOrder.size());
             diagTransitionMs.add(transitionMs);
+            learnTransition(clickInOrder.size(), transitionMs);
             lastRoundCompletedAtMs = 0L;
         }
         wasBlockedByReveal = noStepsPending || blockedByReveal;
@@ -1782,8 +1837,18 @@ public final class SimonSaysFeature {
                 weightSum += weight;
                 knownHops++;
             }
-            weightSum += Math.max(0, remainingAfter - knownHops);
-            delayMs = (long) (activeWindowLeftMs * (nextWeight / weightSum));
+            // Real bug found and fixed (2026-09-14, same report): the FIRST click of every not-yet-revealed round can't
+            // fire before that round's reveal ends, so any share scheduled for it was swallowed by the reveal (already
+            // reserved separately) and rolled forward - one share per round boundary, all piling onto round 5. Those
+            // round-opening clicks now get weight 0: they fire as soon as their round becomes clickable, and their
+            // share goes to clicks that can actually use it.
+            int futureRoundOpeners = Math.max(0, 5 - currentRoundNumber);
+            int unknownClicks = Math.max(0, remainingAfter - knownHops);
+            weightSum += Math.max(0, unknownClicks - futureRoundOpeners);
+            if (knownHops == 0 && futureRoundOpeners > 0) {
+                nextWeight = 0.0; // the next click opens the next round
+            }
+            delayMs = weightSum > 0 ? (long) (activeWindowLeftMs * (nextWeight / weightSum)) : 0L;
             weightNote = String.format(Locale.US, " share %.2f/%.2f", nextWeight, weightSum);
         }
         autoSolveNextClickAtMs = clickedAtMs + Math.max(50, delayMs);
