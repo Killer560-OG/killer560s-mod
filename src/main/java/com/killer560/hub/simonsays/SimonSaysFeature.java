@@ -290,6 +290,18 @@ public final class SimonSaysFeature {
     private static float rotateCurveSign = 1f;
     private static float rotateApproachElapsedTicks = 0f;
     private static long rotateLastFrameAtNanos = 0L;
+    // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but have it
+    // miss a button, go towards the next one, then go back after missing" - after several rounds of
+    // chasing exactly why settling before a click felt like sitting and waiting): rather than continuing
+    // to tune settle thresholds, gives Rotate Mode a real humanized "feint" - reaches partway toward
+    // wherever the real NEXT button is before correcting back to properly click the CURRENT one, like a
+    // person whose eyes/aim jump ahead before finishing what's in front of them. Rolled once per approach
+    // in beginRotateApproach (as a yaw/pitch OFFSET - the real angular difference between "look at the
+    // current target" and "look at the next one", scaled down to a believable partial reach, not the next
+    // button's literal position), applied and decayed every frame in applyRotateApproachFrame exactly like
+    // overshoot already is.
+    private static float rotateFeintYawOffset = 0f;
+    private static float rotateFeintPitchOffset = 0f;
     // Diagnostic-only (2026-09-14, killer560's own report: "it is still waiting while looking at the
     // button for too long" - Round 138's overshoot fix and this round's curve-decay speedup were both
     // reasoned guesses at what was blocking settledNearCenter, not confirmed by a log). Logs the exact
@@ -1138,7 +1150,7 @@ public final class SimonSaysFeature {
         // on - the camera actually turns toward the real start button over several ticks instead of
         // either clicking instantly (aura) or waiting on the PLAYER's own real aim (Look Only).
         if (cfg.isAutoSolveRotate()) {
-            if (!tickRotateClick(client, START_BUTTON)) {
+            if (!tickRotateClick(client, START_BUTTON, null)) {
                 return;
             }
         } else if (cfg.isAutoStartLookOnlyMode()) {
@@ -1248,6 +1260,18 @@ public final class SimonSaysFeature {
         }
         BlockPos nextLantern = clickInOrder.get(clickNeeded);
         BlockPos nextButton = nextLantern.west();
+        // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but
+        // have it miss a button, go towards the next one, then go back after missing" - after several
+        // rounds of chasing exactly why settling before a click felt like sitting and waiting): rather
+        // than continuing to tune settle thresholds, gives Rotate Mode a real humanized "feint" - reaches
+        // partway toward wherever the NEXT real button actually is before correcting back to click the
+        // CURRENT one, like a person whose eyes/aim jump ahead before finishing the click in front of
+        // them. Peeking clickNeeded+1 is the same safe lookahead the distance-weighting fix already uses -
+        // null once no more real positions are known this round (the upcoming click belongs to a
+        // not-yet-revealed future round), in which case no feint is possible.
+        int rotateFeintPeekIndex = clickNeeded + 1;
+        BlockPos rotateNextHint = rotateFeintPeekIndex < clickInOrder.size()
+                ? clickInOrder.get(rotateFeintPeekIndex).west() : null;
 
         // Real bug found and fixed (2026-09-14): killer560 confirmed a real "SS skip" starts the attempt
         // AFTER round 1 ("it starts on 2/5 and never 1/5"), but currentRoundNumber always started at 1 and
@@ -1314,7 +1338,7 @@ public final class SimonSaysFeature {
                 if (now - lastAutoClickAtMs >= minDelayFixed) {
                     long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
                     boolean clicked = cfg.isAutoSolveRotate()
-                            ? tickRotateClick(client, nextButton)
+                            ? tickRotateClick(client, nextButton, rotateNextHint)
                             : fireInstantClick(client, nextButton);
                     if (clicked) {
                         lastAutoClickAtMs = now;
@@ -1355,7 +1379,7 @@ public final class SimonSaysFeature {
                 // true, so a multi-tick approach never double-counts or reschedules early.
                 long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
                 boolean clicked = cfg.isAutoSolveRotate()
-                        ? tickRotateClick(client, nextButton)
+                        ? tickRotateClick(client, nextButton, rotateNextHint)
                         : fireInstantClick(client, nextButton);
                 if (!clicked) {
                     // Diagnostic-only stall detector - see autoSolveStallTarget's own field doc comment.
@@ -1476,7 +1500,7 @@ public final class SimonSaysFeature {
      *  {@link #rotateClickFiredFor}, which the frame-driven side sets the instant it actually fires a
      *  real click - returning true exactly once, consuming the flag, so the caller's own click-
      *  bookkeeping/pacing still only ever runs once per real click. */
-    private static boolean tickRotateClick(Minecraft client, BlockPos buttonPos) {
+    private static boolean tickRotateClick(Minecraft client, BlockPos buttonPos, BlockPos nextHint) {
         if (client.player == null) {
             return false;
         }
@@ -1515,7 +1539,7 @@ public final class SimonSaysFeature {
                 // instead - the delta is already ~0, so the very next frame settles and fires immediately.
                 rotateInProgressTarget = buttonPos;
             } else {
-                beginRotateApproach(buttonPos);
+                beginRotateApproach(buttonPos, nextHint);
             }
         }
         return false;
@@ -1524,7 +1548,7 @@ public final class SimonSaysFeature {
     /** Rolls a fresh approach's humanization so every turn looks like a slightly different real human
      *  flick rather than an identical robotic ease every time - see this class's own "Rotate Mode"
      *  field-group doc comment for the full real reasoning behind each piece. */
-    private static void beginRotateApproach(BlockPos buttonPos) {
+    private static void beginRotateApproach(BlockPos buttonPos, BlockPos nextHint) {
         LOGGER.info("[SimonSays][RotateFrame] Beginning approach to {} (was {}).", buttonPos, rotateInProgressTarget);
         rotateInProgressTarget = buttonPos;
         rotateApproachElapsedTicks = 0f;
@@ -1552,6 +1576,20 @@ public final class SimonSaysFeature {
         }
         rotateCurveOnThisApproach = Math.random() < 0.2;
         rotateCurveSign = Math.random() < 0.5 ? 1f : -1f;
+        // See rotateFeintYawOffset's own field doc comment for the full real reasoning. 30% chance,
+        // and only when a real next button is actually known this round.
+        rotateFeintYawOffset = 0f;
+        rotateFeintPitchOffset = 0f;
+        if (nextHint != null && Math.random() < 0.3) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                Vec3 eyePos = mc.player.getEyePosition();
+                float[] toTarget = yawPitchTo(eyePos, realBlockCenter(mc, buttonPos));
+                float[] toNext = yawPitchTo(eyePos, realBlockCenter(mc, nextHint));
+                rotateFeintYawOffset = Mth.wrapDegrees(toNext[0] - toTarget[0]) * 0.5f;
+                rotateFeintPitchOffset = Mth.wrapDegrees(toNext[1] - toTarget[1]) * 0.5f;
+            }
+        }
         // Deliberately does NOT touch idleSuppressedAfterCompletion - see that field's own doc comment
         // for why this used to unconditionally disable idle here, and why that was the real cause of
         // idle never getting a visible chance to run at all.
@@ -1714,6 +1752,25 @@ public final class SimonSaysFeature {
             rotateOvershootPitchRemaining = 0f;
         }
 
+        // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but
+        // have it miss a button, go towards the next one, then go back after missing"): applies and
+        // decays the feint rolled in beginRotateApproach exactly like overshoot above - pulls rawTarget
+        // toward roughly where the next button is for a brief real moment, then fades out, letting the
+        // approach correct back and settle on the true current target normally. Decays a little slower
+        // than overshoot (0.45 vs 0.35) so the "reach toward next" reads as a real, visible gesture rather
+        // than a near-instant flicker.
+        rawTargetYaw += rotateFeintYawOffset;
+        rawTargetPitch += rotateFeintPitchOffset;
+        double feintDecay = Math.pow(0.45, dtTicks);
+        rotateFeintYawOffset *= (float) feintDecay;
+        rotateFeintPitchOffset *= (float) feintDecay;
+        if (Math.abs(rotateFeintYawOffset) < 0.3f) {
+            rotateFeintYawOffset = 0f;
+        }
+        if (Math.abs(rotateFeintPitchOffset) < 0.3f) {
+            rotateFeintPitchOffset = 0f;
+        }
+
         float yawDelta = Mth.wrapDegrees(rawTargetYaw - currentYaw);
         float pitchDelta = Mth.wrapDegrees(rawTargetPitch - currentPitch);
         // Diagnostic-only (2026-09-14, killer560's own report: "it undergoes this crazy rotation then
@@ -1724,7 +1781,11 @@ public final class SimonSaysFeature {
         // normal and means the effective target moved out from under this approach somehow - logs every
         // real piece of state that could explain it, so a repeat of this report has hard evidence instead
         // of another guess.
-        if (rotateApproachElapsedTicks > 2f && (Math.abs(yawDelta) > 20f || Math.abs(pitchDelta) > 20f)) {
+        if (rotateApproachElapsedTicks > 2f && (Math.abs(yawDelta) > 20f || Math.abs(pitchDelta) > 20f)
+                && rotateFeintYawOffset == 0f && rotateFeintPitchOffset == 0f) {
+            // Excludes an active feint (see rotateFeintYawOffset's own doc comment) - that deliberately
+            // creates a large mid-approach delta on purpose, which would otherwise look identical to the
+            // real anomaly this diagnostic exists to catch.
             LOGGER.warn("[SimonSays][RotateFrame] Large mid-approach jump - target={} elapsedTicks={} "
                             + "rawTargetYaw={} rawTargetPitch={} currentYaw={} currentPitch={} yawDelta={} "
                             + "pitchDelta={} overshootYaw={} overshootPitch={} curveOn={} dtTicks={} "
@@ -1769,9 +1830,10 @@ public final class SimonSaysFeature {
             boolean raycastOnTarget = client.hitResult instanceof BlockHitResult hit2 && hit2.getBlockPos().equals(buttonPos);
             LOGGER.warn("[SimonSays][RotateFrame] Approach stuck without firing - target={} elapsedTicks={} "
                             + "yawDelta={} pitchDelta={} overshootYaw={} overshootPitch={} curveOn={} "
-                            + "raycastOnTarget={} realHitPos={}.",
+                            + "feintYaw={} feintPitch={} raycastOnTarget={} realHitPos={}.",
                     buttonPos, rotateApproachElapsedTicks, yawDelta, pitchDelta, rotateOvershootYawRemaining,
-                    rotateOvershootPitchRemaining, rotateCurveOnThisApproach, raycastOnTarget,
+                    rotateOvershootPitchRemaining, rotateCurveOnThisApproach, rotateFeintYawOffset,
+                    rotateFeintPitchOffset, raycastOnTarget,
                     client.hitResult instanceof BlockHitResult hit3 ? hit3.getBlockPos() : "none");
             rotateApproachStallLogged = true;
         }
@@ -1912,6 +1974,19 @@ public final class SimonSaysFeature {
         var shape = client.level.getBlockState(pos).getShape(client.level, pos);
         AABB box = shape.isEmpty() ? new AABB(pos) : shape.bounds().move(pos);
         return box.getCenter();
+    }
+
+    /** Real yaw/pitch (in degrees) from {@code eyePos} to look directly at {@code target} - the same
+     *  atan2-based math already duplicated across {@link #applyRotateApproachFrame}/{@link
+     *  #applyIdleSwayFrame}, factored out here so {@link #beginRotateApproach}'s feint calculation (see
+     *  {@link #rotateFeintYawOffset}'s own doc comment) can reuse it for a second point without
+     *  duplicating it a third time. */
+    private static float[] yawPitchTo(Vec3 eyePos, Vec3 target) {
+        Vec3 diff = target.subtract(eyePos);
+        double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
+        float yaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
+        float pitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
+        return new float[] {yaw, pitch};
     }
 
     /** Real bug found and fixed (2026-09-14, killer560's own report: "the drift brought the cursor off
