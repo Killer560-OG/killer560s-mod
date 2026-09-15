@@ -205,7 +205,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .then(ClientCommands.literal("clear")
                                         .executes(context -> {
                                             EtherwarpFeature.clear();
-                                            ModOverlayMessage.show("§b[Etherwarp] Cleared all waypoints.", 2500);
+                                            ModOverlayMessage.show("[Etherwarp] Cleared all waypoints.", 2500);
                                             return 1;
                                         })))
                         // "/killer560 chat <message>" - killer560's "custom chat" request. See
@@ -228,8 +228,8 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .executes(context -> {
                                     boolean nowActive = com.killer560.hub.secrets.DungeonState.toggleSimOverride();
                                     ModOverlayMessage.show(nowActive
-                                            ? "§b[Sim] Treating you as if you're in the real F7 boss fight."
-                                            : "§7[Sim] Override off - back to real automatic detection.", 3000);
+                                            ? "[Sim] Treating you as if you're in the real F7 boss fight."
+                                            : "[Sim] Override off - back to real automatic detection.", 3000);
                                     return 1;
                                 }))
                         // "/killer560 profile ..." - killer560's custom settings-profile request. See
@@ -385,8 +385,8 @@ public class Killer560ModClient implements ClientModInitializer {
                             java.util.List<String> profiles = com.killer560.hub.profiles.ProfileManager.listProfiles();
                             String active = com.killer560.hub.profiles.ProfileManager.getActiveProfile();
                             ModOverlayMessage.show(profiles.isEmpty()
-                                    ? "§7[Profiles] None saved yet."
-                                    : "§b[Profiles] " + String.join(", ", profiles) + " §7(active: " + (active != null ? active : "none") + ")",
+                                    ? "[Profiles] None saved yet."
+                                    : "[Profiles] " + String.join(", ", profiles) + " (active: " + (active != null ? active : "none") + ")",
                                     5000);
                             return 1;
                         }));
@@ -414,7 +414,7 @@ public class Killer560ModClient implements ClientModInitializer {
                 return 0;
             }
             PosmsgFeature.addAndSend(message, x, y, z, radius);
-            ModOverlayMessage.show("§b[Posmsg] Added and sent \"" + message + "\"", 3000);
+            ModOverlayMessage.show("[Posmsg] Added and sent \"" + message + "\"", 3000);
             return 1;
         } catch (NumberFormatException e) {
             ModOverlayMessage.show("§c[Posmsg] The last 4 words must be numbers: x y z radius", 4000);
@@ -434,7 +434,7 @@ public class Killer560ModClient implements ClientModInitializer {
         cfg.setTargetLanguageCode(match.get().code());
         cfg.setEnabled(true);
         cfg.save();
-        ModOverlayMessage.show("§b[Killer560's Mod] Chat Translate: §e" + match.get().name(), 3000);
+        ModOverlayMessage.show("[Killer560's Mod] Chat Translate: " + match.get().name(), 3000);
         return 1;
     }
 

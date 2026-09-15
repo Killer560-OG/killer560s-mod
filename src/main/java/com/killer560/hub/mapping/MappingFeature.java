@@ -124,7 +124,7 @@ public final class MappingFeature {
             Files.createDirectories(dir);
             Files.writeString(file, sb.toString(), StandardCharsets.UTF_8);
             LOGGER.info("[Mapping] Dumped held map id={} to {}", held.mapId, file);
-            return "§b[Mapping] Dumped held map to " + file;
+            return "[Mapping] Dumped held map to " + file;
         } catch (IOException e) {
             LOGGER.warn("[Mapping] Failed to write map dump", e);
             return "§c[Mapping] Failed to write map dump: " + e.getMessage();

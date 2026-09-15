@@ -69,7 +69,7 @@ public final class EtherwarpFeature {
         EtherwarpWaypoint waypoint = new EtherwarpWaypoint(name, pos.x, pos.y, pos.z);
         waypoints.add(waypoint);
         LOGGER.info("[Etherwarp] Added waypoint \"{}\" at {}", name, pos);
-        return String.format(Locale.US, "§b[Etherwarp] Added \"%s\" at (%.1f, %.1f, %.1f)",
+        return String.format(Locale.US, "[Etherwarp] Added \"%s\" at (%.1f, %.1f, %.1f)",
                 name, pos.x, pos.y, pos.z);
     }
 

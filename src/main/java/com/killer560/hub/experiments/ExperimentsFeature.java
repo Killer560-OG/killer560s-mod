@@ -4,6 +4,7 @@ import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -761,8 +762,9 @@ public final class ExperimentsFeature {
                     // already uses (see ScreenshotCopyFeature#notifySuccess).
                     var player = Minecraft.getInstance().player;
                     if (player != null) {
-                        player.sendSystemMessage(Component.literal(
-                                "§a[Killer560's Mod] Experiment Table automation finished: " + doneReason));
+                        player.sendSystemMessage(ModChat.line("Killer560's Mod",
+                                ModChat.text("Experiment Table automation "), ModChat.good("finished"),
+                                ModChat.text(": "), ModChat.value(String.valueOf(doneReason))));
                     }
                 }
             }
@@ -929,9 +931,9 @@ public final class ExperimentsFeature {
             // closest vanilla color code to true orange, matching this mod's own amber/orange theme
             // elsewhere), plus a real sound so it's noticed even if chat isn't being watched right now -
             // same play(SimpleSoundInstance.forUI(...)) pattern already used for the /killer560 command.
-            player.sendSystemMessage(Component.literal(
-                    "§6[Killer560's Mod] You've reached the max rounds needed for max clicks (round "
-                            + activeRoundsNeeded + ")."));
+            player.sendSystemMessage(ModChat.line("Killer560's Mod",
+                    ModChat.text("You've reached the max rounds needed for max clicks (round "),
+                    ModChat.value(String.valueOf(activeRoundsNeeded)), ModChat.text(").")));
             // Per killer560's follow-up "make it play a sound a few times and be noticeable" (2026-09-08):
             // one ding wasn't attention-grabbing enough. Three, spaced 220ms apart via the same
             // pendingActions timer this class already uses for jittered clicks (just with fixed delays
@@ -1123,8 +1125,8 @@ public final class ExperimentsFeature {
             // natural-finish notification already got (see the DONE_SIGNAL branch in tickUnsafe()).
             var player = Minecraft.getInstance().player;
             if (player != null) {
-                player.sendSystemMessage(Component.literal(
-                        "§c[Killer560's Mod] Experiment Table automation cancelled"));
+                player.sendSystemMessage(ModChat.line("Killer560's Mod",
+                        ModChat.text("Experiment Table automation "), ModChat.bad("cancelled")));
             }
         }
     }

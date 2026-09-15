@@ -1,5 +1,6 @@
 package com.killer560.hub.screenshotcopy;
 
+import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.network.chat.Component;
@@ -95,7 +96,7 @@ public final class ScreenshotCopyFeature {
         Minecraft.getInstance().execute(() -> {
             var player = Minecraft.getInstance().player;
             if (player != null) {
-                player.sendSystemMessage(Component.literal("§6[Killer560's Mod] Screenshot copied to clipboard!"));
+                player.sendSystemMessage(ModChat.line("Killer560's Mod", ModChat.text("Screenshot copied to clipboard!")));
             }
         });
     }

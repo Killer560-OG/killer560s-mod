@@ -90,7 +90,7 @@ public class HomeTab extends BaseTab implements KeyCaptureTab {
         } else if (result.updateAvailable()) {
             availableUpdateVersion = result.remoteVersion();
             availableUpdateUrl = result.releaseUrl();
-            ModOverlayMessage.show("§6[Killer560's Mod] Update available: v" + result.remoteVersion(), 5000);
+            ModOverlayMessage.show("[Killer560's Mod] Update available: v" + result.remoteVersion(), 5000);
         } else {
             lastCheckResultText = "§aUp to Date (v" + result.currentVersion() + ")";
             ModOverlayMessage.show("§a[Killer560's Mod] You're up to date (v" + result.currentVersion() + ")", 3000);

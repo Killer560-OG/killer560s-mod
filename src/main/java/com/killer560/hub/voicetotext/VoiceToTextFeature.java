@@ -99,12 +99,12 @@ public final class VoiceToTextFeature {
             return;
         }
         if (state == State.PREPARING_MODEL) {
-            ModOverlayMessage.show("§e[Voice] Still preparing the speech model...", 1500);
+            ModOverlayMessage.show("[Voice] Still preparing the speech model...", 1500);
             return;
         }
         if (loadedModel == null) {
             state = State.PREPARING_MODEL;
-            ModOverlayMessage.show("§e[Voice] Preparing speech model (first use only, may download ~40MB)...", 4000);
+            ModOverlayMessage.show("[Voice] Preparing speech model (first use only, may download ~40MB)...", 4000);
             new Thread(VoiceToTextFeature::prepareModelAndStartRecording, "killer560smod-voice-prepare").start();
             return;
         }
@@ -193,7 +193,7 @@ public final class VoiceToTextFeature {
             line.start();
             capturedAudio = new ByteArrayOutputStream();
             state = State.RECORDING;
-            ModOverlayMessage.show("§c[Voice] Listening... (release key to send)", 60_000);
+            ModOverlayMessage.show("[Voice] Listening... (release key to send)", 60_000);
 
             captureThread = new Thread(() -> {
                 byte[] buffer = new byte[4096];
@@ -223,7 +223,7 @@ public final class VoiceToTextFeature {
             capturedLine.stop();
             capturedLine.close();
         }
-        ModOverlayMessage.show("§e[Voice] Transcribing...", 2000);
+        ModOverlayMessage.show("[Voice] Transcribing...", 2000);
 
         new Thread(() -> {
             try {
@@ -238,10 +238,10 @@ public final class VoiceToTextFeature {
                 state = State.READY;
                 Minecraft.getInstance().execute(() -> {
                     if (text == null || text.isBlank()) {
-                        ModOverlayMessage.show("§7[Voice] Didn't catch anything.", 2000);
+                        ModOverlayMessage.show("[Voice] Didn't catch anything.", 2000);
                         return;
                     }
-                    ModOverlayMessage.show("§a[Voice] \"" + text + "\"", 3000);
+                    ModOverlayMessage.show("[Voice] \"" + text + "\"", 3000);
                     Minecraft client = Minecraft.getInstance();
                     if (client.player != null) {
                         String prefix = VoiceToTextConfig.getInstance().isSendToPartyChat() ? "pc " : "gc ";

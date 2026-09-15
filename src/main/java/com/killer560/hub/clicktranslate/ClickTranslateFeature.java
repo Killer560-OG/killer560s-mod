@@ -5,6 +5,7 @@ import com.killer560.hub.copychat.CopyChatFeature;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.translate.TranslateLanguages;
+import com.killer560.hub.util.ModChat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.StringTag;
@@ -118,10 +119,11 @@ public final class ClickTranslateFeature {
             String fromSuffix = (fromCode == null || fromCode.isBlank())
                     ? "" : " §7(from " + TranslateLanguages.nameForCode(fromCode) + ")";
             String targetName = TranslateLanguages.nameForCode(targetCode);
-            // Recolored from blue to orange per killer560's round-12 request, matching the mod's own
-            // established amber/orange tag color used everywhere else (Copy Chat's confirmation, etc.).
-            client.gui.getChat().addClientSystemMessage(
-                    Component.literal("§6[Killer560's Mod → " + targetName + "] §f" + prefix + result.text() + fromSuffix));
+            // Orange-themed via ModChat (2026-09-14): only the mod's own framing is themed - the orange
+            // "[Killer560's Mod → X]" tag and the dim "(from Y)" note. The translated sender prefix + text
+            // stays in the neutral light body color, exactly as readable as the old white.
+            client.gui.getChat().addClientSystemMessage(ModChat.line("Killer560's Mod → " + targetName,
+                    ModChat.text(prefix + result.text()), ModChat.dim(fromSuffix)));
         }));
         return true;
     }

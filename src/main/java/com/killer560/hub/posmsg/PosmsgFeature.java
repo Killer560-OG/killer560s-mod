@@ -106,7 +106,7 @@ public final class PosmsgFeature {
             return;
         }
         if (entry.onceOnlyPerRun && usedThisRun.contains(entry.id)) {
-            ModOverlayMessage.show("§e[Posmsg] \"" + entry.name + "\" already sent this run.", 2500);
+            ModOverlayMessage.show("[Posmsg] \"" + entry.name + "\" already sent this run.", 2500);
             return;
         }
         Minecraft client = Minecraft.getInstance();

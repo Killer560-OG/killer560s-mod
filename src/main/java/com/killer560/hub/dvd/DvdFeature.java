@@ -274,7 +274,7 @@ public final class DvdFeature {
             String nameValue = (e.contentType == DvdContentType.GIF && !e.gifFileName.isBlank())
                     ? stripExtension(e.gifFileName) : e.name;
             String message = e.cornerHitText.replace("{name}", nameValue);
-            ModOverlayMessage.show("§d[DVD] §f" + message, 3000);
+            ModOverlayMessage.show("[DVD] " + message, 3000);
         }
     }
 

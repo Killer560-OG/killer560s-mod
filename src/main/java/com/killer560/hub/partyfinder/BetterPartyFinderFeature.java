@@ -9,6 +9,8 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import com.killer560.hub.util.ModChat;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -112,12 +114,40 @@ public final class BetterPartyFinderFeature {
         if (client.player == null) {
             return;
         }
-        Component message = Component.literal("§6[Party Finder] §b" + name + "§7: " + statsLine);
+        // Orange-themed via ModChat (2026-09-14): name in light orange, stat numbers in light orange.
+        // [Kick] stays red - it's a destructive action button, same click event as before.
+        MutableComponent message = ModChat.line("Party Finder", ModChat.value(name), ModChat.dim(": "),
+                statsComponent(statsLine));
         if (showKickButton) {
-            message = message.copy().append(Component.literal(" §c[Kick]").withStyle(style ->
+            message.append(ModChat.bad(" [Kick]").withStyle(style ->
                     style.withClickEvent(new ClickEvent.RunCommand("/party kick " + name))));
         }
         client.player.sendSystemMessage(message);
+    }
+
+    /** Renders a plain stats line ("Cata 42.3 | Secrets 12,345") as neutral labels + light-orange values
+     *  with dim separators; anything that isn't "Label value" segments (e.g. the no-data note) is dim. */
+    private static Component statsComponent(String statsLine) {
+        String plain = statsLine.replaceAll("§.", "");
+        if (!plain.startsWith("Cata ")) {
+            return ModChat.dim(plain);
+        }
+        MutableComponent out = Component.empty();
+        String[] segments = plain.split(" \\| ");
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) {
+                out.append(ModChat.dim(" | "));
+            }
+            String segment = segments[i];
+            int space = segment.lastIndexOf(' ');
+            if (space > 0) {
+                out.append(ModChat.text(segment.substring(0, space + 1)));
+                out.append(ModChat.value(segment.substring(space + 1)));
+            } else {
+                out.append(ModChat.text(segment));
+            }
+        }
+        return out;
     }
 
     /** Runs on a background thread - real Mojang name-to-UUID lookup, then the real Hypixel SkyBlock
@@ -155,7 +185,7 @@ public final class BetterPartyFinderFeature {
             }
             JsonObject member = selected.getAsJsonObject("members").getAsJsonObject(uuid);
             if (member == null || !member.has("dungeons")) {
-                return "§7No dungeon data (private API or new player)";
+                return "No dungeon data (private API or new player)";
             }
             JsonObject dungeons = member.getAsJsonObject("dungeons");
             double cataXp = 0.0;
@@ -170,7 +200,7 @@ public final class BetterPartyFinderFeature {
             }
             long secrets = dungeons.has("secrets") ? dungeons.get("secrets").getAsLong() : 0;
             double cataLevel = calculateDungeonLevel(cataXp);
-            return String.format(Locale.US, "§eCata %.1f §8| §aSecrets %,d", cataLevel, secrets);
+            return String.format(Locale.US, "Cata %.1f | Secrets %,d", cataLevel, secrets);
         } catch (Exception e) {
             return null;
         }

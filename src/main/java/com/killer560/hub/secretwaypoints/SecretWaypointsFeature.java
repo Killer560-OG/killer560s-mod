@@ -144,7 +144,7 @@ public final class SecretWaypointsFeature {
                 LOGGER.info("[SecretWaypoints] Mimic announced in \"{}\" (trapped={} > expected={})",
                         entry.name, realTrappedChests, entry.trappedChests);
                 mimicAnnounced = true;
-                ModOverlayMessage.show("§d[Secrets] Mimic likely in \"" + entry.name + "\" (extra trapped chest found)!", 5000);
+                ModOverlayMessage.show("[Secrets] Mimic likely in \"" + entry.name + "\" (extra trapped chest found)!", 5000);
                 return;
             }
         }

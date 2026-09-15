@@ -140,7 +140,7 @@ public final class ProfileManager {
             }
             Files.writeString(ACTIVE_MARKER, name, StandardCharsets.UTF_8);
             return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name
-                    + "\". §eRestart Minecraft for every feature to pick up the change.");
+                    + "\". Restart Minecraft for every feature to pick up the change.");
         } catch (IOException e) {
             return new Result(false, "§cFailed to apply profile: " + e.getMessage());
         }

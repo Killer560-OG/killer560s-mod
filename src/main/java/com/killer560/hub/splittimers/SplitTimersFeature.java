@@ -2,6 +2,7 @@ package com.killer560.hub.splittimers;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
@@ -141,7 +142,7 @@ public final class SplitTimersFeature {
     private static RunState run = new RunState();
     /** Client ticks left before the end-of-run summary prints (Odin: {@code schedule(10)}); -1 = none. */
     private static int finishDelayTicks = -1;
-    private static List<String> pendingFinishMessages = List.of();
+    private static List<Component> pendingFinishMessages = List.of();
 
     private SplitTimersFeature() {
     }
@@ -181,8 +182,8 @@ public final class SplitTimersFeature {
 
         if (finishDelayTicks >= 0 && --finishDelayTicks < 0) {
             if (SplitTimersConfig.getInstance().isAnnounceInChat() && client.player != null) {
-                for (String line : pendingFinishMessages) {
-                    client.player.sendSystemMessage(Component.literal(line));
+                for (Component line : pendingFinishMessages) {
+                    client.player.sendSystemMessage(line);
                 }
             }
             pendingFinishMessages = List.of();
@@ -287,22 +288,31 @@ public final class SplitTimersFeature {
         if (!SplitTimersConfig.getInstance().isAnnounceInChat() || client.player == null) {
             return;
         }
-        String tookLine = String.format(Locale.US, "§6%s §7took §6%.2fs§7!", run.splits.get(prev).label(), segment / 1000.0);
+        // Orange-themed (2026-09-14): split names and times in light orange, "took" in the neutral body color.
+        // Chat uses the plain split label - Odin's per-split §-colors stay on the HUD only.
+        Component tookLine = tookLine(plainLabel(run.splits.get(prev)),
+                String.format(Locale.US, "%.2fs", segment / 1000.0), "!");
         if (!last) {
-            client.player.sendSystemMessage(Component.literal(tookLine));
+            client.player.sendSystemMessage(tookLine);
             return;
         }
         // Odin's finishRun: rows snapshotted now, printed 10 ticks later after Hypixel's own summary.
-        List<String> lines = new ArrayList<>();
+        List<Component> lines = new ArrayList<>();
         lines.add(tookLine);
-        lines.add(String.format(Locale.US, "§6Total time §7took §6%.2fs§7!", total / 1000.0));
+        lines.add(tookLine("Total time", String.format(Locale.US, "%.2fs", total / 1000.0), "!"));
         List<SplitRow> rows = currentRows();
         for (int i = 0; i < rows.size(); i++) {
             SplitRow row = rows.get(i);
-            lines.add("§6" + (i == rows.size() - 1 ? "Total" : row.name()) + " §7took §6" + formatTime(row.timeMs()) + "§7.");
+            String rowName = i == rows.size() - 1 ? "Total" : ChatFormatting.stripFormatting(row.name());
+            lines.add(tookLine(rowName, formatTime(row.timeMs()), "."));
         }
         pendingFinishMessages = lines;
         finishDelayTicks = 10;
+    }
+
+    private static Component tookLine(String name, String time, String end) {
+        return Component.empty().append(ModChat.value(name)).append(ModChat.text(" took "))
+                .append(ModChat.value(time)).append(ModChat.text(end));
     }
 
     private static int previousRecorded(int index) {

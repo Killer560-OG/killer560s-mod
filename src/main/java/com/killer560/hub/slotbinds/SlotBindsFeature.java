@@ -85,7 +85,7 @@ public final class SlotBindsFeature {
             int index = hovered.index;
             if (pendingSlot[0] == -1) {
                 pendingSlot[0] = index;
-                ModOverlayMessage.show("§b[Slot Binds] Selected slot " + index + " - hover the slot to bind it to, then press the key again.", 3500);
+                ModOverlayMessage.show("[Slot Binds] Selected slot " + index + " - hover the slot to bind it to, then press the key again.", 3500);
             } else if (pendingSlot[0] == index) {
                 ModOverlayMessage.show("§cYou can't bind a slot to itself.", 2500);
                 pendingSlot[0] = -1;

@@ -1,6 +1,7 @@
 package com.killer560.hub.copychat;
 
 import com.killer560.hub.copychat.mixin.ChatComponentAccessor;
+import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -171,7 +172,7 @@ public final class CopyChatFeature {
         Minecraft.getInstance().execute(() -> {
             var player = Minecraft.getInstance().player;
             if (player != null) {
-                player.sendSystemMessage(Component.literal("§6[Killer560's Mod] Chat message copied to clipboard!"));
+                player.sendSystemMessage(ModChat.line("Killer560's Mod", ModChat.text("Chat message copied to clipboard!")));
             }
         });
     }

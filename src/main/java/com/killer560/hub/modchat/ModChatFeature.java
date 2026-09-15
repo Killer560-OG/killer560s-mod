@@ -50,7 +50,7 @@ public final class ModChatFeature {
         if (body.isEmpty()) {
             return;
         }
-        ModOverlayMessage.show("§d[ModChat] §f" + body, 4000);
+        ModOverlayMessage.show("[ModChat] " + body, 4000);
     }
 
     /** For {@code /killer560 chat <message>}. */
@@ -61,6 +61,6 @@ public final class ModChatFeature {
         }
         ModChatConfig cfg = ModChatConfig.getInstance();
         client.player.connection.sendCommand(cfg.getChannel().commandPrefix + " " + TAG + " " + message);
-        return "§7[ModChat] Sent via " + cfg.getChannel().name() + " chat (still visible to non-mod-users there).";
+        return "[ModChat] Sent via " + cfg.getChannel().name() + " chat (still visible to non-mod-users there).";
     }
 }

@@ -127,7 +127,7 @@ public final class ProximityVoiceFeature {
 
             startMicCapture();
 
-            ModOverlayMessage.show("§b[ProxVoice] Enabled - discovering your public address...", 2500);
+            ModOverlayMessage.show("[ProxVoice] Enabled - discovering your public address...", 2500);
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): receiveThread used to
             // start immediately, reading from this SAME socket, right as the STUN discovery thread below
             // was ALSO about to read its one reply from it. receiveThread almost always won that race

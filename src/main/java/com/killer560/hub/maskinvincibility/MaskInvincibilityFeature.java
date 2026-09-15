@@ -2,6 +2,7 @@ package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
@@ -97,7 +98,7 @@ public final class MaskInvincibilityFeature {
                 if (cfg.isAnnounceInChat()) {
                     Minecraft client = Minecraft.getInstance();
                     if (client.player != null) {
-                        client.player.sendSystemMessage(Component.literal("§d[Mask] " + t.label + " procced!"));
+                        client.player.sendSystemMessage(ModChat.line("Mask", ModChat.value(t.label), ModChat.text(" procced!")));
                     }
                 }
                 if (cfg.isAutoSwapEnabled() && (t == Type.SPIRIT || t == Type.BONZO)) {

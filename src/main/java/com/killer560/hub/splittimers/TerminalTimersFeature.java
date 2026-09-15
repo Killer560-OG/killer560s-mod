@@ -2,9 +2,11 @@ package com.killer560.hub.splittimers;
 
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,8 +111,29 @@ public final class TerminalTimersFeature {
         }
         float section = seconds(sectionTimerMs);
         float phase = seconds(phaseTimerMs);
-        Component rewritten = Component.literal(String.format(Locale.US,
-                "§6%s §a%s a %s! (§c%d§a/%d) §8(§7%ss §8| §7%ss§8)", name, verb, type, current, total, fmt(section), fmt(phase)));
+        // Orange-themed (2026-09-14): our parts - the player name, the (n/m) count and the appended times - use
+        // the mod's orange palette; the "activated/completed a X!" verb stays green (it means "done"). Same
+        // plain text as before, so every regex on the stripped line still matches. Any click/hover event the
+        // original line carried (e.g. Click Translate / Copy Chat's wrap) is carried over.
+        MutableComponent rewritten = Component.empty()
+                .append(ModChat.colored(name, ModChat.ORANGE))
+                .append(ModChat.good(" " + verb + " a " + type + "! "))
+                .append(ModChat.dim("("))
+                .append(ModChat.value(String.valueOf(current)))
+                .append(ModChat.dim("/"))
+                .append(ModChat.value(String.valueOf(total)))
+                .append(ModChat.dim(") ("))
+                .append(ModChat.value(fmt(section) + "s"))
+                .append(ModChat.dim(" | "))
+                .append(ModChat.value(fmt(phase) + "s"))
+                .append(ModChat.dim(")"));
+        var originalStyle = message.getStyle();
+        if (originalStyle.getClickEvent() != null) {
+            rewritten.withStyle(style -> style.withClickEvent(originalStyle.getClickEvent()));
+        }
+        if (originalStyle.getHoverEvent() != null) {
+            rewritten.withStyle(style -> style.withHoverEvent(originalStyle.getHoverEvent()));
+        }
         LOGGER.info("[TerminalTimers] {} {} a {} ({}/{}) section={}s phase={}s gateBlown={}", name, verb, type, current,
                 total, fmt(section), fmt(phase), gateBlown);
         // Odin's section bookkeeping, verbatim.
@@ -151,11 +174,15 @@ public final class TerminalTimersFeature {
             resetSection(true);
         } else if (plain.equals(CORE_OPENING)) {
             resetSection(false);
-            StringBuilder times = new StringBuilder();
+            MutableComponent times = ModChat.text("Times: ");
             for (int i = 0; i < sectionTimes.size(); i++) {
-                times.append(i == 0 ? "" : " §8| ").append("§a").append(fmt(sectionTimes.get(i))).append('s');
+                if (i > 0) {
+                    times.append(ModChat.dim(" | "));
+                }
+                times.append(ModChat.value(fmt(sectionTimes.get(i)) + "s"));
             }
-            send(String.format(Locale.US, "§bTimes: %s§8, §bTotal: §a%ss", times, fmt(seconds(phaseTimerMs))));
+            ModChat.send("Terminal Timers", times, ModChat.dim(", "), ModChat.text("Total: "),
+                    ModChat.value(fmt(seconds(phaseTimerMs)) + "s"));
             LOGGER.info("[TerminalTimers] Core opening - section times {} total {}s", sectionTimes, fmt(seconds(phaseTimerMs)));
         }
     }
@@ -201,7 +228,8 @@ public final class TerminalTimersFeature {
         }
         LOGGER.info("[TerminalTimers] {} solved in {}s", pendingSolveName, String.format(Locale.US, "%.2f", pendingSolveSeconds));
         if (TerminalTimersConfig.getInstance().isSolveTimes() && DungeonState.isInDungeon()) {
-            send(String.format(Locale.US, "§a%s §7solved in §6%.2fs§7!", pendingSolveName, pendingSolveSeconds));
+            ModChat.send("Terminal Timers", ModChat.value(pendingSolveName), ModChat.text(" solved in "),
+                    ModChat.value(String.format(Locale.US, "%.2fs", pendingSolveSeconds)), ModChat.text("!"));
         }
         pendingSolveName = null;
         ownTerminalLineAtMs = 0L;
@@ -215,12 +243,5 @@ public final class TerminalTimersFeature {
 
     private static String fmt(float seconds) {
         return String.format(Locale.US, "%.2f", seconds);
-    }
-
-    private static void send(String text) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
-            client.player.sendSystemMessage(Component.literal("§6[Terminal Timers] §r" + text));
-        }
     }
 }
