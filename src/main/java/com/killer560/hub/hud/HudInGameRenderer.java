@@ -19,7 +19,7 @@ public final class HudInGameRenderer {
 
     private static final List<String> UNDRAWN_ELEMENT_IDS = List.of(
             "tick_timers", "split_timers", "player_stats", "quiver_display", "livid_invuln_timer",
-            "mask_invincibility", "simonsays_party_progress", "live_map");
+            "mask_invincibility", "simonsays_party_progress", "live_map", "real_time");
 
     private HudInGameRenderer() {
     }

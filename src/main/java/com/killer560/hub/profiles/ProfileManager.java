@@ -1,6 +1,9 @@
 package com.killer560.hub.profiles;
 
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,13 +24,11 @@ import java.util.zip.ZipOutputStream;
  * Real config-file profile system - killer560's "custom mod profiles... clicking between them will
  * change which settings" request. A profile is a real, plain snapshot of every one of this mod's own
  * `killer560smod-*.json` setting files, copied into its own folder under
- * {@code config/killer560smod-profiles/<name>/}. Deliberately the simplest correct implementation
- * rather than a live-reloading one: every one of the ~50 existing {@code XyzConfig} classes caches its
- * settings in a private static field loaded once per game session, and none of them expose a way to
- * force a reload - rather than touch all ~50 of those classes (high real risk of a subtle mistake in at
- * least one), switching a profile just overwrites the live JSON files on disk and asks for a restart to
- * actually pick them up. That trade-off is stated plainly in the Profiles tab and every load/save chat
- * message, not hidden.
+ * {@code config/killer560smod-profiles/<name>/}. Applying a profile overwrites the live JSON files on disk
+ * and then re-runs every config class's static {@code load()} on the client thread (see
+ * {@link #reloadAllConfigs()}). Before 2026-09-15 it only wrote the files: every {@code XyzConfig} keeps its
+ * settings in a static instance loaded once per session, so the next {@code save()} of ANY setting wrote
+ * the old in-memory values straight back over the just-applied profile.
  * <p>
  * Deliberately EXCLUDES real credentials/caches that should never be silently overwritten or shared:
  * the direct-session-login token, per-account proxy assignments (tied to this user's own saved
@@ -36,6 +37,7 @@ import java.util.zip.ZipOutputStream;
  */
 public final class ProfileManager {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-profiles");
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir();
     private static final Path PROFILES_DIR = CONFIG_DIR.resolve("killer560smod-profiles");
     private static final Path ACTIVE_MARKER = CONFIG_DIR.resolve("killer560smod-active-profile.txt");
@@ -142,8 +144,8 @@ public final class ProfileManager {
         }
     }
 
-    /** Overwrites every live setting file with the ones stored in the given profile, and marks it
-     *  active. Does NOT reload any already-running feature's cached settings - see class doc. */
+    /** Overwrites every live setting file with the ones stored in the given profile, marks it active, and
+     *  reloads every in-memory config from the new files - see class doc. */
     public static Result applyProfile(String rawName) {
         String name = sanitize(rawName);
         if (name.isEmpty()) {
@@ -165,11 +167,159 @@ public final class ProfileManager {
                 }
             }
             Files.writeString(ACTIVE_MARKER, name, StandardCharsets.UTF_8);
-            return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name
-                    + "\". Restart Minecraft for every feature to pick up the change.");
+            runOnClientThread(ProfileManager::reloadAllConfigs);
+            return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name + "\".");
         } catch (IOException e) {
             return new Result(false, "§cFailed to apply profile: " + e.getMessage());
         }
+    }
+
+    private static void runOnClientThread(Runnable task) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.isSameThread()) {
+            task.run();
+        } else {
+            client.execute(task);
+        }
+    }
+
+    /**
+     * Re-reads every setting file a profile can contain into its in-memory config, then refreshes the few
+     * features that hold state derived from their config rather than reading it live. Must run on the client
+     * thread (GIF/DVD textures, the GLFW window). Each reload is isolated so one failure can't leave later
+     * configs holding stale values that their next save would write back over the profile.
+     * <p>
+     * Deliberately NOT reloaded - the files {@link #EXCLUDED_FILES} keeps out of profiles (session login,
+     * account proxies, RNG item log, storage-overlay cache, Croesus/Experiments profit logs, item-browser
+     * cache, storage-search timestamps) plus configs that don't use the {@code killer560smod-*.json} name
+     * so are never in a profile ({@code proxyclient.json} / ProxyConfig, {@code spotify-lyrics-lastfm.json} /
+     * SpotifyLyricsFeature, the Cringe lines .txt).
+     * <p>
+     * Checked for startup-derived state (2026-09-15): HudElementRegistry resolves positions/scales from
+     * HudConfig on every call, the HUD-editor / command / ability / loadout keybinds poll their config each
+     * tick, NameChangerFeature rebuilds when {@code NameChangerConfig.version()} changes (load() bumps it),
+     * HeldItemConfig.load() refreshes its {@code active} mirror, and no class keeps a config instance in a
+     * field - so only GIF Player, DVD and the borderless window need an explicit refresh below. When adding
+     * a new {@code killer560smod-*.json} config, add its load() here.
+     */
+    static void reloadAllConfigs() {
+        boolean borderlessBefore = com.killer560.hub.window.WindowModeConfig.getInstance().isBorderlessFullscreenEnabled();
+        Runnable[] loaders = {
+                com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig::load,
+                com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
+                com.killer560.hub.autoclosechest.AutoCloseChestConfig::load,
+                com.killer560.hub.autocorrect.AutoCorrectConfig::load,
+                com.killer560.hub.autojoinskyblock.AutoJoinSkyblockConfig::load,
+                com.killer560.hub.automeow.AutoMeowConfig::load,
+                com.killer560.hub.autopuzzles.AutoPuzzlesConfig::load,
+                com.killer560.hub.motionblur.MotionBlurConfig::load,
+                com.killer560.hub.realtime.RealTimeConfig::load,
+                com.killer560.hub.windowlayout.WindowLayoutConfig::load,
+                com.killer560.hub.util.SkyblockGate::reload,
+                com.killer560.hub.bloodcamp.BloodCampConfig::load,
+                com.killer560.hub.boss.LividSolverConfig::load,
+                com.killer560.hub.chatcommands.ChatCommandsConfig::load,
+                com.killer560.hub.cheatutils.CheatUtilsConfig::load,
+                com.killer560.hub.clicktranslate.ClickTranslateConfig::load,
+                com.killer560.hub.commandkeybinds.CommandKeybindsConfig::load,
+                com.killer560.hub.copychat.CopyChatConfig::load,
+                com.killer560.hub.croesus.CroesusConfig::load,
+                com.killer560.hub.diorite.DioriteGlassConfig::load,
+                com.killer560.hub.doorkeys.DoorKeysConfig::load,
+                com.killer560.hub.dungeonalerts.DungeonAlertsConfig::load,
+                com.killer560.hub.dungeonbreaker.DungeonBreakerConfig::load,
+                com.killer560.hub.dungeonextras.DungeonExtrasConfig::load,
+                com.killer560.hub.dungeoninfo.DungeonInfoConfig::load,
+                com.killer560.hub.dungeonqueue.DungeonQueueConfig::load,
+                com.killer560.hub.dvd.DvdConfig::load,
+                com.killer560.hub.emotes.ChatEmoteConfig::load,
+                com.killer560.hub.etherwarp.EtherwarpWaypointsConfig::load,
+                com.killer560.hub.etherwarpoverlay.EtherwarpOverlayConfig::load,
+                com.killer560.hub.experiments.ExperimentsConfig::load,
+                com.killer560.hub.fastleap.FastLeapConfig::load,
+                com.killer560.hub.fastleap.I4LeapConfig::load,
+                com.killer560.hub.fullbright.FullbrightConfig::load,
+                com.killer560.hub.gifplayer.GifPlayerConfig::load,
+                com.killer560.hub.helditem.HeldItemConfig::load,
+                com.killer560.hub.hud.HudConfig::load,
+                com.killer560.hub.i4sensors.I4SensorsConfig::load,
+                com.killer560.hub.inventoryhud.InventoryHudConfig::load,
+                com.killer560.hub.inventorysearch.InventorySearchConfig::load,
+                com.killer560.hub.itembrowser.ItemBrowserConfig::load,
+                com.killer560.hub.itemrarity.ItemRarityConfig::load,
+                com.killer560.hub.leapmenu.LeapMenuConfig::load,
+                com.killer560.hub.leapmessage.LeapMessageConfig::load,
+                com.killer560.hub.livemap.LiveMapConfig::load,
+                com.killer560.hub.loadoutkeybinds.LoadoutKeybindsConfig::load,
+                com.killer560.hub.mapping.MappingConfig::load,
+                com.killer560.hub.maskinvincibility.MaskInvincibilityConfig::load,
+                com.killer560.hub.mobesp.MobEspConfig::load,
+                com.killer560.hub.modchat.ModChatConfig::load,
+                com.killer560.hub.namechanger.NameChangerConfig::load,
+                com.killer560.hub.nofire.NoFireConfig::load,
+                com.killer560.hub.p4platform.P4PlatformHighlightConfig::load,
+                com.killer560.hub.packdisabler.PackDisablerConfig::load,
+                com.killer560.hub.partyfinder.BetterPartyFinderConfig::load,
+                com.killer560.hub.playerstats.PlayerStatsConfig::load,
+                com.killer560.hub.posmsg.PosmsgConfig::load,
+                com.killer560.hub.proximityvoice.ProximityVoiceConfig::load,
+                com.killer560.hub.puzzlesolvers.BeamsSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.BlazeSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.BoulderSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.IceFillSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.QuizSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.WaterSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.WeirdosSolverConfig::load,
+                com.killer560.hub.quiver.QuiverDisplayConfig::load,
+                com.killer560.hub.revertmasterstars.RevertMasterStarsConfig::load,
+                com.killer560.hub.rngmeter.RngMeterConfig::load,
+                com.killer560.hub.routes.RouteStore::load,
+                com.killer560.hub.routes.WaypointRoutesConfig::load,
+                com.killer560.hub.screenshotcopy.ScreenshotCopyConfig::load,
+                com.killer560.hub.secrets.SecretsConfig::load,
+                com.killer560.hub.secretwaypoints.SecretWaypointsConfig::load,
+                com.killer560.hub.shorts.ShortsConfig::load,
+                com.killer560.hub.simonsays.SimonSaysConfig::load,
+                com.killer560.hub.slotbinds.SlotBindsConfig::load,
+                com.killer560.hub.spiritleap.SpiritLeapOverlayConfig::load,
+                com.killer560.hub.splittimers.SplitTimersConfig::load,
+                com.killer560.hub.splittimers.TerminalTimersConfig::load,
+                com.killer560.hub.storageoverlay.StorageOverlayConfig::load,
+                com.killer560.hub.storagesearch.StorageSearchConfig::load,
+                com.killer560.hub.terminals.TerminalSolverConfig::load,
+                com.killer560.hub.ticktimers.TickTimersConfig::load,
+                com.killer560.hub.trajectories.TrajectoriesConfig::load,
+                com.killer560.hub.translate.TranslateConfig::load,
+                com.killer560.hub.voicetotext.VoiceToTextConfig::load,
+                com.killer560.hub.window.WindowModeConfig::load,
+        };
+        int failed = 0;
+        for (Runnable loader : loaders) {
+            try {
+                loader.run();
+            } catch (Throwable t) {
+                failed++;
+                LOGGER.warn("[Profiles] A config failed to reload after applying a profile", t);
+            }
+        }
+        // Derived runtime state that isn't re-read from config on its own:
+        Runnable[] refreshers = {
+                // Loaded GIF textures + their HUD elements are synced to GifPlayerConfig's enabled files.
+                com.killer560.hub.gifplayer.GifPlayerFeature::reload,
+                // DVD runtimes hold the OLD DvdEntry objects; rebuild them from the new ones.
+                com.killer560.hub.dvd.DvdFeature::reloadFromConfig,
+                // Borderless is applied to the real window once; follow a changed setting.
+                () -> com.killer560.hub.window.WindowModeFeature.applyConfigAfterReload(borderlessBefore),
+        };
+        for (Runnable refresher : refreshers) {
+            try {
+                refresher.run();
+            } catch (Throwable t) {
+                failed++;
+                LOGGER.warn("[Profiles] A feature failed to refresh after applying a profile", t);
+            }
+        }
+        LOGGER.info("[Profiles] Reloaded {} config(s) after applying a profile ({} failure(s))", loaders.length, failed);
     }
 
     public static Result deleteProfile(String rawName) {

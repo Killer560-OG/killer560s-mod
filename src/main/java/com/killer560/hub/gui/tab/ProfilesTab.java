@@ -35,13 +35,6 @@ public class ProfilesTab extends BaseTab {
                 Component.literal("Active profile: §e" + (active != null ? active : "(none - using default settings)")),
                 Minecraft.getInstance().font));
         y += 16;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Switching applies immediately to disk, but needs a game restart"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7before every feature actually picks up the change."),
-                Minecraft.getInstance().font));
         y += 20;
 
         EditBox nameField = new EditBox(Minecraft.getInstance().font, contentX, y, 180, 18,

@@ -147,6 +147,7 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new com.killer560.hub.quiver.QuiverDisplayFeature.QuiverHudElement());
         com.killer560.hub.inventoryhud.InventoryHudFeature.register();
         HudElementRegistry.register(com.killer560.hub.inventoryhud.InventoryHudFeature.InventoryHudElement.INSTANCE);
+        HudElementRegistry.register(com.killer560.hub.realtime.RealTimeFeature.RealTimeHudElement.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
         com.killer560.hub.util.SkyblockGate.register();

@@ -150,6 +150,7 @@ public final class LiveMapFeature {
         /** Label center in grid units (QUOI's {@code OdonRoom.textPlacement}). */
         final float labelGX;
         final float labelGZ;
+        final boolean lShape;
         final String[] nameLines;
 
         RoomGroup(int mainIdx, int[] tiles, int[] cells, RoomEntry entry) {
@@ -173,7 +174,8 @@ public final class LiveMapFeature {
             maxGZ = mxZ;
             float lx = (mnX + mxX) / 2f;
             float lz = (mnZ + mxZ) / 2f;
-            if (tiles.length == 3) {
+            lShape = tiles.length == 3 && mxX - mnX == 2 && mxZ - mnZ == 2;
+            if (lShape) {
                 // L-shape: center on the horizontal pair (QUOI textPlacement).
                 for (int a = 0; a < 3; a++) {
                     for (int b = a + 1; b < 3; b++) {
@@ -306,7 +308,7 @@ public final class LiveMapFeature {
                 // database finished loading after this cell was first scanned), so this re-checks even on
                 // an already-known ROOM tile - unless another tile of the same room already identified it.
                 if (grid[idx] == Tile.ROOM && rowEven && colEven && roomEntryGrid[idx] == null
-                        && RoomDatabase.isReady() && roomEntryAt(idx) == null
+                        && RoomDatabase.isReady() && !cachedGroupHasEntry(idx)
                         && client.level.isLoaded(new BlockPos(wx, 70, wz))) {
                     identifyTile(client, idx, wx, wz);
                 }
@@ -513,6 +515,33 @@ public final class LiveMapFeature {
             if (!roomish[idx] || (gx % 2 == 0 && gz % 2 == 0)) {
                 continue;
             }
+            int mapKind = DungeonMapScanner.kindAt(idx);
+            if (mapKind == DungeonMapScanner.KIND_DOOR) {
+                continue; // the dungeon map shows a door in this gap, not a room connector
+            }
+            // A world-scanned connector only merges when something confirms it: the dungeon map shows a
+            // room separator here, or an adjacent tile is identified (so the shape cap/name check apply).
+            // No map + no database = no merge = single tiles, exactly the pre-grouping behaviour. Never next
+            // to the Entrance - NoammAddons turns that gap into an entrance door.
+            boolean anchored = mapKind == DungeonMapScanner.KIND_SEPARATOR;
+            boolean nearEntrance = false;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    int nx = gx + dx;
+                    int nz = gz + dz;
+                    if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                        continue;
+                    }
+                    RoomEntry neighbour = isTile[nx + nz * GRID] ? roomEntryGrid[nx + nz * GRID] : null;
+                    if (neighbour != null) {
+                        anchored = true;
+                        nearEntrance |= "ENTRANCE".equals(neighbour.type);
+                    }
+                }
+            }
+            if (!anchored || nearEntrance) {
+                continue;
+            }
             if (gx > 0 && roomish[idx - 1] && !union(parent, tileCount, rootEntry, idx, idx - 1)) refused++;
             if (gx < GRID - 1 && roomish[idx + 1] && !union(parent, tileCount, rootEntry, idx, idx + 1)) refused++;
             if (gz > 0 && roomish[idx - GRID] && !union(parent, tileCount, rootEntry, idx, idx - GRID)) refused++;
@@ -611,6 +640,12 @@ public final class LiveMapFeature {
         return true;
     }
 
+    /** Reads the last built grouping without rebuilding - for the scan loop, which dirties it repeatedly. */
+    private static boolean cachedGroupHasEntry(int idx) {
+        int gid = groupOfCell[idx];
+        return gid >= 0 && gid < groups.size() && groups.get(gid).entry != null;
+    }
+
     private static RoomGroup groupAt(int idx) {
         ensureGroups();
         int gid = idx >= 0 && idx < GRID * GRID ? groupOfCell[idx] : -1;
@@ -625,7 +660,8 @@ public final class LiveMapFeature {
         if (text == null || !DungeonState.isInDungeon() || isInBoss() || !text.contains("Secrets")) {
             return;
         }
-        Matcher m = ACTION_BAR_SECRETS.matcher(text);
+        // Legacy "§76/10 Secrets" would otherwise read as 76 found.
+        Matcher m = ACTION_BAR_SECRETS.matcher(text.replaceAll("§.", ""));
         if (!m.find()) {
             return;
         }
@@ -1009,8 +1045,8 @@ public final class LiveMapFeature {
             };
             float centerX = x + (group.labelGX + 0.5f) * cell;
             float centerY = y + (group.labelGZ + 0.5f) * cell;
-            float boxW = (group.tiles.length == 3 ? 3 : group.maxGX - group.minGX + 1) * cell;
-            float boxH = (group.tiles.length == 3 ? 1 : group.maxGZ - group.minGZ + 1) * cell;
+            float boxW = (group.lShape ? 3 : group.maxGX - group.minGX + 1) * cell;
+            float boxH = (group.lShape ? 1 : group.maxGZ - group.minGZ + 1) * cell;
 
             List<String> lines = new ArrayList<>();
             if (style == 1 || entry == null) {
