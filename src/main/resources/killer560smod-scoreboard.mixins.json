@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.scoreboard.mixin",
+	"client": [
+		"CustomScoreboardGuiMixin",
+		"CustomScoreboardTabOverlayAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

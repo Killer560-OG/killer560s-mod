@@ -70,6 +70,7 @@ public class NewTab extends FolderTab {
                 new QuiverDisplayTab(),
                 new InventoryHudTab(),
                 new RealTimeTab(),
+                new CustomScoreboardTab(),
                 new PlayerStatsTab(),
                 new EtherwarpOverlayTab(),
                 new SlotBindsTab(),
