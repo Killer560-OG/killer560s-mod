@@ -44,6 +44,9 @@ public class NewTab extends FolderTab {
                 new PackDisablerTab(),
                 new CroesusTab(),
                 new HeldItemTab(),
+                new StorageSearchTab(),
+                new WaypointRoutesTab(),
+                new DungeonExtrasTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
                 new VoiceToTextTab(),
@@ -79,6 +82,7 @@ public class NewTab extends FolderTab {
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoLeapTab());
+            tabs.add(new AutoPuzzlesTab());
             tabs.add(new CheatUtilsTab());
             tabs.add(new DungeonBreakerTab());
             tabs.add(new DioriteGlassTab());

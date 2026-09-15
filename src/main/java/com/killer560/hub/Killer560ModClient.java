@@ -131,6 +131,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
         com.killer560.hub.puzzlesolvers.IceFillSolverFeature.register();
         com.killer560.hub.puzzlesolvers.WeirdosSolverFeature.register();
+        com.killer560.hub.autopuzzles.AutoPuzzlesFeature.register();
+        com.killer560.hub.storagesearch.StorageSearchFeature.register();
+        com.killer560.hub.routes.WaypointRoutesFeature.register();
+        com.killer560.hub.dungeonextras.DungeonExtrasFeature.register();
         com.killer560.hub.puzzlesolvers.WaterSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BeamsSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BlazeSolverFeature.register();
@@ -141,6 +145,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
+        com.killer560.hub.leapmenu.PartyTracker.register();
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
         com.killer560.hub.chatcommands.ChatCommandsFeature.register();
@@ -190,7 +195,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .executes(context -> {
                                     Minecraft client = Minecraft.getInstance();
                                     client.execute(() -> client.setScreenAndShow(
-                                            new com.killer560.hub.leapmenu.LeapMenuScreen(client.screen)));
+                                            new com.killer560.hub.leapmenu.LeapOrderScreen(client.screen)));
                                     return 1;
                                 }))
                         // Real, working data-gathering tool for the Mapping tab's placeholders - see
