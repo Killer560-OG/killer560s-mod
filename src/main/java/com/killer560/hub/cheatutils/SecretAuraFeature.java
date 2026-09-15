@@ -123,6 +123,11 @@ public final class SecretAuraFeature {
         } else if (heldItemPaused(cfg, client.player.getMainHandItem())) {
             gate = "holding paused item";
         }
+        if (gate != null) {
+            // Review fix (2026-09-15): skip the room/boss lookups entirely while gated (incl. disabled).
+            logGate(gate);
+            return;
+        }
         boolean inBoss = LiveMapFeature.isInBoss();
         RoomEntry room = inBoss ? null : LiveMapFeature.currentRoomEntry();
         String roomName = room == null ? null : room.name;

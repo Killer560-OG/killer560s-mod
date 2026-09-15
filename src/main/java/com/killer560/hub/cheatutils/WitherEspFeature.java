@@ -80,6 +80,12 @@ public final class WitherEspFeature {
             witherKingPhase = false;
             glowEntityId = -1;
         }
+        if (!cfg.isWitherEspEnabled()) {
+            // Review fix (2026-09-15): cheap disabled exit - no per-tick state-string building while off.
+            glowEntityId = -1;
+            logState("disabled");
+            return;
+        }
         boolean validLoc = client.level != null && client.player != null && DungeonState.isF7OrM7()
                 && LiveMapFeature.isInBoss() && !witherKingPhase;
         if (!cfg.isWitherEspEnabled() || !validLoc) {
