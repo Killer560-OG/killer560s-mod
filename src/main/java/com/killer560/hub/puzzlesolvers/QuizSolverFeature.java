@@ -207,6 +207,19 @@ public final class QuizSolverFeature {
         }
     }
 
+    /** The correct answer's block, once the question's answers are known and the answer holograms were found. */
+    public static BlockPos getCorrectAnswerPos() {
+        if (triviaAnswers == null) {
+            return null;
+        }
+        for (TriviaOption o : options) {
+            if (o.correct && o.blockPos != null) {
+                return o.blockPos;
+            }
+        }
+        return null;
+    }
+
     private static void reset() {
         for (TriviaOption option : options) {
             option.blockPos = null;

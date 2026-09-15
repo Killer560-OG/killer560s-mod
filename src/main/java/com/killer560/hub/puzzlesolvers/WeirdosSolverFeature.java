@@ -198,6 +198,14 @@ public final class WeirdosSolverFeature {
         return (stripped != null ? stripped : name).trim();
     }
 
+    public static BlockPos getCorrectChestPos() {
+        return correctPos;
+    }
+
+    public static int getWrongChestCount() {
+        return wrongPositions.size();
+    }
+
     private static void reset() {
         correctPos = null;
         wrongPositions.clear();
