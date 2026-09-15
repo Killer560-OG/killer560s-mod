@@ -18,7 +18,7 @@ public abstract class HeldItemSwingDurationMixin {
 
     @Inject(method = "getCurrentSwingDuration", at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$heldItemSwingSpeed(CallbackInfoReturnable<Integer> cir) {
-        if (!HeldItemConfig.active) return;
+        if (!HeldItemConfig.isActive()) return;
         float speed = HeldItemConfig.getInstance().getSwingSpeed();
         if (speed == 1.0f) return;
         if ((Object) this != Minecraft.getInstance().player) return;

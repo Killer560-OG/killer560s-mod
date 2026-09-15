@@ -129,7 +129,10 @@ public final class SpotifyLyricsFeature {
     private static void tick() {
         ENGINE.poll(lastFmApiKey, lastFmUsername, lyricTimingOffsetMs, fullLyrics);
 
-        if (!enabled) {
+        // Skyblock Only: this runs on a timer, so it checks your location directly rather than
+        // SkyblockGate.allows() (which lets the mod's own screens through) - opening the mod menu in another
+        // game mode must never start sending lyrics there.
+        if (!enabled || (com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock())) {
             return;
         }
         String lyric = ENGINE.getCurrentLyric();

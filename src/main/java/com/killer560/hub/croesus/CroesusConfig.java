@@ -96,7 +96,7 @@ public final class CroesusConfig {
     }
 
     public boolean isChestProfitEnabled() {
-        return chestProfitEnabled;
+        return chestProfitEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setChestProfitEnabled(boolean v) {
@@ -120,7 +120,7 @@ public final class CroesusConfig {
     }
 
     public boolean isLoggerEnabled() {
-        return loggerEnabled;
+        return loggerEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setLoggerEnabled(boolean v) {
@@ -138,7 +138,7 @@ public final class CroesusConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real automated clicking,
      *  same gate as SecretsConfig / TerminalSolverConfig's auto features. */
     public boolean isAutoCroesusEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoCroesusEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoCroesusEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getAutoCroesusEnabledRaw() {

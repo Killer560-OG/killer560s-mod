@@ -254,7 +254,7 @@ public final class FastLeapConfig {
     // ---- master / general ------------------------------------------------------------------------------------
 
     public boolean isEnabled() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && enabled;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     /** Raw value for the settings UI toggle. */

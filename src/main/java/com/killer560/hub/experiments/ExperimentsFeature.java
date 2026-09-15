@@ -558,7 +558,7 @@ public final class ExperimentsFeature {
         // cached icon left over from the last Superpairs round. superpairsIconCache is also cleared on
         // leaving Superpairs (see logModeChangeIfAny) as defense in depth, but the real fix is this mode
         // check - the cache being stale should never matter once it can't be read outside Superpairs.
-        if (lastLoggedMode != ExperimentSolver.Mode.SUPERPAIRS) {
+        if (lastLoggedMode != ExperimentSolver.Mode.SUPERPAIRS || !com.killer560.hub.util.SkyblockGate.allows()) {
             return null;
         }
         for (ExperimentSolver.Cell cell : lastCells) {

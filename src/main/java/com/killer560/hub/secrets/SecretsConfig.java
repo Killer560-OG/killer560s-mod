@@ -102,7 +102,7 @@ public final class SecretsConfig {
      *  jar can never expand hitboxes even from a copied config.json - the raw field is never what gets
      *  read. */
     public boolean isMasterEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && masterEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && masterEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setMasterEnabled(boolean masterEnabled) {

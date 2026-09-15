@@ -67,6 +67,8 @@ public final class GifPlayerFeature {
         } catch (IOException e) {
             LOGGER.error("Failed to create GIF folder", e);
         }
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
+                client -> GifAudioFeature.tickSkyblockGate());
     }
 
     private static String elementId(String filename) {

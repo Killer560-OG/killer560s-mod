@@ -220,6 +220,9 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .then(ClientCommands.literal("add")
                                         .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                                 .executes(context -> {
+                                                    if (blockedBySkyblockOnly()) {
+                                                        return 0;
+                                                    }
                                                     String name = StringArgumentType.getString(context, "name");
                                                     ModOverlayMessage.show(EtherwarpFeature.addAtLookTarget(name), 3000);
                                                     return 1;
@@ -236,6 +239,9 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("chat")
                                 .then(ClientCommands.argument("message", StringArgumentType.greedyString())
                                         .executes(context -> {
+                                            if (blockedBySkyblockOnly()) {
+                                                return 0;
+                                            }
                                             String message = StringArgumentType.getString(context, "message");
                                             ModOverlayMessage.show(com.killer560.hub.modchat.ModChatFeature.send(message), 3000);
                                             return 1;
@@ -275,6 +281,9 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("send")
                                 .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                         .executes(context -> {
+                                            if (blockedBySkyblockOnly()) {
+                                                return 0;
+                                            }
                                             String name = StringArgumentType.getString(context, "name");
                                             PosmsgEntry entry = PosmsgConfig.getInstance().byName(name);
                                             if (entry == null) {
@@ -290,6 +299,9 @@ public class Killer560ModClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("termism")
                         .executes(context -> {
+                            if (blockedBySkyblockOnly()) {
+                                return 0;
+                            }
                             Minecraft client = Minecraft.getInstance();
                             client.execute(() -> client.setScreenAndShow(new TermismMenuScreen(client.screen)));
                             return 1;
@@ -336,12 +348,18 @@ public class Killer560ModClient implements ClientModInitializer {
 
             dispatcher.register(ClientCommands.literal("cringe")
                     .executes(context -> {
+                        if (blockedBySkyblockOnly()) {
+                            return 0;
+                        }
                         CringeFeature.sendRandom();
                         return 1;
                     })
                     .then(ClientCommands.argument("channel", StringArgumentType.word())
                             .suggests(cringeChannelSuggestions)
                             .executes(context -> {
+                                if (blockedBySkyblockOnly()) {
+                                    return 0;
+                                }
                                 String typed = StringArgumentType.getString(context, "channel");
                                 String channel = CringeFeature.resolveChannel(typed);
                                 if (channel == null) {
@@ -419,6 +437,9 @@ public class Killer560ModClient implements ClientModInitializer {
      *  numbers and joins everything before them back into the message text, rather than using
      *  separate Brigadier arguments (which can't express "greedy string, but not the last 4 words"). */
     private static int posmsgAdd(CommandContext<FabricClientCommandSource> context) {
+        if (blockedBySkyblockOnly()) {
+            return 0;
+        }
         String rest = StringArgumentType.getString(context, "rest").trim();
         String[] tokens = rest.split("\\s+");
         if (tokens.length < 5) {
@@ -442,6 +463,16 @@ public class Killer560ModClient implements ClientModInitializer {
             ModOverlayMessage.show("§c[Posmsg] The last 4 words must be numbers: x y z radius", 4000);
             return 0;
         }
+    }
+
+    /** Skyblock Only: feature commands (cringe, posmsg, mod chat, etherwarp add, termism) do nothing outside
+     *  Skyblock / p3sim while the toggle is on. Settings/profile/menu commands are never blocked. */
+    private static boolean blockedBySkyblockOnly() {
+        if (com.killer560.hub.util.SkyblockGate.allows()) {
+            return false;
+        }
+        ModOverlayMessage.show("§c[Skyblock Only] Mods are paused outside Skyblock / p3sim.", 3000);
+        return true;
     }
 
     private static int setLanguageFromCommand(CommandContext<FabricClientCommandSource> context) {

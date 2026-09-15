@@ -57,7 +57,7 @@ final class TerracottaTimer {
     }
 
     private static boolean active() {
-        return DungeonAlertsConfig.getInstance().terracottaEnabled && DungeonAlertsFeature.floorNumber() == 6
+        return DungeonAlertsConfig.getInstance().terracottaEnabled && com.killer560.hub.util.SkyblockGate.allows() && DungeonAlertsFeature.floorNumber() == 6
                 && DungeonAlertsFeature.inBoss();
     }
 

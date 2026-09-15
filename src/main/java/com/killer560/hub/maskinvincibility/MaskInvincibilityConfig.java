@@ -81,7 +81,7 @@ public final class MaskInvincibilityConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {
@@ -123,7 +123,7 @@ public final class MaskInvincibilityConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatically swaps
      *  your worn mask, a real automation. */
     public boolean isAutoSwapEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSwapEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSwapEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoSwapEnabled(boolean autoSwapEnabled) {

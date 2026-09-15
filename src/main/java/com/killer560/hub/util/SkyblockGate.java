@@ -68,7 +68,10 @@ public final class SkyblockGate {
         }
         Minecraft client = Minecraft.getInstance();
         // The mod's own screens (settings menu, HUD editor, pickers) show the real saved values.
-        return client != null && client.screen != null && client.screen.getClass().getName().startsWith("com.killer560.hub.");
+        // Read once: some gated getters run off the render thread (e.g. block-shape mixins on the integrated
+        // server thread), where client.screen can go null between two reads.
+        net.minecraft.client.gui.screens.Screen screen = client == null ? null : client.screen;
+        return screen != null && screen.getClass().getName().startsWith("com.killer560.hub.");
     }
 
     public static boolean isOnSkyblock() {

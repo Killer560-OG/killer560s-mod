@@ -42,7 +42,7 @@ final class RoomAlerts {
 
     private static void tick() {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        if (!cfg.roomAlertsEnabled || !DungeonState.isInDungeon()) {
+        if (!cfg.roomAlertsEnabled || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
             lastRoom = null;
             return;
         }

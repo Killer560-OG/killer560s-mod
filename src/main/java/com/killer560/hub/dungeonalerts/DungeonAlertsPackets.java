@@ -38,13 +38,18 @@ public final class DungeonAlertsPackets {
     }
 
     public static void onSectionUpdate(ClientboundSectionBlocksUpdatePacket packet) {
-        if (!DungeonAlertsConfig.getInstance().terracottaEnabled) {
+        if (!DungeonAlertsConfig.getInstance().terracottaEnabled || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         guard("sectionUpdate", () -> packet.runUpdates(TerracottaTimer::onBlockChange));
     }
 
     private static void guard(String what, Runnable action) {
+        // Skyblock Only: every Dungeon Alerts packet reaction (Shadow Assassin, Secret Sound, Spring Boots, Ragnarock,
+        // Terracotta) goes through here.
+        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+            return;
+        }
         try {
             action.run();
         } catch (RuntimeException e) {

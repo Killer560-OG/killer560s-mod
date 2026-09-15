@@ -107,7 +107,7 @@ public final class SecretSound {
     }
 
     private static void onInteract(BlockPos pos) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || !DungeonState.isInDungeon()) {
+        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         long now = System.currentTimeMillis();

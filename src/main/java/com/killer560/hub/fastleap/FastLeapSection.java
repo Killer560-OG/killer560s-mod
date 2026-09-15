@@ -35,13 +35,13 @@ public final class FastLeapSection {
         widgets.add(new StringWidget(x, y, width, 12, Component.literal("§6§lFast Leap"), Minecraft.getInstance().font));
         y += 14;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Fast Leap", cfg.isEnabled()), btn -> {
-            cfg.setEnabled(!cfg.isEnabled());
+        widgets.add(SettingsButtonWidget.builder(onOff("Fast Leap", cfg.isEnabledSetting()), btn -> {
+            cfg.setEnabled(!cfg.isEnabledSetting());
             cfg.save();
             requestRebuild.run();
         }).bounds(x, y, width, ROW).build());
         y += ROW + GAP;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledSetting()) {
             return y + 8;
         }
 

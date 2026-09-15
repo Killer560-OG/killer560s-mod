@@ -65,7 +65,7 @@ public final class DungeonBreakerConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real mechanical edge
      *  (insta-mining, not just a safety net), same category as Simon Says' Trigger Bot/Auto Solve. */
     public boolean isEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {

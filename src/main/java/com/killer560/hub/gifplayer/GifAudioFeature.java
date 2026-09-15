@@ -39,6 +39,34 @@ public final class GifAudioFeature {
     /** Filename (as found in the gifs folder, .mp3 included) -> its open, looping Clip. */
     private static final Map<String, Clip> clips = new LinkedHashMap<>();
 
+    /** Skyblock Only: true while audio is paused because you're outside Skyblock/p3sim. Uses the gate's
+     *  location state directly (not {@code SkyblockGate.allows()}) so opening the mod menu elsewhere doesn't
+     *  start the loops back up. */
+    private static boolean gateBlocked = false;
+
+    private static boolean computeGateBlocked() {
+        return com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock();
+    }
+
+    /** Called every client tick (registered by {@link GifPlayerFeature#register()}): pauses the looping clips
+     *  when Skyblock Only blocks them and resumes them on return, without touching the saved audio toggle. */
+    public static void tickSkyblockGate() {
+        boolean blocked = computeGateBlocked();
+        if (blocked == gateBlocked) {
+            return;
+        }
+        gateBlocked = blocked;
+        if (GifPlayerConfig.getInstance().isAudioEnabled()) {
+            for (Clip clip : clips.values()) {
+                if (blocked) {
+                    clip.stop();
+                } else {
+                    clip.loop(Clip.LOOP_CONTINUOUSLY);
+                }
+            }
+        }
+    }
+
     /** Re-scans the folder for every supported audio file and syncs {@link #clips} to match which
      *  ones are currently enabled, converting any .mp3 to a cached .wav first. */
     public static void reload() {
@@ -85,7 +113,7 @@ public final class GifAudioFeature {
                 clip.open(in);
                 clips.put(name, clip);
                 applyVolumeTo(clip);
-                if (GifPlayerConfig.getInstance().isAudioEnabled()) {
+                if (GifPlayerConfig.getInstance().isAudioEnabled() && !computeGateBlocked()) {
                     clip.loop(Clip.LOOP_CONTINUOUSLY);
                 }
                 LOGGER.info("Loaded GIF audio: {}", name);
@@ -98,7 +126,7 @@ public final class GifAudioFeature {
     /** Starts/stops looping every currently-loaded clip, without re-reading anything from disk. */
     public static void setEnabled(boolean enabled) {
         for (Clip clip : clips.values()) {
-            if (enabled) {
+            if (enabled && !computeGateBlocked()) {
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
             } else {
                 clip.stop();

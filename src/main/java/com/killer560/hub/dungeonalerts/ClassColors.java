@@ -52,7 +52,7 @@ public final class ClassColors {
             tickCounter = 0;
             DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
             boolean needed = cfg.classColorsEnabled || cfg.ragEnabled && cfg.ragM7Alert;
-            if (!needed || client.getConnection() == null || !DungeonState.isInDungeon()) {
+            if (!needed || client.getConnection() == null || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
                 return;
             }
             for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
@@ -105,7 +105,7 @@ public final class ClassColors {
      *  entry is a known teammate - then the name text is re-colored with the class color. */
     public static Component recolorTabName(PlayerInfo info, Component original) {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        if (original == null || info == null || !cfg.classColorsEnabled || !cfg.classColorsTab || !DungeonState.isInDungeon()
+        if (original == null || info == null || !com.killer560.hub.util.SkyblockGate.allows() || !cfg.classColorsEnabled || !cfg.classColorsTab || !DungeonState.isInDungeon()
                 || info.getTabListDisplayName() == null) {
             return original;
         }

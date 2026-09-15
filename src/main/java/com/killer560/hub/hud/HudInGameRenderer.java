@@ -32,7 +32,8 @@ public final class HudInGameRenderer {
 
     private static void draw(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.options.hideGui) {
+        // Skyblock Only: none of these elements draw outside Skyblock / p3sim (the HUD editor previews them itself).
+        if (client.player == null || client.options.hideGui || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {

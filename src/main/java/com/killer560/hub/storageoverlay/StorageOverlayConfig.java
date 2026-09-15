@@ -99,7 +99,7 @@ public final class StorageOverlayConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {

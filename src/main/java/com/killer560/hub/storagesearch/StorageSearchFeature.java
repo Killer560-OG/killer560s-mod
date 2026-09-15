@@ -69,6 +69,10 @@ public final class StorageSearchFeature {
 
     private static void openDeferred(String query) {
         Minecraft client = Minecraft.getInstance();
+        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+            ModChat.send(CHAT_PREFIX, ModChat.bad("Paused"), ModChat.dim(" - Skyblock Only is on and you're not on Skyblock."));
+            return;
+        }
         if (!StorageSearchConfig.getInstance().isEnabled()) {
             ModChat.send(CHAT_PREFIX, ModChat.bad("Disabled"), ModChat.dim(" - turn it on in the mod menu."));
             return;

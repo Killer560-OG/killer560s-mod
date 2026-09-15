@@ -200,7 +200,7 @@ public final class TerminalSolverConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {
@@ -264,7 +264,7 @@ public final class TerminalSolverConfig {
     }
 
     public boolean isCustomGuiEnabled() {
-        return customGuiEnabled;
+        return customGuiEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setCustomGuiEnabled(boolean customGuiEnabled) {
@@ -283,7 +283,7 @@ public final class TerminalSolverConfig {
      *  pattern as {@code ExperimentsConfig#isAutonomousMode} - auto-clicking terminals is a real macro,
      *  so the legit build can never run it even from a config.json copied over from a cheat install. */
     public boolean isAutoTerminalsEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoTerminalsEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoTerminalsEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoTerminalsEnabled(boolean autoTerminalsEnabled) {

@@ -86,7 +86,7 @@ public final class MappingConfig {
     /** Master toggle - gates the periodic diagnostic log in {@link MappingFeature}. The "Dump Held Map
      *  Now" button/command works regardless of this, since it's an explicit one-shot user action. */
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {

@@ -133,7 +133,7 @@ public final class I4LeapConfig {
     }
 
     public boolean isEnabled() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && enabled;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean v) {

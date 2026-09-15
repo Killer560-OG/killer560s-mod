@@ -82,7 +82,7 @@ public final class AutoPuzzlesConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real automation. */
     public boolean isAutoQuizEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoQuizEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoQuizEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoQuizEnabled(boolean enabled) {
@@ -99,7 +99,7 @@ public final class AutoPuzzlesConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real automation. */
     public boolean isAutoWeirdosEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoWeirdosEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoWeirdosEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoWeirdosEnabled(boolean enabled) {

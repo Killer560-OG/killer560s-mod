@@ -48,7 +48,7 @@ public abstract class HeldItemInHandRendererMixin {
                                               float inverseArmHeight, PoseStack poseStack,
                                               SubmitNodeCollector submitNodeCollector, int lightCoords,
                                               CallbackInfo ci) {
-        if (!HeldItemConfig.active) return;
+        if (!HeldItemConfig.isActive()) return;
         if (itemStack.isEmpty()) return;
         HeldItemConfig.HandTransform t = HeldItemConfig.getInstance().forHand(hand == InteractionHand.MAIN_HAND);
         if (t.x == 0f && t.y == 0f && t.z == 0f) return;
@@ -64,7 +64,7 @@ public abstract class HeldItemInHandRendererMixin {
                                                    float inverseArmHeight, PoseStack poseStack,
                                                    SubmitNodeCollector submitNodeCollector, int lightCoords,
                                                    CallbackInfo ci) {
-        if (!HeldItemConfig.active) return;
+        if (!HeldItemConfig.isActive()) return;
         HeldItemConfig.HandTransform t = HeldItemConfig.getInstance().forHand(hand == InteractionHand.MAIN_HAND);
         float sign = killer560smod$armSign(player, hand);
         if (t.rotX != 0f) poseStack.mulPose(Axis.XP.rotationDegrees(t.rotX));
@@ -76,14 +76,14 @@ public abstract class HeldItemInHandRendererMixin {
     /** {@code attack} is the swing progress (0 = at rest); pinning it to 0 removes the swing arc/rotation. */
     @ModifyVariable(method = "renderArmWithItem", at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
     private float killer560smod$heldItemNoSwing(float attack) {
-        if (!HeldItemConfig.active) return attack;
+        if (!HeldItemConfig.isActive()) return attack;
         return HeldItemConfig.getInstance().isNoSwing() ? 0f : attack;
     }
 
     @Inject(method = "shouldInstantlyReplaceVisibleItem", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$heldItemInstantReplace(ItemStack currentlyVisibleItem, ItemStack expectedItem,
                                                       CallbackInfoReturnable<Boolean> cir) {
-        if (!HeldItemConfig.active) return;
+        if (!HeldItemConfig.isActive()) return;
         if (HeldItemConfig.getInstance().isNoEquip()) {
             cir.setReturnValue(true);
         }
@@ -91,7 +91,7 @@ public abstract class HeldItemInHandRendererMixin {
 
     @Inject(method = "tick", at = @At("TAIL"), require = 0)
     private void killer560smod$heldItemNoEquip(CallbackInfo ci) {
-        if (!HeldItemConfig.active) return;
+        if (!HeldItemConfig.isActive()) return;
         if (!HeldItemConfig.getInstance().isNoEquip()) return;
         LocalPlayer player = Minecraft.getInstance().player;
         // Vanilla drops the hands out of view while riding etc. (isHandsBusy) - keep that behavior.
@@ -108,7 +108,7 @@ public abstract class HeldItemInHandRendererMixin {
             at = @At(value = "INVOKE", target = "Lcom/mojang/math/Axis;rotationDegrees(F)Lorg/joml/Quaternionf;"),
             index = 0, require = 0)
     private float killer560smod$heldItemNoSway(float degrees) {
-        if (!HeldItemConfig.active) return degrees;
+        if (!HeldItemConfig.isActive()) return degrees;
         return HeldItemConfig.getInstance().isNoHandSway() ? 0f : degrees;
     }
 

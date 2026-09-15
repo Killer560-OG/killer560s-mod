@@ -80,7 +80,7 @@ public final class BloodCampConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {
@@ -98,7 +98,7 @@ public final class BloodCampConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real click-assist
      *  macro, same pattern as Simon Says' Trigger Bot. */
     public boolean isTriggerBotEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && triggerBotEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && triggerBotEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setTriggerBotEnabled(boolean triggerBotEnabled) {
@@ -108,7 +108,7 @@ public final class BloodCampConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real simulated camera
      *  rotation, a real macro. */
     public boolean isAuraEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && auraEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && auraEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAuraEnabled(boolean auraEnabled) {

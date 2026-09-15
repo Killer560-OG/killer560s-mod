@@ -112,7 +112,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isSecretsHudEnabled() {
-        return secretsHudEnabled;
+        return secretsHudEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setSecretsHudEnabled(boolean secretsHudEnabled) {
@@ -120,7 +120,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isMimicMessageEnabled() {
-        return mimicMessageEnabled;
+        return mimicMessageEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setMimicMessageEnabled(boolean v) {
@@ -136,7 +136,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isPrinceMessageEnabled() {
-        return princeMessageEnabled;
+        return princeMessageEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setPrinceMessageEnabled(boolean v) {
@@ -152,7 +152,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isBatMessageEnabled() {
-        return batMessageEnabled;
+        return batMessageEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setBatMessageEnabled(boolean v) {
@@ -168,7 +168,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isScore270Enabled() {
-        return score270Enabled;
+        return score270Enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setScore270Enabled(boolean v) {
@@ -184,7 +184,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isScore300Enabled() {
-        return score300Enabled;
+        return score300Enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setScore300Enabled(boolean v) {
@@ -200,7 +200,7 @@ public final class DungeonInfoConfig {
     }
 
     public boolean isTimeTrackerEnabled() {
-        return timeTrackerEnabled;
+        return timeTrackerEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setTimeTrackerEnabled(boolean v) {

@@ -189,7 +189,7 @@ public final class I4SensorsConfig {
     }
 
     public boolean isSolverEnabled() {
-        return solverEnabled;
+        return solverEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public int getSolverColor() {
@@ -207,7 +207,7 @@ public final class I4SensorsConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatic aiming/shooting,
      *  a real macro, same pattern as Auto Solve/Auto Terminals. */
     public boolean isAutoI4Enabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoI4Enabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoI4Enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoI4Enabled(boolean autoI4Enabled) {

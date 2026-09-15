@@ -240,7 +240,7 @@ public final class SimonSaysConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {
@@ -248,7 +248,7 @@ public final class SimonSaysConfig {
     }
 
     public boolean isSolverEnabled() {
-        return solverEnabled;
+        return solverEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setSolverEnabled(boolean solverEnabled) {
@@ -304,7 +304,7 @@ public final class SimonSaysConfig {
     }
 
     public boolean isPreventMisclicksEnabled() {
-        return preventMisclicksEnabled;
+        return preventMisclicksEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setPreventMisclicksEnabled(boolean preventMisclicksEnabled) {
@@ -312,7 +312,7 @@ public final class SimonSaysConfig {
     }
 
     public boolean isAnnounceProgress() {
-        return announceProgress;
+        return announceProgress && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAnnounceProgress(boolean announceProgress) {
@@ -320,7 +320,7 @@ public final class SimonSaysConfig {
     }
 
     public boolean isPartyProgressTrackerEnabled() {
-        return partyProgressTrackerEnabled;
+        return partyProgressTrackerEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setPartyProgressTrackerEnabled(boolean partyProgressTrackerEnabled) {
@@ -330,7 +330,7 @@ public final class SimonSaysConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real click-assist
      *  macro, same pattern as Auto Terminals. */
     public boolean isTriggerBotEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && triggerBotEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && triggerBotEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public int getTriggerBotDelayMs() {
@@ -348,7 +348,7 @@ public final class SimonSaysConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - full no-rotate
      *  auto-clicking through the whole sequence, a real macro. */
     public boolean isAutoSolveEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSolveEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSolveEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoSolveEnabled(boolean autoSolveEnabled) {
@@ -399,7 +399,7 @@ public final class SimonSaysConfig {
      *  button to set up a "skip", a real macro. Real trigger: SimonSaysFeature fires this itself the
      *  moment the real Goldor phase-start line is seen (ported from NoammAddons), not from a GUI button. */
     public boolean isAutoStartEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoStartEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoStartEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoStartEnabled(boolean autoStartEnabled) {
@@ -426,7 +426,7 @@ public final class SimonSaysConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - clicks the start button. */
     public boolean isAutoRestartEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoRestartEnabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoRestartEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getAutoRestartRaw() {

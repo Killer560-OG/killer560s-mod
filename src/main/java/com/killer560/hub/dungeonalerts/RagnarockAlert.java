@@ -83,7 +83,7 @@ final class RagnarockAlert {
         if (buffEndsAtMs > 0 && System.currentTimeMillis() >= buffEndsAtMs) {
             buffEndsAtMs = 0L;
             DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Ragnarock buff ended");
-            if (cfg.ragEnabled && cfg.ragEndAlert) {
+            if (cfg.ragEnabled && cfg.ragEndAlert && com.killer560.hub.util.SkyblockGate.allows()) {
                 alert("§cRagnarock Ended");
             }
         }
@@ -102,7 +102,7 @@ final class RagnarockAlert {
 
     private static void onChat(Component message) {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        if (!cfg.ragEnabled) {
+        if (!cfg.ragEnabled || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         String plain = ChatObserver.strip(message).trim();

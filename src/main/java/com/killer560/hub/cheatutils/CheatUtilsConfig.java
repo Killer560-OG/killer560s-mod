@@ -260,7 +260,7 @@ public final class CheatUtilsConfig {
     }
 
     // ---- Wither ESP ----
-    public boolean isWitherEspEnabled() { return cheat() && witherEspEnabled; }
+    public boolean isWitherEspEnabled() { return cheat() && witherEspEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setWitherEspEnabled(boolean v) { witherEspEnabled = v; }
     public WitherPhaseFilter getWitherPhaseFilter() { return witherPhaseFilter; }
     public void cycleWitherPhaseFilter() {
@@ -277,7 +277,7 @@ public final class CheatUtilsConfig {
     public void setNecronColor(int v) { necronColor = v; }
 
     // ---- Secret Aura ----
-    public boolean isSecretAuraEnabled() { return cheat() && secretAuraEnabled; }
+    public boolean isSecretAuraEnabled() { return cheat() && secretAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setSecretAuraEnabled(boolean v) { secretAuraEnabled = v; }
     public boolean isAuraChests() { return auraChests; }
     public void setAuraChests(boolean v) { auraChests = v; }
@@ -301,7 +301,7 @@ public final class CheatUtilsConfig {
     public void setAuraPauseHolding(String v) { auraPauseHolding = v == null ? "" : v; }
 
     // ---- Auto GFS ----
-    public boolean isAutoGfsEnabled() { return cheat() && autoGfsEnabled; }
+    public boolean isAutoGfsEnabled() { return cheat() && autoGfsEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setAutoGfsEnabled(boolean v) { autoGfsEnabled = v; }
     public boolean isGfsPearls() { return gfsPearls; }
     public void setGfsPearls(boolean v) { gfsPearls = v; }
@@ -319,7 +319,7 @@ public final class CheatUtilsConfig {
     public void setGfsSkipIfNone(boolean v) { gfsSkipIfNone = v; }
 
     // ---- Auto Ult ----
-    public boolean isAutoUltEnabled() { return cheat() && autoUltEnabled; }
+    public boolean isAutoUltEnabled() { return cheat() && autoUltEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setAutoUltEnabled(boolean v) { autoUltEnabled = v; }
     public boolean isUltMaxorEnraged() { return ultMaxorEnraged; }
     public void setUltMaxorEnraged(boolean v) { ultMaxorEnraged = v; }
@@ -338,7 +338,7 @@ public final class CheatUtilsConfig {
     }
 
     // ---- Auto Chocolate Factory ----
-    public boolean isChocolateEnabled() { return cheat() && chocolateEnabled; }
+    public boolean isChocolateEnabled() { return cheat() && chocolateEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setChocolateEnabled(boolean v) { chocolateEnabled = v; }
     public boolean isCfClickCookie() { return cfClickCookie; }
     public void setCfClickCookie(boolean v) { cfClickCookie = v; }

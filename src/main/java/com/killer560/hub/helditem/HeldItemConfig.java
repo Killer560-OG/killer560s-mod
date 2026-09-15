@@ -163,7 +163,12 @@ public final class HeldItemConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    /** What the mixins read every frame: {@link #active} AND Skyblock Only's gate (saved setting untouched). */
+    public static boolean isActive() {
+        return active && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {

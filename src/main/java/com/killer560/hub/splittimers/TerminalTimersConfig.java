@@ -71,7 +71,7 @@ public final class TerminalTimersConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {
@@ -79,7 +79,7 @@ public final class TerminalTimersConfig {
     }
 
     public boolean isSolveTimes() {
-        return enabled && solveTimes;
+        return enabled && solveTimes && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getSolveTimesRaw() {
@@ -91,7 +91,7 @@ public final class TerminalTimersConfig {
     }
 
     public boolean isSplits() {
-        return enabled && splits;
+        return enabled && splits && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getSplitsRaw() {
@@ -103,7 +103,7 @@ public final class TerminalTimersConfig {
     }
 
     public boolean isSimonSaysTime() {
-        return enabled && simonSaysTime;
+        return enabled && simonSaysTime && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getSimonSaysTimeRaw() {

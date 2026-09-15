@@ -196,7 +196,7 @@ public final class I4SensorsFeature {
             lastLevel = client.level;
         }
         LocalPlayer player = client.player;
-        boolean nowNear = player != null && client.level != null && isOnDungeonServer(client)
+        boolean nowNear = player != null && client.level != null && isOnDungeonServer(client) && com.killer560.hub.util.SkyblockGate.allows()
                 && NEAR_BOX.contains(player.position());
         if (nowNear && !near) {
             beginSession(client);

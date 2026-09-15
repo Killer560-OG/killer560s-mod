@@ -115,7 +115,7 @@ public final class DungeonExtrasConfig {
     }
 
     // ---- Custom Mage Beam (both builds) ----
-    public boolean isMageBeamEnabled() { return mageBeamEnabled; }
+    public boolean isMageBeamEnabled() { return mageBeamEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setMageBeamEnabled(boolean v) { mageBeamEnabled = v; }
     public boolean isMageBeamHideParticles() { return mageBeamHideParticles; }
     public void setMageBeamHideParticles(boolean v) { mageBeamHideParticles = v; }
@@ -129,7 +129,7 @@ public final class DungeonExtrasConfig {
     public void setMageBeamDurationTicks(int v) { mageBeamDurationTicks = clampInt(v, 5, 100); }
 
     // ---- Auto Dialogue (cheat) ----
-    public boolean isAutoDialogueEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoDialogueEnabled; }
+    public boolean isAutoDialogueEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoDialogueEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean isAutoDialogueEnabledRaw() { return autoDialogueEnabled; }
     public void setAutoDialogueEnabled(boolean v) { autoDialogueEnabled = v; }
     public int getAutoDialogueDelayTicks() { return autoDialogueDelayTicks; }
@@ -138,7 +138,7 @@ public final class DungeonExtrasConfig {
     public void setAutoDialogueNpcFilter(String v) { autoDialogueNpcFilter = v == null ? "" : v; }
 
     // ---- Breaker Aura (cheat) ----
-    public boolean isBreakerAuraEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraEnabled; }
+    public boolean isBreakerAuraEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean isBreakerAuraEnabledRaw() { return breakerAuraEnabled; }
     public void setBreakerAuraEnabled(boolean v) { breakerAuraEnabled = v; }
     public double getBreakerAuraReach() { return breakerAuraReach; }

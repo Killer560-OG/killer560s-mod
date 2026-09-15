@@ -95,7 +95,8 @@ public final class JumpscareFeature {
     }
 
     private static void trigger(long now) {
-        if (active) {
+        // Skyblock Only: timer-driven, so checks your location directly (the mod's own screens don't count).
+        if (active || (com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock())) {
             return;
         }
         Path imageFile = findFileByExtension(IMAGE_EXTENSIONS);
@@ -185,7 +186,7 @@ public final class JumpscareFeature {
 
     /** Called every frame from {@link com.killer560.hub.jumpscare.mixin.JumpscareGuiMixin}. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
-        if (!active) {
+        if (!active || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         if (System.currentTimeMillis() >= activeUntilMs) {

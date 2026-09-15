@@ -182,7 +182,7 @@ public final class ExperimentsConfig {
     }
 
     public boolean isEnabled() {
-        return enabled;
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {
@@ -309,7 +309,7 @@ public final class ExperimentsConfig {
     }
 
     public boolean isProfitTrackerEnabled() {
-        return profitTrackerEnabled;
+        return profitTrackerEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setProfitTrackerEnabled(boolean profitTrackerEnabled) {

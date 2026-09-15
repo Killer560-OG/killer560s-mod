@@ -74,7 +74,7 @@ public final class DungeonAlertsFeature {
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.screen != null || client.options.hideGui) {
+        if (client.player == null || client.screen != null || client.options.hideGui || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         // Position/scale come from HudConfig by id, so this works even before the element is in the editor list.
@@ -88,6 +88,9 @@ public final class DungeonAlertsFeature {
     }
 
     private static void onWorldRender(LevelRenderContext context) {
+        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+            return;
+        }
         TerracottaTimer.onWorldRender(context);
         SpringBootsOverlay.onWorldRender(context);
         ClassColors.onWorldRender(context);

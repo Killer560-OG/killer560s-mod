@@ -64,7 +64,7 @@ public final class DioriteGlassConfig {
     /** Gated the same single-source-of-truth way as {@code MobEspConfig#isCheatMode} - the legit jar
      *  can never report true here even from a copied cheat-build config.json. */
     public boolean isEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setEnabled(boolean enabled) {

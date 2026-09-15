@@ -199,6 +199,9 @@ public final class DvdFeature {
             initialSyncDone = true;
             reload();
         }
+        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+            return;
+        }
         long now = System.currentTimeMillis();
         int screenW = graphics.guiWidth();
         int screenH = graphics.guiHeight();
