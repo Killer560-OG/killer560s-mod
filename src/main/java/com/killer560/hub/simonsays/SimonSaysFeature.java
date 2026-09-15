@@ -1163,28 +1163,15 @@ public final class SimonSaysFeature {
             autoStartTicksUntilNextClick--;
             return;
         }
-        // "Look Only" mode (2026-09-14, killer560's own request, partly to test his own theory about why
-        // Auto Start "isn't working") - only actually clicks once the REAL crosshair raycast confirms the
-        // player is genuinely looking at the button (waits here, doesn't burn through the click schedule,
-        // until that's true). Real bug found and fixed the same day, "bug once-over" pass: this used to
-        // click straight through the raw real hitResult, which - with Full Block hitbox expansion on -
-        // could land anywhere inside the artificially enlarged hitbox. Killer560's own explicit rule
-        // (applies everywhere except Auto Solve's own already-centered synthetic clicking): "make sure it
-        // goes to center." The real raycast is still what CONFIRMS real aim; the actual click always lands
-        // on the button's true center now, via the same sendNoRotateInteract Aura mode already uses.
-        // Rotate Mode (killer560's own request: "whenever the phase starts it should look at the start
-        // button if not already doing it") takes priority over both existing Auto Start aim modes when
-        // on - the camera actually turns toward the real start button over several ticks instead of
-        // either clicking instantly (aura) or waiting on the PLAYER's own real aim (Look Only).
+        // Click mode follows Auto Solve's Mode (2026-09-14, killer560's own call - replaces the separate
+        // Aura/Look Only setting): Rotate = look only - the camera turns to the real start button and the
+        // click only fires once the real crosshair raycast confirms it's on the button (see
+        // applyRotateApproachFrame); No Rotate = aura, the instant synthetic click that works regardless of
+        // where the player is looking. Either way the click itself lands on the button's true center.
         if (cfg.isAutoSolveRotate()) {
             if (!tickRotateClick(client, START_BUTTON, null)) {
                 return;
             }
-        } else if (cfg.isAutoStartLookOnlyMode()) {
-            if (!(client.hitResult instanceof BlockHitResult lookHit) || !lookHit.getBlockPos().equals(START_BUTTON)) {
-                return;
-            }
-            sendNoRotateInteract(client, START_BUTTON);
         } else {
             sendNoRotateInteract(client, START_BUTTON);
         }
@@ -1202,7 +1189,7 @@ public final class SimonSaysFeature {
                 && startButtonState.getValue(BlockStateProperties.POWERED);
         LOGGER.info("[SimonSays] Auto-start click {}/{} sent ({} mode, button currently powered={}).",
                 autoStartClicksSent, cfg.getAutoStartClicks(),
-                cfg.isAutoSolveRotate() ? "rotate" : cfg.isAutoStartLookOnlyMode() ? "look-only" : "aura",
+                cfg.isAutoSolveRotate() ? "look-only (rotate)" : "aura",
                 startButtonPowered);
     }
 

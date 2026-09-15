@@ -66,6 +66,11 @@ public final class SimonSaysConfig {
     // attempt, so the full target duration got spent on each round's handful of clicks alone (round 1 has
     // just ONE click) - killer560's own correct diagnosis: "extremely slow... thinking that is per stage
     // of it not overall."
+    // Range narrowed to 11-13s (2026-09-14, killer560's own call after the Rotate Mode pacing fix): 11s is
+    // about the fastest Rotate Mode can physically land a whole device, and 13s is the slowest Auto Solve
+    // should ever be used at. See MIN_/MAX_CLICK_TIMER_TARGET_MS - the slider and the setter share them.
+    public static final int MIN_CLICK_TIMER_TARGET_MS = 11_000;
+    public static final int MAX_CLICK_TIMER_TARGET_MS = 13_000;
     private int clickTimerTargetMs = 12_800;
     private int clickTimerVarianceMs = 100;
     // Alternative pacing mode (2026-09-14, killer560's own request after seeing real log data showing
@@ -85,13 +90,10 @@ public final class SimonSaysConfig {
     // ranges were narrower (1-10 clicks, 1-25 ticks) but this mod's slider UI needed one shared 0-20 range.
     private int autoStartClicks = 3;
     private int autoStartClickDelayTicks = 3;
-    // "Aura" (default, unchanged) = the existing no-rotate synthetic click, works regardless of where the
-    // player is looking. "Look Only" (2026-09-14, killer560's own request, partly to test his own theory
-    // about why Auto Start "isn't working") = only actually clicks using the REAL crosshair raycast
-    // result, i.e. only when genuinely looking at the start button - same real interaction Trigger Bot
-    // itself uses, as opposed to a synthetic BlockHitResult. Waits (doesn't burn through the click
-    // schedule) until the player is actually looking at it.
-    private boolean autoStartLookOnlyMode = false;
+    // Auto Start's click mode is no longer its own setting (2026-09-14, killer560's own call) - it follows
+    // Auto Solve's Mode instead: Rotate = turns the camera to the start button and only clicks once the
+    // real crosshair is on it (look only), No Rotate = aura. See SimonSaysFeature#tickAutoStart. The old
+    // "autoStartLookOnlyMode" JSON key is simply ignored on load and dropped on the next save.
 
     // Reset / announce
     // Renamed from "reset key" (2026-09-14) - killer560's own correction: this key no longer resets any
@@ -145,7 +147,8 @@ public final class SimonSaysConfig {
             cfg.triggerBotEnabled = getBool(obj, "triggerBotEnabled", false);
             cfg.autoSolveEnabled = getBool(obj, "autoSolveEnabled", false);
             cfg.autoSolveRotate = getBool(obj, "autoSolveRotate", false);
-            cfg.clickTimerTargetMs = getInt(obj, "clickTimerTargetMs", 12_800);
+            // Through the setter's clamp so a value saved under the old 1-60s range lands inside 11-13s.
+            cfg.setClickTimerTargetMs(getInt(obj, "clickTimerTargetMs", 12_800));
             cfg.clickTimerVarianceMs = getInt(obj, "clickTimerVarianceMs", 100);
             cfg.autoSolveFixedDelayMode = getBool(obj, "autoSolveFixedDelayMode", false);
             cfg.autoSolveFixedDelayMs = getInt(obj, "autoSolveFixedDelayMs", 150);
@@ -155,7 +158,6 @@ public final class SimonSaysConfig {
             // method) so an old saved "0" from before the 0-tick option was removed (2026-09-14) gets
             // corrected to the new 1-20 range on load, instead of silently staying at 0 forever.
             cfg.setAutoStartClickDelayTicks(getInt(obj, "autoStartClickDelayTicks", 3));
-            cfg.autoStartLookOnlyMode = getBool(obj, "autoStartLookOnlyMode", false);
             cfg.announceKeyCode = getInt(obj, "resetKeyCode", -1);
             cfg.autoSendResetMessage = getBool(obj, "autoSendResetMessage", false);
             cfg.resetMessageText = obj.has("resetMessageText") ? obj.get("resetMessageText").getAsString() : "Resetting Simon Says";
@@ -191,7 +193,6 @@ public final class SimonSaysConfig {
             obj.addProperty("autoStartEnabled", autoStartEnabled);
             obj.addProperty("autoStartClicks", autoStartClicks);
             obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
-            obj.addProperty("autoStartLookOnlyMode", autoStartLookOnlyMode);
             obj.addProperty("resetKeyCode", announceKeyCode);
             obj.addProperty("autoSendResetMessage", autoSendResetMessage);
             obj.addProperty("resetMessageText", resetMessageText);
@@ -341,7 +342,7 @@ public final class SimonSaysConfig {
     }
 
     public void setClickTimerTargetMs(int clickTimerTargetMs) {
-        this.clickTimerTargetMs = Math.max(1000, Math.min(60_000, clickTimerTargetMs));
+        this.clickTimerTargetMs = Math.max(MIN_CLICK_TIMER_TARGET_MS, Math.min(MAX_CLICK_TIMER_TARGET_MS, clickTimerTargetMs));
     }
 
     public int getClickTimerVarianceMs() {
@@ -395,14 +396,6 @@ public final class SimonSaysConfig {
         // Min 1, not 0 (2026-09-14, killer560's own call) - 0 ticks between clicks means every click
         // fires on the same tick, which isn't a real "delay" option at all.
         this.autoStartClickDelayTicks = Math.max(1, Math.min(20, autoStartClickDelayTicks));
-    }
-
-    public boolean isAutoStartLookOnlyMode() {
-        return autoStartLookOnlyMode;
-    }
-
-    public void setAutoStartLookOnlyMode(boolean autoStartLookOnlyMode) {
-        this.autoStartLookOnlyMode = autoStartLookOnlyMode;
     }
 
     public int getAnnounceKeyCode() {
