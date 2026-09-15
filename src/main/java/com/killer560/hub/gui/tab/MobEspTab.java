@@ -81,7 +81,7 @@ public class MobEspTab extends BaseTab {
     }
 
     private static Component rangeText(MobEspConfig cfg) {
-        return Component.literal(String.format("Range: %.0f blocks", cfg.getRange()));
+        return Component.literal(String.format(java.util.Locale.US, "Range: %.0f blocks", cfg.getRange()));
     }
 
     private static Component enabledText() {

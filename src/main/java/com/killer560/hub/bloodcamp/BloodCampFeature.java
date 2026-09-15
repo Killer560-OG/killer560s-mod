@@ -401,11 +401,16 @@ public final class BloodCampFeature {
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
         poseStack.mulPose(mainCamera.rotation());
-        poseStack.scale(-scale, -scale, scale);
+        // Real bug found and fixed (2026-09-14): scaled by (-s, -s, s), the pre-1.21.2 nametag transform.
+        // On 26.1.2 the camera quaternion is already flipped and vanilla's nametag renderer uses
+        // (+s, -s, +s); the extra -X mirror reversed the glyph quads' winding so the (culled) text
+        // pipelines back-face culled the timer 100% of the time. Same fix as SimonSaysFeature.renderNumber.
+        poseStack.scale(scale, -scale, scale);
 
         float width = font.width(text);
         int background = (int) (0.4f * 255f) << 24;
-        font.drawInBatch(text, -width / 2f, 0f, 0xFFFFFFFF, false, poseStack.last().pose(),
+        // -lineHeight/2 so the timer is vertically centered on its anchor instead of hanging below it.
+        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
                 bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();

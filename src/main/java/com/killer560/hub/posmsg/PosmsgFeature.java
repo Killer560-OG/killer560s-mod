@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -30,8 +31,12 @@ public final class PosmsgFeature {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-posmsg");
     private static final String TAG = "[PM]";
+    // Real bug found and fixed (2026-09-14): send() formatted the payload with the default locale, so a
+    // comma-decimal locale (de_DE, fr_FR, ...) sent "12,50", which the old [\d.]+ groups never matched.
+    // send() now always formats with Locale.US; receiving also accepts a comma decimal (fields are
+    // pipe-separated, so it's unambiguous) and normalizes it, so lines from older builds still parse.
     private static final Pattern RECEIVE_PATTERN =
-            Pattern.compile("\\[PM]([^|]+)\\|(-?[\\d.]+)\\|(-?[\\d.]+)\\|(-?[\\d.]+)\\|(-?[\\d.]+)");
+            Pattern.compile("\\[PM]([^|]+)\\|(-?[\\d.,]+)\\|(-?[\\d.,]+)\\|(-?[\\d.,]+)\\|(-?[\\d.,]+)");
 
     private static final Map<String, ReceivedMarker> receivedMarkers = new HashMap<>();
     private static final Set<String> usedThisRun = new HashSet<>();
@@ -69,10 +74,10 @@ public final class PosmsgFeature {
         }
         try {
             String name = m.group(1);
-            double x = Double.parseDouble(m.group(2));
-            double y = Double.parseDouble(m.group(3));
-            double z = Double.parseDouble(m.group(4));
-            double radius = Double.parseDouble(m.group(5));
+            double x = parseNumber(m.group(2));
+            double y = parseNumber(m.group(3));
+            double z = parseNumber(m.group(4));
+            double radius = parseNumber(m.group(5));
             // If this exact name is one of my own configured entries, my own copy of it (with my own
             // toggles/color) already renders locally - no need for a second, differently-styled marker.
             if (PosmsgConfig.getInstance().byName(name) != null) {
@@ -85,6 +90,12 @@ public final class PosmsgFeature {
         } catch (NumberFormatException e) {
             LOGGER.info("[Posmsg] Failed to parse numbers in \"{}\": {}", raw, e.getMessage());
         }
+    }
+
+    /** Locale-independent number parse (Double.parseDouble always expects '.'); also accepts a comma
+     *  decimal separator from older comma-locale senders. */
+    private static double parseNumber(String s) {
+        return Double.parseDouble(s.replace(',', '.'));
     }
 
     /** Sends the given preset/entry to Party Chat, honoring the once-per-run gate. Silently no-ops
@@ -102,7 +113,7 @@ public final class PosmsgFeature {
         if (client.player == null) {
             return;
         }
-        String payload = String.format("%s%s|%.2f|%.2f|%.2f|%.2f",
+        String payload = String.format(Locale.US, "%s%s|%.2f|%.2f|%.2f|%.2f",
                 TAG, entry.name, entry.x, entry.y, entry.z, entry.radius);
         client.player.connection.sendCommand("pc " + payload);
         usedThisRun.add(entry.id);

@@ -11,12 +11,14 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Real Hypixel dungeon "Spirit Leap" quick-select overlay, ported from Odin's own {@code LeapMenu.kt}.
@@ -56,33 +58,34 @@ public final class SpiritLeapOverlayFeature {
             return;
         }
 
-        List<Slot> slots = containerScreen.getMenu().slots;
-        // Real bug class already found and fixed once in AutoLeapFeature: the menu's slot list always
-        // appends the player's own 36 inventory+hotbar slots after the real container's own rows, so an
-        // unbounded scan can pick up an unrelated held item. Bounded the same way.
-        int containerSlotCount = Math.max(0, slots.size() - 36);
-        List<LeapTarget> targets = new ArrayList<>();
-        for (int i = 0; i < containerSlotCount && targets.size() < 4; i++) {
-            ItemStack item = slots.get(i).getItem();
-            if (item.isEmpty()) {
-                continue;
-            }
-            targets.add(new LeapTarget(item.getHoverName().getString(), slots.get(i).index));
-        }
-        if (targets.isEmpty()) {
-            // Diagnostic (2026-09-14): AFTER_INIT fires when the screen is created - a real container's item
-            // contents usually arrive in a LATER packet, so this can legitimately see zero items here.
-            LOGGER.warn("[SpiritLeap] Leap screen '{}' opened (containerId={}) but 0 non-empty container slots at init ({} container slots) - overlay NOT shown",
-                    containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, containerSlotCount);
-            return;
-        }
-        LOGGER.info("[SpiritLeap] Leap screen '{}' opened (containerId={}): overlay targets {}",
-                containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, targets);
+        // Real bug found and fixed (2026-09-14): targets used to be read ONCE here, at AFTER_INIT - but the
+        // screen is created from ClientboundOpenScreenPacket and Hypixel's items arrive in the LATER
+        // ClientboundContainerSetContentPacket, so this usually saw 0 items, logged "overlay NOT shown" and
+        // returned without ever registering the render/click hooks. The hooks are now always registered for
+        // a leap screen and the target list is re-read from the live slots every frame (same as NoammAddons'
+        // 26.1.2 LeapMenu.updateLeapMenu(), called from its pre-render hook), so it appears as soon as the
+        // contents land. Also filtered to player heads like Noamm - any filler glass pane in the container
+        // would otherwise have taken one of the 4 quadrants.
+        List<LeapTarget> initial = readTargets(containerScreen);
+        LOGGER.info("[SpiritLeap] Leap screen '{}' opened (containerId={}): {} target(s) at init {} - hooks registered, re-reading on content update",
+                containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, initial.size(), initial);
+        AtomicReference<List<LeapTarget>> current = new AtomicReference<>(initial);
 
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) ->
-                render(graphics, scaledWidth, scaledHeight, targets));
+        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) -> {
+            List<LeapTarget> fresh = readTargets(containerScreen);
+            if (!fresh.equals(current.get())) {
+                // State-change only: fires once when Hypixel's items populate (or a teammate's head changes).
+                LOGGER.info("[SpiritLeap] Leap targets changed (containerId={}): {} -> {}",
+                        containerScreen.getMenu().containerId, current.get(), fresh);
+                current.set(fresh);
+            }
+            if (!fresh.isEmpty()) {
+                render(graphics, scaledWidth, scaledHeight, fresh);
+            }
+        });
 
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+            List<LeapTarget> targets = readTargets(containerScreen);
             int quadrant = quadrantFor(event.x(), event.y(), scaledWidth, scaledHeight);
             if (quadrant < 0 || quadrant >= targets.size()) {
                 return true;
@@ -97,6 +100,22 @@ public final class SpiritLeapOverlayFeature {
                     ContainerInput.PICKUP, client.player);
             return false;
         });
+    }
+
+    /** Up to 4 player-head entries from the container's OWN slots (never the 36 appended player-inventory
+     *  slots - the real bug class already found and fixed once in AutoLeapFeature). */
+    private static List<LeapTarget> readTargets(AbstractContainerScreen<?> containerScreen) {
+        List<Slot> slots = containerScreen.getMenu().slots;
+        int containerSlotCount = Math.max(0, slots.size() - 36);
+        List<LeapTarget> targets = new ArrayList<>();
+        for (int i = 0; i < containerSlotCount && targets.size() < 4; i++) {
+            ItemStack item = slots.get(i).getItem();
+            if (item.isEmpty() || !item.is(Items.PLAYER_HEAD)) {
+                continue;
+            }
+            targets.add(new LeapTarget(item.getHoverName().getString(), slots.get(i).index));
+        }
+        return targets;
     }
 
     /** Real Odin behavior, ported directly: the WHOLE screen counts as 4 quadrants for click purposes
