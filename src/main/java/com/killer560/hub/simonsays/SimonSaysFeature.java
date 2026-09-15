@@ -1269,8 +1269,15 @@ public final class SimonSaysFeature {
         // them. Peeking clickNeeded+1 is the same safe lookahead the distance-weighting fix already uses -
         // null once no more real positions are known this round (the upcoming click belongs to a
         // not-yet-revealed future round), in which case no feint is possible.
+        // Real bug found and fixed (2026-09-14, killer560's own request: "For the miss it should only be
+        // able to happen on the 2,3,4 button no others"): restricts feint eligibility to the round's own
+        // 2nd/3rd/4th click (clickNeeded, 0-indexed, in [1,3]) - never the round's first click (a person
+        // starting a fresh sequence is deliberate, not already anticipating ahead) or its last (nothing
+        // real to reach toward yet within THIS round regardless of whether a next round's own position
+        // happens to be known).
         int rotateFeintPeekIndex = clickNeeded + 1;
-        BlockPos rotateNextHint = rotateFeintPeekIndex < clickInOrder.size()
+        boolean rotateFeintEligiblePosition = clickNeeded >= 1 && clickNeeded <= 3;
+        BlockPos rotateNextHint = rotateFeintEligiblePosition && rotateFeintPeekIndex < clickInOrder.size()
                 ? clickInOrder.get(rotateFeintPeekIndex).west() : null;
 
         // Real bug found and fixed (2026-09-14): killer560 confirmed a real "SS skip" starts the attempt
@@ -1668,7 +1675,22 @@ public final class SimonSaysFeature {
             applyRotateApproachFrame(client, rotateInProgressTarget, dtTicks);
         } else {
             boolean nearAnchor = isNearIdleLookAnchor(client);
-            if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor
+            // Real bug found and fixed (2026-09-14, killer560's own request: "dont have it full stop on
+            // buttons it should keep moving the whole time towards the next one"): once a click fired,
+            // the camera used to just freeze (falling into BLOCKED below) for however long the pacing
+            // schedule made it wait before the NEXT click was due - a real, visible dead stop. Whenever a
+            // real click is due in the current round but not yet permitted to fire (solveStepsPending),
+            // continuously eases the camera toward that button the whole time instead - by the time the
+            // schedule actually permits the click, the camera is usually already there (or very close),
+            // so the real committed approach that follows (see applyRotateApproachFrame) settles almost
+            // immediately instead of starting a fresh turn from a dead stop. Guarded by !autoStartRunning
+            // for the same reason every other grid-facing state already is - the camera must stay locked
+            // on the start button for the whole real duration of an Auto Start run.
+            if (solveStepsPending && !autoStartRunning) {
+                BlockPos preDriftTarget = clickInOrder.get(clickNeeded).west();
+                state = "PRE_DRIFT target=" + preDriftTarget;
+                applyPreDriftFrame(client, preDriftTarget, dtTicks);
+            } else if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor
                     && !solveStepsPending) {
                 state = "IDLE target=" + (rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON);
                 applyIdleSwayFrame(client, dtTicks);
@@ -1688,6 +1710,24 @@ public final class SimonSaysFeature {
 
     private static boolean isNearIdleLookAnchor(Minecraft client) {
         return client.player != null && client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR) <= IDLE_LOOK_RANGE_SQ;
+    }
+
+    /** Continuously eases the camera toward wherever the next real click is going to land, without
+     *  clicking or rolling any of the full approach's own humanization (overshoot/curve/feint) - see the
+     *  PRE_DRIFT dispatch branch's own doc comment in {@link #tickRotateFrame} for the full real
+     *  reasoning. Deliberately simple/stateless (no "begin" event, no rolled randomness) since it runs
+     *  continuously every frame the schedule is making the caller wait, not once per discrete approach. */
+    private static void applyPreDriftFrame(Minecraft client, BlockPos target, double dtTicks) {
+        var player = client.player;
+        Vec3 eyePos = player.getEyePosition();
+        float[] toTarget = yawPitchTo(eyePos, realBlockCenter(client, target));
+        float currentYaw = player.getYRot();
+        float currentPitch = player.getXRot();
+        float yawDelta = Mth.wrapDegrees(toTarget[0] - currentYaw);
+        float pitchDelta = Mth.wrapDegrees(toTarget[1] - currentPitch);
+        float frameSmoothing = 1f - (float) Math.pow(1.0 - 0.5, dtTicks);
+        player.setYRot(currentYaw + yawDelta * frameSmoothing);
+        player.setXRot(currentPitch + pitchDelta * frameSmoothing);
     }
 
     private static void applyRotateApproachFrame(Minecraft client, BlockPos buttonPos, double dtTicks) {
