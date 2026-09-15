@@ -528,6 +528,15 @@ public final class SimonSaysFeature {
         }
     }
 
+    /** Real bug found and fixed (2026-09-14, killer560's own report: "when auto solve is off it shouldnt mess with my
+     *  crosshair at all. Right now it pulls it towards the middle of the obsidian"): every camera-moving path
+     *  (Auto Start's look-only approach, PRE_DRIFT, IDLE's grid-center look) only checked the Rotate mode setting,
+     *  which stays saved as Rotate even with Auto Solve switched off. Rotation now requires Auto Solve itself to
+     *  be on; with it off, Auto Start clicks aura-style and the camera is never touched. */
+    private static boolean rotateActive(SimonSaysConfig cfg) {
+        return cfg.isAutoSolveEnabled() && cfg.isAutoSolveRotate();
+    }
+
     private static boolean isDeviceInRange(Minecraft client) {
         return DungeonState.isF7OrM7() && client.player != null
                 && client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)) <= ACTIVE_RANGE_SQ;
@@ -1312,7 +1321,7 @@ public final class SimonSaysFeature {
         // real window to pre-aim the camera at the first button WHILE still walking up, so by the time
         // this schedule does start, the camera's usually already close and the first click lands on time
         // too.
-        if (cfg.isAutoSolveRotate()) {
+        if (rotateActive(cfg)) {
             double distSqToStart = client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON));
             boolean tooFar = distSqToStart > REAL_INTERACT_RANGE_SQ;
             if (tooFar != lastAutoStartTooFarLogged) {
@@ -1334,7 +1343,7 @@ public final class SimonSaysFeature {
         // click only fires once the real crosshair raycast confirms it's on the button (see
         // applyRotateApproachFrame); No Rotate = aura, the instant synthetic click that works regardless of
         // where the player is looking. Either way the click itself lands on the button's true center.
-        if (cfg.isAutoSolveRotate()) {
+        if (rotateActive(cfg)) {
             if (!tickRotateClick(client, START_BUTTON, null)) {
                 return;
             }
@@ -1344,7 +1353,7 @@ public final class SimonSaysFeature {
         // Diagnostic-only (2026-09-14): real fire time of this click (the frame it actually fired in, for
         // rotate) - so the burst's real click spacing is visible, not just the tick it got consumed on.
         long autoStartConsumedAtMs = System.currentTimeMillis();
-        long autoStartFiredAtMs = cfg.isAutoSolveRotate() ? rotateClickFiredAtMs : autoStartConsumedAtMs;
+        long autoStartFiredAtMs = rotateActive(cfg) ? rotateClickFiredAtMs : autoStartConsumedAtMs;
         long autoStartSincePrevFireMs = diagLastAutoStartFireAtMs > 0 ? autoStartFiredAtMs - diagLastAutoStartFireAtMs : -1;
         diagLastAutoStartFireAtMs = autoStartFiredAtMs;
         noteStartButtonClick(autoStartFiredAtMs, "Auto Start");
@@ -1354,7 +1363,7 @@ public final class SimonSaysFeature {
         // fire (see rotateFireNotBeforeMs) - no extra tick countdown on top. Aura fires from this tick loop,
         // so wait exactly Delay ticks: the countdown below decrements-and-returns once per tick and fires on
         // the tick after it reaches 0, so Delay - 1 here is Delay real ticks (was Delay + 1 before).
-        autoStartTicksUntilNextClick = cfg.isAutoSolveRotate() ? 0 : cfg.getAutoStartClickDelayTicks() - 1;
+        autoStartTicksUntilNextClick = rotateActive(cfg) ? 0 : cfg.getAutoStartClickDelayTicks() - 1;
         // Always-on (not gated behind Diagnostic Logging) while killer560's "isn't working" report is
         // unresolved (2026-09-14) - includes the button's own POWERED state at send-time to directly
         // answer his own question ("is it still clicking the start button while it is already pressed
@@ -1367,7 +1376,7 @@ public final class SimonSaysFeature {
         LOGGER.info("[SimonSays] Auto-start click {}/{} sent ({} mode, button currently powered={}, "
                         + "{}ms since previous auto-start fire, consumed {}ms after fire).",
                 autoStartClicksSent, cfg.getAutoStartClicks(),
-                cfg.isAutoSolveRotate() ? "look-only (rotate)" : "aura",
+                rotateActive(cfg) ? "look-only (rotate)" : "aura",
                 startButtonPowered, autoStartSincePrevFireMs, autoStartConsumedAtMs - autoStartFiredAtMs);
     }
 
@@ -1750,11 +1759,32 @@ public final class SimonSaysFeature {
         // so a far final hop (weight up to 1.8x) scheduled that last click up to 80% past the deadline
         // itself - now never weighted when it's the last click (with 2+ left, 1.8x of an even share can't
         // exceed the remaining window).
+        // Real bug found and fixed (2026-09-14, killer560's own report: "dont make it pause on that last button so
+        // long. It always pauses for like half a second on the very last one of the 5th set"): each weighted delay
+        // was base * weight, and almost every hop in this grid is to a neighbour (weight 0.5), so every click
+        // under-spent its share and the leftover piled onto the unweighted final click (a real log showed round
+        // 5 going 348 -> 450 -> 551 -> 1598ms). Weights now only REDISTRIBUTE the remaining active window: this
+        // hop gets window * (its weight / sum of weights of every click still ahead), where hops still ahead in
+        // this round use their real distance weights and clicks in not-yet-revealed rounds count 1.0 - so the
+        // shares always add up to the window and nothing is left over to dump on the last click.
         long delayMs = baseDelayMs;
-        if (followingButton != null && remainingAfter > 1) {
-            double distance = Math.sqrt(clickedButton.distSqr(followingButton));
-            double weight = Mth.clamp(distance / 2.5, 0.5, 1.8);
-            delayMs = (long) (baseDelayMs * weight);
+        String weightNote = "=n/a";
+        if (remainingAfter > 1 && clickedIndex >= 0) {
+            double nextWeight = 1.0;
+            double weightSum = 0.0;
+            int knownHops = 0;
+            for (int i = clickedIndex; i + 1 < clickInOrder.size() && knownHops < remainingAfter; i++) {
+                double distance = Math.sqrt(clickInOrder.get(i).distSqr(clickInOrder.get(i + 1)));
+                double weight = Mth.clamp(distance / 2.5, 0.5, 1.8);
+                if (i == clickedIndex) {
+                    nextWeight = weight;
+                }
+                weightSum += weight;
+                knownHops++;
+            }
+            weightSum += Math.max(0, remainingAfter - knownHops);
+            delayMs = (long) (activeWindowLeftMs * (nextWeight / weightSum));
+            weightNote = String.format(Locale.US, " share %.2f/%.2f", nextWeight, weightSum);
         }
         autoSolveNextClickAtMs = clickedAtMs + Math.max(50, delayMs);
         lastScheduledDelayMs = autoSolveNextClickAtMs - clickedAtMs;
@@ -1763,7 +1793,7 @@ public final class SimonSaysFeature {
         LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms "
                         + "[base {}ms, distance-weighted{}, approachOverheadEma={}ms, deadline in {}ms]{}).",
                 autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                lastScheduledDelayMs, baseDelayMs, followingButton != null && remainingAfter > 1 ? "" : "=n/a",
+                lastScheduledDelayMs, baseDelayMs, weightNote,
                 autoApproachOverheadEmaMs, windowLeftMs, modeSuffix);
     }
 
@@ -1910,7 +1940,7 @@ public final class SimonSaysFeature {
     private static void tickRotateFrame() {
         Minecraft client = Minecraft.getInstance();
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (client.player == null || !cfg.isEnabled() || !cfg.isAutoSolveRotate()) {
+        if (client.player == null || !cfg.isEnabled() || !rotateActive(cfg)) {
             rotateLastFrameAtNanos = 0L;
             return;
         }

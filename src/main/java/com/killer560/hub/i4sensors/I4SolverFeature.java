@@ -99,7 +99,7 @@ public final class I4SolverFeature {
             String to = I4SensorsFeature.blockId(now);
             if (from.equals("emerald_block") && to.equals("blue_terracotta")) {
                 hits.add(pos);
-                LOGGER.info("{} {} Solver: target #{} marked hit ({} of 9 green).", TAG, I4SensorsFeature.clock(),
+                LOGGER.info("{} {} Solver: target #{} marked hit ({} of 9 highlighted).", TAG, I4SensorsFeature.clock(),
                         I4SensorsFeature.DEV_BLOCKS.indexOf(pos), hits.size());
             } else if (to.equals("emerald_block") && hits.contains(pos)) {
                 LOGGER.info("{} {} Solver: hit target #{} lit again - new attempt, clearing {} highlight(s).", TAG,
@@ -114,9 +114,11 @@ public final class I4SolverFeature {
             return;
         }
         for (BlockPos pos : hits) {
-            AABB box = new AABB(pos).inflate(0.01);
-            WorldRenderUtils.renderFilledBox(context, box, 0.2f, 1f, 0.2f, 0.35f);
-            WorldRenderUtils.renderOutlineBox(context, box, 0.2f, 1f, 0.2f, 1f, 2f);
+            // Orange, filled and easy to see (2026-09-14, killer560: "make the highlights orange and more noticeable.
+            // Right now they blend in with the glass... Make them filled and easy to see") - the mod's orange accent.
+            AABB box = new AABB(pos).inflate(0.03);
+            WorldRenderUtils.renderFilledBox(context, box, 1f, 0.5f, 0f, 0.75f);
+            WorldRenderUtils.renderOutlineBox(context, box, 1f, 0.6f, 0.1f, 1f, 3f);
         }
         List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
         for (int row = 0; row < 3; row++) {
@@ -141,7 +143,8 @@ public final class I4SolverFeature {
     private static void dot(LevelRenderContext context, double x, double y) {
         // Just in front of the wall's front face (z 50) so it isn't hidden inside the blocks.
         AABB box = new AABB(x - DOT_HALF, y - DOT_HALF, 49.9 - DOT_HALF, x + DOT_HALF, y + DOT_HALF, 49.9 + DOT_HALF);
-        WorldRenderUtils.renderFilledBox(context, box, 1f, 1f, 1f, 0.9f);
-        WorldRenderUtils.renderOutlineBox(context, box, 0.2f, 1f, 0.2f, 1f, 1.5f);
+        // Bright white core with an orange rim so the aim dots stand out on both glass and the orange hit boxes.
+        WorldRenderUtils.renderFilledBox(context, box, 1f, 1f, 1f, 1f);
+        WorldRenderUtils.renderOutlineBox(context, box, 1f, 0.5f, 0f, 1f, 2.5f);
     }
 }
