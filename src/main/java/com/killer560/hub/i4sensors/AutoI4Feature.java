@@ -1,5 +1,6 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.i4sensors.I4SensorsConfig.Weapon;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -9,11 +10,13 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -46,11 +49,22 @@ import java.util.regex.Pattern;
  * player's own "completed a device!" line or an armor stand near the wall renamed "Active".
  * <p>
  * Rotate: eases the real camera to the aim point over Rotation Time (Noamm's easeInOutCubic) every render
- * frame, then fires. No Rotate: sends the aim rotation to the server with the shot only - the camera
- * never moves. Per this mod's standing rotation rule, yaw is never wrapped/clamped: every target yaw is
- * the current running yaw plus the wrapped difference.
+ * frame, then fires - the slider is used even with Predictions on (2026-09-14, killer560: "Add a slider to
+ * adjust how fast it rotates"; Noamm's forced 170ms is gone). No Rotate: sends the aim rotation to the server
+ * with the shot only - the camera never moves. Per this mod's standing rotation rule, yaw is never
+ * wrapped/clamped: every target yaw is the current running yaw plus the wrapped difference.
  * <p>
- * Not ported yet (Noamm has them, not asked for): timed rod swap / mask swap / leap.
+ * Weapon (2026-09-14): Terminator = the above (3-arrow spread, between-column aim points, predictions).
+ * Machine Gun Shortbow (Skyblock id MACHINE_GUN_BOW) fires a single arrow, so it aims at the lit block's own
+ * x centre (x + 0.5) with Noamm's same arrow-drop height (y = 131 - 2*row, i.e. 0.5 above the block centre)
+ * and never predicts. Its "Rapid Fire" ability (hypixelskyblock.minecraft.wiki: LEFT CLICK, 5 arrows/s for
+ * 8s, 100s cooldown) is activated with a left click (arm swing) when the attempt's first target lights, and
+ * for its duration nothing swaps away ({@link #isAbilityHoldActive()} - {@link I4AutoMask} waits).
+ * <p>
+ * Auto Swap To Bow: while on the device, swaps the hotbar to the selected weapon (Skyblock id, display-name
+ * fallback) - not during a menu mask swap, not within 400ms of a hotbar change made by something else (so a
+ * manual/other-mod swap gets its moment), and never after completion (so Auto Leap's swap isn't fought).
+ * Not ported (not asked for): Noamm's rod swap and timed leap. Solver: {@link I4SolverFeature}.
  * Every decision logs under [AutoI4] (alongside [I4Sensors]' wall/arrow/hit data) for sim testing.
  */
 public final class AutoI4Feature {
@@ -65,6 +79,13 @@ public final class AutoI4Feature {
     // Never two shots closer than this - Noamm's own effective cadence (it forces 170ms of rotation per shot
     // with Predictions on), and stops No Rotate from firing a target + its prediction in the same tick.
     private static final long MIN_SHOT_GAP_MS = 170L;
+    // Machine Gun Shortbow "Rapid Fire" - hypixelskyblock.minecraft.wiki/w/Machine_Gun_Shortbow: 8s, 100s cooldown.
+    private static final long RAPID_FIRE_DURATION_MS = 8000L;
+    private static final long RAPID_FIRE_COOLDOWN_MS = 100_000L;
+    // ASSUMPTION (unconfirmed exact text): Hypixel's generic ability-cooldown line. Only used to release the hold.
+    private static final Pattern ABILITY_ON_COOLDOWN = Pattern.compile("^This ability is on cooldown for \\d+s");
+    private static final long EXTERNAL_SWAP_GRACE_MS = 400L;
+    private static final long WEAPON_SWAP_GAP_MS = 250L;
 
     private static final Set<BlockPos> doneTargets = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
@@ -83,6 +104,20 @@ public final class AutoI4Feature {
     // Armor stand names seen near the wall - completion only counts on a real RENAME to "Active", so a stand
     // still reading "Active" from a previous attempt (p3sim restarts) can't instantly re-complete a new one.
     private static final Map<Integer, String> standNames = new HashMap<>();
+
+    // Machine Gun Shortbow ability
+    private static boolean abilityPending = false;
+    private static boolean abilityUsedThisAttempt = false;
+    private static long abilityActivatedAtMs = 0L;
+    private static long abilityHoldUntilMs = 0L;
+    private static String abilityWaitLogged = null;
+
+    // Auto Swap To Bow
+    private static int lastSeenSlot = -1;
+    private static boolean weSwappedSlot = false;
+    private static long externalSlotChangeMs = 0L;
+    private static long lastWeaponSwapMs = 0L;
+    private static String weaponSwapLogged = null;
 
     private static final class Shot {
         final BlockPos target;
@@ -113,6 +148,8 @@ public final class AutoI4Feature {
     }
 
     public static void register() {
+        I4SolverFeature.register();
+        I4AutoMask.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> frame());
         // Real bug found and fixed (2026-09-14, real Hypixel F7 log): Fabric's CHAT/GAME events never fired for
@@ -122,12 +159,31 @@ public final class AutoI4Feature {
         ChatObserver.subscribe(AutoI4Feature::onChat);
     }
 
+    static boolean isDeviceCompleted() {
+        return completed;
+    }
+
+    /** The Machine Gun Shortbow's Rapid Fire is (estimated) still going - nothing should swap away. */
+    static boolean isAbilityHoldActive() {
+        return abilityHoldUntilMs > System.currentTimeMillis();
+    }
+
+    static long abilityHoldRemainingMs() {
+        return Math.max(0L, abilityHoldUntilMs - System.currentTimeMillis());
+    }
+
     private static void onChat(Component message) {
-        if (!wasRunning || completed) {
-            return;
-        }
         String plain = ChatFormatting.stripFormatting(message.getString());
         if (plain == null) {
+            return;
+        }
+        if (abilityActivatedAtMs > 0 && System.currentTimeMillis() - abilityActivatedAtMs <= 1500L
+                && isAbilityHoldActive() && ABILITY_ON_COOLDOWN.matcher(plain).find()) {
+            LOGGER.info("{} {} Rapid Fire: \"{}\" {}ms after the left click - ability didn't fire, releasing the hold.", TAG,
+                    I4SensorsFeature.clock(), plain, System.currentTimeMillis() - abilityActivatedAtMs);
+            abilityHoldUntilMs = 0L;
+        }
+        if (!wasRunning || completed) {
             return;
         }
         Matcher m = DEVICE_DONE.matcher(plain);
@@ -145,12 +201,24 @@ public final class AutoI4Feature {
         Minecraft client = Minecraft.getInstance();
         I4SensorsConfig cfg = I4SensorsConfig.getInstance();
         LocalPlayer player = client.player;
+        long tickNow = System.currentTimeMillis();
+        if (abilityHoldUntilMs > 0 && tickNow >= abilityHoldUntilMs) {
+            LOGGER.info("{} {} Rapid Fire ENDED ({}ms after activation) - swaps allowed again.", TAG,
+                    I4SensorsFeature.clock(), tickNow - abilityActivatedAtMs);
+            abilityHoldUntilMs = 0L;
+        }
+        trackSelectedSlot(player, tickNow);
         String gate = gateReason(client, cfg, player);
+        if ((gate.isEmpty() || gate.startsWith("not holding a bow")) && maybeSwapToWeapon(cfg, player, tickNow)) {
+            gate = gateReason(client, cfg, player);
+        }
         boolean running = gate.isEmpty();
         if (!gate.equals(lastGateReason)) {
             LOGGER.info("{} {} {}", TAG, I4SensorsFeature.clock(), running
                     ? "RUNNING (on device, holding bow) mode=" + (cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate")
-                    + " rotationTime=" + cfg.getAutoI4RotationTimeMs() + "ms predictions=" + cfg.isAutoI4Predictions()
+                    + " weapon=" + cfg.getAutoI4Weapon().label + " rotationTime=" + cfg.getAutoI4RotationTimeMs()
+                    + "ms predictions=" + cfg.isAutoI4Predictions() + " autoSwapToBow=" + cfg.isAutoSwapToBow()
+                    + " autoMask=" + cfg.isAutoMask() + " order=" + I4SensorsConfig.orderLabel(cfg.getMaskOrder())
                     : "idle: " + gate);
             lastGateReason = gate;
         }
@@ -184,6 +252,7 @@ public final class AutoI4Feature {
             currentShot = null;
             return;
         }
+        tickAbility(cfg, player);
 
         long now = System.currentTimeMillis();
         // Re-shoot a target that's still lit well after the last shot at it (Noamm's watchdog).
@@ -215,9 +284,7 @@ public final class AutoI4Feature {
         if (client.screen != null) {
             return "a screen is open";
         }
-        Vec3 p = player.position();
-        boolean onDev = Math.abs(p.y - 127.0) < 0.5 && p.x >= 62.0 && p.x <= 65.0 && p.z >= 34.0 && p.z <= 37.0;
-        if (!onDev) {
+        if (!I4SensorsFeature.isOnDevice(player.position())) {
             return "not on device";
         }
         if (!player.getMainHandItem().is(Items.BOW)) {
@@ -289,6 +356,12 @@ public final class AutoI4Feature {
         currentShot = null;
         shotQueue.clear();
         shotQueue.add(pos);
+        if (I4SensorsConfig.getInstance().getAutoI4Weapon() == Weapon.MACHINE_GUN_SHORTBOW && !abilityUsedThisAttempt
+                && !abilityPending) {
+            abilityPending = true;
+            abilityWaitLogged = null;
+            LOGGER.info("{} {} Rapid Fire requested - first target of this attempt lit.", TAG, I4SensorsFeature.clock());
+        }
         if (I4SensorsConfig.getInstance().isAutoI4Predictions()) {
             BlockPos prediction = predictNext(pos);
             if (prediction != null) {
@@ -350,17 +423,137 @@ public final class AutoI4Feature {
         shotsFired = 0;
         shotQueue.clear();
         currentShot = null;
+        abilityPending = false;
+        abilityUsedThisAttempt = false;
+        weaponSwapLogged = null;
+    }
+
+    // ------------------------------------------------------------------
+    // Weapon: auto swap + Machine Gun Shortbow ability
+    // ------------------------------------------------------------------
+
+    static boolean isWeapon(ItemStack stack, Weapon weapon) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        String id = I4SensorsFeature.skyblockId(stack);
+        if (!id.isEmpty()) {
+            return id.equals(weapon.skyblockId) || id.equals("STARRED_" + weapon.skyblockId);
+        }
+        String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
+        return name != null && name.contains(weapon.nameFallback);
+    }
+
+    private static void trackSelectedSlot(LocalPlayer player, long now) {
+        if (player == null) {
+            lastSeenSlot = -1;
+            return;
+        }
+        int slot = player.getInventory().getSelectedSlot();
+        if (slot != lastSeenSlot) {
+            if (lastSeenSlot >= 0 && !weSwappedSlot) {
+                externalSlotChangeMs = now;
+            }
+            lastSeenSlot = slot;
+        }
+        weSwappedSlot = false;
+    }
+
+    /** @return true if it swapped this tick. */
+    private static boolean maybeSwapToWeapon(I4SensorsConfig cfg, LocalPlayer player, long now) {
+        if (!cfg.isAutoSwapToBow() || completed || player == null) {
+            return false;
+        }
+        Weapon weapon = cfg.getAutoI4Weapon();
+        if (isWeapon(player.getMainHandItem(), weapon)) {
+            weaponSwapLogged = null;
+            return false;
+        }
+        String wait = I4AutoMask.isBusy() ? "a mask menu swap is in progress"
+                : now - externalSlotChangeMs < EXTERNAL_SWAP_GRACE_MS ? "hotbar was just changed by something else"
+                : now - lastWeaponSwapMs < WEAPON_SWAP_GAP_MS ? "min gap since the last weapon swap" : null;
+        if (wait != null) {
+            logWeaponSwapOnce("Auto Swap To Bow waiting - " + wait + " (held " + I4SensorsFeature.itemDesc(player.getMainHandItem()) + ").");
+            return false;
+        }
+        int found = -1;
+        for (int i = 0; i < 9; i++) {
+            if (isWeapon(player.getInventory().getItem(i), weapon)) {
+                found = i;
+                break;
+            }
+        }
+        if (found < 0) {
+            logWeaponSwapOnce("Auto Swap To Bow: no " + weapon.label + " (id " + weapon.skyblockId + " or name \""
+                    + weapon.nameFallback + "\") in the hotbar.");
+            return false;
+        }
+        int from = player.getInventory().getSelectedSlot();
+        String heldBefore = I4SensorsFeature.itemDesc(player.getMainHandItem());
+        player.getInventory().setSelectedSlot(found);
+        player.connection.send(new ServerboundSetCarriedItemPacket(found));
+        weSwappedSlot = true;
+        lastSeenSlot = found;
+        lastWeaponSwapMs = now;
+        weaponSwapLogged = null;
+        LOGGER.info("{} {} Auto Swap To Bow: slot {} -> {} ({} -> {}).", TAG, I4SensorsFeature.clock(), from, found,
+                heldBefore, I4SensorsFeature.itemDesc(player.getInventory().getItem(found)));
+        return true;
+    }
+
+    private static void logWeaponSwapOnce(String line) {
+        if (!line.equals(weaponSwapLogged)) {
+            weaponSwapLogged = line;
+            LOGGER.info("{} {} {}", TAG, I4SensorsFeature.clock(), line);
+        }
+    }
+
+    /** Running, not paused: fires the pending Rapid Fire left click once the Machine Gun Shortbow is in hand. */
+    private static void tickAbility(I4SensorsConfig cfg, LocalPlayer player) {
+        if (!abilityPending) {
+            return;
+        }
+        if (cfg.getAutoI4Weapon() != Weapon.MACHINE_GUN_SHORTBOW) {
+            abilityPending = false;
+            return;
+        }
+        if (!isWeapon(player.getMainHandItem(), Weapon.MACHINE_GUN_SHORTBOW)) {
+            String line = "Rapid Fire waiting - not holding a Machine Gun Shortbow (held "
+                    + I4SensorsFeature.itemDesc(player.getMainHandItem()) + ").";
+            if (!line.equals(abilityWaitLogged)) {
+                abilityWaitLogged = line;
+                LOGGER.info("{} {} {}", TAG, I4SensorsFeature.clock(), line);
+            }
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long sincePrevious = abilityActivatedAtMs > 0 ? now - abilityActivatedAtMs : -1;
+        // Left click in the air = an arm swing packet (what vanilla sends for a miss); the wall is out of reach.
+        player.swing(InteractionHand.MAIN_HAND);
+        abilityPending = false;
+        abilityUsedThisAttempt = true;
+        abilityActivatedAtMs = now;
+        abilityHoldUntilMs = now + RAPID_FIRE_DURATION_MS;
+        LOGGER.info("{} {} Rapid Fire ACTIVATED (left click) holding {} - no swaps for {}ms. Previous activation {}{}.", TAG,
+                I4SensorsFeature.clock(), I4SensorsFeature.itemDesc(player.getMainHandItem()), RAPID_FIRE_DURATION_MS,
+                sincePrevious < 0 ? "none" : sincePrevious + "ms ago",
+                sincePrevious >= 0 && sincePrevious < RAPID_FIRE_COOLDOWN_MS
+                        ? " - likely still on its 100s cooldown (wiki), may not fire" : "");
     }
 
     // ------------------------------------------------------------------
     // Aiming and firing
     // ------------------------------------------------------------------
 
-    /** Noamm's getTargetVector: aim between columns so a Terminator's spread covers the neighbour too. */
+    /** Terminator: Noamm's getTargetVector - aim between columns so the 3-arrow spread covers the neighbour too.
+     *  Machine Gun Shortbow (one arrow): the block's own x centre, same drop-compensated y and z as Noamm. */
     private static Vec3 aimPointFor(BlockPos pos) {
         int i = Math.max(0, indexOf(pos));
         int col = i % 3;
         int row = i / 3;
+        if (I4SensorsConfig.getInstance().getAutoI4Weapon() == Weapon.MACHINE_GUN_SHORTBOW) {
+            return new Vec3(pos.getX() + 0.5, 131 - 2.0 * row, 50);
+        }
         List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
         boolean leftDone = col < 2 && doneTargets.contains(dev.get(i + 1));
         boolean rightDone = col > 0 && doneTargets.contains(dev.get(i - 1));
@@ -398,13 +591,12 @@ public final class AutoI4Feature {
         float targetPitch = Mth.clamp(rawPitch, -90f, 90f);
         boolean alreadyAimed = Math.abs(targetYaw - currentYaw) <= ALREADY_AIMED_TOLERANCE_DEG
                 && Math.abs(targetPitch - currentPitch) <= ALREADY_AIMED_TOLERANCE_DEG;
-        long duration = cfg.isAutoI4Rotate() && !alreadyAimed
-                ? (cfg.isAutoI4Predictions() ? 170L : cfg.getAutoI4RotationTimeMs()) : 0L;
+        long duration = cfg.isAutoI4Rotate() && !alreadyAimed ? cfg.getAutoI4RotationTimeMs() : 0L;
         currentShot = new Shot(target, prediction, aim, currentYaw, currentPitch, targetYaw, targetPitch, duration);
-        LOGGER.info("{} {} Aiming at #{}{} aimPoint={} eye={} yaw {} -> {} pitch {} -> {} ({}, {}ms).", TAG,
+        LOGGER.info("{} {} Aiming at #{}{} aimPoint={} eye={} yaw {} -> {} pitch {} -> {} ({}, {}, {}ms).", TAG,
                 I4SensorsFeature.clock(), indexOf(target), prediction ? " (PREDICTION)" : "", I4SensorsFeature.fmt(aim),
                 I4SensorsFeature.fmt(eye), fmt2(currentYaw), fmt2(targetYaw), fmt2(currentPitch), fmt2(targetPitch),
-                cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate", duration);
+                cfg.getAutoI4Weapon().label, cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate", duration);
     }
 
     /** Rotate mode - runs every render frame so the turn is as smooth as real mouse look. */

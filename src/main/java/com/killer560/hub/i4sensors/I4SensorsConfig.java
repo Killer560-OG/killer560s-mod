@@ -9,22 +9,62 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
-/** Persisted "Sharp Shooter (i4)" settings - the i4 sensors ({@link I4SensorsFeature}) and Auto i4
- *  ({@link AutoI4Feature}). Everything ships disabled by default. Kept the original file name/"enabled" key
- *  so an existing config carries over - "enabled" now only means the extra verbose block diff, since the
- *  focused i4 sensors are always on near the device (2026-09-14). */
+/** Persisted "Sharp Shooter (i4)" settings - the i4 solver ({@link I4SolverFeature}), the always-on i4 sensors
+ *  ({@link I4SensorsFeature}) and Auto i4 ({@link AutoI4Feature}, {@link I4AutoMask}). Every setting loads and
+ *  saves. Automation defaults OFF; only harmless sub-options (mode, weapon, order, rotation time) have
+ *  non-off defaults. The old "enabled" key (Verbose Sensor Logging, removed 2026-09-14) is still read and
+ *  written back unchanged so an existing config round-trips, but nothing uses it any more. */
 public final class I4SensorsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-i4sensors.json");
 
-    public static final int MAX_ROTATION_TIME_MS = 250;
+    // killer560 (2026-09-14): "Add a slider to adjust how fast it rotates" - 0-400ms, used in Rotate mode even
+    // with Predictions on (Noamm forces 170ms there; that override is gone).
+    public static final int MAX_ROTATION_TIME_MS = 400;
+
+    public enum Weapon {
+        TERMINATOR("Terminator", "TERMINATOR", "Terminator"),
+        MACHINE_GUN_SHORTBOW("Machine Gun Shortbow", "MACHINE_GUN_BOW", "Machine Gun Shortbow");
+
+        public final String label;
+        /** Real Skyblock ids from Hypixel's own items resource (hypixelskyblock.minecraft.wiki infobox agrees). */
+        public final String skyblockId;
+        public final String nameFallback;
+
+        Weapon(String label, String skyblockId, String nameFallback) {
+            this.label = label;
+            this.skyblockId = skyblockId;
+            this.nameFallback = nameFallback;
+        }
+    }
+
+    public enum DeathItem {
+        BONZO("Bonzo"), SPIRIT("Spirit"), PHOENIX("Phoenix");
+
+        public final String label;
+
+        DeathItem(String label) {
+            this.label = label;
+        }
+    }
+
+    /** All 6 orderings, in the order the tab's Order button cycles through them. */
+    public static final List<List<DeathItem>> ORDERS = List.of(
+            List.of(DeathItem.BONZO, DeathItem.SPIRIT, DeathItem.PHOENIX),
+            List.of(DeathItem.BONZO, DeathItem.PHOENIX, DeathItem.SPIRIT),
+            List.of(DeathItem.SPIRIT, DeathItem.BONZO, DeathItem.PHOENIX),
+            List.of(DeathItem.SPIRIT, DeathItem.PHOENIX, DeathItem.BONZO),
+            List.of(DeathItem.PHOENIX, DeathItem.BONZO, DeathItem.SPIRIT),
+            List.of(DeathItem.PHOENIX, DeathItem.SPIRIT, DeathItem.BONZO));
 
     private static I4SensorsConfig instance;
 
-    private boolean enabled = false;
+    private boolean legacyVerboseEnabled = false;
+    private boolean solverEnabled = false;
     private boolean autoI4Enabled = false;
     // Same Rotate / No Rotate split as Simon Says (killer560's own request, 2026-09-14): Rotate turns the
     // real camera to each target before shooting; No Rotate aims server-side only for the shot.
@@ -32,6 +72,10 @@ public final class I4SensorsConfig {
     // Defaults ported from NoammAddons' AutoI4.kt ("Rotation Time" 170ms, "Predictions" on).
     private int autoI4RotationTimeMs = 170;
     private boolean autoI4Predictions = true;
+    private Weapon autoI4Weapon = Weapon.TERMINATOR;
+    private boolean autoSwapToBow = false;
+    private boolean autoMask = false;
+    private int maskOrderIndex = 0;
 
     private I4SensorsConfig() {
     }
@@ -52,11 +96,22 @@ public final class I4SensorsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             I4SensorsConfig cfg = new I4SensorsConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+            cfg.legacyVerboseEnabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+            cfg.solverEnabled = obj.has("solverEnabled") && obj.get("solverEnabled").getAsBoolean();
             cfg.autoI4Enabled = obj.has("autoI4Enabled") && obj.get("autoI4Enabled").getAsBoolean();
             cfg.autoI4Rotate = !obj.has("autoI4Rotate") || obj.get("autoI4Rotate").getAsBoolean();
             cfg.setAutoI4RotationTimeMs(obj.has("autoI4RotationTimeMs") ? obj.get("autoI4RotationTimeMs").getAsInt() : 170);
             cfg.autoI4Predictions = !obj.has("autoI4Predictions") || obj.get("autoI4Predictions").getAsBoolean();
+            if (obj.has("autoI4Weapon")) {
+                try {
+                    cfg.autoI4Weapon = Weapon.valueOf(obj.get("autoI4Weapon").getAsString());
+                } catch (IllegalArgumentException ignored) {
+                    cfg.autoI4Weapon = Weapon.TERMINATOR;
+                }
+            }
+            cfg.autoSwapToBow = obj.has("autoSwapToBow") && obj.get("autoSwapToBow").getAsBoolean();
+            cfg.autoMask = obj.has("autoMask") && obj.get("autoMask").getAsBoolean();
+            cfg.setMaskOrderIndex(obj.has("maskOrderIndex") ? obj.get("maskOrderIndex").getAsInt() : 0);
             instance = cfg;
         } catch (Exception e) {
             instance = new I4SensorsConfig();
@@ -67,23 +122,28 @@ public final class I4SensorsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
+            obj.addProperty("enabled", legacyVerboseEnabled);
+            obj.addProperty("solverEnabled", solverEnabled);
             obj.addProperty("autoI4Enabled", autoI4Enabled);
             obj.addProperty("autoI4Rotate", autoI4Rotate);
             obj.addProperty("autoI4RotationTimeMs", autoI4RotationTimeMs);
             obj.addProperty("autoI4Predictions", autoI4Predictions);
+            obj.addProperty("autoI4Weapon", autoI4Weapon.name());
+            obj.addProperty("autoSwapToBow", autoSwapToBow);
+            obj.addProperty("autoMask", autoMask);
+            obj.addProperty("maskOrderIndex", maskOrderIndex);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
-    /** Verbose wide-area block diff only - the focused i4 sensors don't need this. */
-    public boolean isEnabled() {
-        return enabled;
+    /** Visual only - available on both builds. */
+    public boolean isSolverEnabled() {
+        return solverEnabled;
     }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+    public void setSolverEnabled(boolean solverEnabled) {
+        this.solverEnabled = solverEnabled;
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatic aiming/shooting,
@@ -112,11 +172,63 @@ public final class I4SensorsConfig {
         this.autoI4RotationTimeMs = Math.max(0, Math.min(MAX_ROTATION_TIME_MS, ms));
     }
 
+    /** Terminator only - a Machine Gun Shortbow fires one arrow, so there is nothing to pre-fire with. */
     public boolean isAutoI4Predictions() {
+        return autoI4Predictions && autoI4Weapon == Weapon.TERMINATOR;
+    }
+
+    /** The raw toggle, for the tab. */
+    public boolean getAutoI4PredictionsSetting() {
         return autoI4Predictions;
     }
 
     public void setAutoI4Predictions(boolean autoI4Predictions) {
         this.autoI4Predictions = autoI4Predictions;
+    }
+
+    public Weapon getAutoI4Weapon() {
+        return autoI4Weapon;
+    }
+
+    public void setAutoI4Weapon(Weapon weapon) {
+        this.autoI4Weapon = weapon == null ? Weapon.TERMINATOR : weapon;
+    }
+
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatic hotbar swapping. */
+    public boolean isAutoSwapToBow() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSwapToBow;
+    }
+
+    public void setAutoSwapToBow(boolean autoSwapToBow) {
+        this.autoSwapToBow = autoSwapToBow;
+    }
+
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatic menu clicking. */
+    public boolean isAutoMask() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoMask;
+    }
+
+    public void setAutoMask(boolean autoMask) {
+        this.autoMask = autoMask;
+    }
+
+    public int getMaskOrderIndex() {
+        return maskOrderIndex;
+    }
+
+    public void setMaskOrderIndex(int index) {
+        this.maskOrderIndex = Math.floorMod(index, ORDERS.size());
+    }
+
+    public List<DeathItem> getMaskOrder() {
+        return ORDERS.get(maskOrderIndex);
+    }
+
+    public static String orderLabel(List<DeathItem> order) {
+        StringBuilder sb = new StringBuilder();
+        for (DeathItem item : order) {
+            sb.append(sb.length() == 0 ? "" : " > ").append(item.label);
+        }
+        return sb.toString();
     }
 }

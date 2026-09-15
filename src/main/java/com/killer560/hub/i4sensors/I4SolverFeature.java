@@ -1,0 +1,143 @@
+package com.killer560.hub.i4sensors;
+
+import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.WorldRenderUtils;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Sharp Shooter "Solver" - killer560 (2026-09-14): "any block shot is now highlighted green like a waypoint,
+ * with dots in between the blocks that are the proper prediction spots that I should use if I were doing it
+ * manually". Visual only, both builds.
+ * <p>
+ * Every wall target seen going {@code EMERALD_BLOCK -> BLUE_TERRACOTTA} this attempt (a real hit - the unlit
+ * state is also blue terracotta, so only the transition counts) gets a green filled + outlined box. For the
+ * rows that still have unhit targets, a small dot marks Noamm's Terminator aim spots (AutoI4.kt
+ * getTargetVector): x 67.5 (between columns x68/x66) and x 65.5 (between x66/x64), at the row's aim height
+ * y = 131 - 2*row, on the wall's front face z 50. A dot is only drawn where it still covers an unhit
+ * target, and the middle column only gets one dot when one already covers it.
+ * <p>
+ * Tracks the wall itself (independent of Auto i4), resets when a hit target lights again (new attempt) or the
+ * player leaves the i4 area. Renders only while {@link I4SensorsFeature#isNearDevice()} (hypixel.net/p3sim.net,
+ * around i4) and, on Hypixel, in F7/M7 per {@link DungeonState#isF7OrM7()}.
+ */
+public final class I4SolverFeature {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoi4");
+    private static final String TAG = "[AutoI4]";
+    private static final double DOT_HALF = 0.09;
+
+    private static final Set<BlockPos> hits = new HashSet<>();
+    private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
+    private static boolean wasActive = false;
+    private static String lastState = "";
+
+    private I4SolverFeature() {
+    }
+
+    public static void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(I4SolverFeature::render);
+    }
+
+    private static String gate(Minecraft client) {
+        if (!I4SensorsConfig.getInstance().isSolverEnabled()) {
+            return "off";
+        }
+        if (client.player == null || client.level == null || !I4SensorsFeature.isNearDevice()) {
+            return "not near i4";
+        }
+        boolean p3sim = client.getCurrentServer() != null
+                && client.getCurrentServer().ip.toLowerCase(Locale.ROOT).contains("p3sim.net");
+        if (!p3sim && !DungeonState.isF7OrM7()) {
+            return "not in F7/M7";
+        }
+        return "";
+    }
+
+    private static void tick() {
+        Minecraft client = Minecraft.getInstance();
+        String gate = gate(client);
+        boolean active = gate.isEmpty();
+        String state = active ? "ACTIVE" : "idle: " + gate;
+        if (!state.equals(lastState)) {
+            LOGGER.info("{} {} Solver {}", TAG, I4SensorsFeature.clock(), state);
+            lastState = state;
+        }
+        if (!active) {
+            if (wasActive) {
+                hits.clear();
+                lastWall.clear();
+            }
+            wasActive = false;
+            return;
+        }
+        wasActive = true;
+        boolean first = lastWall.isEmpty();
+        for (BlockPos pos : I4SensorsFeature.DEV_BLOCKS) {
+            BlockState now = client.level.getBlockState(pos);
+            BlockState old = lastWall.put(pos, now);
+            if (first || old == null || old == now) {
+                continue;
+            }
+            String from = I4SensorsFeature.blockId(old);
+            String to = I4SensorsFeature.blockId(now);
+            if (from.equals("emerald_block") && to.equals("blue_terracotta")) {
+                hits.add(pos);
+                LOGGER.info("{} {} Solver: target #{} marked hit ({} of 9 green).", TAG, I4SensorsFeature.clock(),
+                        I4SensorsFeature.DEV_BLOCKS.indexOf(pos), hits.size());
+            } else if (to.equals("emerald_block") && hits.contains(pos)) {
+                LOGGER.info("{} {} Solver: hit target #{} lit again - new attempt, clearing {} highlight(s).", TAG,
+                        I4SensorsFeature.clock(), I4SensorsFeature.DEV_BLOCKS.indexOf(pos), hits.size());
+                hits.clear();
+            }
+        }
+    }
+
+    private static void render(LevelRenderContext context) {
+        if (!wasActive || !gate(Minecraft.getInstance()).isEmpty()) {
+            return;
+        }
+        for (BlockPos pos : hits) {
+            AABB box = new AABB(pos).inflate(0.01);
+            WorldRenderUtils.renderFilledBox(context, box, 0.2f, 1f, 0.2f, 0.35f);
+            WorldRenderUtils.renderOutlineBox(context, box, 0.2f, 1f, 0.2f, 1f, 2f);
+        }
+        List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
+        for (int row = 0; row < 3; row++) {
+            boolean col0 = !hits.contains(dev.get(row * 3));
+            boolean col1 = !hits.contains(dev.get(row * 3 + 1));
+            boolean col2 = !hits.contains(dev.get(row * 3 + 2));
+            boolean left = col0 || (col1 && !col2);   // x 67.5 covers x68 + x66
+            boolean right = col2 || (col1 && !left);  // x 65.5 covers x66 + x64
+            double y = 131 - 2.0 * row;
+            if (left) {
+                dot(context, 67.5, y);
+            }
+            if (right) {
+                dot(context, 65.5, y);
+            }
+        }
+    }
+
+    private static void dot(LevelRenderContext context, double x, double y) {
+        // Just in front of the wall's front face (z 50) so it isn't hidden inside the blocks.
+        AABB box = new AABB(x - DOT_HALF, y - DOT_HALF, 49.9 - DOT_HALF, x + DOT_HALF, y + DOT_HALF, 49.9 + DOT_HALF);
+        WorldRenderUtils.renderFilledBox(context, box, 1f, 1f, 1f, 0.9f);
+        WorldRenderUtils.renderOutlineBox(context, box, 0.2f, 1f, 0.2f, 1f, 1.5f);
+    }
+}

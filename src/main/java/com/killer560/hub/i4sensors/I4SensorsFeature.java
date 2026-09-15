@@ -47,7 +47,8 @@ import java.util.Set;
  * LOGGING ONLY - nothing here clicks, rotates, or changes anything. The focused sensors are always on
  * (no toggle) whenever the player is near the device on hypixel.net or p3sim.net, and every line is
  * state-change-driven or capped, so a sim run's log has everything needed to build Auto i4 against real
- * data. The config toggle now only adds the old verbose block diff of the wider area around the device.
+ * data. (The old "Verbose Sensor Logging" wide-area block diff was removed 2026-09-14 - killer560 asked for the
+ * tab's toggle to go; the focused logging below is all Auto i4 testing has needed.)
  * Every line carries {@link #clock()} - wall-clock ms and client ticks since Storm's death line - so the
  * log lines up directly with Noamm's server-tick timings.
  */
@@ -73,7 +74,6 @@ public final class I4SensorsFeature {
     private static final AABB STAND_BOX = new AABB(56, 118, 40, 76, 140, 58);
     private static final String STORM_DEATH_LINE = "[BOSS] Storm: I should have known that I stood no chance.";
     private static final int MAX_WALL_EXTRA_LINES = 300;
-    private static final int MAX_VERBOSE_LINES = 400;
 
     // --- session (player near the device) ---
     private static boolean near = false;
@@ -82,8 +82,6 @@ public final class I4SensorsFeature {
     private static long onDevSinceMs = 0L;
     private static final Map<BlockPos, BlockState> wallStates = new HashMap<>();
     private static int wallExtraLines = 0;
-    private static Map<BlockPos, BlockState> verboseStates = new HashMap<>();
-    private static int verboseLines = 0;
     private static String lastHeldDesc = null;
     private static String lastHelmetDesc = null;
     private static int lastSelectedSlot = -1;
@@ -160,7 +158,11 @@ public final class I4SensorsFeature {
                 || lower.contains("mask saved") || lower.contains("saved your life") || lower.contains("phoenix")
                 || lower.contains("[boss] goldor") || lower.contains("[boss] necron") || lower.contains("[boss] storm")
                 || lower.contains("melody") || lower.contains("teleported to") || lower.contains("core entrance")
-                || lower.contains("gate");
+                || lower.contains("gate")
+                // Auto i4 weapon ability / mask swap verification (2026-09-14): Rapid Fire use + cooldown lines and
+                // pet summon lines - none of their exact texts are confirmed yet, so log anything close.
+                || lower.contains("rapid fire") || lower.contains("cooldown") || lower.contains("summoned")
+                || lower.contains("despawned") || lower.contains("equipped");
         if (!relevant) {
             return;
         }
@@ -212,17 +214,12 @@ public final class I4SensorsFeature {
         tickUseInput(client, player);
         tickArrows(client, player);
         tickArmorStands(client);
-        if (I4SensorsConfig.getInstance().isEnabled()) {
-            tickVerboseDiff(client);
-        }
     }
 
     private static void beginSession(Minecraft client) {
         nearSinceMs = System.currentTimeMillis();
         wallStates.clear();
         wallExtraLines = 0;
-        verboseStates = new HashMap<>();
-        verboseLines = 0;
         lastHeldDesc = null;
         lastHelmetDesc = null;
         lastSelectedSlot = -1;
@@ -237,11 +234,10 @@ public final class I4SensorsFeature {
         firstLitAtMs = 0L;
         lastHitAtMs = 0L;
         onDev = false;
-        LOGGER.info("{} {} Near i4 - sensors ON. pos={} server={} inDungeon={} floor={} bossPhase={} verboseDiff={}",
+        LOGGER.info("{} {} Near i4 - sensors ON. pos={} server={} inDungeon={} floor={} bossPhase={}",
                 TAG, clock(), fmt(client.player.position()),
                 client.getCurrentServer() != null ? client.getCurrentServer().ip : "none",
-                DungeonState.isInDungeon(), DungeonState.getFloor(), DungeonState.isBossPhaseActive(),
-                I4SensorsConfig.getInstance().isEnabled());
+                DungeonState.isInDungeon(), DungeonState.getFloor(), DungeonState.isBossPhaseActive());
         // Initial wall snapshot so the log shows what was already lit before any change arrives.
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < DEV_BLOCKS.size(); i++) {
@@ -472,29 +468,43 @@ public final class I4SensorsFeature {
         standNames.keySet().removeIf(id -> !present.contains(id));
     }
 
-    /** The old wide-area block diff (now the only thing the config toggle controls), capped. */
-    private static void tickVerboseDiff(Minecraft client) {
-        if (verboseLines >= MAX_VERBOSE_LINES) {
-            return;
-        }
-        for (int x = (int) NEAR_BOX.minX; x <= (int) NEAR_BOX.maxX; x += 1) {
-            for (int y = 120; y <= 135; y++) {
-                for (int z = 30; z <= 52; z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    BlockState state = client.level.getBlockState(pos);
-                    BlockState previous = verboseStates.put(pos, state);
-                    if (previous != null && previous != state && verboseLines < MAX_VERBOSE_LINES) {
-                        verboseLines++;
-                        LOGGER.info("{} {} [verbose] Block changed at {}: {} -> {}", TAG, clock(), pos, blockId(previous), blockId(state));
-                    }
-                }
-            }
-        }
-    }
-
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    /** Whether the always-on sensors' session is active: on hypixel.net/p3sim.net and inside the area around i4. */
+    static boolean isNearDevice() {
+        return near;
+    }
+
+    /** Client ticks since Storm's death line this world, or -1 if it hasn't been seen. Stands in for Noamm's
+     *  server-tick counter (this mod has no server-tick source) - equal to it without lag. */
+    static int ticksSinceStormDeath() {
+        return stormDeathClientTick < 0 ? -1 : clientTick - stormDeathClientTick;
+    }
+
+    /** Wall-clock ms of the last Storm death line (0 = none) - changes when a new timeline starts. */
+    static long stormDeathAtMs() {
+        return stormDeathAtMs;
+    }
+
+    /** Noamm's own isOnDev(): |y - 127| &lt; 0.5, x in [62, 65], z in [34, 37]. */
+    static boolean isOnDevice(Vec3 p) {
+        return Math.abs(p.y - 127.0) < 0.5 && p.x >= 62.0 && p.x <= 65.0 && p.z >= 34.0 && p.z <= 37.0;
+    }
+
+    /** The Skyblock id from CustomData "id", or "" if none. */
+    static String skyblockId(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return "";
+        }
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return "";
+        }
+        CompoundTag tag = data.copyTag();
+        return tag.contains("id") ? tag.getStringOr("id", "") : "";
+    }
 
     static String clock() {
         if (stormDeathAtMs == 0L) {
