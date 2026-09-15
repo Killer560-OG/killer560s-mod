@@ -45,6 +45,7 @@ public final class I4SolverFeature {
     // impossible to see") - 0.6 blocks wide, drawn in the user's Aim Marker Color (default neon yellow).
     private static final double DOT_HALF = 0.3;
     private static final double DOT_DEPTH_HALF = 0.03;
+    private static final int CIRCLE_SLICES = 16;
 
     // killer560 (2026-09-14): "maybe you can hide the pane right behind it to make it pop more" - the stained
     // glass around each aim spot (the glass columns x65/x67 between the target columns, on the wall plane and the
@@ -55,7 +56,9 @@ public final class I4SolverFeature {
     // when it stops. On the wall plane (z 50) every block of the device frame and a ring around it (x 62-70,
     // y 124-132) except the 9 targets becomes black concrete; anything glass in the layer just in front (z 49) is
     // hidden so nothing tints the markers. The 9 targets are never touched, so hit tracking is unaffected.
-    private static final int MASK_MIN_X = 62, MASK_MAX_X = 70, MASK_MIN_Y = 124, MASK_MAX_Y = 132;
+    // Two blocks smaller on every side (2026-09-14, killer560: "make the outside border two radius smaller") - now
+    // exactly the targets' own footprint (x 64-68, y 126-130): only the gaps between the 9 targets go black.
+    private static final int MASK_MIN_X = 64, MASK_MAX_X = 68, MASK_MIN_Y = 126, MASK_MAX_Y = 130;
     private static final int WALL_Z = 50;
     private static final int FRONT_Z = 49;
     // Flags 2|16: tell the renderer, but skip neighbour shape updates.
@@ -218,9 +221,16 @@ public final class I4SolverFeature {
 
     private static void dot(LevelRenderContext context, double x, double y) {
         // Just in front of the wall's front face (z 50) so it isn't hidden inside the blocks.
-        AABB box = new AABB(x - DOT_HALF, y - DOT_HALF, 49.9 - DOT_DEPTH_HALF, x + DOT_HALF, y + DOT_HALF, 49.9 + DOT_DEPTH_HALF);
+        // Filled circle (2026-09-14, killer560: "make the prediction markers circles"), no border. The render helper only
+        // draws boxes, so the disc is stacked thin horizontal slices whose widths follow the circle's chord.
         float[] rgba = WorldRenderUtils.argbToFloats(I4SensorsConfig.getInstance().getSolverColor());
-        // No border (2026-09-14, killer560: "please remove the border around the markers").
-        WorldRenderUtils.renderFilledBox(context, box, rgba[0], rgba[1], rgba[2], 1f);
+        double sliceHeight = (DOT_HALF * 2) / CIRCLE_SLICES;
+        for (int i = 0; i < CIRCLE_SLICES; i++) {
+            double y0 = y - DOT_HALF + i * sliceHeight;
+            double mid = y0 + sliceHeight / 2 - y;
+            double halfWidth = Math.sqrt(Math.max(0, DOT_HALF * DOT_HALF - mid * mid));
+            AABB slice = new AABB(x - halfWidth, y0, 49.9 - DOT_DEPTH_HALF, x + halfWidth, y0 + sliceHeight, 49.9 + DOT_DEPTH_HALF);
+            WorldRenderUtils.renderFilledBox(context, slice, rgba[0], rgba[1], rgba[2], 1f);
+        }
     }
 }
