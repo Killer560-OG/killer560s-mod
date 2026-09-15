@@ -136,6 +136,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.routes.WaypointRoutesFeature.register();
         com.killer560.hub.dungeonextras.DungeonExtrasFeature.register();
         com.killer560.hub.dungeonqueue.DungeonQueueFeature.register();
+        com.killer560.hub.motionblur.MotionBlurFeature.register();
         com.killer560.hub.puzzlesolvers.WaterSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BeamsSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BlazeSolverFeature.register();

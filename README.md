@@ -83,6 +83,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Dungeon Queue — re-queues the floor you just finished after a delay (leader/solo only, cancel key, skipped when someone types "dt"), plus a requeue key
 - Inventory HUD — your main inventory drawn as a movable HUD panel (mini/normal, horizontal/vertical, background style, show always / hold key / toggle key)
 - Skyblock Only — one toggle on the Home tab that pauses every feature outside Hypixel Skyblock and p3sim.net without changing any of your settings; rejoin Skyblock and everything is back on
+- Motion Blur — smooth frame-blending blur for high-FPS recordings (strength slider, optional GUI blur); turns itself off with a chat notice if the shader can't load
 - Pack Disabler — stops Hypixel's forced Skyblock resource pack from loading, without getting kicked for required packs
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free

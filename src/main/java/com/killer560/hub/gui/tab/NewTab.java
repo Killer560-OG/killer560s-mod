@@ -48,6 +48,7 @@ public class NewTab extends FolderTab {
                 new WaypointRoutesTab(),
                 new DungeonExtrasTab(),
                 new DungeonQueueTab(),
+                new MotionBlurTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
                 new VoiceToTextTab(),
