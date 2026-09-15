@@ -96,6 +96,37 @@ final class DungeonMapScanner {
         return calibrated && kinds[idx] == KIND_DOOR ? doorTiles[idx] : LiveMapFeature.Tile.UNKNOWN;
     }
 
+    /** Interactive map: the map's room colour id for a room cell (NoammAddons {@code RoomType.fromMapColor}: 18 blood,
+     *  82 fairy, 34 rare, 74 champion, 66 puzzle, 62 trap, 63/85 normal, 30 entrance), or 0 when unknown. */
+    static int roomColorAt(int idx) {
+        return calibrated && kinds[idx] == KIND_ROOM ? sideColors[idx] & 0xFF : 0;
+    }
+
+    /** Interactive map: player markers from the dungeon map item's decorations, in the order Hypixel sends them -
+     *  NoammAddons {@code MapUpdater.updatePlayers} / QUOI {@code MapRenderer.update}. Each entry is
+     *  {@code {worldX, worldZ, yawDegrees, isSelf(1/0)}} using NoammAddons' {@code DungeonPlayer.getRealPos}
+     *  transform. Empty without a calibrated map (p3sim, boss). */
+    static java.util.List<double[]> playerMarkers(Minecraft client) {
+        java.util.List<double[]> out = new java.util.ArrayList<>();
+        if (!calibrated) {
+            return out;
+        }
+        MapItemSavedData data = findDungeonMap(client);
+        if (data == null) {
+            return out;
+        }
+        double multiplier = (mapRoomSize + 4.0) / 32.0;
+        for (net.minecraft.world.level.saveddata.maps.MapDecoration decoration : data.getDecorations()) {
+            boolean self = decoration.type().value() == net.minecraft.world.level.saveddata.maps.MapDecorationTypes.FRAME.value();
+            int mapX = (decoration.x() + 128) >> 1;
+            int mapZ = (decoration.y() + 128) >> 1;
+            double worldX = (mapX - startCornerX) / multiplier - 185 - 15;
+            double worldZ = (mapZ - startCornerZ) / multiplier - 185 - 15;
+            out.add(new double[]{worldX, worldZ, decoration.rot() * 22.5, self ? 1 : 0});
+        }
+        return out;
+    }
+
     /** @return true when any sampled map pixel changed since the last call (cells were re-classified). */
     static boolean update(Minecraft client) {
         MapItemSavedData data = findDungeonMap(client);

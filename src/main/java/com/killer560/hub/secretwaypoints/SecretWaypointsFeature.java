@@ -43,7 +43,32 @@ public final class SecretWaypointsFeature {
     private static long lastWaypointSummaryMs = 0;
     private static final java.util.Map<Integer, String> lastLoggedMimicChecks = new java.util.HashMap<>();
 
+    /** Interactive map per-room toggles (room names): shown while the feature is off, hidden while it is on. */
+    private static final java.util.Set<String> shownRooms = new java.util.HashSet<>();
+    private static final java.util.Set<String> hiddenRooms = new java.util.HashSet<>();
+
     private SecretWaypointsFeature() {
+    }
+
+    /** Interactive map: flips whether this room's waypoints render. @return the new shown state. */
+    public static boolean toggleRoom(String roomName) {
+        if (roomName == null) {
+            return false;
+        }
+        boolean shown = !isRoomShown(roomName);
+        if (SecretWaypointsConfig.getInstance().isEnabled()) {
+            if (shown) hiddenRooms.remove(roomName); else hiddenRooms.add(roomName);
+        } else {
+            if (shown) shownRooms.add(roomName); else shownRooms.remove(roomName);
+        }
+        return shown;
+    }
+
+    public static boolean isRoomShown(String roomName) {
+        if (roomName == null) {
+            return false;
+        }
+        return SecretWaypointsConfig.getInstance().isEnabled() ? !hiddenRooms.contains(roomName) : shownRooms.contains(roomName);
     }
 
     public static void register() {
@@ -100,6 +125,8 @@ public final class SecretWaypointsFeature {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
             mimicAnnounced = false;
+            shownRooms.clear();
+            hiddenRooms.clear();
             lastLoggedMimicChecks.clear();
         }
         wasInDungeon = inDungeon;
@@ -166,12 +193,13 @@ public final class SecretWaypointsFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
-        if (!cfg.isEnabled() || !DungeonState.isInDungeon()) {
+        boolean perRoomOnly = !cfg.isEnabled() && !shownRooms.isEmpty() && com.killer560.hub.util.SkyblockGate.allows();
+        if ((!cfg.isEnabled() && !perRoomOnly) || !DungeonState.isInDungeon()) {
             return;
         }
         for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
             RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
-            if (entry == null || entry.secretCoords == null) {
+            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name)) {
                 continue;
             }
             int clayX = room[1];

@@ -6,9 +6,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** One rendered Custom Scoreboard line (legacy {@code §} text) and its alignment - SkyHanni's {@code ScoreboardLine},
- *  plus the number helpers from its {@code CustomScoreboardUtils}. */
-public record ScoreboardLine(String text, Align align) {
+/**
+ * One rendered Custom Scoreboard line (legacy {@code §} text) and its alignment - SkyHanni's {@code ScoreboardLine},
+ * plus the number helpers from its {@code CustomScoreboardUtils}. Optional extras:
+ * <ul>
+ * <li>{@code hover}/{@code command} - SkyBlock Custom Scoreboard's {@code LineActions}: tooltip lines and a command run
+ * when the line is clicked while chat is open ("Clickable Lines");</li>
+ * <li>{@code popup}/{@code popupUntilMs} - the "(+N)" number-change text drawn after the line, fading out
+ * ({@link NumberChangeTracker}).</li>
+ * </ul>
+ */
+public record ScoreboardLine(String text, Align align, List<String> hover, String command, String popup, long popupUntilMs) {
+
+    public ScoreboardLine(String text, Align align) {
+        this(text, align, null, null, null, 0L);
+    }
 
     public static ScoreboardLine of(String text) {
         return new ScoreboardLine(text, CustomScoreboardConfig.getInstance().getTextAlignment());
@@ -16,6 +28,24 @@ public record ScoreboardLine(String text, Align align) {
 
     public boolean isBlank() {
         return text == null || text.isBlank();
+    }
+
+    public boolean hasActions() {
+        return (hover != null && !hover.isEmpty()) || command != null;
+    }
+
+    /** Copy with tooltip lines and/or a click command (either may be null). */
+    public ScoreboardLine withActions(List<String> hoverLines, String clickCommand) {
+        return new ScoreboardLine(text, align, hoverLines, clickCommand, popup, popupUntilMs);
+    }
+
+    public ScoreboardLine withPopup(String popupText, long untilMs) {
+        return new ScoreboardLine(text, align, hover, command, popupText, untilMs);
+    }
+
+    /** The popup text if it hasn't expired yet, else null. */
+    public String activePopup(long nowMs) {
+        return popup != null && nowMs < popupUntilMs ? popup : null;
     }
 
     public static List<ScoreboardLine> of(List<String> texts) {
@@ -48,11 +78,15 @@ public record ScoreboardLine(String text, Align align) {
         if (value == null) {
             return raw;
         }
+        return formatNumber(value);
+    }
+
+    public static String formatNumber(double value) {
         if (CustomScoreboardConfig.getInstance().getNumberFormat() == CustomScoreboardConfig.NumberFormat.SHORT) {
             return shortFormat(value);
         }
         if (value == Math.floor(value) && Math.abs(value) < 9.0E15) {
-            return String.format(Locale.US, "%,d", (long) (double) value);
+            return String.format(Locale.US, "%,d", (long) value);
         }
         return String.format(Locale.US, "%,.1f", value);
     }
@@ -104,5 +138,31 @@ public record ScoreboardLine(String text, Align align) {
         }
         Double d = parse(formattedNumber);
         return d != null && d == 0;
+    }
+
+    /** "4d 12h" style, at most {@code maxUnits} non-zero units (SkyHanni {@code Duration.format(maxUnits)}). */
+    public static String formatDuration(long millis, int maxUnits) {
+        if (millis < 1000) {
+            return "0s";
+        }
+        long s = millis / 1000;
+        long[] values = {s / 31_536_000L, (s % 31_536_000L) / 86_400L, (s % 86_400L) / 3600L, (s % 3600L) / 60L, s % 60L};
+        String[] units = {"y", "d", "h", "m", "s"};
+        StringBuilder sb = new StringBuilder();
+        int used = 0;
+        for (int i = 0; i < values.length && used < maxUnits; i++) {
+            if (values[i] == 0) {
+                if (used > 0) {
+                    used++;
+                }
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(values[i]).append(units[i]);
+            used++;
+        }
+        return sb.toString();
     }
 }

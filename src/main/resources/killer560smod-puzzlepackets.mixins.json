@@ -1,0 +1,12 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.puzzlesolvers.mixin",
+	"client": [
+		"PuzzlePacketMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

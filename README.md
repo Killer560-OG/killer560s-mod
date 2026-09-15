@@ -66,7 +66,6 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Ability Keybinds — bind any key to your real dungeon class Ability or Ultimate (the same real vanilla drop-item/drop-stack action Hypixel already reads), instead of the fixed Q/Ctrl+Q
 - P4 Platform Highlight — highlights the real fixed 3x3 platform you need to mine after Goldor dies, before dropping into Necron's fight
 - I Hate Diorite (cheat build only) — swaps Storm's real diorite pillars to see-through stained glass client-side during her fight
-- Better Party Finder — shows a joining party member's real Catacombs level and secret count, with a clickable Kick button (no auto-kick)
 - Command Keybinds — 8 individually-bindable keys for common Skyblock menu commands (pets/storage/armor/equipment/loadouts/stats/dungeon hub/potion bag)
 - Revert Master Stars — shows Master Star items with the old all-red-stars look instead of Hypixel's numbered pip (cosmetic only)
 - Inventory Search — Ctrl+F in any inventory-type screen to search and highlight matching items by name/lore
@@ -78,8 +77,9 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Waypoint Routes — per-area waypoint routes that advance as you reach each point, with keybinds to add/remove/skip, and clipboard import/export in ColeWeight and Skytils formats
 - Custom Mage Beam — replaces the mage beam particles with a clean colored beam (color, width, duration, fade)
 - Auto Quiz / Auto Three Weirdos — **cheat build only.** Clicks the solver's answer in Quiz and opens the right chest in Three Weirdos
+- Auto Puzzles (QUOI port) — **cheat build only.** An auto for every other puzzle, each needing its solver on: Auto Blaze, Auto Creeper Beams and Auto Ice Path shoot your shortbow (shared Shoot/Miss cooldowns), Auto Boulder / Auto Water Board / Auto Tic Tac Toe click the right buttons, levers and cells, Auto Teleport Maze faces and walks to the right pad, Auto Ice Fill steps the path with your AOTV, plus an optional Etherwarp Reposition that warps you to each puzzle's standing spots
 - Auto Dialogue / Breaker Aura — **cheat build only.** Picks NPC dialogue options (never purchases or trades), and breaks blocks in your path with the Dungeonbreaker
-- Dungeon Queue — re-queues the floor you just finished after a delay (leader/solo only, cancel key, skipped when someone types "dt"), plus a requeue key
+- Dungeon Queue — Auto Requeue (sends /instancerequeue at the end of a run after a delay, skipped if a party member leaves or is kicked) and Party Finder Overlay (green/red joinable highlight, member count, and tooltip stats: Catacombs level, secrets, PB for the floor, missing classes)
 - Inventory HUD — your main inventory drawn as a movable HUD panel (mini/normal, horizontal/vertical, background style, show always / hold key / toggle key)
 - Skyblock Only — one toggle on the Home tab that pauses every feature outside Hypixel Skyblock and p3sim.net without changing any of your settings; rejoin Skyblock and everything is back on
 - Motion Blur — smooth frame-blending blur for high-FPS recordings (strength slider, optional GUI blur); turns itself off with a chat notice if the shader can't load
@@ -89,6 +89,11 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Custom Scoreboard — SkyHanni-style replacement sidebar (ported from SkyHanni and SkyBlock Custom Scoreboard): reorderable lines and events, alignment, background with rounded corners and border; unknown lines still show
 - Profile Viewer — `/pv [name]`: NEU-style Skyblock profile viewer (skills, slayers, dungeons with floor times, inventories/ender chest/backpacks/wardrobe/accessories, pets) with a 3D skin preview
 - Themed Main Menu — the title screen in the mod's black/orange theme: themed buttons, dark animated background with drifting embers (toggle in Display)
+- Arrow Align — F7/M7 third device solver: clicks-needed numbers on each frame, Prevent Misclicks (crouch to override); **cheat build:** Trigger Bot with delay and Aura
+- Secret Triggerbot — **cheat build only.** Clicks a secret (chest, lever, redstone key, wither essence) when you look at it, after a delay; never re-clicks a looted secret; optional slot swap
+- Dungeon ESP — boxes or glow on starred mobs, secret bats and (cheat build) the F7/M7 wither bosses, each with its own colour
+- Door Helpers — **cheat build only.** Auto Door Opener (QUOI: aura or triggerbot on locked wither/blood doors) and Look At Door (smoothly turns to the next locked door on a key or when you pick up a key)
+- Interactive Map — full-screen dungeon map on a key: rooms, doors, secrets found, teammates, hover tooltips, zoom/pan, right-click a room to toggle its secret waypoints, and a hold-to-enlarge HUD peek. **Cheat build:** click a room or door to teleport there with etherwarp pathing, keys for room start / closest locked door, and Auto Blood Rush (teleports door to door until the blood door opens)
 - Pack Disabler — stops Hypixel's forced Skyblock resource pack from loading, without getting kicked for required packs
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free
@@ -113,6 +118,9 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Water Board Solver — identifies the real Water Board layout and shows a real live countdown above every remaining lever click, highlighting the soonest one. Never clicks anything for you
 - Creeper Beams Solver — highlights real currently-connected Sea Lantern pairs with matching colors, updating live as panes are rotated. Never touches anything
 - Blaze Solver — ranks real blazes in the Lower/Higher Blaze puzzle by HP and highlights the correct next few kill targets in order. Never attacks anything
+- Tic Tac Toe Solver — reads the map item frames on the Tic Tac Toe board and outlines the best move on your turn (minimax), with an optional prediction of your next move. Never clicks for you
+- Teleport Maze Solver — tracks the pads you've used and narrows down the real exit pad from where each teleport makes you face (green = the one, gold = candidates), with a tracer to the best next pad. Never moves you
+- Ice Path Solver — reads the silverfish Ice Path board and draws the shortest push path to the exit, outlining the silverfish's next stop. Never hits the silverfish
 - Livid Solver — identifies the real correct Livid on Floor 5 from the wool color clue and highlights it, plus a countdown for its opening invulnerability window. Never attacks anything
 
 **Display**

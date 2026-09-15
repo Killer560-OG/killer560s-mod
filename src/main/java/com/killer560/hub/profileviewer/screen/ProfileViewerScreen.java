@@ -40,22 +40,32 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ProfileViewerScreen extends Screen {
 
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xFF0D0D0D;
-    private static final int BOX_BG = 0xFF121212;
-    private static final int BAR_BG = 0xFF262626;
-    private static final int TEXT = 0xFF000000 | ModChat.TEXT;
-    private static final int VALUE = 0xFF000000 | ModChat.LIGHT_ORANGE;
-    private static final int DIM = 0xFF000000 | ModChat.DIM;
-    private static final int BAD = 0xFF000000 | ModChat.BAD;
-    private static final int MAXED = 0xFFFFAA00;
+    static final int ACCENT = 0xFFCC6600;
+    static final int BORDER = 0xFF553311;
+    static final int PANEL_BG = 0xFF0D0D0D;
+    static final int BOX_BG = 0xFF121212;
+    static final int BAR_BG = 0xFF262626;
+    static final int TEXT = 0xFF000000 | ModChat.TEXT;
+    static final int VALUE = 0xFF000000 | ModChat.LIGHT_ORANGE;
+    static final int DIM = 0xFF000000 | ModChat.DIM;
+    static final int BAD = 0xFF000000 | ModChat.BAD;
+    static final int MAXED = 0xFFFFAA00;
 
-    private static final String[] PAGES = {"Basic Info", "Dungeons", "Inventories", "Pets"};
-    private static final int PAGE_BASIC = 0;
-    private static final int PAGE_DUNGEONS = 1;
-    private static final int PAGE_INVENTORIES = 2;
-    private static final int PAGE_PETS = 3;
+    static final String[] PAGES = {"Basic Info", "Dungeons", "Inventories", "Pets", "Collections", "Mining", "Bestiary",
+            "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc"};
+    static final int PAGE_BASIC = 0;
+    static final int PAGE_DUNGEONS = 1;
+    static final int PAGE_INVENTORIES = 2;
+    static final int PAGE_PETS = 3;
+    static final int PAGE_COLLECTIONS = 4;
+    static final int PAGE_MINING = 5;
+    static final int PAGE_BESTIARY = 6;
+    static final int PAGE_CRIMSON = 7;
+    static final int PAGE_MUSEUM = 8;
+    static final int PAGE_RIFT = 9;
+    static final int PAGE_FARMING = 10;
+    static final int PAGE_NETWORTH = 11;
+    static final int PAGE_MISC = 12;
 
     private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Bags"};
 
@@ -78,22 +88,28 @@ public class ProfileViewerScreen extends Screen {
     private int invPage = 0;
     private int petScroll = 0;
     private SbProfile.Pet pinnedPet;
-    private boolean dropdownOpen = false;
+    boolean dropdownOpen = false;
     private int profileButtonX = -1;
 
-    private int panelX, panelY, panelW, panelH;
-    private int contentX, contentY, contentW, contentH;
+    int panelX, panelY, panelW, panelH;
+    int contentX, contentY, contentW, contentH;
+    /** Scroll offset / sub-view / pager index for the extra pages; reset on page or profile change. */
+    int pageScroll = 0;
+    int subView = 0;
+    int subPage = 0;
+    private final ExtraPages extraPages = new ExtraPages(this);
+    private final List<int[]> tabRects = new ArrayList<>();
 
-    private record Hotspot(int x, int y, int w, int h, Runnable action) {
+    record Hotspot(int x, int y, int w, int h, Runnable action) {
         boolean contains(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
         }
     }
 
-    private final List<Hotspot> hotspots = new ArrayList<>();
+    final List<Hotspot> hotspots = new ArrayList<>();
     private final List<Hotspot> overlayHotspots = new ArrayList<>();
-    private List<Component> pendingTooltip;
-    private ItemStack pendingItemTooltip = ItemStack.EMPTY;
+    List<Component> pendingTooltip;
+    ItemStack pendingItemTooltip = ItemStack.EMPTY;
 
     public ProfileViewerScreen(Screen parent, ProfileViewerFeature.Target target) {
         super(Component.literal("Profile Viewer"));
@@ -111,6 +127,7 @@ public class ProfileViewerScreen extends Screen {
     private void load(boolean force) {
         int gen = ++generation;
         state = State.LOADING;
+        extraPages.reset(force);
         dropdownOpen = false;
         rebuildSafe();
         CompletableFuture<ProfileViewerApi.ResolvedPlayer> resolved;
@@ -184,13 +201,27 @@ public class ProfileViewerScreen extends Screen {
     @Override
     protected void init() {
         panelW = Math.min(this.width - 12, 480);
-        panelH = Math.min(this.height - 12, 290);
+        // Page tabs wrap onto extra rows when they don't fit; the panel grows by those rows.
+        tabRects.clear();
+        int tx = 6;
+        int row = 0;
+        for (int i = 0; i < PAGES.length; i++) {
+            int w = this.font.width(PAGES[i]) + 24;
+            if (tx + w > panelW - 6 && tx > 6) {
+                row++;
+                tx = 6;
+            }
+            tabRects.add(new int[]{tx, row, w});
+            tx += w + 3;
+        }
+        int rows = row + 1;
+        panelH = Math.min(this.height - 12, 290 + (rows - 1) * 21);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         contentX = panelX + 8;
-        contentY = panelY + 50;
+        contentY = panelY + 29 + rows * 21;
         contentW = panelW - 16;
-        contentH = panelH - 50 - 16;
+        contentH = Math.max(60, panelY + panelH - 16 - contentY);
 
         if (page == PAGE_BASIC && skinProfile != null && profile() != null && ProfileViewerConfig.getInstance().isShowSkin()) {
             int skinH = Math.min(120, contentH - 90);
@@ -209,6 +240,9 @@ public class ProfileViewerScreen extends Screen {
         }
         page = newPage;
         dropdownOpen = false;
+        pageScroll = 0;
+        subView = 0;
+        subPage = 0;
         ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
         if (cfg.isRememberLastPage()) {
             cfg.setLastPage(page);
@@ -259,6 +293,10 @@ public class ProfileViewerScreen extends Screen {
             invPage += scrollY < 0 ? 1 : -1;
             return true;
         }
+        if (page > PAGE_PETS && state == State.READY) {
+            pageScroll = Math.max(0, pageScroll - (int) Math.signum(scrollY));
+            return true;
+        }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
@@ -266,15 +304,27 @@ public class ProfileViewerScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (state == State.READY) {
             if (event.key() == InputConstants.KEY_LEFT) {
-                invPage--;
+                if (page > PAGE_PETS) {
+                    subPage--;
+                } else {
+                    invPage--;
+                }
                 return true;
             }
             if (event.key() == InputConstants.KEY_RIGHT) {
-                invPage++;
+                if (page > PAGE_PETS) {
+                    subPage++;
+                } else {
+                    invPage++;
+                }
                 return true;
             }
-            if (event.key() >= InputConstants.KEY_1 && event.key() < InputConstants.KEY_1 + PAGES.length) {
+            if (event.key() >= InputConstants.KEY_1 && event.key() <= InputConstants.KEY_9 && event.key() - InputConstants.KEY_1 < PAGES.length) {
                 setPage(event.key() - InputConstants.KEY_1);
+                return true;
+            }
+            if (event.key() == InputConstants.KEY_0 && PAGES.length > 9) {
+                setPage(9);
                 return true;
             }
         }
@@ -316,7 +366,15 @@ public class ProfileViewerScreen extends Screen {
                     case PAGE_BASIC -> drawBasic(g, p, mouseX, mouseY);
                     case PAGE_DUNGEONS -> drawDungeons(g, p, mouseX, mouseY);
                     case PAGE_INVENTORIES -> drawInventories(g, p, mouseX, mouseY);
-                    default -> drawPets(g, p, mouseX, mouseY);
+                    case PAGE_PETS -> drawPets(g, p, mouseX, mouseY);
+                    default -> {
+                        try {
+                            extraPages.draw(g, page, p, mouseX, mouseY);
+                        } catch (RuntimeException e) {
+                            // A malformed/unexpected field must never take the screen down mid-frame.
+                            centered(g, "Couldn't show this page (" + e.getClass().getSimpleName() + ").", contentY + contentH / 2 - 4, BAD);
+                        }
+                    }
                 }
             }
         }
@@ -340,7 +398,7 @@ public class ProfileViewerScreen extends Screen {
         }
     }
 
-    private String dots() {
+    String dots() {
         return ".".repeat((int) (System.currentTimeMillis() / 400 % 4));
     }
 
@@ -369,19 +427,19 @@ public class ProfileViewerScreen extends Screen {
         }
 
         // Page tabs
-        int tx = panelX + 6;
-        int ty = panelY + 28;
-        for (int i = 0; i < PAGES.length; i++) {
-            int w = this.font.width(PAGES[i]) + 26;
+        for (int i = 0; i < PAGES.length && i < tabRects.size(); i++) {
+            int[] rect = tabRects.get(i);
+            int tx = panelX + rect[0];
+            int ty = panelY + 28 + rect[1] * 21;
+            int w = rect[2];
             final int idx = i;
             boolean sel = i == page;
             boolean hover = inside(mx, my, tx, ty, w, 18) && !dropdownOpen;
             g.fill(tx, ty, tx + w, ty + 18, sel ? 0xFF2A1A0A : hover ? 0xFF222222 : BOX_BG);
             g.outline(tx, ty, w, 18, sel ? ACCENT : hover ? ACCENT : BORDER);
             g.item(pageIcon(i), tx + 2, ty + 1);
-            g.text(this.font, PAGES[i], tx + 20, ty + 5, sel ? VALUE : TEXT, false);
+            g.text(this.font, PAGES[i], tx + 19, ty + 5, sel ? VALUE : TEXT, false);
             hotspots.add(new Hotspot(tx, ty, w, 18, () -> setPage(idx)));
-            tx += w + 3;
         }
     }
 
@@ -399,7 +457,16 @@ public class ProfileViewerScreen extends Screen {
             case PAGE_BASIC -> Items.PLAYER_HEAD;
             case PAGE_DUNGEONS -> Items.WITHER_SKELETON_SKULL;
             case PAGE_INVENTORIES -> Items.CHEST;
-            default -> Items.BONE;
+            case PAGE_PETS -> Items.BONE;
+            case PAGE_COLLECTIONS -> Items.ITEM_FRAME;
+            case PAGE_MINING -> Items.DIAMOND_PICKAXE;
+            case PAGE_BESTIARY -> Items.ZOMBIE_HEAD;
+            case PAGE_CRIMSON -> Items.BLAZE_POWDER;
+            case PAGE_MUSEUM -> Items.GOLD_BLOCK;
+            case PAGE_RIFT -> Items.ENDER_EYE;
+            case PAGE_FARMING -> Items.WHEAT;
+            case PAGE_NETWORTH -> Items.GOLD_INGOT;
+            default -> Items.PAPER;
         });
     }
 
@@ -432,6 +499,9 @@ public class ProfileViewerScreen extends Screen {
                 profileIndex = idx;
                 dropdownOpen = false;
                 invPage = 0;
+                pageScroll = 0;
+                subView = 0;
+                subPage = 0;
                 petScroll = 0;
                 pinnedPet = null;
                 rebuildSafe();
@@ -558,7 +628,7 @@ public class ProfileViewerScreen extends Screen {
     }
 
     /** Icon + "Name Level" + progress bar, NEU style. Hover shows XP numbers. */
-    private void bar(GuiGraphicsExtractor g, int x, int y, int w, ItemStack icon, String name, LevelTables.Level lvl,
+    void bar(GuiGraphicsExtractor g, int x, int y, int w, ItemStack icon, String name, LevelTables.Level lvl,
                      int mx, int my, long totalXp) {
         g.item(icon, x, y);
         int tx = x + 18;
@@ -584,7 +654,7 @@ public class ProfileViewerScreen extends Screen {
         }
     }
 
-    private static ItemStack skillIcon(String id) {
+    static ItemStack skillIcon(String id) {
         return new ItemStack(switch (id) {
             case "FARMING" -> Items.GOLDEN_HOE;
             case "MINING" -> Items.STONE_PICKAXE;
@@ -683,13 +753,13 @@ public class ProfileViewerScreen extends Screen {
         return y + rowH;
     }
 
-    private int stat2(GuiGraphicsExtractor g, int x, int y, int w, String label, String value) {
+    int stat2(GuiGraphicsExtractor g, int x, int y, int w, String label, String value) {
         g.text(this.font, label, x, y, DIM, false);
         g.text(this.font, value, x + w - this.font.width(value), y, VALUE, false);
         return y + 11;
     }
 
-    private static ItemStack classIcon(String c) {
+    static ItemStack classIcon(String c) {
         return new ItemStack(switch (c) {
             case "healer" -> Items.POTION;
             case "mage" -> Items.BLAZE_ROD;
@@ -700,7 +770,7 @@ public class ProfileViewerScreen extends Screen {
         });
     }
 
-    private static String time(long ms) {
+    static String time(long ms) {
         if (ms <= 0) {
             return "-";
         }
@@ -849,7 +919,7 @@ public class ProfileViewerScreen extends Screen {
         button(g, right - 42 - this.font.width(label), contentY + 3, 16, 14, "<", mx, my, false, () -> invPage--);
     }
 
-    private void grid(GuiGraphicsExtractor g, List<ItemStack> items, int x, int y, int mx, int my, int highlightCol) {
+    void grid(GuiGraphicsExtractor g, List<ItemStack> items, int x, int y, int mx, int my, int highlightCol) {
         int rows = Math.max(1, (items.size() + 8) / 9);
         for (int i = 0; i < rows * 9; i++) {
             int col = i % 9;
@@ -857,7 +927,7 @@ public class ProfileViewerScreen extends Screen {
         }
     }
 
-    private void slot(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my, boolean highlight) {
+    void slot(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my, boolean highlight) {
         g.fill(x, y, x + 18, y + 18, 0xFF1C1C1C);
         g.outline(x, y, 18, 18, highlight ? ACCENT : 0xFF2E2E2E);
         if (!stack.isEmpty()) {
@@ -870,7 +940,7 @@ public class ProfileViewerScreen extends Screen {
         }
     }
 
-    private static ItemStack get(List<ItemStack> list, int i) {
+    static ItemStack get(List<ItemStack> list, int i) {
         return i >= 0 && i < list.size() ? list.get(i) : ItemStack.EMPTY;
     }
 
@@ -996,12 +1066,16 @@ public class ProfileViewerScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing helpers
 
-    private void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+    net.minecraft.client.gui.Font font() {
+        return this.font;
+    }
+
+    void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         g.fill(x, y, x + w, y + h, BOX_BG);
         g.outline(x, y, w, h, BORDER);
     }
 
-    private void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, int mx, int my, boolean selected, Runnable action) {
+    void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, int mx, int my, boolean selected, Runnable action) {
         boolean hover = inside(mx, my, x, y, w, h) && (!dropdownOpen || y < panelY + 22);
         g.fill(x, y, x + w, y + h, selected ? 0xFF2A1A0A : hover ? 0xFF262626 : 0xFF1A1A1A);
         g.outline(x, y, w, h, selected || hover ? ACCENT : 0xFF663D1A);
@@ -1009,27 +1083,27 @@ public class ProfileViewerScreen extends Screen {
         hotspots.add(new Hotspot(x, y, w, h, action));
     }
 
-    private void centered(GuiGraphicsExtractor g, String text, int y, int color) {
+    void centered(GuiGraphicsExtractor g, String text, int y, int color) {
         centeredIn(g, text, contentX, contentW, y, color);
     }
 
-    private void centeredIn(GuiGraphicsExtractor g, String text, int x, int w, int y, int color) {
+    void centeredIn(GuiGraphicsExtractor g, String text, int x, int w, int y, int color) {
         g.text(this.font, text, x + (w - this.font.width(text)) / 2, y, color, false);
     }
 
-    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
+    static boolean inside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    private static Style style(int argb) {
+    static Style style(int argb) {
         return Style.EMPTY.withColor(TextColor.fromRgb(argb & 0xFFFFFF)).withItalic(false);
     }
 
-    private static String commas(double v) {
+    static String commas(double v) {
         return String.format(Locale.US, "%,d", (long) Math.floor(v));
     }
 
-    private static String shorten(double v) {
+    static String shorten(double v) {
         double abs = Math.abs(v);
         if (abs >= 1_000_000_000) {
             return String.format(Locale.US, "%.2fB", v / 1_000_000_000);

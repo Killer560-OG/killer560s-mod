@@ -64,10 +64,12 @@ import java.util.regex.Pattern;
  */
 public final class LiveMapFeature {
 
-    private static final int GRID = 11;
-    private static final int START_X = -185;
-    private static final int START_Z = -185;
-    private static final int HALF_ROOM = 16;
+    static final int GRID = 11;
+    static final int START_X = -185;
+    static final int START_Z = -185;
+    static final int HALF_ROOM = 16;
+    /** Bumped on every grid reset so the interactive map can drop per-run state (cleared-by, selections). */
+    private static int resetGeneration = 0;
 
     public enum Tile {
         UNKNOWN, ROOM, DOOR_NORMAL, DOOR_WITHER, DOOR_BLOOD, DOOR_ENTRANCE
@@ -194,6 +196,7 @@ public final class LiveMapFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        InteractiveMapFeature.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
                 onActionBar(message.getString());
@@ -211,6 +214,7 @@ public final class LiveMapFeature {
         java.util.Arrays.fill(groupOfCell, -1);
         groups.clear();
         groupsDirty = true;
+        resetGeneration++;
         foundSecretsByRoom.clear();
         DungeonMapScanner.reset();
         lastLoggedSummary = null;
@@ -231,10 +235,16 @@ public final class LiveMapFeature {
         if (BoulderSolverConfig.getInstance().isEnabled()) sb.append("Boulder,");
         if (QuizSolverConfig.getInstance().isEnabled()) sb.append("Quiz,");
         if (IceFillSolverConfig.getInstance().isEnabled()) sb.append("IceFill,");
+        if (com.killer560.hub.puzzlesolvers.TicTacToeSolverConfig.getInstance().isEnabled()) sb.append("TicTacToe,");
+        if (com.killer560.hub.puzzlesolvers.TeleportMazeSolverConfig.getInstance().isEnabled()) sb.append("TeleportMaze,");
+        if (com.killer560.hub.puzzlesolvers.IcePathSolverConfig.getInstance().isEnabled()) sb.append("IcePath,");
         if (WeirdosSolverConfig.getInstance().isEnabled()) sb.append("Weirdos,");
         if (WaterSolverConfig.getInstance().isEnabled()) sb.append("Water,");
         if (BeamsSolverConfig.getInstance().isEnabled()) sb.append("Beams,");
         if (BlazeSolverConfig.getInstance().isEnabled()) sb.append("Blaze,");
+        if (LiveMapConfig.getInstance().isInteractiveMapEnabled()) sb.append("InteractiveMap,");
+        if (LiveMapConfig.getInstance().isPathingEnabled()) sb.append("Pathing,");
+        if (LiveMapConfig.getInstance().isBloodRushEnabled()) sb.append("BloodRush,");
         return sb.length() == 0 ? "" : sb.substring(0, sb.length() - 1);
     }
 
@@ -828,7 +838,7 @@ public final class LiveMapFeature {
      *  -201..-9 dungeon footprint) mapped to corner cell (10,10) and solvers could "match" whatever room
      *  was identified there. @return the player's current room cell index, or -1 when there's no
      *  player, the player is in boss, or the player is outside the dungeon grid footprint. */
-    private static int currentRoomIndex() {
+    static int currentRoomIndex() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || isInBoss()) {
             return -1;
@@ -909,6 +919,65 @@ public final class LiveMapFeature {
         return new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Interactive map / pathing accessors (package-private, main thread)
+    // ---------------------------------------------------------------------------------------------
+
+    static int resetGeneration() {
+        return resetGeneration;
+    }
+
+    static List<RoomGroup> groupsView() {
+        ensureGroups();
+        return groups;
+    }
+
+    /** @return the room group id owning this cell, or -1. */
+    static int groupIdAt(int idx) {
+        ensureGroups();
+        return idx >= 0 && idx < GRID * GRID ? groupOfCell[idx] : -1;
+    }
+
+    /** World-scanned tile, else what the dungeon map item shows (rooms from grouping, doors from the map). */
+    static Tile effectiveTile(int idx) {
+        Tile tile = grid[idx];
+        if (tile != Tile.UNKNOWN) {
+            return tile;
+        }
+        if (groupIdAt(idx) >= 0) {
+            return Tile.ROOM;
+        }
+        return DungeonMapScanner.doorTileAt(idx);
+    }
+
+    static boolean isWorldScanned(int idx) {
+        return grid[idx] != Tile.UNKNOWN;
+    }
+
+    static int foundSecrets(String roomName) {
+        Integer found = roomName == null ? null : foundSecretsByRoom.get(roomName);
+        return found == null ? -1 : found;
+    }
+
+    /** @return {@code [clayX, clayZ, rotation]} of a room, or null while identity/rotation are unknown. */
+    static int[] clayAndRotation(RoomGroup group) {
+        int r = rotationSourceIdx(group);
+        return group.entry == null || r < 0 ? null : new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
+    }
+
+    /** Map-item state of a room ({@code DungeonMapScanner.STATE_*}); with no calibrated map (p3sim) a
+     *  world-scanned room reports DISCOVERED so it isn't drawn darkened. */
+    static int roomState(RoomGroup group) {
+        if (!DungeonMapScanner.isCalibrated()) {
+            return DungeonMapScanner.STATE_DISCOVERED;
+        }
+        int state = DungeonMapScanner.stateAt(group.mainIdx);
+        if (state == DungeonMapScanner.STATE_UNDISCOVERED && grid[group.mainIdx] == Tile.ROOM) {
+            return DungeonMapScanner.STATE_DISCOVERED;
+        }
+        return state;
+    }
+
     public static final class LiveMapHudElement implements HudElement {
         @Override
         public String id() {
@@ -943,12 +1012,41 @@ public final class LiveMapFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             LiveMapConfig cfg = LiveMapConfig.getInstance();
-            if (!cfg.isEnabled() || Minecraft.getInstance().screen != null || !DungeonState.isInDungeon()) {
+            net.minecraft.client.gui.screens.Screen screen = Minecraft.getInstance().screen;
+            // Interactive map "Open From HUD Click": keep the HUD map visible behind chat so it can be clicked.
+            boolean chatShown = screen instanceof net.minecraft.client.gui.screens.ChatScreen
+                    && cfg.isOpenFromHudClick() && cfg.isInteractiveMapEnabled();
+            if (!cfg.isEnabled() || (screen != null && !chatShown) || !DungeonState.isInDungeon()) {
                 return;
             }
             int cell = cfg.getCellSize();
             Minecraft client = Minecraft.getInstance();
             ensureGroups();
+
+            // HUD peek: while the peek key is held, draw enlarged, shifted so it stays on screen.
+            float peek = InteractiveMapFeature.isPeeking() ? cfg.getPeekScale() : 1f;
+            boolean peeking = peek > 1f;
+            if (peeking) {
+                int[] pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(this);
+                float hudScale = com.killer560.hub.hud.HudElementRegistry.resolveScale(this);
+                float drawnW = width() * hudScale * peek;
+                float drawnH = height() * hudScale * peek;
+                float shiftX = Math.min(0, graphics.guiWidth() - (pos[0] + drawnW)) - Math.min(0, pos[0]);
+                float shiftY = Math.min(0, graphics.guiHeight() - (pos[1] + drawnH)) - Math.min(0, pos[1]);
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(shiftX / hudScale, shiftY / hudScale);
+                graphics.pose().scale(peek, peek);
+            }
+            try {
+                renderMap(graphics, x, y, cfg, cell, client);
+            } finally {
+                if (peeking) {
+                    graphics.pose().popMatrix();
+                }
+            }
+        }
+
+        private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, int cell, Minecraft client) {
 
             graphics.fill(x, y, x + GRID * cell, y + GRID * cell, 0x99000000);
 

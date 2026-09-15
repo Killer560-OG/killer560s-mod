@@ -47,6 +47,13 @@ public final class BlazeSolverFeature {
     private BlazeSolverFeature() {
     }
 
+    /** Kill order (index 0 = next), alive blazes only - a copy, for AutoPuzzles. Empty outside Lower/Higher Blaze. */
+    public static List<Entity> getOrderedBlazes() {
+        List<Entity> copy = new ArrayList<>(orderedBlazes);
+        copy.removeIf(Entity::isRemoved);
+        return copy;
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(BlazeSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BlazeSolverFeature::onWorldRender);

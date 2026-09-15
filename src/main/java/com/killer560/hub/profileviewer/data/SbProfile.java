@@ -58,6 +58,9 @@ public final class SbProfile {
     private final JsonObject inventoryJson;
     private final JsonObject sharedInventoryJson;
     private CompletableFuture<Inventories> inventories;
+    private final JsonObject profileJson;
+    private final JsonObject memberJson;
+    private CompletableFuture<ProfileExtras> extras;
 
     public record SlayerStat(long xp, Map<Integer, Integer> kills) {
     }
@@ -120,6 +123,8 @@ public final class SbProfile {
 
     private SbProfile(JsonObject profile, JsonObject memberObj, UUID member) {
         this.member = member;
+        this.profileJson = profile;
+        this.memberJson = memberObj;
         profileId = str(profile, "profile_id", "");
         cuteName = str(profile, "cute_name", "Unknown");
         selected = profile.has("selected") && profile.get("selected").isJsonPrimitive() && profile.get("selected").getAsBoolean();
@@ -282,6 +287,16 @@ public final class SbProfile {
         return out;
     }
 
+    // ------------------------------------------------------------------ extra pages
+
+    /** Parses everything the extra pages need (collections, mining, bestiary, ...) once, off-thread. */
+    public synchronized CompletableFuture<ProfileExtras> extras() {
+        if (extras == null) {
+            extras = CompletableFuture.supplyAsync(() -> new ProfileExtras(profileJson, memberJson), ProfileViewerApi.EXECUTOR);
+        }
+        return extras;
+    }
+
     // ------------------------------------------------------------------ inventories
 
     /** Decodes every inventory blob for this profile once, on the API executor. */
@@ -345,6 +360,14 @@ public final class SbProfile {
     }
 
     // ------------------------------------------------------------------ json helpers
+
+    public static JsonObject asObjPublic(JsonElement el) {
+        return asObj(el);
+    }
+
+    public static double numPublic(JsonElement el) {
+        return num(el);
+    }
 
     static JsonElement path(JsonObject root, String dotted) {
         JsonElement cur = root;

@@ -279,6 +279,16 @@ public final class SecretAuraFeature {
         }
     }
 
+    /** Shared with {@code secrettrigger.SecretTriggerbotFeature}: whether this secret is already looted/flipped. */
+    public static boolean isDone(BlockPos pos) {
+        return done.contains(pos.asLong());
+    }
+
+    /** Shared with {@code secrettrigger.SecretTriggerbotFeature}: record a secret it confirmed looted. */
+    public static void markDone(BlockPos pos, String why) {
+        markDone(pos.asLong(), why);
+    }
+
     private static void markDone(long key, String why) {
         if (done.add(key)) {
             // Opening a chest opens its GUI, so this logs at click-rate at most.

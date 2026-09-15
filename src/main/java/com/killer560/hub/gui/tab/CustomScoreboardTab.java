@@ -5,6 +5,7 @@ import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.scoreboard.CustomScoreboardConfig;
+import com.killer560.hub.scoreboard.CustomScoreboardFeature;
 import com.killer560.hub.scoreboard.CustomScoreboardConfig.Row;
 import com.killer560.hub.scoreboard.ScoreboardEntry;
 import com.killer560.hub.scoreboard.ScoreboardEvent;
@@ -22,7 +23,8 @@ import java.util.function.IntFunction;
 public class CustomScoreboardTab extends BaseTab {
 
     private enum Page {
-        GENERAL("General"), LINES("Lines"), EVENTS("Events"), BACKGROUND("Background");
+        GENERAL("General"), LINES("Lines"), OPTIONS("Line Options"), STATS("Chunked Stats"), EVENTS("Events"),
+        BACKGROUND("Background");
 
         final String label;
 
@@ -55,20 +57,25 @@ public class CustomScoreboardTab extends BaseTab {
         }
 
         int gap = 4;
-        int pageW = (contentWidth - gap * 3) / 4;
+        int perRow = 3;
+        int pageW = (contentWidth - gap * (perRow - 1)) / perRow;
         for (Page p : Page.values()) {
-            int px = contentX + p.ordinal() * (pageW + gap);
+            int px = contentX + (p.ordinal() % perRow) * (pageW + gap);
+            int py = y + (p.ordinal() / perRow) * 22;
             String label = p == page ? "§6" + p.label : p.label;
             widgets.add(SettingsButtonWidget.builder(Component.literal(label), btn -> {
                         page = p;
                         requestRebuild.run();
-                    }).bounds(px, y, pageW, 18).build());
+                    }).bounds(px, py, pageW, 18).build());
         }
-        y += 26;
+        y += ((Page.values().length + perRow - 1) / perRow) * 22 + 4;
 
         switch (page) {
             case GENERAL -> buildGeneral(widgets, cfg, contentX, y, contentWidth, requestRebuild);
-            case LINES -> buildRows(widgets, cfg, cfg.entries(), e -> e.label, contentX, y, contentWidth, requestRebuild, true);
+            case LINES -> buildRows(widgets, cfg, cfg.entries(), e -> e.label, contentX, y, contentWidth, requestRebuild,
+                    cfg::resetEntries);
+            case OPTIONS -> buildOptions(widgets, cfg, contentX, y, contentWidth);
+            case STATS -> buildStats(widgets, cfg, contentX, y, contentWidth, requestRebuild);
             case EVENTS -> buildEvents(widgets, cfg, contentX, y, contentWidth, requestRebuild);
             case BACKGROUND -> buildBackground(widgets, cfg, contentX, y, contentWidth, requestRebuild);
         }
@@ -125,6 +132,28 @@ public class CustomScoreboardTab extends BaseTab {
         widgets.add(toggle("Party Everywhere", cfg::isShowPartyEverywhere, cfg::setShowPartyEverywhere, cfg, colBX, y, colW));
         y += 22;
 
+        widgets.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, cfg, x, y, colW));
+        widgets.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(cycle(() -> "Outside Skyblock: §6" + cfg.getOutsideSkyblockMode().label,
+                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()), cfg, x, y, colW));
+        widgets.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Clickable Lines", cfg::isLineActions, cfg::setLineActions, cfg, x, y, colW));
+        widgets.add(toggle("Show Number Changes", cfg::isShowNumberDifference, cfg::setShowNumberDifference, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Unknown Line Warning", cfg::isUnknownLinesWarning, cfg::setUnknownLinesWarning, cfg, x, y, colW));
+        widgets.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Date In Lobby Code", cfg::isDateInLobbyCode, cfg::setDateInLobbyCode, cfg, x, y, colW));
+        widgets.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
+                () -> cfg.setDateFormat(cfg.getDateFormat().next()), cfg, colBX, y, colW));
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Custom Title", cfg.isUseCustomTitle()), btn -> {
                     cfg.setUseCustomTitle(!cfg.isUseCustomTitle());
                     cfg.save();
@@ -157,22 +186,51 @@ public class CustomScoreboardTab extends BaseTab {
         widgets.add(footer);
     }
 
+    private void buildOptions(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width) {
+        int gap = 8;
+        int colW = (width - gap) / 2;
+        int colBX = x + colW + gap;
+
+        widgets.add(toggle("Mayor Perks", cfg::isShowMayorPerks, cfg::setShowMayorPerks, cfg, x, y, colW));
+        widgets.add(toggle("Next Mayor Timer", cfg::isShowMayorTime, cfg::setShowMayorTime, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Show Minister", cfg::isShowMinister, cfg::setShowMinister, cfg, x, y, colW));
+        widgets.add(toggle("Magical Power", cfg::isShowMagicalPower, cfg::setShowMagicalPower, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Compact Tuning", cfg::isCompactTuning, cfg::setCompactTuning, cfg, x, y, colW));
+        widgets.add(slider(colBX, y, colW, cfg.getTuningAmount(), 1, 8, v -> "Tuning Amount: " + v, cfg::setTuningAmount, cfg));
+        y += 22;
+
+        widgets.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
+                () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()), cfg, x, y, colW));
+        widgets.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers, cfg::setShowMaxIslandPlayers, cfg, x, y, colW));
+        widgets.add(toggle("Party Leader", cfg::isShowPartyLeader, cfg::setShowPartyLeader, cfg, colBX, y, colW));
+    }
+
+    private void buildStats(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
+                            Runnable requestRebuild) {
+        widgets.add(slider(x, y, width, cfg.getStatsPerLine(), 1, 10, v -> "Stats Per Line: " + v, cfg::setStatsPerLine, cfg));
+        y += 24;
+        buildRows(widgets, cfg, cfg.chunkedStats(), s -> s.label, x, y, width, requestRebuild, cfg::resetChunkedStats);
+    }
+
     private void buildEvents(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
                              Runnable requestRebuild) {
         widgets.add(toggle("Show All Active Events", cfg::isShowAllActiveEvents, cfg::setShowAllActiveEvents, cfg, x, y, width));
         y += 24;
-        buildRows(widgets, cfg, cfg.events(), e -> e.label, x, y, width, requestRebuild, false);
+        buildRows(widgets, cfg, cfg.events(), e -> e.label, x, y, width, requestRebuild, cfg::resetEvents);
     }
 
     private <E extends Enum<E>> void buildRows(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, List<Row<E>> rows,
                                                java.util.function.Function<E, String> label, int x, int y, int width,
-                                               Runnable requestRebuild, boolean entries) {
+                                               Runnable requestRebuild, Runnable reset) {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Order"), btn -> {
-                    if (entries) {
-                        cfg.resetEntries();
-                    } else {
-                        cfg.resetEvents();
-                    }
+                    reset.run();
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(x, y, width, 18).build());
@@ -225,6 +283,33 @@ public class CustomScoreboardTab extends BaseTab {
                 cfg::setBorderColor, cfg, x, y, colW));
         widgets.add(slider(colBX, y, colW, cfg.getBorderThickness(), 1, 5, v -> "Border Thickness: " + v,
                 cfg::setBorderThickness, cfg));
+        y += 22;
+
+        widgets.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, cfg, x, y, colW));
+        widgets.add(colorButton("Border Bottom Color", cfg.getBorderColorBottom(), CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR,
+                cfg::setBorderColorBottom, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Chroma Border", cfg::isChromaBorder, cfg::setChromaBorder, cfg, x, y, colW));
+        widgets.add(slider(colBX, y, colW, cfg.getChromaSpeed(), 1, 20, v -> "Chroma Speed: " + v, cfg::setChromaSpeed, cfg));
+        y += 22;
+
+        widgets.add(toggle("Image Background", cfg::isImageBackground, cfg::setImageBackground, cfg, x, y, colW));
+        widgets.add(slider(colBX, y, colW, cfg.getImageOpacity(), 5, 100, v -> "Image Opacity: " + v + "%", cfg::setImageOpacity, cfg));
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(Component.literal(CustomScoreboardFeature.backgroundImageExists()
+                        ? "Reload Image" : "Reload Image §c(no background.png)"), btn -> {
+                    CustomScoreboardFeature.reloadBackgroundImage();
+                    requestRebuild.run();
+                }).bounds(x, y, colW, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Image Folder"), btn -> {
+                    try {
+                        java.nio.file.Files.createDirectories(CustomScoreboardConfig.DATA_DIR);
+                        net.minecraft.util.Util.getPlatform().openPath(CustomScoreboardConfig.DATA_DIR);
+                    } catch (Exception ignored) {
+                    }
+                }).bounds(colBX, y, colW, 18).build());
     }
 
     // ---- widget helpers ----

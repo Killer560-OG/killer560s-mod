@@ -334,6 +334,132 @@ public final class ProfileViewerApi {
         USER_KEY, BACKEND, BUILTIN_KEY
     }
 
+    // ------------------------------------------------------------------ auxiliary endpoints
+
+    /** Per-profile / per-player endpoints beyond the profile list. Same source fallback, same response
+     *  shape from Hypixel and the SkyBlockPV backend (skyblock-pv's {@code CachedApis}). */
+    public enum AuxKind {
+        MUSEUM("https://api.hypixel.net/v2/skyblock/museum?profile=", "/museum/", "members"),
+        GARDEN("https://api.hypixel.net/v2/skyblock/garden?profile=", "/garden/", "garden"),
+        PLAYER("https://api.hypixel.net/v2/player?uuid=", "/player/", "player");
+
+        final String hypixel;
+        final String backend;
+        final String field;
+
+        AuxKind(String hypixel, String backend, String field) {
+            this.hypixel = hypixel;
+            this.backend = backend;
+            this.field = field;
+        }
+    }
+
+    /** {@code data} is null when the endpoint answered but has nothing for this id (e.g. no garden). */
+    public record AuxResult(JsonObject data, String source, long fetchedAt) {
+    }
+
+    private static final Pattern AUX_ID = Pattern.compile("^[0-9a-fA-F-]{32,36}$");
+    private static final int MAX_CACHED_AUX = 32;
+    private static final Map<String, AuxResult> AUX_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, CompletableFuture<AuxResult>> AUX_IN_FLIGHT = new ConcurrentHashMap<>();
+
+    public static AuxResult getCachedAux(AuxKind kind, String id) {
+        AuxResult r = AUX_CACHE.get(kind.name() + ":" + id);
+        return r != null && System.currentTimeMillis() - r.fetchedAt() < CACHE_MS ? r : null;
+    }
+
+    public static CompletableFuture<AuxResult> fetchAux(AuxKind kind, String rawId, boolean bypassCache) {
+        if (rawId == null || !AUX_ID.matcher(rawId).matches() || parseUuid(rawId) == null) {
+            return CompletableFuture.failedFuture(new ApiException("Invalid id."));
+        }
+        // Dashed form for both sources (the backend parses UUIDs; Hypixel accepts either).
+        String id = parseUuid(rawId).toString();
+        String key = kind.name() + ":" + id;
+        if (!bypassCache) {
+            AuxResult cached = getCachedAux(kind, id);
+            if (cached != null) {
+                return CompletableFuture.completedFuture(cached);
+            }
+        }
+        CompletableFuture<AuxResult> promise = new CompletableFuture<>();
+        CompletableFuture<AuxResult> existing = AUX_IN_FLIGHT.putIfAbsent(key, promise);
+        if (existing != null) {
+            return existing;
+        }
+        CompletableFuture<Raw> raw;
+        try {
+            raw = runAttempts(attemptOrder(), 0, new ArrayList<>(), attempt -> switch (attempt) {
+                case USER_KEY -> hypixelGet(kind.hypixel + id, ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)", true);
+                case BUILTIN_KEY -> hypixelGet(kind.hypixel + id, builtinKey(), "Hypixel API (built-in key)", true);
+                case BACKEND -> backendGet(kind.backend + id, true, true);
+            });
+        } catch (Throwable t) {
+            raw = CompletableFuture.failedFuture(t);
+        }
+        raw.thenApply(r -> {
+            JsonElement el = r.json() == null ? null : r.json().get(kind.field);
+            JsonObject data = el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
+            AuxResult result = new AuxResult(data, r.source(), System.currentTimeMillis());
+            synchronized (AUX_CACHE) {
+                if (AUX_CACHE.size() >= MAX_CACHED_AUX && !AUX_CACHE.containsKey(key)) {
+                    AUX_CACHE.clear();
+                }
+                AUX_CACHE.put(key, result);
+            }
+            return result;
+        }).whenComplete((r, t) -> {
+            AUX_IN_FLIGHT.remove(key, promise);
+            if (t != null) {
+                promise.completeExceptionally(unwrap(t));
+            } else {
+                promise.complete(r);
+            }
+        });
+        return promise;
+    }
+
+    private static List<Attempt> attemptOrder() {
+        ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
+        String userKey = cfg.getApiKey();
+        List<Attempt> order = new ArrayList<>();
+        switch (cfg.getSource()) {
+            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BUILTIN_KEY : Attempt.USER_KEY);
+            case BACKEND -> order.add(Attempt.BACKEND);
+            default -> {
+                if (!userKey.isEmpty()) {
+                    order.add(Attempt.USER_KEY);
+                }
+                order.add(Attempt.BACKEND);
+                order.add(Attempt.BUILTIN_KEY);
+            }
+        }
+        return order;
+    }
+
+    private static CompletableFuture<Raw> runAttempts(List<Attempt> order, int index, List<String> errors,
+                                                      java.util.function.Function<Attempt, CompletableFuture<Raw>> run) {
+        if (index >= order.size()) {
+            String msg = errors.isEmpty() ? "No data source available." : String.join("\n", errors);
+            return CompletableFuture.failedFuture(new ApiException(msg));
+        }
+        Attempt attempt = order.get(index);
+        CompletableFuture<Raw> f;
+        try {
+            f = run.apply(attempt);
+        } catch (Throwable t) {
+            f = CompletableFuture.failedFuture(t);
+        }
+        return f.exceptionallyCompose(t -> {
+            String label = switch (attempt) {
+                case USER_KEY -> "Your API key";
+                case BUILTIN_KEY -> "Built-in key";
+                case BACKEND -> "SkyBlockPV backend";
+            };
+            errors.add(label + ": " + messageFor(t));
+            return runAttempts(order, index + 1, errors, run);
+        });
+    }
+
     private static CompletableFuture<Raw> fetchWithFallback(UUID uuid) {
         ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
         String userKey = cfg.getApiKey();
@@ -383,12 +509,20 @@ public final class ProfileViewerApi {
     }
 
     private static CompletableFuture<Raw> hypixel(UUID uuid, String key, String label) {
+        return hypixelGet(HYPIXEL_PROFILES + dashless(uuid), key, label, false);
+    }
+
+    /** @param notFoundIsEmpty treat 404 as "no data" (garden/museum for a profile that never had one). */
+    private static CompletableFuture<Raw> hypixelGet(String url, String key, String label, boolean notFoundIsEmpty) {
         if (key == null || key.isEmpty()) {
             return CompletableFuture.failedFuture(new ApiException("no key"));
         }
-        HttpRequest req = request(HYPIXEL_PROFILES + dashless(uuid)).header("API-Key", key).GET().build();
+        HttpRequest req = request(url).header("API-Key", key).GET().build();
         return HTTP_NO_REDIRECT.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).thenApply(res -> {
             JsonObject body = parseObject(res.body());
+            if (notFoundIsEmpty && res.statusCode() == 404) {
+                return new Raw(null, label);
+            }
             switch (res.statusCode()) {
                 case 200 -> {
                     if (body == null || (body.has("success") && !body.get("success").getAsBoolean())) {
@@ -418,8 +552,12 @@ public final class ProfileViewerApi {
     }
 
     private static CompletableFuture<Raw> backend(UUID uuid, boolean allowReauth) {
+        return backendGet("/profiles/" + uuid, allowReauth, false);
+    }
+
+    private static CompletableFuture<Raw> backendGet(String path, boolean allowReauth, boolean notFoundIsEmpty) {
         return backendToken(false).thenCompose(token -> {
-            HttpRequest req = request(BACKEND + "/profiles/" + uuid)
+            HttpRequest req = request(BACKEND + path)
                     .header("Authorization", token)
                     .header("X-Intent", "killer560s-mod profile viewer")
                     .GET().build();
@@ -434,7 +572,10 @@ public final class ProfileViewerApi {
             }
             if (res.statusCode() == 401 && allowReauth) {
                 backendToken = null;
-                return backend(uuid, false);
+                return backendGet(path, false, notFoundIsEmpty);
+            }
+            if (res.statusCode() == 404 && notFoundIsEmpty) {
+                return CompletableFuture.completedFuture(new Raw(null, "SkyBlockPV backend"));
             }
             String msg = switch (res.statusCode()) {
                 case 401 -> "authentication failed (401).";

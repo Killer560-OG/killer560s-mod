@@ -1,4 +1,4 @@
-package com.killer560.hub.partyfinder;
+package com.killer560.hub.puzzlesolvers;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -11,24 +11,22 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Better Party Finder settings - see {@link BetterPartyFinderFeature}. Ships disabled by
- *  default. No Auto Kick here - deliberately excluded per killer560's own "keep skipping automation
- *  things" instruction; see the feature's own class doc. */
-public final class BetterPartyFinderConfig {
+/** Persisted Ice Path (silverfish) Solver settings - see {@link IcePathSolverFeature}. Ships disabled. */
+public final class IcePathSolverConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-betterpartyfinder.json");
+            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-icepathsolver.json");
 
-    private static BetterPartyFinderConfig instance;
+    private static IcePathSolverConfig instance;
 
     private boolean enabled = false;
-    private boolean showKickButton = true;
+    private boolean showNextBox = true;
 
-    private BetterPartyFinderConfig() {
+    private IcePathSolverConfig() {
     }
 
-    public static BetterPartyFinderConfig getInstance() {
+    public static IcePathSolverConfig getInstance() {
         if (instance == null) {
             load();
         }
@@ -37,18 +35,17 @@ public final class BetterPartyFinderConfig {
 
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
-            instance = new BetterPartyFinderConfig();
+            instance = new IcePathSolverConfig();
             return;
         }
         try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            BetterPartyFinderConfig cfg = new BetterPartyFinderConfig();
+            JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            IcePathSolverConfig cfg = new IcePathSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.showKickButton = ConfigJson.getBool(obj, "showKickButton", true);
+            cfg.showNextBox = ConfigJson.getBool(obj, "showNextBox", true);
             instance = cfg;
         } catch (Exception e) {
-            instance = new BetterPartyFinderConfig();
+            instance = new IcePathSolverConfig();
         }
     }
 
@@ -57,7 +54,7 @@ public final class BetterPartyFinderConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("showKickButton", showKickButton);
+            obj.addProperty("showNextBox", showNextBox);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -71,11 +68,11 @@ public final class BetterPartyFinderConfig {
         this.enabled = enabled;
     }
 
-    public boolean isShowKickButton() {
-        return showKickButton;
+    public boolean isShowNextBox() {
+        return showNextBox;
     }
 
-    public void setShowKickButton(boolean showKickButton) {
-        this.showKickButton = showKickButton;
+    public void setShowNextBox(boolean showNextBox) {
+        this.showNextBox = showNextBox;
     }
 }

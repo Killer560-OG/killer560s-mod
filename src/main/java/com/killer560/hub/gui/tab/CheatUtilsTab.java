@@ -1,8 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
-import com.killer560.hub.gui.ColorPickerScreen;
-import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
@@ -14,11 +12,9 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.IntConsumer;
-import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-/** Cheat Utils settings - Wither ESP, Secret Aura, Auto GFS, Auto Ult, Auto Chocolate Factory (see
+/** Cheat Utils settings - Secret Aura, Auto GFS, Auto Ult, Auto Chocolate Factory (see
  *  {@code com.killer560.hub.cheatutils}). Cheat build only: on the legit build this tab builds no settings
  *  at all. Each section collapses to its master toggle while that toggle is OFF (SecretsTab pattern). */
 public class CheatUtilsTab extends BaseTab {
@@ -41,23 +37,6 @@ public class CheatUtilsTab extends BaseTab {
 
         label(w, contentX, y, contentWidth, "Real macros/ESP against Hypixel's rules - use at your own risk.");
 
-        // ---- Wither ESP ----
-        header(w, contentX, y, contentWidth, "Wither ESP (F7/M7 boss)");
-        toggle(w, contentX, y, "Wither ESP", cfg::isWitherEspEnabled, v -> cfg.setWitherEspEnabled(v), requestRebuild);
-        if (cfg.isWitherEspEnabled()) {
-            w.add(SettingsButtonWidget.builder(Component.literal("Phases: §b" + cfg.getWitherPhaseFilter().label), btn -> {
-                cfg.cycleWitherPhaseFilter();
-                cfg.save();
-                btn.setMessage(Component.literal("Phases: §b" + cfg.getWitherPhaseFilter().label));
-            }).bounds(contentX, y[0], BTN_W, 20).build());
-            y[0] += 24;
-            color(w, contentX, y[0], half, "Maxor", cfg::getMaxorColor, cfg::setMaxorColor, CheatUtilsConfig.DEFAULT_MAXOR_COLOR);
-            color(w, contentX + half + 8, y[0], half, "Storm", cfg::getStormColor, cfg::setStormColor, CheatUtilsConfig.DEFAULT_STORM_COLOR);
-            y[0] += 22;
-            color(w, contentX, y[0], half, "Goldor", cfg::getGoldorColor, cfg::setGoldorColor, CheatUtilsConfig.DEFAULT_GOLDOR_COLOR);
-            color(w, contentX + half + 8, y[0], half, "Necron", cfg::getNecronColor, cfg::setNecronColor, CheatUtilsConfig.DEFAULT_NECRON_COLOR);
-            y[0] += 26;
-        }
 
         // ---- Secret Aura ----
         header(w, contentX, y, contentWidth, "Secret Aura (dungeons)");
@@ -206,14 +185,4 @@ public class CheatUtilsTab extends BaseTab {
         });
     }
 
-    private static void color(List<AbstractWidget> w, int x, int y, int width, String name, IntSupplier getter,
-                              IntConsumer setter, int def) {
-        w.add(SettingsButtonWidget.builder(ColorSwatch.label(name, getter.getAsInt()), btn -> {
-            Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, name + " Color", getter.getAsInt(), def, argb -> {
-                setter.accept(argb);
-                CheatUtilsConfig.getInstance().save();
-            }));
-        }).bounds(x, y, width, 18).build());
-    }
 }

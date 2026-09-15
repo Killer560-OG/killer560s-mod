@@ -141,6 +141,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.WaterSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BeamsSolverFeature.register();
         com.killer560.hub.puzzlesolvers.BlazeSolverFeature.register();
+        com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature.register();
+        com.killer560.hub.puzzlesolvers.TeleportMazeSolverFeature.register();
+        com.killer560.hub.puzzlesolvers.IcePathSolverFeature.register();
         com.killer560.hub.boss.LividSolverFeature.register();
         HudElementRegistry.register(new com.killer560.hub.boss.LividSolverFeature.InvulnTimerHudElement());
         com.killer560.hub.quiver.QuiverDisplayFeature.register();
@@ -150,6 +153,9 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.realtime.RealTimeFeature.RealTimeHudElement.INSTANCE);
         com.killer560.hub.scoreboard.CustomScoreboardFeature.register();
         com.killer560.hub.profileviewer.ProfileViewerFeature.register();
+        com.killer560.hub.arrowalign.ArrowAlignFeature.register();
+        com.killer560.hub.secrettrigger.SecretTriggerbotFeature.register();
+        com.killer560.hub.doorhelpers.DoorHelpersFeature.register();
         HudElementRegistry.register(com.killer560.hub.scoreboard.CustomScoreboardFeature.Element.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
@@ -165,7 +171,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.abilitykeybinds.AbilityKeybindsFeature.register();
         com.killer560.hub.p4platform.P4PlatformHighlightFeature.register();
         com.killer560.hub.diorite.DioriteGlassFeature.register();
-        com.killer560.hub.partyfinder.BetterPartyFinderFeature.register();
+        com.killer560.hub.partyfinder.PartyFinderOverlay.register();
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.itembrowser.ItemBrowserFeature.register();

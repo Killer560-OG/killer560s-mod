@@ -1,94 +1,131 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.mobesp.MobEspConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
-/** Star Mob Hitbox ESP settings - see {@link com.killer560.hub.mobesp.MobEspFeature}'s own doc for the
- *  legit (visible-only, real raycast) vs. cheat (through walls) distinction. The cheat toggle only
- *  appears at all on the cheat build - the legit build has no through-wall option whatsoever, same
- *  pattern every other real rule-violating toggle in this mod already uses. */
+/** Dungeon ESP settings - see {@link com.killer560.hub.mobesp.MobEspFeature}. Three target rows (toggle + colour), then
+ *  render options. Wither Bosses and Through Walls only exist on the cheat build. */
 public class MobEspTab extends BaseTab {
 
     public MobEspTab() {
-        super("Mob Hitbox ESP");
+        super("Dungeon ESP");
     }
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
-        int y = contentY;
         MobEspConfig cfg = MobEspConfig.getInstance();
+        boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
+        int gap = 8;
+        int colW = (contentWidth - gap) / 2;
+        int col2X = contentX + colW + gap;
+        int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(enabledText(), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+        targetRow(widgets, contentX, col2X, y, colW, "Starred Mobs", cfg::getStarredMobsRaw, cfg::setStarredMobs,
+                "Starred Mob", cfg::getStarredColor, cfg::setStarredColor, MobEspConfig.DEFAULT_STARRED_COLOR);
+        y += 22;
+        targetRow(widgets, contentX, col2X, y, colW, "Bats", cfg::getBatsRaw, cfg::setBats,
+                "Bat", cfg::getBatColor, cfg::setBatColor, MobEspConfig.DEFAULT_BAT_COLOR);
+        y += 22;
+        if (cheat) {
+            targetRow(widgets, contentX, col2X, y, colW, "Wither Bosses", cfg::getWithersRaw, cfg::setWithers,
+                    "Wither", cfg::getWitherColor, cfg::setWitherColor, MobEspConfig.DEFAULT_WITHER_COLOR);
+            y += 22;
+        }
+        y += 8;
+
+        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
+                    cfg.cycleStyle();
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
-        y += 26;
+                }).bounds(contentX, y, colW, 18).build());
+        if (cfg.getStyle() != MobEspConfig.Style.GLOW) {
+            float min = MobEspConfig.MIN_LINE_WIDTH;
+            float max = MobEspConfig.MAX_LINE_WIDTH;
+            widgets.add(new ThemedSliderButton(col2X, y, colW, 18, lineWidthText(cfg), (cfg.getLineWidth() - min) / (max - min)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(lineWidthText(cfg));
+                }
 
-        if (!cfg.isEnabled()) {
-            return widgets;
-        }
-
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            widgets.add(SettingsButtonWidget.builder(cheatModeText(), btn -> {
-                        cfg.setCheatMode(!cfg.isCheatMode());
-                        cfg.save();
-                        btn.setMessage(cheatModeText());
-                    }).bounds(contentX, y, 260, 20).build());
-            y += 24;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Cheat mode glows through walls - a real rule violation."),
-                    Minecraft.getInstance().font));
-            y += 20;
-        } else {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("Glows a star mob only while you have real, clear line of sight."),
-                    Minecraft.getInstance().font));
-            y += 18;
-        }
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Name filter (matches anywhere in the mob's display name):"),
-                Minecraft.getInstance().font));
-        y += 14;
-        EditBox filterField = new EditBox(Minecraft.getInstance().font, contentX, y, 120, 18, Component.literal("Filter"));
-        filterField.setMaxLength(20);
-        filterField.setValue(cfg.getNameFilter());
-        filterField.setResponder(text -> {
-            cfg.setNameFilter(text);
-            cfg.save();
-        });
-        widgets.add(filterField);
-        y += 24;
-
-        widgets.add(SettingsButtonWidget.builder(rangeText(cfg), btn -> {
-                    double next = cfg.getRange() + 5;
-                    cfg.setRange(next > 60 ? 10 : next);
+                @Override
+                protected void applyValue() {
+                    cfg.setLineWidth((float) (min + this.value * (max - min)));
                     cfg.save();
-                    btn.setMessage(rangeText(cfg));
-                }).bounds(contentX, y, 220, 20).build());
+                }
+            });
+        }
+        y += 22;
 
+        double minRange = MobEspConfig.MIN_RANGE;
+        double maxRange = MobEspConfig.MAX_RANGE;
+        widgets.add(new ThemedSliderButton(contentX, y, colW, 18, rangeText(cfg), (cfg.getRange() - minRange) / (maxRange - minRange)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(rangeText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setRange(minRange + this.value * (maxRange - minRange));
+                cfg.save();
+            }
+        });
+        if (cheat) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.getThroughWallsRaw()), btn -> {
+                        cfg.setThroughWalls(!cfg.getThroughWallsRaw());
+                        cfg.save();
+                        btn.setMessage(onOff("Through Walls", cfg.getThroughWallsRaw()));
+                    }).bounds(col2X, y, colW, 18).build());
+        }
         return widgets;
     }
 
+    private static void targetRow(List<AbstractWidget> widgets, int x, int col2X, int y, int width, String name,
+                                  BooleanSupplier getter, Consumer<Boolean> setter, String colorName,
+                                  IntSupplier colorGetter, IntConsumer colorSetter, int defaultColor) {
+        widgets.add(SettingsButtonWidget.builder(onOff(name, getter.getAsBoolean()), btn -> {
+                    setter.accept(!getter.getAsBoolean());
+                    MobEspConfig.getInstance().save();
+                    btn.setMessage(onOff(name, getter.getAsBoolean()));
+                }).bounds(x, y, width, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", colorGetter.getAsInt()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, colorName + " Color",
+                            colorGetter.getAsInt(), defaultColor, argb -> {
+                        colorSetter.accept(argb);
+                        MobEspConfig.getInstance().save();
+                    }));
+                }).bounds(col2X, y, width, 18).build());
+    }
+
+    private static Component styleText(MobEspConfig cfg) {
+        return Component.literal("Style: §b" + cfg.getStyle().label);
+    }
+
+    private static Component lineWidthText(MobEspConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Line Width: %.1f", cfg.getLineWidth()));
+    }
+
     private static Component rangeText(MobEspConfig cfg) {
-        return Component.literal(String.format(java.util.Locale.US, "Range: %.0f blocks", cfg.getRange()));
+        return Component.literal(String.format(Locale.US, "Range: %.0f", cfg.getRange()));
     }
 
-    private static Component enabledText() {
-        return Component.literal("Mob Hitbox ESP: " + (MobEspConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component cheatModeText() {
-        return Component.literal("Mode: §b" + (MobEspConfig.getInstance().isCheatMode() ? "Cheat (Through Walls)" : "Legit (Visible Only)"));
+    private static Component onOff(String label, boolean value) {
+        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

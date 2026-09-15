@@ -44,6 +44,7 @@ public class NewTab extends FolderTab {
                 new PackDisablerTab(),
                 new CroesusTab(),
                 new HeldItemTab(),
+                new ArrowAlignTab(),
                 new StorageSearchTab(),
                 new WaypointRoutesTab(),
                 new DungeonExtrasTab(),
@@ -66,6 +67,9 @@ public class NewTab extends FolderTab {
                 new WaterSolverTab(),
                 new BeamsSolverTab(),
                 new BlazeSolverTab(),
+                new TicTacToeSolverTab(),
+                new TeleportMazeSolverTab(),
+                new IcePathSolverTab(),
                 new LividSolverTab(),
                 new QuiverDisplayTab(),
                 new InventoryHudTab(),
@@ -81,7 +85,6 @@ public class NewTab extends FolderTab {
                 new LoadoutKeybindsTab(),
                 new AbilityKeybindsTab(),
                 new P4PlatformHighlightTab(),
-                new BetterPartyFinderTab(),
                 new CommandKeybindsTab(),
                 new RevertMasterStarsTab(),
                 new InventorySearchTab(),
@@ -90,6 +93,8 @@ public class NewTab extends FolderTab {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoPuzzlesTab());
             tabs.add(new CheatUtilsTab());
+            tabs.add(new SecretTriggerbotTab());
+            tabs.add(new DoorHelpersTab());
             tabs.add(new DungeonBreakerTab());
             tabs.add(new DioriteGlassTab());
         }

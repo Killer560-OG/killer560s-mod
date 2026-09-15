@@ -283,6 +283,63 @@ public class ModScreen extends Screen {
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        drawSettingTooltip(graphics, mouseX, mouseY);
+    }
+
+    private net.minecraft.client.gui.components.AbstractWidget tooltipWidget = null;
+    private long tooltipHoverSinceMs = 0L;
+
+    /** Hover description box for the setting under the mouse (see {@link SettingTooltips}), after a short delay. */
+    private void drawSettingTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        net.minecraft.client.gui.components.AbstractWidget hovered = null;
+        for (var child : this.children()) {
+            if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w.visible
+                    && mouseX >= w.getX() && mouseX < w.getX() + w.getWidth()
+                    && mouseY >= w.getY() && mouseY < w.getY() + w.getHeight()) {
+                hovered = w;
+                break;
+            }
+        }
+        long now = System.currentTimeMillis();
+        if (hovered != tooltipWidget) {
+            tooltipWidget = hovered;
+            tooltipHoverSinceMs = now;
+        }
+        if (hovered == null || now - tooltipHoverSinceMs < 350L || tabs.isEmpty()) {
+            return;
+        }
+        String text;
+        try {
+            text = SettingTooltips.describe(tabs.get(selectedTab).name, hovered.getMessage().getString());
+        } catch (RuntimeException e) {
+            return;
+        }
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        int maxW = 220;
+        java.util.List<net.minecraft.util.FormattedCharSequence> lines =
+                this.font.split(net.minecraft.network.chat.Component.literal(text), maxW);
+        int w = 0;
+        for (var line : lines) {
+            w = Math.max(w, this.font.width(line));
+        }
+        int h = lines.size() * 10 - 2;
+        int x = mouseX + 12;
+        int y = mouseY + 12;
+        if (x + w + 8 > this.width) {
+            x = Math.max(4, mouseX - w - 16);
+        }
+        if (y + h + 8 > this.height) {
+            y = Math.max(4, mouseY - h - 16);
+        }
+        graphics.fill(x - 4, y - 4, x + w + 4, y + h + 4, 0xF00D0D0D);
+        graphics.outline(x - 4, y - 4, w + 8, h + 8, 0xFFCC6600);
+        int ly = y;
+        for (var line : lines) {
+            graphics.text(this.font, line, x, ly, 0xFFF0E6DC, false);
+            ly += 10;
+        }
     }
 
     @Override

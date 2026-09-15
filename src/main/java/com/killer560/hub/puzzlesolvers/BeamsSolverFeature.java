@@ -66,6 +66,15 @@ public final class BeamsSolverFeature {
     private BeamsSolverFeature() {
     }
 
+    /** Currently lit lantern pairs as {@code {first, second}} (candidate-list order) - a copy, for AutoPuzzles. */
+    public static List<BlockPos[]> getActivePairs() {
+        List<BlockPos[]> out = new ArrayList<>();
+        for (ActivePair pair : activePairs) {
+            out.add(new BlockPos[]{pair.a(), pair.b()});
+        }
+        return out;
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(BeamsSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BeamsSolverFeature::onWorldRender);

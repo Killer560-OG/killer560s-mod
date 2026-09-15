@@ -1,7 +1,11 @@
 package com.killer560.hub.mobesp;
 
+import com.killer560.hub.cheatutils.WitherEspFeature;
+import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
@@ -12,6 +16,7 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -19,46 +24,52 @@ import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Star Mob Hitbox ESP: highlights (vanilla's own real "Glowing" outline - {@code Entity#setGlowingTag},
- * the same mechanism Spectator mode and real potion Glowing already use, not a custom shader) the real
- * mob behind every name tag containing the configured filter (default the "✯" star glyph Hypixel
- * uses on star-tier dungeon mobs).
+ * Dungeon ESP - highlights exactly three kinds of dungeon target, each with its own colour
+ * ({@link MobEspConfig}):
+ * <ul>
+ * <li><b>Starred mobs</b> (dungeon clear, not boss). Hypixel puts the "✯ ... ❤" name on a separate invisible
+ * armor stand, never on the mob, so each starred stand is mapped to its real mob the way NoammAddons 26.1.2
+ * {@code StarMobESP.checkStarMob} and QUOI {@code DungeonESP.handleStand} both do: the mob is the entity with id
+ * {@code standId - 1} (Withermancers {@code - 3}: the ids between are their wither skulls); if that isn't a real
+ * mob, the first valid entity inside the stand's bounding box shifted 1 block down. Player-model minibosses
+ * (Shadow Assassin, Lost/Frozen Adventurer, Diamond Guy, King Midas) are matched by name like Noamm/QUOI/Devonian
+ * do, v2-UUID NPCs only.
+ * <li><b>Bats</b> (dungeon clear, not boss): Hypixel's secret bats have Skyblock health (QUOI: 100/200/400/800,
+ * Devonian: anything but vanilla's 6) - so a visible, alive, non-passenger {@link Bat} whose max health isn't 6.
+ * <li><b>Wither bosses</b> (F7/M7 boss, P1-P4): {@link WitherEspFeature#isRealWither} (not Hypixel's invisible /
+ * 800-invulnerable-tick display withers). Cheat build only, like the Cheat Utils Wither ESP it replaces.
+ * </ul>
+ * Styles: Outline Box / Filled Box ({@link EspRenderer}) or Glow - vanilla's entity outline, forced through
+ * {@code Minecraft#shouldEntityAppearGlowing} and coloured through {@code Entity#getTeamColor} by the
+ * cheatutils {@code WitherGlow*Mixin}s (NoammAddons' two hooks), so no entity data is ever mutated.
  * <p>
- * Legit mode only glows a mob while there's an actual clear line of sight to it right now (a real
- * {@link net.minecraft.world.level.Level#clip} raycast from the camera) - it never shows information
- * that isn't already visible on screen, the same category as a "glowing visible mob" QoL highlight.
- * Cheat mode skips that check entirely (glows through walls too - a real positional-awareness ESP),
- * gated on {@link MobEspConfig#isCheatMode()} exactly like every other real rule-violating feature in
- * this mod. Only ever un-glows an entity THIS class itself glowed (tracked in {@link #glowingIds}), so
- * it can't clobber some other, unrelated reason an entity might already be glowing.
- * <p>
- * Real bug found and fixed (2026-09-14): {@code ArmorStand} is a {@code LivingEntity}, and on Hypixel the
- * star is on a separate invisible name-tag armor stand, never on the mob itself - so this glowed the
- * (invisible) name-tag stands instead of the mobs, and ran everywhere, not just in dungeons. Now gated on
- * {@link DungeonState#isInDungeon()}, armor stands are never glowed, and each starred name-tag stand is
- * mapped to its real mob the same way NoammAddons' 26.1.2 {@code StarMobESP.checkStarMob} does: the mob
- * is normally the entity with id {@code standId - 1} (Withermancers {@code - 3}: the ids in between are
- * their wither skulls); if that isn't a real non-armor-stand entity, fall back to the first entity inside
- * the stand's bounding box shifted 1 block down (never an armor stand/XP orb/arrow/Wither; a Player only
- * if visible, a v2-UUID NPC, and not you).
+ * Legit (the default, and the only option on the legit jar): a target is only highlighted while there is a clear
+ * line of sight to it right now (a real {@code Level#clip} raycast from the camera) and boxes are depth-tested.
+ * Through Walls ({@link MobEspConfig#isThroughWalls()}, cheat build only) skips the raycast and draws boxes with
+ * no depth test.
  */
 public final class MobEspFeature {
 
-    private static final Set<Integer> glowingIds = new HashSet<>();
+    private static final String STAR = "✯";
+    private static final String HEART = "❤";
+    private static final Set<String> MINIBOSS_NAMES = Set.of(
+            "Shadow Assassin", "Lost Adventurer", "Frozen Adventurer", "Diamond Guy", "King Midas");
+
+    /** Entity id -> ARGB, rebuilt every client tick; read by the render callback and the glow mixins. */
+    private static volatile Map<Integer, Integer> targets = Map.of();
+    /** Same as {@link #targets} while the style is Glow, empty otherwise. */
+    private static volatile Map<Integer, Integer> glowTargets = Map.of();
     /** Starred name-tag armor stand id -> resolved real mob id (resolved once, like Noamm's own cache). */
     private static final Map<Integer, Integer> standToMob = new HashMap<>();
     private static Object lastLevel = null;
-    /** Hypixel's star-mob glyph (the same "✯" as MobEspConfig's default filter) and name-tag heart. */
-    private static final String STAR = "✯";
-    private static final String HEART = "❤";
 
-    // [MobEsp] diagnostics - logging only.
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-mobesp");
     private static String lastLoggedGates = null;
     private static String lastLoggedCounts = null;
@@ -68,113 +79,150 @@ public final class MobEspFeature {
     }
 
     public static void register() {
+        EspRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MobEspFeature::render);
+    }
+
+    /** Glow mixin hook: whether this entity should get the vanilla glow outline. */
+    public static boolean shouldGlow(Entity entity) {
+        return entity != null && glowTargets.containsKey(entity.getId());
+    }
+
+    /** Glow mixin hook: the ARGB outline colour for this entity, or null if Dungeon ESP isn't glowing it. */
+    public static Integer glowColor(Entity entity) {
+        return entity == null ? null : glowTargets.get(entity.getId());
     }
 
     private static void tick() {
         MobEspConfig cfg = MobEspConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
+        if (client.level != lastLevel) {
+            // Entity ids restart on a new server, so a dungeon -> dungeon warp would otherwise keep stale ids.
+            lastLevel = client.level;
+            standToMob.clear();
+            clearTargets();
+        }
         boolean inDungeon = DungeonState.isInDungeon();
-        String gates = "enabled=" + cfg.isEnabled() + " filter='" + cfg.getNameFilter() + "' range=" + cfg.getRange()
-                + " cheatMode=" + cfg.isCheatMode() + " hasLevel=" + (client.level != null)
-                + " inDungeon=" + inDungeon;
+        boolean inBoss = LiveMapFeature.isInBoss();
+        boolean hasWorld = client.level != null && client.player != null;
+        boolean wantStars = hasWorld && cfg.isStarredMobsEnabled() && inDungeon && !inBoss;
+        boolean wantBats = hasWorld && cfg.isBatsEnabled() && inDungeon && !inBoss;
+        boolean wantWithers = hasWorld && cfg.isWithersEnabled() && WitherEspFeature.isWitherBossActive(client);
+
+        String gates = "stars=" + wantStars + " bats=" + wantBats + " withers=" + wantWithers
+                + " (cfg stars=" + cfg.getStarredMobsRaw() + " bats=" + cfg.getBatsRaw() + " withers=" + cfg.getWithersRaw()
+                + ") style=" + cfg.getStyle() + " throughWalls=" + cfg.isThroughWalls()
+                + " inDungeon=" + inDungeon + " inBoss=" + inBoss;
         if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[MobEsp] Gates changed: {}", gates);
+            LOGGER.info("[DungeonEsp] Gates changed: {}", gates);
             lastLoggedGates = gates;
         }
-        if (client.level != lastLevel) {
-            // Real bug found and fixed (2026-09-14 review pass): entity ids restart on a new server, so a
-            // dungeon -> dungeon warp (inDungeon never false) kept stale stand->mob ids and un-glowed/mapped
-            // unrelated new entities. Old entities are gone with the old level - just forget them.
-            lastLevel = client.level;
-            glowingIds.clear();
+        if (!wantStars) {
             standToMob.clear();
         }
-        if (!cfg.isEnabled() || client.level == null || client.player == null || cfg.getNameFilter().isBlank()
-                || !inDungeon) {
-            clearAllGlowing();
-            standToMob.clear();
+        if (!wantStars && !wantBats && !wantWithers) {
+            clearTargets();
             return;
         }
 
-        String filter = cfg.getNameFilter();
-        Set<Integer> shouldGlow = new HashSet<>();
+        boolean throughWalls = cfg.isThroughWalls();
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
-        int starredStands = 0;
-        int resolvedStands = 0;
-        int directNameMatches = 0;
-        int inRange = 0;
-        String sampleName = null;
+        Map<Integer, Integer> found = new LinkedHashMap<>();
         Set<Integer> liveStands = new HashSet<>();
-        Set<Entity> candidates = new HashSet<>();
+        int stars = 0;
+        int bats = 0;
+        int withers = 0;
 
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity == client.player) {
                 continue;
             }
-            String name = entity.getName().getString();
-            if (!name.contains(filter)) {
-                continue;
-            }
-            if (sampleName == null) {
-                sampleName = name;
-            }
-            if (entity instanceof ArmorStand stand) {
-                // Real bug found and fixed (2026-09-14 review pass): any stand containing the filter counted
-                // (e.g. star-bearing hologram/NPC text). NoammAddons' StarMobESP requires the mob-tag heart
-                // too (name ends in "§c❤"), so require both the star and the heart here.
+            if (wantWithers && WitherEspFeature.isRealWither(entity)) {
+                if (accept(client, eye, entity, Double.MAX_VALUE, throughWalls, found, cfg.getWitherColor())) {
+                    withers++;
+                }
+            } else if (wantBats && entity instanceof Bat bat) {
+                if (isSecretBat(bat) && accept(client, eye, bat, rangeSq, throughWalls, found, cfg.getBatColor())) {
+                    bats++;
+                }
+            } else if (wantStars && entity instanceof ArmorStand stand) {
+                String name = stand.getName().getString();
                 if (!name.contains(STAR) || !name.contains(HEART)) {
                     continue;
                 }
-                // Hypixel's star lives on a separate name-tag stand - glow the real mob it belongs to instead.
-                starredStands++;
                 liveStands.add(stand.getId());
                 Entity mob = resolveMob(client, stand, name);
-                if (mob != null) {
-                    resolvedStands++;
-                    candidates.add(mob);
+                if (mob != null && accept(client, eye, mob, rangeSq, throughWalls, found, cfg.getStarredColor())) {
+                    stars++;
                 }
-            } else if (entity instanceof LivingEntity) {
-                directNameMatches++;
-                candidates.add(entity);
+            } else if (wantStars && entity instanceof Player p && isMiniboss(client, p)) {
+                if (accept(client, eye, p, rangeSq, throughWalls, found, cfg.getStarredColor())) {
+                    stars++;
+                }
             }
         }
         standToMob.keySet().retainAll(liveStands);
 
-        for (Entity mob : candidates) {
-            if (mob.isRemoved() || mob.distanceToSqr(client.player) > rangeSq) {
-                continue;
-            }
-            inRange++;
-            boolean visible = cfg.isCheatMode() || hasLineOfSight(client, eye, mob);
-            if (visible) {
-                shouldGlow.add(mob.getId());
-                mob.setGlowingTag(true);
-            }
-        }
-
-        for (int id : glowingIds) {
-            if (!shouldGlow.contains(id)) {
-                Entity e = client.level.getEntity(id);
-                if (e != null) {
-                    e.setGlowingTag(false);
-                }
-            }
-        }
-        glowingIds.clear();
-        glowingIds.addAll(shouldGlow);
+        Map<Integer, Integer> snapshot = Map.copyOf(found);
+        targets = snapshot;
+        glowTargets = cfg.getStyle() == MobEspConfig.Style.GLOW ? snapshot : Map.of();
 
         long nowMs = System.currentTimeMillis();
         if (nowMs - lastCountsLogMs >= 2000) {
             lastCountsLogMs = nowMs;
-            String counts = "starredStands=" + starredStands + " resolvedToMob=" + resolvedStands
-                    + " directNameMatches=" + directNameMatches + " inRange=" + inRange + " glowing=" + shouldGlow.size();
+            String counts = "starredStands=" + liveStands.size() + " stars=" + stars + " bats=" + bats + " withers=" + withers;
             if (!counts.equals(lastLoggedCounts)) {
-                LOGGER.info("[MobEsp] {} sample=\"{}\"", counts, sampleName);
+                LOGGER.info("[DungeonEsp] {}", counts);
                 lastLoggedCounts = counts;
             }
         }
+    }
+
+    private static boolean accept(Minecraft client, Vec3 eye, Entity target, double rangeSq, boolean throughWalls,
+                                  Map<Integer, Integer> found, int color) {
+        if (target.isRemoved() || found.containsKey(target.getId()) || target.distanceToSqr(client.player) > rangeSq) {
+            return false;
+        }
+        if (!throughWalls && !hasLineOfSight(client, eye, target)) {
+            return false;
+        }
+        found.put(target.getId(), color);
+        return true;
+    }
+
+    private static void render(LevelRenderContext context) {
+        Map<Integer, Integer> current = targets;
+        MobEspConfig cfg = MobEspConfig.getInstance();
+        Minecraft client = Minecraft.getInstance();
+        if (current.isEmpty() || client.level == null || cfg.getStyle() == MobEspConfig.Style.GLOW) {
+            return;
+        }
+        boolean throughWalls = cfg.isThroughWalls();
+        boolean filled = cfg.getStyle() == MobEspConfig.Style.FILLED;
+        float lineWidth = cfg.getLineWidth();
+        float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        for (Map.Entry<Integer, Integer> target : current.entrySet()) {
+            Entity entity = client.level.getEntity(target.getKey());
+            if (entity == null || entity.isRemoved()) {
+                continue;
+            }
+            Vec3 lerped = entity.getPosition(partialTick);
+            AABB box = entity.getBoundingBox().move(lerped.subtract(entity.position()));
+            if (filled) {
+                EspRenderer.filled(context, box, target.getValue(), throughWalls);
+            }
+            EspRenderer.outline(context, box, target.getValue(), lineWidth, throughWalls);
+        }
+    }
+
+    private static boolean isSecretBat(Bat bat) {
+        return bat.isAlive() && !bat.isPassenger() && !bat.isInvisible() && bat.getMaxHealth() != 6.0f;
+    }
+
+    private static boolean isMiniboss(Minecraft client, Player p) {
+        return p != client.player && p.getUUID().version() == 2 && MINIBOSS_NAMES.contains(p.getName().getString());
     }
 
     /** Maps a starred name-tag stand to its real mob (see this class's doc), caching a successful match. */
@@ -208,15 +256,13 @@ public final class MobEspFeature {
         }
         if (mob != null) {
             standToMob.put(stand.getId(), mob.getId());
-            // State-change only: logged once per newly resolved stand.
-            LOGGER.info("[MobEsp] Resolved starred stand {} \"{}\" -> {} id={} via {}",
+            LOGGER.info("[DungeonEsp] Resolved starred stand {} \"{}\" -> {} id={} via {}",
                     stand.getId(), name, mob.getType().toShortString(), mob.getId(), how);
         }
         return mob;
     }
 
-    /** Real bug found and fixed (2026-09-14 review pass): the id-offset/bbox fallback could resolve a stand to
-     *  a dropped item, projectile or ambient bat - now only real living, non-bat entities count. */
+    /** Only real living, non-bat, non-wither entities (never a dropped item, projectile or you) count as a star mob. */
     private static boolean isValidMob(Minecraft client, Entity e) {
         if (!(e instanceof LivingEntity) || e instanceof Bat) {
             return false;
@@ -236,19 +282,8 @@ public final class MobEspFeature {
         return result.getType() == HitResult.Type.MISS;
     }
 
-    private static void clearAllGlowing() {
-        if (glowingIds.isEmpty()) {
-            return;
-        }
-        Minecraft client = Minecraft.getInstance();
-        if (client.level != null) {
-            for (int id : glowingIds) {
-                Entity e = client.level.getEntity(id);
-                if (e != null) {
-                    e.setGlowingTag(false);
-                }
-            }
-        }
-        glowingIds.clear();
+    private static void clearTargets() {
+        targets = Map.of();
+        glowTargets = Map.of();
     }
 }

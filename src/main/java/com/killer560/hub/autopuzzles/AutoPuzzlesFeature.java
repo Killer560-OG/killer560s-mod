@@ -48,13 +48,17 @@ import java.util.Set;
  *   distance² &lt; 30. Once per room. Optional (default OFF) QUOI "talk to NPCs": right-click each "CLICK"
  *   stand within 10 blocks (distance² &lt;= 30), 200ms apart.</li>
  * </ul>
+ * The other puzzle autos (QUOI ports) live in their own classes and are ticked from here: {@link AutoBlaze},
+ * {@link AutoBeams}, {@link AutoIcePath}, {@link AutoBoulder}, {@link AutoWater}, {@link AutoTicTacToe},
+ * {@link AutoTeleportMaze}, {@link AutoIceFill} (shared: {@link AutoPuzzleUtil}, {@link AutoReposition}, {@link AutoGuard}).
+ * <p>
  * Safety: only in a dungeon, never in boss, only while the live map says the player is standing in that
  * exact puzzle room, never with a screen open or while sneaking (a sneak-click would place the held item).
  */
 public final class AutoPuzzlesFeature {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
-    private static final String CHAT = "AutoPuzzles";
+    static final String CHAT = "AutoPuzzles";
 
     private static final String QUIZ_ROOM = "Quiz";
     private static final String WEIRDOS_ROOM = "Three Weirdos";
@@ -134,6 +138,14 @@ public final class AutoPuzzlesFeature {
             weirdosSolverOffWarned = false;
             quizSolverClearedThisLevel = false;
             weirdosSolverClearedThisLevel = false;
+            AutoBlaze.levelChanged(client);
+            AutoBeams.levelChanged(client);
+            AutoIcePath.levelChanged(client);
+            AutoBoulder.levelChanged();
+            AutoWater.levelChanged(client);
+            AutoTicTacToe.levelChanged();
+            AutoTeleportMaze.levelChanged(client);
+            AutoIceFill.levelChanged(client);
         }
         if (QuizSolverFeature.getCorrectAnswerPos() == null) {
             quizSolverClearedThisLevel = true;
@@ -150,6 +162,15 @@ public final class AutoPuzzlesFeature {
         String roomName = room != null ? room.name : null;
         tickQuiz(client, QUIZ_ROOM.equals(roomName));
         tickWeirdos(client, WEIRDOS_ROOM.equals(roomName));
+        // QUOI puzzle autos (each gates on its own toggle + room name and never acts on pre-world solver data).
+        AutoBlaze.tick(client, roomName);
+        AutoBeams.tick(client, roomName);
+        AutoIcePath.tick(client, roomName);
+        AutoBoulder.tick(client, roomName);
+        AutoWater.tick(client, roomName);
+        AutoTicTacToe.tick(client, roomName);
+        AutoTeleportMaze.tick(client, roomName);
+        AutoIceFill.tick(client, roomName);
     }
 
     // ------------------------------------------------------------------

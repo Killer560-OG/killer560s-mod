@@ -3,17 +3,24 @@ package com.killer560.hub.scoreboard;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,15 +32,19 @@ import static com.killer560.hub.scoreboard.ScoreboardData.nextAfter;
 /**
  * Custom Scoreboard - a port of SkyHanni's Custom Scoreboard ({@code features/gui/customscoreboard/}), which SkyHanni
  * deprecated in 2026 in favour of the standalone "SkyBlock Custom Scoreboard" mod (meowdding/CustomScoreboard). Hides
- * the vanilla sidebar ({@code CustomScoreboardGuiMixin}) and draws a rebuilt one from the parsed sidebar, tab list and
- * action bar: an ordered, toggleable list of {@link ScoreboardEntry} lines, with {@link ScoreboardEvent}s inside the
- * Events line. Sidebar lines no pattern recognises are shown unmodified by the "Unknown Lines" entry (SkyHanni's
- * UnknownLinesHandler), so nothing silently disappears.
+ * the vanilla sidebar ({@code CustomScoreboardGuiMixin}) and draws a rebuilt one from the parsed sidebar, tab list,
+ * action bar and {@link ScoreboardExtraData}: an ordered, toggleable list of {@link ScoreboardEntry} lines, with
+ * {@link ScoreboardEvent}s inside the Events line. Sidebar lines no pattern recognises are shown unmodified by the
+ * "Unknown Lines" entry (SkyHanni's UnknownLinesHandler), so nothing silently disappears.
  * <p>
- * Only active on Skyblock / p3sim ({@link SkyblockGate#isOnSkyblock()}); anywhere else the vanilla sidebar is left
- * alone. Rebuilt every 5 ticks (SkyHanni rebuilds every 250ms). Drawn through its own Fabric HUD layer like
- * {@code InventoryHudFeature}; {@link Element#render} is the HUD-editor preview only. The screen-edge snap is
- * SkyHanni's auto-alignment: dragging the element in the HUD editor turns it off.
+ * The full board is only active on Skyblock / p3sim ({@link SkyblockGate#isOnSkyblock()}). Elsewhere the vanilla
+ * sidebar is always left alone; "Outside Skyblock: Minimal Board" only adds a small extra board next to it. Rebuilt
+ * every 5 ticks (SkyHanni rebuilds every 250ms). Drawn through its own Fabric HUD layer like {@code InventoryHudFeature};
+ * {@link Element#render} is the HUD-editor preview only. The screen-edge snap is SkyHanni's auto-alignment: dragging the
+ * element in the HUD editor turns it off; the snapped position is written to {@code HudConfig}.
+ * <p>
+ * "Clickable Lines" (SkyBlock Custom Scoreboard's line actions): while chat is open, hovering a line with actions
+ * shows its tooltip and clicking runs its command.
  */
 public final class CustomScoreboardFeature {
 
@@ -41,26 +52,54 @@ public final class CustomScoreboardFeature {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-customscoreboard");
     private static final long UNKNOWN_LINES_WORLD_GRACE_MS = 3000L;
+    private static final long ISLAND_SWITCH_CACHE_MS = 6000L;
+    private static final long UNKNOWN_WARNING_COOLDOWN_MS = 10_000L;
+    private static final int UNKNOWN_WARNING_SESSION_LIMIT = 20;
 
     private static List<ScoreboardLine> current = Collections.emptyList();
+    private static boolean currentIsMinimal = false;
     private static List<String> unknown = Collections.emptyList();
     private static List<Pattern> allPatterns;
     private static int tickCounter = 0;
     private static Object lastLevel = null;
     private static long worldChangedAtMs = 0L;
     private static int[] lastSnapped = null;
+    private static boolean hudConfigDirty = false;
+    private static long hudConfigSavedAtMs = 0L;
     private static boolean loggedError = false;
+    private static final Set<String> warnedUnknown = new HashSet<>();
+    private static long lastUnknownWarningMs = 0L;
+
+    /** Where the board was last drawn in game, for hover/click hit-testing. */
+    private record Layout(List<ScoreboardLine> lines, int x, int y, float scale, int contentX, int contentY,
+                          int contentW, int lineStep, int lineHeight) {
+    }
+
+    private static volatile Layout lastLayout = null;
 
     private CustomScoreboardFeature() {
     }
 
-    /** Registers the tick and the in-game HUD layer. The editor element ({@link Element#INSTANCE}) is registered separately. */
+    /** Registers the tick, the in-game HUD layer and the chat-screen click hook. The editor element
+     *  ({@link Element#INSTANCE}) is registered separately. */
     public static void register() {
         CustomScoreboardConfig.getInstance();
+        ScoreboardExtraData.register();
         ClientTickEvents.END_CLIENT_TICK.register(CustomScoreboardFeature::tick);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "custom_scoreboard"),
                 (graphics, deltaTracker) -> drawInGame(graphics));
+        ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+            if (screen instanceof ChatScreen) {
+                ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+                    try {
+                        return event.button() != 0 || !onChatClick(event.x(), event.y());
+                    } catch (RuntimeException e) {
+                        return true;
+                    }
+                });
+            }
+        });
     }
 
     /** Custom Scoreboard is on and you're on Skyblock / p3sim. */
@@ -68,11 +107,21 @@ public final class CustomScoreboardFeature {
         return CustomScoreboardConfig.getInstance().isEnabled() && SkyblockGate.isOnSkyblock();
     }
 
+    /** The off-Skyblock minimal board is switched on and allowed ("Skyblock Only" off). */
+    private static boolean minimalActive() {
+        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        return cfg.isEnabled() && !SkyblockGate.isOnSkyblock()
+                && cfg.getOutsideSkyblockMode() == CustomScoreboardConfig.OutsideSkyblockMode.MINIMAL
+                && SkyblockGate.allows();
+    }
+
     /** Checked by {@code CustomScoreboardGuiMixin} before vanilla draws the sidebar. */
     public static boolean shouldHideVanilla() {
-        // Also require something to draw: if the rebuild failed or produced nothing, keep the vanilla sidebar
-        // rather than leaving the player with no scoreboard at all.
-        return isActive() && CustomScoreboardConfig.getInstance().isHideVanillaScoreboard() && !current.isEmpty();
+        // Only on Skyblock, and only with something to draw: if the rebuild failed or produced nothing, keep the
+        // vanilla sidebar rather than leaving the player with no scoreboard at all. The minimal off-Skyblock board
+        // never hides it.
+        return isActive() && CustomScoreboardConfig.getInstance().isHideVanillaScoreboard()
+                && !currentIsMinimal && !current.isEmpty();
     }
 
     /** Sidebar lines no pattern recognised this update, unmodified. */
@@ -87,28 +136,42 @@ public final class CustomScoreboardFeature {
             lastLevel = client.level;
             worldChangedAtMs = System.currentTimeMillis();
         }
-        if (!CustomScoreboardConfig.getInstance().isEnabled()) {
-            current = Collections.emptyList();
-            unknown = Collections.emptyList();
+        if (hudConfigDirty && System.currentTimeMillis() - hudConfigSavedAtMs > 2000L) {
+            hudConfigDirty = false;
+            hudConfigSavedAtMs = System.currentTimeMillis();
+            HudConfig.getInstance().save();
+        }
+        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        if (!cfg.isEnabled()) {
+            clearBoard();
             return;
         }
         if (++tickCounter < 5) {
             return;
         }
         tickCounter = 0;
-        if (!SkyblockGate.isOnSkyblock() || client.level == null) {
-            // Off Skyblock: don't even read the sidebar/tab list.
-            current = Collections.emptyList();
-            unknown = Collections.emptyList();
-            return;
-        }
+        boolean onSkyblock = SkyblockGate.isOnSkyblock();
         try {
-            ScoreboardData.refresh(client);
-            rebuild();
+            if (onSkyblock) {
+                // Off Skyblock the sidebar/tab list aren't even read.
+                ScoreboardData.refresh(client);
+            }
+            ScoreboardExtraData.update(client, onSkyblock);
+            if (client.level == null) {
+                clearBoard();
+            } else if (onSkyblock) {
+                rebuild(cfg);
+            } else if (minimalActive()) {
+                unknown = Collections.emptyList();
+                current = Collections.unmodifiableList(buildMinimal(client, cfg));
+                currentIsMinimal = true;
+            } else {
+                // Off Skyblock: nothing to draw, vanilla sidebar untouched.
+                clearBoard();
+            }
         } catch (RuntimeException e) {
             // Don't keep drawing a stale board forever; shouldHideVanilla() falls back to vanilla while empty.
-            current = Collections.emptyList();
-            unknown = Collections.emptyList();
+            clearBoard();
             if (!loggedError) {
                 loggedError = true;
                 LOGGER.warn("[CustomScoreboard] Update failed: {}", e.toString(), e);
@@ -116,10 +179,23 @@ public final class CustomScoreboardFeature {
         }
     }
 
-    private static void rebuild() {
-        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
-        unknown = System.currentTimeMillis() - worldChangedAtMs < UNKNOWN_LINES_WORLD_GRACE_MS
+    private static void clearBoard() {
+        current = Collections.emptyList();
+        currentIsMinimal = false;
+        unknown = Collections.emptyList();
+    }
+
+    private static void rebuild(CustomScoreboardConfig cfg) {
+        long now = System.currentTimeMillis();
+        // "Cache Scoreboard on Island Switch" (SkyHanni): keep the last board while the new island's sidebar and
+        // tab list are still loading, instead of shaking through half-empty states.
+        if (cfg.isCacheOnIslandSwitch() && !currentIsMinimal && !current.isEmpty()
+                && now - worldChangedAtMs < ISLAND_SWITCH_CACHE_MS && !ScoreboardData.islandKnown()) {
+            return;
+        }
+        unknown = now - worldChangedAtMs < UNKNOWN_LINES_WORLD_GRACE_MS
                 ? Collections.emptyList() : computeUnknownLines();
+        warnUnknownLines(cfg);
         List<ScoreboardLine> lines = new ArrayList<>();
         if (!cfg.isUseCustomLines()) {
             if (!ScoreboardData.objectiveTitle().isEmpty()) {
@@ -143,6 +219,44 @@ public final class CustomScoreboardFeature {
             }
         }
         current = Collections.unmodifiableList(cfg.isHideEmptyLinesAtTopAndBottom() ? trimBlankEdges(lines) : lines);
+        currentIsMinimal = false;
+    }
+
+    /** Off-Skyblock "Minimal Board": title, today's date and time, online players, footer. */
+    private static List<ScoreboardLine> buildMinimal(Minecraft client, CustomScoreboardConfig cfg) {
+        List<ScoreboardLine> out = new ArrayList<>(ScoreboardEntry.TITLE.lines(cfg));
+        out.add(ScoreboardLine.of(""));
+        out.add(ScoreboardLine.of("§7" + cfg.getDateFormat().today() + " §8"
+                + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(cfg.isTime24h() ? "HH:mm" : "h:mma", java.util.Locale.US)).toLowerCase(java.util.Locale.ROOT)));
+        if (client.getConnection() != null) {
+            out.add(ScoreboardLine.of(ScoreboardLine.formatNumberDisplay("Players",
+                    String.valueOf(client.getConnection().getListedOnlinePlayers().size()), "§a")));
+        }
+        out.add(ScoreboardLine.of(""));
+        for (String part : cfg.getCustomFooter().replace("&&", "§").split("\\\\n")) {
+            out.add(new ScoreboardLine(part, cfg.getFooterAlignment()));
+        }
+        return trimBlankEdges(out);
+    }
+
+    /** SkyHanni's "Unknown Lines warning": one chat note per new unknown line, rate limited, Hypixel only. */
+    private static void warnUnknownLines(CustomScoreboardConfig cfg) {
+        if (!cfg.isUnknownLinesWarning() || unknown.isEmpty() || !ScoreboardData.islandKnown()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (warnedUnknown.size() >= UNKNOWN_WARNING_SESSION_LIMIT || now - lastUnknownWarningMs < UNKNOWN_WARNING_COOLDOWN_MS) {
+            return;
+        }
+        for (String line : unknown) {
+            if (warnedUnknown.add(line)) {
+                lastUnknownWarningMs = now;
+                LOGGER.info("[CustomScoreboard] Unknown scoreboard line: {}", line);
+                ModChat.send("Custom Scoreboard", ModChat.text("Unknown scoreboard line: "),
+                        Component.literal(line));
+                return;
+            }
+        }
     }
 
     private static List<ScoreboardLine> trimBlankEdges(List<ScoreboardLine> lines) {
@@ -234,7 +348,9 @@ public final class CustomScoreboardFeature {
 
     private static void drawInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
-        if (!isActive() || client.player == null || client.options.hideGui || client.screen instanceof HudEditorScreen) {
+        lastLayout = null;
+        if (!(isActive() || minimalActive()) || client.player == null || client.options.hideGui
+                || client.screen instanceof HudEditorScreen) {
             return;
         }
         List<ScoreboardLine> lines = current;
@@ -242,6 +358,13 @@ public final class CustomScoreboardFeature {
             return;
         }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        if (cfg.isHideWhenTab() && client.options.keyPlayerList.isDown()) {
+            return;
+        }
+        boolean chatOpen = client.screen instanceof ChatScreen;
+        if (cfg.isHideWhenChat() && chatOpen) {
+            return;
+        }
         Font font = client.font;
         int[] pos;
         float scale;
@@ -261,10 +384,71 @@ public final class CustomScoreboardFeature {
         } finally {
             graphics.pose().popMatrix();
         }
+        int inset = borderSize(cfg) + cfg.getPadding();
+        Layout layout = new Layout(lines, pos[0], pos[1], scale, inset, inset, contentWidth(font, lines),
+                font.lineHeight + cfg.getLineSpacing(), font.lineHeight);
+        lastLayout = layout;
+        if (chatOpen && cfg.isLineActions()) {
+            try {
+                drawHoverTooltip(client, graphics, layout);
+            } catch (RuntimeException ignored) {
+                // tooltip is cosmetic
+            }
+        }
+    }
+
+    private static ScoreboardLine lineAt(Layout layout, double mouseX, double mouseY) {
+        if (layout == null || layout.scale <= 0) {
+            return null;
+        }
+        double lx = (mouseX - layout.x) / layout.scale - layout.contentX;
+        double ly = (mouseY - layout.y) / layout.scale - layout.contentY;
+        if (lx < 0 || lx > layout.contentW || ly < 0) {
+            return null;
+        }
+        int index = (int) (ly / layout.lineStep);
+        if (index >= layout.lines.size() || ly - index * layout.lineStep > layout.lineHeight) {
+            return null;
+        }
+        ScoreboardLine line = layout.lines.get(index);
+        return line.isBlank() ? null : line;
+    }
+
+    private static double[] mouseGui(Minecraft client) {
+        return new double[]{client.mouseHandler.getScaledXPos(client.getWindow()), client.mouseHandler.getScaledYPos(client.getWindow())};
+    }
+
+    private static void drawHoverTooltip(Minecraft client, GuiGraphicsExtractor graphics, Layout layout) {
+        double[] mouse = mouseGui(client);
+        ScoreboardLine line = lineAt(layout, mouse[0], mouse[1]);
+        if (line == null || line.hover() == null || line.hover().isEmpty()) {
+            return;
+        }
+        List<Component> tooltip = new ArrayList<>(line.hover().size());
+        for (String s : line.hover()) {
+            tooltip.add(Component.literal(s));
+        }
+        // Same GuiGraphicsExtractor as the chat screen, whose deferred pass draws this on top.
+        graphics.setComponentTooltipForNextFrame(client.font, tooltip, (int) mouse[0], (int) mouse[1]);
+    }
+
+    /** @return true if the click hit a line with a command (which is then run and the click consumed). */
+    private static boolean onChatClick(double mouseX, double mouseY) {
+        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        Minecraft client = Minecraft.getInstance();
+        if (!cfg.isLineActions() || client.player == null) {
+            return false;
+        }
+        ScoreboardLine line = lineAt(lastLayout, mouseX, mouseY);
+        if (line == null || line.command() == null) {
+            return false;
+        }
+        client.player.connection.sendCommand(line.command());
+        return true;
     }
 
     /** SkyHanni's {@code RenderBackground.updatePosition}; a HUD-editor drag disables the snap like SkyHanni's
-     *  {@code onGuiPositionMoved}. */
+     *  {@code onGuiPositionMoved}. The snapped position is persisted to {@code HudConfig} (debounced). */
     private static int[] resolveSnappedPosition(GuiGraphicsExtractor graphics, CustomScoreboardConfig cfg, int boxW, int boxH) {
         int[] stored = com.killer560.hub.hud.HudElementRegistry.resolvePosition(Element.INSTANCE);
         if (cfg.getHorizontalSnap() == CustomScoreboardConfig.HorizontalSnap.NONE
@@ -298,6 +482,7 @@ public final class CustomScoreboardFeature {
         };
         if (x != stored[0] || y != stored[1]) {
             HudConfig.getInstance().setPosition(ELEMENT_ID, x, y);
+            hudConfigDirty = true;
         }
         lastSnapped = new int[]{x, y};
         return lastSnapped;
@@ -307,10 +492,17 @@ public final class CustomScoreboardFeature {
         return cfg.isBorderEnabled() ? cfg.getBorderThickness() : 0;
     }
 
+    private static int lineWidth(Font font, ScoreboardLine line, long now) {
+        int w = font.width(line.text());
+        String popup = line.activePopup(now);
+        return popup == null ? w : w + font.width(popup);
+    }
+
     private static int contentWidth(Font font, List<ScoreboardLine> lines) {
+        long now = System.currentTimeMillis();
         int w = 0;
         for (ScoreboardLine line : lines) {
-            w = Math.max(w, font.width(line.text()));
+            w = Math.max(w, lineWidth(font, line, now));
         }
         return w;
     }
@@ -334,12 +526,19 @@ public final class CustomScoreboardFeature {
         int w = boxWidth(font, lines, cfg);
         int h = boxHeight(font, lines, cfg);
         int radius = cfg.isRoundedCorners() ? Math.min(cfg.getCornerRadius(), Math.min(w, h) / 2) : 0;
+        long now = System.currentTimeMillis();
 
         if (cfg.isBackgroundEnabled()) {
-            fillRounded(g, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b), cfg.getBackgroundColor());
+            Identifier image = cfg.isImageBackground() ? ScoreboardBackgroundImage.texture() : null;
+            if (image != null) {
+                blitRounded(g, image, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b),
+                        ((cfg.getImageOpacity() * 255 / 100) << 24) | 0xFFFFFF);
+            } else {
+                fillRounded(g, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b), cfg.getBackgroundColor());
+            }
         }
         if (b > 0) {
-            drawRoundedBorder(g, x, y, w, h, radius, b, cfg.getBorderColor());
+            drawRoundedBorder(g, x, y, w, h, radius, b, cfg, now);
         }
 
         int textX = x + b + pad;
@@ -349,13 +548,19 @@ public final class CustomScoreboardFeature {
             if (line.isBlank()) {
                 continue;
             }
-            int lw = font.width(line.text());
+            int lw = lineWidth(font, line, now);
             int lx = switch (line.align()) {
                 case LEFT -> textX;
                 case CENTER -> textX + (contentW - lw) / 2;
                 case RIGHT -> textX + contentW - lw;
             };
-            g.text(font, line.text(), lx, y + b + pad + i * lineStep, 0xFFFFFFFF, cfg.isTextShadow());
+            int ly = y + b + pad + i * lineStep;
+            g.text(font, line.text(), lx, ly, 0xFFFFFFFF, cfg.isTextShadow());
+            String popup = line.activePopup(now);
+            if (popup != null) {
+                int alpha = NumberChangeTracker.alpha(line.popupUntilMs(), now);
+                g.text(font, popup, lx + font.width(line.text()), ly, (alpha << 24) | 0xFFFFFF, cfg.isTextShadow());
+            }
         }
     }
 
@@ -391,14 +596,77 @@ public final class CustomScoreboardFeature {
         }
     }
 
-    static void drawRoundedBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t, int color) {
-        if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
+    /** The background image stretched over a rounded rectangle: texture size = box size, so each row is an exact
+     *  slice of the image. */
+    private static void blitRounded(GuiGraphicsExtractor g, Identifier texture, int x, int y, int w, int h, int r, int color) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        if (r <= 0 || h <= 2 * r) {
+            g.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 0f, 0f, w, h, w, h, w, h, color);
+            return;
+        }
+        for (int row = 0; row < r; row++) {
+            int in = inset(row, h, r);
+            g.blit(RenderPipelines.GUI_TEXTURED, texture, x + in, y + row, in, row, w - 2 * in, 1, w - 2 * in, 1, w, h, color);
+            int bottom = h - 1 - row;
+            g.blit(RenderPipelines.GUI_TEXTURED, texture, x + in, y + bottom, in, bottom, w - 2 * in, 1, w - 2 * in, 1, w, h, color);
+        }
+        g.blit(RenderPipelines.GUI_TEXTURED, texture, x, y + r, 0f, r, w, h - 2 * r, w, h - 2 * r, w, h, color);
+    }
+
+    /** Border colour for row {@code row} of an {@code h}-tall border: solid, top-to-bottom gradient, or chroma. */
+    private static int borderColor(CustomScoreboardConfig cfg, int row, int h, long now) {
+        float t = h <= 1 ? 0f : row / (float) (h - 1);
+        if (cfg.isChromaBorder()) {
+            float speed = cfg.getChromaSpeed() / 5f;
+            float hue = (now % 100_000L) / 1000f * 0.1f * speed + (cfg.isBorderGradient() ? t * 0.35f : 0f);
+            return (cfg.getBorderColor() >>> 24) << 24 | hsvToRgb(hue - (float) Math.floor(hue), 0.8f, 1f);
+        }
+        if (!cfg.isBorderGradient()) {
+            return cfg.getBorderColor();
+        }
+        return lerpArgb(cfg.getBorderColor(), cfg.getBorderColorBottom(), t);
+    }
+
+    /** Hue/saturation/value in [0,1] to 0xRRGGBB (no AWT on the render thread). */
+    private static int hsvToRgb(float h, float s, float v) {
+        float c = v * s;
+        float hp = h * 6f;
+        float x = c * (1 - Math.abs(hp % 2 - 1));
+        float r = 0, g = 0, b = 0;
+        switch ((int) hp % 6) {
+            case 0 -> { r = c; g = x; }
+            case 1 -> { r = x; g = c; }
+            case 2 -> { g = c; b = x; }
+            case 3 -> { g = x; b = c; }
+            case 4 -> { r = x; b = c; }
+            default -> { r = c; b = x; }
+        }
+        float m = v - c;
+        return Math.round((r + m) * 255) << 16 | Math.round((g + m) * 255) << 8 | Math.round((b + m) * 255);
+    }
+
+    private static int lerpArgb(int a, int b, float t) {
+        int aa = a >>> 24, ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
+        int ba = b >>> 24, br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
+        return Math.round(aa + (ba - aa) * t) << 24 | Math.round(ar + (br - ar) * t) << 16
+                | Math.round(ag + (bg - ag) * t) << 8 | Math.round(ab + (bb - ab) * t);
+    }
+
+    static void drawRoundedBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
+                                  CustomScoreboardConfig cfg, long now) {
+        if (w <= 0 || h <= 0) {
             return;
         }
         int innerW = w - 2 * t;
         int innerH = h - 2 * t;
         int innerR = Math.max(0, r - t);
         for (int row = 0; row < h; row++) {
+            int color = borderColor(cfg, row, h, now);
+            if ((color >>> 24) == 0) {
+                continue;
+            }
             int outer = inset(row, h, r);
             int innerRow = row - t;
             if (innerRow < 0 || innerRow >= innerH || innerW <= 0) {
@@ -412,7 +680,7 @@ public final class CustomScoreboardFeature {
     }
 
     private static List<ScoreboardLine> previewLines() {
-        if (isActive() && !current.isEmpty()) {
+        if ((isActive() || minimalActive()) && !current.isEmpty()) {
             return current;
         }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
@@ -432,6 +700,15 @@ public final class CustomScoreboardFeature {
             }
         }
         return trimBlankEdges(out);
+    }
+
+    /** Re-reads {@code background.png} on the next frame. */
+    public static void reloadBackgroundImage() {
+        ScoreboardBackgroundImage.reload();
+    }
+
+    public static boolean backgroundImageExists() {
+        return ScoreboardBackgroundImage.fileExists();
     }
 
     /** HUD-editor entry (movable/scalable, position persisted in {@code HudConfig}). */

@@ -13,8 +13,8 @@ import java.nio.file.Path;
 import java.util.Random;
 
 /**
- * Persisted settings for every Cheat Utils feature (Wither ESP, Secret Aura, Auto GFS, Auto Ult, Auto
- * Chocolate Factory). Every feature is cheat-build only: each master getter is gated on
+ * Persisted settings for every Cheat Utils feature (Secret Aura, Auto GFS, Auto Ult, Auto Chocolate Factory;
+ * Wither ESP moved to Dungeon ESP - {@code MobEspConfig} migrates its old keys out of this file once). Every feature is cheat-build only: each master getter is gated on
  * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} (same pattern as
  * {@code SecretsConfig#isMasterEnabled} / {@code TerminalSolverConfig#isAutoTerminalsEnabled}), so a legit
  * jar can never run any of these even from a copied config file. Every master toggle defaults OFF. Every
@@ -29,29 +29,6 @@ public final class CheatUtilsConfig {
 
     private static CheatUtilsConfig instance;
 
-    // ---- Wither ESP (NoammAddons WitherESP.kt) ----
-    /** Which F7/M7 boss phases the Wither ESP draws in. P3 by default (roadmap: "Wither ESP (P3 only)"). */
-    public enum WitherPhaseFilter {
-        ALL("P1-P4"), P1("P1 Maxor"), P2("P2 Storm"), P3("P3 Goldor"), P4("P4 Necron");
-
-        public final String label;
-
-        WitherPhaseFilter(String label) {
-            this.label = label;
-        }
-    }
-
-    public static final int DEFAULT_MAXOR_COLOR = 0xFF5804A4;   // Noamm: Color(88, 4, 164)
-    public static final int DEFAULT_STORM_COLOR = 0xFF00D0FF;   // Noamm: Color(0, 208, 255)
-    public static final int DEFAULT_GOLDOR_COLOR = 0xFFFFFFFF;  // Noamm: Color.WHITE
-    public static final int DEFAULT_NECRON_COLOR = 0xFFFF0000;  // Noamm: Color.RED
-
-    private boolean witherEspEnabled = false;
-    private WitherPhaseFilter witherPhaseFilter = WitherPhaseFilter.P3;
-    private int maxorColor = DEFAULT_MAXOR_COLOR;
-    private int stormColor = DEFAULT_STORM_COLOR;
-    private int goldorColor = DEFAULT_GOLDOR_COLOR;
-    private int necronColor = DEFAULT_NECRON_COLOR;
 
     // ---- Secret Aura (QUOI SecretAura.kt) ----
     public static final double MIN_AURA_RANGE = 2.1;
@@ -125,12 +102,6 @@ public final class CheatUtilsConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.witherEspEnabled = bool(o, "witherEspEnabled", false);
-                cfg.witherPhaseFilter = ConfigJson.getEnum(o, "witherPhaseFilter", WitherPhaseFilter.class, WitherPhaseFilter.P3);
-                cfg.maxorColor = integer(o, "maxorColor", DEFAULT_MAXOR_COLOR);
-                cfg.stormColor = integer(o, "stormColor", DEFAULT_STORM_COLOR);
-                cfg.goldorColor = integer(o, "goldorColor", DEFAULT_GOLDOR_COLOR);
-                cfg.necronColor = integer(o, "necronColor", DEFAULT_NECRON_COLOR);
 
                 cfg.secretAuraEnabled = bool(o, "secretAuraEnabled", false);
                 cfg.auraChests = bool(o, "auraChests", true);
@@ -177,12 +148,6 @@ public final class CheatUtilsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
-            o.addProperty("witherEspEnabled", witherEspEnabled);
-            o.addProperty("witherPhaseFilter", witherPhaseFilter.name());
-            o.addProperty("maxorColor", maxorColor);
-            o.addProperty("stormColor", stormColor);
-            o.addProperty("goldorColor", goldorColor);
-            o.addProperty("necronColor", necronColor);
 
             o.addProperty("secretAuraEnabled", secretAuraEnabled);
             o.addProperty("auraChests", auraChests);
@@ -259,22 +224,6 @@ public final class CheatUtilsConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
     }
 
-    // ---- Wither ESP ----
-    public boolean isWitherEspEnabled() { return cheat() && witherEspEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
-    public void setWitherEspEnabled(boolean v) { witherEspEnabled = v; }
-    public WitherPhaseFilter getWitherPhaseFilter() { return witherPhaseFilter; }
-    public void cycleWitherPhaseFilter() {
-        WitherPhaseFilter[] all = WitherPhaseFilter.values();
-        witherPhaseFilter = all[(witherPhaseFilter.ordinal() + 1) % all.length];
-    }
-    public int getMaxorColor() { return maxorColor; }
-    public void setMaxorColor(int v) { maxorColor = v; }
-    public int getStormColor() { return stormColor; }
-    public void setStormColor(int v) { stormColor = v; }
-    public int getGoldorColor() { return goldorColor; }
-    public void setGoldorColor(int v) { goldorColor = v; }
-    public int getNecronColor() { return necronColor; }
-    public void setNecronColor(int v) { necronColor = v; }
 
     // ---- Secret Aura ----
     public boolean isSecretAuraEnabled() { return cheat() && secretAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }

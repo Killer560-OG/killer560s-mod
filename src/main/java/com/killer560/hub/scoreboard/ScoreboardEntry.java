@@ -24,9 +24,9 @@ import static com.killer560.hub.scoreboard.ScoreboardLine.isZero;
 
 /**
  * The reorderable Custom Scoreboard lines - SkyHanni's {@code ScoreboardConfigElement} + {@code elements/ScoreboardElement*}.
- * Default order and default-on set follow SkyHanni's {@code defaultOptions}; the elements that need SkyHanni-only
- * APIs (Mayor, Cookie Buff, Maxwell Power/Tuning, Quiver, Chunked Stats) are not ported, SB Level is off by default
- * like SkyHanni. {@link #showIsland()} is SkyHanni's island filter (skipped while the island is unknown, e.g. on
+ * Default order and default-on set follow SkyHanni's {@code defaultOptions} (SB Level and Chunked Stats are off by
+ * default like SkyHanni). Mayor, Cookie Buff, Maxwell Power/Tuning and Quiver read {@link ScoreboardExtraData}.
+ * {@link #showIsland()} is SkyHanni's island filter (skipped while the island is unknown, e.g. on
  * p3sim); {@link #showWhen()} only applies with "Hide Irrelevant Lines" on.
  */
 public enum ScoreboardEntry {
@@ -54,12 +54,19 @@ public enum ScoreboardEntry {
     LOBBY_CODE("Lobby Code", true, ScoreboardPattern.LOBBY_CODE) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single(trim(firstMatches(ScoreboardPattern.LOBBY_CODE, sidebar())));
+            String line = firstMatches(ScoreboardPattern.LOBBY_CODE, sidebar());
+            Matcher m = line == null ? null : ScoreboardPattern.LOBBY_CODE.matcher(line);
+            if (m == null || !m.matches()) {
+                return single(trim(line));
+            }
+            String code = m.group("code").trim();
+            return single(cfg.isDateInLobbyCode() ? "§7" + cfg.getDateFormat().today() + " §8" + code : "§8" + code);
         }
 
         @Override
         List<String> sample() {
-            return List.of("§709/15/26 §8mega77CK");
+            CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+            return List.of((cfg.isDateInLobbyCode() ? "§7" + cfg.getDateFormat().today() + " " : "") + "§8mega77CK");
         }
     },
     EMPTY_LINE("Separator", true) {
@@ -82,7 +89,8 @@ public enum ScoreboardEntry {
     TIME("Time", true, ScoreboardPattern.TIME) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single(trim(firstMatches(ScoreboardPattern.TIME, sidebar())));
+            String line = trim(firstMatches(ScoreboardPattern.TIME, sidebar()));
+            return single(cfg.isTime24h() ? to24h(line) : line);
         }
 
         @Override
@@ -105,12 +113,17 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String amount = tabHeaderGroup(ScoreboardPattern.TAB_PLAYER_LIST, "amount");
-            return amount == null ? List.of() : single(formatNumberDisplay("Players", amount, "§a"));
+            if (amount == null) {
+                return List.of();
+            }
+            int max = cfg.isShowMaxIslandPlayers() ? maxIslandPlayers() : -1;
+            return single(formatNumberDisplay("Players", amount + (max > 0 ? "§7/§a" + max : ""), "§a"));
         }
 
         @Override
         List<String> sample() {
-            return List.of("§fPlayers: §a69");
+            return List.of(formatNumberDisplay("Players", CustomScoreboardConfig.getInstance().isShowMaxIslandPlayers()
+                    ? "69§7/§a80" : "69", "§a"));
         }
     },
     LOCATION("Location", true, ScoreboardPattern.LOCATION, ScoreboardPattern.PLOT) {
@@ -202,9 +215,8 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String line = firstMatches(ScoreboardPattern.COINS, sidebar());
-            String coins = group(ScoreboardPattern.COINS, sidebar(), "coins");
             String label = line != null && line.replaceAll("§.", "").startsWith("Piggy") ? "Piggy" : "Purse";
-            return number(cfg, label, coins, "§6");
+            return number(cfg, label, "purse", ChunkedStat.PURSE.raw(), "§6");
         }
 
         @Override
@@ -220,7 +232,7 @@ public enum ScoreboardEntry {
     MOTES("Motes", true, ScoreboardPattern.MOTES) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return number(cfg, "Motes", group(ScoreboardPattern.MOTES, sidebar(), "motes"), "§d");
+            return number(cfg, "Motes", "motes", ChunkedStat.MOTES.raw(), "§d");
         }
 
         @Override
@@ -231,16 +243,12 @@ public enum ScoreboardEntry {
     BANK("Bank", true) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_BANK);
-            if (widget.isEmpty()) {
+            String[] bank = ChunkedStat.bank();
+            if (bank == null) {
                 return List.of();
             }
-            Matcher m = ScoreboardPattern.TAB_BANK.matcher(ScoreboardData.tabPlain().get(widget.get(0)).trim());
-            if (!m.matches()) {
-                return List.of();
-            }
-            String amount = m.group("amount").trim();
-            String personal = m.group("personal");
+            String amount = bank[0];
+            String personal = bank[1];
             if (cfg.isHideEmptyLines() && isZero(amount) && (personal == null || isZero(personal))) {
                 return List.of();
             }
@@ -256,7 +264,7 @@ public enum ScoreboardEntry {
     BITS("Bits", true, ScoreboardPattern.BITS) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return number(cfg, "Bits", group(ScoreboardPattern.BITS, sidebar(), "amount"), "§b");
+            return number(cfg, "Bits", "bits", ChunkedStat.BITS.raw(), "§b");
         }
 
         @Override
@@ -267,11 +275,7 @@ public enum ScoreboardEntry {
     COPPER("Copper", true, ScoreboardPattern.COPPER) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            String copper = group(ScoreboardPattern.COPPER, sidebar(), "copper");
-            if (copper == null) {
-                copper = tabHeaderGroup(ScoreboardPattern.TAB_COPPER, "copper");
-            }
-            return number(cfg, "Copper", copper, "§c");
+            return number(cfg, "Copper", "copper", ChunkedStat.COPPER.raw(), "§c");
         }
 
         @Override
@@ -282,11 +286,7 @@ public enum ScoreboardEntry {
     SOWDUST("Sowdust", true, ScoreboardPattern.SOWDUST, ScoreboardPattern.SOWDUST_GAINED) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            String sowdust = group(ScoreboardPattern.SOWDUST, sidebar(), "sowdust");
-            if (sowdust == null) {
-                sowdust = tabHeaderGroup(ScoreboardPattern.TAB_SOWDUST, "sowdust");
-            }
-            return number(cfg, "Sowdust", sowdust, "§2");
+            return number(cfg, "Sowdust", "sowdust", ChunkedStat.SOWDUST.raw(), "§2");
         }
 
         @Override
@@ -297,11 +297,7 @@ public enum ScoreboardEntry {
     GEMS("Gems", true, ScoreboardPattern.GEMS) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            String gems = tabHeaderGroup(ScoreboardPattern.TAB_GEMS, "gems");
-            if (gems == null) {
-                gems = group(ScoreboardPattern.GEMS, sidebar(), "gems");
-            }
-            return number(cfg, "Gems", gems, "§a");
+            return number(cfg, "Gems", "gems", ChunkedStat.GEMS.raw(), "§a");
         }
 
         @Override
@@ -355,7 +351,7 @@ public enum ScoreboardEntry {
     NORTH_STARS("North Stars", true, ScoreboardPattern.NORTH_STARS) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return number(cfg, "North Stars", group(ScoreboardPattern.NORTH_STARS, sidebar(), "northstars"), "§d");
+            return number(cfg, "North Stars", "northstars", ChunkedStat.NORTH_STARS.raw(), "§d");
         }
 
         @Override
@@ -366,7 +362,7 @@ public enum ScoreboardEntry {
     SOULFLOW("Soulflow", true) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return number(cfg, "Soulflow", tabHeaderGroup(ScoreboardPattern.TAB_SOULFLOW, "amount"), "§3");
+            return number(cfg, "Soulflow", "soulflow", tabHeaderGroup(ScoreboardPattern.TAB_SOULFLOW, "amount"), "§3");
         }
 
         @Override
@@ -408,6 +404,145 @@ public enum ScoreboardEntry {
         @Override
         List<String> sample() {
             return List.of("§7Time Elapsed: §a1m 12s", "§7Cleared: §c42% §8(143)");
+        }
+    },
+    COOKIE("Cookie Buff", true) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            long expires = ScoreboardExtraData.cookieExpiresAtMs();
+            long now = System.currentTimeMillis();
+            String value;
+            if (expires < 0) {
+                value = "§cOpen SB Menu!";
+            } else if (expires <= now) {
+                if (cfg.isHideEmptyLines()) {
+                    return List.of();
+                }
+                value = "§cNot Active";
+            } else {
+                value = ScoreboardLine.formatDuration(expires - now, 2);
+            }
+            return List.of(ScoreboardLine.of("§dCookie Buff§f: " + value)
+                    .withActions(List.of("§7Click to open the Booster Cookie menu"), "boostercookiemenu"));
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of("§dCookie Buff§f: 3d 17h");
+        }
+    },
+    QUIVER("Quiver", true) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            String arrow = ScoreboardExtraData.quiverArrow();
+            int amount = ScoreboardExtraData.quiverAmount();
+            String text;
+            if (arrow == null || amount < 0) {
+                text = "§cChange your Arrow once";
+            } else if (arrow.equalsIgnoreCase("None")) {
+                text = "No Arrows selected";
+            } else {
+                double percent = amount * 100.0 / MAX_ARROW_AMOUNT;
+                String color = !cfg.isColorArrowAmount() ? "" : percent <= 10 ? "§c" : percent <= 25 ? "§6"
+                        : percent <= 50 ? "§e" : percent <= 75 ? "§2" : "§a";
+                String shown = ScoreboardExtraData.wearingSkeletonMasterChestplate() ? "∞"
+                        : cfg.getArrowDisplay() == CustomScoreboardConfig.ArrowDisplay.PERCENTAGE
+                        ? String.format(java.util.Locale.US, "%.1f%%", percent)
+                        : String.format(java.util.Locale.US, "%,d", amount);
+                text = formatNumberDisplay(arrow, color + shown, "§f");
+            }
+            return List.of(ScoreboardLine.of(text).withActions(List.of("§7Click to open the quiver"), "quiver"));
+        }
+
+        @Override
+        boolean showWhen() {
+            return ScoreboardExtraData.hasBow();
+        }
+
+        @Override
+        boolean showIsland() {
+            return !inIsland("The Rift");
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of(formatNumberDisplay("Flint Arrow", "1,234", "§f"));
+        }
+    },
+    POWER("Maxwell Power", true) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            String power = ScoreboardExtraData.maxwellPower();
+            List<String> hover = List.of("§7Updated from the Your Bags menu", "§7and Maxwell's Thaumaturgy menu");
+            if (power == null) {
+                return List.of(ScoreboardLine.of("§cOpen \"Your Bags\"!").withActions(hover, null));
+            }
+            int mp = ScoreboardExtraData.magicalPower();
+            String value = power + (cfg.isShowMagicalPower() && mp >= 0
+                    ? " §7(§6" + String.format(java.util.Locale.US, "%,d", mp) + "§7)" : "");
+            return List.of(ScoreboardLine.of(formatNumberDisplay("Power", value, "§a")).withActions(hover, null));
+        }
+
+        @Override
+        boolean showIsland() {
+            return !inIsland("The Rift");
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of(formatNumberDisplay("Power", "Sighted §7(§61,263§7)", "§a"));
+        }
+    },
+    TUNING("Maxwell Tuning", true) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            List<ScoreboardExtraData.Tuning> tunings = ScoreboardExtraData.tunings();
+            if (tunings == null) {
+                return single("§cTalk to \"Maxwell\"!");
+            }
+            if (tunings.isEmpty()) {
+                return cfg.isHideEmptyLines() ? List.of() : single("§cNo Maxwell Tunings :(");
+            }
+            String title = tunings.size() == 1 ? "Tuning" : "Tunings";
+            CustomScoreboardConfig.NumberDisplayFormat format = cfg.getNumberDisplayFormat();
+            if (cfg.isCompactTuning()) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < tunings.size() && i < 3; i++) {
+                    ScoreboardExtraData.Tuning t = tunings.get(i);
+                    if (i > 0) {
+                        sb.append("§7, ");
+                    }
+                    sb.append(switch (format) {
+                        case TEXT_COLOR_NUMBER -> t.icon() + t.color() + t.value();
+                        case COLOR_TEXT_NUMBER -> t.color() + t.icon() + t.value();
+                        case COLOR_NUMBER_TEXT -> t.color() + t.value() + t.icon();
+                        case COLOR_NUMBER_RESET_TEXT -> t.color() + t.value() + "§f" + t.icon();
+                    });
+                }
+                return single(formatNumberDisplay(title, sb.toString(), "§f"));
+            }
+            List<String> out = new ArrayList<>();
+            out.add(title + ":");
+            for (int i = 0; i < tunings.size() && i < cfg.getTuningAmount(); i++) {
+                ScoreboardExtraData.Tuning t = tunings.get(i);
+                out.add(" §7- §f" + switch (format) {
+                    case TEXT_COLOR_NUMBER -> t.name() + ": " + t.icon() + t.color() + t.value();
+                    case COLOR_TEXT_NUMBER -> t.color() + t.name() + ": " + t.icon() + t.value();
+                    case COLOR_NUMBER_TEXT -> t.color() + t.value() + t.icon() + " " + t.name();
+                    case COLOR_NUMBER_RESET_TEXT -> t.color() + t.value() + "§f" + t.icon() + " " + t.name();
+                });
+            }
+            return ScoreboardLine.of(out);
+        }
+
+        @Override
+        boolean showIsland() {
+            return !inIsland("The Rift");
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of("Tunings: §c❁34§7, §e⚔20§7, §9☣7");
         }
     },
     EMPTY_LINE4("Separator", true) {
@@ -500,24 +635,83 @@ public enum ScoreboardEntry {
             return inIslandOrUnknown("Dwarven Mines", "Crystal Hollows", "Mineshaft");
         }
     },
+    MAYOR("Mayor", true) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            ScoreboardExtraData.Candidate mayor = ScoreboardExtraData.mayor();
+            if (mayor == null) {
+                return List.of();
+            }
+            List<ScoreboardLine> out = new ArrayList<>();
+            String time = cfg.isShowMayorTime()
+                    ? "§7 (§e" + ScoreboardLine.formatDuration(ScoreboardExtraData.timeUntilNextMayorMs(), 2) + "§7)" : "";
+            List<String> mayorHover = perkHover(mayor);
+            mayorHover.add("");
+            mayorHover.add("§eClick to open the calendar");
+            out.add(ScoreboardLine.of(candidateName(mayor.name()) + time).withActions(mayorHover, "calendar"));
+            if (cfg.isShowMayorPerks()) {
+                for (ScoreboardExtraData.Perk perk : mayor.perks()) {
+                    out.add(ScoreboardLine.of(" §7- §e" + perk.name()).withActions(wrap(perk.description(), "§7"), "calendar"));
+                }
+            }
+            ScoreboardExtraData.Candidate minister = ScoreboardExtraData.minister();
+            if (cfg.isShowMinister() && minister != null) {
+                out.add(ScoreboardLine.of(candidateName(minister.name())).withActions(perkHover(minister), "calendar"));
+                if (cfg.isShowMayorPerks()) {
+                    for (ScoreboardExtraData.Perk perk : minister.perks()) {
+                        out.add(ScoreboardLine.of(" §7- §e" + perk.name()).withActions(wrap(perk.description(), "§7"), "calendar"));
+                    }
+                }
+            }
+            return out;
+        }
+
+        @Override
+        boolean showIsland() {
+            return !inIsland("The Rift");
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of("§2Diana §7(§e4d 12h§7)", " §7- §eLucky!", " §7- §eMythological Ritual", " §7- §ePet XP Buff");
+        }
+    },
     PARTY("Party", true) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<String> members;
+            String leader;
             try {
                 members = PartyTracker.teammates();
+                leader = ScoreboardPartyLeader.get();
             } catch (RuntimeException e) {
                 members = Collections.emptyList();
+                leader = null;
+            }
+            if (members.isEmpty()) {
+                leader = null;
             }
             if (members.isEmpty() && cfg.isHideEmptyLines()) {
                 return List.of();
             }
-            List<String> out = new ArrayList<>();
-            out.add(members.isEmpty() ? "§9§lParty" : "§9§lParty (" + members.size() + ")");
-            for (int i = 0; i < members.size() && i < cfg.getMaxPartyMembers(); i++) {
-                out.add(" §7- §f" + members.get(i));
+            List<ScoreboardLine> out = new ArrayList<>();
+            out.add(ScoreboardLine.of(members.isEmpty() ? "§9§lParty" : "§9§lParty (" + members.size() + ")")
+                    .withActions(List.of("§7Click to run /party list"), "party list"));
+            int shown = 0;
+            if (cfg.isShowPartyLeader() && leader != null) {
+                out.add(ScoreboardLine.of(" §7- §f" + leader + " §e♚"));
             }
-            return ScoreboardLine.of(out);
+            for (String member : members) {
+                if (shown >= cfg.getMaxPartyMembers()) {
+                    break;
+                }
+                if (cfg.isShowPartyLeader() && member.equalsIgnoreCase(leader)) {
+                    continue;
+                }
+                out.add(ScoreboardLine.of(" §7- §f" + member));
+                shown++;
+            }
+            return out;
         }
 
         @Override
@@ -574,6 +768,32 @@ public enum ScoreboardEntry {
                     formatNumberDisplay("XP", m.group("xp") + "§3/§b100", "§b")));
         }
     },
+    CHUNKED_STATS("Chunked Stats", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            List<String> parts = new ArrayList<>();
+            for (CustomScoreboardConfig.Row<ChunkedStat> row : cfg.chunkedStats()) {
+                if (!row.enabled || !row.id.entry.visible(cfg)) {
+                    continue;
+                }
+                String display = row.id.display(cfg);
+                if (display != null) {
+                    parts.add(display);
+                }
+            }
+            List<String> out = new ArrayList<>();
+            int per = Math.max(1, cfg.getStatsPerLine());
+            for (int i = 0; i < parts.size(); i += per) {
+                out.add(String.join(" §7| ", parts.subList(i, Math.min(parts.size(), i + per))));
+            }
+            return ScoreboardLine.of(out);
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of("§652,763,737 §7| §d64,647 §7| §6249M", "§b59,264 §7| §c23,495 §7| §23,210,307");
+        }
+    },
     EMPTY_LINE5("Separator", false) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
@@ -620,6 +840,119 @@ public enum ScoreboardEntry {
         return name().startsWith("EMPTY_LINE");
     }
 
+    static final int MAX_ARROW_AMOUNT = 2880;
+
+    private static final Pattern TIME_12H = Pattern.compile("(?<prefix>.*?)(?<hour>\\d{1,2}):(?<minute>\\d{2})(?<ampm>am|pm)(?<rest>.*)");
+    private static final Pattern VISITING_AMOUNT = Pattern.compile("(?:§.)*(\\d+)(?:§.)*/(\\d+)");
+    private static final Pattern COLOR_CODE = Pattern.compile("§[0-9a-fA-F]");
+
+    /** SkyHanni's {@code SkyBlockTime.formatted(timeFormat24h = true)} applied to the sidebar's "10:40pm" line. */
+    static String to24h(String line) {
+        if (line == null) {
+            return null;
+        }
+        Matcher m = TIME_12H.matcher(line);
+        if (!m.matches()) {
+            return line;
+        }
+        int hour = Integer.parseInt(m.group("hour")) % 12;
+        if (m.group("ampm").equals("pm")) {
+            hour += 12;
+        }
+        return m.group("prefix") + String.format(java.util.Locale.US, "%02d", hour) + ":" + m.group("minute") + m.group("rest");
+    }
+
+    /** SkyHanni's {@code HypixelData.getMaxPlayersForCurrentServer} with the SkyHanni-REPO {@code IslandType.json} caps. */
+    static int maxIslandPlayers() {
+        String visiting = firstMatches(ScoreboardPattern.VISITING, sidebar());
+        if (visiting != null) {
+            Matcher m = VISITING_AMOUNT.matcher(visiting);
+            if (m.find()) {
+                return Integer.parseInt(m.group(2));
+            }
+        }
+        String lobby = group(ScoreboardPattern.LOBBY_CODE, sidebar(), "code");
+        if (lobby != null && lobby.trim().startsWith("mega")) {
+            return 60;
+        }
+        return switch (island()) {
+            case "The End" -> 28;
+            case "Kuudra", "Mineshaft", "Critter Safari", "Safari" -> 4;
+            case "Dwarven Mines", "Hub" -> 26;
+            case "Catacombs" -> 5;
+            case "Dark Auction", "Moonglade Marsh", "Galatea" -> 12;
+            case "Jerry's Workshop" -> 27;
+            case "Backwater Bayou", "Lotus Atoll" -> 16;
+            case "" -> -1;
+            default -> 24;
+        };
+    }
+
+    /** SkyHanni {@code ElectionApi.mayorNameWithColorCode}. */
+    static String candidateName(String name) {
+        return candidateColor(name) + name;
+    }
+
+    private static String candidateColor(String name) {
+        return switch (name) {
+            case "Aatrox" -> "§3";
+            case "Cole" -> "§e";
+            case "Diana" -> "§2";
+            case "Diaz" -> "§6";
+            case "Finnegan", "Paul" -> "§c";
+            case "Foxy", "Scorpius", "Jerry", "Derpy" -> "§d";
+            case "Marina" -> "§b";
+            default -> "§e";
+        };
+    }
+
+    private static List<String> perkHover(ScoreboardExtraData.Candidate candidate) {
+        List<String> out = new ArrayList<>();
+        for (ScoreboardExtraData.Perk perk : candidate.perks()) {
+            if (!out.isEmpty()) {
+                out.add("");
+            }
+            out.add(candidateColor(candidate.name()) + perk.name() + ":");
+            for (String line : wrap(perk.description(), "§7")) {
+                out.add("  " + line);
+            }
+        }
+        return out;
+    }
+
+    /** Word-wraps legacy text to ~40 visible characters, carrying the last colour code onto each new line. */
+    static List<String> wrap(String text, String baseColor) {
+        List<String> out = new ArrayList<>();
+        if (text == null || text.isEmpty()) {
+            return out;
+        }
+        StringBuilder line = new StringBuilder(baseColor);
+        int visible = 0;
+        String lastColor = baseColor;
+        for (String word : text.split(" ")) {
+            int wordVisible = word.replaceAll("§.", "").length();
+            if (visible > 0 && visible + 1 + wordVisible > 40) {
+                out.add(line.toString());
+                line = new StringBuilder(lastColor);
+                visible = 0;
+            }
+            if (visible > 0) {
+                line.append(' ');
+                visible++;
+            }
+            line.append(word);
+            visible += wordVisible;
+            Matcher m = COLOR_CODE.matcher(word);
+            while (m.find()) {
+                lastColor = m.group();
+            }
+        }
+        if (visible > 0) {
+            out.add(line.toString());
+        }
+        return out;
+    }
+
     static List<ScoreboardLine> single(String text) {
         return text == null ? List.of() : List.of(ScoreboardLine.of(text));
     }
@@ -638,7 +971,7 @@ public enum ScoreboardEntry {
     }
 
     /** A "Label: value" currency line; hidden when missing, or zero with "Hide Empty Lines". */
-    static List<ScoreboardLine> number(CustomScoreboardConfig cfg, String label, String raw, String color) {
+    static List<ScoreboardLine> number(CustomScoreboardConfig cfg, String label, String trackKey, String raw, String color) {
         if (raw == null) {
             return cfg.isHideEmptyLines() ? List.of() : single(formatNumberDisplay(label, "0", color));
         }
@@ -646,6 +979,7 @@ public enum ScoreboardEntry {
         if (cfg.isHideEmptyLines() && isZero(value)) {
             return List.of();
         }
-        return single(formatNumberDisplay(label, value, color));
+        ScoreboardLine line = ScoreboardLine.of(formatNumberDisplay(label, value, color));
+        return List.of(NumberChangeTracker.track(cfg, line, trackKey, raw.trim(), color));
     }
 }

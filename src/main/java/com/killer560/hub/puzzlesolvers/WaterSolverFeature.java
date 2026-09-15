@@ -244,6 +244,62 @@ public final class WaterSolverFeature {
         return realPos(lever.x, lever.y, lever.z, clayAndRotation);
     }
 
+    /** The soonest remaining click (same ordering as the tracer/QUOI {@code solutionList}), for AutoPuzzles. */
+    public record NextClick(boolean water, BlockPos pos, int relativeZ, double time) {
+    }
+
+    public static NextClick nextClick() {
+        if (patternIdentifier == -1 || solutions.isEmpty()) {
+            return null;
+        }
+        LeverBlock bestLever = null;
+        double bestTime = 0.0;
+        for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
+            LeverBlock lever = entry.getKey();
+            List<Double> times = entry.getValue();
+            for (int i = lever.clicked; i < times.size(); i++) {
+                double t = times.get(i);
+                if (bestLever == null || compareClick(lever, t, bestLever, bestTime) < 0) {
+                    bestLever = lever;
+                    bestTime = t;
+                }
+            }
+        }
+        if (bestLever == null || LiveMapFeature.currentRoomClayAndRotation() == null) {
+            return null;
+        }
+        return new NextClick(bestLever == LeverBlock.WATER, leverRealPos(bestLever), bestLever.z, bestTime);
+    }
+
+    private static int compareClick(LeverBlock a, double ta, LeverBlock b, double tb) {
+        boolean aZero = ta == 0.0;
+        boolean bZero = tb == 0.0;
+        if (aZero != bZero) {
+            return aZero ? -1 : 1;
+        }
+        if (aZero) {
+            return Integer.compare(a.ordinal(), b.ordinal());
+        }
+        return Double.compare(ta, tb);
+    }
+
+    public static long getOpenedWaterTick() {
+        return openedWaterTick;
+    }
+
+    public static long getTickCounter() {
+        return tickCounter;
+    }
+
+    /** Total lever clicks counted so far this room (lets the auto confirm its click registered). */
+    public static int getCountedClicks() {
+        int total = 0;
+        for (LeverBlock lever : solutions.keySet()) {
+            total += lever.clicked;
+        }
+        return total;
+    }
+
     /** Called from {@code WaterSolverMixin} on every real successful block interact. */
     public static void onLeverClick(BlockPos clicked) {
         if (solutions.isEmpty()) {

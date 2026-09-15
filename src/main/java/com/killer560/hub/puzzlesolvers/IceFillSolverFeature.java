@@ -48,6 +48,11 @@ public final class IceFillSolverFeature {
     private IceFillSolverFeature() {
     }
 
+    /** Copy of the drawn path (block centre x/z, floor y + 0.1) - for AutoPuzzles. Empty until all 3 floors scan. */
+    public static List<Vec3> getCurrentPath() {
+        return new ArrayList<>(currentPath);
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(IceFillSolverFeature::onWorldRender);

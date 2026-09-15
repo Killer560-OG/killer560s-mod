@@ -19,8 +19,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Single entry point + shared helpers for the cheat-build-only Cheat Utils group: {@link WitherEspFeature},
- * {@link SecretAuraFeature}, {@link AutoGfsFeature}, {@link AutoUltFeature}, {@link ChocolateFactoryFeature}.
+ * Single entry point + shared helpers for the cheat-build-only Cheat Utils group: {@link SecretAuraFeature},
+ * {@link AutoGfsFeature}, {@link AutoUltFeature}, {@link ChocolateFactoryFeature}. Also ticks {@link WitherEspFeature},
+ * which is now only the F7/M7 boss-Wither detection Dungeon ESP uses (the Wither ESP toggle moved there).
  * Registering is harmless on the legit build - every feature checks its {@link CheatUtilsConfig} master getter,
  * which is hard-gated on {@code BuildVariant.CHEAT_FEATURES_ENABLED}.
  */

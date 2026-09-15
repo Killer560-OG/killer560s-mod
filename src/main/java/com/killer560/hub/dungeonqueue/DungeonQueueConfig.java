@@ -4,14 +4,16 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted "Dungeon Queue" settings ({@link DungeonQueueFeature}). Every setting loads and saves. The feature
- *  itself defaults OFF; Leader Check and Downtime Check default ON because they only ever stop a re-queue. */
+/** Persisted Auto Requeue settings ({@link DungeonQueueFeature}) - the same three options as Odin's
+ *  {@code DungeonQueue.kt}: Auto Requeue (off), Requeue Delay (2s, 0-30), Disable on leave/kick (on). The Party
+ *  Finder Overlay half of the Dungeon Queue tab lives in {@code partyfinder.PartyFinderOverlayConfig}. */
 public final class DungeonQueueConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -19,18 +21,13 @@ public final class DungeonQueueConfig {
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-dungeonqueue.json");
 
     public static final int MAX_DELAY_SECONDS = 30;
-    public static final int DEFAULT_DELAY_SECONDS = 5; // NoammAddons AutoRequeue's default
-    public static final String DEFAULT_DT_KEYWORD = "dt";
+    public static final int DEFAULT_DELAY_SECONDS = 2; // Odin's default
 
     private static DungeonQueueConfig instance;
 
     private boolean enabled = false;
     private int delaySeconds = DEFAULT_DELAY_SECONDS;
-    private boolean leaderCheck = true;
-    private boolean downtimeCheck = true;
-    private String dtKeyword = DEFAULT_DT_KEYWORD;
-    private int cancelKeyCode = -1;
-    private int requeueKeyCode = -1;
+    private boolean disableOnLeave = true;
 
     private DungeonQueueConfig() {
     }
@@ -43,25 +40,18 @@ public final class DungeonQueueConfig {
     }
 
     public static void load() {
-        if (!Files.exists(CONFIG_PATH)) {
-            instance = new DungeonQueueConfig();
-            return;
+        DungeonQueueConfig cfg = new DungeonQueueConfig();
+        if (Files.exists(CONFIG_PATH)) {
+            try {
+                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+                cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
+                cfg.disableOnLeave = ConfigJson.getBool(obj, "disableOnLeave", true);
+            } catch (Exception ignored) {
+                // unreadable file - defaults
+            }
         }
-        try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            DungeonQueueConfig cfg = new DungeonQueueConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.setDelaySeconds(obj.has("delaySeconds") ? obj.get("delaySeconds").getAsInt() : DEFAULT_DELAY_SECONDS);
-            cfg.leaderCheck = !obj.has("leaderCheck") || obj.get("leaderCheck").getAsBoolean();
-            cfg.downtimeCheck = !obj.has("downtimeCheck") || obj.get("downtimeCheck").getAsBoolean();
-            cfg.setDtKeyword(obj.has("dtKeyword") ? obj.get("dtKeyword").getAsString() : DEFAULT_DT_KEYWORD);
-            cfg.cancelKeyCode = obj.has("cancelKeyCode") ? obj.get("cancelKeyCode").getAsInt() : -1;
-            cfg.requeueKeyCode = obj.has("requeueKeyCode") ? obj.get("requeueKeyCode").getAsInt() : -1;
-            instance = cfg;
-        } catch (Exception e) {
-            instance = new DungeonQueueConfig();
-        }
+        instance = cfg;
     }
 
     public void save() {
@@ -70,11 +60,7 @@ public final class DungeonQueueConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("delaySeconds", delaySeconds);
-            obj.addProperty("leaderCheck", leaderCheck);
-            obj.addProperty("downtimeCheck", downtimeCheck);
-            obj.addProperty("dtKeyword", dtKeyword);
-            obj.addProperty("cancelKeyCode", cancelKeyCode);
-            obj.addProperty("requeueKeyCode", requeueKeyCode);
+            obj.addProperty("disableOnLeave", disableOnLeave);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -82,6 +68,11 @@ public final class DungeonQueueConfig {
 
     public boolean isEnabled() {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    /** Raw toggle state for the settings tab (ignores the Skyblock gate). */
+    public boolean isEnabledRaw() {
+        return enabled;
     }
 
     public void setEnabled(boolean enabled) {
@@ -96,43 +87,11 @@ public final class DungeonQueueConfig {
         this.delaySeconds = Math.max(0, Math.min(MAX_DELAY_SECONDS, seconds));
     }
 
-    public boolean isLeaderCheck() {
-        return leaderCheck;
+    public boolean isDisableOnLeave() {
+        return disableOnLeave;
     }
 
-    public void setLeaderCheck(boolean leaderCheck) {
-        this.leaderCheck = leaderCheck;
-    }
-
-    public boolean isDowntimeCheck() {
-        return downtimeCheck;
-    }
-
-    public void setDowntimeCheck(boolean downtimeCheck) {
-        this.downtimeCheck = downtimeCheck;
-    }
-
-    public String getDtKeyword() {
-        return dtKeyword;
-    }
-
-    public void setDtKeyword(String keyword) {
-        this.dtKeyword = keyword == null ? "" : keyword.trim();
-    }
-
-    public int getCancelKeyCode() {
-        return cancelKeyCode;
-    }
-
-    public void setCancelKeyCode(int cancelKeyCode) {
-        this.cancelKeyCode = cancelKeyCode;
-    }
-
-    public int getRequeueKeyCode() {
-        return requeueKeyCode;
-    }
-
-    public void setRequeueKeyCode(int requeueKeyCode) {
-        this.requeueKeyCode = requeueKeyCode;
+    public void setDisableOnLeave(boolean disableOnLeave) {
+        this.disableOnLeave = disableOnLeave;
     }
 }

@@ -55,6 +55,16 @@ public final class BoulderSolverFeature {
     private BoulderSolverFeature() {
     }
 
+    /** The next position to click (first remaining solution step), or null - for AutoPuzzles. */
+    public static BlockPos getNextClick() {
+        List<BoxPosition> positions = currentPositions;
+        return positions.isEmpty() ? null : positions.get(0).click();
+    }
+
+    public static int getRemainingClicks() {
+        return currentPositions.size();
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(BoulderSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BoulderSolverFeature::onWorldRender);

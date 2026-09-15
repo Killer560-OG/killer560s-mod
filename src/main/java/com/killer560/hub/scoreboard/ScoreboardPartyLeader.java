@@ -1,7 +1,6 @@
-package com.killer560.hub.dungeonqueue;
+package com.killer560.hub.scoreboard;
 
 import com.killer560.hub.util.ChatObserver;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
@@ -9,15 +8,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Who leads your party - ported from the leader half of NoammAddons' {@code PartyUtils} (itself from Odin's
- * {@code PartyUtils}), which {@code AutoRequeue.kt} checks before sending {@code /joininstance}. Member lists
- * stay in {@link com.killer560.hub.leapmenu.PartyTracker}; this only tracks the leader name.
- * <p>
- * The dungeon enter line ("[MVP+] Name entered MM The Catacombs, Floor VII!") names the leader - the same
- * shortcut NoammAddons takes - so the leader is always known inside a run even if the party was formed before
- * the mod loaded.
+ * Party leader for the Party line's crown marker (SkyHanni {@code PartyApi.partyLeader}). Same chat patterns as
+ * Odin/NoammAddons {@code PartyUtils}; kept inside the scoreboard package so the Party line doesn't depend on another
+ * feature's internals. Member names still come from {@code leapmenu.PartyTracker}.
  */
-public final class PartyLeaderTracker {
+final class ScoreboardPartyLeader {
 
     private static final String NAME = "(?:\\[[^]]*?] ?)?(\\w{1,16})";
 
@@ -28,10 +23,8 @@ public final class PartyLeaderTracker {
             + " has disconnected, they have 5 minutes to rejoin before the party is disbanded\\.$");
     private static final Pattern LEADER_REJOINED = Pattern.compile("^The party leader " + NAME + " has rejoined\\.$");
     private static final Pattern INVITE = Pattern.compile("^" + NAME + " invited " + NAME + " to the party! They have 60 seconds to accept\\.$");
-    private static final Pattern QUEUED_IN_FINDER = Pattern.compile("^Party Finder > Your party has been queued in the dungeon finder!$");
     private static final Pattern LEADER_LIST = Pattern.compile("^Party Leader: " + NAME + " ?●");
-    /** Hypixel sends this framed by dashed lines in one message, so it is matched per line. */
-    static final Pattern DUNGEON_ENTER = Pattern.compile(
+    private static final Pattern DUNGEON_ENTER = Pattern.compile(
             "(?m)^\\s*" + NAME + " entered (?:MM )?(?:The )?Catacombs, (?:Floor [IVX]+|Entrance)!\\s*$");
     private static final List<Pattern> DISBAND = List.of(
             Pattern.compile("^" + NAME + " has disbanded the party!$"),
@@ -41,17 +34,20 @@ public final class PartyLeaderTracker {
             Pattern.compile("^You are not currently in a party\\.$"),
             Pattern.compile("^You are not in a party.*$"));
 
-    private static String leader;
+    private static volatile String leader;
 
-    private PartyLeaderTracker() {
+    private ScoreboardPartyLeader() {
     }
 
-    public static void register() {
-        ChatObserver.subscribe(PartyLeaderTracker::onChat);
+    static void register() {
+        ChatObserver.subscribe(ScoreboardPartyLeader::onChat);
     }
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
+        if (plain == null) {
+            return;
+        }
         Matcher m = DUNGEON_ENTER.matcher(plain);
         if (m.find()) {
             leader = m.group(1);
@@ -73,12 +69,6 @@ public final class PartyLeaderTracker {
             }
             return;
         }
-        if (QUEUED_IN_FINDER.matcher(plain).matches()) {
-            if (leader == null) {
-                leader = selfName();
-            }
-            return;
-        }
         for (Pattern p : DISBAND) {
             if (p.matcher(plain).matches()) {
                 leader = null;
@@ -88,17 +78,7 @@ public final class PartyLeaderTracker {
     }
 
     /** @return the known party leader's name, or null when unknown / not in a party. */
-    public static String getLeader() {
+    static String get() {
         return leader;
-    }
-
-    public static boolean isSelfLeader() {
-        String self = selfName();
-        return self != null && self.equalsIgnoreCase(leader);
-    }
-
-    private static String selfName() {
-        // Same as NoammAddons' PartyUtils.isLeader (mc.user.name) - the logged-in account's name.
-        return Minecraft.getInstance().getUser().getName();
     }
 }
