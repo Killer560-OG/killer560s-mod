@@ -2533,7 +2533,19 @@ public final class SimonSaysFeature {
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
         poseStack.mulPose(mainCamera.rotation());
-        poseStack.scale(-scale, -scale, scale);
+        // Real bug found and fixed (2026-09-14, killer560's own report: "the numbers that go on the
+        // buttons still do not show up. They never have."): this scaled by (-s, -s, s) - the OLD
+        // (pre-1.21.2) nametag transform. In 26.1.2 the camera quaternion is already the flipped
+        // one (Camera.setRotation builds rotationYXZ(PI - yaw, -pitch, 0)), and vanilla's own
+        // NameTagFeatureRenderer$Storage.add now does mulPose(cameraState.orientation) then
+        // scale(0.025f, -0.025f, 0.025f) - positive X (checked in the 26.1.2 jar bytecode). The extra
+        // -X mirror reversed every glyph quad's winding so it faced AWAY from the camera, and the
+        // text pipelines (pipeline/text_see_through + text_background_see_through) never call
+        // withCull(false), and RenderPipeline.Builder.build() defaults cull to true - so every glyph
+        // AND the background quad were back-face culled, 100% of the time. The see-through/depth
+        // change below was real but could never have been visible on its own. (Same (+s, -s, s) as
+        // NoammAddons' 26.1.2 Render3D.renderString.)
+        poseStack.scale(scale, -scale, scale);
 
         float width = font.width(text);
         int background = (int) (0.4f * 255f) << 24;
@@ -2544,7 +2556,8 @@ public final class SimonSaysFeature {
         // guess). SEE_THROUGH ignores depth test - confirmed the correct real fix by checking how
         // NoammAddons and Odin render their own equivalent Simon Says numbers: both explicitly pass a
         // "through walls"/"phase" flag to their text renderer for exactly this reason.
-        font.drawInBatch(text, -width / 2f, 0f, 0xFFFFFFFF, false, poseStack.last().pose(),
+        // -lineHeight/2 so the digit is vertically centered on the button face, not hanging below it.
+        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
                 bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();

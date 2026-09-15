@@ -20,7 +20,10 @@ public class DungeonTab extends FolderTab {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new RngMeterTab(),
                 new TerminalSolverTab(),
-                new TermismTab()
+                new TermismTab(),
+                // Moved out of New 2026-09-14 - killer560 confirmed Simon Says (solver + Auto Start/Solve)
+                // working after real runs ("I think ss is now done").
+                new SimonSaysTab()
         ));
         // Leap Menu, Fast Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, Etherwarp
         // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers, Mask
