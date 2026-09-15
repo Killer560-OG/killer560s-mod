@@ -50,15 +50,15 @@ public class SplitTimersTab extends BaseTab {
         y += 24;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Covers F1-F7's real boss split points (Bonzo/Scarf/Professor/"),
+                Component.literal("§7Odin's splits: Blood Open/Clear, Portal Entry, each boss phase"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Thorn/Livid/Sadan/Maxor-Storm-Goldor-Necron) - a run starts on the"),
+                Component.literal("§7(E-F7, e.g. Maxor/Storm/Terminals/Goldor/Necron) and Total - armed"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7real \"Starting in 1 second.\" countdown message."),
+                Component.literal("§7on \"Starting in 1 second.\", clock starts on Mort's line."),
                 Minecraft.getInstance().font));
 
         return widgets;

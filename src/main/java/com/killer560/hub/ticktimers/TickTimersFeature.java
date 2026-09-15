@@ -21,7 +21,10 @@ import java.util.regex.Pattern;
  * trigger and tick count below is ported directly from Odin's own real, confirmed {@code TickTimers.kt}
  * - real boss dialogue lines and real countdown lengths (Necron/Goldor: 60 ticks; Storm's pad: 20
  * ticks; lightning: 560 ticks; the purple-pillar "PY" window: 95 ticks; Storm's second-phase crush
- * window: 620 ticks), not guessed. Deliberately omits Odin's "Secrets" pulse timer - that one isn't a
+ * window: 620 ticks), not guessed. Goldor's "Tick:" and Storm's pad timers REPEAT (re-arm on reaching 0)
+ * exactly like Odin's, until their real stop lines. Counts client ticks, not Odin's server ticks (Odin
+ * derives those from ClientboundPingPacket in a Connection mixin this mod doesn't have), so lag can
+ * drift them slightly. Deliberately omits Odin's "Secrets" pulse timer - that one isn't a
  * real per-secret prediction (Hypixel doesn't expose secret-spawn timing), just a repeating 20-tick
  * cosmetic pulse, and killer560's list already has a real secret-count feature elsewhere
  * ({@code DungeonInfoFeature}).
@@ -44,6 +47,8 @@ public final class TickTimersFeature {
     private static int pyTickTime = -1;
     private static int stormTick = -1;
     private static boolean wasInDungeon = false;
+    private static Object lastLevel = null;
+    private static int diagGoldorRestarts = 0;
 
     // Diagnostic only (2026-09-14) - never read by any timer logic.
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ticktimers");
@@ -86,11 +91,12 @@ public final class TickTimersFeature {
             diagArmed("Necron (60t)", raw);
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             goldorTickTime = 60;
-            diagArmed("Goldor Tick (60t)", raw);
+            diagGoldorRestarts = 0;
+            diagArmed("Goldor Tick (60t, repeating until Core entrance opens)", raw);
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
             goldorTickTime = -1;
-            LOGGER.info("[TickTimers] Goldor Start/Tick CLEARED by line \"{}\"", raw);
+            LOGGER.info("[TickTimers] Goldor Start/Tick CLEARED by line \"{}\" (Tick restarted {} times this P3)", raw, diagGoldorRestarts);
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
             goldorStartTime = 104;
             padTickTime = -1;
@@ -109,6 +115,15 @@ public final class TickTimersFeature {
     }
 
     private static void tick() {
+        // Odin resets every timer on LevelEvent.Load - same here, on any real level change.
+        Object level = Minecraft.getInstance().level;
+        if (level != lastLevel) {
+            if (lastLevel != null) {
+                LOGGER.info("[TickTimers] Level changed - all timers reset");
+                resetAll();
+            }
+            lastLevel = level;
+        }
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
             LOGGER.info("[TickTimers] Left dungeon - all timers reset");
@@ -131,22 +146,24 @@ public final class TickTimersFeature {
         int diagLightning = lightningTickTime;
         int diagPy = pyTickTime;
         int diagNecron = necronTicks;
-        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): Goldor's tick is a one-shot
-        // 60-tick countdown (GOLDOR_REGEX in onChatMessage already sets it exactly once, for real), not a
-        // repeating timer like Storm's pad (padTickTime, which legitimately does re-arm itself below -
-        // this block looks like an incompletely-adapted copy of that same pattern). CORE_OPENING_REGEX
-        // resets goldorStartTime to -1 BEFORE Goldor's own taunt line ever fires, so by the time
-        // goldorTickTime first reached 0 here, goldorStartTime was already <=0 forever after - meaning
-        // this rearm condition was permanently true and the "Tick:" line looped every 60 ticks (3s) for
-        // the rest of the Necron fight on every real F7/M7 clear. Removed entirely; onChatMessage is the
-        // only real trigger point now.
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        // Real bug found and fixed (2026-09-14, real-run log analysis): an earlier review pass removed this
+        // re-arm as a "copy-paste bug", claiming the Core entrance line fires BEFORE Goldor's taunt. It
+        // doesn't - the real order is Storm dies -> "Who dares trespass" -> terminals -> "The Core entrance
+        // is opening!", so the Tick timer showed one 3s countdown at the start of P3 and then vanished.
+        // Odin's TickTimers.kt restarts it at 60 every time it hits 0 (Goldor's real 3s damage tick) for all
+        // of P3, until CORE_OPENING_REGEX sets it to -1. Restored exactly, including Odin's HUD-enabled gate.
+        if (goldorTickTime == 0 && goldorStartTime <= 0 && cfg.isGoldorTimer()) {
+            goldorTickTime = 60;
+            diagGoldorRestarts++;
+        }
         if (goldorStartTime >= 0) {
             goldorStartTime--;
         }
         if (goldorTickTime >= 0) {
             goldorTickTime--;
         }
-        if (padTickTime == 0) {
+        if (padTickTime == 0 && cfg.isStormTimer()) {
             padTickTime = 20;
         }
         if (padTickTime >= 0) {
@@ -180,6 +197,7 @@ public final class TickTimersFeature {
         pyTickTime = -1;
         pyTriggered = false;
         stormTick = -1;
+        diagGoldorRestarts = 0;
     }
 
     private static String format(int time, int max, String prefix) {
@@ -229,7 +247,8 @@ public final class TickTimersFeature {
                 lines.add(format(necronTicks, 60, "§4Necron dropping in"));
             }
             if (cfg.isGoldorTimer()) {
-                if (goldorStartTime >= 0) {
+                // Odin: "Start:" only when its own "Start timer" setting is on, otherwise "Tick:".
+                if (goldorStartTime >= 0 && cfg.isGoldorStartTimer()) {
                     lines.add(format(goldorStartTime, 100, "§aStart:"));
                 } else if (goldorTickTime >= 0) {
                     lines.add(format(goldorTickTime, 60, "§7Tick:"));

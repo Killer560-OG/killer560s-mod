@@ -25,6 +25,9 @@ public final class TickTimersConfig {
     private boolean showPrefix = true;
     private boolean necronTimer = true;
     private boolean goldorTimer = true;
+    // Odin TickTimers.kt's own "Start timer" setting (default false): shows Goldor's 104-tick "Start:"
+    // countdown after Storm dies. Off = the Goldor line only shows the repeating "Tick:" timer, like Odin.
+    private boolean goldorStartTimer = false;
     private boolean stormTimer = true;
 
     private TickTimersConfig() {
@@ -52,6 +55,7 @@ public final class TickTimersConfig {
             cfg.showPrefix = getBool(obj, "showPrefix", true);
             cfg.necronTimer = getBool(obj, "necronTimer", true);
             cfg.goldorTimer = getBool(obj, "goldorTimer", true);
+            cfg.goldorStartTimer = getBool(obj, "goldorStartTimer", false);
             cfg.stormTimer = getBool(obj, "stormTimer", true);
             instance = cfg;
         } catch (Exception e) {
@@ -73,6 +77,7 @@ public final class TickTimersConfig {
             obj.addProperty("showPrefix", showPrefix);
             obj.addProperty("necronTimer", necronTimer);
             obj.addProperty("goldorTimer", goldorTimer);
+            obj.addProperty("goldorStartTimer", goldorStartTimer);
             obj.addProperty("stormTimer", stormTimer);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -125,6 +130,14 @@ public final class TickTimersConfig {
 
     public void setGoldorTimer(boolean goldorTimer) {
         this.goldorTimer = goldorTimer;
+    }
+
+    public boolean isGoldorStartTimer() {
+        return goldorStartTimer;
+    }
+
+    public void setGoldorStartTimer(boolean goldorStartTimer) {
+        this.goldorStartTimer = goldorStartTimer;
     }
 
     public boolean isStormTimer() {

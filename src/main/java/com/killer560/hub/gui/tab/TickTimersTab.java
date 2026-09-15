@@ -75,6 +75,12 @@ public class TickTimersTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Prefix", cfg.isShowPrefix()));
                 }).bounds(col1, y, 160, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Goldor Start", cfg.isGoldorStartTimer()), btn -> {
+                    cfg.setGoldorStartTimer(!cfg.isGoldorStartTimer());
+                    cfg.save();
+                    btn.setMessage(onOff("Goldor Start", cfg.isGoldorStartTimer()));
+                }).bounds(col3, y, 108, 18).build());
         y += 24;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
