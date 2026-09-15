@@ -88,6 +88,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Real Time — a HUD clock from your computer's time (12h/24h, seconds, zone abbreviation) or any custom time zone
 - Live Map rooms — multi-tile rooms (1x2 to 2x2 and L shapes) drawn and identified as one room, with room-state from the dungeon map and label styles (checkmarks, secrets, names)
 - Custom Scoreboard — SkyHanni-style replacement sidebar (ported from SkyHanni and SkyBlock Custom Scoreboard): reorderable lines and events, alignment, background with rounded corners and border; unknown lines still show
+- Profile Viewer — `/pv [name]`: NEU-style Skyblock profile viewer (skills, slayers, dungeons with floor times, inventories/ender chest/backpacks/wardrobe/accessories, pets) with a 3D skin preview
 - Pack Disabler — stops Hypixel's forced Skyblock resource pack from loading, without getting kicked for required packs
 - Terminal Solver — highlights the correct slot(s) to click on Floor 7 terminal puzzles, including Melody detection. The **cheat** build additionally has an Auto Terminals mode (with a Min/Max click delay, an input-block safety toggle, and a Melody Skip Mode for how aggressively it clicks ahead) that clicks for you - see [Which jar do I download?](#installing) below.
 - Termism — a practice mode that generates fake terminal puzzles (every real type, including a real timed Melody puzzle) so you can drill them without a real dungeon run, with Auto Terminals also usable here on the cheat build to test it risk-free

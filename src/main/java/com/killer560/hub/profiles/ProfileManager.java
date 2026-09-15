@@ -215,6 +215,7 @@ public final class ProfileManager {
                 com.killer560.hub.motionblur.MotionBlurConfig::load,
                 com.killer560.hub.realtime.RealTimeConfig::load,
                 com.killer560.hub.scoreboard.CustomScoreboardConfig::load,
+                com.killer560.hub.profileviewer.ProfileViewerConfig::load,
                 com.killer560.hub.windowlayout.WindowLayoutConfig::load,
                 com.killer560.hub.util.SkyblockGate::reload,
                 com.killer560.hub.bloodcamp.BloodCampConfig::load,

@@ -71,6 +71,7 @@ public class NewTab extends FolderTab {
                 new InventoryHudTab(),
                 new RealTimeTab(),
                 new CustomScoreboardTab(),
+                new ProfileViewerTab(),
                 new PlayerStatsTab(),
                 new EtherwarpOverlayTab(),
                 new SlotBindsTab(),

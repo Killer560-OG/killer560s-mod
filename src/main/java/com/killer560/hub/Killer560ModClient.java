@@ -149,6 +149,7 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.inventoryhud.InventoryHudFeature.InventoryHudElement.INSTANCE);
         HudElementRegistry.register(com.killer560.hub.realtime.RealTimeFeature.RealTimeHudElement.INSTANCE);
         com.killer560.hub.scoreboard.CustomScoreboardFeature.register();
+        com.killer560.hub.profileviewer.ProfileViewerFeature.register();
         HudElementRegistry.register(com.killer560.hub.scoreboard.CustomScoreboardFeature.Element.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
