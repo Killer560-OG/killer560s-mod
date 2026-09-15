@@ -51,7 +51,17 @@ public final class DungeonBreakerFeature {
     private static final String DUNGEON_BREAKER_SKYBLOCK_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES_PATTERN = Pattern.compile("Charges: (\\d+)/(\\d+)");
 
+    // [DungeonBreaker] diagnostics - logs why an insta-mine was skipped, only when the reason changes.
+    private static String lastSkipReason = null;
+
     private DungeonBreakerFeature() {
+    }
+
+    private static void logSkipReason(String reason) {
+        if (!reason.equals(lastSkipReason)) {
+            LOGGER.info("[DungeonBreaker] Insta-mine skipped: {}", reason);
+            lastSkipReason = reason;
+        }
     }
 
     /** Called from {@code DungeonBreakerMixin} right after the real
@@ -64,9 +74,12 @@ public final class DungeonBreakerFeature {
             return;
         }
         if (cfg.isFatigueOnly() && !client.player.hasEffect(MobEffects.MINING_FATIGUE)) {
+            logSkipReason("fatigueOnly and no Mining Fatigue");
             return;
         }
         if (getBreakerCharges(client.player.getMainHandItem()) <= 0) {
+            ItemStack held = client.player.getMainHandItem();
+            logSkipReason("no charges (heldSkyblockId=" + (held.isEmpty() ? "empty" : getSkyblockId(held)) + ")");
             return;
         }
         // Real raycast validation, ported directly from QUOI's own real clip check - only ever clears the
@@ -76,8 +89,10 @@ public final class DungeonBreakerFeature {
                 ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
         if (clip.getType() != HitResult.Type.BLOCK || !(clip instanceof BlockHitResult blockHit)
                 || !blockHit.getBlockPos().equals(pos)) {
+            logSkipReason("raycast mismatch");
             return;
         }
+        lastSkipReason = null;
         client.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
         LOGGER.info("[DungeonBreaker] Zero-ping insta-mined block at {}.", pos);
     }

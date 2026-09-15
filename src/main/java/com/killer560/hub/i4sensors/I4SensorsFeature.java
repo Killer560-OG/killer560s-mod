@@ -49,14 +49,28 @@ public final class I4SensorsFeature {
     }
 
     private static void onChatMessage(Component message) {
+        String raw = message.getString();
         if (!I4SensorsConfig.getInstance().isEnabled()) {
+            // Diagnostic (2026-09-14): the device-completion line itself is always logged (one line per real
+            // device, never spammy) so a run's log shows i4 progress even with the block-diff sensor off.
+            if (raw.contains("completed a device")) {
+                Minecraft client = Minecraft.getInstance();
+                LOGGER.info("[I4Sensors] Device-completion chat line (block sensor OFF): \"{}\" playerPos={} inPre4Box={}",
+                        raw, client.player != null ? client.player.position() : null,
+                        client.player != null && PRE4_BOX.contains(client.player.position()));
+            }
             return;
         }
-        String raw = message.getString();
         if (raw.contains("completed a device")) {
-            LOGGER.info("[I4Sensors] Device-completion chat line: \"{}\"", raw);
+            Minecraft client = Minecraft.getInstance();
+            LOGGER.info("[I4Sensors] Device-completion chat line: \"{}\" playerPos={} inPre4Box={} blockChangesThisSession={}",
+                    raw, client.player != null ? client.player.position() : null,
+                    client.player != null && PRE4_BOX.contains(client.player.position()), diagBlockChanges);
         }
     }
+
+    private static int diagBlockChanges;
+    private static String diagLastInactiveReason;
 
     private static void tick() {
         I4SensorsConfig cfg = I4SensorsConfig.getInstance();
@@ -65,15 +79,24 @@ public final class I4SensorsFeature {
                 && client.player != null && client.level != null;
 
         if (!active) {
+            String reason = !cfg.isEnabled() ? "disabled in config (killer560smod-i4sensors.json enabled=false)"
+                    : !DungeonState.isBossPhaseActive() ? "boss phase not active" : "no player/level";
+            if (wasActive || !reason.equals(diagLastInactiveReason)) {
+                LOGGER.info("[I4Sensors] Block sensor INACTIVE: {}{}", reason,
+                        wasActive ? " (was active; logged " + diagBlockChanges + " block changes)" : "");
+                diagLastInactiveReason = reason;
+            }
             if (wasActive) {
                 lastStates = new HashMap<>();
             }
             wasActive = false;
             return;
         }
+        diagLastInactiveReason = null;
         if (!wasActive) {
             LOGGER.info("[I4Sensors] Logging started - watching the real Pre4 area for block changes.");
             lastStates = new HashMap<>();
+            diagBlockChanges = 0;
         }
         wasActive = true;
 
@@ -86,6 +109,7 @@ public final class I4SensorsFeature {
                     current.put(pos, state);
                     BlockState previous = lastStates.get(pos);
                     if (previous != null && !previous.equals(state)) {
+                        diagBlockChanges++;
                         LOGGER.info("[I4Sensors] Block changed at {}: {} -> {}", pos, previous, state);
                     }
                 }

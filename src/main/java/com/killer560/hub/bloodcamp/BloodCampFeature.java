@@ -147,8 +147,14 @@ public final class BloodCampFeature {
         String texture = getSkullTexture(head);
         if (watcherEntityId == null && WATCHER_SKULL_TEXTURES.contains(texture)) {
             watcherEntityId = packet.getEntity();
+            LOGGER.info("[BloodCamp] Watcher detected: entityId={} (thread={})", watcherEntityId, Thread.currentThread().getName());
         }
     }
+
+    // [BloodCamp] diagnostics - logging only.
+    private static String lastLoggedGates = null;
+    private static int lastLoggedMobCount = -1;
+    private static boolean lastLoggedAuraActive = false;
 
     /** Real movement-based extrapolation, ported directly from Noamm's own real math - see this class's
      *  own doc comment. */
@@ -182,6 +188,10 @@ public final class BloodCampFeature {
                 entity.getZ() + packet.getZa() / 4096.0
         );
 
+        if (!bloodMobs.containsKey(entity)) {
+            LOGGER.info("[BloodCamp] New blood mob tracked: entityId={} pos={} firstSpawn={} (thread={})",
+                    entity.getId(), entity.blockPosition(), firstSpawns, Thread.currentThread().getName());
+        }
         BloodMobState data = bloodMobs.computeIfAbsent(entity,
                 e -> new BloodMobState(packetVec, client.level != null ? client.level.getGameTime() : 0L, firstSpawns));
         firstSpawns = false;
@@ -204,6 +214,7 @@ public final class BloodCampFeature {
 
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, Level level) {
         if (watcherEntityId != null && packet.getEntityIds().contains(watcherEntityId)) {
+            LOGGER.info("[BloodCamp] Watcher entity {} removed (thread={})", watcherEntityId, Thread.currentThread().getName());
             watcherEntityId = null;
         }
         bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
@@ -237,6 +248,17 @@ public final class BloodCampFeature {
 
     private static void tick() {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
+        String gates = "enabled=" + cfg.isEnabled() + " f7OrM7=" + DungeonState.isF7OrM7() + " overlay=" + cfg.isShowOverlay()
+                + " triggerBot=" + cfg.isTriggerBotEnabled() + " aura=" + cfg.isAuraEnabled()
+                + " watcherId=" + watcherEntityId;
+        if (!gates.equals(lastLoggedGates)) {
+            LOGGER.info("[BloodCamp] Gates changed: {} (active={})", gates, isActive());
+            lastLoggedGates = gates;
+        }
+        if (bloodMobs.size() != lastLoggedMobCount) {
+            LOGGER.info("[BloodCamp] Tracked blood mobs: {} -> {}", lastLoggedMobCount, bloodMobs.size());
+            lastLoggedMobCount = bloodMobs.size();
+        }
         if (!isActive()) {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
                 bloodMobs.clear();
@@ -275,6 +297,10 @@ public final class BloodCampFeature {
             }
         }
 
+        if ((cfg.isAuraEnabled() && auraTarget != null) != lastLoggedAuraActive) {
+            lastLoggedAuraActive = cfg.isAuraEnabled() && auraTarget != null;
+            LOGGER.info("[BloodCamp] Aura rotation active={} target={}", lastLoggedAuraActive, auraTarget);
+        }
         if (cfg.isAuraEnabled() && auraTarget != null) {
             lookTowardsSafely(client, auraTarget);
         }

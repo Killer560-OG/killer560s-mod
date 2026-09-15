@@ -93,11 +93,30 @@ public final class BeamsSolverFeature {
                 return pairs;
             }
         } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles").warn("[BeamsSolver] Failed to load candidates", e);
             return List.of();
         }
     }
 
+    // [BeamsSolver] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+    private static String lastLoggedState = null;
+
     private static void tick(Minecraft client) {
+        tickInner(client);
+        RoomEntry current = BeamsSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                ? LiveMapFeature.currentRoomEntry() : null;
+        String state = current == null || !"Creeper Beams".equals(current.name)
+                ? "notInRoom(enabled=" + BeamsSolverConfig.getInstance().isEnabled() + ")"
+                : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
+                + " candidates=" + CANDIDATES.size() + " activePairs=" + activePairs.size();
+        if (!state.equals(lastLoggedState)) {
+            LOGGER.info("[BeamsSolver] State: {}", state);
+            lastLoggedState = state;
+        }
+    }
+
+    private static void tickInner(Minecraft client) {
         if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
             activePairs = new ArrayList<>();
             lastRoomEntry = null;

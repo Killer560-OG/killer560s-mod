@@ -78,16 +78,35 @@ public final class DungeonInfoFeature {
             runEndedGameTime = -1;
             loggedSidebarThisRun = false;
             lastSecretsCount = -1;
+            secretsReadsThisRun = 0;
+            loggedSecretsMissThisRun = false;
+            LOGGER.info("[DungeonInfo] Run timer started (floor={}, gameTime={})", DungeonState.getFloor(), runStartGameTime);
         } else if (!inDungeonNow && wasInDungeon) {
             runEndedAtMs = System.currentTimeMillis();
             runEndedGameTime = client.level != null ? client.level.getGameTime() : runEndedGameTime;
+            LOGGER.info("[DungeonInfo] Run timer stopped: elapsed={} noLag={} lastSecretsCount={}",
+                    elapsedTimeText(), elapsedTimeWithoutLagText(), lastSecretsCount);
         }
         wasInDungeon = inDungeonNow;
+
+        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
+        String gates = "secretsHud=" + cfg.isSecretsHudEnabled() + " timeTracker=" + cfg.isTimeTrackerEnabled()
+                + " mimicMsg=" + cfg.isMimicMessageEnabled() + " princeMsg=" + cfg.isPrinceMessageEnabled()
+                + " batMsg=" + cfg.isBatMessageEnabled() + " inDungeon=" + inDungeonNow;
+        if (!gates.equals(lastLoggedGates)) {
+            LOGGER.info("[DungeonInfo] Gates changed: {}", gates);
+            lastLoggedGates = gates;
+        }
 
         if (inDungeonNow && DungeonInfoConfig.getInstance().isSecretsHudEnabled()) {
             updateSecretsCount();
         }
     }
+
+    // [DungeonInfo] diagnostics - logging only.
+    private static String lastLoggedGates = null;
+    private static int secretsReadsThisRun = 0;
+    private static boolean loggedSecretsMissThisRun = false;
 
     private static void updateSecretsCount() {
         String sidebar = readSidebarText();
@@ -103,8 +122,14 @@ public final class DungeonInfoFeature {
         if (m.find()) {
             int count = Integer.parseInt(m.group(1));
             if (count != lastSecretsCount) {
+                LOGGER.info("[DungeonInfo] Secrets count changed: {} -> {}", lastSecretsCount, count);
                 lastSecretsCount = count;
             }
+        } else if (lastSecretsCount < 0 && !loggedSecretsMissThisRun && ++secretsReadsThisRun >= 200) {
+            // ~10s in a run without ever matching - the count isn't on the sidebar in this form.
+            loggedSecretsMissThisRun = true;
+            LOGGER.warn("[DungeonInfo] SECRETS_PATTERN never matched the sidebar after {} reads this run; sidebar now: \"{}\"",
+                    secretsReadsThisRun, plain.replace("\n", "\\n"));
         }
     }
 
@@ -116,16 +141,22 @@ public final class DungeonInfoFeature {
         if (cfg.isMimicMessageEnabled() && !cfg.getMimicKeyword().isBlank()
                 && lower.contains(cfg.getMimicKeyword().toLowerCase(Locale.US)) && now - lastMimicAlertAtMs > ALERT_COOLDOWN_MS) {
             lastMimicAlertAtMs = now;
+            LOGGER.info("[DungeonInfo] Mimic keyword '{}' matched (inDungeon={}) on: \"{}\"",
+                    cfg.getMimicKeyword(), DungeonState.isInDungeon(), text);
             TranslateFeature.sendGenerated(cfg.getMimicMessage(), "pc");
         }
         if (cfg.isPrinceMessageEnabled() && !cfg.getPrinceKeyword().isBlank()
                 && lower.contains(cfg.getPrinceKeyword().toLowerCase(Locale.US)) && now - lastPrinceAlertAtMs > ALERT_COOLDOWN_MS) {
             lastPrinceAlertAtMs = now;
+            LOGGER.info("[DungeonInfo] Prince keyword '{}' matched (inDungeon={}) on: \"{}\"",
+                    cfg.getPrinceKeyword(), DungeonState.isInDungeon(), text);
             TranslateFeature.sendGenerated(cfg.getPrinceMessage(), "pc");
         }
         if (cfg.isBatMessageEnabled() && !cfg.getBatKeyword().isBlank()
                 && lower.contains(cfg.getBatKeyword().toLowerCase(Locale.US)) && now - lastBatAlertAtMs > ALERT_COOLDOWN_MS) {
             lastBatAlertAtMs = now;
+            LOGGER.info("[DungeonInfo] Bat keyword '{}' matched (inDungeon={}) on: \"{}\"",
+                    cfg.getBatKeyword(), DungeonState.isInDungeon(), text);
             TranslateFeature.sendGenerated(cfg.getBatMessage(), "pc");
         }
     }

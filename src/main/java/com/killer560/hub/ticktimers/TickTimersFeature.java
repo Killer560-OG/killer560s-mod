@@ -8,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +45,22 @@ public final class TickTimersFeature {
     private static int stormTick = -1;
     private static boolean wasInDungeon = false;
 
+    // Diagnostic only (2026-09-14) - never read by any timer logic.
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ticktimers");
+    private static Boolean diagWasCounting = null;
+
+    private static void diagArmed(String timer, String line) {
+        LOGGER.info("[TickTimers] {} ARMED by line \"{}\" (bossPhaseActive={}, inDungeon={}, floor={}){}",
+                timer, line, DungeonState.isBossPhaseActive(), DungeonState.isInDungeon(), DungeonState.getFloor(),
+                DungeonState.isBossPhaseActive() ? "" : " - WARNING: timers only count down while bossPhaseActive, this one will freeze");
+    }
+
+    private static void diagExpired(String timer, int before, int after) {
+        if (before >= 0 && after < 0) {
+            LOGGER.info("[TickTimers] {} countdown EXPIRED", timer);
+        }
+    }
+
     private TickTimersFeature() {
     }
 
@@ -65,35 +83,54 @@ public final class TickTimersFeature {
         String raw = plain != null ? plain : message.getString();
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
+            diagArmed("Necron (60t)", raw);
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             goldorTickTime = 60;
+            diagArmed("Goldor Tick (60t)", raw);
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
             goldorTickTime = -1;
+            LOGGER.info("[TickTimers] Goldor Start/Tick CLEARED by line \"{}\"", raw);
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
             goldorStartTime = 104;
             padTickTime = -1;
             stormTick = -1;
+            diagArmed("Goldor Start (104t), Storm pad/storm cleared", raw);
         } else if (STORM_START_REGEX.matcher(raw).matches()) {
             padTickTime = 20;
             lightningTickTime = 560;
             stormTick = 0;
+            diagArmed("Storm Pad (20t) + Lightning (560t) + Storm counter", raw);
         } else if (!pyTriggered && STORM_PY_REGEX.matcher(raw).matches()) {
             pyTriggered = true;
             pyTickTime = 95;
+            diagArmed("PY (95t)", raw);
         }
     }
 
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
+            LOGGER.info("[TickTimers] Left dungeon - all timers reset");
             resetAll();
         }
         wasInDungeon = inDungeon;
 
+        boolean diagCounting = TickTimersConfig.getInstance().isEnabled() && DungeonState.isBossPhaseActive();
+        if (diagWasCounting == null || diagWasCounting != diagCounting) {
+            LOGGER.info("[TickTimers] countdown ticking {} (enabled={}, bossPhaseActive={}, inDungeon={}, floor={})",
+                    diagCounting ? "ACTIVE" : "PAUSED", TickTimersConfig.getInstance().isEnabled(),
+                    DungeonState.isBossPhaseActive(), inDungeon, DungeonState.getFloor());
+            diagWasCounting = diagCounting;
+        }
         if (!TickTimersConfig.getInstance().isEnabled() || !DungeonState.isBossPhaseActive()) {
             return;
         }
+        int diagGoldorStart = goldorStartTime;
+        int diagGoldorTick = goldorTickTime;
+        int diagLightning = lightningTickTime;
+        int diagPy = pyTickTime;
+        int diagNecron = necronTicks;
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): Goldor's tick is a one-shot
         // 60-tick countdown (GOLDOR_REGEX in onChatMessage already sets it exactly once, for real), not a
         // repeating timer like Storm's pad (padTickTime, which legitimately does re-arm itself below -
@@ -127,6 +164,11 @@ public final class TickTimersFeature {
         if (stormTick >= 0) {
             stormTick++;
         }
+        diagExpired("Goldor Start", diagGoldorStart, goldorStartTime);
+        diagExpired("Goldor Tick", diagGoldorTick, goldorTickTime);
+        diagExpired("Lightning", diagLightning, lightningTickTime);
+        diagExpired("PY", diagPy, pyTickTime);
+        diagExpired("Necron", diagNecron, necronTicks);
     }
 
     private static void resetAll() {

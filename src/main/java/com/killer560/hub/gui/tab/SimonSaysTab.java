@@ -252,7 +252,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                     }
                 });
 
-                double varianceNorm = cfg.getClickTimerVarianceMs() / 5000.0;
+                double varianceNorm = cfg.getClickTimerVarianceMs() / (double) SimonSaysConfig.MAX_CLICK_TIMER_VARIANCE_MS;
                 widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
                         Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"), varianceNorm) {
                     @Override
@@ -262,7 +262,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
                     @Override
                     protected void applyValue() {
-                        cfg.setClickTimerVarianceMs((int) Math.round(this.value * 5000));
+                        cfg.setClickTimerVarianceMs((int) Math.round(this.value * SimonSaysConfig.MAX_CLICK_TIMER_VARIANCE_MS));
                         cfg.save();
                     }
                 });

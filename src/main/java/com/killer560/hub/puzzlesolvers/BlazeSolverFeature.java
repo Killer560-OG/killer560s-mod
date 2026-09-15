@@ -52,7 +52,26 @@ public final class BlazeSolverFeature {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BlazeSolverFeature::onWorldRender);
     }
 
+    // [BlazeSolver] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+    private static String lastLoggedState = null;
+    private static final java.util.Set<String> loggedUnmatchedBlazeNames = new java.util.HashSet<>();
+
     private static void tick(Minecraft client) {
+        tickInner(client);
+        RoomEntry current = BlazeSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                ? LiveMapFeature.currentRoomEntry() : null;
+        String roomName = current != null ? current.name : null;
+        String state = !"Lower Blaze".equals(roomName) && !"Higher Blaze".equals(roomName)
+                ? "notInRoom(enabled=" + BlazeSolverConfig.getInstance().isEnabled() + ")"
+                : "inRoom=" + roomName + " orderedBlazes=" + orderedBlazes.size(); // count only - names carry live HP
+        if (!state.equals(lastLoggedState)) {
+            LOGGER.info("[BlazeSolver] State: {}", state);
+            lastLoggedState = state;
+        }
+    }
+
+    private static void tickInner(Minecraft client) {
         if (!BlazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
             orderedBlazes = new ArrayList<>();
             lastRoomEntry = null;
@@ -88,6 +107,10 @@ public final class BlazeSolverFeature {
             Matcher matcher = BLAZE_NAME.matcher(entity.getName().getString());
             if (matcher.matches()) {
                 found.add(entity);
+            } else if (entity.getName().getString().contains("Blaze") && loggedUnmatchedBlazeNames.size() < 20
+                    && loggedUnmatchedBlazeNames.add(entity.getName().getString())) {
+                LOGGER.info("[BlazeSolver] ArmorStand name contains 'Blaze' but didn't match BLAZE_NAME: \"{}\"",
+                        entity.getName().getString());
             }
         }
         Comparator<Entity> byMaxHp = Comparator.comparingLong(BlazeSolverFeature::maxHp);

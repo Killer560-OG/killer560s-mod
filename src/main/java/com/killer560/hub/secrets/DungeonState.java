@@ -90,7 +90,83 @@ public final class DungeonState {
     // dungeon run's log can show exactly what this class saw and when.
     private static String cachedFloor;
 
+    // [DungeonState] diagnostics (2026-09-14, pre-live-run logging pass) - logging only, never gates anything.
+    private static String lastGateSnapshot = null;
+    private static int tabClassTickCounter = 0;
+    private static String lastTabClassSummary = null;
+    private static final Pattern TAB_CLASS_PATTERN =
+            Pattern.compile("\\((Mage|Tank|Healer|Archer|Berserk|Berserker|EMPTY|DEAD)[^)]*\\)");
+    private static final String[] DUNGEON_CHAT_KEYWORDS = {
+            "[NPC] Mort", "Starting in", "entered", "Wither Key", "Blood Key", "WITHER door", "BLOOD DOOR",
+            "PUZZLE", "EXTRA STATS", "Mimic", "Prince", "[STATUE]", "Watcher", "RIGHT CLICK", "has obtained",
+            "Dungeon starts", "Team Score", "Defeated", "The Core entrance", "terminal", "device", "gate"
+    };
+
     private DungeonState() {
+    }
+
+    /** Player position for logs, or "no-player". */
+    private static String playerPosForLog() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return "no-player";
+        }
+        var pos = client.player.position();
+        return String.format(java.util.Locale.US, "(%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
+    }
+
+    private static String serverIpForLog() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) {
+            return "null";
+        }
+        var server = client.getCurrentServer();
+        return server == null ? "null" : String.valueOf(server.ip);
+    }
+
+    /** Logs whenever any externally visible gate value changes (what every dungeon feature reads). */
+    private static void logGateSnapshotIfChanged() {
+        String snapshot = "inDungeon=" + isInDungeon() + " floor=" + getFloor() + " f7OrM7=" + isF7OrM7()
+                + " bossPhaseRaw=" + bossPhaseActive + " bossPhaseEffective=" + isBossPhaseActive()
+                + " simOverride=" + simOverrideActive;
+        if (!snapshot.equals(lastGateSnapshot)) {
+            LOGGER.info("[DungeonState] Gates changed: {} -> {} | pos={} server={}",
+                    lastGateSnapshot, snapshot, playerPosForLog(), serverIpForLog());
+            lastGateSnapshot = snapshot;
+        }
+    }
+
+    /** Tab-list class/party readout - there's no automatic class detection in this mod (classes are
+     *  assigned manually in Leap Menu), so this logs what Hypixel's tab list actually shows, every ~5s
+     *  while in a dungeon, only when it changes. */
+    private static void logTabClassesIfChanged(Minecraft client) {
+        if (!isInDungeon() || client.getConnection() == null) {
+            tabClassTickCounter = 0;
+            return;
+        }
+        if (++tabClassTickCounter < 100) {
+            return;
+        }
+        tabClassTickCounter = 0;
+        StringBuilder summary = new StringBuilder();
+        int listed = 0;
+        for (var info : client.getConnection().getListedOnlinePlayers()) {
+            listed++;
+            Component display = info.getTabListDisplayName();
+            if (display == null) {
+                continue;
+            }
+            String plain = ChatFormatting.stripFormatting(display.getString());
+            if (plain != null && TAB_CLASS_PATTERN.matcher(plain).find()) {
+                summary.append('"').append(plain.trim()).append("\" ");
+            }
+        }
+        String result = summary.toString().trim();
+        if (!result.equals(lastTabClassSummary)) {
+            LOGGER.info("[DungeonState] Tab-list class entries ({} listed players): [{}]", listed,
+                    result.isEmpty() ? "NONE MATCHED" : result);
+            lastTabClassSummary = result;
+        }
     }
 
     public static void register() {
@@ -128,6 +204,8 @@ public final class DungeonState {
                 String snippet = rawSidebar.length() > 200 ? rawSidebar.substring(0, 200) + "..." : rawSidebar;
                 LOGGER.info("[Secrets] Dungeon floor changed: '{}' -> '{}' (sidebar: \"{}\")",
                         cachedFloor, floor, snippet.replace("\n", "\\n"));
+                LOGGER.info("[DungeonState] Floor transition '{}' -> '{}' at pos={} server={} simOverride={}",
+                        cachedFloor, floor, playerPosForLog(), serverIpForLog(), simOverrideActive);
                 cachedFloor = floor;
             }
             boolean f7OrM7Now = "F7".equals(floor) || "M7".equals(floor);
@@ -135,6 +213,8 @@ public final class DungeonState {
                 LOGGER.info("[Secrets] Boss phase ended (left F7/M7, floor now '{}')", floor);
                 bossPhaseActive = false;
             }
+            logGateSnapshotIfChanged();
+            logTabClassesIfChanged(client);
         });
     }
 
@@ -144,12 +224,25 @@ public final class DungeonState {
         // logs the EXACT raw text (formatting codes and all) of anything boss-related so the actual
         // wording/codes can be compared directly instead of guessing again.
         if (raw.contains("Maxor") || raw.contains("[BOSS]")) {
-            LOGGER.info("[Secrets] Boss-related chat line seen: \"{}\"", raw);
+            LOGGER.info("[Secrets] Boss-related chat line seen: \"{}\" (pos={} floor={} bossPhaseRaw={})",
+                    raw, playerPosForLog(), cachedFloor, bossPhaseActive);
         }
         String plain = ChatFormatting.stripFormatting(raw);
         if (plain != null && BOSS_START_PATTERN.matcher(plain).find() && isF7OrM7()) {
             LOGGER.info("[Secrets] Boss phase started (real Maxor chat line matched)");
             bossPhaseActive = true;
+        } else if (plain != null && BOSS_START_PATTERN.matcher(plain).find()) {
+            LOGGER.warn("[DungeonState] Maxor start line matched but isF7OrM7()=false (floor='{}') - boss phase NOT started",
+                    cachedFloor);
+        }
+        // Non-boss dungeon structure lines (run start, keys, doors, puzzles, score) - chat-rate only.
+        if (plain != null && (isInDungeon() || plain.contains("Catacombs")) && !raw.contains("[BOSS]")) {
+            for (String keyword : DUNGEON_CHAT_KEYWORDS) {
+                if (plain.contains(keyword)) {
+                    LOGGER.info("[DungeonState] Dungeon chat (matched '{}'): \"{}\" pos={}", keyword, plain, playerPosForLog());
+                    break;
+                }
+            }
         }
     }
 

@@ -72,6 +72,9 @@ public final class SimonSaysConfig {
     public static final int MIN_CLICK_TIMER_TARGET_MS = 11_000;
     public static final int MAX_CLICK_TIMER_TARGET_MS = 13_000;
     private int clickTimerTargetMs = 12_800;
+    // Max 250ms (2026-09-14, killer560's own call) - with the 11-13s target range, more jitter than that
+    // just throws the result outside the window being aimed for.
+    public static final int MAX_CLICK_TIMER_VARIANCE_MS = 250;
     private int clickTimerVarianceMs = 100;
     // Alternative pacing mode (2026-09-14, killer560's own request after seeing real log data showing
     // the Target/Variance model landing at a consistent but slow-feeling ~850ms/click): a flat, directly
@@ -149,7 +152,7 @@ public final class SimonSaysConfig {
             cfg.autoSolveRotate = getBool(obj, "autoSolveRotate", false);
             // Through the setter's clamp so a value saved under the old 1-60s range lands inside 11-13s.
             cfg.setClickTimerTargetMs(getInt(obj, "clickTimerTargetMs", 12_800));
-            cfg.clickTimerVarianceMs = getInt(obj, "clickTimerVarianceMs", 100);
+            cfg.setClickTimerVarianceMs(getInt(obj, "clickTimerVarianceMs", 100));
             cfg.autoSolveFixedDelayMode = getBool(obj, "autoSolveFixedDelayMode", false);
             cfg.autoSolveFixedDelayMs = getInt(obj, "autoSolveFixedDelayMs", 150);
             cfg.autoStartEnabled = getBool(obj, "autoStartEnabled", false);
@@ -350,7 +353,7 @@ public final class SimonSaysConfig {
     }
 
     public void setClickTimerVarianceMs(int clickTimerVarianceMs) {
-        this.clickTimerVarianceMs = Math.max(0, Math.min(5000, clickTimerVarianceMs));
+        this.clickTimerVarianceMs = Math.max(0, Math.min(MAX_CLICK_TIMER_VARIANCE_MS, clickTimerVarianceMs));
     }
 
     public boolean isAutoSolveFixedDelayMode() {

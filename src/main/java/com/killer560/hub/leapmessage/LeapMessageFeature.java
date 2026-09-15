@@ -4,6 +4,8 @@ import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.translate.TranslateFeature;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,6 +28,8 @@ import java.util.regex.Pattern;
  * space the two messages apart when both are actually being sent.
  */
 public final class LeapMessageFeature {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapmessage");
 
     private static final Pattern LEAP_MESSAGE = Pattern.compile("^You have teleported to (.+)!$");
     private static final int DELAY_TICKS = 10; // 0.5s at the normal 20 ticks/sec
@@ -63,9 +67,16 @@ public final class LeapMessageFeature {
         }
         Matcher m = LEAP_MESSAGE.matcher(text);
         if (!m.matches()) {
+            if (text.contains("You have teleported to")) {
+                // Diagnostic (2026-09-14): a leap line that the exact regex rejected (e.g. stray formatting).
+                LOGGER.warn("[LeapMessage] Leap-like line did NOT match regex (no party message sent): \"{}\"", text);
+            }
             return;
         }
         String targetName = m.group(1);
+        LOGGER.info("[LeapMessage] Leap detected to \"{}\": leapingTo={} (message blank={}), cringe={}{}",
+                targetName, cfg.isLeapingToEnabled(), cfg.getCustomMessage().isBlank(), cfg.isCringeEnabled(),
+                delayTicksRemaining >= 0 ? " - NOTE: overwriting a still-pending delayed cringe send" : "");
 
         boolean sentLeapingTo = false;
         if (cfg.isLeapingToEnabled()) {

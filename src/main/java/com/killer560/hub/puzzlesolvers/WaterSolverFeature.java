@@ -113,11 +113,32 @@ public final class WaterSolverFeature {
                 return parsed != null ? parsed : Map.of();
             }
         } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles").warn("[WaterSolver] Failed to load solutions", e);
             return Map.of();
         }
     }
 
+    // [WaterSolver] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+    private static String lastLoggedState = null;
+    private static String lastScanOutcome = "none";
+
     private static void tick(Minecraft client) {
+        tickInner(client);
+        RoomEntry current = WaterSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                ? LiveMapFeature.currentRoomEntry() : null;
+        String state = current == null || !"Water Board".equals(current.name)
+                ? "notInRoom(enabled=" + WaterSolverConfig.getInstance().isEnabled() + ")"
+                : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
+                + " scan=" + lastScanOutcome + " pattern=" + patternIdentifier + " levers=" + solutions.size()
+                + " waterOpened=" + (openedWaterTick != -1) + " solutionsLoaded=" + SOLUTIONS.size();
+        if (!state.equals(lastLoggedState)) {
+            LOGGER.info("[WaterSolver] State: {}", state);
+            lastLoggedState = state;
+        }
+    }
+
+    private static void tickInner(Minecraft client) {
         if (!WaterSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
             reset();
             lastRoomEntry = null;
@@ -151,6 +172,7 @@ public final class WaterSolverFeature {
             }
         }
         if (extendedSlots.length() != 3) {
+            lastScanOutcome = "extendedSlots='" + extendedSlots + "'(need 3)";
             return;
         }
 
@@ -164,6 +186,8 @@ public final class WaterSolverFeature {
         } else if (level.getBlockState(realPos(14, 78, 27, clayAndRotation)).is(Blocks.QUARTZ_BLOCK)) {
             identifier = 3;
         } else {
+            lastScanOutcome = "slots=" + extendedSlots + " noMarker(14,78,27="
+                    + level.getBlockState(realPos(14, 78, 27, clayAndRotation)).getBlock() + ")";
             return;
         }
 
@@ -172,8 +196,10 @@ public final class WaterSolverFeature {
                 .getOrDefault(String.valueOf(identifier), Map.of())
                 .get(extendedSlots.toString());
         if (leverTimes == null) {
+            lastScanOutcome = "slots=" + extendedSlots + " id=" + identifier + " noSolutionEntry";
             return;
         }
+        lastScanOutcome = "slots=" + extendedSlots + " id=" + identifier + " solved";
 
         solutions.clear();
         for (LeverBlock lever : LeverBlock.values()) {
@@ -228,6 +254,8 @@ public final class WaterSolverFeature {
                     openedWaterTick = tickCounter;
                 }
                 lever.clicked++;
+                LOGGER.info("[WaterSolver] Lever click counted: {} at {} (clicked={}, tick={})",
+                        lever, clicked, lever.clicked, tickCounter);
                 return;
             }
         }

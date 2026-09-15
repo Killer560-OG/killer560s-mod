@@ -12,6 +12,8 @@ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.EnumMap;
 import java.util.Locale;
@@ -53,6 +55,7 @@ public final class MaskInvincibilityFeature {
         }
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-masktimers");
     private static final Map<Type, Integer> activeRemaining = new EnumMap<>(Type.class);
     private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
     private static boolean wasInDungeon = false;
@@ -87,6 +90,8 @@ public final class MaskInvincibilityFeature {
         String raw = plain != null ? plain : message.getString();
         for (Type t : Type.values()) {
             if (t.pattern.matcher(raw).matches()) {
+                LOGGER.info("[MaskTimers] {} PROC detected: \"{}\" (previous cooldownLeft={}t) -> active {}t, cooldown {}t, autoSwap={}",
+                        t.label, raw, cooldownRemaining.getOrDefault(t, 0), t.activeTicks, t.cooldownTicks, cfg.isAutoSwapEnabled());
                 activeRemaining.put(t, t.activeTicks);
                 cooldownRemaining.put(t, t.cooldownTicks);
                 if (cfg.isAnnounceInChat()) {
@@ -111,6 +116,7 @@ public final class MaskInvincibilityFeature {
      *  hotbar, off cooldown. */
     private static void trySwapMask(Type other) {
         if (cooldownRemaining.getOrDefault(other, 0) > 0) {
+            LOGGER.info("[MaskTimers] Auto-swap to {} skipped: it is on cooldown ({}t left)", other.label, cooldownRemaining.getOrDefault(other, 0));
             return;
         }
         Minecraft client = Minecraft.getInstance();
@@ -119,17 +125,21 @@ public final class MaskInvincibilityFeature {
         }
         ItemStack worn = client.player.getItemBySlot(EquipmentSlot.HEAD);
         if (worn.isEmpty() || !worn.getHoverName().getString().contains(other == Type.SPIRIT ? "Bonzo" : "Spirit")) {
+            LOGGER.info("[MaskTimers] Auto-swap to {} skipped: worn helmet \"{}\" isn't the mask that just procced",
+                    other.label, worn.isEmpty() ? "(none)" : worn.getHoverName().getString());
             return;
         }
         for (int i = 0; i < 9; i++) {
             ItemStack item = client.player.getInventory().getItem(i);
             if (!item.isEmpty() && item.getHoverName().getString().contains(other.label.split(" ")[0])) {
+                LOGGER.info("[MaskTimers] Auto-swap: equipping \"{}\" from hotbar slot {}", item.getHoverName().getString(), i);
                 client.player.getInventory().setSelectedSlot(i);
                 client.player.connection.send(new ServerboundSetCarriedItemPacket(i));
                 client.gameMode.useItem(client.player, InteractionHand.MAIN_HAND);
                 return;
             }
         }
+        LOGGER.info("[MaskTimers] Auto-swap to {} failed: no matching item in hotbar", other.label);
     }
 
     private static void tick() {
@@ -155,9 +165,15 @@ public final class MaskInvincibilityFeature {
             if (active > 0) {
                 activeRemaining.put(t, active - 1);
             }
+            if (active == 1) {
+                LOGGER.info("[MaskTimers] {} invincibility window ENDED", t.label);
+            }
             int cooldown = cooldownRemaining.get(t);
             if (cooldown > 0) {
                 cooldownRemaining.put(t, cooldown - 1);
+            }
+            if (cooldown == 1) {
+                LOGGER.info("[MaskTimers] {} cooldown READY", t.label);
             }
         }
     }

@@ -75,17 +75,31 @@ public final class SecretsFeature {
     public static boolean shouldExpandLevers() {
         SecretsConfig cfg = SecretsConfig.getInstance();
         if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isLeversEnabled() || !passesDungeonsOnlyGate(cfg)) {
-            return false;
+            return logExpandIfChanged(0, "Levers", false, cfg);
         }
-        return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
+        return logExpandIfChanged(0, "Levers", !cfg.isBossOnly() || DungeonState.isBossPhaseActive(), cfg);
     }
 
     public static boolean shouldExpandButtons() {
         SecretsConfig cfg = SecretsConfig.getInstance();
         if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isButtonsEnabled() || !passesDungeonsOnlyGate(cfg)) {
-            return false;
+            return logExpandIfChanged(1, "Buttons", false, cfg);
         }
-        return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
+        return logExpandIfChanged(1, "Buttons", !cfg.isBossOnly() || DungeonState.isBossPhaseActive(), cfg);
+    }
+
+    // [Secrets] per-block-type expand result, logged only when it flips (getShape is called very often).
+    private static final Boolean[] lastExpandResult = new Boolean[4];
+
+    private static boolean logExpandIfChanged(int index, String type, boolean result, SecretsConfig cfg) {
+        if (lastExpandResult[index] == null || lastExpandResult[index] != result) {
+            lastExpandResult[index] = result;
+            LoggerFactory.getLogger("killer560smod-secrets").info(
+                    "[Secrets] Expand {} now={} (master={} onDungeonServer={} dungeonsOnly={} inDungeon={} bossOnly={} bossPhase={})",
+                    type, result, cfg.isMasterEnabled(), isOnDungeonServer(), cfg.isDungeonsOnly(),
+                    DungeonState.isInDungeon(), cfg.isBossOnly(), DungeonState.isBossPhaseActive());
+        }
+        return result;
     }
 
     public static boolean shouldUseFullBoxButtons() {
@@ -94,12 +108,14 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandChests() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg);
+        return logExpandIfChanged(2, "Chests",
+                cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg), cfg);
     }
 
     public static boolean shouldExpandEssence() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg);
+        return logExpandIfChanged(3, "Essence",
+                cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg), cfg);
     }
 
     // Real player-head skin profile IDs for Wither Essence, per NoammAddons' own DungeonUtils.isSecret

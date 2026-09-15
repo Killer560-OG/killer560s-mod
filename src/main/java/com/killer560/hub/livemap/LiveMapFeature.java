@@ -15,6 +15,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -57,6 +59,15 @@ public final class LiveMapFeature {
     private static long lastScanAtMs = 0;
     private static boolean wasInDungeon = false;
 
+    // [LiveMap] diagnostics - logging only, never affects scanning.
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-livemap");
+    private static String lastLoggedGates = null;
+    private static final int[] lastLoggedCore = new int[GRID * GRID];
+    private static final boolean[] loggedNoRotation = new boolean[GRID * GRID];
+    private static String lastLoggedPlayerRoom = null;
+    private static String lastLoggedSummary = null;
+    private static long lastSummaryCheckMs = 0;
+
     static {
         java.util.Arrays.fill(grid, Tile.UNKNOWN);
         java.util.Arrays.fill(rotationGrid, -1);
@@ -75,11 +86,31 @@ public final class LiveMapFeature {
             java.util.Arrays.fill(grid, Tile.UNKNOWN);
             java.util.Arrays.fill(roomEntryGrid, null);
             java.util.Arrays.fill(rotationGrid, -1);
+            java.util.Arrays.fill(lastLoggedCore, 0);
+            java.util.Arrays.fill(loggedNoRotation, false);
+            lastLoggedSummary = null;
+            LOGGER.info("[LiveMap] Dungeon entered - grid reset (floor={})", DungeonState.getFloor());
         }
         wasInDungeon = inDungeon;
 
+        String gates = "enabled=" + LiveMapConfig.getInstance().isEnabled() + " inDungeon=" + inDungeon
+                + " bossPhase=" + DungeonState.isBossPhaseActive() + " roomDbReady=" + RoomDatabase.isReady();
+        if (!gates.equals(lastLoggedGates)) {
+            LOGGER.info("[LiveMap] Gates changed: {} (scanning={})", gates,
+                    LiveMapConfig.getInstance().isEnabled() && inDungeon && !DungeonState.isBossPhaseActive());
+            lastLoggedGates = gates;
+        }
+        if (inDungeon) {
+            logPlayerRoomIfChanged();
+        }
+
         if (!LiveMapConfig.getInstance().isEnabled() || !inDungeon || DungeonState.isBossPhaseActive()) {
             return;
+        }
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - lastSummaryCheckMs >= 5000) {
+            lastSummaryCheckMs = nowMs;
+            logSummaryIfChanged();
         }
         RoomDatabase.ensureLoading();
         long now = System.currentTimeMillis();
@@ -127,16 +158,20 @@ public final class LiveMapFeature {
 
                 if (rowEven && colEven) {
                     grid[idx] = Tile.ROOM;
+                    LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> ROOM", x, z, wx, wz, roofHeight);
                     if (RoomDatabase.isReady()) {
                         identifyRoom(client, idx, wx, wz);
                     }
                 } else if (roofHeight == 73 || roofHeight == 74 || roofHeight == 81 || roofHeight == 82) {
                     grid[idx] = classifyDoor(client, wx, wz);
+                    LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> {} (y69 block={})", x, z, wx, wz,
+                            roofHeight, grid[idx], client.level.getBlockState(new BlockPos(wx, 69, wz)).getBlock());
                 } else {
                     // Corridor/connector for a larger room - copies the parent room's identity when
                     // known, same simplification NoammAddons itself only avoids via full multi-tile
                     // grouping this port doesn't replicate.
                     grid[idx] = Tile.ROOM;
+                    LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> ROOM (connector)", x, z, wx, wz, roofHeight);
                 }
             }
         }
@@ -147,6 +182,13 @@ public final class LiveMapFeature {
         RoomEntry entry = RoomDatabase.lookup(core);
         if (entry != null) {
             roomEntryGrid[idx] = entry;
+            LOGGER.info("[LiveMap] Room identified at cell ({},{}) world=({},{}): \"{}\" type={} shape={} secrets={} core={}",
+                    idx % GRID, idx / GRID, wx, wz, entry.name, entry.type, entry.shape, entry.secrets, core);
+        } else if (lastLoggedCore[idx] != core) {
+            // Retried every 250ms until matched - only log when the computed hash actually changes.
+            lastLoggedCore[idx] = core;
+            LOGGER.info("[LiveMap] No room DB match at cell ({},{}) world=({},{}) core={} (will retry)",
+                    idx % GRID, idx / GRID, wx, wz, core);
         }
         if (rotationGrid[idx] < 0) {
             int roofHeight = getHighestY(client, wx, wz);
@@ -155,7 +197,66 @@ public final class LiveMapFeature {
                 clayXGrid[idx] = rot[0];
                 clayZGrid[idx] = rot[1];
                 rotationGrid[idx] = rot[2];
+                LOGGER.info("[LiveMap] Rotation found at cell ({},{}): clay=({},{}) rotation={} roofY={}",
+                        idx % GRID, idx / GRID, rot[0], rot[1], rot[2], roofHeight);
+            } else if (!loggedNoRotation[idx]) {
+                loggedNoRotation[idx] = true;
+                LOGGER.info("[LiveMap] No blue-terracotta corner marker at cell ({},{}) world=({},{}) roofY={} (roomIdentified={})",
+                        idx % GRID, idx / GRID, wx, wz, roofHeight, roomEntryGrid[idx] != null);
             }
+        }
+    }
+
+    /** Logs the player's current grid cell / identified room whenever it changes. */
+    private static void logPlayerRoomIfChanged() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return;
+        }
+        int[] cell = gridCellFor(client.player.position());
+        int idx = cell[0] + cell[1] * GRID;
+        RoomEntry entry = roomEntryGrid[idx];
+        String key = "cell=(" + cell[0] + "," + cell[1] + ") tile=" + grid[idx]
+                + " room=" + (entry != null ? entry.name : "null") + " rotation=" + rotationGrid[idx];
+        if (!key.equals(lastLoggedPlayerRoom)) {
+            var pos = client.player.position();
+            LOGGER.info("[LiveMap] Player room changed: {} -> {} (pos={},{},{})", lastLoggedPlayerRoom, key,
+                    (int) pos.x, (int) pos.y, (int) pos.z);
+            lastLoggedPlayerRoom = key;
+        }
+    }
+
+    /** Scan progress summary, checked every 5s and logged only on change. */
+    private static void logSummaryIfChanged() {
+        int known = 0;
+        int rooms = 0;
+        int identified = 0;
+        int rotated = 0;
+        int unloadedRoomCells = 0;
+        Minecraft client = Minecraft.getInstance();
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            if (grid[idx] != Tile.UNKNOWN) {
+                known++;
+            } else if (client.level != null && (idx % GRID) % 2 == 0 && (idx / GRID) % 2 == 0
+                    && !client.level.isLoaded(new BlockPos(START_X + (idx % GRID) * HALF_ROOM, 70, START_Z + (idx / GRID) * HALF_ROOM))) {
+                unloadedRoomCells++;
+            }
+            if (grid[idx] == Tile.ROOM && (idx % GRID) % 2 == 0 && (idx / GRID) % 2 == 0) {
+                rooms++;
+            }
+            if (roomEntryGrid[idx] != null) {
+                identified++;
+            }
+            if (rotationGrid[idx] >= 0) {
+                rotated++;
+            }
+        }
+        String summary = "knownCells=" + known + "/" + (GRID * GRID) + " roomCells=" + rooms + " identified=" + identified
+                + " withRotation=" + rotated + " identifiedAndRotated=" + identifiedRoomsWithRotation().size()
+                + " unloadedRoomCells=" + unloadedRoomCells + " roomDbReady=" + RoomDatabase.isReady();
+        if (!summary.equals(lastLoggedSummary)) {
+            LOGGER.info("[LiveMap] Scan summary: {}", summary);
+            lastLoggedSummary = summary;
         }
     }
 

@@ -57,8 +57,17 @@ public final class PlayerStatsFeature {
         if (defenseMatch.find()) {
             defense = defenseMatch.group(1);
         }
+        // [PlayerStats] diagnostics - at most one line per 10s, raw action bar included so the regexes can be checked.
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - lastDiagLogMs >= 10000) {
+            lastDiagLogMs = nowMs;
+            LOGGER.info("[PlayerStats] Action bar raw=\"{}\" -> health={} mana={} defense={}", raw, health, mana, defense);
+        }
         return message;
     }
+
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-playerstats");
+    private static long lastDiagLogMs = 0;
 
     public static final class StatsHudElement implements HudElement {
         @Override

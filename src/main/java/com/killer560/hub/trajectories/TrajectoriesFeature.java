@@ -40,6 +40,9 @@ public final class TrajectoriesFeature {
     private static final double PEARL_DRAG = 0.99;
     private static final double PEARL_GRAVITY = 0.03;
 
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-trajectories");
+    private static String diagLastMode = "none";
+
     private TrajectoriesFeature() {
     }
 
@@ -56,6 +59,14 @@ public final class TrajectoriesFeature {
         Player player = client.player;
         ItemStack heldItem = player.getMainHandItem();
         Item item = heldItem.getItem();
+        // Diagnostic (2026-09-14): state-change only - which trajectory (if any) is being drawn.
+        String diagMode = cfg.isShowBows() && item instanceof BowItem ? "BOW"
+                : cfg.isShowPearls() && item instanceof EnderpearlItem ? "PEARL" : "none";
+        if (!diagMode.equals(diagLastMode)) {
+            LOGGER.info("[Trajectories] mode {} -> {} (held \"{}\", range={})", diagLastMode, diagMode,
+                    heldItem.isEmpty() ? "" : heldItem.getHoverName().getString(), cfg.getRange());
+            diagLastMode = diagMode;
+        }
 
         if (cfg.isShowBows() && item instanceof BowItem) {
             float charge = Math.min((72000 - player.getUseItemRemainingTicks()) / 20f, 1.0f) * 2f;

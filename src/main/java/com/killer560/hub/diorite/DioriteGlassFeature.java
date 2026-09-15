@@ -66,11 +66,21 @@ public final class DioriteGlassFeature {
         String plain = ChatFormatting.stripFormatting(message.getString());
         String raw = plain != null ? plain : message.getString();
         if (STORM_START_REGEX.matcher(raw).matches()) {
+            LOGGER.info("[Diorite] Storm start line matched - stormPhaseActive=true");
             stormPhaseActive = true;
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
+            LOGGER.info("[Diorite] Storm end line matched - stormPhaseActive=false");
             stormPhaseActive = false;
+        } else if (raw.contains("[BOSS] Storm")) {
+            LOGGER.info("[Diorite] Storm line (no start/end match): \"{}\"", raw);
         }
     }
+
+    // [Diorite] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-diorite");
+    private static String lastLoggedGates = null;
+    private static int swappedSinceLastLog = 0;
+    private static long lastSwapLogMs = 0;
 
     private static void tick(Minecraft client) {
         boolean inDungeon = DungeonState.isInDungeon();
@@ -78,6 +88,13 @@ public final class DioriteGlassFeature {
             stormPhaseActive = false;
         }
         wasInDungeon = inDungeon;
+
+        String gates = "enabled=" + DioriteGlassConfig.getInstance().isEnabled() + " stormPhase=" + stormPhaseActive
+                + " f7OrM7=" + DungeonState.isF7OrM7();
+        if (!gates.equals(lastLoggedGates)) {
+            LOGGER.info("[Diorite] Gates changed: {}", gates);
+            lastLoggedGates = gates;
+        }
 
         DioriteGlassConfig cfg = DioriteGlassConfig.getInstance();
         if (!cfg.isEnabled() || !stormPhaseActive || !DungeonState.isF7OrM7()
@@ -89,6 +106,7 @@ public final class DioriteGlassFeature {
         if (tickCounter++ % 10 != 0) {
             return;
         }
+        int swapped = 0;
         for (Pillar pillar : PILLARS) {
             BlockPos min = pillar.center().offset(-RADIUS, 0, -RADIUS);
             BlockPos max = pillar.center().offset(RADIUS, HEIGHT, RADIUS);
@@ -96,8 +114,16 @@ public final class DioriteGlassFeature {
                 var block = client.level.getBlockState(pos).getBlock();
                 if (block == Blocks.DIORITE || block == Blocks.POLISHED_DIORITE) {
                     client.level.setBlock(pos.immutable(), pillar.glass(), 19);
+                    swapped++;
                 }
             }
+        }
+        swappedSinceLastLog += swapped;
+        if (swappedSinceLastLog > 0 && System.currentTimeMillis() - lastSwapLogMs >= 2000) {
+            LOGGER.info("[Diorite] Swapped {} diorite blocks to glass since last log (player pos={})", swappedSinceLastLog,
+                    client.player.blockPosition());
+            swappedSinceLastLog = 0;
+            lastSwapLogMs = System.currentTimeMillis();
         }
     }
 }

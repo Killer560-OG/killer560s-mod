@@ -71,11 +71,31 @@ public final class BoulderSolverFeature {
                 return parsed != null ? parsed : Map.of();
             }
         } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles").warn("[BoulderSolver] Failed to load solutions", e);
             return Map.of();
         }
     }
 
+    // [BoulderSolver] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+    private static String lastLoggedState = null;
+
     private static void tick(Minecraft client) {
+        tickInner(client);
+        RoomEntry current = BoulderSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                ? LiveMapFeature.currentRoomEntry() : null;
+        String state = current == null || !"Boulder".equals(current.name)
+                ? "notInRoom(enabled=" + BoulderSolverConfig.getInstance().isEnabled() + ")"
+                : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
+                + " scanned=" + scannedThisRoom + " remainingClicks=" + currentPositions.size()
+                + " solutionsLoaded=" + SOLUTIONS.size();
+        if (!state.equals(lastLoggedState)) {
+            LOGGER.info("[BoulderSolver] State: {}", state);
+            lastLoggedState = state;
+        }
+    }
+
+    private static void tickInner(Minecraft client) {
         if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
             reset();
             return;
@@ -114,6 +134,8 @@ public final class BoulderSolverFeature {
             }
         }
         List<List<Integer>> solution = SOLUTIONS.get(key.toString());
+        LOGGER.info("[BoulderSolver] Floor scan clay=({},{}) rotation={} key={} solutionFound={} (steps={})",
+                clayX, clayZ, rotationDegrees, key, solution != null, solution != null ? solution.size() : 0);
         if (solution == null) {
             currentPositions = new ArrayList<>();
             return;

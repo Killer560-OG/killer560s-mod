@@ -42,12 +42,19 @@ public final class MappingFeature {
 
     private static int tickCounter = 0;
     private static int lastLoggedChecksum = Integer.MIN_VALUE;
+    private static String lastLoggedGates = null;
+    private static boolean lastHadHeldMap = false;
 
     private MappingFeature() {
     }
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            String gates = "enabled=" + MappingConfig.getInstance().isEnabled() + " inDungeon=" + DungeonState.isInDungeon();
+            if (!gates.equals(lastLoggedGates)) {
+                LOGGER.info("[Mapping] Gates changed: {}", gates);
+                lastLoggedGates = gates;
+            }
             if (!MappingConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
                 return;
             }
@@ -62,6 +69,10 @@ public final class MappingFeature {
 
     private static void logDiagnostic() {
         HeldMap held = findHeldMap();
+        if ((held != null) != lastHadHeldMap) {
+            lastHadHeldMap = held != null;
+            LOGGER.info("[Mapping] Holding a filled map with loaded data: {}", lastHadHeldMap);
+        }
         if (held == null) {
             return;
         }

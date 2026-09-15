@@ -64,11 +64,32 @@ public final class IceFillSolverFeature {
                 return parsed != null ? parsed : new IceFillData(List.of(), List.of(), List.of());
             }
         } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles").warn("[IceFillSolver] Failed to load floors data", e);
             return new IceFillData(List.of(), List.of(), List.of());
         }
     }
 
+    // [IceFillSolver] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+    private static String lastLoggedState = null;
+    private static int lastFailedFloor = -1;
+
     private static void tick(Minecraft client) {
+        tickInner(client);
+        RoomEntry current = IceFillSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                ? LiveMapFeature.currentRoomEntry() : null;
+        String state = current == null || !"Ice Fill".equals(current.name)
+                ? "notInRoom(enabled=" + IceFillSolverConfig.getInstance().isEnabled() + ")"
+                : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
+                + " pathPoints=" + currentPath.size() + " failedFloor=" + lastFailedFloor
+                + " identifierFloors=" + DATA.identifier().size();
+        if (!state.equals(lastLoggedState)) {
+            LOGGER.info("[IceFillSolver] State: {}", state);
+            lastLoggedState = state;
+        }
+    }
+
+    private static void tickInner(Minecraft client) {
         if (!IceFillSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
             reset();
             return;
@@ -114,9 +135,11 @@ public final class IceFillSolverFeature {
                 // here to retry the whole scan next tick instead - self-healing once the real ice finishes
                 // spawning, and avoids ever showing a path that's missing a floor in the middle.
                 currentPath.clear();
+                lastFailedFloor = floorIndex; // logged via the state line on change
                 return;
             }
         }
+        lastFailedFloor = -1;
     }
 
     private static BlockPos realPos(Pos pos, int[] clayAndRotation) {

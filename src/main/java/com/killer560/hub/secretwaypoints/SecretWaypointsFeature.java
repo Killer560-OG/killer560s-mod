@@ -13,6 +13,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -34,6 +36,13 @@ public final class SecretWaypointsFeature {
     private static long lastMimicCheckMs = 0;
     private static boolean mimicAnnounced = false;
 
+    // [SecretWaypoints] diagnostics - logging only.
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secretwaypoints");
+    private static String lastLoggedGates = null;
+    private static String lastLoggedWaypointSummary = null;
+    private static long lastWaypointSummaryMs = 0;
+    private static final java.util.Map<Integer, String> lastLoggedMimicChecks = new java.util.HashMap<>();
+
     private SecretWaypointsFeature() {
     }
 
@@ -42,12 +51,56 @@ public final class SecretWaypointsFeature {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SecretWaypointsFeature::onWorldRender);
     }
 
+    private static void logDiagnostics(boolean inDungeon) {
+        SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
+        String gates = "enabled=" + cfg.isEnabled() + " mimicDetection=" + cfg.isMimicDetection()
+                + " inDungeon=" + inDungeon + " mimicAnnounced=" + mimicAnnounced;
+        if (!gates.equals(lastLoggedGates)) {
+            LOGGER.info("[SecretWaypoints] Gates changed: {}", gates);
+            lastLoggedGates = gates;
+        }
+        long now = System.currentTimeMillis();
+        if (!inDungeon || now - lastWaypointSummaryMs < 1000) {
+            return;
+        }
+        lastWaypointSummaryMs = now;
+        StringBuilder sb = new StringBuilder();
+        int rooms = 0;
+        int waypoints = 0;
+        for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
+            RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
+            if (entry == null) {
+                continue;
+            }
+            rooms++;
+            int count = 0;
+            if (entry.secretCoords != null) {
+                count += entry.secretCoords.chest != null ? entry.secretCoords.chest.size() : 0;
+                count += entry.secretCoords.item != null ? entry.secretCoords.item.size() : 0;
+                count += entry.secretCoords.wither != null ? entry.secretCoords.wither.size() : 0;
+                count += entry.secretCoords.bat != null ? entry.secretCoords.bat.size() : 0;
+                count += entry.secretCoords.redstoneKey != null ? entry.secretCoords.redstoneKey.size() : 0;
+            }
+            waypoints += count;
+            sb.append(entry.name).append("[rot=").append(room[3]).append(" clay=").append(room[1]).append(',')
+                    .append(room[2]).append(" wps=").append(count).append(entry.secretCoords == null ? " NO-COORDS" : "")
+                    .append("] ");
+        }
+        String summary = rooms + " rooms / " + waypoints + " waypoints: " + sb.toString().trim();
+        if (!summary.equals(lastLoggedWaypointSummary)) {
+            LOGGER.info("[SecretWaypoints] Renderable rooms changed: {}", summary);
+            lastLoggedWaypointSummary = summary;
+        }
+    }
+
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
             mimicAnnounced = false;
+            lastLoggedMimicChecks.clear();
         }
         wasInDungeon = inDungeon;
+        logDiagnostics(inDungeon);
 
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isMimicDetection() || !inDungeon || mimicAnnounced) {
@@ -80,7 +133,13 @@ public final class SecretWaypointsFeature {
                 continue; // only bother checking rooms actually near the player, cheap early-out
             }
             int realTrappedChests = countTrappedChests(client, roomBox);
+            String check = entry.name + "@" + room[0] + " trapped=" + realTrappedChests + " expected=" + entry.trappedChests;
+            if (!check.equals(lastLoggedMimicChecks.put(room[0], check))) {
+                LOGGER.info("[SecretWaypoints] Mimic check: {}", check);
+            }
             if (realTrappedChests > entry.trappedChests) {
+                LOGGER.info("[SecretWaypoints] Mimic announced in \"{}\" (trapped={} > expected={})",
+                        entry.name, realTrappedChests, entry.trappedChests);
                 mimicAnnounced = true;
                 ModOverlayMessage.show("§d[Secrets] Mimic likely in \"" + entry.name + "\" (extra trapped chest found)!", 5000);
                 return;

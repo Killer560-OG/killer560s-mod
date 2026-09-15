@@ -10,6 +10,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.regex.Pattern;
 
@@ -58,8 +60,11 @@ public final class P4PlatformHighlightFeature {
         String plain = ChatFormatting.stripFormatting(message.getString());
         String raw = plain != null ? plain : message.getString();
         if (CORE_OPENING_REGEX.matcher(raw).matches()) {
+            LOGGER.info("[P4Platform] platformActive {} -> true by line \"{}\" (isF7OrM7={}, floor={})",
+                    platformActive, raw, DungeonState.isF7OrM7(), DungeonState.getFloor());
             platformActive = true;
         } else if (GOLDOR_START_REGEX.matcher(raw).matches() || NECRON_P5_REGEX.matcher(raw).matches()) {
+            LOGGER.info("[P4Platform] platformActive {} -> false by line \"{}\"", platformActive, raw);
             platformActive = false;
         }
     }
@@ -67,14 +72,31 @@ public final class P4PlatformHighlightFeature {
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
+            if (platformActive) {
+                LOGGER.info("[P4Platform] platformActive true -> false (left dungeon)");
+            }
             platformActive = false;
         }
         wasInDungeon = inDungeon;
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-p4platform");
+    private static String diagLastRenderGate;
+
     private static void onWorldRender(LevelRenderContext context) {
         P4PlatformHighlightConfig cfg = P4PlatformHighlightConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
+        if (platformActive) {
+            // Diagnostic (2026-09-14): state-change only, and only while the platform window is open.
+            String gate = !cfg.isEnabled() ? "hidden: disabled" : !DungeonState.isF7OrM7() ? "hidden: DungeonState.isF7OrM7()=false"
+                    : client.level == null ? "hidden: no level" : "DRAWING";
+            if (!gate.equals(diagLastRenderGate)) {
+                LOGGER.info("[P4Platform] render gate: {} -> {}", diagLastRenderGate, gate);
+                diagLastRenderGate = gate;
+            }
+        } else {
+            diagLastRenderGate = null;
+        }
         if (!cfg.isEnabled() || !platformActive || !DungeonState.isF7OrM7() || client.level == null) {
             return;
         }

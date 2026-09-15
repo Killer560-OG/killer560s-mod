@@ -8,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,8 @@ import java.util.regex.Pattern;
  * live and announced to your own chat as they land.
  */
 public final class SplitTimersFeature {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-splittimers");
 
     private record SplitDef(Pattern pattern, String label) {
     }
@@ -117,6 +121,11 @@ public final class SplitTimersFeature {
 
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
+        if (inDungeon != wasInDungeon) {
+            LOGGER.info("[SplitTimers] DungeonState.isInDungeon {} -> {} (floor={}){}", wasInDungeon, inDungeon,
+                    DungeonState.getFloor(), !inDungeon && wasInDungeon
+                            ? " - run state reset (had " + run.completedLabels.size() + " completed splits)" : "");
+        }
         if (!inDungeon && wasInDungeon) {
             run = new RunState();
         }
@@ -125,6 +134,11 @@ public final class SplitTimersFeature {
 
     private static void onChatMessage(Component message) {
         if (!SplitTimersConfig.getInstance().isEnabled()) {
+            // Diagnostic (2026-09-14): only the run-start line is worth a "why nothing happened" note.
+            String plainOff = ChatFormatting.stripFormatting(message.getString());
+            if ("Starting in 1 second.".equals(plainOff != null ? plainOff : message.getString())) {
+                LOGGER.info("[SplitTimers] Saw \"Starting in 1 second.\" but Split Timers is disabled - no run started.");
+            }
             return;
         }
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to match the raw
@@ -142,6 +156,13 @@ public final class SplitTimersFeature {
             fresh.runStartMs = System.currentTimeMillis();
             fresh.lastSplitMs = fresh.runStartMs;
             run = fresh;
+            if (fresh.splits.isEmpty()) {
+                LOGGER.warn("[SplitTimers] Run START line seen but NO splits resolved for floor={} (inDungeon={}) - nothing will be timed this run",
+                        DungeonState.getFloor(), DungeonState.isInDungeon());
+            } else {
+                LOGGER.info("[SplitTimers] Run STARTED: floor={}, {} splits, first expected=\"{}\"",
+                        DungeonState.getFloor(), fresh.splits.size(), fresh.splits.get(0).label());
+            }
             return;
         }
 
@@ -150,6 +171,15 @@ public final class SplitTimersFeature {
         }
         SplitDef expected = run.splits.get(run.nextIndex);
         if (!expected.pattern().matcher(raw).find()) {
+            // Diagnostic (2026-09-14): a LATER split's line arriving first means this run is now stuck
+            // waiting on a line that already passed (dialogue skipped / regex mismatch) - log it loudly.
+            for (int i = run.nextIndex + 1; i < run.splits.size(); i++) {
+                if (run.splits.get(i).pattern().matcher(raw).find()) {
+                    LOGGER.warn("[SplitTimers] OUT-OF-ORDER split line: matched \"{}\" (index {}) while still waiting for \"{}\" (index {}) - run is stuck. Line: \"{}\"",
+                            run.splits.get(i).label(), i, expected.label(), run.nextIndex, raw);
+                    break;
+                }
+            }
             return;
         }
         long now = System.currentTimeMillis();
@@ -158,6 +188,9 @@ public final class SplitTimersFeature {
         run.completedSegmentMs.add(segment);
         run.lastSplitMs = now;
         run.nextIndex++;
+        LOGGER.info("[SplitTimers] SPLIT \"{}\" completed: segment={}ms, total={}ms, next=\"{}\", trigger line: \"{}\"",
+                expected.label(), segment, now - run.runStartMs,
+                run.nextIndex < run.splits.size() ? run.splits.get(run.nextIndex).label() : "(run complete)", raw);
 
         Minecraft client = Minecraft.getInstance();
         if (SplitTimersConfig.getInstance().isAnnounceInChat() && client.player != null) {

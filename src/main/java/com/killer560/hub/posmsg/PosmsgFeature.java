@@ -64,6 +64,7 @@ public final class PosmsgFeature {
         }
         Matcher m = RECEIVE_PATTERN.matcher(raw);
         if (!m.find()) {
+            LOGGER.info("[Posmsg] Line contained {} but didn't match RECEIVE_PATTERN: \"{}\"", TAG, raw);
             return;
         }
         try {
@@ -75,10 +76,14 @@ public final class PosmsgFeature {
             // If this exact name is one of my own configured entries, my own copy of it (with my own
             // toggles/color) already renders locally - no need for a second, differently-styled marker.
             if (PosmsgConfig.getInstance().byName(name) != null) {
+                LOGGER.info("[Posmsg] Received \"{}\" but it matches a local entry name - not adding a marker", name);
                 return;
             }
             receivedMarkers.put(name, new ReceivedMarker(name, x, y, z, radius, System.currentTimeMillis()));
-        } catch (NumberFormatException ignored) {
+            LOGGER.info("[Posmsg] Received marker \"{}\" at ({}, {}, {}) r={} (inDungeon={})",
+                    name, x, y, z, radius, DungeonState.isInDungeon());
+        } catch (NumberFormatException e) {
+            LOGGER.info("[Posmsg] Failed to parse numbers in \"{}\": {}", raw, e.getMessage());
         }
     }
 

@@ -10,6 +10,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,16 +59,30 @@ public final class QuiverDisplayFeature {
             found = player.getOffhandItem();
         }
         if (found == null) {
+            diagState("no Feather/Arrow item in inventory");
             cachedName = null;
             cachedCount = null;
             return;
         }
         String count = readArrowsRemaining(found);
         if (count == null) {
+            diagState("found \"" + found.getHoverName().getString() + "\" but no 'Arrows Remaining' lore line (keeping last value)");
             return;
         }
         cachedName = found.getHoverName().getString();
         cachedCount = count;
+        diagState("tracking \"" + cachedName + "\"");
+    }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-quiver");
+    private static String diagLastState;
+
+    /** Diagnostic only (2026-09-14) - logs when WHAT is being tracked changes, never per arrow shot. */
+    private static void diagState(String state) {
+        if (!state.equals(diagLastState)) {
+            LOGGER.info("[Quiver] {} (count={})", state, cachedCount);
+            diagLastState = state;
+        }
     }
 
     private static boolean isQuiverItem(ItemStack stack) {

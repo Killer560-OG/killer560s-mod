@@ -59,6 +59,8 @@ public final class RoomDatabase {
 
     private static volatile Map<Integer, RoomEntry> byCoreHash;
     private static volatile boolean loading = false;
+    private static int loadAttempts = 0;
+    private static long lastLoadStartLogMs = 0;
     private static final Map<Block, Integer> tokenHashCache = new HashMap<>();
 
     private RoomDatabase() {
@@ -75,6 +77,13 @@ public final class RoomDatabase {
             return;
         }
         loading = true;
+        loadAttempts++;
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - lastLoadStartLogMs >= 5000) { // throttled - a failing load is retried on the next call
+            lastLoadStartLogMs = nowMs;
+            LOGGER.info("[RoomDatabase] Starting background load attempt #{} (dataDir={}, rooms-modern.json present={})",
+                    loadAttempts, dataDir(), Files.exists(dataDir().resolve("rooms-modern.json")));
+        }
         new Thread(RoomDatabase::loadBlocking, "killer560smod-roomdb-load").start();
     }
 
@@ -112,7 +121,8 @@ public final class RoomDatabase {
                 }
             }
             byCoreHash = map;
-            LOGGER.info("[RoomDatabase] Loaded {} rooms ({} core hashes).", entries.length, map.size());
+            LOGGER.info("[RoomDatabase] Loaded {} rooms ({} core hashes). version local={} remote={}",
+                    entries.length, map.size(), localHash, remoteHash);
         } catch (Exception e) {
             LOGGER.warn("[RoomDatabase] Failed to load room database - room names/secrets will be unavailable this session.", e);
         } finally {

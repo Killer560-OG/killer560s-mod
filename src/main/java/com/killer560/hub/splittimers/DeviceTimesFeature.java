@@ -5,6 +5,8 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -33,6 +35,8 @@ import java.util.regex.Pattern;
  */
 public final class DeviceTimesFeature {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-devicetimes");
+
     // Real format ported directly from Odin's own confirmed regex, narrowed to lever/device only (see
     // this class's own doc comment for why terminals are deliberately excluded here).
     private static final Pattern DEVICE_COMPLETE_REGEX =
@@ -45,9 +49,53 @@ public final class DeviceTimesFeature {
         ClientReceiveMessageEvents.MODIFY_GAME.register(DeviceTimesFeature::onModifyGameMessage);
     }
 
+    // Diagnostic only (2026-09-14) - P3 (Goldor) progress lines this class deliberately doesn't annotate,
+    // logged so a real run's log shows each section's terminal count + gate/core transitions in order.
+    private static final Pattern DIAG_TERMINAL_REGEX =
+            Pattern.compile("^(.{1,16}) (activated|completed) a terminal! \\((\\d+)/(\\d+)\\)$");
+    private static final Pattern DIAG_P3_GATE_REGEX =
+            Pattern.compile("^(The gate has been destroyed!|The Core entrance is opening!|\\[BOSS] Goldor: .*)$");
+    private static long diagP3LastEventAtMs;
+
+    private static void diagLogP3Progress(Component message) {
+        String plain = ChatFormatting.stripFormatting(message.getString());
+        if (plain == null) {
+            return;
+        }
+        Matcher t = DIAG_TERMINAL_REGEX.matcher(plain);
+        boolean terminal = t.find();
+        if (!terminal && !DIAG_P3_GATE_REGEX.matcher(plain).find()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long sincePrev = diagP3LastEventAtMs > 0 ? now - diagP3LastEventAtMs : -1;
+        diagP3LastEventAtMs = now;
+        long segStart = SplitTimersFeature.getCurrentSegmentStartedAtMs();
+        if (terminal) {
+            LOGGER.info("[P3Progress] {} {} a terminal ({}/{}){} | {}ms since previous P3 event, {}ms into split segment \"{}\"",
+                    t.group(1), t.group(2), t.group(3), t.group(4), t.group(3).equals(t.group(4)) ? " - SECTION TERMINALS DONE" : "",
+                    sincePrev, segStart > 0 ? now - segStart : -1, SplitTimersFeature.getCurrentSegmentLabel());
+        } else {
+            LOGGER.info("[P3Progress] \"{}\" | {}ms since previous P3 event, {}ms into split segment \"{}\"",
+                    plain, sincePrev, segStart > 0 ? now - segStart : -1, SplitTimersFeature.getCurrentSegmentLabel());
+        }
+    }
+
     private static Component onModifyGameMessage(Component message, boolean overlay) {
+        if (!overlay) {
+            diagLogP3Progress(message);
+        }
         if (overlay || !SplitTimersConfig.getInstance().isEnabled()
                 || !SplitTimersConfig.getInstance().isAnnounceDeviceTimes() || !DungeonState.isInDungeon()) {
+            if (!overlay) {
+                // Diagnostic (2026-09-14) - only for a real device/lever line, so non-matching chat never logs.
+                String diagPlain = ChatFormatting.stripFormatting(message.getString());
+                if (diagPlain != null && DEVICE_COMPLETE_REGEX.matcher(diagPlain).find()) {
+                    LOGGER.info("[DeviceTimes] Device/lever line NOT annotated (splitTimersEnabled={}, announceDeviceTimes={}, inDungeon={}): \"{}\"",
+                            SplitTimersConfig.getInstance().isEnabled(), SplitTimersConfig.getInstance().isAnnounceDeviceTimes(),
+                            DungeonState.isInDungeon(), diagPlain);
+                }
+            }
             return message;
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
@@ -60,10 +108,13 @@ public final class DeviceTimesFeature {
         }
         long segmentStartedAtMs = SplitTimersFeature.getCurrentSegmentStartedAtMs();
         if (segmentStartedAtMs <= 0) {
+            LOGGER.info("[DeviceTimes] Device/lever line NOT annotated - no split run is being tracked: \"{}\"", plain);
             return message;
         }
         String label = SplitTimersFeature.getCurrentSegmentLabel();
         double seconds = (System.currentTimeMillis() - segmentStartedAtMs) / 1000.0;
+        LOGGER.info("[DeviceTimes] {} {} a {} ({}/{}) at {}s into segment \"{}\"",
+                m.group(1), m.group(2), m.group(3), m.group(4), m.group(5), String.format(Locale.US, "%.2f", seconds), label);
         String suffix = label != null
                 ? String.format(Locale.US, " §8(§7%.1fs since %s started§8)", seconds, label)
                 : String.format(Locale.US, " §8(§7%.1fs§8)", seconds);

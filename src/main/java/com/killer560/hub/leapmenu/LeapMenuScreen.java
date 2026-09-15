@@ -32,6 +32,8 @@ import java.util.Locale;
  *  collected. */
 public class LeapMenuScreen extends Screen {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger("killer560smod-leapmenu");
+
     private final Screen parent;
     private int panelX, panelY, panelW, panelH;
     private int rowH;
@@ -102,6 +104,10 @@ public class LeapMenuScreen extends Screen {
                 ? LeapMenuFeature.customOrdered(members)
                 : LeapMenuFeature.sorted(members, cfg.getSortMode());
 
+        // Diagnostic (2026-09-14): user-action driven (menu open / button click), never per frame.
+        LOG.info("[LeapMenu] rebuild: {} member(s) {} assignMode={} sortMode={} displayMode={}",
+                ordered.size(), ordered.stream().map(p -> p.getName().getString()).toList(),
+                cfg.getAssignMode(), cfg.getSortMode(), cfg.getDisplayMode());
         if (ordered.isEmpty()) {
             this.addRenderableWidget(new StringWidget(panelX + 10, y, panelW - 20, 12,
                     Component.literal("§7No other players nearby (are you in a dungeon?)"), this.font));

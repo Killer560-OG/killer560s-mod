@@ -221,6 +221,156 @@ public final class TerminalSolverFeature {
     private TerminalSolverFeature() {
     }
 
+    // --- Diagnostics (2026-09-14) - logging only, never read by any gating/timing decision. Captures the
+    // real per-click send -> server-confirm latency, same-slot guard blocking, retry timeouts, the initial
+    // settle window, and screen open/reopen/close events, so a real run's latest.log can prove or disprove
+    // the "nextAutoClickAllowedAtMs is armed at SEND time, not CONFIRM time" slow-auto-terms theory. ---
+    private static final String DIAG_TAG = "[AutoTerms]";
+    private static final long DIAG_PENDING_EXPIRE_MS = 5000;
+
+    private record DiagPendingClick(int slot, long firstSentAtMs, long sentAtMs, ItemStack snapshot, int attempt) {
+    }
+
+    private static final Map<Integer, DiagPendingClick> diagPendingClicks = new LinkedHashMap<>();
+    private static String diagTitle = "";
+    private static int diagContainerId = -1;
+    private static int diagScreenIdentity;
+    private static long diagLastScreenSeenChangeAtMs;
+    private static long diagLastRefreshAtMs;
+    private static long diagLastFrameGapLogAtMs;
+    private static int diagClicksSent;
+    private static int diagRetries;
+    private static int diagConfirmed;
+    private static int diagUnconfirmed;
+    private static int diagReopens;
+    private static long diagLatencySumMs;
+    private static long diagLatencyMaxMs;
+    private static long diagFirstClickAtMs;
+    private static long diagLastClickSentAtMs;
+    private static int diagLastRolledDelayMs = -1;
+    private static long diagGuardBlockedTotalMs;
+    private static long diagGuardBlockStartMs;
+    private static int diagGuardBlockSlot = -1;
+    private static long diagGuardLastLogAtMs;
+    private static String diagGateState;
+    private static long diagMelodyWaitLogAtMs;
+    private static long diagMelodyGuardLogAtMs;
+
+    private static void diagBeginTerminal(TerminalType type, String title, ContainerScreen screen) {
+        long now = System.currentTimeMillis();
+        diagPendingClicks.clear();
+        diagTitle = title;
+        diagContainerId = screen.getMenu().containerId;
+        diagScreenIdentity = System.identityHashCode(screen);
+        diagLastScreenSeenChangeAtMs = now;
+        diagLastRefreshAtMs = now;
+        diagClicksSent = 0;
+        diagRetries = 0;
+        diagConfirmed = 0;
+        diagUnconfirmed = 0;
+        diagReopens = 0;
+        diagLatencySumMs = 0;
+        diagLatencyMaxMs = 0;
+        diagFirstClickAtMs = 0;
+        diagLastClickSentAtMs = 0;
+        diagLastRolledDelayMs = -1;
+        diagGuardBlockedTotalMs = 0;
+        diagGuardBlockStartMs = 0;
+        diagGuardBlockSlot = -1;
+        diagGuardLastLogAtMs = 0;
+        diagGateState = null;
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        LOGGER.info("{} terminal OPENED: type={} title='{}' containerId={} screen@{} menuSlots={} autoTerms={} autoType={} delay={}-{}ms customGui={} blockInput={}",
+                DIAG_TAG, type, title, diagContainerId, Integer.toHexString(diagScreenIdentity), screen.getMenu().slots.size(),
+                cfg.isAutoTerminalsEnabled(), isAutoTypeEnabled(type, cfg), cfg.getAutoClickMinDelayMs(), cfg.getAutoClickMaxDelayMs(),
+                cfg.isCustomGuiEnabled(), cfg.isBlockInputWhileAutoClicking());
+    }
+
+    /** Logs the end-of-terminal summary - only acts if a terminal was actually being tracked. Must be
+     *  called BEFORE {@link #reportTerminalCompletion} (which zeroes {@link #terminalOpenedAtMs}). */
+    private static void diagEndTerminal(String reason) {
+        if (currentType == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        diagReleaseGuard(now, "terminal ended");
+        for (DiagPendingClick pending : diagPendingClicks.values()) {
+            diagUnconfirmed++;
+            LOGGER.warn("{} {} slot {} was NEVER confirmed before terminal ended ({}ms since first send, attempt {})",
+                    DIAG_TAG, currentType, pending.slot(), now - pending.firstSentAtMs(), pending.attempt());
+        }
+        diagPendingClicks.clear();
+        long openedAt = terminalOpenedAtMs;
+        long activeMs = openedAt > 0 ? diagLastRefreshAtMs - openedAt : -1;
+        long untilDetectedMs = openedAt > 0 ? now - openedAt : -1;
+        LOGGER.info("{} terminal ENDED: type={} reason={} | activeMs={} (open->last frame seen), detectedAfterMs={} (open->now; close is only noticed on the next rendered screen), firstClickAfterOpen={}ms, clicks={}, confirmed={}, unconfirmed={}, retries={}, reopens={}, avgConfirmLatency={}ms, maxConfirmLatency={}ms, guardBlockedTotal={}ms, stabilized={}, lastRemainingHighlights={}",
+                DIAG_TAG, currentType, reason, activeMs, untilDetectedMs,
+                diagFirstClickAtMs > 0 && openedAt > 0 ? diagFirstClickAtMs - openedAt : -1,
+                diagClicksSent, diagConfirmed, diagUnconfirmed, diagRetries, diagReopens,
+                diagConfirmed > 0 ? diagLatencySumMs / diagConfirmed : -1, diagLatencyMaxMs, diagGuardBlockedTotalMs,
+                hasStabilizedOnce, currentHighlights.size());
+    }
+
+    private static void diagGate(TerminalType type, String state) {
+        if (state.equals(diagGateState)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        LOGGER.info("{} {} auto-click gate: {} -> {} ({}ms since open, {}ms since content stabilized)",
+                DIAG_TAG, type, diagGateState, state,
+                terminalOpenedAtMs > 0 ? now - terminalOpenedAtMs : -1, now - stabilizedAtMs);
+        diagGateState = state;
+    }
+
+    /** Ends a same-slot-guard blocking streak if one is in progress, logging how long it lasted. */
+    private static long diagReleaseGuard(long now, String why) {
+        if (diagGuardBlockStartMs == 0) {
+            return 0;
+        }
+        long blocked = now - diagGuardBlockStartMs;
+        diagGuardBlockedTotalMs += blocked;
+        LOGGER.info("{} {} same-slot guard RELEASED for slot {} after {}ms blocked ({})",
+                DIAG_TAG, currentType, diagGuardBlockSlot, blocked, why);
+        diagGuardBlockStartMs = 0;
+        diagGuardBlockSlot = -1;
+        diagGuardLastLogAtMs = 0;
+        return blocked;
+    }
+
+    /** Per-frame, O(pending) - detects the first frame each sent click's slot actually changed (the
+     *  server's response landing), and logs the real send -> confirm latency. A slot that is EMPTY is not
+     *  treated as confirmed: Rubix's real PICKUP click predicts the pickup locally (slot goes empty
+     *  instantly, before any server round-trip), so only a real replacement item counts. */
+    private static void diagCheckPendingClicks(List<ItemStack> items, long now) {
+        if (diagPendingClicks.isEmpty()) {
+            return;
+        }
+        var it = diagPendingClicks.values().iterator();
+        while (it.hasNext()) {
+            DiagPendingClick pending = it.next();
+            if (pending.slot() < 0 || pending.slot() >= items.size()) {
+                it.remove();
+                continue;
+            }
+            ItemStack current = items.get(pending.slot());
+            if (!current.isEmpty() && !ItemStack.matches(current, pending.snapshot())) {
+                long latency = now - pending.sentAtMs();
+                diagConfirmed++;
+                diagLatencySumMs += latency;
+                diagLatencyMaxMs = Math.max(diagLatencyMaxMs, latency);
+                LOGGER.info("{} {} slot {} CONFIRMED {}ms after send ({}ms after first send, attempt {}), stillHighlighted={}, highlightsLeft={}, nextClickAllowedIn={}ms",
+                        DIAG_TAG, currentType, pending.slot(), latency, now - pending.firstSentAtMs(), pending.attempt(),
+                        currentHighlights.containsKey(pending.slot()), currentHighlights.size(), nextAutoClickAllowedAtMs - now);
+                it.remove();
+            } else if (now - pending.firstSentAtMs() > DIAG_PENDING_EXPIRE_MS) {
+                diagUnconfirmed++;
+                LOGGER.warn("{} {} slot {} still UNCONFIRMED {}ms after first send (attempt {}) - giving up tracking it",
+                        DIAG_TAG, currentType, pending.slot(), now - pending.firstSentAtMs(), pending.attempt());
+                it.remove();
+            }
+        }
+    }
+
     /** Sends the real "X took Y.Ys to complete" client-side message killer560 asked for, if a terminal
      *  was actually being tracked. Client-side only (sendSystemMessage, same technique this mod's other
      *  features already use for a local-only notice) - a personal timing readout, not a party
@@ -255,6 +405,11 @@ public final class TerminalSolverFeature {
     public static void refreshState() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
+            if (currentType != null) {
+                Object nowScreen = Minecraft.getInstance().screen;
+                diagEndTerminal(!cfg.isEnabled() ? "Terminal Solver disabled in config"
+                        : "screen is no longer a ContainerScreen (now " + (nowScreen == null ? "null" : nowScreen.getClass().getSimpleName()) + ")");
+            }
             reportTerminalCompletion();
             currentType = null;
             currentHighlights = Map.of();
@@ -266,6 +421,10 @@ public final class TerminalSolverFeature {
         String title = screen.getTitle().getString();
         TerminalType type = matchType(title, cfg);
         if (type == null) {
+            if (currentType != null) {
+                diagEndTerminal("screen title no longer matches an enabled terminal type (now '" + title
+                        + "', containerId=" + screen.getMenu().containerId + ")");
+            }
             reportTerminalCompletion();
             currentType = null;
             currentHighlights = Map.of();
@@ -275,6 +434,7 @@ public final class TerminalSolverFeature {
             return;
         }
         if (type != currentType) {
+            diagEndTerminal("a different terminal type opened (" + type + ")");
             reportTerminalCompletion();
             terminalOpenedAtMs = System.currentTimeMillis();
             lastGoodBounds = null;
@@ -286,7 +446,36 @@ public final class TerminalSolverFeature {
             hasStabilizedOnce = false;
             previousItemsSnapshot = List.of();
             resetAutoClickState();
+            diagBeginTerminal(type, title, screen);
+        } else {
+            long diagNow = System.currentTimeMillis();
+            int containerIdNow = screen.getMenu().containerId;
+            int screenIdentityNow = System.identityHashCode(screen);
+            if (containerIdNow != diagContainerId || screenIdentityNow != diagScreenIdentity) {
+                // Same terminal type, but a new screen/container - e.g. Hypixel's real double "Screen
+                // opened" packet. State is deliberately NOT reset in this case (see round 31's doc), so a
+                // click sent against the old container id may have been silently dropped.
+                diagReopens++;
+                long gapSinceLastTerminalFrame = diagNow - diagLastRefreshAtMs;
+                LOGGER.warn("{} {} terminal REOPENED (same type, no state reset): containerId {} -> {}, screen@{} -> screen@{}, {}ms since previous open, gapSinceLastTerminalFrame={}ms{}, stabilized={} ({}ms ago), unconfirmed clicks sent to old container={} (slots {}), lastClickSent={}ms ago, lastClickedSlot={}",
+                        DIAG_TAG, type, diagContainerId, containerIdNow, Integer.toHexString(diagScreenIdentity), Integer.toHexString(screenIdentityNow),
+                        diagNow - diagLastScreenSeenChangeAtMs, gapSinceLastTerminalFrame,
+                        gapSinceLastTerminalFrame > 250 ? " (LARGE gap: likely a DIFFERENT terminal of the same type - opened-at time, settle window, same-slot guard and rubix target all carry over)" : "",
+                        hasStabilizedOnce, hasStabilizedOnce ? diagNow - stabilizedAtMs : -1,
+                        diagPendingClicks.size(), diagPendingClicks.keySet(), diagLastClickSentAtMs > 0 ? diagNow - diagLastClickSentAtMs : -1,
+                        lastAutoClickedSlot);
+                diagContainerId = containerIdNow;
+                diagScreenIdentity = screenIdentityNow;
+                diagLastScreenSeenChangeAtMs = diagNow;
+            } else if (diagLastRefreshAtMs > 0 && diagNow - diagLastRefreshAtMs > 250 && diagNow - diagLastFrameGapLogAtMs >= 1000) {
+                // Auto-click is driven per rendered FRAME (refreshState only runs from extractBackground) -
+                // a long gap means the click loop itself was starved (low FPS / unfocused window / lag).
+                diagLastFrameGapLogAtMs = diagNow;
+                LOGGER.warn("{} {} refreshState frame gap of {}ms while terminal open - auto-click loop is frame-driven, so no clicks could fire during it",
+                        DIAG_TAG, type, diagNow - diagLastRefreshAtMs);
+            }
         }
+        diagLastRefreshAtMs = System.currentTimeMillis();
         currentType = type;
         List<ItemStack> items = terminalItems(screen.getMenu());
         currentTerminalSlotCount = items.size();
@@ -295,6 +484,9 @@ public final class TerminalSolverFeature {
             if (realContent && ItemStack.listMatches(items, previousItemsSnapshot)) {
                 hasStabilizedOnce = true;
                 stabilizedAtMs = System.currentTimeMillis();
+                LOGGER.info("{} {} content STABILIZED {}ms after open (terminalSlots={}, containerId={}) - first auto-click allowed after the {}ms settle window",
+                        DIAG_TAG, type, terminalOpenedAtMs > 0 ? stabilizedAtMs - terminalOpenedAtMs : -1, items.size(),
+                        screen.getMenu().containerId, INITIAL_CLICK_SETTLE_MS);
             }
             previousItemsSnapshot = realContent ? List.copyOf(items) : List.of();
         }
@@ -315,6 +507,7 @@ public final class TerminalSolverFeature {
             // highlights themselves, not just the panel's dimensions.
             currentHighlights = solve(type, title, items);
         }
+        diagCheckPendingClicks(items, System.currentTimeMillis());
         maybeClearAccidentalCarriedItem(screen);
         if (hasStabilizedOnce) {
             tickAutoClick(screen, type, items);
@@ -389,22 +582,29 @@ public final class TerminalSolverFeature {
     private static void tickAutoClick(ContainerScreen screen, TerminalType type, List<ItemStack> items) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         if (!cfg.isAutoTerminalsEnabled()) {
+            diagGate(type, "OFF (Auto Terminals disabled, or legit build)");
             return;
         }
         if (System.currentTimeMillis() - stabilizedAtMs < INITIAL_CLICK_SETTLE_MS) {
             // Round 31 - see stabilizedAtMs's own doc. Lets a freshly-opened terminal's real double-open
             // finish before this class ever attempts its first click against it.
+            diagGate(type, "SETTLING (" + INITIAL_CLICK_SETTLE_MS + "ms initial settle window)");
             return;
         }
         if (type == TerminalType.MELODY) {
             if (cfg.isAutoMelodyEnabled()) {
+                diagGate(type, "ACTIVE");
                 tickMelodyAutoClick(screen, items);
+            } else {
+                diagGate(type, "OFF (Auto Melody disabled)");
             }
             return;
         }
         if (!isAutoTypeEnabled(type, cfg)) {
+            diagGate(type, "OFF (auto-click disabled for this terminal type)");
             return;
         }
+        diagGate(type, "ACTIVE");
         if (currentHighlights.isEmpty()) {
             // Diagnostic (2026-09-09) per killer560's report "sometimes it is actually auto solving
             // them but a lot of the time it isnt" - couldn't find a concrete bug re-reading this logic
@@ -429,13 +629,57 @@ public final class TerminalSolverFeature {
         // deadlock the whole terminal forever - past that timeout, it's treated as lost and retried.
         if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX
                 && now - lastAutoClickedSlotAtMs < SAME_SLOT_RETRY_TIMEOUT_MS) {
-            logAutoClickSkipThrottled(type, "target slot " + target.slot() + " is the same as last click - waiting for it to clear");
+            if (diagGuardBlockStartMs == 0 || diagGuardBlockSlot != target.slot()) {
+                diagGuardBlockStartMs = now;
+                diagGuardBlockSlot = target.slot();
+                diagGuardLastLogAtMs = 0;
+            }
+            if (now - diagGuardLastLogAtMs >= 1000) {
+                diagGuardLastLogAtMs = now;
+                LOGGER.info("{} {} same-slot guard BLOCKING slot {}: blocked {}ms so far, click sent {}ms ago, delay gate opened {}ms ago (rolled {}ms), awaitingConfirm={}, retryTimeoutIn={}ms",
+                        DIAG_TAG, type, target.slot(), now - diagGuardBlockStartMs, now - lastAutoClickedSlotAtMs,
+                        now - nextAutoClickAllowedAtMs, diagLastRolledDelayMs, diagPendingClicks.containsKey(target.slot()),
+                        SAME_SLOT_RETRY_TIMEOUT_MS - (now - lastAutoClickedSlotAtMs));
+            }
             return;
         }
+        boolean diagIsRetry = target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX;
+        long diagGuardBlockedMs;
+        if (diagIsRetry) {
+            diagRetries++;
+            LOGGER.warn("{} {} RETRY TIMEOUT fired for slot {}: no confirm {}ms after send (timeout {}ms) - re-sending the same click",
+                    DIAG_TAG, type, target.slot(), now - lastAutoClickedSlotAtMs, SAME_SLOT_RETRY_TIMEOUT_MS);
+            diagGuardBlockedMs = diagReleaseGuard(now, "retry timeout");
+        } else {
+            diagGuardBlockedMs = diagReleaseGuard(now, "target moved on to slot " + target.slot());
+        }
+        long diagSincePrevSend = diagLastClickSentAtMs > 0 ? now - diagLastClickSentAtMs : -1;
+        long diagAfterGateOpen = nextAutoClickAllowedAtMs > 0 ? now - nextAutoClickAllowedAtMs : -1;
+        int diagPrevRolled = diagLastRolledDelayMs;
+        ItemStack diagSnapshot = target.slot() >= 0 && target.slot() < items.size() ? items.get(target.slot()).copy() : ItemStack.EMPTY;
         nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
         lastAutoClickedSlot = target.slot();
         lastAutoClickedSlotAtMs = now;
         sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
+        diagClicksSent++;
+        if (diagFirstClickAtMs == 0) {
+            diagFirstClickAtMs = now;
+        }
+        diagLastClickSentAtMs = now;
+        diagLastRolledDelayMs = (int) (nextAutoClickAllowedAtMs - now);
+        DiagPendingClick diagPrevPending = diagPendingClicks.get(target.slot());
+        if (diagPrevPending != null) {
+            diagPendingClicks.put(target.slot(), new DiagPendingClick(target.slot(), diagPrevPending.firstSentAtMs(), now,
+                    diagPrevPending.snapshot(), diagPrevPending.attempt() + 1));
+        } else {
+            diagPendingClicks.put(target.slot(), new DiagPendingClick(target.slot(), now, now, diagSnapshot, 1));
+        }
+        LOGGER.info("{} {} CLICK #{} slot {} (button={}, {}){} | sincePrevSend={}ms vs prevRolledDelay={}ms (excess {}ms), firedAfterGateOpen={}ms, guardBlockedBeforeThis={}ms, nextRolledDelay={}ms (cfg {}-{}), highlightsLeft={}, pendingUnconfirmed={}, containerId={}, sinceOpen={}ms",
+                DIAG_TAG, type, diagClicksSent, target.slot(), target.button(), target.clickType(), diagIsRetry ? " RETRY" : "",
+                diagSincePrevSend, diagPrevRolled, diagSincePrevSend >= 0 && diagPrevRolled >= 0 ? diagSincePrevSend - diagPrevRolled : -1,
+                diagAfterGateOpen, diagGuardBlockedMs, diagLastRolledDelayMs, cfg.getAutoClickMinDelayMs(), cfg.getAutoClickMaxDelayMs(),
+                currentHighlights.size(), diagPendingClicks.size(), screen.getMenu().containerId,
+                terminalOpenedAtMs > 0 ? now - terminalOpenedAtMs : -1);
     }
 
     private static TerminalType lastLoggedSkipType;
@@ -448,7 +692,7 @@ public final class TerminalSolverFeature {
         }
         lastLoggedSkipType = type;
         lastLoggedSkipAtMs = now;
-        LOGGER.info("Auto Terminals ({}) not clicking: {}", type, reason);
+        LOGGER.info("{} Auto Terminals ({}) not clicking: {}", DIAG_TAG, type, reason);
     }
 
     public static boolean isAutoTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
@@ -502,6 +746,8 @@ public final class TerminalSolverFeature {
     private static void sendTerminalClick(ContainerScreen screen, int slotIndex, int button, ContainerInput clickType) {
         List<Slot> slots = screen.getMenu().slots;
         if (slotIndex < 0 || slotIndex >= slots.size()) {
+            LOGGER.warn("{} click NOT sent: slot {} out of range (menu has {} slots, containerId={})",
+                    DIAG_TAG, slotIndex, slots.size(), screen.getMenu().containerId);
             return;
         }
         Slot slot = slots.get(slotIndex);
@@ -512,7 +758,7 @@ public final class TerminalSolverFeature {
             // and synchronously as part of the call above, before any server round-trip.
             screen.getMenu().setCarried(ItemStack.EMPTY);
         }
-        LOGGER.info("Auto-clicked slot {} (button={}, type={})", slotIndex, button, clickType);
+        LOGGER.info("{} Auto-clicked slot {} (button={}, type={}, containerId={})", DIAG_TAG, slotIndex, button, clickType, screen.getMenu().containerId);
     }
 
     /** Melody's real-time auto-click - NOT driven by {@link #currentHighlights}/{@link #solve} at all
@@ -579,15 +825,27 @@ public final class TerminalSolverFeature {
             // stays in place to keep showing the real slot/row/column values every time the indicator's
             // own row changes.
             if (!melodyButtonRow.equals(previousRow)) {
-                LOGGER.info("Melody row changed: {} -> {} (limeSlot={}, targetSlot={}, currentColumn={}, correctColumn={})",
-                        previousRow, melodyButtonRow, limeSlot, targetSlot, melodyCurrentColumn, melodyCorrectColumn);
+                LOGGER.info("{} Melody row changed: {} -> {} (limeSlot={}, targetSlot={}, currentColumn={}, correctColumn={}, sinceLastMelodyClick={}ms, lastClickedRow={})",
+                        DIAG_TAG, previousRow, melodyButtonRow, limeSlot, targetSlot, melodyCurrentColumn, melodyCorrectColumn,
+                        lastMelodyClickAtMs > 0 ? System.currentTimeMillis() - lastMelodyClickAtMs : -1, lastMelodyClickedRow);
             }
         }
         if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
+            long diagNow = System.currentTimeMillis();
+            if (diagNow - diagMelodyWaitLogAtMs >= 1000) {
+                diagMelodyWaitLogAtMs = diagNow;
+                LOGGER.info("{} MELODY not clicking: board state incomplete (limeSlot={}, targetSlot={}, row={}, currentColumn={}, correctColumn={})",
+                        DIAG_TAG, limeSlot, targetSlot, melodyButtonRow, melodyCurrentColumn, melodyCorrectColumn);
+            }
             return;
         }
         int buttonRow = melodyButtonRow;
         if (buttonRow < 0 || buttonRow >= MELODY_CLAY_SLOTS.size()) {
+            long diagNow = System.currentTimeMillis();
+            if (diagNow - diagMelodyWaitLogAtMs >= 1000) {
+                diagMelodyWaitLogAtMs = diagNow;
+                LOGGER.info("{} MELODY not clicking: buttonRow {} out of range (limeSlot={})", DIAG_TAG, buttonRow, limeSlot);
+            }
             return;
         }
         if (!melodyCurrentColumn.equals(melodyCorrectColumn)) {
@@ -595,12 +853,29 @@ public final class TerminalSolverFeature {
         }
         long now = System.currentTimeMillis();
         if (buttonRow == lastMelodyClickedRow && now - lastMelodyClickAtMs < 250) {
+            if (now - diagMelodyGuardLogAtMs >= 1000) {
+                diagMelodyGuardLogAtMs = now;
+                LOGGER.info("{} MELODY row {} match suppressed by 250ms same-row guard ({}ms since last click on it)",
+                        DIAG_TAG, buttonRow, now - lastMelodyClickAtMs);
+            }
             return;
         }
+        long diagSincePrev = lastMelodyClickAtMs > 0 ? now - lastMelodyClickAtMs : -1;
+        int diagQueuedBefore = scheduledMelodyClicks.size();
         lastMelodyClickedRow = buttonRow;
         lastMelodyClickAtMs = now;
         sendTerminalClick(screen, MELODY_CLAY_SLOTS.get(buttonRow), 0, ContainerInput.CLONE);
         queueMelodyLookaheadClicks(buttonRow);
+        diagClicksSent++;
+        if (diagFirstClickAtMs == 0) {
+            diagFirstClickAtMs = now;
+        }
+        diagLastClickSentAtMs = now;
+        LOGGER.info("{} MELODY CLICK #{} LIVE row {} (slot {}) column {}=={}, sincePrevMelodyClick={}ms, lookaheadQueued={} (skipMode={}, lookahead={}), containerId={}, sinceOpen={}ms",
+                DIAG_TAG, diagClicksSent, buttonRow, MELODY_CLAY_SLOTS.get(buttonRow), melodyCurrentColumn, melodyCorrectColumn, diagSincePrev,
+                scheduledMelodyClicks.size() - diagQueuedBefore, TerminalSolverConfig.getInstance().getMelodySkipMode(),
+                TerminalSolverConfig.getInstance().getMelodyLookaheadClicks(), screen.getMenu().containerId,
+                terminalOpenedAtMs > 0 ? now - terminalOpenedAtMs : -1);
     }
 
     /** Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks...
@@ -652,11 +927,18 @@ public final class TerminalSolverFeature {
         while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
             ScheduledMelodyClick due = scheduledMelodyClicks.pollFirst();
             if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= MELODY_CLAY_SLOTS.size()) {
+                LOGGER.info("{} MELODY lookahead click for row {} DROPPED (currentType={})", DIAG_TAG, due.row(), currentType);
                 continue;
             }
+            long diagSincePrev = lastMelodyClickAtMs > 0 ? now - lastMelodyClickAtMs : -1;
             lastMelodyClickedRow = due.row();
             lastMelodyClickAtMs = now;
             sendTerminalClick(screen, MELODY_CLAY_SLOTS.get(due.row()), 0, ContainerInput.CLONE);
+            diagClicksSent++;
+            diagLastClickSentAtMs = now;
+            LOGGER.info("{} MELODY CLICK #{} LOOKAHEAD row {} (slot {}) fired {}ms after its scheduled time, sincePrevMelodyClick={}ms, stillQueued={}",
+                    DIAG_TAG, diagClicksSent, due.row(), MELODY_CLAY_SLOTS.get(due.row()), now - due.fireAtMs(), diagSincePrev,
+                    scheduledMelodyClicks.size());
         }
     }
 

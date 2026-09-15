@@ -30,6 +30,13 @@ public final class MobEspFeature {
 
     private static final Set<Integer> glowingIds = new HashSet<>();
 
+    // [MobEsp] diagnostics - logging only.
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-mobesp");
+    private static String lastLoggedGates = null;
+    private static String lastLoggedCounts = null;
+    private static long lastCountsLogMs = 0;
+    private static int starredArmorStandsSeen = 0;
+
     private MobEspFeature() {
     }
 
@@ -40,6 +47,13 @@ public final class MobEspFeature {
     private static void tick() {
         MobEspConfig cfg = MobEspConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
+        String gates = "enabled=" + cfg.isEnabled() + " filter='" + cfg.getNameFilter() + "' range=" + cfg.getRange()
+                + " cheatMode=" + cfg.isCheatMode() + " hasLevel=" + (client.level != null)
+                + " inDungeon=" + com.killer560.hub.secrets.DungeonState.isInDungeon();
+        if (!gates.equals(lastLoggedGates)) {
+            LOGGER.info("[MobEsp] Gates changed: {}", gates);
+            lastLoggedGates = gates;
+        }
         if (!cfg.isEnabled() || client.level == null || client.player == null || cfg.getNameFilter().isBlank()) {
             clearAllGlowing();
             return;
@@ -48,8 +62,21 @@ public final class MobEspFeature {
         Set<Integer> shouldGlow = new HashSet<>();
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
+        int nameMatches = 0;
+        int inRange = 0;
+        String sampleName = null;
+        long nowMs = System.currentTimeMillis();
+        boolean logWindow = nowMs - lastCountsLogMs >= 2000;
+        if (logWindow) {
+            starredArmorStandsSeen = 0;
+        }
 
         for (Entity entity : client.level.entitiesForRendering()) {
+            if (logWindow && entity instanceof net.minecraft.world.entity.decoration.ArmorStand
+                    && entity.getName().getString().contains(cfg.getNameFilter())) {
+                // Hypixel usually puts the star on a separate name-tag armor stand, not the mob itself.
+                starredArmorStandsSeen++;
+            }
             if (!(entity instanceof LivingEntity living) || living == client.player) {
                 continue;
             }
@@ -57,9 +84,14 @@ public final class MobEspFeature {
             if (!name.contains(cfg.getNameFilter())) {
                 continue;
             }
+            nameMatches++;
+            if (sampleName == null) {
+                sampleName = name;
+            }
             if (living.distanceToSqr(client.player) > rangeSq) {
                 continue;
             }
+            inRange++;
             boolean visible = cfg.isCheatMode() || hasLineOfSight(client, eye, living);
             if (visible) {
                 shouldGlow.add(living.getId());
@@ -77,6 +109,16 @@ public final class MobEspFeature {
         }
         glowingIds.clear();
         glowingIds.addAll(shouldGlow);
+
+        if (logWindow) {
+            lastCountsLogMs = nowMs;
+            String counts = "nameMatches=" + nameMatches + " (of which ArmorStands=" + starredArmorStandsSeen + ") inRange="
+                    + inRange + " glowing=" + shouldGlow.size();
+            if (!counts.equals(lastLoggedCounts)) {
+                LOGGER.info("[MobEsp] {} sample=\"{}\"", counts, sampleName);
+                lastLoggedCounts = counts;
+            }
+        }
     }
 
     private static boolean hasLineOfSight(Minecraft client, Vec3 eye, LivingEntity target) {

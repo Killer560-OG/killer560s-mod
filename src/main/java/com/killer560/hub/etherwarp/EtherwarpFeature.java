@@ -99,10 +99,12 @@ public final class EtherwarpFeature {
     }
 
     public static void remove(String id) {
-        waypoints.removeIf(w -> w.id.equals(id));
+        boolean removed = waypoints.removeIf(w -> w.id.equals(id));
+        LOGGER.info("[Etherwarp] remove waypoint id={} -> {} ({} left)", id, removed ? "removed" : "NOT FOUND", waypoints.size());
     }
 
     public static void clear() {
+        LOGGER.info("[Etherwarp] Cleared {} waypoint(s) manually", waypoints.size());
         waypoints.clear();
     }
 }

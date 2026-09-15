@@ -75,9 +75,34 @@ public final class AutoLeapFeature {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
+    /** Diagnostic only (2026-09-14): whether {@code raw} is one of this feature's trigger lines at all -
+     *  used purely to decide whether a gate-rejection is worth logging (so ordinary chat never logs). */
+    private static String diagTriggerName(String raw) {
+        if (DEVICE_DONE_REGEX.matcher(raw).matches()) {
+            return "device-completed";
+        }
+        if (STORM_DEATH_MESSAGE.equals(raw)) {
+            return "storm-death";
+        }
+        if (MIDDLE_MESSAGE.equals(raw)) {
+            return "necron-middle";
+        }
+        if (STORM_CRUSH_MESSAGES.contains(raw)) {
+            return "storm-crush";
+        }
+        return null;
+    }
+
     private static void onChatMessage(Component message) {
         AutoLeapConfig cfg = AutoLeapConfig.getInstance();
         if (!cfg.isEnabled() || !DungeonState.isBossPhaseActive() || cfg.getTargetName().isBlank()) {
+            if (cfg.isEnabled()) {
+                String diagTrigger = diagTriggerName(message.getString());
+                if (diagTrigger != null) {
+                    LOGGER.info("[AutoLeap] Trigger line ({}) ignored: bossPhaseActive={}, targetNameBlank={} - \"{}\"",
+                            diagTrigger, DungeonState.isBossPhaseActive(), cfg.getTargetName().isBlank(), message.getString());
+                }
+            }
             return;
         }
         String raw = message.getString();
@@ -88,6 +113,12 @@ public final class AutoLeapFeature {
 
         if (cfg.isLeapOnI4Device()) {
             Matcher m = DEVICE_DONE_REGEX.matcher(raw);
+            if (m.matches()) {
+                boolean diagIsSelf = m.group(1).equals(client.player.getName().getString());
+                boolean diagInBox = PRE4_BOX.contains(client.player.position());
+                LOGGER.info("[AutoLeap] i4 trigger check: \"{}\" isSelf={} inPre4Box={} pos={} -> {}",
+                        raw, diagIsSelf, diagInBox, client.player.position(), diagIsSelf && diagInBox ? "LEAP" : "no leap");
+            }
             if (m.matches() && m.group(1).equals(client.player.getName().getString())
                     && PRE4_BOX.contains(client.player.position())) {
                 requestLeap(cfg.getTargetName());
@@ -96,11 +127,13 @@ public final class AutoLeapFeature {
         }
 
         if (cfg.isLeapOnStormDeath() && STORM_DEATH_MESSAGE.equals(raw)) {
+            LOGGER.info("[AutoLeap] Storm-death trigger matched -> LEAP");
             requestLeap(cfg.getTargetName());
             return;
         }
 
         if (cfg.isLeapOnMiddle() && MIDDLE_MESSAGE.equals(raw)) {
+            LOGGER.info("[AutoLeap] Necron-middle trigger matched -> LEAP");
             requestLeap(cfg.getTargetName());
             return;
         }
@@ -108,6 +141,8 @@ public final class AutoLeapFeature {
         if (cfg.isLeapOnPads() && STORM_CRUSH_MESSAGES.contains(raw)) {
             oofCount++;
             var pos = client.player.position();
+            LOGGER.info("[AutoLeap] Storm crush #{} (\"{}\") pos={} inPurple={} inGreen={} inYellow={}",
+                    oofCount, raw, pos, PURPLE_PAD_BOX.contains(pos), GREEN_PAD_BOX.contains(pos), YELLOW_PAD_BOX.contains(pos));
             if (oofCount == 1) {
                 if (PURPLE_PAD_BOX.contains(pos) || GREEN_PAD_BOX.contains(pos)) {
                     requestLeap(cfg.getTargetName());
@@ -121,6 +156,7 @@ public final class AutoLeapFeature {
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
+            LOGGER.info("[AutoLeap] Left dungeon - reset (oofCount={}, pickedUpRelic={}, pendingLeap={})", oofCount, pickedUpRelic, pendingLeap);
             oofCount = 0;
             pickedUpRelic = false;
             pendingLeap = false;
@@ -136,6 +172,7 @@ public final class AutoLeapFeature {
         if (cfg.isLeapOnRelic() && !pickedUpRelic && DungeonState.isBossPhaseActive() && !cfg.getTargetName().isBlank()) {
             ItemStack relicSlot = client.player.getInventory().getItem(8);
             if (relicSlot.getHoverName().getString().contains("Relic")) {
+                LOGGER.info("[AutoLeap] Relic trigger: hotbar slot 9 holds \"{}\" -> LEAP", relicSlot.getHoverName().getString());
                 pickedUpRelic = true;
                 requestLeap(cfg.getTargetName());
             }
@@ -145,7 +182,8 @@ public final class AutoLeapFeature {
             return;
         }
         if (System.currentTimeMillis() - pendingLeapRequestedAtMs > 3000) {
-            LOGGER.info("[AutoLeap] Leap menu never opened - giving up.");
+            LOGGER.info("[AutoLeap] Leap menu never opened (or target never found) - giving up. Screen at give-up: {}",
+                    client.screen == null ? "none" : client.screen.getClass().getSimpleName() + " '" + client.screen.getTitle().getString() + "'");
             pendingLeap = false;
             return;
         }
@@ -174,12 +212,29 @@ public final class AutoLeapFeature {
             if (item.getHoverName().getString().toLowerCase(Locale.ROOT).contains(target)) {
                 client.gameMode.handleContainerInput(screen.getMenu().containerId, slot.index, 0,
                         ContainerInput.PICKUP, client.player);
-                LOGGER.info("[AutoLeap] Clicked leap target \"{}\".", target);
+                LOGGER.info("[AutoLeap] Clicked leap target \"{}\" (slot {}, containerId={}, {}ms after request).", target,
+                        slot.index, screen.getMenu().containerId, System.currentTimeMillis() - pendingLeapRequestedAtMs);
                 pendingLeap = false;
                 return;
             }
         }
+        // Diagnostic (2026-09-14): leap menu is open but no entry matched yet - throttled to 1/sec.
+        long diagNow = System.currentTimeMillis();
+        if (diagNow - diagLastNoMatchLogAtMs >= 1000) {
+            diagLastNoMatchLogAtMs = diagNow;
+            StringBuilder names = new StringBuilder();
+            for (int i = 0; i < containerSlotCount; i++) {
+                ItemStack item = slots.get(i).getItem();
+                if (!item.isEmpty()) {
+                    names.append('"').append(item.getHoverName().getString()).append("\" ");
+                }
+            }
+            LOGGER.info("[AutoLeap] Leap menu open but no entry contains \"{}\" yet ({} container slots, entries: {})",
+                    target, containerSlotCount, names.toString().trim());
+        }
     }
+
+    private static long diagLastNoMatchLogAtMs;
 
     /** Switches to the Spirit Leap item (found by display name, not a guessed NBT id) and right-clicks
      *  it - the same real "open item -&gt; wait for the container -&gt; click the matching slot" flow
@@ -187,10 +242,13 @@ public final class AutoLeapFeature {
      *  version doesn't need. */
     private static void requestLeap(String targetName) {
         if (pendingLeap) {
+            LOGGER.info("[AutoLeap] Leap request to \"{}\" ignored - a leap is already pending ({}ms old).",
+                    targetName, System.currentTimeMillis() - pendingLeapRequestedAtMs);
             return;
         }
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.gameMode == null) {
+            LOGGER.info("[AutoLeap] Leap request to \"{}\" dropped - player/gameMode null.", targetName);
             return;
         }
         int leapSlot = -1;

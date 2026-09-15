@@ -11,6 +11,8 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,8 @@ import java.util.Locale;
  * instance it's registered against, so this can never affect any other real vanilla or Hypixel GUI.
  */
 public final class SpiritLeapOverlayFeature {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-spiritleap");
 
     private record LeapTarget(String name, int slotIndex) {
     }
@@ -66,8 +70,14 @@ public final class SpiritLeapOverlayFeature {
             targets.add(new LeapTarget(item.getHoverName().getString(), slots.get(i).index));
         }
         if (targets.isEmpty()) {
+            // Diagnostic (2026-09-14): AFTER_INIT fires when the screen is created - a real container's item
+            // contents usually arrive in a LATER packet, so this can legitimately see zero items here.
+            LOGGER.warn("[SpiritLeap] Leap screen '{}' opened (containerId={}) but 0 non-empty container slots at init ({} container slots) - overlay NOT shown",
+                    containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, containerSlotCount);
             return;
         }
+        LOGGER.info("[SpiritLeap] Leap screen '{}' opened (containerId={}): overlay targets {}",
+                containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, targets);
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) ->
                 render(graphics, scaledWidth, scaledHeight, targets));
@@ -78,6 +88,11 @@ public final class SpiritLeapOverlayFeature {
                 return true;
             }
             LeapTarget target = targets.get(quadrant);
+            ItemStack diagNowInSlot = target.slotIndex() < containerScreen.getMenu().slots.size()
+                    ? containerScreen.getMenu().slots.get(target.slotIndex()).getItem() : ItemStack.EMPTY;
+            LOGGER.info("[SpiritLeap] Quadrant {} clicked -> leap to \"{}\" (slot {}, now holds \"{}\", containerId={})",
+                    quadrant, target.name(), target.slotIndex(), diagNowInSlot.getHoverName().getString(),
+                    containerScreen.getMenu().containerId);
             client.gameMode.handleContainerInput(containerScreen.getMenu().containerId, target.slotIndex(), 0,
                     ContainerInput.PICKUP, client.player);
             return false;

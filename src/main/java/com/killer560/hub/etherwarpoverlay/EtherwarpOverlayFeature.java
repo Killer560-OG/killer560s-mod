@@ -84,6 +84,17 @@ public final class EtherwarpOverlayFeature {
         static final EtherPos NONE = new EtherPos(false, null, null);
     }
 
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-etherwarpoverlay");
+    private static String diagLastState;
+
+    /** Diagnostic only (2026-09-14) - logs only when the overlay's gate state changes, never per frame. */
+    private static void diagState(String state) {
+        if (!state.equals(diagLastState)) {
+            LOGGER.info("[EtherwarpOverlay] {}", state);
+            diagLastState = state;
+        }
+    }
+
     private EtherwarpOverlayFeature() {
     }
 
@@ -101,14 +112,18 @@ public final class EtherwarpOverlayFeature {
         ItemStack mainHand = client.player.getMainHandItem();
         CompoundTag etherData = getEtherwarpData(mainHand);
         if (etherData == null) {
+            diagState("idle (main hand is not an etherwarp item)");
             return;
         }
-        boolean isConduit = ETHERWARP_CONDUIT_ID.equals(getSkyblockId(mainHand));
+        String diagItemId = getSkyblockId(mainHand);
+        boolean isConduit = ETHERWARP_CONDUIT_ID.equals(diagItemId);
         if (!client.player.isShiftKeyDown() && !isConduit) {
+            diagState("holding ether item " + diagItemId + " but not sneaking");
             return;
         }
 
         double distance = 57.0 + etherData.getIntOr("tuned_transmission", 0);
+        diagState("ACTIVE: item=" + diagItemId + " conduit=" + isConduit + " range=" + distance);
         EtherPos etherPos = getEtherPos(client.level, client.player.position(), client.player, distance);
         if (!etherPos.succeeded() && !cfg.isShowWhenFailed()) {
             return;

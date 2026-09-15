@@ -5,6 +5,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +22,7 @@ import java.util.Map;
  *  the moment he uses the ability, same as a manual stopwatch. */
 public final class AbilityTimersFeature {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-abilitytimers");
     private static final Map<String, Boolean> keyWasDown = new HashMap<>();
 
     private AbilityTimersFeature() {
@@ -51,7 +54,10 @@ public final class AbilityTimersFeature {
             boolean down = InputConstants.isKeyDown(client.getWindow(), e.keyCode);
             boolean wasDown = keyWasDown.getOrDefault(e.id, false);
             if (down && !wasDown) {
+                boolean diagWasRunning = e.isRunning(System.currentTimeMillis());
                 e.start(System.currentTimeMillis());
+                LOGGER.info("[AbilityTimers] \"{}\" {} by key {} ({}ms)", e.name, diagWasRunning ? "RESTARTED" : "STARTED",
+                        e.keyCode, e.durationMs);
             }
             keyWasDown.put(e.id, down);
         }

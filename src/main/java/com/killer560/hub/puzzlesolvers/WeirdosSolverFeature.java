@@ -67,6 +67,9 @@ public final class WeirdosSolverFeature {
             Pattern.compile("My chest has the reward\\.")
     );
 
+    // [WeirdosSolver] diagnostics - logging only (chat-rate).
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+
     private static volatile BlockPos correctPos = null;
     private static final Set<BlockPos> wrongPositions = ConcurrentHashMap.newKeySet();
 
@@ -101,11 +104,18 @@ public final class WeirdosSolverFeature {
 
         boolean isSolution = SOLUTIONS.stream().anyMatch(p -> p.matcher(dialogue).matches());
         boolean isWrong = !isSolution && WRONG.stream().anyMatch(p -> p.matcher(dialogue).matches());
+        RoomEntry room = LiveMapFeature.currentRoomEntry();
+        if (room != null && "Three Weirdos".equals(room.name)) {
+            LOGGER.info("[WeirdosSolver] NPC line: npc=\"{}\" dialogue=\"{}\" isSolution={} isWrong={}",
+                    npc, dialogue, isSolution, isWrong);
+        }
         if (!isSolution && !isWrong) {
             return;
         }
 
         BlockPos chestPos = findChestPos(npc);
+        LOGGER.info("[WeirdosSolver] Chest for \"{}\" -> {} (clayRot={})", npc, chestPos,
+                java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation()));
         if (chestPos == null) {
             return;
         }
@@ -135,6 +145,16 @@ public final class WeirdosSolverFeature {
             }
         }
         if (npc == null) {
+            StringBuilder nearby = new StringBuilder();
+            int listed = 0;
+            for (Entity entity : client.level.entitiesForRendering()) {
+                if (entity instanceof ArmorStand && listed < 15 && client.player != null
+                        && entity.distanceToSqr(client.player) < 32 * 32 && !entity.getName().getString().isBlank()) {
+                    nearby.append('"').append(entity.getName().getString()).append("\" ");
+                    listed++;
+                }
+            }
+            LOGGER.info("[WeirdosSolver] No ArmorStand named exactly \"{}\"; nearby named stands: [{}]", npcName, nearby.toString().trim());
             return null;
         }
         BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()) - 1, 69, (int) Math.floor(npc.getZ()) - 1);
