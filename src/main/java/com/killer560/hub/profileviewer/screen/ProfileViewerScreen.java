@@ -736,7 +736,8 @@ public class ProfileViewerScreen extends Screen {
             centeredIn(g, "Decoding items" + dots(), rx, rw, contentY + contentH / 2 - 4, VALUE);
             return;
         }
-        SbProfile.Inventories inv = future.getNow(null);
+        // getNow rethrows (CompletionException) for a failed decode - never let that escape into render.
+        SbProfile.Inventories inv = future.isCompletedExceptionally() ? null : future.getNow(null);
         if (inv == null) {
             centeredIn(g, "Couldn't decode this profile's items.", rx, rw, contentY + contentH / 2 - 4, BAD);
             return;

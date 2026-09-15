@@ -27,8 +27,8 @@ import java.util.regex.Pattern;
  * <li><b>Target</b>: a Class (first alive teammate), a Player name, or Melody - QUOI's melody detection: the last
  * "Name:" in a party line containing a Melody progress token ("1/4", "2/4", "3/4", "25%", "50%", "75%"). Melody has a
  * Class/Player backup used when no melody player is known, they can't be leapt to, or they're not in the leap menu.</li>
- * <li><b>Prevent Inputs</b>: while you're on the i4 pad (x 62-65, z 34-37, |y-127| &lt; 0.5) after the device has started
- * (a target block on the wall lit) and until it completes or you step off, movement keys are held up and mouse
+ * <li><b>Prevent Inputs</b>: while Auto i4 is on and you're on the i4 pad (x 62-65, z 34-37, |y-127| &lt; 0.5) after the
+ * device has started (a target block on the wall lit) and until it completes or you step off, movement keys are held up and mouse
  * clicks, scrolling and camera look are cancelled; after an auto/fast i4 leap is requested the same block stays on
  * until the leap finishes, and the leap itself runs with {@link LeapManager}'s "block inputs".</li>
  * </ul>
@@ -152,13 +152,21 @@ public final class I4LeapFeature {
         return cfg.isEnabled() && cfg.isFastLeap() && isAtPre4();
     }
 
-    /** "Prevent Inputs" state (movement keys, clicks, scroll, camera). */
+    /** "Prevent Inputs" state (movement keys, clicks, scroll, camera). The device-running part only applies while
+     *  Auto i4 is on: without it the player has to shoot (clicks) and could never finish the device or step off the pad
+     *  (movement) - a hard lock. */
     public static boolean blocksInput() {
         I4LeapConfig cfg = I4LeapConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isPreventInputs()) {
             return false;
         }
-        return awaitingLeap || (deviceStarted && !deviceCompleted);
+        return awaitingLeap || autoI4StillShooting();
+    }
+
+    /** The device on your pad has started and not completed while Auto i4 is on (it still has shots to do). */
+    static boolean autoI4StillShooting() {
+        return deviceStarted && !deviceCompleted
+                && com.killer560.hub.i4sensors.I4SensorsConfig.getInstance().isAutoI4Enabled();
     }
 
     /** QUOI {@code leapToPre4Target()}. */

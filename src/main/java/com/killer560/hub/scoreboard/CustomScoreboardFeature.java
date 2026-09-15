@@ -70,7 +70,9 @@ public final class CustomScoreboardFeature {
 
     /** Checked by {@code CustomScoreboardGuiMixin} before vanilla draws the sidebar. */
     public static boolean shouldHideVanilla() {
-        return isActive() && CustomScoreboardConfig.getInstance().isHideVanillaScoreboard();
+        // Also require something to draw: if the rebuild failed or produced nothing, keep the vanilla sidebar
+        // rather than leaving the player with no scoreboard at all.
+        return isActive() && CustomScoreboardConfig.getInstance().isHideVanillaScoreboard() && !current.isEmpty();
     }
 
     /** Sidebar lines no pattern recognised this update, unmodified. */
@@ -94,15 +96,19 @@ public final class CustomScoreboardFeature {
             return;
         }
         tickCounter = 0;
+        if (!SkyblockGate.isOnSkyblock() || client.level == null) {
+            // Off Skyblock: don't even read the sidebar/tab list.
+            current = Collections.emptyList();
+            unknown = Collections.emptyList();
+            return;
+        }
         try {
             ScoreboardData.refresh(client);
-            if (SkyblockGate.isOnSkyblock() && client.level != null) {
-                rebuild();
-            } else {
-                current = Collections.emptyList();
-                unknown = Collections.emptyList();
-            }
+            rebuild();
         } catch (RuntimeException e) {
+            // Don't keep drawing a stale board forever; shouldHideVanilla() falls back to vanilla while empty.
+            current = Collections.emptyList();
+            unknown = Collections.emptyList();
             if (!loggedError) {
                 loggedError = true;
                 LOGGER.warn("[CustomScoreboard] Update failed: {}", e.toString(), e);
@@ -237,8 +243,14 @@ public final class CustomScoreboardFeature {
         }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         Font font = client.font;
-        int[] pos = resolveSnappedPosition(graphics, cfg, boxWidth(font, lines, cfg), boxHeight(font, lines, cfg));
-        float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
+        int[] pos;
+        float scale;
+        try {
+            pos = resolveSnappedPosition(graphics, cfg, boxWidth(font, lines, cfg), boxHeight(font, lines, cfg));
+            scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
+        } catch (RuntimeException e) {
+            return;
+        }
         graphics.pose().pushMatrix();
         try {
             graphics.pose().translate(pos[0], pos[1]);

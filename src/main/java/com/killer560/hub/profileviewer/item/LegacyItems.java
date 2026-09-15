@@ -88,23 +88,34 @@ public final class LegacyItems {
         if (element == null || !element.isJsonObject()) {
             return List.of();
         }
-        JsonObject obj = element.getAsJsonObject();
-        if (obj.has("type") && obj.get("type").isJsonPrimitive() && obj.get("type").getAsInt() != 0) {
+        try {
+            JsonObject obj = element.getAsJsonObject();
+            if (obj.has("type") && obj.get("type").isJsonPrimitive() && obj.get("type").getAsInt() != 0) {
+                return List.of();
+            }
+            if (!obj.has("data") || !obj.get("data").isJsonPrimitive()) {
+                return List.of();
+            }
+            return decodeBase64(obj.get("data").getAsString());
+        } catch (Exception e) {
+            // e.g. a non-numeric "type" - one bad blob must not fail the whole profile's decode.
             return List.of();
         }
-        if (!obj.has("data") || !obj.get("data").isJsonPrimitive()) {
-            return List.of();
-        }
-        return decodeBase64(obj.get("data").getAsString());
     }
 
+    /** Largest base64 blob accepted (Hypixel's biggest real blobs are a few hundred KB). */
+    private static final int MAX_BASE64_CHARS = 8 * 1024 * 1024;
+    /** NBT read quota per blob - bounds a gzip bomb's decompressed size instead of {@code unlimitedHeap()}. */
+    private static final long NBT_QUOTA_BYTES = 32L * 1024 * 1024;
+    private static final int MAX_PROFILE_CACHE = 4096;
+
     public static List<ItemStack> decodeBase64(String data) {
-        if (data == null || data.isBlank()) {
+        if (data == null || data.isBlank() || data.length() > MAX_BASE64_CHARS) {
             return List.of();
         }
         try {
             byte[] bytes = Base64.getDecoder().decode(data.trim());
-            CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap());
+            CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.create(NBT_QUOTA_BYTES));
             ListTag list = root.getListOrEmpty("i");
             List<ItemStack> out = new ArrayList<>(list.size());
             for (int i = 0; i < list.size(); i++) {
@@ -216,6 +227,9 @@ public final class LegacyItems {
     /** A resolved profile carrying just the texture blob - same mechanism as
      *  {@code SkyblockItemStackFactory} and item-data-fixer's SkullTextureFixer. */
     public static ResolvableProfile skullProfile(String textureValue) {
+        if (PROFILE_CACHE.size() >= MAX_PROFILE_CACHE && !PROFILE_CACHE.containsKey(textureValue)) {
+            PROFILE_CACHE.clear();
+        }
         return PROFILE_CACHE.computeIfAbsent(textureValue, value -> {
             Multimap<String, Property> backing = LinkedHashMultimap.create();
             backing.put("textures", new Property("textures", value));

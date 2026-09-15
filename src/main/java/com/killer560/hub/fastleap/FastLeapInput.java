@@ -1,5 +1,6 @@
 package com.killer560.hub.fastleap;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.input.KeyEvent;
@@ -14,7 +15,8 @@ import net.minecraft.client.input.KeyEvent;
  * <li>{@link I4LeapFeature#blocksInput()} ("Prevent Inputs"): in the world only - mouse-button presses, movement-key
  * presses (forward/back/left/right/jump/sprint/sneak), scroll and camera turn are cancelled.</li>
  * </ul>
- * Releases are never cancelled (so nothing sticks down); when a block ends the key states are re-synced with
+ * Releases and Escape are never cancelled (so nothing sticks down and the menu/pause screen can always be opened or
+ * closed); when a block ends the key states are re-synced with
  * {@code KeyMapping.setAll()}. Camera turn is cancelled at {@code MouseHandler.turnPlayer}, whose caller still resets the
  * accumulated mouse delta, so the view doesn't jump when the block ends; code that sets rotation directly (Auto i4)
  * is unaffected.
@@ -48,7 +50,9 @@ public final class FastLeapInput {
 
     /** @param action GLFW action (1 = press, 2 = repeat, 0 = release) */
     public static boolean shouldCancelKey(KeyEvent event, int action) {
-        if (action == 0) {
+        // Releases always go through, and Escape is never blocked: the player must always be able to close the leap
+        // menu (which cleanly fails the leap - "Container changed before click") or open the pause menu.
+        if (action == 0 || event.key() == InputConstants.KEY_ESCAPE) {
             return false;
         }
         Minecraft client = Minecraft.getInstance();

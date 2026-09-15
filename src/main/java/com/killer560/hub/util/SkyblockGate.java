@@ -37,8 +37,9 @@ public final class SkyblockGate {
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-skyblockonly.json");
     private static final long NO_SIDEBAR_HOLD_MS = 10_000L;
 
-    private static boolean enabled = false;
-    private static boolean loaded = false;
+    // volatile: allows()/isEnabled() are also read off the client thread (integrated-server block-shape mixins).
+    private static volatile boolean enabled = false;
+    private static volatile boolean loaded = false;
     private static volatile boolean onSkyblock = false;
     private static long noSidebarSinceMs = 0L;
     private static int tickCounter = 0;
@@ -130,7 +131,8 @@ public final class SkyblockGate {
         if (loaded) {
             return;
         }
-        loaded = true;
+        // "loaded" is only published after "enabled" holds the file's value, so an unsynchronized isEnabled()
+        // on another thread either blocks here (loaded still false) or sees the finished value.
         try {
             if (Files.exists(CONFIG_PATH)) {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -138,6 +140,8 @@ public final class SkyblockGate {
             }
         } catch (Exception e) {
             LOGGER.warn("[SkyblockGate] Couldn't read {}: {}", CONFIG_PATH.getFileName(), e.toString());
+        } finally {
+            loaded = true;
         }
     }
 

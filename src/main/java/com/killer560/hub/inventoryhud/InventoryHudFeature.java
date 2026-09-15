@@ -187,10 +187,13 @@ public final class InventoryHudFeature {
                 int cy = y + pad + displayRow(cfg, row, col) * cell;
                 if (cfg.isMiniMode()) {
                     graphics.pose().pushMatrix();
-                    graphics.pose().translate(cx + 0.5f, cy + 0.5f);
-                    graphics.pose().scale(0.5f, 0.5f);
-                    drawStack(graphics, font, stack, 0, 0, cfg, partialTick);
-                    graphics.pose().popMatrix();
+                    try {
+                        graphics.pose().translate(cx + 0.5f, cy + 0.5f);
+                        graphics.pose().scale(0.5f, 0.5f);
+                        drawStack(graphics, font, stack, 0, 0, cfg, partialTick);
+                    } finally {
+                        graphics.pose().popMatrix();
+                    }
                 } else {
                     drawStack(graphics, font, stack, cx + 1, cy + 1, cfg, partialTick);
                 }
@@ -214,11 +217,14 @@ public final class InventoryHudFeature {
             // Same squash-and-stretch as vanilla Gui#extractSlot.
             float s = 1.0f + pop / 5.0f;
             graphics.pose().pushMatrix();
-            graphics.pose().translate(x + 8, y + 12);
-            graphics.pose().scale(1.0f / s, (s + 1.0f) / 2.0f);
-            graphics.pose().translate(-(x + 8), -(y + 12));
-            graphics.item(stack, x, y);
-            graphics.pose().popMatrix();
+            try {
+                graphics.pose().translate(x + 8, y + 12);
+                graphics.pose().scale(1.0f / s, (s + 1.0f) / 2.0f);
+                graphics.pose().translate(-(x + 8), -(y + 12));
+                graphics.item(stack, x, y);
+            } finally {
+                graphics.pose().popMatrix();
+            }
         } else {
             graphics.item(stack, x, y);
         }
@@ -275,7 +281,11 @@ public final class InventoryHudFeature {
             if (!cfg.isEnabled() || !(client.screen instanceof HudEditorScreen)) {
                 return;
             }
-            drawPanel(graphics, x, y, client.player, cfg, 0f);
+            try {
+                drawPanel(graphics, x, y, client.player, cfg, 0f);
+            } catch (RuntimeException e) {
+                // Same guard as the in-game layer: a bad item render must not crash the HUD editor.
+            }
         }
     }
 }

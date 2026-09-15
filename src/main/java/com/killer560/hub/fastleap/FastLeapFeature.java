@@ -109,7 +109,11 @@ public final class FastLeapFeature {
             onWorldChange();
         }
         Teammates.tick(client);
-        LeapManager.onStartTick(client);
+        try {
+            LeapManager.onStartTick(client);
+        } catch (RuntimeException e) {
+            LeapManager.abort(e);
+        }
         I4LeapFeature.tick(client);
         // I4 "Prevent Inputs": hold movement keys up while the device runs / the leap is pending
         if (I4LeapFeature.blocksInput() && client.screen == null) {
@@ -123,12 +127,19 @@ public final class FastLeapFeature {
             i4MovementHeld = true;
         } else if (i4MovementHeld) {
             i4MovementHeld = false;
-            net.minecraft.client.KeyMapping.setAll();
+            // with a screen open, closing it re-syncs the keys (MouseHandler.grabMouse -> KeyMapping.setAll)
+            if (client.screen == null) {
+                net.minecraft.client.KeyMapping.setAll();
+            }
         }
     }
 
     private static void onEndTick(Minecraft client) {
-        LeapManager.onEndTick(client);
+        try {
+            LeapManager.onEndTick(client);
+        } catch (RuntimeException e) {
+            LeapManager.abort(e);
+        }
         LocalPlayer player = client.player;
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         if (player == null || !cfg.isEnabled() || !DungeonState.isInDungeon()) {
@@ -290,7 +301,12 @@ public final class FastLeapFeature {
             return true;
         }
         if (i4) {
-            I4LeapFeature.leapToTarget();
+            if (I4LeapFeature.autoI4StillShooting()) {
+                // the device is still running under Auto i4 - don't leap out with shots left
+                ModChat.send("I4 Leap", ModChat.bad("Device still running - not leaping"));
+            } else {
+                I4LeapFeature.leapToTarget();
+            }
             lastClick = now;
             return true;
         }

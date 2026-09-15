@@ -64,12 +64,14 @@ public final class PetIcons {
     }
 
     private static CompletableFuture<String> fetchOne(String key) {
-        String url = NEU_ITEMS + key.replace(";", "%3B") + ".json";
+        // Keys come from API strings: percent-encode everything (";" included) so an odd pet/skin id can't
+        // produce an invalid URI or a path traversal.
+        String url = NEU_ITEMS + java.net.URLEncoder.encode(key, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20") + ".json";
         return ProfileViewerApi.getKeylessJson(url).thenApply(PetIcons::extract);
     }
 
     private static String extract(JsonObject json) {
-        if (json == null || !json.has("nbttag")) {
+        if (json == null || !json.has("nbttag") || !json.get("nbttag").isJsonPrimitive()) {
             return null;
         }
         Matcher m = TEXTURE.matcher(json.get("nbttag").getAsString());

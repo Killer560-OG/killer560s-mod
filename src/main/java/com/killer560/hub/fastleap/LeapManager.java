@@ -35,8 +35,9 @@ import java.util.Locale;
  * QUOI semantics kept: movement keys are held up for the whole leap (or, in Fast mode, only from the menu opening
  * until the click); "Block inputs" blocks keyboard/mouse input for the same window (see {@link #blocksInput()});
  * right-click (use) input is suppressed after using the leap until the leap finishes.
- * Not ported: QUOI's "silent GUI" (it cancels the open-screen packet so the menu never renders) and its leap cooldown
- * estimate (needs the mage cooldown multiplier) - a leap on cooldown just times out waiting for the menu.
+ * QUOI's leap cooldown is kept: after a successful leap no new leap uses the item for {@code 48 * mage multiplier}
+ * ticks ("On cooldown"), so a queued/auto leap never blocks inputs waiting for a menu that can't open.
+ * Escape is never blocked (see {@link FastLeapInput}).
  */
 public final class LeapManager {
 
@@ -93,6 +94,9 @@ public final class LeapManager {
     private static boolean useInputSuppressed = false;
     private static boolean movementSuppressed = false;
     private static long lastLeapMs = 0L;
+    /** QUOI {@code leapCD}: ticks until the Spirit Leap is usable again ({@code 48 * mage multiplier} after a leap). */
+    private static double leapCdTicks = 0.0;
+    private static final double LEAP_COOLDOWN_TICKS = 48.0;
 
     private LeapManager() {
     }
@@ -202,7 +206,21 @@ public final class LeapManager {
         restoreMovement();
     }
 
+    /** Safety net: something threw mid-leap - drop every leap and give the player their inputs back. */
+    static void abort(Throwable t) {
+        FastLeapFeature.LOGGER.error("[FastLeap] Leap aborted after an exception - inputs restored", t);
+        incoming = null;
+        pending = null;
+        active = null;
+        restoreUseInput();
+        restoreMovement();
+    }
+
     static void onStartTick(Minecraft client) {
+        // QUOI TickEvent.Server: leapCD -= 1
+        if (leapCdTicks > 0) {
+            leapCdTicks = Math.max(0.0, leapCdTicks - 1.0);
+        }
         LocalPlayer player = client.player;
         if (player == null || client.gameMode == null) {
             return;
@@ -250,7 +268,9 @@ public final class LeapManager {
     }
 
     private static void startLeap(Minecraft client, Request req) {
-        boolean menuOpen = leapMenuScreen(client.screen) != null;
+        // QUOI: an already-open menu only counts if its title is exactly "Spirit Leap" (a substring match would also
+        // take e.g. a Bazaar/AH page for the item and close it on timeout)
+        boolean menuOpen = isExactLeapMenu(client.screen);
         if (active == null && pending == null && menuOpen) {
             doLeap(client, req, true);
         } else if (client.screen != null || active != null) {
@@ -263,6 +283,13 @@ public final class LeapManager {
 
     private static void doLeap(Minecraft client, Request req, boolean preOpened) {
         if (active != null) {
+            return;
+        }
+        // QUOI doLeap: never use the item (and block inputs/movement waiting for a menu that can't open) on cooldown
+        // (an already-open menu proves the leap is usable, so the estimate never refuses clicking it)
+        if (leapCdTicks > 0 && !preOpened) {
+            ModChat.send("Fast Leap", ModChat.bad("Failed to leap! On cooldown: "
+                    + String.format(Locale.ROOT, "%.1f", leapCdTicks / 20.0) + "s"));
             return;
         }
         LocalPlayer player = client.player;
@@ -384,6 +411,7 @@ public final class LeapManager {
         switch (result) {
             case SUCCESS -> {
                 lastLeapMs = System.currentTimeMillis();
+                leapCdTicks = LEAP_COOLDOWN_TICKS * Teammates.mageCooldownMultiplier();
                 ModChat.send("Fast Leap", ModChat.good("Leaping to "), ModChat.value(a.current.display()));
             }
             case FAILURE -> ModChat.send("Fast Leap", ModChat.bad("Failed to leap to "), ModChat.value(a.current.display()),
@@ -410,6 +438,14 @@ public final class LeapManager {
             return container;
         }
         return null;
+    }
+
+    private static boolean isExactLeapMenu(Screen screen) {
+        if (!(screen instanceof AbstractContainerScreen<?> container)) {
+            return false;
+        }
+        String plain = net.minecraft.ChatFormatting.stripFormatting(container.getTitle().getString());
+        return plain != null && plain.trim().equalsIgnoreCase("Spirit Leap");
     }
 
     static boolean isLeapItem(ItemStack stack) {
@@ -490,7 +526,7 @@ public final class LeapManager {
             return;
         }
         useInputSuppressed = false;
-        KeyMapping.setAll();
+        resyncKeys();
     }
 
     private static void restoreMovement() {
@@ -498,6 +534,14 @@ public final class LeapManager {
             return;
         }
         movementSuppressed = false;
-        KeyMapping.setAll();
+        resyncKeys();
+    }
+
+    /** Re-read held keys - only in the world: with a screen open that would press movement keys inside the GUI, and
+     *  closing the screen re-syncs them anyway ({@code MouseHandler.grabMouse} calls {@code KeyMapping.setAll()}). */
+    private static void resyncKeys() {
+        if (Minecraft.getInstance().screen == null) {
+            KeyMapping.setAll();
+        }
     }
 }

@@ -328,5 +328,13 @@ public final class MotionBlurRenderer {
             } catch (Throwable ignored) {
             }
         }
+        // The pool's cached "swap" target (full-screen colour + depth) is only aged out by endFrame(), which
+        // never runs again while the feature is off - free it now instead of holding it until re-enable.
+        if (resourcePool != null) {
+            try {
+                resourcePool.clear();
+            } catch (Throwable ignored) {
+            }
+        }
     }
 }

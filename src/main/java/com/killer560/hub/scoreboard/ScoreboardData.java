@@ -61,6 +61,7 @@ public final class ScoreboardData {
     private static volatile String actionBarPlain = "";
     private static volatile long actionBarAtMs = 0L;
     private static String island = "";
+    private static boolean accessorUsable = true;
 
     private ScoreboardData() {
     }
@@ -186,12 +187,21 @@ public final class ScoreboardData {
             return;
         }
         PlayerTabOverlay overlay = client.gui.getTabList();
-        List<PlayerInfo> infos;
+        List<PlayerInfo> infos = null;
         Component footer = null;
-        if (overlay instanceof CustomScoreboardTabOverlayAccessor accessor) {
-            infos = accessor.killer560smod$getPlayerInfos();
-            footer = accessor.killer560smod$getFooter();
-        } else {
+        if (accessorUsable && overlay instanceof CustomScoreboardTabOverlayAccessor accessor) {
+            try {
+                infos = accessor.killer560smod$getPlayerInfos();
+                footer = accessor.killer560smod$getFooter();
+            } catch (LinkageError | RuntimeException e) {
+                // A half-applied accessor throws AbstractMethodError/IllegalStateException at call time; fall back
+                // to the unsorted connection list from now on.
+                accessorUsable = false;
+                infos = null;
+                footer = null;
+            }
+        }
+        if (infos == null) {
             Collection<PlayerInfo> listed = client.getConnection().getListedOnlinePlayers();
             infos = new ArrayList<>(listed);
             infos.sort(Comparator.comparing(i -> i.getProfile().name(), String.CASE_INSENSITIVE_ORDER));

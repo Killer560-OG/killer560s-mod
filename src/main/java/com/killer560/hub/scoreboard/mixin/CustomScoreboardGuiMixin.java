@@ -33,6 +33,8 @@ public abstract class CustomScoreboardGuiMixin {
 
     @Inject(method = "setOverlayMessage(Lnet/minecraft/network/chat/Component;Z)V", at = @At("HEAD"), require = 0)
     private void killer560smod$captureActionBar(Component message, boolean animateColor, CallbackInfo ci) {
-        ScoreboardData.onActionBar(message);
+        if (CustomScoreboardFeature.isActive()) {
+            ScoreboardData.onActionBar(message);
+        }
     }
 }

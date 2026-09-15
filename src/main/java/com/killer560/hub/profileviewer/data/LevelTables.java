@@ -247,7 +247,8 @@ public final class LevelTables {
     public static Level catacombsLevel(long xp, boolean overflow) {
         ensureLoaded();
         Level base = cumulative(catacombsXp, xp, catacombsXp.length);
-        if (!base.maxed() || !overflow || catacombsOverflow <= 0) {
+        // Empty table (bundled resource unreadable) reports "maxed" at level 0 - never index it.
+        if (!base.maxed() || !overflow || catacombsOverflow <= 0 || catacombsXp.length == 0) {
             return base;
         }
         long over = xp - catacombsXp[catacombsXp.length - 1];

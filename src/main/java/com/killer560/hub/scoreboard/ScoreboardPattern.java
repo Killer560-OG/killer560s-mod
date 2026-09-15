@@ -98,7 +98,7 @@ public final class ScoreboardPattern {
     public static final Pattern MAGMA_BOSS = p("§7Boss: §[c6e]\\d+%");
     public static final Pattern DAMAGE_SOAKED = p("§7Damage Soaked:");
     public static final Pattern KILL_MAGMAS = p("§6Kill the Magmas:");
-    public static final Pattern KILL_MAGMAS_BAR = p("(?:(?:§.)*▎+)+.*");
+    public static final Pattern KILL_MAGMAS_BAR = p("(?:(?:§.)*▎)+.*"); // same language as SkyHanni's "(?:(?:§.)*▎+)+.*" without the nested "+" (polynomial backtracking)
     public static final Pattern REFORMING = p("§cThe boss is (?:re)?forming!");
     public static final Pattern BOSS_HEALTH = p("§7Boss Health:");
     public static final Pattern BOSS_HEALTH_BAR = p("§.[\\w,.]+§f/§a10M§c" + HEALTH_ICON);

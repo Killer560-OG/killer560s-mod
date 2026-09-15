@@ -30,6 +30,8 @@ public final class Teammates {
     }
 
     private static final Map<String, Teammate> TEAMMATES = new LinkedHashMap<>();
+    /** Class level per name (for QUOI's mage cooldown multiplier); kept across a "(DEAD)" entry. */
+    private static final Map<String, Integer> LEVELS = new LinkedHashMap<>();
     private static int tickCounter = 0;
 
     private Teammates() {
@@ -63,16 +65,79 @@ public final class Teammates {
                 TEAMMATES.put(name, new Teammate(name, old == null ? null : old.clazz(), true));
             } else if ("EMPTY".equalsIgnoreCase(clazzText)) {
                 TEAMMATES.remove(name);
+                LEVELS.remove(name);
             } else {
                 DungeonClass parsed = "Berserk".equalsIgnoreCase(clazzText) ? DungeonClass.BERSERKER : DungeonClass.byName(clazzText);
                 TEAMMATES.put(name, new Teammate(name, parsed, false));
+                int level = parseLevel(m.group(3));
+                if (level > 0) {
+                    LEVELS.put(name, level);
+                }
             }
         }
     }
 
     static void clear() {
         TEAMMATES.clear();
+        LEVELS.clear();
         tickCounter = 0;
+    }
+
+    /** QUOI {@code Dungeon.getMageCooldownMultiplier()}: 1.0 unless you're a Mage, else
+     *  {@code 1 - 0.25 - floor(level / 2) / 100 * (only mage ? 2 : 1)}. Unknown class/level = the non-mage 1.0. */
+    public static double mageCooldownMultiplier() {
+        String self = selfName();
+        Teammate me = null;
+        for (Teammate t : TEAMMATES.values()) {
+            if (t.name().equalsIgnoreCase(self)) {
+                me = t;
+                break;
+            }
+        }
+        if (me == null || me.clazz() != DungeonClass.MAGE) {
+            return 1.0;
+        }
+        int level = LEVELS.getOrDefault(me.name(), 0);
+        int mages = 0;
+        for (Teammate t : TEAMMATES.values()) {
+            if (t.clazz() == DungeonClass.MAGE) {
+                mages++;
+            }
+        }
+        return 1.0 - 0.25 - (Math.floor(level / 2.0) / 100.0) * (mages == 1 ? 2 : 1);
+    }
+
+    /** Roman ("XLII") or decimal class level from the tab list, else 0. */
+    private static int parseLevel(String text) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+        if (text.chars().allMatch(Character::isDigit)) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        int total = 0;
+        int prev = 0;
+        String upper = text.toUpperCase(Locale.ROOT);
+        for (int i = upper.length() - 1; i >= 0; i--) {
+            int v = switch (upper.charAt(i)) {
+                case 'I' -> 1;
+                case 'V' -> 5;
+                case 'X' -> 10;
+                case 'L' -> 50;
+                case 'C' -> 100;
+                default -> -1;
+            };
+            if (v < 0) {
+                return 0;
+            }
+            total += v < prev ? -v : v;
+            prev = Math.max(prev, v);
+        }
+        return Math.max(0, total);
     }
 
     public static String selfName() {

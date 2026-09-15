@@ -76,6 +76,19 @@ public final class ProfileViewerApi {
             .executor(EXECUTOR)
             .build();
 
+    /** For requests carrying a secret header (Hypixel API-Key, backend token): never follow a redirect, since
+     *  the JDK client re-sends user headers to the redirect target. */
+    private static final HttpClient HTTP_NO_REDIRECT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .executor(EXECUTOR)
+            .build();
+
+    /** Hard caps so a long session viewing many players can't grow these without bound (each cached
+     *  result holds the full profile JSON, including every inventory blob). */
+    private static final int MAX_CACHED_PROFILES = 16;
+    private static final int MAX_CACHED_NAMES = 256;
+
     /** A fetch failure whose message is safe to show on screen (never contains a key). */
     public static final class ApiException extends RuntimeException {
         public ApiException(String message) {
@@ -153,9 +166,14 @@ public final class ProfileViewerApi {
 
     /** GET a keyless public JSON resource; completes with null on any failure. */
     public static CompletableFuture<JsonObject> getKeylessJson(String url) {
-        return HTTP.sendAsync(request(url).GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-                .thenApply(res -> res.statusCode() == 200 ? parseObject(res.body()) : null)
-                .exceptionally(t -> null);
+        try {
+            return HTTP.sendAsync(request(url).GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+                    .thenApply(res -> res.statusCode() == 200 ? parseObject(res.body()) : null)
+                    .exceptionally(t -> null);
+        } catch (Exception e) {
+            // e.g. URI.create rejecting a malformed url - callers can be on the render thread.
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     // ------------------------------------------------------------------ names / skins
@@ -189,6 +207,9 @@ public final class ProfileViewerApi {
                     return lookupName("https://api.mojang.com/users/profiles/minecraft/" + trimmed);
                 })
                 .thenApply(p -> {
+                    if (NAME_CACHE.size() >= MAX_CACHED_NAMES) {
+                        NAME_CACHE.clear();
+                    }
                     NAME_CACHE.put(key, p);
                     return p;
                 });
@@ -272,7 +293,7 @@ public final class ProfileViewerApi {
         raw.thenApplyAsync(pair -> {
             List<SbProfile> profiles = SbProfile.parseAll(pair.json(), uuid);
             ProfilesResult result = new ProfilesResult(uuid, profiles, pair.source(), System.currentTimeMillis());
-            CACHE.put(uuid, new Cached(result, result.fetchedAt()));
+            putCache(uuid, new Cached(result, result.fetchedAt()));
             return result;
         }, EXECUTOR).whenComplete((r, t) -> {
             IN_FLIGHT.remove(uuid, promise);
@@ -283,6 +304,27 @@ public final class ProfileViewerApi {
             }
         });
         return promise;
+    }
+
+    /** Drops expired entries, then the oldest ones, so the cache never exceeds {@link #MAX_CACHED_PROFILES}. */
+    private static synchronized void putCache(UUID uuid, Cached entry) {
+        long now = System.currentTimeMillis();
+        CACHE.entrySet().removeIf(e -> now - e.getValue().at() >= CACHE_MS);
+        while (CACHE.size() >= MAX_CACHED_PROFILES && !CACHE.containsKey(uuid)) {
+            UUID oldest = null;
+            long oldestAt = Long.MAX_VALUE;
+            for (Map.Entry<UUID, Cached> e : CACHE.entrySet()) {
+                if (e.getValue().at() < oldestAt) {
+                    oldestAt = e.getValue().at();
+                    oldest = e.getKey();
+                }
+            }
+            if (oldest == null) {
+                break;
+            }
+            CACHE.remove(oldest);
+        }
+        CACHE.put(uuid, entry);
     }
 
     private record Raw(JsonObject json, String source) {
@@ -345,7 +387,7 @@ public final class ProfileViewerApi {
             return CompletableFuture.failedFuture(new ApiException("no key"));
         }
         HttpRequest req = request(HYPIXEL_PROFILES + dashless(uuid)).header("API-Key", key).GET().build();
-        return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).thenApply(res -> {
+        return HTTP_NO_REDIRECT.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).thenApply(res -> {
             JsonObject body = parseObject(res.body());
             switch (res.statusCode()) {
                 case 200 -> {
@@ -381,7 +423,7 @@ public final class ProfileViewerApi {
                     .header("Authorization", token)
                     .header("X-Intent", "killer560s-mod profile viewer")
                     .GET().build();
-            return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return HTTP_NO_REDIRECT.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         }).thenCompose(res -> {
             if (res.statusCode() == 200) {
                 JsonObject body = parseObject(res.body());
