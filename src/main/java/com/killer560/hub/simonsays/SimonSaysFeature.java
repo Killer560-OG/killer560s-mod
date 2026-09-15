@@ -218,7 +218,11 @@ public final class SimonSaysFeature {
     // it for all remaining clicks too, the same way reveal overhead already is - self-correcting within a
     // single device's own run as real data comes in, same "calculate as it goes" approach the distance
     // weighting already uses.
-    private static long autoApproachOverheadEmaMs = 0L;
+    // Seeded at a realistic ~100ms per click rather than 0 (2026-09-14, verified by simulating the pacing
+    // math against killer560's real log timings): starting at 0 over-funded the first few clicks, which
+    // only mattered when the Timer Target was close to the fastest physically possible time.
+    private static final long APPROACH_OVERHEAD_EMA_SEED_MS = 100L;
+    private static long autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
     private static long lastScheduledDelayMs = 0L;
     // Diagnostic-only (2026-09-14, killer560's own report: "it is still no where near the propper time" -
     // a real log capture for that report showed Auto Solve's Target/Variance path log exactly ONE click
@@ -315,6 +319,19 @@ public final class SimonSaysFeature {
     // tick-based caller that owns that target, so click-bookkeeping/pacing still only ever runs once
     // per real click, from the same tick-based code as every other click mode.
     private static BlockPos rotateClickFiredFor = null;
+    // Wall-clock time the frame-driven side actually fired rotateClickFiredFor - so Auto Solve's pacing
+    // books the click at its REAL fire moment, not whenever the next tick happened to get around to it.
+    private static long rotateClickFiredAtMs = 0L;
+    // Real bug found and fixed (2026-09-14, killer560's own report: "it is drifting off of the button
+    // again for the one it should be going back to"): between rounds Hypixel removes all 16 grid buttons
+    // (the "Grid reset detected (16 air blocks)" log line), and that's exactly the window idle spends
+    // looking back at rememberedFirstButton while the next pattern plays. realBlockCenter used to fall
+    // back to the FULL block's center for an air block - ~0.44 blocks closer to the player than the real
+    // button face, which is ~5 degrees of pitch off for a top/bottom-row button at idle's real standing
+    // distance - so idle visibly drifted up/down off the button for the whole reveal, then snapped back
+    // once the buttons reappeared. Remembers each grid button's real box from whenever it last existed
+    // (see aimBoxFor), with vanilla's own wall-button geometry as the fallback if it was never seen.
+    private static final Map<BlockPos, AABB> lastSeenGridButtonBoxes = new HashMap<>();
     // Real bug found and fixed (2026-09-14, killer560's own report: "the tick delay was off... its still
     // set to 2 but i can tell its not going off every 2 ticks"): unlike rotateInProgressTarget (nulled
     // the instant a click fires), this persists across a fire - lets tickRotateClick tell "repeat-clicking
@@ -560,6 +577,7 @@ public final class SimonSaysFeature {
                 realStartButtonPressCountThisPhase = 0;
                 rememberedFirstButton = null;
             }
+            rotateClickFiredFor = null;
             wasActive = false;
             return;
         }
@@ -577,7 +595,7 @@ public final class SimonSaysFeature {
             autoSolveClicksDoneThisAttempt = 0;
             lastBlockedTrackAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
-            autoApproachOverheadEmaMs = 0L;
+            autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
             lastScheduledDelayMs = 0L;
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
@@ -594,6 +612,8 @@ public final class SimonSaysFeature {
         }
         wasActive = true;
 
+        // Deliberately FIRST, before detectGridChanges - see consumeFiredRotateClick's own doc comment.
+        consumeFiredRotateClick(cfg);
         tickStartButton(client, cfg);
 
         detectGridChanges(client, cfg);
@@ -656,6 +676,11 @@ public final class SimonSaysFeature {
         lastAutoClickedPos = null;
         lastTriggerBotTarget = null;
         solveStartedAtMs = 0L;
+        // Found in the 2026-09-14 review pass: an approach still in progress when the grid/round resets
+        // (e.g. a failed attempt) used to keep aiming at - and eventually click - its now-stale button,
+        // possibly mid-way through the next reveal. Nothing left in progress belongs to the new state.
+        rotateInProgressTarget = null;
+        autoSolveStallTarget = null;
     }
 
     /** Real start-button-press detection, ported from Odin's own {@code BlockUpdateEvent} check for
@@ -700,7 +725,7 @@ public final class SimonSaysFeature {
             autoSolveClicksDoneThisAttempt = 0;
             lastBlockedTrackAtMs = 0L;
             autoSolveBlockedMsThisAttempt = 0L;
-            autoApproachOverheadEmaMs = 0L;
+            autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
             lastScheduledDelayMs = 0L;
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
@@ -929,7 +954,7 @@ public final class SimonSaysFeature {
                 autoSolveClicksDoneThisAttempt = 0;
                 lastBlockedTrackAtMs = 0L;
                 autoSolveBlockedMsThisAttempt = 0L;
-                autoApproachOverheadEmaMs = 0L;
+                autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
                 lastScheduledDelayMs = 0L;
                 wasBlockedByReveal = false;
                 lastRoundCompletedAtMs = 0L;
@@ -1056,7 +1081,7 @@ public final class SimonSaysFeature {
                 autoSolveClicksDoneThisAttempt = 0;
                 lastBlockedTrackAtMs = 0L;
                 autoSolveBlockedMsThisAttempt = 0L;
-                autoApproachOverheadEmaMs = 0L;
+                autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
                 lastScheduledDelayMs = 0L;
                 wasBlockedByReveal = false;
                 lastRoundCompletedAtMs = 0L;
@@ -1345,139 +1370,62 @@ public final class SimonSaysFeature {
                 cfg.isTriggerBotEnabled(), autoSolveArmed, now - autoSolveNextClickAtMs, now - lastAutoClickAtMs));
 
         if (cfg.isAutoSolveEnabled()) {
+            // Real bug found and fixed (2026-09-14, killer560's own report: "Whole device solved in 11.55s
+            // (6.65s reveal delay)... it is set to 11.2" - a real log showed every click after the first
+            // scheduled with "base 0ms" yet still landing 350-400ms apart): this block used to also do the
+            // click BOOKKEEPING, the tick after tickRotateClick reported the frame-driven click had fired -
+            // but by then detectGridChanges had usually already advanced clickNeeded (see
+            // consumeFiredRotateClick's own doc comment), so the click was recorded against the NEXT button
+            // (lastAutoClickedPos = a button not clicked yet). That tripped the 300ms same-button re-click
+            // guard below on literally every click - the real log shows DISPATCH sitting exactly 300ms
+            // before every "Beginning approach". A round's LAST click was also only booked once the NEXT
+            // round finished revealing, feeding ~2s reveal gaps into the approach-overhead estimate, which
+            // is what drove "base" to 0. Bookkeeping now lives in bookAutoSolveClick, called with the real
+            // clicked button and real fire time; this block only decides WHEN to start the next click.
+            //
             // Flat "ms between clicks" pacing (2026-09-14, killer560's own request after seeing real log
             // data show the Target/Variance model landing at a consistent but slow-feeling ~850ms/click) -
             // a direct, immediately-understandable alternative to the overall-duration target below.
+            boolean sameTarget = nextButton.equals(lastAutoClickedPos);
+            boolean dueNow;
             if (cfg.isAutoSolveFixedDelayMode()) {
-                boolean sameTargetFixed = nextButton.equals(lastAutoClickedPos);
-                long minDelayFixed = Math.max(cfg.getAutoSolveFixedDelayMs(), sameTargetFixed ? 300 : 0);
-                if (now - lastAutoClickAtMs >= minDelayFixed) {
-                    long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
-                    boolean clicked = cfg.isAutoSolveRotate()
-                            ? tickRotateClick(client, nextButton, rotateNextHint)
-                            : fireInstantClick(client, nextButton);
-                    if (clicked) {
-                        lastAutoClickAtMs = now;
-                        lastAutoClickedPos = nextButton;
-                        autoSolveClicksDoneThisAttempt++;
-                        LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay{}).",
-                                autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                                cfg.getAutoSolveFixedDelayMs(), cfg.isAutoSolveRotate() ? ", rotate mode" : "");
-                    }
-                }
+                long minDelayFixed = Math.max(cfg.getAutoSolveFixedDelayMs(), sameTarget ? 300 : 0);
+                dueNow = now - lastAutoClickAtMs >= minDelayFixed;
+            } else {
+                // The Target ± Variance window arms on the attempt's first real click (see
+                // bookAutoSolveClick) - until then the first click is simply due immediately.
+                // sameTarget's 300ms guard only ever matters now in its intended case: the click just
+                // fired but the server hasn't confirmed it yet (clickNeeded still points at it), so don't
+                // re-click the same button until either it confirms or 300ms passes (a lost click).
+                long minDelay = sameTarget ? 300 : 0;
+                dueNow = (!autoSolveArmed || now >= autoSolveNextClickAtMs) && now - lastAutoClickAtMs >= minDelay;
+            }
+            if (!dueNow) {
                 return;
             }
-            if (!autoSolveArmed) {
-                // Arm the "Target ± Variance overall" pacing window ONCE per full device attempt (not
-                // once per round - see this field's own doc comment for the real "extremely slow" bug
-                // this fixes), moved here from Auto Start's old model (2026-09-14, see SimonSaysConfig's
-                // own doc comment). Re-arms automatically on the next real fresh-attempt trigger - no
-                // manual "restart" toggle needed, matching killer560's own "unless it can be done
-                // automatically".
-                int variance = cfg.getClickTimerVarianceMs();
-                long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
-                // Deadline is the RAW target - no upfront subtraction (see TRANSITION_OVERHEAD_MS's own
-                // doc comment for why an upfront lump-sum subtraction double-counted reveal time). Future
-                // reveal overhead is reserved dynamically per click instead, below.
-                autoSolveDeadlineMs = now + cfg.getClickTimerTargetMs() + jitter;
-                autoSolveNextClickAtMs = now;
-                autoSolveArmed = true;
+            if (!cfg.isAutoSolveRotate()) {
+                fireInstantClick(client, nextButton);
+                bookAutoSolveClick(cfg, nextButton, now);
+                return;
             }
-            int remaining = Math.max(1, expectedTotalClicksThisAttempt - autoSolveClicksDoneThisAttempt);
-            boolean sameTarget = nextButton.equals(lastAutoClickedPos);
-            long minDelay = sameTarget ? 300 : 0;
-            if (now >= autoSolveNextClickAtMs && now - lastAutoClickAtMs >= minDelay) {
-                // "No Rotate"/"Rotate" mode (cfg.isAutoSolveRotate()) - Rotate now has real behavior (see
-                // tickRotateClick's own doc comment): turns the camera toward the target over several
-                // ticks and only fires once real aim is confirmed, instead of an instant synthetic click.
-                // tickRotateClick returns false on ticks it's still mid-turn - this whole block (and its
-                // click-bookkeeping/pacing-timer update below) simply doesn't run again until it returns
-                // true, so a multi-tick approach never double-counts or reschedules early.
-                long sincePreviousMs = lastAutoClickAtMs > 0 ? now - lastAutoClickAtMs : 0;
-                boolean clicked = cfg.isAutoSolveRotate()
-                        ? tickRotateClick(client, nextButton, rotateNextHint)
-                        : fireInstantClick(client, nextButton);
-                if (!clicked) {
-                    // Diagnostic-only stall detector - see autoSolveStallTarget's own field doc comment.
-                    if (!nextButton.equals(autoSolveStallTarget)) {
-                        autoSolveStallTarget = nextButton;
-                        autoSolveStallSinceMs = now;
-                        autoSolveStallLogged = false;
-                    } else if (!autoSolveStallLogged && now - autoSolveStallSinceMs > 2000L) {
-                        LOGGER.warn("[SimonSays] Auto-solve click stalled - due for {}ms on target {} but "
-                                        + "tickRotateClick hasn't fired. rotateInProgressTarget={} "
-                                        + "rotateClickFiredFor={} rotateLastFiredTarget={} autoStartRunning={} "
-                                        + "blockedByReveal={} rotateEnabled={}.",
-                                now - autoSolveStallSinceMs, nextButton, rotateInProgressTarget, rotateClickFiredFor,
-                                rotateLastFiredTarget, autoStartRunning, blockedByReveal, cfg.isAutoSolveRotate());
-                        autoSolveStallLogged = true;
-                    }
-                    return;
-                }
-                autoSolveStallTarget = null;
-                // Real bug found and fixed (2026-09-14, killer560's own report: "It is now still not
-                // going the right speed. I set it to 11.2 and it got like 15s"): the budget only ever
-                // reserved real REVEAL overhead - never the real time Rotate Mode's own humanized camera
-                // turn takes between the schedule saying "click now" and the approach actually settling
-                // and firing. A real log confirmed "since previous click" gaps routinely 2-3x longer than
-                // what was scheduled for them, purely from real turn time never budgeted for - across a
-                // whole device's worth of clicks that adds up to exactly this kind of overage. Tracks a
-                // rolling estimate (simple EMA) of that real per-click overhead, comparing THIS click's
-                // real gap against what was actually scheduled for it last time, and folds it into the
-                // budget below - self-correcting within a single device's own run as real data comes in.
-                if (lastScheduledDelayMs > 0) {
-                    long observedOverheadMs = Math.max(0L, sincePreviousMs - lastScheduledDelayMs);
-                    autoApproachOverheadEmaMs = (autoApproachOverheadEmaMs * 3 + observedOverheadMs) / 4;
-                }
-                lastAutoClickAtMs = now;
-                lastAutoClickedPos = nextButton;
-                autoSolveClicksDoneThisAttempt++;
-                int remainingAfter = Math.max(1, expectedTotalClicksThisAttempt - autoSolveClicksDoneThisAttempt);
-                long windowLeftMs = autoSolveDeadlineMs - now;
-                // Reserve only the overhead for transitions STILL AHEAD (never touching the deadline
-                // itself) - already-elapsed reveal time is already reflected in windowLeftMs shrinking
-                // naturally, so reserving it again here would double-count it (the exact bug in the first
-                // fix attempt). Also reserves the real per-click approach overhead estimated above for
-                // every remaining click, same reasoning.
-                long activeWindowLeftMs = Math.max(0L, windowLeftMs - estimatedRemainingRevealMs()
-                        - autoApproachOverheadEmaMs * remainingAfter);
-                long baseDelayMs = activeWindowLeftMs / remainingAfter;
-                // Real bug found and fixed (2026-09-14, killer560's own request: "Be careful to not make
-                // every button press the exact same x/15 amount, instead they should vary. Close one
-                // should be faster and ones further away should be longer. You can calculate the exact
-                // time as it goes on"): dividing the remaining window evenly gave every click the exact
-                // same delay regardless of real distance between buttons. Weights this specific delay by
-                // the REAL distance from the button just clicked to whichever one comes next IN THIS ROUND
-                // - clickInOrder is already fully known once revealed, so clickNeeded+1 (not yet
-                // incremented - that happens later, once the real block-state change from THIS click is
-                // detected) safely peeks the following real position - against a typical button-to-button
-                // hop in this grid (~2.5 blocks). Closer pairs get proportionally less time, farther pairs
-                // more, clamped so no single click swings wildly off the real remaining budget. Still
-                // "follows the guess": baseDelayMs itself is recomputed fresh every single click from
-                // whatever real time is actually left (see activeWindowLeftMs above), so giving one click
-                // more time here just means less remains for the others, which the NEXT recomputation
-                // accounts for automatically - the overall pacing keeps tracking toward the same real
-                // target even though individual clicks vary. Falls back to the flat baseDelayMs (no
-                // weighting) once no more real positions are known this round - the upcoming click belongs
-                // to a not-yet-revealed future round.
-                long delayMs = baseDelayMs;
-                int peekIndex = clickNeeded + 1;
-                if (peekIndex < clickInOrder.size()) {
-                    double distance = Math.sqrt(nextButton.distSqr(clickInOrder.get(peekIndex).west()));
-                    double weight = Mth.clamp(distance / 2.5, 0.5, 1.8);
-                    delayMs = (long) (baseDelayMs * weight);
-                }
-                autoSolveNextClickAtMs = now + Math.max(50, delayMs);
-                lastScheduledDelayMs = autoSolveNextClickAtMs - now;
-                // Always-on (not gated behind Diagnostic Logging) while killer560's "still very delayed"
-                // report is unresolved (2026-09-14) - this is the exact data needed to see whether the
-                // delay is really coming from this pacing math or from something else entirely (e.g. real
-                // per-round reveal wait time, which this can't control).
-                LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms "
-                                + "[base {}ms, distance-weighted{}, approachOverheadEma={}ms]{}).",
-                        autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                        autoSolveNextClickAtMs - now, baseDelayMs, peekIndex < clickInOrder.size() ? "" : "=n/a",
-                        autoApproachOverheadEmaMs, cfg.isAutoSolveRotate() ? ", rotate mode" : "");
+            // "Rotate" mode (see tickRotateClick's own doc comment): starts/continues the humanized turn
+            // toward this button. The frame-driven side fires the real click once aim is confirmed, and the
+            // NEXT tick's consumeFiredRotateClick books it - nothing to do here once it's requested.
+            tickRotateClick(client, nextButton, rotateNextHint);
+            // Diagnostic-only stall detector - see autoSolveStallTarget's own field doc comment. Cleared by
+            // bookAutoSolveClick the moment a click actually lands.
+            if (!nextButton.equals(autoSolveStallTarget)) {
+                autoSolveStallTarget = nextButton;
+                autoSolveStallSinceMs = now;
+                autoSolveStallLogged = false;
+            } else if (!autoSolveStallLogged && now - autoSolveStallSinceMs > 2000L) {
+                LOGGER.warn("[SimonSays] Auto-solve click stalled - due for {}ms on target {} but "
+                                + "no rotate click has fired. rotateInProgressTarget={} "
+                                + "rotateClickFiredFor={} rotateLastFiredTarget={} autoStartRunning={} "
+                                + "blockedByReveal={} rotateEnabled={}.",
+                        now - autoSolveStallSinceMs, nextButton, rotateInProgressTarget, rotateClickFiredFor,
+                        rotateLastFiredTarget, autoStartRunning, blockedByReveal, cfg.isAutoSolveRotate());
+                autoSolveStallLogged = true;
             }
             return;
         }
@@ -1500,44 +1448,160 @@ public final class SimonSaysFeature {
         }
     }
 
-    /** Uniform wrapper around the instant no-rotate click so both click mechanisms (No Rotate, Rotate)
-     *  share the same "did a click actually fire this tick" boolean return the caller's pacing/bookkeeping
-     *  code relies on. */
-    private static boolean fireInstantClick(Minecraft client, BlockPos pos) {
+    /** Books a pending Rotate Mode click - called at the very START of every tick, before tickStartButton/
+     *  detectGridChanges. Real bug found and fixed (2026-09-14, killer560's own report: "Whole device
+     *  solved in 11.55s... it is set to 11.2"): the old "any pending rotateClickFiredFor counts as whatever
+     *  the caller is working on now" rule (see tickRotateClick) got the success signal delivered, but
+     *  delivered it to tickAutoSolveAndTriggerBot AFTER detectGridChanges had usually already processed the
+     *  server's confirmation of that click - so it was booked against the next button (or, for a round's
+     *  last click, not until the following round finished revealing). Consuming it here instead is
+     *  deterministic: the click fires during a render frame, and this is the first code of the very next
+     *  tick, so clickInOrder/clickNeeded still describe the round the click actually belonged to, and a
+     *  round/whole-device reset triggered by that same click's confirmation can only happen AFTER it's
+     *  been booked (never booked into the next attempt by mistake). Auto Start's own start-button clicks
+     *  are still consumed by tickAutoStart itself, by exact position (see tickRotateClick). */
+    private static void consumeFiredRotateClick(SimonSaysConfig cfg) {
+        BlockPos fired = rotateClickFiredFor;
+        if (fired == null) {
+            return;
+        }
+        if (fired.equals(START_BUTTON)) {
+            // Left for tickAutoStart - unless its run was cancelled mid-burst (resetSolveState), in which
+            // case nothing will ever consume it, so drop it instead of letting it linger.
+            if (!autoStartRunning) {
+                rotateClickFiredFor = null;
+            }
+            return;
+        }
+        rotateClickFiredFor = null;
+        if (cfg.isAutoSolveEnabled()) {
+            bookAutoSolveClick(cfg, fired, rotateClickFiredAtMs);
+        }
+    }
+
+    /** All of Auto Solve's per-click bookkeeping and pacing (both Fixed Delay and Target ± Variance), for
+     *  a click that really landed on {@code clickedButton} at {@code clickedAtMs} - see the doc comment in
+     *  tickAutoSolveAndTriggerBot's Auto Solve branch for why this is keyed on the real clicked button and
+     *  real fire time rather than on whatever clickNeeded happens to point at by the time it's booked. */
+    private static void bookAutoSolveClick(SimonSaysConfig cfg, BlockPos clickedButton, long clickedAtMs) {
+        long sincePreviousMs = lastAutoClickAtMs > 0 ? clickedAtMs - lastAutoClickAtMs : 0;
+        autoSolveStallTarget = null;
+        String modeSuffix = cfg.isAutoSolveRotate() ? ", rotate mode" : "";
+        if (clickedButton.equals(lastAutoClickedPos)) {
+            // The 300ms same-button guard expired before the server confirmed the previous click, so this
+            // was a retry of the SAME step (lastAutoClickedPos is cleared at every round reset, and a round
+            // never repeats a button, so this can't be a genuinely new step). Restart the guard's timer but
+            // don't count it as another step or reschedule/re-estimate anything off it.
+            lastAutoClickAtMs = clickedAtMs;
+            LOGGER.info("[SimonSays] Auto-solve re-click of {} ({}ms since previous click, server hadn't confirmed it yet{}).",
+                    clickedButton, sincePreviousMs, modeSuffix);
+            return;
+        }
+        int clickedIndex = clickInOrder.indexOf(clickedButton.east());
+        if (clickedIndex < 0) {
+            // Not a step of the round currently being tracked (a stale click that landed across a reset) -
+            // never let it count toward, or arm the deadline of, whatever attempt is tracked now.
+            LOGGER.info("[SimonSays] Auto-solve click on {} ignored for pacing - not a step of the current round.", clickedButton);
+            return;
+        }
+        // The real button after this one IN THIS ROUND, if known - null for a round's last click (the next
+        // click belongs to a not-yet-revealed round).
+        BlockPos followingButton = clickedIndex + 1 < clickInOrder.size()
+                ? clickInOrder.get(clickedIndex + 1).west() : null;
+        lastAutoClickAtMs = clickedAtMs;
+        lastAutoClickedPos = clickedButton;
+        autoSolveClicksDoneThisAttempt++;
+
+        if (cfg.isAutoSolveFixedDelayMode()) {
+            LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay{}).",
+                    autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
+                    cfg.getAutoSolveFixedDelayMs(), modeSuffix);
+            return;
+        }
+
+        if (!autoSolveArmed) {
+            // Arm the "Target ± Variance overall" pacing window ONCE per full device attempt (not once per
+            // round - see autoSolveArmed's own history), re-armed automatically at the next real
+            // fresh-attempt trigger. Real bug found and fixed (2026-09-14, "set to 11.2"): this used to arm
+            // the moment round 1 first became clickable - but the completion message killer560 compares
+            // against measures from the FIRST CLICK, so every approach/confirmation delay before that first
+            // click was silently eaten out of the target. Anchored on the first real click itself now, the
+            // same starting point the completion message uses. Deadline is still the RAW target - no upfront
+            // subtraction (see TRANSITION_OVERHEAD_MS's own doc comment); future reveal overhead is
+            // reserved dynamically below.
+            int variance = cfg.getClickTimerVarianceMs();
+            long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
+            autoSolveDeadlineMs = clickedAtMs + cfg.getClickTimerTargetMs() + jitter;
+            autoSolveArmed = true;
+        } else if (lastScheduledDelayMs > 0 && clickedIndex > 0) {
+            // Real per-click approach overhead (see autoApproachOverheadEmaMs's own doc comment) - only
+            // sampled between two clicks of the SAME round (clickedIndex > 0). The gap before a round's
+            // first click spans that round's whole reveal, which estimatedRemainingRevealMs already
+            // reserves separately - sampling it here too was exactly what inflated this estimate to
+            // 900-1150ms in killer560's 11.55s log and forced every delay to 0.
+            long observedOverheadMs = Math.max(0L, sincePreviousMs - lastScheduledDelayMs);
+            autoApproachOverheadEmaMs = (autoApproachOverheadEmaMs * 3 + observedOverheadMs) / 4;
+        }
+
+        int remainingAfter = Math.max(1, expectedTotalClicksThisAttempt - autoSolveClicksDoneThisAttempt);
+        long windowLeftMs = autoSolveDeadlineMs - clickedAtMs;
+        // Reserve only the overhead for transitions STILL AHEAD (never touching the deadline itself) -
+        // already-elapsed reveal time is already reflected in windowLeftMs shrinking naturally, so
+        // reserving it again here would double-count it. Also reserves the real per-click approach
+        // overhead estimated above for every remaining click, same reasoning.
+        long activeWindowLeftMs = Math.max(0L, windowLeftMs - estimatedRemainingRevealMs()
+                - autoApproachOverheadEmaMs * remainingAfter);
+        long baseDelayMs = activeWindowLeftMs / remainingAfter;
+        // Distance weighting (2026-09-14, killer560's own request: "Close one should be faster and ones
+        // further away should be longer") - closer pairs get proportionally less time, farther pairs more,
+        // against a typical ~2.5-block hop. baseDelayMs is recomputed from the real time left at every
+        // click, so one click taking more just means less remains for the rest. Real bug found and fixed
+        // (2026-09-14, "set to 11.2"): with only ONE click left there's nothing left to rebalance against,
+        // so a far final hop (weight up to 1.8x) scheduled that last click up to 80% past the deadline
+        // itself - now never weighted when it's the last click (with 2+ left, 1.8x of an even share can't
+        // exceed the remaining window).
+        long delayMs = baseDelayMs;
+        if (followingButton != null && remainingAfter > 1) {
+            double distance = Math.sqrt(clickedButton.distSqr(followingButton));
+            double weight = Mth.clamp(distance / 2.5, 0.5, 1.8);
+            delayMs = (long) (baseDelayMs * weight);
+        }
+        autoSolveNextClickAtMs = clickedAtMs + Math.max(50, delayMs);
+        lastScheduledDelayMs = autoSolveNextClickAtMs - clickedAtMs;
+        // Always-on (not gated behind Diagnostic Logging) - the exact data needed to see whether real delay
+        // is coming from this pacing math or from something it can't control (reveal, turn time).
+        LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms "
+                        + "[base {}ms, distance-weighted{}, approachOverheadEma={}ms, deadline in {}ms]{}).",
+                autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
+                lastScheduledDelayMs, baseDelayMs, followingButton != null && remainingAfter > 1 ? "" : "=n/a",
+                autoApproachOverheadEmaMs, windowLeftMs, modeSuffix);
+    }
+
+    /** No Rotate mode's instant click - booked by the caller via bookAutoSolveClick in the same tick. */
+    private static void fireInstantClick(Minecraft client, BlockPos pos) {
         sendNoRotateInteract(client, pos);
-        return true;
     }
 
     /** Rotate Mode's tick-side half - called once per tick while a click is due. Ownership split
      *  (2026-09-14, "still choppy... update far more often" fix): the actual rotation-applying step now
      *  runs every FRAME via {@link #tickRotateFrame()}, not every tick, so it's as smooth as real mouse
      *  look. This method just (a) tells the frame-driven approach what to aim at, by setting
-     *  {@link #rotateInProgressTarget} if it isn't already this exact target, and (b) polls
-     *  {@link #rotateClickFiredFor}, which the frame-driven side sets the instant it actually fires a
-     *  real click - returning true exactly once, consuming the flag, so the caller's own click-
-     *  bookkeeping/pacing still only ever runs once per real click. */
+     *  {@link #rotateInProgressTarget} if it isn't already this exact target, and (b) for Auto Start's
+     *  start-button clicks only, polls {@link #rotateClickFiredFor} by exact position - returning true
+     *  exactly once per real click. Auto Solve's grid clicks never report back through here; they're
+     *  booked by {@link #consumeFiredRotateClick} at the start of the next tick instead. */
     private static boolean tickRotateClick(Minecraft client, BlockPos buttonPos, BlockPos nextHint) {
         if (client.player == null) {
             return false;
         }
-        if (rotateClickFiredFor != null) {
-            // Real bug found and fixed (2026-09-14, killer560's own report: "it is still no where near
-            // the propper time" - confirmed by a full [SimonSays][AutoSolve] state trace: rounds were
-            // completing correctly, in the right order, but autoSolveNextClickAtMs never rescheduled and
-            // not one "Auto-solve click" line ever logged): tick() calls detectGridChanges - which
-            // advances clickNeeded via the real block-state change from a click that just fired - BEFORE
-            // this method's own caller (tickAutoSolveAndTriggerBot) runs, in the SAME real tick. So by the
-            // time this gets called again, `buttonPos` here is already the NEXT real target (clickNeeded
-            // already moved on) - not the one rotateClickFiredFor was actually set for a moment earlier.
-            // The old buttonPos.equals(rotateClickFiredFor) check demanded an exact match that this
-            // ordering makes IMPOSSIBLE on literally every real click, not just an edge case - silently
-            // orphaning the flag forever and never reporting the click back to the caller's own pacing
-            // bookkeeping, which is exactly why the schedule never advanced and the configured Timer
-            // Target had zero effect on the real result. Only one approach is ever in progress at a time
-            // (Auto Start and Auto Solve/Trigger Bot are already mutually exclusive via autoStartRunning),
-            // so any pending rotateClickFiredFor unambiguously belongs to whatever this caller was most
-            // recently working toward - safe to report success regardless of which exact position is
-            // being asked about on this specific call.
+        // Exact-position match only. History (2026-09-14): an exact match used to orphan every Auto Solve
+        // grid click, because detectGridChanges advances clickNeeded before Auto Solve asks again - that
+        // was first "fixed" by accepting ANY pending click here, which reported success but booked each
+        // click against the wrong (next) button - the real cause of the 300ms-per-click slowdown in
+        // killer560's "11.55s when set to 11.2" log. Grid clicks are now booked by
+        // consumeFiredRotateClick at the start of the tick (before detectGridChanges), so the only thing
+        // still consumed here is Auto Start's start-button click, whose position never changes.
+        if (buttonPos.equals(rotateClickFiredFor)) {
             rotateClickFiredFor = null;
             return true;
         }
@@ -1554,6 +1618,14 @@ public final class SimonSaysFeature {
                 // burst never actually landed evenly 2 ticks apart. Just keep aiming at the same spot
                 // instead - the delta is already ~0, so the very next frame settles and fires immediately.
                 rotateInProgressTarget = buttonPos;
+                // No fresh roll means no fresh humanization either - clear anything left over from the
+                // approach that fired, so a leftover feint/curve can't swing the camera off this button
+                // again while re-aiming (found in the 2026-09-14 review pass).
+                rotateFeintYawOffset = 0f;
+                rotateFeintPitchOffset = 0f;
+                rotateCurveOnThisApproach = false;
+                rotateOvershootYawRemaining = 0f;
+                rotateOvershootPitchRemaining = 0f;
             } else {
                 beginRotateApproach(buttonPos, nextHint);
             }
@@ -1879,6 +1951,7 @@ public final class SimonSaysFeature {
             // (killer560's own standing rule), same real click-sender every other mode already uses.
             sendNoRotateInteract(client, buttonPos);
             rotateClickFiredFor = buttonPos;
+            rotateClickFiredAtMs = System.currentTimeMillis();
             rotateLastFiredTarget = buttonPos;
             rotateInProgressTarget = null;
             rotateApproachElapsedTicks = 0f;
@@ -2030,9 +2103,35 @@ public final class SimonSaysFeature {
      *  {@code EtherwarpOverlayFeature#realBoxFor} - so the aim point matches wherever this specific
      *  button's real model actually sits, regardless of its real facing/attach-face. */
     private static Vec3 realBlockCenter(Minecraft client, BlockPos pos) {
-        var shape = client.level.getBlockState(pos).getShape(client.level, pos);
-        AABB box = shape.isEmpty() ? new AABB(pos) : shape.bounds().move(pos);
-        return box.getCenter();
+        return aimBoxFor(client, pos).getCenter();
+    }
+
+    /** The real box to aim at for {@code pos} - its live shape when it has one. For a grid button that's
+     *  currently AIR (Hypixel removes all 16 between rounds - see {@link #lastSeenGridButtonBoxes}'s own
+     *  doc comment for the real "drifting off the button" bug this fixes), the box that button last really
+     *  had, or vanilla's own unpressed west-facing wall button box (confirmed from 26.1.2's ButtonBlock:
+     *  6x4x2 px, flush against the lantern wall at x=111 - the same spot this class's own highlight box
+     *  already draws) if it was never seen. Never the full block, which is ~0.44 blocks off. */
+    private static AABB aimBoxFor(Minecraft client, BlockPos pos) {
+        BlockState state = client.level.getBlockState(pos);
+        var shape = state.getShape(client.level, pos);
+        boolean gridButton = GRID_BUTTONS.contains(pos);
+        if (!shape.isEmpty()) {
+            AABB box = shape.bounds().move(pos);
+            if (gridButton && state.is(Blocks.STONE_BUTTON)) {
+                lastSeenGridButtonBoxes.put(pos.immutable(), box);
+            }
+            return box;
+        }
+        if (gridButton) {
+            AABB seen = lastSeenGridButtonBoxes.get(pos);
+            if (seen != null) {
+                return seen;
+            }
+            return new AABB(pos.getX() + 14.0 / 16.0, pos.getY() + 6.0 / 16.0, pos.getZ() + 5.0 / 16.0,
+                    pos.getX() + 1.0, pos.getY() + 10.0 / 16.0, pos.getZ() + 11.0 / 16.0);
+        }
+        return new AABB(pos);
     }
 
     /** Real yaw/pitch (in degrees) from {@code eyePos} to look directly at {@code target} - the same
@@ -2058,8 +2157,7 @@ public final class SimonSaysFeature {
      *  an approximation) into yaw/pitch space and returns half the real spread in each - a hard geometric
      *  bound the sway can be clamped against, not just a tuned guess. */
     private static float[] realButtonAngularHalfExtents(Minecraft client, BlockPos pos, Vec3 eyePos) {
-        var shape = client.level.getBlockState(pos).getShape(client.level, pos);
-        AABB box = shape.isEmpty() ? new AABB(pos) : shape.bounds().move(pos);
+        AABB box = aimBoxFor(client, pos);
         double minYaw = Double.POSITIVE_INFINITY;
         double maxYaw = Double.NEGATIVE_INFINITY;
         double minPitch = Double.POSITIVE_INFINITY;
