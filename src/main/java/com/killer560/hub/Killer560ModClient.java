@@ -111,6 +111,7 @@ public class Killer560ModClient implements ClientModInitializer {
         SplitTimersFeature.register();
         HudElementRegistry.register(new SplitTimersFeature.SplitTimersHudElement());
         com.killer560.hub.splittimers.DeviceTimesFeature.register();
+        com.killer560.hub.splittimers.TerminalTimersFeature.register();
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
         ModChatFeature.register();

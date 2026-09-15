@@ -1140,7 +1140,9 @@ public final class SimonSaysFeature {
                 // because that needs to be factored into the overall time it takes") whenever Auto Solve's
                 // Target/Variance mode measured any - only that mode tracks it, so a manual/Trigger Bot/
                 // Fixed-Delay solve just gets the plain total.
-                if (fromStartMs >= 0) {
+                if (!com.killer560.hub.splittimers.TerminalTimersConfig.getInstance().isSimonSaysTime()) {
+                    // Bundled into Terminal Timers (2026-09-14, killer560's own request) - the log line above still records it.
+                } else if (fromStartMs >= 0) {
                     client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
                             "§6[Simon Says] §fWhole device solved in §e%.2fs §7from start click (§e%.2fs§7 from first grid click, §e%.2fs§7 reveal delay)",
                             fromStartMs / 1000.0, deviceTookMs / 1000.0, autoSolveBlockedMsThisAttempt / 1000.0)));

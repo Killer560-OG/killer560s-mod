@@ -44,7 +44,7 @@ public final class DeviceTimesFeature {
     // (14.436s | 14.436s)" - the trailing suffix meant it never matched. Now allows an optional
     // whitespace-separated trailing suffix.
     private static final Pattern DEVICE_COMPLETE_REGEX =
-            Pattern.compile("^(.{1,16}) (activated|completed) a (lever|device)! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
+            Pattern.compile("^(\\w{1,16}) (activated|completed) a (lever|device)! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
 
     private static final long ANNOTATE_DEDUPE_WINDOW_MS = 250L;
     private static String lastAnnotatedPlain;
@@ -60,14 +60,15 @@ public final class DeviceTimesFeature {
     // right before the line is actually added to chat, whichever mod added it. (The class doc's
     // MODIFY_GAME paragraph above describes the original, now-replaced mechanism.)
     public static void register() {
-        ChatObserver.addRewriter(DeviceTimesFeature::onChatLineAdded);
+        // The "(Xs since ...)" suffix was superseded 2026-09-14 by TerminalTimersFeature's Odin-format splits -
+        // registering both would double-annotate every device line. onChatLineAdded is kept for reference only.
         ChatObserver.subscribe(DeviceTimesFeature::diagLogP3Progress);
     }
 
     // Diagnostic only (2026-09-14) - P3 (Goldor) progress lines this class deliberately doesn't annotate,
     // logged so a real run's log shows each section's terminal count + gate/core transitions in order.
     private static final Pattern DIAG_TERMINAL_REGEX =
-            Pattern.compile("^(.{1,16}) (activated|completed) a terminal! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
+            Pattern.compile("^(\\w{1,16}) (activated|completed) a terminal! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
     private static final Pattern DIAG_P3_GATE_REGEX =
             Pattern.compile("^(The gate has been destroyed!|The Core entrance is opening!|\\[BOSS] Goldor: .*)$");
     private static long diagP3LastEventAtMs;

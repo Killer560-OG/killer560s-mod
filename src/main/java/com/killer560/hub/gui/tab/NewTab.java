@@ -36,6 +36,7 @@ public class NewTab extends FolderTab {
                 new EtherwarpTab(),
                 new TickTimersTab(),
                 new SplitTimersTab(),
+                new TerminalTimersTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
                 new VoiceToTextTab(),
