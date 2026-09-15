@@ -336,7 +336,22 @@ public final class DungeonState {
         // "Time Elapsed:" were cut off. Now logs the FULL text, only when the sidebar changes. Digits are
         // masked for the change check only - the clock, Time Elapsed, Purse and teammate HP tick
         // constantly and would otherwise make every poll a "change".
-        String changeKey = (plainSidebarName + "|" + others + "|" + raw).replaceAll("\\d", "#");
+        // Real bug found and fixed (2026-09-14 review pass): digits were masked BEFORE stripping § codes, so
+        // "§a"/"§e"/"§c" teammate-health color flips in boss still made every poll a change, while the real
+        // Keys count / Cleared % changes were masked away. Now strips formatting first and leaves the Keys and
+        // Cleared lines' digits unmasked so those real changes still log.
+        StringBuilder changeKeyBuilder = new StringBuilder();
+        String strippedHeader = ChatFormatting.stripFormatting(plainSidebarName + "|" + others + "|");
+        changeKeyBuilder.append(strippedHeader == null ? "" : strippedHeader.replaceAll("\\d", "#"));
+        for (String line : raw.split("\n", -1)) {
+            String plainLine = ChatFormatting.stripFormatting(line);
+            if (plainLine == null) {
+                plainLine = "";
+            }
+            boolean keepDigits = plainLine.contains("Keys") || plainLine.contains("Cleared");
+            changeKeyBuilder.append(keepDigits ? plainLine : plainLine.replaceAll("\\d", "#")).append('\n');
+        }
+        String changeKey = changeKeyBuilder.toString();
         if (changeKey.equals(lastSidebarDiagnosticKey)) {
             return;
         }

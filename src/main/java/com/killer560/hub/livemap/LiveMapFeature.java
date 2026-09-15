@@ -70,6 +70,13 @@ public final class LiveMapFeature {
     private static Object lastLevel = null;
     /** Latched once the player is seen inside the current floor's boss room; cleared on grid reset. */
     private static boolean bossLatched = false;
+    /** Real bug found and fixed (2026-09-14 review pass): right after a world change the player sits at the
+     *  (0,100,0) placeholder until the server teleports them - inside the F3-F7 boss boxes and outside the
+     *  room grid - so bossLatched could latch on for the whole run (all solvers off), especially under
+     *  /killer560 sim (floor forced F7) or a dungeon -> dungeon warp. No position latching for this many
+     *  ticks after a level change, nor while still exactly at the placeholder. */
+    private static final int BOSS_LATCH_GRACE_TICKS = 20;
+    private static int bossLatchGraceTicks = 0;
 
     // Boss room bounds per floor 1..7 - copied verbatim from NoammAddons' own (26.1.2 upstream)
     // LocationUtils.bossRoomBounds; {x1, y1, z1, x2, y2, z2}, min/max normalized by AABB's constructor.
@@ -142,6 +149,7 @@ public final class LiveMapFeature {
             // Real bug found and fixed (2026-09-14): dungeon -> dungeon warps can keep isInDungeon()
             // true across the server switch, leaving the previous run's rooms/rotations in the grid.
             lastLevel = client.level;
+            bossLatchGraceTicks = BOSS_LATCH_GRACE_TICKS;
             if (inDungeon || wasInDungeon) {
                 resetGrid("World changed");
             }
@@ -420,6 +428,10 @@ public final class LiveMapFeature {
     }
 
     private static void updateBossState(Minecraft client, boolean inDungeon) {
+        if (bossLatchGraceTicks > 0) {
+            bossLatchGraceTicks--;
+            return;
+        }
         if (!inDungeon || bossLatched || client.player == null) {
             return;
         }
@@ -430,6 +442,9 @@ public final class LiveMapFeature {
             return;
         }
         Vec3 pos = client.player.position();
+        if (pos.x == 0.0 && pos.y == 100.0 && pos.z == 0.0) {
+            return; // still at the post-world-change placeholder, not a real position yet
+        }
         if (BOSS_ROOM_BOUNDS[floorNumber - 1].contains(pos.x, pos.y, pos.z) && !insideGridFootprint(pos.x, pos.z)) {
             bossLatched = true;
             LOGGER.info("[LiveMap] Boss room entered (floor={} pos={},{},{}) - room matching disabled, solvers reset",

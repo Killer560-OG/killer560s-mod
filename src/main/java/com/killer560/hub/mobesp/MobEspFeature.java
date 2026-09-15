@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
@@ -52,6 +53,10 @@ public final class MobEspFeature {
     private static final Set<Integer> glowingIds = new HashSet<>();
     /** Starred name-tag armor stand id -> resolved real mob id (resolved once, like Noamm's own cache). */
     private static final Map<Integer, Integer> standToMob = new HashMap<>();
+    private static Object lastLevel = null;
+    /** Hypixel's star-mob glyph (the same "✯" as MobEspConfig's default filter) and name-tag heart. */
+    private static final String STAR = "✯";
+    private static final String HEART = "❤";
 
     // [MobEsp] diagnostics - logging only.
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-mobesp");
@@ -76,6 +81,14 @@ public final class MobEspFeature {
         if (!gates.equals(lastLoggedGates)) {
             LOGGER.info("[MobEsp] Gates changed: {}", gates);
             lastLoggedGates = gates;
+        }
+        if (client.level != lastLevel) {
+            // Real bug found and fixed (2026-09-14 review pass): entity ids restart on a new server, so a
+            // dungeon -> dungeon warp (inDungeon never false) kept stale stand->mob ids and un-glowed/mapped
+            // unrelated new entities. Old entities are gone with the old level - just forget them.
+            lastLevel = client.level;
+            glowingIds.clear();
+            standToMob.clear();
         }
         if (!cfg.isEnabled() || client.level == null || client.player == null || cfg.getNameFilter().isBlank()
                 || !inDungeon) {
@@ -108,6 +121,12 @@ public final class MobEspFeature {
                 sampleName = name;
             }
             if (entity instanceof ArmorStand stand) {
+                // Real bug found and fixed (2026-09-14 review pass): any stand containing the filter counted
+                // (e.g. star-bearing hologram/NPC text). NoammAddons' StarMobESP requires the mob-tag heart
+                // too (name ends in "§c❤"), so require both the star and the heart here.
+                if (!name.contains(STAR) || !name.contains(HEART)) {
+                    continue;
+                }
                 // Hypixel's star lives on a separate name-tag stand - glow the real mob it belongs to instead.
                 starredStands++;
                 liveStands.add(stand.getId());
@@ -196,7 +215,12 @@ public final class MobEspFeature {
         return mob;
     }
 
+    /** Real bug found and fixed (2026-09-14 review pass): the id-offset/bbox fallback could resolve a stand to
+     *  a dropped item, projectile or ambient bat - now only real living, non-bat entities count. */
     private static boolean isValidMob(Minecraft client, Entity e) {
+        if (!(e instanceof LivingEntity) || e instanceof Bat) {
+            return false;
+        }
         if (e == client.player || e instanceof WitherBoss || e instanceof AbstractArrow) {
             return false;
         }
