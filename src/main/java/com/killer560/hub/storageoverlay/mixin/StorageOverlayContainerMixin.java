@@ -41,7 +41,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         // panel in the grid is clickable (there's no "active" page to skip). Gate on shouldHideVanilla
         // instead, which covers both cases the same way onContainerScreenRender already does.
         String title = this.getTitle().getString();
-        if (!StorageOverlayFeature.shouldHideVanilla(title)) {
+        if (!com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() || !StorageOverlayFeature.shouldHideVanilla(title)) {
             return;
         }
         // Per killer560's "double click the actual text and edit it there" request (2026-09-08): a
@@ -109,7 +109,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
     private void killer560smod$scrollStorageOverlay(double mouseX, double mouseY, double scrollX, double scrollY,
                                                        CallbackInfoReturnable<Boolean> cir) {
         String title = this.getTitle().getString();
-        if (!StorageOverlayFeature.shouldHideVanilla(title)) {
+        if (!com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() || !StorageOverlayFeature.shouldHideVanilla(title)) {
             return;
         }
         if (StorageOverlayFeature.handleScroll(mouseX, mouseY, scrollY)) {
@@ -134,7 +134,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         if (StorageOverlayFeature.isRenamePending()) {
             return;
         }
-        if (StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
+        if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
             cir.setReturnValue(true);
         }
     }
@@ -146,7 +146,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         if (StorageOverlayFeature.isRenamePending()) {
             return;
         }
-        if (StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
+        if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
             cir.setReturnValue(true);
         }
     }

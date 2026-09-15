@@ -127,11 +127,9 @@ public final class SecretWaypointsFeature {
             if (entry == null) {
                 continue;
             }
-            int gx = room[0] % 11;
-            int gz = room[0] / 11;
-            int roomWorldX = -185 + gx * 16;
-            int roomWorldZ = -185 + gz * 16;
-            AABB roomBox = new AABB(roomWorldX - 16, 0, roomWorldZ - 16, roomWorldX + 16, 255, roomWorldZ + 16);
+            // Whole room (all tiles of a multi-tile room), not just this one 32x32 tile.
+            int[] b = LiveMapFeature.roomWorldBounds(room[0]);
+            AABB roomBox = new AABB(b[0], 0, b[1], b[2], 255, b[3]);
             if (!client.player.getBoundingBox().inflate(48).intersects(roomBox)) {
                 continue; // only bother checking rooms actually near the player, cheap early-out
             }
