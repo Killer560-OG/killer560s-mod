@@ -7,6 +7,7 @@ import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -156,6 +157,14 @@ public final class ExperimentsFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
+        // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
+        ClientTickEvents.END_CLIENT_TICK.register(ExperimentsProfitTracker::tick);
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (!overlay) {
+                ExperimentsProfitTracker.onGameMessage(message);
+            }
+        });
         // Autonomous mode's "done" flags reset only here (leaving/rejoining a world), NOT every
         // time a container screen merely closes - field-tested bug (2026-09-06): resetting on every
         // close meant closing and reopening the table after finishing Chronomatron made the
@@ -671,7 +680,13 @@ public final class ExperimentsFeature {
             // actually stopped by emergency cancel, since that block already gated on "&& armed".
             // Requiring armed here too means the moment emergency cancel clears it, this loop falls
             // through to the same observe()-only, never-clicks path Solver-Only mode already uses.
+            ExperimentsProfitTracker.noteRounds(mode, SOLVER.currentChainLength(), activeRoundsNeeded);
             if (cfg.isAutonomousMode() && armed) {
+                // Per the 2026-09-15 roadmap ("in both Autonomous and Solver-Only mode"): the max-clicks
+                // chat message used to be Solver-Only. Checked here BEFORE the max-chain exit below,
+                // which returns early every tick once the threshold is hit - otherwise the message could
+                // never fire in Autonomous. Still once per round (maxClicksNotifiedThisRound).
+                maybeNotifyMaxClicksReached(mode, cfg);
                 if (chainLengthAtOrOverMax(mode, cfg)) {
                     tryExitFinishedRound(screen, menu, now);
                     return;
@@ -913,9 +928,24 @@ public final class ExperimentsFeature {
      *  {@link ModOverlayMessage} popup - a message that stays in the chat log) the first time the same
      *  max-clicks threshold Autonomous mode would have stopped at is reached, gated behind
      *  {@link ExperimentsConfig#isNotifyMaxClicksReached()} so it's fully optional. Only ever fires
-     *  once per round - {@link #maxClicksNotifiedThisRound} is reset in {@link #logModeChangeIfAny}. */
+     *  once per round - {@link #maxClicksNotifiedThisRound} is reset in {@link #logModeChangeIfAny}.
+     *  <p>
+     *  2026-09-15 roadmap: now called from BOTH the Solver Only and the armed Autonomous branch of
+     *  {@link #tickUnsafe}, and also covers Superpairs (its "Remaining Clicks" counter reaching 0). */
     private static void maybeNotifyMaxClicksReached(ExperimentSolver.Mode mode, ExperimentsConfig cfg) {
+        if (mode == ExperimentSolver.Mode.SUPERPAIRS) {
+            trackSuperpairsRemainingClicks();
+        }
         if (!cfg.isNotifyMaxClicksReached() || maxClicksNotifiedThisRound) {
+            return;
+        }
+        if (mode == ExperimentSolver.Mode.SUPERPAIRS) {
+            // 2026-09-15 roadmap: Superpairs has a real click budget of its own - the board's slot-4
+            // "Remaining Clicks: N" item (SkyHanni SuperpairDataDisplay.kt). Only fires once a positive
+            // count was seen on THIS board first, so a stale/ended board can't trigger it on open.
+            if (superpairsMaxRemainingClicksSeen > 0 && superpairsLastRemainingClicks == 0) {
+                notifySuperpairsClicksUsedUp();
+            }
             return;
         }
         if (mode != ExperimentSolver.Mode.CHRONOMATRON && mode != ExperimentSolver.Mode.ULTRASEQUENCER) {
@@ -946,6 +976,47 @@ public final class ExperimentsFeature {
                                 .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
                         now + i * 220L));
             }
+        }
+    }
+
+    /** Last "Remaining Clicks: N" read off the current Superpairs board, or -1 if none seen yet. */
+    private static int superpairsLastRemainingClicks = -1;
+    /** Highest remaining-clicks count seen on the current board (the budget, incl. "+N Clicks" powerups). */
+    private static int superpairsMaxRemainingClicksSeen = -1;
+
+    private static void trackSuperpairsRemainingClicks() {
+        for (ExperimentSolver.Cell cell : lastCells) {
+            if (cell.slot() != 4) continue;
+            int remaining = ExperimentsProfitTracker.parseRemainingClicks(cell.name());
+            if (remaining >= 0) {
+                if (superpairsLastRemainingClicks >= 0 && remaining > superpairsLastRemainingClicks) {
+                    superpairsMaxRemainingClicksSeen += remaining - superpairsLastRemainingClicks;
+                }
+                superpairsMaxRemainingClicksSeen = Math.max(superpairsMaxRemainingClicksSeen, remaining);
+                superpairsLastRemainingClicks = remaining;
+            }
+            return;
+        }
+    }
+
+    /** Superpairs counterpart of the Chronomatron/Ultrasequencer max-clicks message - same toggle, same
+     *  once-per-round latch, same local-only chat line + sound. */
+    private static void notifySuperpairsClicksUsedUp() {
+        maxClicksNotifiedThisRound = true;
+        var player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        player.sendSystemMessage(ModChat.line("Killer560's Mod",
+                ModChat.text("You've used all your Superpairs clicks ("),
+                ModChat.value(superpairsMaxRemainingClicksSeen + "/" + superpairsMaxRemainingClicksSeen),
+                ModChat.text(").")));
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < 3; i++) {
+            pendingActions.add(new PendingAction(
+                    () -> Minecraft.getInstance().getSoundManager()
+                            .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
+                    now + i * 220L));
         }
     }
 
@@ -1217,7 +1288,21 @@ public final class ExperimentsFeature {
             // from ever being read again.
             if (lastLoggedMode == ExperimentSolver.Mode.SUPERPAIRS && mode != ExperimentSolver.Mode.SUPERPAIRS) {
                 superpairsIconCache.clear();
+                // If the board jumped straight to its reward screen on the last click, the "0" may
+                // never have been rendered for a tick - treat "last seen <= 1, then the reward screen"
+                // as the clicks being used up (reward-screen title per SkyHanni's repo pattern).
+                ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+                if (cfg.isEnabled() && cfg.isNotifyMaxClicksReached() && !maxClicksNotifiedThisRound
+                        && superpairsMaxRemainingClicksSeen > 0
+                        && superpairsLastRemainingClicks >= 0 && superpairsLastRemainingClicks <= 1
+                        && (title.contains("Superpairs Rewards") || title.contains("Experiment Over")
+                            || title.contains("Experiment over"))) {
+                    superpairsLastRemainingClicks = 0;
+                    notifySuperpairsClicksUsedUp();
+                }
             }
+            superpairsLastRemainingClicks = -1;
+            superpairsMaxRemainingClicksSeen = -1;
             lastLoggedMode = mode;
             lastLoggedControlItem = null;
             maxClicksNotifiedThisRound = false;

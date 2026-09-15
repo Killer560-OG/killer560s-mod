@@ -2,7 +2,10 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.experiments.ExperimentStopStrategy;
 import com.killer560.hub.experiments.ExperimentsConfig;
+import com.killer560.hub.experiments.ExperimentsProfitTracker;
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.util.ModChat;
+import net.minecraft.client.gui.components.StringWidget;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -44,6 +47,9 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
         // disables their effect, which cfg.isEnabled() already did via ExperimentsFeature.tick()'s
         // own early-return) - a decluttered tab when the whole feature is off.
         if (!cfg.isEnabled()) {
+            // The profit tracker is independent of the solver (it only reads claimed rewards), so
+            // it stays reachable even with the solver itself switched off.
+            addProfitTrackerSection(widgets, contentX, y, contentWidth, requestRebuild);
             return widgets;
         }
 
@@ -230,6 +236,7 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
                         c.save();
                         requestRebuild.run();
                     }).bounds(titanicFieldX + titanicFieldWidth + GAP, y, contentWidth - titanicSliderWidth - titanicFieldWidth - 2 * GAP, 20).build());
+            y += 28;
         } else {
             // Per killer560's request (2026-09-08): expose the Chronomatron/Ultrasequencer misclick
             // protection as a real setting instead of always-on with no way to disable it. Only shown
@@ -242,21 +249,78 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(clickProtectionText());
                     }).bounds(contentX, y, contentWidth, 20).build());
             y += 24;
-
-            // Per killer560's request (2026-09-08): Solver Only has no stop condition of its own, so
-            // this is a client-side chat message (not the action-bar popup) announcing when the same
-            // lore-based max-clicks threshold Autonomous mode would stop at is reached - see
-            // ExperimentsFeature#maybeNotifyMaxClicksReached.
-            widgets.add(SettingsButtonWidget.builder(notifyMaxClicksText(), btn -> {
-                        ExperimentsConfig c = ExperimentsConfig.getInstance();
-                        c.setNotifyMaxClicksReached(!c.isNotifyMaxClicksReached());
-                        c.save();
-                        btn.setMessage(notifyMaxClicksText());
-                    }).bounds(contentX, y, contentWidth, 20).build());
-            y += 24;
         }
 
+        // Per killer560's request (2026-09-08): a client-side chat message (not the action-bar popup)
+        // announcing when the lore-based max-clicks threshold is reached - see
+        // ExperimentsFeature#maybeNotifyMaxClicksReached. Moved out of the Solver-Only-only branch
+        // (2026-09-15 roadmap) since it now fires in both modes, and for Superpairs' click budget too.
+        widgets.add(SettingsButtonWidget.builder(notifyMaxClicksText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setNotifyMaxClicksReached(!c.isNotifyMaxClicksReached());
+                    c.save();
+                    btn.setMessage(notifyMaxClicksText());
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 28;
+
+        addProfitTrackerSection(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
+    }
+
+    /** When the Reset Totals button was first clicked - a second click within 3s actually resets. */
+    private static long resetArmedAtMs = 0L;
+
+    /** Experimentation Table profit tracker: on/off toggle, running totals, and a two-click reset -
+     *  see {@link ExperimentsProfitTracker}. Totals text uses the mod's orange chat palette. */
+    private static int addProfitTrackerSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
+            Runnable requestRebuild) {
+        int half = (contentWidth - GAP) / 2;
+        widgets.add(SettingsButtonWidget.builder(profitTrackerText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setProfitTrackerEnabled(!c.isProfitTrackerEnabled());
+                    c.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, half, 20).build());
+        boolean armed = System.currentTimeMillis() - resetArmedAtMs < 3000;
+        widgets.add(SettingsButtonWidget.builder(Component.literal(armed ? "Click again to reset" : "Reset Profit Totals"), btn -> {
+                    if (System.currentTimeMillis() - resetArmedAtMs < 3000) {
+                        resetArmedAtMs = 0L;
+                        ExperimentsProfitTracker.reset();
+                    } else {
+                        resetArmedAtMs = System.currentTimeMillis();
+                    }
+                    requestRebuild.run();
+                }).bounds(contentX + half + GAP, y, half, 20).build());
+        y += 24;
+
+        var font = Minecraft.getInstance().font;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, ModChat.text("Sessions: ")
+                .append(ModChat.value(String.valueOf(ExperimentsProfitTracker.getTotalSessions())))
+                .append(ModChat.dim("  (Superpairs " + ExperimentsProfitTracker.getSessionsFor("Superpairs")
+                        + " / Chronomatron " + ExperimentsProfitTracker.getSessionsFor("Chronomatron")
+                        + " / Ultrasequencer " + ExperimentsProfitTracker.getSessionsFor("Ultrasequencer") + ")")),
+                font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, ModChat.text("Reward value: ")
+                .append(ModChat.value(ExperimentsProfitTracker.formatShort(ExperimentsProfitTracker.getTotalValueCoins()) + " coins"))
+                .append(ModChat.text("   Enchanting Exp: "))
+                .append(ModChat.value(ExperimentsProfitTracker.formatShort(ExperimentsProfitTracker.getTotalXp())))
+                .append(ModChat.text("   Bits spent: "))
+                .append(ModChat.value(String.valueOf(ExperimentsProfitTracker.getTotalBitsSpent()))),
+                font));
+        y += 12;
+        String last = ExperimentsProfitTracker.getLastSummary();
+        if (!last.isEmpty()) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    ModChat.dim("Last: ").append(ModChat.text(last)), font));
+            y += 12;
+        }
+        return y;
+    }
+
+    private static Component profitTrackerText() {
+        return Component.literal("Profit Tracker: "
+                + (ExperimentsConfig.getInstance().isProfitTrackerEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Integer parseInt(String text) {
@@ -335,8 +399,7 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Click Protection: " + (cfg.isClickProtectionEnabled() ? "§aON" : "§cOFF"));
     }
 
-    /** Only ever built while {@code autonomous} is false (see {@link #buildWidgets}) - Autonomous mode
-     *  already announces its own max-clicks exit through the navigator, it doesn't need this too. */
+    /** Shown in both modes since 2026-09-15 - the max-clicks message now fires in Autonomous too. */
     private static Component notifyMaxClicksText() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         return Component.literal("Notify Max Clicks Reached: " + (cfg.isNotifyMaxClicksReached() ? "§aON" : "§cOFF"));

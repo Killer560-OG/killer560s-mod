@@ -1,5 +1,9 @@
 package com.killer560.hub.autocorrect;
 
+import com.killer560.hub.util.ModChat;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -57,6 +61,12 @@ public final class AutoCorrectFeature {
         if (lower.length() < 3 || DICTIONARY.contains(lower)) {
             return null;
         }
+        return collapseDoubledRun(lower, DICTIONARY);
+    }
+
+    /** The collapse half of {@link #fixDoubledLetter}, against any set of valid words - shared with
+     *  command-name correction ({@link #correctCommand}) so both use exactly the same rule. */
+    private static String collapseDoubledRun(String lower, Set<String> valid) {
         String found = null;
         int i = 0;
         while (i < lower.length()) {
@@ -66,7 +76,7 @@ public final class AutoCorrectFeature {
             }
             if (i > runStart) {
                 String collapsed = lower.substring(0, runStart + 1) + lower.substring(i + 1);
-                if (DICTIONARY.contains(collapsed)) {
+                if (valid.contains(collapsed)) {
                     if (found != null && !found.equals(collapsed)) {
                         return null;
                     }
@@ -76,6 +86,161 @@ public final class AutoCorrectFeature {
             i++;
         }
         return found;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Command-name correction (2026-09-15 roadmap: "Extend Auto Correct to also fix typos in
+    // commands"), behind AutoCorrectConfig#isCorrectCommands (default OFF). Hooked from
+    // experiments.mixin.AutoCorrectCommandMixin, a @ModifyArg on the sendCommand(String) call inside
+    // ChatScreen.handleChatInput (verified via javap against the 26.1.2 merged jar: handleChatInput
+    // normalizes, adds to history, then calls ClientPacketListener.sendCommand(message.substring(1))
+    // for a leading "/") - so only commands the player actually TYPES are ever touched, never ones
+    // this mod or other mods send programmatically.
+    // ------------------------------------------------------------------------------------------
+
+    /** Common Hypixel commands the client's brigadier tree might not list (Hypixel's server tree
+     *  isn't guaranteed complete). Only names confirmed in real use - an extra wrong name here would
+     *  let a real command get "corrected" into it, so this deliberately stays small. */
+    private static final Set<String> HYPIXEL_COMMANDS = Set.of(
+            "warp", "pc", "party", "p", "pl", "visit", "ah", "bz", "bazaar", "pets", "wardrobe", "sbmenu",
+            "hub", "dh", "play", "is", "island", "ec", "enderchest", "storage", "craft", "recipe",
+            "viewrecipe", "collection", "skills", "hotm", "bestiary", "sacks", "trades", "trade", "garden",
+            "lobby", "l", "msg", "w", "r", "tell", "reply", "ac", "gc", "oc", "cc", "g", "guild", "f",
+            "friend", "fl", "boop", "locraw", "whereami", "calendar", "equipment", "accessories",
+            "potionbag", "quiver", "fishingbag", "joininstance", "rejoin", "chat");
+
+    /** Minimum typed command-name length before the one-edit match is even attempted - shorter names
+     *  ("pv", "pw", "ahs") are too close to too many real commands for a single edit to mean anything.
+     *  The doubled-letter collapse (same rule as chat) still applies from length 3. */
+    private static final int MIN_EDIT_CORRECTION_LENGTH = 4;
+
+    /**
+     * Entry point for the command-send mixin: returns {@code command} (no leading "/") with only its
+     * NAME corrected when Correct Commands is on and a single unambiguous fix exists - arguments are
+     * never touched. Posts an orange local-only note ("/wardorbe -> /wardrobe") whenever it changes.
+     */
+    public static String correctOutgoingCommand(String command) {
+        if (command == null || !AutoCorrectConfig.getInstance().isCorrectCommands()) {
+            return command;
+        }
+        try {
+            String corrected = correctCommand(command, knownCommandNames());
+            if (!corrected.equals(command)) {
+                String oldName = commandName(command);
+                String newName = commandName(corrected);
+                ModChat.send("Auto Correct",
+                        ModChat.value("/" + oldName),
+                        ModChat.text(" -> "),
+                        ModChat.value("/" + newName));
+            }
+            return corrected;
+        } catch (Exception e) {
+            return command;
+        }
+    }
+
+    /** Pure logic (no Minecraft access) - see {@link #correctOutgoingCommand}. */
+    static String correctCommand(String command, Set<String> known) {
+        if (known.isEmpty() || command.isBlank()) {
+            return command;
+        }
+        String name = commandName(command);
+        String rest = command.substring(name.length());
+        if (name.isEmpty() || name.indexOf(':') >= 0) {
+            return command;
+        }
+        String lower = name.toLowerCase(Locale.US);
+        if (known.contains(name) || known.contains(lower)) {
+            return command;
+        }
+        String fix = lower.length() >= 3 ? collapseDoubledRun(lower, known) : null;
+        if (fix == null && lower.length() >= MIN_EDIT_CORRECTION_LENGTH) {
+            fix = uniqueOneEditMatch(lower, known);
+        }
+        return fix == null ? command : fix + rest;
+    }
+
+    private static String commandName(String command) {
+        int space = command.indexOf(' ');
+        return space < 0 ? command : command.substring(0, space);
+    }
+
+    /** @return the only known name exactly one edit away (insert/delete/substitute/swap-adjacent) from
+     *  {@code lower}, or null if there are none or more than one - never guesses between candidates. */
+    private static String uniqueOneEditMatch(String lower, Set<String> known) {
+        String found = null;
+        for (String candidate : known) {
+            if (candidate.length() < 3 || Math.abs(candidate.length() - lower.length()) > 1) {
+                continue;
+            }
+            if (isOneEditAway(lower, candidate)) {
+                if (found != null && !found.equals(candidate)) {
+                    return null;
+                }
+                found = candidate;
+            }
+        }
+        return found;
+    }
+
+    private static boolean isOneEditAway(String a, String b) {
+        if (a.equals(b)) {
+            return false;
+        }
+        int la = a.length();
+        int lb = b.length();
+        if (la == lb) {
+            int first = -1;
+            int diffs = 0;
+            for (int i = 0; i < la; i++) {
+                if (a.charAt(i) != b.charAt(i)) {
+                    if (diffs == 0) first = i;
+                    diffs++;
+                }
+            }
+            if (diffs == 1) {
+                return true;
+            }
+            // Adjacent transposition, e.g. "wardorbe" -> "wardrobe".
+            return diffs == 2 && first + 1 < la
+                    && a.charAt(first) == b.charAt(first + 1) && a.charAt(first + 1) == b.charAt(first);
+        }
+        String shorter = la < lb ? a : b;
+        String longer = la < lb ? b : a;
+        int i = 0;
+        int j = 0;
+        boolean skipped = false;
+        while (i < shorter.length() && j < longer.length()) {
+            if (shorter.charAt(i) == longer.charAt(j)) {
+                i++;
+                j++;
+            } else {
+                if (skipped) return false;
+                skipped = true;
+                j++;
+            }
+        }
+        return true;
+    }
+
+    /** Root literal names of the client's current command tree (server commands plus Fabric client
+     *  commands, which Fabric merges into the same dispatcher) together with {@link #HYPIXEL_COMMANDS}.
+     *  Empty until a real command tree has been received, so nothing is ever corrected blind. */
+    private static Set<String> knownCommandNames() {
+        ClientPacketListener connection =
+                Minecraft.getInstance().getConnection();
+        if (connection == null) {
+            return Set.of();
+        }
+        Set<String> names = new HashSet<>();
+        for (var node : connection.getCommands().getRoot().getChildren()) {
+            names.add(node.getName().toLowerCase(Locale.US));
+        }
+        if (names.isEmpty()) {
+            return Set.of();
+        }
+        names.addAll(HYPIXEL_COMMANDS);
+        return names;
     }
 
     private static String matchCase(String original, String replacement) {

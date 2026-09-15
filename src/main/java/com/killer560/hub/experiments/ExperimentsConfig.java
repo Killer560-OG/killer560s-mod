@@ -82,8 +82,14 @@ public final class ExperimentsConfig {
     /** Solver Only mode only: sends a real client-side chat message once the max-clicks threshold
      *  (the same "Chain of N:"/"Series of N:" lore auto-detection Autonomous mode's MAX_CLICKS stop
      *  strategy uses) is reached, since Solver Only never stops or announces anything on its own.
-     *  Per killer560's request (2026-09-08). */
+     *  Per killer560's request (2026-09-08). Extended (2026-09-15 roadmap) to fire in BOTH Solver Only
+     *  and Autonomous mode, and to Superpairs when its "Remaining Clicks" counter hits 0. Still purely
+     *  a local chat message + UI sound, hence still default ON. */
     private boolean notifyMaxClicksReached = true;
+    /** Experimentation Table profit tracker (see {@link ExperimentsProfitTracker}) - purely
+     *  observational logging of claimed rewards/XP/Bits, independent of the solver toggle. Off by
+     *  default (roadmap item, 2026-09-15). */
+    private boolean profitTrackerEnabled = false;
 
     private ExperimentsConfig() {
     }
@@ -129,6 +135,7 @@ public final class ExperimentsConfig {
             cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? obj.get("emergencyCancelKeyCode").getAsInt() : -1;
             cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
             cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
+            cfg.profitTrackerEnabled = obj.has("profitTrackerEnabled") && obj.get("profitTrackerEnabled").getAsBoolean();
             instance = cfg;
         } catch (Exception e) {
             instance = new ExperimentsConfig();
@@ -154,6 +161,7 @@ public final class ExperimentsConfig {
             obj.addProperty("emergencyCancelKeyCode", emergencyCancelKeyCode);
             obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
             obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
+            obj.addProperty("profitTrackerEnabled", profitTrackerEnabled);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -284,5 +292,13 @@ public final class ExperimentsConfig {
 
     public void setNotifyMaxClicksReached(boolean notifyMaxClicksReached) {
         this.notifyMaxClicksReached = notifyMaxClicksReached;
+    }
+
+    public boolean isProfitTrackerEnabled() {
+        return profitTrackerEnabled;
+    }
+
+    public void setProfitTrackerEnabled(boolean profitTrackerEnabled) {
+        this.profitTrackerEnabled = profitTrackerEnabled;
     }
 }

@@ -28,6 +28,14 @@ public class AutoCorrectTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(enabledText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        widgets.add(SettingsButtonWidget.builder(correctCommandsText(), btn -> {
+                    AutoCorrectConfig cfg = AutoCorrectConfig.getInstance();
+                    cfg.setCorrectCommands(!cfg.isCorrectCommands());
+                    cfg.save();
+                    btn.setMessage(correctCommandsText());
+                }).bounds(contentX, y, 220, 20).build());
         y += 30;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -37,8 +45,16 @@ public class AutoCorrectTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("\"teh\" -> \"the\", \"definately\" -> \"definitely\"."),
                 Minecraft.getInstance().font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Correct Commands fixes only the command name, e.g. /wardorbe -> /wardrobe."),
+                Minecraft.getInstance().font));
 
         return widgets;
+    }
+
+    private static Component correctCommandsText() {
+        return Component.literal("Correct Commands: " + (AutoCorrectConfig.getInstance().isCorrectCommands() ? "§aON" : "§cOFF"));
     }
 
     private static Component enabledText() {
