@@ -2,11 +2,8 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.killer560.hub.leapmenu.LeapMenuScreen;
+import com.killer560.hub.leapmenu.LeapOrderScreen;
 import com.killer560.hub.leapmessage.LeapMessageConfig;
-import com.killer560.hub.posmsg.PosmsgConfig;
-import com.killer560.hub.posmsg.PosmsgEntry;
-import com.killer560.hub.posmsg.PosmsgFeature;
 import com.killer560.hub.spiritleap.SpiritLeapOverlayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -19,25 +16,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Everything related to Spirit Leaping, consolidated into one tab per killer560's own request
- * (2026-09-14): "Everything related to spirit leaps should be under one setting called leap menu. This
- * includes the leap messages, the fast leap the leap order all of it." Combines what used to be 4
- * separate tabs, each kept exactly as it worked before (same configs, same features, same widgets) -
- * only the GUI grouping changed:
- * <ul>
- *   <li><b>Custom Leap Menu overlay</b> - was {@code SpiritLeapOverlayTab}; see
- *   {@link com.killer560.hub.spiritleap.SpiritLeapOverlayFeature}.</li>
- *   <li><b>Leap Order</b> - a pointer to the real full-screen Leap Order menu (unchanged; that screen
- *   still owns sorting/display mode/GUI scale/Class-Customize editors since they need the whole
- *   screen's width, not a cramped mod-menu tab).</li>
- *   <li><b>Fast Leap</b> - was {@code FastLeapTab}; one-click Posmsg-backed quick-travel buttons.</li>
- *   <li><b>Leap Message</b> - was {@code LeapMessageTab} (previously lived under the Dungeon tab, not
- *   New - moved here so every leap-related setting is genuinely in one place); see
- *   {@link com.killer560.hub.leapmessage.LeapMessageFeature}.</li>
- * </ul>
- * Stays in the New tab for now per killer560's own explicit instruction ("for now obviously keep it in
- * the new tab") - the plan is for this whole consolidated tab to move into the Dungeon tab once
- * confirmed working, same as every other New-tab feature eventually does.
+ * Everything related to Spirit Leaping in one tab (killer560, 2026-09-14): the custom leap menu, the Leap Order
+ * editor, Fast Leap and Leap Message. 2026-09-15 redo: labels only (no explanation lines), the Leap Order button
+ * opens the class-first editor ({@link LeapOrderScreen}).
  */
 public class LeapMenuTab extends BaseTab {
 
@@ -54,14 +35,14 @@ public class LeapMenuTab extends BaseTab {
 
         y = buildOverlaySection(widgets, contentX, y, contentWidth, requestRebuild);
         y = buildLeapOrderSection(widgets, contentX, y, contentWidth);
-        y = buildFastLeapSection(widgets, contentX, y, contentWidth);
+        y = buildFastLeapSection(widgets, contentX, y, contentWidth, requestRebuild);
         buildLeapMessageSection(widgets, contentX, y, contentWidth, requestRebuild);
 
         return widgets;
     }
 
     private int buildOverlaySection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Runnable requestRebuild) {
-        widgets.add(sectionHeader(contentX, y, contentWidth, "Custom Leap Menu Overlay"));
+        widgets.add(sectionHeader(contentX, y, contentWidth, "Custom Leap Menu"));
         y += 14;
 
         SpiritLeapOverlayConfig cfg = SpiritLeapOverlayConfig.getInstance();
@@ -94,83 +75,32 @@ public class LeapMenuTab extends BaseTab {
                     cfg.save();
                 }
             });
-            y += 26;
-
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Draws 4 big clickable boxes over the real Spirit Leap GUI, one"),
-                    Minecraft.getInstance().font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7per real teammate - click anywhere in a quarter of the screen"),
-                    Minecraft.getInstance().font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7to leap to that quadrant's player instead of the tiny real slot."),
-                    Minecraft.getInstance().font));
-            y += 12;
+            y += 24;
         }
 
-        return y + 12;
+        return y + 8;
     }
 
     private int buildLeapOrderSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth) {
         widgets.add(sectionHeader(contentX, y, contentWidth, "Leap Order"));
         y += 14;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Sort/display the party, assign classes, and set a custom GUI scale."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Also opens directly with /killer560 leaporder."), Minecraft.getInstance().font));
-        y += 18;
-
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Leap Order Menu"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Leap Order"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreenAndShow(new LeapMenuScreen(client.screen));
+                    client.setScreenAndShow(new LeapOrderScreen(client.screen));
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
 
-        return y + 12;
+        return y + 8;
     }
 
-    private int buildFastLeapSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth) {
+    private int buildFastLeapSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Runnable requestRebuild) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return y;
+        }
         widgets.add(sectionHeader(contentX, y, contentWidth, "Fast Leap"));
         y += 14;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7One click sends that waypoint to Party Chat for everyone's Posmsg HUD."),
-                Minecraft.getInstance().font));
-        y += 18;
-
-        List<PosmsgEntry> ready = new ArrayList<>();
-        List<PosmsgEntry> notReady = new ArrayList<>();
-        for (PosmsgEntry e : PosmsgConfig.getInstance().entries()) {
-            (e.configured ? ready : notReady).add(e);
-        }
-
-        for (PosmsgEntry e : ready) {
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Leap: " + e.name), btn ->
-                        PosmsgFeature.send(e)
-                    ).bounds(contentX, y, 220, 20).build());
-            y += 24;
-        }
-
-        if (!notReady.isEmpty()) {
-            y += 6;
-            StringBuilder names = new StringBuilder();
-            for (PosmsgEntry e : notReady) {
-                if (!names.isEmpty()) {
-                    names.append(", ");
-                }
-                names.append(e.name);
-            }
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Not set up yet (see Posmsg tab): " + names), Minecraft.getInstance().font));
-            y += 12;
-        }
-
-        return y + 12;
+        return y + 8;
     }
 
     private void buildLeapMessageSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Runnable requestRebuild) {
@@ -216,15 +146,6 @@ public class LeapMenuTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX + 306, y, 90, 20).build());
-        y += 30;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Sends to Party Chat every time you Spirit Leap. Both"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7message types can be on at once - both will send."),
-                Minecraft.getInstance().font));
     }
 
     private StringWidget sectionHeader(int contentX, int y, int contentWidth, String title) {

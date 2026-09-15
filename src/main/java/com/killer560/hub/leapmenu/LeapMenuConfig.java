@@ -89,6 +89,11 @@ public final class LeapMenuConfig {
     /** Player names (lowercase) in the order Customize mode placed them; anyone not listed falls back
      *  to whatever order they show up in the party. */
     private final List<String> customOrder = new ArrayList<>();
+    /** Leap Order (2026-09-15 redo): per class YOU are playing, the teammate name placed in each of the 4 leap menu
+     *  spots (top-left, top-right, bottom-left, bottom-right); "" = spot left for auto-fill. */
+    private final Map<String, List<String>> classOrders = new LinkedHashMap<>();
+    /** The class last picked in the Leap Order editor - used when the tab list hasn't shown your class. */
+    private String lastEditedClass = null;
 
     private LeapMenuConfig() {
     }
@@ -115,6 +120,19 @@ public final class LeapMenuConfig {
                     for (String key : map.keySet()) {
                         cfg.classAssignments.put(key, map.get(key).getAsString());
                     }
+                }
+                if (root.has("classOrders")) {
+                    JsonObject orders = root.getAsJsonObject("classOrders");
+                    for (String key : orders.keySet()) {
+                        List<String> slots = new ArrayList<>();
+                        for (var el : orders.getAsJsonArray(key)) {
+                            slots.add(el.getAsString());
+                        }
+                        cfg.classOrders.put(key, normalizeSlots(slots));
+                    }
+                }
+                if (root.has("lastEditedClass")) {
+                    cfg.lastEditedClass = root.get("lastEditedClass").getAsString();
                 }
                 if (root.has("customOrder")) {
                     JsonArray arr = root.getAsJsonArray("customOrder");
@@ -153,6 +171,16 @@ public final class LeapMenuConfig {
             JsonArray arr = new JsonArray();
             customOrder.forEach(arr::add);
             root.add("customOrder", arr);
+            JsonObject orders = new JsonObject();
+            classOrders.forEach((key, slots) -> {
+                JsonArray a = new JsonArray();
+                slots.forEach(a::add);
+                orders.add(key, a);
+            });
+            root.add("classOrders", orders);
+            if (lastEditedClass != null) {
+                root.addProperty("lastEditedClass", lastEditedClass);
+            }
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -194,7 +222,7 @@ public final class LeapMenuConfig {
      *  teammate ESP/map-dot recoloring should read from once those features exist. */
     public DungeonClass getAssignedClass(String playerName) {
         String value = classAssignments.get(playerName.toLowerCase(java.util.Locale.US));
-        return value == null ? null : DungeonClass.byName(value);
+        return value == null ? PartyTracker.classOf(playerName) : DungeonClass.byName(value);
     }
 
     public void setAssignedClass(String playerName, DungeonClass dungeonClass) {
@@ -204,6 +232,40 @@ public final class LeapMenuConfig {
         } else {
             classAssignments.put(key, dungeonClass.name());
         }
+    }
+
+    private static List<String> normalizeSlots(List<String> slots) {
+        List<String> out = new ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            out.add(i < slots.size() && slots.get(i) != null ? slots.get(i) : "");
+        }
+        return out;
+    }
+
+    /** @return the 4 saved spots for this class ("" = auto-fill); never null. */
+    public List<String> getClassOrder(DungeonClass playing) {
+        List<String> slots = playing == null ? null : classOrders.get(playing.name());
+        return slots == null ? normalizeSlots(List.of()) : new ArrayList<>(slots);
+    }
+
+    public void setClassOrder(DungeonClass playing, List<String> slots) {
+        if (playing != null) {
+            classOrders.put(playing.name(), normalizeSlots(slots));
+        }
+    }
+
+    public void clearClassOrder(DungeonClass playing) {
+        if (playing != null) {
+            classOrders.remove(playing.name());
+        }
+    }
+
+    public DungeonClass getLastEditedClass() {
+        return lastEditedClass == null ? null : DungeonClass.byName(lastEditedClass);
+    }
+
+    public void setLastEditedClass(DungeonClass playing) {
+        this.lastEditedClass = playing == null ? null : playing.name();
     }
 
     public List<String> getCustomOrder() {

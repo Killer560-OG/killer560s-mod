@@ -35,6 +35,38 @@ public final class LeapMenuFeature {
         return result;
     }
 
+    /** Places teammates into the 4 leap menu spots: saved names keep their spot if that player is present, then
+     *  everyone else fills the empty spots in the order given. Entries are null for spots nobody fills. */
+    public static String[] arrange(List<String> available, List<String> savedSlots) {
+        String[] out = new String[4];
+        List<String> remaining = new ArrayList<>(available);
+        for (int i = 0; i < 4 && i < savedSlots.size(); i++) {
+            String wanted = savedSlots.get(i);
+            if (wanted == null || wanted.isEmpty()) {
+                continue;
+            }
+            for (int j = 0; j < remaining.size(); j++) {
+                if (remaining.get(j).equalsIgnoreCase(wanted)) {
+                    out[i] = remaining.remove(j);
+                    break;
+                }
+            }
+        }
+        for (int i = 0; i < 4 && !remaining.isEmpty(); i++) {
+            if (out[i] == null) {
+                out[i] = remaining.remove(0);
+            }
+        }
+        return out;
+    }
+
+    /** The class whose Leap Order applies right now: your class from the dungeon tab list, else the one last
+     *  picked in the editor. */
+    public static DungeonClass playingClass() {
+        DungeonClass fromTab = PartyTracker.selfClass();
+        return fromTab != null ? fromTab : LeapMenuConfig.getInstance().getLastEditedClass();
+    }
+
     public static List<Player> sorted(List<Player> members, SortMode mode) {
         List<Player> copy = new ArrayList<>(members);
         LeapMenuConfig cfg = LeapMenuConfig.getInstance();
