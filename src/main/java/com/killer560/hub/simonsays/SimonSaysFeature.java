@@ -290,6 +290,13 @@ public final class SimonSaysFeature {
     private static float rotateCurveSign = 1f;
     private static float rotateApproachElapsedTicks = 0f;
     private static long rotateLastFrameAtNanos = 0L;
+    // Diagnostic-only (2026-09-14, killer560's own report: "it is still waiting while looking at the
+    // button for too long" - Round 138's overshoot fix and this round's curve-decay speedup were both
+    // reasoned guesses at what was blocking settledNearCenter, not confirmed by a log). Logs the exact
+    // gating values once an approach has been visually sitting on a target for a real suspicious length
+    // of time without firing, so a repeat of this report has hard evidence of exactly what's still
+    // blocking it instead of a fourth guess.
+    private static boolean rotateApproachStallLogged = false;
     // Set by the frame-driven approach the instant a click actually fires; polled and cleared by the
     // tick-based caller that owns that target, so click-bookkeeping/pacing still only ever runs once
     // per real click, from the same tick-based code as every other click mode.
@@ -1521,6 +1528,7 @@ public final class SimonSaysFeature {
         LOGGER.info("[SimonSays][RotateFrame] Beginning approach to {} (was {}).", buttonPos, rotateInProgressTarget);
         rotateInProgressTarget = buttonPos;
         rotateApproachElapsedTicks = 0f;
+        rotateApproachStallLogged = false;
         // Real bug found and fixed (2026-09-14, killer560's own report: "it still just got 14.7 when set
         // to 11.2" - a real per-click log confirmed the real physical floor: 14 clicks' worth of camera-
         // turn time plus real reveal waiting added up to more than the configured target could ever allow,
@@ -1662,13 +1670,21 @@ public final class SimonSaysFeature {
             boolean yawDominant = Math.abs(Mth.wrapDegrees(rawTargetYaw - currentYaw))
                     >= Math.abs(Mth.wrapDegrees(rawTargetPitch - currentPitch));
             // Simple rise-then-fade envelope in continuous elapsed-tick-equivalents (not a discrete tick
-            // counter) so it stays frame-rate-independent: ramps up over the first 3, decays ~20%/tick
-            // after - doesn't need to know the approach's total real length in advance to look smooth.
+            // counter) so it stays frame-rate-independent: ramps up over the first 3, decays after -
+            // doesn't need to know the approach's total real length in advance to look smooth.
             // Real bug found and fixed (2026-09-14, "it should more or less be on track to the button at
             // all times just make it not be a perfectly straight line"): a 3-degree peak read as a real
             // detour off the direct path, not a subtle waver - cut to 1 degree.
+            // Real bug found and fixed AGAIN (2026-09-14, killer560's own report: "it is still waiting
+            // while looking at the button for too long" - Round 138 fixed overshoot's own exact-zero
+            // requirement, but curve's decay was never sped up to match): at the old ~20%-remaining/tick
+            // decay, curve's own contribution could still be a meaningful fraction of a degree for the
+            // better part of a second - not enough to block settling by itself (it never exceeded the
+            // 1.5-degree threshold alone), but combined with the small residual gap the main easing always
+            // leaves, it could keep tipping the total over 1.5 degrees for far longer than the visible
+            // motion actually lasted. Sped up to match overshoot's own decay rate.
             float t = rotateApproachElapsedTicks;
-            float curveMagnitude = t <= 3f ? (t / 3f) * 1.0f : (float) (1.0 * Math.pow(0.8, t - 3f));
+            float curveMagnitude = t <= 3f ? (t / 3f) * 1.0f : (float) (1.0 * Math.pow(0.35, t - 3f));
             float curveOffset = curveMagnitude * rotateCurveSign;
             if (yawDominant) {
                 rawTargetPitch += curveOffset;
@@ -1746,6 +1762,18 @@ public final class SimonSaysFeature {
             rotateLastFiredTarget = buttonPos;
             rotateInProgressTarget = null;
             rotateApproachElapsedTicks = 0f;
+            rotateApproachStallLogged = false;
+        } else if (!rotateApproachStallLogged && rotateApproachElapsedTicks > 30f) {
+            // Diagnostic-only - see rotateApproachStallLogged's own field doc comment. 30 ticks (~1.5s) is
+            // already well beyond how long a real settle should ever take at the current turn speed.
+            boolean raycastOnTarget = client.hitResult instanceof BlockHitResult hit2 && hit2.getBlockPos().equals(buttonPos);
+            LOGGER.warn("[SimonSays][RotateFrame] Approach stuck without firing - target={} elapsedTicks={} "
+                            + "yawDelta={} pitchDelta={} overshootYaw={} overshootPitch={} curveOn={} "
+                            + "raycastOnTarget={} realHitPos={}.",
+                    buttonPos, rotateApproachElapsedTicks, yawDelta, pitchDelta, rotateOvershootYawRemaining,
+                    rotateOvershootPitchRemaining, rotateCurveOnThisApproach, raycastOnTarget,
+                    client.hitResult instanceof BlockHitResult hit3 ? hit3.getBlockPos() : "none");
+            rotateApproachStallLogged = true;
         }
     }
 
