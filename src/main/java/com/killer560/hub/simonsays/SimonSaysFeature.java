@@ -297,9 +297,11 @@ public final class SimonSaysFeature {
     // wherever the real NEXT button is before correcting back to properly click the CURRENT one, like a
     // person whose eyes/aim jump ahead before finishing what's in front of them. Rolled once per approach
     // in beginRotateApproach (as a yaw/pitch OFFSET - the real angular difference between "look at the
-    // current target" and "look at the next one", scaled down to a believable partial reach, not the next
-    // button's literal position), applied and decayed every frame in applyRotateApproachFrame exactly like
-    // overshoot already is.
+    // current target" and "look at the next one", scaled to a believable near-complete reach, not
+    // literally the next button's own position). Stores the PEAK magnitude only - applyRotateApproachFrame
+    // computes the real applied contribution fresh each frame as a continuous rise-then-fade envelope
+    // (killer560's own "be careful to not have it snap" - see that method's own doc comment), never
+    // decayed/mutated in place like overshoot is.
     private static float rotateFeintYawOffset = 0f;
     private static float rotateFeintPitchOffset = 0f;
     // Diagnostic-only (2026-09-14, killer560's own report: "it is still waiting while looking at the
@@ -1275,8 +1277,15 @@ public final class SimonSaysFeature {
         // starting a fresh sequence is deliberate, not already anticipating ahead) or its last (nothing
         // real to reach toward yet within THIS round regardless of whether a next round's own position
         // happens to be known).
+        // Real bug found and fixed (2026-09-14, killer560's own request: "make it so it can only have the
+        // missclick if the delay is over 12s. Anything below that it shouldnt be able to have the
+        // missclick"): the feint adds real extra settle time to whichever click rolls it - only worth
+        // spending when the configured Timer Target actually has slack for it. Below 12 real seconds,
+        // every bit of the budget matters more, so no feint is ever eligible there regardless of click
+        // position.
         int rotateFeintPeekIndex = clickNeeded + 1;
-        boolean rotateFeintEligiblePosition = clickNeeded >= 1 && clickNeeded <= 3;
+        boolean rotateFeintEligiblePosition = clickNeeded >= 1 && clickNeeded <= 3
+                && cfg.getClickTimerTargetMs() > 12000;
         BlockPos rotateNextHint = rotateFeintEligiblePosition && rotateFeintPeekIndex < clickInOrder.size()
                 ? clickInOrder.get(rotateFeintPeekIndex).west() : null;
 
@@ -1585,6 +1594,10 @@ public final class SimonSaysFeature {
         rotateCurveSign = Math.random() < 0.5 ? 1f : -1f;
         // See rotateFeintYawOffset's own field doc comment for the full real reasoning. 30% chance,
         // and only when a real next button is actually known this round.
+        // Real bug found and fixed (2026-09-14, killer560's own request: "have it go all the way to the
+        // next button essentially then back"): was only reaching 50% of the real angular difference -
+        // raised to 85% ("essentially" all the way, deliberately just short of exactly overlapping the
+        // next button's own real aim point).
         rotateFeintYawOffset = 0f;
         rotateFeintPitchOffset = 0f;
         if (nextHint != null && Math.random() < 0.3) {
@@ -1593,8 +1606,8 @@ public final class SimonSaysFeature {
                 Vec3 eyePos = mc.player.getEyePosition();
                 float[] toTarget = yawPitchTo(eyePos, realBlockCenter(mc, buttonPos));
                 float[] toNext = yawPitchTo(eyePos, realBlockCenter(mc, nextHint));
-                rotateFeintYawOffset = Mth.wrapDegrees(toNext[0] - toTarget[0]) * 0.5f;
-                rotateFeintPitchOffset = Mth.wrapDegrees(toNext[1] - toTarget[1]) * 0.5f;
+                rotateFeintYawOffset = Mth.wrapDegrees(toNext[0] - toTarget[0]) * 0.85f;
+                rotateFeintPitchOffset = Mth.wrapDegrees(toNext[1] - toTarget[1]) * 0.85f;
             }
         }
         // Deliberately does NOT touch idleSuppressedAfterCompletion - see that field's own doc comment
@@ -1793,22 +1806,28 @@ public final class SimonSaysFeature {
         }
 
         // Real feature added (2026-09-14, killer560's own request: "keep a similar rotation speed but
-        // have it miss a button, go towards the next one, then go back after missing"): applies and
-        // decays the feint rolled in beginRotateApproach exactly like overshoot above - pulls rawTarget
-        // toward roughly where the next button is for a brief real moment, then fades out, letting the
-        // approach correct back and settle on the true current target normally. Decays a little slower
-        // than overshoot (0.45 vs 0.35) so the "reach toward next" reads as a real, visible gesture rather
-        // than a near-instant flicker.
-        rawTargetYaw += rotateFeintYawOffset;
-        rawTargetPitch += rotateFeintPitchOffset;
-        double feintDecay = Math.pow(0.45, dtTicks);
-        rotateFeintYawOffset *= (float) feintDecay;
-        rotateFeintPitchOffset *= (float) feintDecay;
-        if (Math.abs(rotateFeintYawOffset) < 0.3f) {
-            rotateFeintYawOffset = 0f;
-        }
-        if (Math.abs(rotateFeintPitchOffset) < 0.3f) {
-            rotateFeintPitchOffset = 0f;
+        // have it miss a button, go towards the next one, then go back after missing"): pulls rawTarget
+        // toward roughly where the next button is for a brief real moment, then fades back out, letting
+        // the approach correct and settle on the true current target normally.
+        // Real bug found and fixed (2026-09-14, killer560's own report: "Be careful to not have it snap"):
+        // rotateFeintYawOffset/PitchOffset used to be applied at their FULL rolled magnitude on the very
+        // first frame, then multiplicatively decayed - meaning the "reach toward next" itself was an
+        // instant jump, not a real motion, before fading out. Now stores the PEAK magnitude only and
+        // computes the actual contribution fresh each frame as a continuous rise-then-fade envelope (the
+        // same real technique curve already uses just above) - ramps up smoothly over the first few
+        // ticks, holds near peak, then fades back out over a longer stretch, so both the reach AND the
+        // return read as real, gradual motion rather than a snap in either direction. Slower fade than
+        // curve/overshoot (0.7 vs 0.35) since "essentially all the way" (now 85% of the real angular
+        // difference, see beginRotateApproach) needs more real time to read as deliberate, not abrupt.
+        if (rotateFeintYawOffset != 0f || rotateFeintPitchOffset != 0f) {
+            float ft = rotateApproachElapsedTicks;
+            float feintEnvelope = ft <= 4f ? (ft / 4f) : (float) Math.pow(0.7, ft - 4f);
+            rawTargetYaw += rotateFeintYawOffset * feintEnvelope;
+            rawTargetPitch += rotateFeintPitchOffset * feintEnvelope;
+            if (feintEnvelope < 0.03f) {
+                rotateFeintYawOffset = 0f;
+                rotateFeintPitchOffset = 0f;
+            }
         }
 
         float yawDelta = Mth.wrapDegrees(rawTargetYaw - currentYaw);
