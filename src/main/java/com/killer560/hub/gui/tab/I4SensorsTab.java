@@ -116,6 +116,21 @@ public class I4SensorsTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
 
+            widgets.add(new com.killer560.hub.gui.RangeSliderWidget(contentX, y, contentWidth, 18,
+                    I4SensorsConfig.MIN_CPS, I4SensorsConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {
+                @Override
+                protected Component label(int low, int high) {
+                    return Component.literal("CPS: " + low + " - " + high);
+                }
+
+                @Override
+                protected void onRangeChanged(int low, int high) {
+                    cfg.setCpsRange(low, high);
+                    cfg.save();
+                }
+            });
+            y += 22;
+
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
                     Component.literal(accuracyLabel(cfg)), cfg.getShotAccuracyPercent() / 100.0) {
                 @Override

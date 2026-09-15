@@ -78,11 +78,17 @@ public final class AutoI4Feature {
     private static final float ALREADY_AIMED_TOLERANCE_DEG = 1f;
     // Never two shots closer than this - Noamm's own effective cadence (it forces 170ms of rotation per shot
     // with Predictions on), and stops No Rotate from firing a target + its prediction in the same tick.
-    // 250 not 170 (2026-09-14, killer560: "it still looks around like it wants to prefire but it isn't actually shooting
-    // a lot of the time"): a real p3sim log matched every FIRED shot to its spawned arrows - shots 171-177ms after
-    // the previous one spawned NO arrows (the Terminator's own shot cooldown swallowed them), every shot 261ms+
-    // after did. Firing faster than the cooldown just wastes the turn.
-    private static final long MIN_SHOT_GAP_MS = 250L;
+    // Click cadence (2026-09-14, killer560's own request): replaces the old fixed minimum shot gap. When the device
+    // starts, a base CPS is picked uniformly from the configured range; every click then rolls base +-2 CPS, so clicks
+    // come evenly spaced at roughly that rate - never bunched. Clicks keep coming while the camera turns (a click
+    // that lands before the aim settles just shoots wherever it's looking, like a person spam-clicking); the first
+    // click after the aim settles is the aimed shot. Note from a real p3sim log: the Terminator's own cooldown drops
+    // shots closer than ~180ms, so very high CPS mostly adds wasted clicks.
+    private static final double CPS_JITTER = 2.0;
+    private static double sessionBaseCps = 0.0;
+    private static long nextClickAtMs = 0L;
+    private static int spamClicks = 0;
+    private static long lastSpamLogAtMs = 0L;
     // Machine Gun Shortbow "Rapid Fire" - hypixelskyblock.minecraft.wiki/w/Machine_Gun_Shortbow: 8s, 100s cooldown.
     private static final long RAPID_FIRE_DURATION_MS = 8000L;
     private static final long RAPID_FIRE_COOLDOWN_MS = 100_000L;
@@ -274,8 +280,7 @@ public final class AutoI4Feature {
                     I4SensorsFeature.clock(), indexOf(activeTarget), now - lastShotAtActiveMs);
             shotQueue.add(activeTarget);
         }
-        if (currentShot == null && shotQueue.isEmpty() && deviceStarted && cfg.isAutoI4Predictions()
-                && now - lastFireAtMs >= MIN_SHOT_GAP_MS) {
+        if (currentShot == null && shotQueue.isEmpty() && deviceStarted && cfg.isAutoI4Predictions()) {
             BlockPos prefire = predictNext(activeTarget);
             if (prefire != null) {
                 shotQueue.add(prefire);
@@ -283,10 +288,6 @@ public final class AutoI4Feature {
         }
         if (currentShot == null && !shotQueue.isEmpty()) {
             startShot(client, cfg, player, shotQueue.remove(0));
-        }
-        if (currentShot != null && !cfg.isAutoI4Rotate() && now - lastFireAtMs >= MIN_SHOT_GAP_MS) {
-            fireNoRotate(client, player, currentShot);
-            currentShot = null;
         }
     }
 
@@ -367,6 +368,15 @@ public final class AutoI4Feature {
 
     private static void setActiveTarget(BlockPos pos, String why) {
         activeTarget = pos;
+        if (!deviceStarted) {
+            I4SensorsConfig cfg = I4SensorsConfig.getInstance();
+            sessionBaseCps = cfg.getCpsMin() + Math.random() * (cfg.getCpsMax() - cfg.getCpsMin());
+            nextClickAtMs = 0L;
+            spamClicks = 0;
+            LOGGER.info("{} {} Device started - clicking at ~{} CPS this attempt (range {}-{}, +-{} per click).", TAG,
+                    I4SensorsFeature.clock(), String.format(java.util.Locale.US, "%.1f", sessionBaseCps),
+                    cfg.getCpsMin(), cfg.getCpsMax(), (int) CPS_JITTER);
+        }
         deviceStarted = true;
         lastShotAtActiveMs = 0L;
         // Same real log: prefires kept getting thrown away mid-turn whenever a new target lit - even when the prefire
@@ -445,6 +455,8 @@ public final class AutoI4Feature {
         lastWall.clear();
         predictionCounts.clear();
         deviceStarted = false;
+        sessionBaseCps = 0.0;
+        nextClickAtMs = 0L;
         activeTarget = null;
         lastShotAtActiveMs = 0L;
         completed = false;
@@ -641,32 +653,59 @@ public final class AutoI4Feature {
 
     /** Rotate mode - runs every render frame so the turn is as smooth as real mouse look. */
     private static void frame() {
-        Shot shot = currentShot;
         I4SensorsConfig cfg = I4SensorsConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (shot == null || !cfg.isAutoI4Rotate() || !wasRunning || completed || client.player == null
-                || client.gameMode == null) {
+        if (!wasRunning || completed || client.player == null || client.gameMode == null) {
             return;
         }
         LocalPlayer player = client.player;
-        long elapsed = System.currentTimeMillis() - shot.startedAtMs;
-        double progress = shot.durationMs <= 0 ? 1.0 : Math.min(1.0, elapsed / (double) shot.durationMs);
-        float eased = (float) easeInOutCubic(progress);
-        player.setYRot(shot.startYaw + (shot.targetYaw - shot.startYaw) * eased);
-        player.setXRot(shot.startPitch + (shot.targetPitch - shot.startPitch) * eased);
-        if (progress < 1.0) {
+        long now = System.currentTimeMillis();
+        Shot shot = currentShot;
+        boolean settled = false;
+        long elapsed = 0L;
+        if (shot != null) {
+            elapsed = now - shot.startedAtMs;
+            if (cfg.isAutoI4Rotate()) {
+                double progress = shot.durationMs <= 0 ? 1.0 : Math.min(1.0, elapsed / (double) shot.durationMs);
+                float eased = (float) easeInOutCubic(progress);
+                player.setYRot(shot.startYaw + (shot.targetYaw - shot.startYaw) * eased);
+                player.setXRot(shot.startPitch + (shot.targetPitch - shot.startPitch) * eased);
+                settled = progress >= 1.0;
+            } else {
+                settled = true;
+            }
+        }
+        // Clicking only once the device has started, holding the bow, with no menu open.
+        if (!deviceStarted || sessionBaseCps <= 0 || client.screen != null || !player.getMainHandItem().is(Items.BOW)
+                || now < nextClickAtMs) {
             return;
         }
-        player.setYRot(shot.targetYaw);
-        player.setXRot(shot.targetPitch);
-        if (System.currentTimeMillis() - lastFireAtMs < MIN_SHOT_GAP_MS) {
-            return; // on target - hold until the minimum gap since the previous shot has passed
-        }
-        InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-        onFired(client, shot, "Rotate", result, elapsed);
-        currentShot = null;
-        if (!shotQueue.isEmpty()) {
-            startShot(client, cfg, player, shotQueue.remove(0));
+        double cps = Math.max(1.0, sessionBaseCps + (Math.random() * 2 - 1) * CPS_JITTER);
+        nextClickAtMs = now + Math.round(1000.0 / cps);
+        if (shot != null && settled) {
+            if (cfg.isAutoI4Rotate()) {
+                player.setYRot(shot.targetYaw);
+                player.setXRot(shot.targetPitch);
+                InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                onFired(client, shot, "Rotate", result, elapsed);
+            } else {
+                fireNoRotate(client, player, shot);
+            }
+            currentShot = null;
+            if (!shotQueue.isEmpty()) {
+                startShot(client, cfg, player, shotQueue.remove(0));
+            }
+        } else if (cfg.isAutoI4Rotate()) {
+            // Mid-turn (or nothing to aim at yet): a plain click wherever the camera is pointing.
+            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            I4SensorsFeature.noteAutoShot(now);
+            spamClicks++;
+            if (now - lastSpamLogAtMs >= 1000L) {
+                lastSpamLogAtMs = now;
+                LOGGER.info("{} {} Clicking at ~{} CPS: {} un-aimed click(s) so far this attempt (shot {}).", TAG,
+                        I4SensorsFeature.clock(), String.format(java.util.Locale.US, "%.1f", sessionBaseCps), spamClicks,
+                        shot == null ? "none queued" : "still turning to #" + indexOf(shot.target));
+            }
         }
     }
 

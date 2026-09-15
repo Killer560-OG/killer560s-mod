@@ -86,6 +86,13 @@ public final class I4SensorsConfig {
     // killer560 (2026-09-14): "add a shot accuracy percentage. This is the chance that it aims a little too low or
     // high missing the shot." 100 = every shot aimed exactly.
     private int shotAccuracyPercent = 100;
+    // CPS range (2026-09-14, killer560: "a cps range between 1-15 that has both ends of a slider. Whenever i4 starts
+    // itll pick a number from that and go +-1 or 2 each way... somewhat evenly balanced"). Default 4-6: the
+    // Terminator's own cooldown swallowed shots closer than ~180ms in a real p3sim log.
+    public static final int MIN_CPS = 1;
+    public static final int MAX_CPS = 15;
+    private int cpsMin = 4;
+    private int cpsMax = 6;
 
     private I4SensorsConfig() {
     }
@@ -127,6 +134,7 @@ public final class I4SensorsConfig {
             cfg.autoMask = obj.has("autoMask") && obj.get("autoMask").getAsBoolean();
             cfg.setMaskOrderIndex(obj.has("maskOrderIndex") ? obj.get("maskOrderIndex").getAsInt() : 0);
             cfg.setShotAccuracyPercent(obj.has("shotAccuracyPercent") ? obj.get("shotAccuracyPercent").getAsInt() : 100);
+            cfg.setCpsRange(obj.has("cpsMin") ? obj.get("cpsMin").getAsInt() : 4, obj.has("cpsMax") ? obj.get("cpsMax").getAsInt() : 6);
             instance = cfg;
         } catch (Exception e) {
             instance = new I4SensorsConfig();
@@ -149,12 +157,29 @@ public final class I4SensorsConfig {
             obj.addProperty("autoMask", autoMask);
             obj.addProperty("maskOrderIndex", maskOrderIndex);
             obj.addProperty("shotAccuracyPercent", shotAccuracyPercent);
+            obj.addProperty("cpsMin", cpsMin);
+            obj.addProperty("cpsMax", cpsMax);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
     /** Visual only - available on both builds. */
+    public int getCpsMin() {
+        return cpsMin;
+    }
+
+    public int getCpsMax() {
+        return cpsMax;
+    }
+
+    public void setCpsRange(int min, int max) {
+        int lo = Math.max(MIN_CPS, Math.min(MAX_CPS, Math.min(min, max)));
+        int hi = Math.max(MIN_CPS, Math.min(MAX_CPS, Math.max(min, max)));
+        this.cpsMin = lo;
+        this.cpsMax = hi;
+    }
+
     public int getShotAccuracyPercent() {
         return shotAccuracyPercent;
     }
