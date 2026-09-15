@@ -81,7 +81,13 @@ public final class WeirdosSolverFeature {
                 (message, signedMessage, sender, params, receptionTimestamp) -> onMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onMessage(message));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+            // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+            boolean inBoss = LiveMapFeature.isInBoss();
+            if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || inBoss) {
+                if (correctPos != null || !wrongPositions.isEmpty()) {
+                    LOGGER.info("[WeirdosSolver] Reset (enabled={} inDungeon={} inBoss={})",
+                            WeirdosSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), inBoss);
+                }
                 reset();
             }
         });
@@ -89,7 +95,7 @@ public final class WeirdosSolverFeature {
     }
 
     private static void onMessage(Component message) {
-        if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             return;
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
@@ -137,9 +143,13 @@ public final class WeirdosSolverFeature {
         if (clayAndRotation == null) {
             return null;
         }
+        // Real bug found and fixed (2026-09-14, code review): npcName comes from the color-stripped chat
+        // line, but this compared it against the RAW entity name, which can still carry section-sign
+        // color codes - so the NPC was never found and no chest was ever highlighted. Strip both sides.
+        String wanted = stripName(npcName);
         Entity npc = null;
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity instanceof ArmorStand && entity.getName().getString().equals(npcName)) {
+            if (entity instanceof ArmorStand && stripName(entity.getName().getString()).equals(wanted)) {
                 npc = entity;
                 break;
             }
@@ -149,12 +159,12 @@ public final class WeirdosSolverFeature {
             int listed = 0;
             for (Entity entity : client.level.entitiesForRendering()) {
                 if (entity instanceof ArmorStand && listed < 15 && client.player != null
-                        && entity.distanceToSqr(client.player) < 32 * 32 && !entity.getName().getString().isBlank()) {
-                    nearby.append('"').append(entity.getName().getString()).append("\" ");
+                        && entity.distanceToSqr(client.player) < 32 * 32 && !stripName(entity.getName().getString()).isBlank()) {
+                    nearby.append('"').append(stripName(entity.getName().getString())).append("\" ");
                     listed++;
                 }
             }
-            LOGGER.info("[WeirdosSolver] No ArmorStand named exactly \"{}\"; nearby named stands: [{}]", npcName, nearby.toString().trim());
+            LOGGER.info("[WeirdosSolver] No ArmorStand named \"{}\" (color-stripped); nearby named stands: [{}]", wanted, nearby.toString().trim());
             return null;
         }
         BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()) - 1, 69, (int) Math.floor(npc.getZ()) - 1);
@@ -181,6 +191,11 @@ public final class WeirdosSolverFeature {
                 WorldRenderUtils.renderOutlineBox(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 1f, 2f);
             }
         }
+    }
+
+    private static String stripName(String name) {
+        String stripped = ChatFormatting.stripFormatting(name);
+        return (stripped != null ? stripped : name).trim();
     }
 
     private static void reset() {

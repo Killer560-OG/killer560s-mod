@@ -49,6 +49,8 @@ public final class BoulderSolverFeature {
     private static List<BoxPosition> currentPositions = new ArrayList<>();
     private static RoomEntry lastRoomEntry = null;
     private static boolean scannedThisRoom = false;
+    private static long lastScanAttemptMs = 0;
+    private static String lastLoggedScan = null;
 
     private BoulderSolverFeature() {
     }
@@ -85,7 +87,7 @@ public final class BoulderSolverFeature {
         RoomEntry current = BoulderSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
                 ? LiveMapFeature.currentRoomEntry() : null;
         String state = current == null || !"Boulder".equals(current.name)
-                ? "notInRoom(enabled=" + BoulderSolverConfig.getInstance().isEnabled() + ")"
+                ? "notInRoom(enabled=" + BoulderSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
                 : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
                 + " scanned=" + scannedThisRoom + " remainingClicks=" + currentPositions.size()
                 + " solutionsLoaded=" + SOLUTIONS.size();
@@ -96,7 +98,8 @@ public final class BoulderSolverFeature {
     }
 
     private static void tickInner(Minecraft client) {
-        if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             reset();
             return;
         }
@@ -104,6 +107,7 @@ public final class BoulderSolverFeature {
         if (current != lastRoomEntry) {
             lastRoomEntry = current;
             scannedThisRoom = false;
+            lastScanAttemptMs = 0;
             currentPositions = new ArrayList<>();
         }
         if (current == null || !"Boulder".equals(current.name) || scannedThisRoom) {
@@ -113,14 +117,23 @@ public final class BoulderSolverFeature {
         if (clayAndRotation == null) {
             return;
         }
-        scanFloor(client, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
-        scannedThisRoom = true;
+        // Real bug found and fixed (2026-09-14, code review): scannedThisRoom used to be set true even
+        // when the floor pattern matched NO known solution (e.g. scanned before the boulders' chunk
+        // finished loading), so the room was never rescanned and the solver stayed blank. Now only a
+        // real match marks the room scanned; misses retry once per second.
+        long now = System.currentTimeMillis();
+        if (now - lastScanAttemptMs < 1000) {
+            return;
+        }
+        lastScanAttemptMs = now;
+        scannedThisRoom = scanFloor(client, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
     }
 
-    private static void scanFloor(Minecraft client, int clayX, int clayZ, int rotationDegrees) {
+    /** @return true only if the floor matched a known solution. */
+    private static boolean scanFloor(Minecraft client, int clayX, int clayZ, int rotationDegrees) {
         Level level = client.level;
         if (level == null) {
-            return;
+            return false;
         }
         StringBuilder key = new StringBuilder(42);
         for (int z = 24; z >= 9; z -= 3) {
@@ -134,11 +147,16 @@ public final class BoulderSolverFeature {
             }
         }
         List<List<Integer>> solution = SOLUTIONS.get(key.toString());
-        LOGGER.info("[BoulderSolver] Floor scan clay=({},{}) rotation={} key={} solutionFound={} (steps={})",
-                clayX, clayZ, rotationDegrees, key, solution != null, solution != null ? solution.size() : 0);
+        String scanLog = clayX + "," + clayZ + "," + rotationDegrees + "," + key;
+        if (!scanLog.equals(lastLoggedScan)) { // retried every 1s on a miss - log only when the key changes
+            lastLoggedScan = scanLog;
+            LOGGER.info("[BoulderSolver] Floor scan clay=({},{}) rotation={} key={} solutionFound={} (steps={}){}",
+                    clayX, clayZ, rotationDegrees, key, solution != null, solution != null ? solution.size() : 0,
+                    solution == null ? " - will rescan" : "");
+        }
         if (solution == null) {
             currentPositions = new ArrayList<>();
-            return;
+            return false;
         }
         List<BoxPosition> positions = new ArrayList<>();
         for (List<Integer> sol : solution) {
@@ -155,6 +173,7 @@ public final class BoulderSolverFeature {
             positions.add(new BoxPosition(new AABB(render), click));
         }
         currentPositions = positions;
+        return true;
     }
 
     public static void onPlayerInteract(BlockPos clicked) {
@@ -181,6 +200,8 @@ public final class BoulderSolverFeature {
     private static void reset() {
         lastRoomEntry = null;
         scannedThisRoom = false;
+        lastScanAttemptMs = 0;
+        lastLoggedScan = null;
         currentPositions = new ArrayList<>();
     }
 }

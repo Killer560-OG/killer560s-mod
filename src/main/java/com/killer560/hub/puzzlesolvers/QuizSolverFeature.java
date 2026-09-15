@@ -76,7 +76,12 @@ public final class QuizSolverFeature {
     }
 
     private static void onTick() {
-        if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            if (lastRoomEntry != null || triviaAnswers != null || options[0].blockPos != null) {
+                lastRoomEntry = null;
+                reset();
+            }
             return;
         }
         RoomEntry current = LiveMapFeature.currentRoomEntry();
@@ -105,7 +110,7 @@ public final class QuizSolverFeature {
     }
 
     private static void onMessage(Component message) {
-        if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             return;
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
@@ -161,7 +166,7 @@ public final class QuizSolverFeature {
         RoomEntry current = QuizSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
                 ? LiveMapFeature.currentRoomEntry() : null;
         String state = current == null || !"Quiz".equals(current.name)
-                ? "notInRoom(enabled=" + QuizSolverConfig.getInstance().isEnabled() + ")"
+                ? "notInRoom(enabled=" + QuizSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
                 : "inRoom optionPositions=" + options[0].blockPos + "," + options[1].blockPos + "," + options[2].blockPos
                 + " currentAnswers=" + triviaAnswers + " correct=[" + options[0].correct + "," + options[1].correct
                 + "," + options[2].correct + "]";

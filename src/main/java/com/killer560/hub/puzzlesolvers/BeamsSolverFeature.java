@@ -107,7 +107,7 @@ public final class BeamsSolverFeature {
         RoomEntry current = BeamsSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
                 ? LiveMapFeature.currentRoomEntry() : null;
         String state = current == null || !"Creeper Beams".equals(current.name)
-                ? "notInRoom(enabled=" + BeamsSolverConfig.getInstance().isEnabled() + ")"
+                ? "notInRoom(enabled=" + BeamsSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
                 : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
                 + " candidates=" + CANDIDATES.size() + " activePairs=" + activePairs.size();
         if (!state.equals(lastLoggedState)) {
@@ -117,7 +117,8 @@ public final class BeamsSolverFeature {
     }
 
     private static void tickInner(Minecraft client) {
-        if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             activePairs = new ArrayList<>();
             lastRoomEntry = null;
             return;

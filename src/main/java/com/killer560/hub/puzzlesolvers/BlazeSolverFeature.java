@@ -63,7 +63,7 @@ public final class BlazeSolverFeature {
                 ? LiveMapFeature.currentRoomEntry() : null;
         String roomName = current != null ? current.name : null;
         String state = !"Lower Blaze".equals(roomName) && !"Higher Blaze".equals(roomName)
-                ? "notInRoom(enabled=" + BlazeSolverConfig.getInstance().isEnabled() + ")"
+                ? "notInRoom(enabled=" + BlazeSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
                 : "inRoom=" + roomName + " orderedBlazes=" + orderedBlazes.size(); // count only - names carry live HP
         if (!state.equals(lastLoggedState)) {
             LOGGER.info("[BlazeSolver] State: {}", state);
@@ -72,7 +72,8 @@ public final class BlazeSolverFeature {
     }
 
     private static void tickInner(Minecraft client) {
-        if (!BlazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        if (!BlazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             orderedBlazes = new ArrayList<>();
             lastRoomEntry = null;
             return;

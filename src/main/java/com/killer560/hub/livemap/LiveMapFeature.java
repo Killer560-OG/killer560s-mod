@@ -4,9 +4,17 @@ import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.leapmenu.LeapMenuConfig;
 import com.killer560.hub.leapmenu.LeapMenuFeature;
+import com.killer560.hub.puzzlesolvers.BeamsSolverConfig;
+import com.killer560.hub.puzzlesolvers.BlazeSolverConfig;
+import com.killer560.hub.puzzlesolvers.BoulderSolverConfig;
+import com.killer560.hub.puzzlesolvers.IceFillSolverConfig;
+import com.killer560.hub.puzzlesolvers.QuizSolverConfig;
+import com.killer560.hub.puzzlesolvers.WaterSolverConfig;
+import com.killer560.hub.puzzlesolvers.WeirdosSolverConfig;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secretwaypoints.SecretWaypointsConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -56,8 +64,24 @@ public final class LiveMapFeature {
     private static final int[] rotationGrid = new int[GRID * GRID];
     private static final int[] clayXGrid = new int[GRID * GRID];
     private static final int[] clayZGrid = new int[GRID * GRID];
+    private static final long[] rotationRetryAtMs = new long[GRID * GRID];
     private static long lastScanAtMs = 0;
     private static boolean wasInDungeon = false;
+    private static Object lastLevel = null;
+    /** Latched once the player is seen inside the current floor's boss room; cleared on grid reset. */
+    private static boolean bossLatched = false;
+
+    // Boss room bounds per floor 1..7 - copied verbatim from NoammAddons' own (26.1.2 upstream)
+    // LocationUtils.bossRoomBounds; {x1, y1, z1, x2, y2, z2}, min/max normalized by AABB's constructor.
+    private static final net.minecraft.world.phys.AABB[] BOSS_ROOM_BOUNDS = {
+            new net.minecraft.world.phys.AABB(-14, 55, 49, -72, 146, -40),
+            new net.minecraft.world.phys.AABB(-40, 99, -40, 24, 54, 59),
+            new net.minecraft.world.phys.AABB(-40, 118, -40, 42, 64, 37),
+            new net.minecraft.world.phys.AABB(-40, 112, -40, 50, 53, 47),
+            new net.minecraft.world.phys.AABB(-40, 112, -8, 50, 53, 118),
+            new net.minecraft.world.phys.AABB(-40, 51, -8, 22, 110, 134),
+            new net.minecraft.world.phys.AABB(-8, 0, -8, 134, 254, 147)
+    };
 
     // [LiveMap] diagnostics - logging only, never affects scanning.
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-livemap");
@@ -80,31 +104,69 @@ public final class LiveMapFeature {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
+    private static void resetGrid(String reason) {
+        java.util.Arrays.fill(grid, Tile.UNKNOWN);
+        java.util.Arrays.fill(roomEntryGrid, null);
+        java.util.Arrays.fill(rotationGrid, -1);
+        java.util.Arrays.fill(lastLoggedCore, 0);
+        java.util.Arrays.fill(loggedNoRotation, false);
+        java.util.Arrays.fill(rotationRetryAtMs, 0L);
+        lastLoggedSummary = null;
+        bossLatched = false;
+        LOGGER.info("[LiveMap] {} - grid reset (floor={})", reason, DungeonState.getFloor());
+    }
+
+    /** Real bug found and fixed (2026-09-14, code review): room scanning used to run ONLY while Live Map
+     *  itself was enabled, so every puzzle solver and Secret Waypoints (all of which read
+     *  {@link #currentRoomEntry()}/{@link #identifiedRoomsWithRotation()}) silently did nothing unless
+     *  Live Map was also on. Scanning now runs whenever ANY consumer needs it; the HUD element still only
+     *  draws when Live Map itself is enabled. */
+    private static String scanConsumers() {
+        StringBuilder sb = new StringBuilder();
+        if (LiveMapConfig.getInstance().isEnabled()) sb.append("LiveMap,");
+        if (SecretWaypointsConfig.getInstance().isEnabled()) sb.append("SecretWaypoints,");
+        if (BoulderSolverConfig.getInstance().isEnabled()) sb.append("Boulder,");
+        if (QuizSolverConfig.getInstance().isEnabled()) sb.append("Quiz,");
+        if (IceFillSolverConfig.getInstance().isEnabled()) sb.append("IceFill,");
+        if (WeirdosSolverConfig.getInstance().isEnabled()) sb.append("Weirdos,");
+        if (WaterSolverConfig.getInstance().isEnabled()) sb.append("Water,");
+        if (BeamsSolverConfig.getInstance().isEnabled()) sb.append("Beams,");
+        if (BlazeSolverConfig.getInstance().isEnabled()) sb.append("Blaze,");
+        return sb.length() == 0 ? "" : sb.substring(0, sb.length() - 1);
+    }
+
     private static void tick() {
+        Minecraft client = Minecraft.getInstance();
         boolean inDungeon = DungeonState.isInDungeon();
+        if (client.level != lastLevel) {
+            // Real bug found and fixed (2026-09-14): dungeon -> dungeon warps can keep isInDungeon()
+            // true across the server switch, leaving the previous run's rooms/rotations in the grid.
+            lastLevel = client.level;
+            if (inDungeon || wasInDungeon) {
+                resetGrid("World changed");
+            }
+        }
         if (inDungeon && !wasInDungeon) {
-            java.util.Arrays.fill(grid, Tile.UNKNOWN);
-            java.util.Arrays.fill(roomEntryGrid, null);
-            java.util.Arrays.fill(rotationGrid, -1);
-            java.util.Arrays.fill(lastLoggedCore, 0);
-            java.util.Arrays.fill(loggedNoRotation, false);
-            lastLoggedSummary = null;
-            LOGGER.info("[LiveMap] Dungeon entered - grid reset (floor={})", DungeonState.getFloor());
+            resetGrid("Dungeon entered");
         }
         wasInDungeon = inDungeon;
+        updateBossState(client, inDungeon);
 
-        String gates = "enabled=" + LiveMapConfig.getInstance().isEnabled() + " inDungeon=" + inDungeon
-                + " bossPhase=" + DungeonState.isBossPhaseActive() + " roomDbReady=" + RoomDatabase.isReady();
+        String consumers = scanConsumers();
+        boolean scanning = !consumers.isEmpty() && inDungeon && !isInBoss();
+        String gates = "consumers=[" + consumers + "] inDungeon=" + inDungeon
+                + " bossPhase=" + DungeonState.isBossPhaseActive() + " inBoss=" + isInBoss()
+                + " roomDbReady=" + RoomDatabase.isReady();
         if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[LiveMap] Gates changed: {} (scanning={})", gates,
-                    LiveMapConfig.getInstance().isEnabled() && inDungeon && !DungeonState.isBossPhaseActive());
+            LOGGER.info("[LiveMap] Gates changed: {} (scanning={}, hudEnabled={})", gates, scanning,
+                    LiveMapConfig.getInstance().isEnabled());
             lastLoggedGates = gates;
         }
         if (inDungeon) {
             logPlayerRoomIfChanged();
         }
 
-        if (!LiveMapConfig.getInstance().isEnabled() || !inDungeon || DungeonState.isBossPhaseActive()) {
+        if (!scanning) {
             return;
         }
         long nowMs = System.currentTimeMillis();
@@ -139,8 +201,13 @@ public final class LiveMapFeature {
                 // marked (e.g. the database finished loading after this cell was first scanned), so
                 // this part re-checks even on an already-known ROOM tile; only the tile classification
                 // itself is skip-if-known.
-                if (grid[idx] == Tile.ROOM && rowEven && colEven && roomEntryGrid[idx] == null
-                        && RoomDatabase.isReady()) {
+                // Real bug found and fixed (2026-09-14, code review): this used to retry only while
+                // roomEntryGrid[idx]==null, so a room identified BEFORE its blue-terracotta corner marker
+                // loaded never got a rotation -> no waypoints and no solver for that room all run.
+                // Identified-but-unrotated cells now keep retrying rotation too.
+                if (grid[idx] == Tile.ROOM && rowEven && colEven
+                        && ((roomEntryGrid[idx] == null && RoomDatabase.isReady()) || rotationGrid[idx] < 0)
+                        && client.level.isLoaded(new BlockPos(wx, 70, wz))) {
                     identifyRoom(client, idx, wx, wz);
                 }
                 if (grid[idx] != Tile.UNKNOWN) {
@@ -159,9 +226,7 @@ public final class LiveMapFeature {
                 if (rowEven && colEven) {
                     grid[idx] = Tile.ROOM;
                     LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> ROOM", x, z, wx, wz, roofHeight);
-                    if (RoomDatabase.isReady()) {
-                        identifyRoom(client, idx, wx, wz);
-                    }
+                    identifyRoom(client, idx, wx, wz);
                 } else if (roofHeight == 73 || roofHeight == 74 || roofHeight == 81 || roofHeight == 82) {
                     grid[idx] = classifyDoor(client, wx, wz);
                     LOGGER.info("[LiveMap] Cell ({},{}) world=({},{}) roofY={} -> {} (y69 block={})", x, z, wx, wz,
@@ -178,27 +243,35 @@ public final class LiveMapFeature {
     }
 
     private static void identifyRoom(Minecraft client, int idx, int wx, int wz) {
-        int core = RoomDatabase.getCore(client.level, wx, wz);
-        RoomEntry entry = RoomDatabase.lookup(core);
-        if (entry != null) {
-            roomEntryGrid[idx] = entry;
-            LOGGER.info("[LiveMap] Room identified at cell ({},{}) world=({},{}): \"{}\" type={} shape={} secrets={} core={}",
-                    idx % GRID, idx / GRID, wx, wz, entry.name, entry.type, entry.shape, entry.secrets, core);
-        } else if (lastLoggedCore[idx] != core) {
-            // Retried every 250ms until matched - only log when the computed hash actually changes.
-            lastLoggedCore[idx] = core;
-            LOGGER.info("[LiveMap] No room DB match at cell ({},{}) world=({},{}) core={} (will retry)",
-                    idx % GRID, idx / GRID, wx, wz, core);
+        if (roomEntryGrid[idx] == null && RoomDatabase.isReady()) {
+            int core = RoomDatabase.getCore(client.level, wx, wz);
+            RoomEntry entry = RoomDatabase.lookup(core);
+            if (entry != null) {
+                roomEntryGrid[idx] = entry;
+                LOGGER.info("[LiveMap] Room identified at cell ({},{}) world=({},{}): \"{}\" type={} shape={} secrets={} core={} (rotationKnown={})",
+                        idx % GRID, idx / GRID, wx, wz, entry.name, entry.type, entry.shape, entry.secrets, core,
+                        rotationGrid[idx] >= 0);
+            } else if (lastLoggedCore[idx] != core) {
+                // Retried every 250ms until matched - only log when the computed hash actually changes.
+                lastLoggedCore[idx] = core;
+                LOGGER.info("[LiveMap] No room DB match at cell ({},{}) world=({},{}) core={} (will retry)",
+                        idx % GRID, idx / GRID, wx, wz, core);
+            }
         }
-        if (rotationGrid[idx] < 0) {
+        long nowMs = System.currentTimeMillis();
+        if (rotationGrid[idx] < 0 && nowMs >= rotationRetryAtMs[idx]) {
+            // Throttled to 1s per cell: non-corner cells of multi-tile rooms may never have a marker of
+            // their own, and each attempt is a full 255-block roof column scan.
+            rotationRetryAtMs[idx] = nowMs + 1000;
             int roofHeight = getHighestY(client, wx, wz);
             int[] rot = RoomDatabase.findRotationAndCorner(client.level, wx, wz, roofHeight);
             if (rot != null) {
                 clayXGrid[idx] = rot[0];
                 clayZGrid[idx] = rot[1];
                 rotationGrid[idx] = rot[2];
-                LOGGER.info("[LiveMap] Rotation found at cell ({},{}): clay=({},{}) rotation={} roofY={}",
-                        idx % GRID, idx / GRID, rot[0], rot[1], rot[2], roofHeight);
+                LOGGER.info("[LiveMap] Rotation found at cell ({},{}): clay=({},{}) rotation={} roofY={} room={} lateRetry={}",
+                        idx % GRID, idx / GRID, rot[0], rot[1], rot[2], roofHeight,
+                        roomEntryGrid[idx] != null ? "\"" + roomEntryGrid[idx].name + "\"" : "null", loggedNoRotation[idx]);
             } else if (!loggedNoRotation[idx]) {
                 loggedNoRotation[idx] = true;
                 LOGGER.info("[LiveMap] No blue-terracotta corner marker at cell ({},{}) world=({},{}) roofY={} (roomIdentified={})",
@@ -217,7 +290,8 @@ public final class LiveMapFeature {
         int idx = cell[0] + cell[1] * GRID;
         RoomEntry entry = roomEntryGrid[idx];
         String key = "cell=(" + cell[0] + "," + cell[1] + ") tile=" + grid[idx]
-                + " room=" + (entry != null ? entry.name : "null") + " rotation=" + rotationGrid[idx];
+                + " room=" + (entry != null ? entry.name : "null") + " rotation=" + rotationGrid[idx]
+                + " matchable=" + (currentRoomIndex() >= 0) + " inBoss=" + isInBoss();
         if (!key.equals(lastLoggedPlayerRoom)) {
             var pos = client.player.position();
             LOGGER.info("[LiveMap] Player room changed: {} -> {} (pos={},{},{})", lastLoggedPlayerRoom, key,
@@ -312,13 +386,60 @@ public final class LiveMapFeature {
         return roomEntryGrid[idx];
     }
 
-    public static RoomEntry currentRoomEntry() {
+    /** Real bug found and fixed (2026-09-14, code review + NoammAddons e42d3316 "reset when entering
+     *  boss"): {@link #gridCellFor} clamps to the 11x11 grid, so standing in a boss room (outside the
+     *  -201..-9 dungeon footprint) mapped to corner cell (10,10) and solvers could "match" whatever room
+     *  was identified there. @return the player's current room cell index, or -1 when there's no
+     *  player, the player is in boss, or the player is outside the dungeon grid footprint. */
+    private static int currentRoomIndex() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return null;
+        if (client.player == null || isInBoss()) {
+            return -1;
         }
-        int[] cell = gridCellFor(client.player.position());
-        return roomEntryGrid[cell[0] + cell[1] * GRID];
+        Vec3 pos = client.player.position();
+        if (!insideGridFootprint(pos.x, pos.z)) {
+            return -1;
+        }
+        int[] cell = gridCellFor(pos);
+        return cell[0] + cell[1] * GRID;
+    }
+
+    private static boolean insideGridFootprint(double x, double z) {
+        long roomIndexX = Math.round((x - START_X) / 32.0);
+        long roomIndexZ = Math.round((z - START_Z) / 32.0);
+        return roomIndexX >= 0 && roomIndexX <= 5 && roomIndexZ >= 0 && roomIndexZ <= 5;
+    }
+
+    /** @return true while the player is in (or has entered, this run) the current floor's boss room -
+     *  real F7/M7 boss-phase detection ({@link DungeonState#isBossPhaseActive()}, which is also forced
+     *  on by /killer560 sim) OR NoammAddons' own per-floor boss-room bounds. The bounds check also
+     *  requires being outside the room-grid footprint, since NoammAddons' F1-F4 boxes overlap the
+     *  grid's corner cells. Latched until the next grid reset (dungeon entry / world change). */
+    public static boolean isInBoss() {
+        return bossLatched || DungeonState.isBossPhaseActive();
+    }
+
+    private static void updateBossState(Minecraft client, boolean inDungeon) {
+        if (!inDungeon || bossLatched || client.player == null) {
+            return;
+        }
+        String floor = DungeonState.getFloor();
+        int floorNumber = floor != null && !floor.isEmpty() && Character.isDigit(floor.charAt(floor.length() - 1))
+                ? floor.charAt(floor.length() - 1) - '0' : 0;
+        if (floorNumber < 1 || floorNumber > 7) {
+            return;
+        }
+        Vec3 pos = client.player.position();
+        if (BOSS_ROOM_BOUNDS[floorNumber - 1].contains(pos.x, pos.y, pos.z) && !insideGridFootprint(pos.x, pos.z)) {
+            bossLatched = true;
+            LOGGER.info("[LiveMap] Boss room entered (floor={} pos={},{},{}) - room matching disabled, solvers reset",
+                    floor, (int) pos.x, (int) pos.y, (int) pos.z);
+        }
+    }
+
+    public static RoomEntry currentRoomEntry() {
+        int idx = currentRoomIndex();
+        return idx < 0 ? null : roomEntryGrid[idx];
     }
 
     /** For real puzzle solvers (e.g. {@code BoulderSolverFeature}) that need to translate a puzzle's own
@@ -328,13 +449,8 @@ public final class LiveMapFeature {
      *  {@code [clayX, clayZ, rotationDegrees]}, or null if the current room's identity/rotation aren't
      *  both known yet. */
     public static int[] currentRoomClayAndRotation() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return null;
-        }
-        int[] cell = gridCellFor(client.player.position());
-        int idx = cell[0] + cell[1] * GRID;
-        if (roomEntryGrid[idx] == null || rotationGrid[idx] < 0) {
+        int idx = currentRoomIndex();
+        if (idx < 0 || roomEntryGrid[idx] == null || rotationGrid[idx] < 0) {
             return null;
         }
         return new int[]{clayXGrid[idx], clayZGrid[idx], rotationGrid[idx]};

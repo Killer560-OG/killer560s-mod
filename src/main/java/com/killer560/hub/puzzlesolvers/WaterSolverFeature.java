@@ -128,7 +128,7 @@ public final class WaterSolverFeature {
         RoomEntry current = WaterSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
                 ? LiveMapFeature.currentRoomEntry() : null;
         String state = current == null || !"Water Board".equals(current.name)
-                ? "notInRoom(enabled=" + WaterSolverConfig.getInstance().isEnabled() + ")"
+                ? "notInRoom(enabled=" + WaterSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
                 : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
                 + " scan=" + lastScanOutcome + " pattern=" + patternIdentifier + " levers=" + solutions.size()
                 + " waterOpened=" + (openedWaterTick != -1) + " solutionsLoaded=" + SOLUTIONS.size();
@@ -139,7 +139,8 @@ public final class WaterSolverFeature {
     }
 
     private static void tickInner(Minecraft client) {
-        if (!WaterSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        if (!WaterSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             reset();
             lastRoomEntry = null;
             return;
@@ -337,11 +338,15 @@ public final class WaterSolverFeature {
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
         poseStack.mulPose(mainCamera.rotation());
-        poseStack.scale(-scale, -scale, scale);
+        // Real bug found and fixed (2026-09-14, same root cause as SimonSaysFeature.renderNumber): the
+        // old pre-1.21.2 (-s, -s, s) nametag scale mirrors X on top of 26.1.2's already-flipped camera
+        // quaternion, reversing glyph winding so every lever countdown was back-face culled and never
+        // visible. Vanilla 26.1.2 NameTagFeatureRenderer uses (+s, -s, +s).
+        poseStack.scale(scale, -scale, scale);
 
         float width = font.width(text);
         int background = (int) (0.4f * 255f) << 24;
-        font.drawInBatch(text, -width / 2f, 0f, 0xFFFFFFFF, false, poseStack.last().pose(),
+        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
                 bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();

@@ -54,7 +54,10 @@ public final class SecretWaypointsFeature {
     private static void logDiagnostics(boolean inDungeon) {
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
         String gates = "enabled=" + cfg.isEnabled() + " mimicDetection=" + cfg.isMimicDetection()
-                + " inDungeon=" + inDungeon + " mimicAnnounced=" + mimicAnnounced;
+                + " inDungeon=" + inDungeon + " mimicAnnounced=" + mimicAnnounced
+                // 2026-09-14: room scanning no longer requires Live Map to be enabled (see
+                // LiveMapFeature.scanConsumers) - these confirm scanning is actually feeding this feature.
+                + " roomDbReady=" + RoomDatabase.isReady() + " inBoss=" + LiveMapFeature.isInBoss();
         if (!gates.equals(lastLoggedGates)) {
             LOGGER.info("[SecretWaypoints] Gates changed: {}", gates);
             lastLoggedGates = gates;

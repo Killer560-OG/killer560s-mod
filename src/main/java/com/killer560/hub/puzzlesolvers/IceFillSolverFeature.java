@@ -79,7 +79,7 @@ public final class IceFillSolverFeature {
         RoomEntry current = IceFillSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
                 ? LiveMapFeature.currentRoomEntry() : null;
         String state = current == null || !"Ice Fill".equals(current.name)
-                ? "notInRoom(enabled=" + IceFillSolverConfig.getInstance().isEnabled() + ")"
+                ? "notInRoom(enabled=" + IceFillSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
                 : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
                 + " pathPoints=" + currentPath.size() + " failedFloor=" + lastFailedFloor
                 + " identifierFloors=" + DATA.identifier().size();
@@ -90,7 +90,8 @@ public final class IceFillSolverFeature {
     }
 
     private static void tickInner(Minecraft client) {
-        if (!IceFillSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
+        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        if (!IceFillSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             reset();
             return;
         }

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -57,10 +58,14 @@ public final class RoomDatabase {
             "minecraft:water", "minecraft:lava",
             "minecraft:fire", "minecraft:soul_fire");
 
+    private static final long BASE_RETRY_BACKOFF_MS = 30_000L;
+    private static final long MAX_RETRY_BACKOFF_MS = 10 * 60_000L;
+
     private static volatile Map<Integer, RoomEntry> byCoreHash;
-    private static volatile boolean loading = false;
+    private static final AtomicBoolean loading = new AtomicBoolean(false);
     private static int loadAttempts = 0;
-    private static long lastLoadStartLogMs = 0;
+    private static volatile int consecutiveFailures = 0;
+    private static volatile long nextAttemptAtMs = 0;
     private static final Map<Block, Integer> tokenHashCache = new HashMap<>();
 
     private RoomDatabase() {
@@ -71,20 +76,24 @@ public final class RoomDatabase {
     }
 
     /** Kicks off a background load if one isn't already running/done - safe to call every tick, it
-     *  no-ops once loaded. */
+     *  no-ops once loaded.
+     *  <p>Real bug found and fixed (2026-09-14, code review): a failed load used to retry on the very
+     *  next call - i.e. EVERY client tick (callers invoke this before their own 250ms scan throttle),
+     *  each spawning a new thread, a new HTTP fetch, and a new stack trace in the log. Now at most one
+     *  load is ever in flight (compare-and-set) and failures back off 30s, 60s, 120s... capped at 10min. */
     public static void ensureLoading() {
-        if (byCoreHash != null || loading) {
+        if (byCoreHash != null || System.currentTimeMillis() < nextAttemptAtMs) {
             return;
         }
-        loading = true;
-        loadAttempts++;
-        long nowMs = System.currentTimeMillis();
-        if (nowMs - lastLoadStartLogMs >= 5000) { // throttled - a failing load is retried on the next call
-            lastLoadStartLogMs = nowMs;
-            LOGGER.info("[RoomDatabase] Starting background load attempt #{} (dataDir={}, rooms-modern.json present={})",
-                    loadAttempts, dataDir(), Files.exists(dataDir().resolve("rooms-modern.json")));
+        if (!loading.compareAndSet(false, true)) {
+            return;
         }
-        new Thread(RoomDatabase::loadBlocking, "killer560smod-roomdb-load").start();
+        loadAttempts++;
+        LOGGER.info("[RoomDatabase] Starting background load attempt #{} (consecutiveFailures={}, dataDir={}, rooms-modern.json present={})",
+                loadAttempts, consecutiveFailures, dataDir(), Files.exists(dataDir().resolve("rooms-modern.json")));
+        Thread thread = new Thread(RoomDatabase::loadBlocking, "killer560smod-roomdb-load");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     public static RoomEntry lookup(int coreHash) {
@@ -100,10 +109,24 @@ public final class RoomDatabase {
         try {
             Path dir = dataDir();
             Path versionFile = dir.resolve("version.txt");
-            String remoteHash = fetchText(VERSION_URL);
             String localHash = Files.exists(versionFile) ? Files.readString(versionFile, StandardCharsets.UTF_8).trim() : null;
+            String remoteHash;
+            boolean cachedFallback = false;
+            try {
+                remoteHash = fetchText(VERSION_URL);
+            } catch (IOException e) {
+                // 2026-09-14: an unreachable version endpoint no longer throws away a perfectly good
+                // previously-downloaded copy - use the local file if there is one.
+                if (!Files.exists(dir.resolve("rooms-modern.json"))) {
+                    throw e;
+                }
+                LOGGER.warn("[RoomDatabase] Version check failed ({}) - using cached local room database (version={})",
+                        e.toString(), localHash);
+                remoteHash = localHash;
+                cachedFallback = true;
+            }
 
-            if (!remoteHash.equals(localHash) || !Files.exists(dir.resolve("rooms-modern.json"))) {
+            if (!cachedFallback && (!remoteHash.equals(localHash) || !Files.exists(dir.resolve("rooms-modern.json")))) {
                 LOGGER.info("[RoomDatabase] Downloading real room database (local={}, remote={})...", localHash, remoteHash);
                 downloadAndExtract(dir);
                 Files.writeString(versionFile, remoteHash, StandardCharsets.UTF_8);
@@ -121,12 +144,22 @@ public final class RoomDatabase {
                 }
             }
             byCoreHash = map;
-            LOGGER.info("[RoomDatabase] Loaded {} rooms ({} core hashes). version local={} remote={}",
-                    entries.length, map.size(), localHash, remoteHash);
+            consecutiveFailures = 0;
+            LOGGER.info("[RoomDatabase] Loaded {} rooms ({} core hashes) on attempt #{}. version local={} remote={}",
+                    entries.length, map.size(), loadAttempts, localHash, remoteHash);
         } catch (Exception e) {
-            LOGGER.warn("[RoomDatabase] Failed to load room database - room names/secrets will be unavailable this session.", e);
+            int failures = ++consecutiveFailures;
+            long backoff = Math.min(MAX_RETRY_BACKOFF_MS, BASE_RETRY_BACKOFF_MS << Math.min(failures - 1, 5));
+            nextAttemptAtMs = System.currentTimeMillis() + backoff;
+            if (failures == 1) {
+                LOGGER.warn("[RoomDatabase] Failed to load room database (failure #1) - retrying in {}s. Room names/secrets/solvers unavailable until then.",
+                        backoff / 1000, e);
+            } else {
+                LOGGER.warn("[RoomDatabase] Failed to load room database (failure #{}: {}) - retrying in {}s.",
+                        failures, e.toString(), backoff / 1000);
+            }
         } finally {
-            loading = false;
+            loading.set(false);
         }
     }
 
