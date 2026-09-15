@@ -144,6 +144,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.itembrowser.ItemBrowserFeature.register();
         I4SensorsFeature.register();
+        com.killer560.hub.i4sensors.AutoI4Feature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
         VoiceToTextFeature.register();
