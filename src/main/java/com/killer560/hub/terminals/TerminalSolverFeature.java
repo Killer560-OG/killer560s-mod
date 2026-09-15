@@ -207,7 +207,9 @@ public final class TerminalSolverFeature {
     }
 
     private static final Map<Integer, PendingClick> pendingClicks = new LinkedHashMap<>();
-    private static final long MIN_RETRY_TIMEOUT_MS = 400;
+    // 600 not 400 (review pass): Odin/NoammAddons use 500-600ms - a lag spike past a shorter floor re-clicked
+    // already-correct Panes back to wrong before the confirm arrived.
+    private static final long MIN_RETRY_TIMEOUT_MS = 600;
     private static final long MAX_LATENCY_BASED_RETRY_TIMEOUT_MS = 1500;
     // Session-wide (NOT reset per terminal) exponential moving average of real send -> confirm latency -
     // keeps the retry timeout from firing before a genuinely slow (high-ping) confirm can land, since a
@@ -435,11 +437,9 @@ public final class TerminalSolverFeature {
         // Reset unconditionally (even if the toggle below is off) so a stale opened-at timestamp from
         // before the toggle was turned off never leaks into a bogus duration if it's turned back on later.
         terminalOpenedAtMs = 0L;
-        Minecraft client = Minecraft.getInstance();
-        if (TerminalSolverConfig.getInstance().isAnnounceCompletionTime() && client.player != null) {
-            client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
-                    "§6[Terminal] §f%s took §e%.1fs §fto complete", currentType.displayName(), seconds)));
-        }
+        // Moved into Terminal Timers (2026-09-14, killer560's "a setting called terminal timers..."): the message
+        // is only posted there once the player's own "completed a terminal!" line confirms a real solve.
+        com.killer560.hub.splittimers.TerminalTimersFeature.onTerminalClosed(currentType.displayName(), seconds);
     }
 
     /** Real bug found and fixed (2026-09-14, "auto terms really delayed" investigation): {@link #refreshState}
@@ -553,7 +553,12 @@ public final class TerminalSolverFeature {
             // terminal instance and gets the same full reset a different type would.
             long gapSinceLastTerminalFrame = now - diagLastRefreshAtMs;
             long sinceOpen = terminalOpenedAtMs > 0 ? now - terminalOpenedAtMs : Long.MAX_VALUE;
-            boolean newInstance = gapSinceLastTerminalFrame > NEW_INSTANCE_FRAME_GAP_MS || sinceOpen > QUICK_REOPEN_WINDOW_MS;
+            // Review pass (2026-09-14): the close watcher (ensureCloseWatcherRegistered) already ends tracking on
+            // a real close, and a different terminal can't open without that close first - so a container change
+            // while still tracking is always the SAME terminal being reopened (Hypixel/p3sim mid-solve reopens,
+            // lag spikes). The old time/frame-gap heuristic misfired on those, posting bogus "took Xs" and
+            // re-picking the Rubix target; always take the quick-reopen path now.
+            boolean newInstance = false;
             LOGGER.warn("{} {} terminal {}: containerId {} -> {}, screen@{} -> screen@{}, {}ms since terminal opened, {}ms since previous open/reopen, gapSinceLastTerminalFrame={}ms, clickStabilized={} ({}ms ago), unconfirmed clicks sent to old container={} (slots {}), lastClickSent={}ms ago",
                     DIAG_TAG, type, newInstance ? "NEW INSTANCE of the same type - full per-terminal reset" : "REOPENED (quick same-terminal reopen) - click state reset, re-stabilizing before clicking",
                     diagContainerId, containerIdNow, Integer.toHexString(diagScreenIdentity), Integer.toHexString(screenIdentityNow),
