@@ -78,7 +78,11 @@ public final class AutoI4Feature {
     private static final float ALREADY_AIMED_TOLERANCE_DEG = 1f;
     // Never two shots closer than this - Noamm's own effective cadence (it forces 170ms of rotation per shot
     // with Predictions on), and stops No Rotate from firing a target + its prediction in the same tick.
-    private static final long MIN_SHOT_GAP_MS = 170L;
+    // 250 not 170 (2026-09-14, killer560: "it still looks around like it wants to prefire but it isn't actually shooting
+    // a lot of the time"): a real p3sim log matched every FIRED shot to its spawned arrows - shots 171-177ms after
+    // the previous one spawned NO arrows (the Terminator's own shot cooldown swallowed them), every shot 261ms+
+    // after did. Firing faster than the cooldown just wastes the turn.
+    private static final long MIN_SHOT_GAP_MS = 250L;
     // Machine Gun Shortbow "Rapid Fire" - hypixelskyblock.minecraft.wiki/w/Machine_Gun_Shortbow: 8s, 100s cooldown.
     private static final long RAPID_FIRE_DURATION_MS = 8000L;
     private static final long RAPID_FIRE_COOLDOWN_MS = 100_000L;
@@ -365,13 +369,20 @@ public final class AutoI4Feature {
         activeTarget = pos;
         deviceStarted = true;
         lastShotAtActiveMs = 0L;
-        LOGGER.info("{} {} New target #{} {} - {}. Interrupting {}.", TAG, I4SensorsFeature.clock(), indexOf(pos), pos, why,
+        // Same real log: prefires kept getting thrown away mid-turn whenever a new target lit - even when the prefire
+        // was already aimed at a spot that covers the new target (a Terminator aim point hits both columns beside it).
+        // Keep that shot and let it fire; it now counts as the shot at the new target.
+        boolean keepPrefire = currentShot != null && currentShot.prediction && covers(currentShot.aimPoint, pos);
+        LOGGER.info("{} {} New target #{} {} - {}. {} {}.", TAG, I4SensorsFeature.clock(), indexOf(pos), pos, why,
+                keepPrefire ? "Keeping" : "Interrupting",
                 currentShot == null ? "nothing" : "shot at #" + indexOf(currentShot.target) + (currentShot.prediction ? " (prediction)" : ""));
-        // A freshly lit target always takes priority over whatever was being aimed at (Noamm's getEmerald
+        // A freshly lit target otherwise takes priority over whatever was being aimed at (Noamm's getEmerald
         // retarget), and gets a fresh prediction after it.
-        currentShot = null;
         shotQueue.clear();
-        shotQueue.add(pos);
+        if (!keepPrefire) {
+            currentShot = null;
+            shotQueue.add(pos);
+        }
         if (I4SensorsConfig.getInstance().getAutoI4Weapon() == Weapon.MACHINE_GUN_SHORTBOW && !abilityUsedThisAttempt
                 && !abilityPending) {
             abilityPending = true;
@@ -686,7 +697,7 @@ public final class AutoI4Feature {
         long sincePrevious = lastFireAtMs > 0 ? now - lastFireAtMs : -1;
         lastFireAtMs = now;
         shotsFired++;
-        if (shot.target.equals(activeTarget)) {
+        if (shot.target.equals(activeTarget) || (activeTarget != null && covers(shot.aimPoint, activeTarget))) {
             lastShotAtActiveMs = System.currentTimeMillis();
         }
         LOGGER.info("{} {} FIRED shot #{} at #{}{} ({}) after {}ms aim, {}ms since previous shot - yaw={} pitch={} useItem={} targetNow={}", TAG,
@@ -740,6 +751,21 @@ public final class AutoI4Feature {
         LOGGER.info("{} {} Prediction after #{}: #{} (from {} {} candidates).", TAG, I4SensorsFeature.clock(),
                 indexOf(lastLit), indexOf(chosen), pool.size(), paired.isEmpty() ? "unpaired" : "paired");
         return chosen;
+    }
+
+    /** True if a Terminator shot at {@code aim} (one of the between-column aim points, at its row's aim height) also
+     *  covers {@code pos}: x 67.5 covers columns 0-1 (x 68/66), x 65.5 covers columns 1-2 (x 66/64). */
+    private static boolean covers(Vec3 aim, BlockPos pos) {
+        int index = indexOf(pos);
+        if (index < 0 || I4SensorsConfig.getInstance().getAutoI4Weapon() != Weapon.TERMINATOR) {
+            return false;
+        }
+        int row = index / 3;
+        int col = index % 3;
+        if (Math.abs(aim.y - (131 - 2.0 * row)) > 0.01) {
+            return false;
+        }
+        return (Math.abs(aim.x - 67.5) < 0.01 && col <= 1) || (Math.abs(aim.x - 65.5) < 0.01 && col >= 1);
     }
 
     private static boolean isLit(Minecraft client, BlockPos pos) {

@@ -1442,6 +1442,39 @@ public final class SimonSaysFeature {
      *  own call, since this session never had confirmed real per-mode click counts). Only actually
      *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
     private static void beginAutoStart(SimonSaysConfig cfg) {
+        // Real bug found and fixed (2026-09-14, killer560's own report: "for some reason simon says is no longer
+        // updating for skip"): a real log showed p3sim restarting Simon Says (a new Goldor "Who dares trespass" line)
+        // while the previous attempt was still mid-round with 5 clicks booked. Nothing treated that as a fresh
+        // attempt: tickStartButton's reset is deliberately skipped while Auto Start's own burst is running, and the
+        // grid-reset fallback only re-arms when no click of the attempt has landed - so firstPhase stayed false (the
+        // skip's "drop the first light" correction never ran and all 3 lights were kept), the start-click anchor was
+        // re-set on every burst click, and pacing kept a deadline from the abandoned attempt (-18s). The Goldor line
+        // only ever starts a new attempt, so it now resets exactly what a real start-button press resets, before
+        // the burst begins.
+        resetSolveState();
+        firstPhase = true;
+        autoSolveArmed = false;
+        autoSolveClicksDoneThisAttempt = 0;
+        lastBlockedTrackAtMs = 0L;
+        autoSolveBlockedMsThisAttempt = 0L;
+        autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
+        lastScheduledDelayMs = 0L;
+        wasBlockedByReveal = false;
+        lastRoundCompletedAtMs = 0L;
+        currentRoundNumber = 1;
+        expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+        deviceStartedAtMs = 0L;
+        totalClicksThisAttempt = 0;
+        resetDeviceDiagnostics();
+        resetRevealScale();
+        startClickAnchorMs = 0L;
+        rotateInProgressTarget = null;
+        rotateLastFiredTarget = null;
+        rotateClickFiredFor = null;
+        autoStartClickedThisPhase = false;
+        realStartButtonPressCountThisPhase = 0;
+        idleSuppressedAfterCompletion = false;
+        rememberedFirstButton = null;
         autoStartClicksSent = 0;
         // Real bug found and fixed (2026-09-14, "make sure the auto start isnt starting it itself and is
         // instead doing the auto start clicks only... it is clicking once then the auto start fires"):
