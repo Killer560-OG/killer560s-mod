@@ -167,7 +167,11 @@ public final class SimonSaysFeature {
     // overhead for TRANSITIONS STILL AHEAD (indexed by the current round number) from whatever real time
     // is left before the deadline, never touching the deadline itself. That way already-elapsed reveal
     // time (which already shows up naturally in "time left before deadline") is never subtracted twice.
-    private static final long[] TRANSITION_OVERHEAD_MS = {1400L, 1900L, 2200L, 2600L};
+    // Re-measured 2026-09-14 evening from two real skip runs (2->3: 1851/2148ms, 3->4: 2199/2398ms, 4->5:
+    // 2599/2798ms) - the old values ran ~150-250ms short, which matters more now that the Timer Target
+    // counts from the start-button click and leaves much less click budget to absorb the error. 1->2 has
+    // no newer real sample (every recent run was a skip), kept as-is.
+    private static final long[] TRANSITION_OVERHEAD_MS = {1400L, 2000L, 2300L, 2700L};
     private static int currentRoundNumber = 1;
     // The real total click count for the REST of this attempt - normally 15 (1+2+3+4+5), but a real "SS
     // skip" can start the attempt after round 1 (killer560's own report: "it starts on 2/5 and never
@@ -422,6 +426,33 @@ public final class SimonSaysFeature {
     private static boolean wasBlockedByReveal = false;
     private static long lastRoundCompletedAtMs = 0L;
 
+    // --- Start-click anchor (2026-09-14, killer560's own report after a real run: Hypixel's own "completed a
+    // device (14.436s)" and a p3sim recording both time Simon Says from the FIRST START-BUTTON CLICK to the
+    // end - but this mod's Timer Target and "Whole device solved" message both started at the first GRID
+    // click, silently leaving out the Auto Start burst + first reveal (~2.4s in that run: 12.00s here vs
+    // Hypixel's 14.44s). "Sub 12 is tick time so it needs to be sub 4 death ticks" - the target has to mean
+    // the same thing Hypixel measures.) Set by the first start-button click of an attempt, real or Auto
+    // Start (see noteStartButtonClick); cleared at the same fresh-attempt points as the rest of the attempt
+    // state EXCEPT tickStartButton's press-edge reset, which is triggered by that very click.
+    private static long startClickAnchorMs = 0L;
+    private static long lastStartButtonClickAtMs = 0L;
+    // Clicks of one skip burst are at most ~1.2s apart even at the slider's max delay; anything later than
+    // this is a separate, fresh start.
+    private static final long START_BURST_MAX_GAP_MS = 1500L;
+    // A first grid click this long after the anchor can't belong to the same start (the first reveal plays
+    // right after the start click) - fall back to anchoring on the grid click itself.
+    private static final long START_ANCHOR_MAX_AGE_MS = 10_000L;
+
+    private static void noteStartButtonClick(long atMs, String source) {
+        boolean freshStart = startClickAnchorMs == 0L || totalClicksThisAttempt > 0
+                || atMs - lastStartButtonClickAtMs > START_BURST_MAX_GAP_MS;
+        if (freshStart) {
+            startClickAnchorMs = atMs;
+            LOGGER.info("[SimonSays] Timer anchored on first start-button click ({}).", source);
+        }
+        lastStartButtonClickAtMs = atMs;
+    }
+
     // --- Live-run verification diagnostics (2026-09-14, pre-M7 test pass) - LOGGING ONLY: nothing below
     // is ever read by any pacing/aim/click decision. Per-attempt ones reset via resetDeviceDiagnostics() at
     // the same real fresh-attempt points deviceStartedAtMs itself resets at.
@@ -524,6 +555,7 @@ public final class SimonSaysFeature {
             LOGGER.info("[SimonSays] Real start-button click attempt (first this attempt).");
         }
         lastStartButtonPressAtMs = now;
+        noteStartButtonClick(now, "real click");
         // A single accidental press doesn't mean a skip was being attempted - a real skip needs multiple
         // rapid presses in a row, whether that's Auto Start's own clicking or a real player manually
         // rapid-clicking after a mid-attempt reset (see this flag's own field doc comment above).
@@ -617,6 +649,7 @@ public final class SimonSaysFeature {
                 rememberedFirstButton = null;
             }
             rotateClickFiredFor = null;
+            startClickAnchorMs = 0L;
             wasActive = false;
             return;
         }
@@ -643,6 +676,7 @@ public final class SimonSaysFeature {
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetDeviceDiagnostics();
+            startClickAnchorMs = 0L;
             rotateInProgressTarget = null;
             rotateLastFiredTarget = null;
             autoStartClickedThisPhase = false;
@@ -1080,9 +1114,15 @@ public final class SimonSaysFeature {
             // attempt started on.
             boolean wholeDeviceCompleted = clickInOrder.size() >= 5;
             if (wholeDeviceCompleted && client.player != null) {
-                long deviceTookMs = deviceStartedAtMs > 0 ? System.currentTimeMillis() - deviceStartedAtMs : 0;
-                LOGGER.info("[SimonSays] Whole device completed in {} ms ({} ms of that was real reveal/transition delay).",
-                        deviceTookMs, autoSolveBlockedMsThisAttempt);
+                long completedAtMs = System.currentTimeMillis();
+                long deviceTookMs = deviceStartedAtMs > 0 ? completedAtMs - deviceStartedAtMs : 0;
+                // Headline number counts from the first start-button click, same as Hypixel's own device
+                // timer (see startClickAnchorMs's own doc comment); falls back to the first grid click if no
+                // start click was seen this attempt (e.g. entered range mid-device).
+                long fromStartMs = startClickAnchorMs > 0 && startClickAnchorMs <= completedAtMs
+                        ? completedAtMs - startClickAnchorMs : -1L;
+                LOGGER.info("[SimonSays] Whole device completed in {} ms from first start-button click, {} ms from first grid click ({} ms of that was real reveal/transition delay).",
+                        fromStartMs, deviceTookMs, autoSolveBlockedMsThisAttempt);
                 logDeviceSummary(cfg, deviceTookMs);
                 // Client-side only (sendSystemMessage, same technique this mod's other features already
                 // use for a local-only notice) - killer560 asked for a message to himself, not a real
@@ -1091,7 +1131,11 @@ public final class SimonSaysFeature {
                 // because that needs to be factored into the overall time it takes") whenever Auto Solve's
                 // Target/Variance mode measured any - only that mode tracks it, so a manual/Trigger Bot/
                 // Fixed-Delay solve just gets the plain total.
-                if (autoSolveBlockedMsThisAttempt > 0) {
+                if (fromStartMs >= 0) {
+                    client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
+                            "§6[Simon Says] §fWhole device solved in §e%.2fs §7from start click (§e%.2fs§7 from first grid click, §e%.2fs§7 reveal delay)",
+                            fromStartMs / 1000.0, deviceTookMs / 1000.0, autoSolveBlockedMsThisAttempt / 1000.0)));
+                } else if (autoSolveBlockedMsThisAttempt > 0) {
                     client.player.sendSystemMessage(Component.literal(String.format(Locale.US,
                             "§6[Simon Says] §fWhole device solved in §e%.2fs §7(§e%.2fs§7 reveal delay)",
                             deviceTookMs / 1000.0, autoSolveBlockedMsThisAttempt / 1000.0)));
@@ -1145,6 +1189,7 @@ public final class SimonSaysFeature {
                 deviceStartedAtMs = 0L;
                 totalClicksThisAttempt = 0;
                 resetDeviceDiagnostics();
+                startClickAnchorMs = 0L;
                 autoStartClickedThisPhase = false;
                 realStartButtonPressCountThisPhase = 0;
             }
@@ -1179,7 +1224,7 @@ public final class SimonSaysFeature {
         } else {
             long offsetMs = lastAutoClickAtMs - autoSolveDeadlineMs;
             pacing = String.format(Locale.US,
-                    "target=%dms variance=%dms jitter=%+dms -> deadline at +%dms from first fire; last click fired at +%dms = %dms %s",
+                    "target=%dms variance=%dms jitter=%+dms -> deadline at +%dms from pacing anchor; last click fired at +%dms = %dms %s",
                     cfg.getClickTimerTargetMs(), cfg.getClickTimerVarianceMs(), diagArmedJitterMs,
                     autoSolveDeadlineMs - diagArmedAtMs, lastAutoClickAtMs - diagArmedAtMs, Math.abs(offsetMs),
                     offsetMs <= 0 ? "EARLY" : "LATE");
@@ -1271,6 +1316,7 @@ public final class SimonSaysFeature {
         long autoStartFiredAtMs = cfg.isAutoSolveRotate() ? rotateClickFiredAtMs : autoStartConsumedAtMs;
         long autoStartSincePrevFireMs = diagLastAutoStartFireAtMs > 0 ? autoStartFiredAtMs - diagLastAutoStartFireAtMs : -1;
         diagLastAutoStartFireAtMs = autoStartFiredAtMs;
+        noteStartButtonClick(autoStartFiredAtMs, "Auto Start");
         autoStartClicksSent++;
         autoStartClickedThisPhase = true;
         autoStartTicksUntilNextClick = cfg.getAutoStartClickDelayTicks();
@@ -1628,12 +1674,20 @@ public final class SimonSaysFeature {
             // reserved dynamically below.
             int variance = cfg.getClickTimerVarianceMs();
             long jitter = variance <= 0 ? 0 : (long) ((Math.random() * 2 - 1) * variance);
-            autoSolveDeadlineMs = clickedAtMs + cfg.getClickTimerTargetMs() + jitter;
+            // Anchored on the attempt's first START-BUTTON click when one was seen (2026-09-14 - see
+            // startClickAnchorMs's own doc comment: that's what Hypixel's own device timer measures), so
+            // the Auto Start burst and first reveal that already happened count against the target too.
+            // windowLeftMs below is simply smaller by however long that took.
+            boolean anchoredOnStart = startClickAnchorMs > 0 && startClickAnchorMs <= clickedAtMs
+                    && clickedAtMs - startClickAnchorMs <= START_ANCHOR_MAX_AGE_MS;
+            long anchorMs = anchoredOnStart ? startClickAnchorMs : clickedAtMs;
+            autoSolveDeadlineMs = anchorMs + cfg.getClickTimerTargetMs() + jitter;
             autoSolveArmed = true;
-            diagArmedAtMs = clickedAtMs;
+            diagArmedAtMs = anchorMs;
             diagArmedJitterMs = jitter;
-            LOGGER.info("[SimonSays] Auto-solve pacing armed on first click of {}: target {}ms, jitter {}ms -> deadline {}ms from now.",
-                    clickedButton, cfg.getClickTimerTargetMs(), jitter, autoSolveDeadlineMs - clickedAtMs);
+            LOGGER.info("[SimonSays] Auto-solve pacing armed on first grid click of {}: anchored on {} ({}ms before this click), target {}ms, jitter {}ms -> deadline {}ms from now.",
+                    clickedButton, anchoredOnStart ? "first start-button click" : "this click (no recent start click seen)",
+                    clickedAtMs - anchorMs, cfg.getClickTimerTargetMs(), jitter, autoSolveDeadlineMs - clickedAtMs);
         } else if (lastScheduledDelayMs > 0 && clickedIndex > 0) {
             // Real per-click approach overhead (see autoApproachOverheadEmaMs's own doc comment) - only
             // sampled between two clicks of the SAME round (clickedIndex > 0). The gap before a round's
