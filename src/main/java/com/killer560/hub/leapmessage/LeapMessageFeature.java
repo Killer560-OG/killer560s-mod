@@ -2,8 +2,8 @@ package com.killer560.hub.leapmessage;
 
 import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.translate.TranslateFeature;
+import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +40,13 @@ public final class LeapMessageFeature {
     private static int delayTicksRemaining = -1;
     private static Runnable pendingAction;
 
+    // Real bug found and fixed (2026-09-14): matched message.getString() without stripping § codes (unlike the
+    // other chat features here), so a formatted "§dYou have teleported to §bName§d!" line could never match -
+    // and only listened on Fabric's GAME event, which never fires for a line another mod cancels via
+    // ALLOW_GAME and re-adds to chat itself (confirmed happening to device lines with Odin installed).
+    // ChatObserver sees both paths once; the text is stripped before matching.
     public static void register() {
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onGameMessage(message.getString()));
+        ChatObserver.subscribe(message -> onGameMessage(ChatObserver.strip(message)));
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 

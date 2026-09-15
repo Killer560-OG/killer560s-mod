@@ -1,7 +1,7 @@
 package com.killer560.hub.splittimers;
 
 import com.killer560.hub.secrets.DungeonState;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import com.killer560.hub.util.ChatObserver;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -39,20 +39,35 @@ public final class DeviceTimesFeature {
 
     // Real format ported directly from Odin's own confirmed regex, narrowed to lever/device only (see
     // this class's own doc comment for why terminals are deliberately excluded here).
+    // Real bug found and fixed (2026-09-14, real Hypixel F7 log): this used to end-anchor on "\)$", but with
+    // Odin's "Terminal Splits" installed the displayed line is "Killer560 completed a device! (1/7)
+    // (14.436s | 14.436s)" - the trailing suffix meant it never matched. Now allows an optional
+    // whitespace-separated trailing suffix.
     private static final Pattern DEVICE_COMPLETE_REGEX =
-            Pattern.compile("^(.{1,16}) (activated|completed) a (lever|device)! \\((\\d+)/(\\d+)\\)$");
+            Pattern.compile("^(.{1,16}) (activated|completed) a (lever|device)! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
+
+    private static final long ANNOTATE_DEDUPE_WINDOW_MS = 250L;
+    private static String lastAnnotatedPlain;
+    private static long lastAnnotatedAtMs;
 
     private DeviceTimesFeature() {
     }
 
+    // Real bug found and fixed (2026-09-14, real Hypixel F7 log): the rewrite used to run in Fabric's
+    // MODIFY_GAME, but Odin's Terminal Splits cancels the real device line via ALLOW_GAME (which skips
+    // MODIFY_GAME for every other mod) and re-adds its own copy straight to ChatComponent - so this never
+    // saw a single device line with Odin installed. The annotation now runs as a ChatObserver rewriter,
+    // right before the line is actually added to chat, whichever mod added it. (The class doc's
+    // MODIFY_GAME paragraph above describes the original, now-replaced mechanism.)
     public static void register() {
-        ClientReceiveMessageEvents.MODIFY_GAME.register(DeviceTimesFeature::onModifyGameMessage);
+        ChatObserver.addRewriter(DeviceTimesFeature::onChatLineAdded);
+        ChatObserver.subscribe(DeviceTimesFeature::diagLogP3Progress);
     }
 
     // Diagnostic only (2026-09-14) - P3 (Goldor) progress lines this class deliberately doesn't annotate,
     // logged so a real run's log shows each section's terminal count + gate/core transitions in order.
     private static final Pattern DIAG_TERMINAL_REGEX =
-            Pattern.compile("^(.{1,16}) (activated|completed) a terminal! \\((\\d+)/(\\d+)\\)$");
+            Pattern.compile("^(.{1,16}) (activated|completed) a terminal! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
     private static final Pattern DIAG_P3_GATE_REGEX =
             Pattern.compile("^(The gate has been destroyed!|The Core entrance is opening!|\\[BOSS] Goldor: .*)$");
     private static long diagP3LastEventAtMs;
@@ -81,24 +96,7 @@ public final class DeviceTimesFeature {
         }
     }
 
-    private static Component onModifyGameMessage(Component message, boolean overlay) {
-        if (!overlay) {
-            diagLogP3Progress(message);
-        }
-        if (overlay || !SplitTimersConfig.getInstance().isEnabled()
-                || !SplitTimersConfig.getInstance().isAnnounceDeviceTimes() || !DungeonState.isInDungeon()) {
-            if (!overlay) {
-                // Diagnostic (2026-09-14) - only for a real device/lever line, so non-matching chat never logs.
-                String diagPlain = ChatFormatting.stripFormatting(message.getString());
-                if (diagPlain != null && DEVICE_COMPLETE_REGEX.matcher(diagPlain).find()) {
-                    LOGGER.info("[DeviceTimes] Device/lever line NOT annotated (splitTimersEnabled={}, announceDeviceTimes={}, inDungeon={}): \"{}\"",
-                            SplitTimersConfig.getInstance().isEnabled(), SplitTimersConfig.getInstance().isAnnounceDeviceTimes(),
-                            DungeonState.isInDungeon(), diagPlain);
-                }
-            }
-            return message;
-        }
-        String plain = ChatFormatting.stripFormatting(message.getString());
+    private static Component onChatLineAdded(Component message, String plain) {
         if (plain == null) {
             return message;
         }
@@ -106,6 +104,23 @@ public final class DeviceTimesFeature {
         if (!m.find()) {
             return message;
         }
+        if (!SplitTimersConfig.getInstance().isEnabled()
+                || !SplitTimersConfig.getInstance().isAnnounceDeviceTimes() || !DungeonState.isInDungeon()) {
+            // Diagnostic (2026-09-14) - only for a real device/lever line, so non-matching chat never logs.
+            LOGGER.info("[DeviceTimes] Device/lever line NOT annotated (splitTimersEnabled={}, announceDeviceTimes={}, inDungeon={}): \"{}\"",
+                    SplitTimersConfig.getInstance().isEnabled(), SplitTimersConfig.getInstance().isAnnounceDeviceTimes(),
+                    DungeonState.isInDungeon(), plain);
+            return message;
+        }
+        long nowMs = System.currentTimeMillis();
+        if (lastAnnotatedPlain != null && nowMs - lastAnnotatedAtMs <= ANNOTATE_DEDUPE_WINDOW_MS
+                && (plain.startsWith(lastAnnotatedPlain) || lastAnnotatedPlain.startsWith(plain))) {
+            LOGGER.info("[DeviceTimes] Same device/lever line added to chat again within {}ms - not annotating twice: \"{}\"",
+                    ANNOTATE_DEDUPE_WINDOW_MS, plain);
+            return message;
+        }
+        lastAnnotatedPlain = plain;
+        lastAnnotatedAtMs = nowMs;
         long segmentStartedAtMs = SplitTimersFeature.getCurrentSegmentStartedAtMs();
         if (segmentStartedAtMs <= 0) {
             LOGGER.info("[DeviceTimes] Device/lever line NOT annotated - no split run is being tracked: \"{}\"", plain);

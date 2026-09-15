@@ -1,8 +1,9 @@
 package com.killer560.hub.autoleap;
 
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -54,7 +55,10 @@ public final class AutoLeapFeature {
     private static final AABB YELLOW_PAD_BOX = new AABB(24, 170, 86, 41, 172, 103);
     private static final AABB PURPLE_PAD_BOX = new AABB(95, 165, 86, 123, 172, 103);
 
-    private static final Pattern DEVICE_DONE_REGEX = Pattern.compile("^(\\w+) completed a device! \\((.*?)\\)$");
+    // Real bug found and fixed (2026-09-14, real Hypixel F7 log): this used to end-anchor on "\)$", so Odin's
+    // "Terminal Splits" suffix ("Killer560 completed a device! (1/7) (14.436s | 14.436s)") broke the match.
+    // Now allows an optional whitespace-separated trailing suffix.
+    private static final Pattern DEVICE_DONE_REGEX = Pattern.compile("^(\\w+) completed a device! \\((\\d+/\\d+)\\)(?:\\s.*)?$");
     private static final Set<String> STORM_CRUSH_MESSAGES = Set.of("[BOSS] Storm: Oof", "[BOSS] Storm: Ouch, that hurt!");
     private static final String STORM_DEATH_MESSAGE = "[BOSS] Storm: I should have known that I stood no chance.";
     private static final String MIDDLE_MESSAGE = "[BOSS] Necron: That's a very impressive trick. I guess I'll have to handle this myself.";
@@ -68,10 +72,13 @@ public final class AutoLeapFeature {
     private AutoLeapFeature() {
     }
 
+    // Real bug found and fixed (2026-09-14, real Hypixel F7 log): used to listen on Fabric's CHAT/GAME events,
+    // which never fire for a line another mod (Odin's Terminal Splits) cancels via ALLOW_GAME and re-adds
+    // straight to ChatComponent - so the i4 device trigger could never fire with Odin installed. ChatObserver
+    // sees both paths, de-duplicated. (GAME also used to pass action-bar overlay lines through; none of this
+    // feature's triggers are overlay lines.)
     public static void register() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
+        ChatObserver.subscribe(AutoLeapFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
@@ -95,17 +102,23 @@ public final class AutoLeapFeature {
 
     private static void onChatMessage(Component message) {
         AutoLeapConfig cfg = AutoLeapConfig.getInstance();
+        // Real bug found and fixed (2026-09-14): matched message.getString() without stripping § codes, unlike
+        // the other chat features here - Hypixel's real device line is "§6Killer560 §acompleted a device!
+        // (§c1§a/7)", which the regex could never match. Stripped now.
+        String raw = ChatFormatting.stripFormatting(message.getString());
+        if (raw == null) {
+            raw = message.getString();
+        }
         if (!cfg.isEnabled() || !DungeonState.isBossPhaseActive() || cfg.getTargetName().isBlank()) {
             if (cfg.isEnabled()) {
-                String diagTrigger = diagTriggerName(message.getString());
+                String diagTrigger = diagTriggerName(raw);
                 if (diagTrigger != null) {
                     LOGGER.info("[AutoLeap] Trigger line ({}) ignored: bossPhaseActive={}, targetNameBlank={} - \"{}\"",
-                            diagTrigger, DungeonState.isBossPhaseActive(), cfg.getTargetName().isBlank(), message.getString());
+                            diagTrigger, DungeonState.isBossPhaseActive(), cfg.getTargetName().isBlank(), raw);
                 }
             }
             return;
         }
-        String raw = message.getString();
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return;
