@@ -11,9 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted RNG Meter settings: bazaar pricing mode and auto-refresh interval. The Hypixel API key
- *  used for Auction House lookups is no longer user-configurable here - see
- *  {@link HypixelApiKeyProvider}. */
+/** Persisted RNG Meter settings: bazaar pricing mode and auto-refresh interval. Auction House lookups
+ *  need no API key at all - {@code /skyblock/auctions} is a keyless endpoint, and the built-in key that
+ *  used to be threaded through here was deleted in 2026-09-16's key removal. */
 public final class RngMeterConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

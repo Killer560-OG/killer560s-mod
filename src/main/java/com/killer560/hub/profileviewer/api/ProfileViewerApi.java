@@ -47,8 +47,8 @@ import java.util.regex.Pattern;
  * <p>
  * Fallback order ({@link ProfileViewerConfig.Source}):
  * <ul>
- *   <li>AUTO: your own key (if set) -> SkyBlockPV backend -> the mod's built-in key.</li>
- *   <li>HYPIXEL: your own key if set, else the mod's built-in key.</li>
+ *   <li>AUTO: your own key (if set) -> SkyBlockPV backend.</li>
+ *   <li>HYPIXEL: your own key if set, else the backend - no key ships with the mod.</li>
  *   <li>BACKEND: SkyBlockPV backend only.</li>
  * </ul>
  * Every successful profile list is cached per player for 5 minutes (same as skyblock-pv's CACHE_TIME).
@@ -331,7 +331,14 @@ public final class ProfileViewerApi {
     }
 
     private enum Attempt {
-        USER_KEY, BACKEND, BUILTIN_KEY
+        // BUILTIN_KEY is gone (2026-09-16). The mod used to ship killer560's own permanent Hypixel key and
+        // send it for every user who hadn't entered one of their own - which Hypixel's API policy forbids
+        // outright ("Do not include your API key in your code, especially if you plan to distribute a
+        // binary or have the code available publicly"), and which realistically ends with that one key
+        // banned for serving thousands of clients rather than with anyone extracting it. No mainstream
+        // Skyblock mod does this: Odin and QUOI need no key at all, and SkyHanni / NEU / Skyblocker keep
+        // theirs on a proxy. The keyless SkyBlockPV BACKEND covers everyone who hasn't supplied a key.
+        USER_KEY, BACKEND
     }
 
     // ------------------------------------------------------------------ auxiliary endpoints
@@ -390,7 +397,6 @@ public final class ProfileViewerApi {
         try {
             raw = runAttempts(attemptOrder(), 0, new ArrayList<>(), attempt -> switch (attempt) {
                 case USER_KEY -> hypixelGet(kind.hypixel + id, ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)", true);
-                case BUILTIN_KEY -> hypixelGet(kind.hypixel + id, builtinKey(), "Hypixel API (built-in key)", true);
                 case BACKEND -> backendGet(kind.backend + id, true, true);
             });
         } catch (Throwable t) {
@@ -423,14 +429,14 @@ public final class ProfileViewerApi {
         String userKey = cfg.getApiKey();
         List<Attempt> order = new ArrayList<>();
         switch (cfg.getSource()) {
-            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BUILTIN_KEY : Attempt.USER_KEY);
+            // Source=HYPIXEL with no key of your own can only mean the keyless backend now.
+            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BACKEND : Attempt.USER_KEY);
             case BACKEND -> order.add(Attempt.BACKEND);
             default -> {
                 if (!userKey.isEmpty()) {
                     order.add(Attempt.USER_KEY);
                 }
                 order.add(Attempt.BACKEND);
-                order.add(Attempt.BUILTIN_KEY);
             }
         }
         return order;
@@ -452,7 +458,6 @@ public final class ProfileViewerApi {
         return f.exceptionallyCompose(t -> {
             String label = switch (attempt) {
                 case USER_KEY -> "Your API key";
-                case BUILTIN_KEY -> "Built-in key";
                 case BACKEND -> "SkyBlockPV backend";
             };
             errors.add(label + ": " + messageFor(t));
@@ -465,14 +470,14 @@ public final class ProfileViewerApi {
         String userKey = cfg.getApiKey();
         List<Attempt> order = new ArrayList<>();
         switch (cfg.getSource()) {
-            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BUILTIN_KEY : Attempt.USER_KEY);
+            // Source=HYPIXEL with no key of your own can only mean the keyless backend now.
+            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BACKEND : Attempt.USER_KEY);
             case BACKEND -> order.add(Attempt.BACKEND);
             default -> {
                 if (!userKey.isEmpty()) {
                     order.add(Attempt.USER_KEY);
                 }
                 order.add(Attempt.BACKEND);
-                order.add(Attempt.BUILTIN_KEY);
             }
         }
         return runAttempts(uuid, order, 0, new ArrayList<>());
@@ -486,26 +491,16 @@ public final class ProfileViewerApi {
         Attempt attempt = order.get(index);
         CompletableFuture<Raw> f = switch (attempt) {
             case USER_KEY -> hypixel(uuid, ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)");
-            case BUILTIN_KEY -> hypixel(uuid, builtinKey(), "Hypixel API (built-in key)");
             case BACKEND -> backend(uuid, true);
         };
         return f.exceptionallyCompose(t -> {
             String label = switch (attempt) {
                 case USER_KEY -> "Your API key";
-                case BUILTIN_KEY -> "Built-in key";
                 case BACKEND -> "SkyBlockPV backend";
             };
             errors.add(label + ": " + messageFor(t));
             return runAttempts(uuid, order, index + 1, errors);
         });
-    }
-
-    private static String builtinKey() {
-        try {
-            return com.killer560.hub.rngmeter.HypixelApiKeyProvider.getKey();
-        } catch (Throwable t) {
-            return "";
-        }
     }
 
     private static CompletableFuture<Raw> hypixel(UUID uuid, String key, String label) {

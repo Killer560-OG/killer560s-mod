@@ -143,7 +143,7 @@ public final class HypixelMarketPrices {
         long startedAt = System.currentTimeMillis();
         LOGGER.info("Price refresh starting (wanted AH ids: {})", wantedIdCountForLogging());
         CompletableFuture.runAsync(this::fetchBazaarPrices)
-                .thenCompose(v -> fetchAhLowestBins(HypixelApiKeyProvider.getKey()))
+                .thenCompose(v -> fetchAhLowestBins())
                 .whenComplete((v, err) -> {
                     if (err != null) {
                         lastError = err.getMessage() != null ? err.getMessage() : err.toString();
@@ -186,7 +186,7 @@ public final class HypixelMarketPrices {
         }
     }
 
-    private CompletableFuture<Void> fetchAhLowestBins(String apiKey) {
+    private CompletableFuture<Void> fetchAhLowestBins() {
         // Scans for every item's ID, not just ones tagged source=AH, so Bazaar-sourced items have
         // AH data available as a fallback in getPrice() if the Bazaar doesn't have them listed.
         // Also includes every ID in RngItemNames, since live menu scanning can price items outside
@@ -199,7 +199,7 @@ public final class HypixelMarketPrices {
         }
         wantedIds.addAll(RngItemNames.BY_NAME.values());
 
-        return CompletableFuture.supplyAsync(() -> getJson(auctionsUrl(apiKey, 0)))
+        return CompletableFuture.supplyAsync(() -> getJson(auctionsUrl(0)))
                 .thenCompose(first -> {
                     if (first == null || !first.has("success") || !first.get("success").getAsBoolean()) {
                         lastError = "AH fetch failed: unexpected response on page 0";
@@ -217,7 +217,7 @@ public final class HypixelMarketPrices {
                             for (int p = batchStart; p < batchEnd; p++) {
                                 int page = p;
                                 pageFutures[p - batchStart] = CompletableFuture
-                                        .supplyAsync(() -> getJson(auctionsUrl(apiKey, page)))
+                                        .supplyAsync(() -> getJson(auctionsUrl(page)))
                                         .thenAccept(pageJson -> {
                                             if (pageJson != null) {
                                                 processAuctionPage(pageJson, wantedIds);
@@ -316,12 +316,12 @@ public final class HypixelMarketPrices {
         }
     }
 
-    private static String auctionsUrl(String apiKey, int page) {
+    private static String auctionsUrl(int page) {
         // /skyblock/auctions is a keyless endpoint (Hypixel API docs: "does not require an API key").
         // The shared built-in key used to be appended as "&key=" here, which (a) put it in a query string
         // that proxies/CDNs/access logs record, on every install, hundreds of pages every 10 minutes, and
-        // (b) charged the whole AH scan against that one key's rate limit for every user at once.
-        // The key parameter is kept for call-site compatibility but deliberately unused (2026-09-16 audit).
+        // (b) charged the whole AH scan against that one key's rate limit for every user at once. The
+        // now-unused key parameter went with the key itself (2026-09-16).
         return AUCTIONS_URL + "?page=" + page;
     }
 

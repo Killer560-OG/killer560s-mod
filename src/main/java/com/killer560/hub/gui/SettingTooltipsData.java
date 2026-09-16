@@ -616,10 +616,10 @@ final class SettingTooltipsData {
         d.put("border color", "Colour of the scoreboard outline. Opens a colour picker.");
         d.put("border thickness", "Width of the scoreboard outline in pixels (1-5).");
         d.put("open my profile", "Opens the profile viewer on your own Skyblock profile.");
-        d.put("source", "Where profile data comes from: Hypixel API (your key, or the built-in one), the SkyBlockPV backend, or Auto (tries each in turn).");
+        d.put("source", "Where profile data comes from: the Hypixel API using your own key, the keyless SkyBlockPV backend, or Auto (your key first if set, then the backend).");
         d.put("remember last page", "Reopens the profile viewer on the page you last had open instead of the first page.");
         d.put("show skin", "Shows the player's 3D skin on the profile viewer's main page.");
-        d.put("hypixel api key", "Paste your own Hypixel API key (shown masked). Used for the Hypixel API source; blank uses the built-in key.");
+        d.put("hypixel api key", "Optional. Paste your own Hypixel API key (shown masked) for direct, faster lookups. Leave blank and everything still works through the keyless SkyBlockPV backend.");
         d.put("clear", "Deletes the saved Hypixel API key.");
         d.put("player stats hud", "Shows a separate HUD line with your health, mana and defense read from the action bar. The real action bar is left unchanged; move it in the HUD editor.");
         d.put("show health", "Includes current/max health (HP) in the Player Stats HUD line.");
