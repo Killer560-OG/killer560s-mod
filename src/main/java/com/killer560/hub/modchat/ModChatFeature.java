@@ -42,6 +42,12 @@ public final class ModChatFeature {
             return;
         }
         String raw = message.getString();
+        // Only the channel Mod Chat actually sends on (2026-09-16 security pass). Without this any player
+        // could /msg you a line containing the tag - or drop one in a lobby - and have arbitrary text of
+        // theirs drawn as a "[ModChat]" overlay on your screen, which reads as trusted mod output.
+        if (!startsWithChannel(raw)) {
+            return;
+        }
         int index = raw.indexOf(TAG);
         if (index < 0) {
             return;
@@ -51,6 +57,15 @@ public final class ModChatFeature {
             return;
         }
         ModOverlayMessage.show("[ModChat] " + body, 4000);
+    }
+
+    /** How Hypixel prefixes the channel Mod Chat is set to. "P >" is Hypixel's own compacted form of
+     *  "Party >", so both spellings have to be accepted. */
+    private static boolean startsWithChannel(String raw) {
+        return switch (ModChatConfig.getInstance().getChannel()) {
+            case PARTY -> raw.startsWith("Party > ") || raw.startsWith("P > ");
+            case GUILD -> raw.startsWith("Guild > ") || raw.startsWith("G > ");
+        };
     }
 
     /** For {@code /killer560 chat <message>}. */

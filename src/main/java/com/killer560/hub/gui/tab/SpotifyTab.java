@@ -161,6 +161,12 @@ public class SpotifyTab extends BaseTab {
                 Component.literal("Last.fm API Key"));
         apiKeyField.setMaxLength(64);
         apiKeyField.setHint(Component.literal("Paste your API key here..."));
+        // Masked, same as the Hypixel key field in ProfileViewerTab (2026-09-16 security pass): this is a
+        // real credential and the settings screen is the one place it would show up in a stream or a
+        // screenshot. addFormatter only changes what is DRAWN - getValue() still returns the real key.
+        apiKeyField.addFormatter((text, offset) ->
+                net.minecraft.util.FormattedCharSequence.forward("*".repeat(text.length()),
+                        net.minecraft.network.chat.Style.EMPTY));
         apiKeyField.setValue(SpotifyLyricsFeature.lastFmApiKey);
         widgets.add(apiKeyField);
         y += 30;

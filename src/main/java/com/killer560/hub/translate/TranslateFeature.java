@@ -62,6 +62,12 @@ public final class TranslateFeature {
     private static final Pattern CHAT_ROUTING_COMMAND =
             Pattern.compile("^/(ac|pc|gc|oc|cc|w|msg|whisper|tell|t|r|reply)\\s+(.+)$", Pattern.CASE_INSENSITIVE);
 
+    /** Routing commands whose first argument is a player, not part of the message. */
+    private static final java.util.Set<String> WHISPER_COMMANDS =
+            java.util.Set.of("w", "msg", "whisper", "tell", "t");
+    /** "&lt;ign&gt; &lt;the actual message&gt;" - the IGN is validated so a non-name first word is left alone. */
+    private static final Pattern WHISPER_RECIPIENT = Pattern.compile("^([A-Za-z0-9_]{1,16})\s+(.+)$");
+
     private static final String GOOGLE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
     private static final String MYMEMORY_ENDPOINT = "https://api.mymemory.translated.net/get";
     private static final String BROWSER_USER_AGENT =
@@ -113,6 +119,16 @@ public final class TranslateFeature {
             }
             commandWord = m.group(1);
             toProcess = m.group(2);
+            // A whisper's first word is the recipient's IGN, not part of what you're saying. Fold it into
+            // the command word so it never reaches Google/MyMemory and never gets "corrected" into a
+            // different name (2026-09-16 security pass). /r and /reply take no recipient, so they're out.
+            if (WHISPER_COMMANDS.contains(commandWord.toLowerCase(java.util.Locale.ROOT))) {
+                Matcher recipient = WHISPER_RECIPIENT.matcher(toProcess);
+                if (recipient.matches()) {
+                    commandWord = commandWord + " " + recipient.group(1);
+                    toProcess = recipient.group(2);
+                }
+            }
         }
 
         processAndSend(toProcess, commandWord, addToHistory, translateActive, autoCorrectActive, emotesActive, cfg);
@@ -208,7 +224,9 @@ public final class TranslateFeature {
     }
 
     private static void sendFinal(Minecraft client, String commandWord, String text) {
-        LOGGER.info("Sending: commandWord={} outgoing=\"{}\"", commandWord, text);
+        // DEBUG, not INFO (2026-09-16 security pass): this line is every outgoing chat message, private
+        // messages included, and latest.log is a file people paste into Discord when asking for help.
+        LOGGER.debug("Sending: commandWord={} outgoing=\"{}\"", commandWord, text);
         if (commandWord == null) {
             client.player.connection.sendChat(text);
         } else {

@@ -145,6 +145,11 @@ public final class VoiceToTextFeature {
         return FabricLoader.getInstance().getConfigDir().resolve("killer560smod-voice-model").resolve(MODEL_DIR_NAME);
     }
 
+    /** Caps for the Vosk model archive (2026-09-16 security pass). The real small-English model is about
+     *  50 MB zipped; these only ever fire on a hostile or broken response. */
+    private static final long MAX_MODEL_ZIP_BYTES = 512L * 1024 * 1024;
+    private static final long MAX_MODEL_EXTRACTED_BYTES = 1024L * 1024 * 1024;
+
     private static void downloadAndExtractModel(Path modelDir) throws IOException {
         Path parent = modelDir.getParent();
         Files.createDirectories(parent);
@@ -154,9 +159,10 @@ public final class VoiceToTextFeature {
         conn.setConnectTimeout(15_000);
         conn.setReadTimeout(120_000);
         try (InputStream in = conn.getInputStream()) {
-            Files.copy(in, zipFile, StandardCopyOption.REPLACE_EXISTING);
+            com.killer560.hub.util.BoundedDownload.toFile(in, zipFile, MAX_MODEL_ZIP_BYTES, "speech model download");
         }
         LOGGER.info("[VoiceToText] Extracting speech model...");
+        long extracted = 0;
         try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(zipFile))) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
@@ -168,7 +174,10 @@ public final class VoiceToTextFeature {
                     Files.createDirectories(target);
                 } else {
                     Files.createDirectories(target.getParent());
-                    Files.copy(zip, target, StandardCopyOption.REPLACE_EXISTING);
+                    try (java.io.OutputStream out = Files.newOutputStream(target)) {
+                        extracted += com.killer560.hub.util.BoundedDownload.copyCapped(zip, out,
+                                MAX_MODEL_EXTRACTED_BYTES - extracted, "speech model extraction");
+                    }
                 }
             }
         }

@@ -60,6 +60,10 @@ public final class RoomDatabase {
 
     private static final long BASE_RETRY_BACKOFF_MS = 30_000L;
     private static final long MAX_RETRY_BACKOFF_MS = 10 * 60_000L;
+    /** Caps for the room-database zip (2026-09-16 security pass). The real archive is a few MB; these are
+     *  far above anything legitimate, so they only ever fire on a broken mirror or a zip bomb. */
+    private static final long MAX_ZIP_BYTES = 64L * 1024 * 1024;
+    private static final long MAX_EXTRACTED_BYTES = 256L * 1024 * 1024;
 
     private static volatile Map<Integer, RoomEntry> byCoreHash;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
@@ -180,8 +184,9 @@ public final class RoomDatabase {
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(60_000);
         try (InputStream in = conn.getInputStream()) {
-            Files.copy(in, zipFile, StandardCopyOption.REPLACE_EXISTING);
+            com.killer560.hub.util.BoundedDownload.toFile(in, zipFile, MAX_ZIP_BYTES, "room database download");
         }
+        long extracted = 0;
         try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(zipFile))) {
             ZipEntry entry;
             String rootPrefix = null;
@@ -203,7 +208,10 @@ public final class RoomDatabase {
                     Files.createDirectories(target);
                 } else {
                     Files.createDirectories(target.getParent());
-                    Files.copy(zip, target, StandardCopyOption.REPLACE_EXISTING);
+                    try (java.io.OutputStream out = Files.newOutputStream(target)) {
+                        extracted += com.killer560.hub.util.BoundedDownload.copyCapped(zip, out,
+                                MAX_EXTRACTED_BYTES - extracted, "room database extraction");
+                    }
                 }
             }
         }
