@@ -1,0 +1,52 @@
+        // ---- Auto Routes (tab in New; keys are the widget label cut at ':' and lower-cased - see SettingTooltips) ----
+        // Snippet for gui/SettingTooltipsData.java - paste into the part that holds the other New-tab cheat features
+        // (next to Lever Aura). "height", "mode", "style", "clear route" and "delete" already exist for other tabs,
+        // so those five are scoped with the "new/" prefix like "new/once per run" is.
+        d.put("auto routes", "Cheat build only. Records what you do in a dungeon room and replays it the next time you land on that room's start node. Off by default - nothing runs until you turn it on.");
+        d.put("new/mode", "Legit turns your camera for every etherwarp with the human-looking rotation and only ever starts a route from its start node. Obvious skips the camera turn.");
+        d.put("start from start node only", "A route only arms when you land on its start node - never halfway through, and never by crossing the map. Forced ON in Legit mode.");
+        d.put("recording", "Cheat build only. Record a route: stand on the node it should start from, Start, run the room how you want it replayed, Stop. Same as /ar start record and /ar stop record.");
+        d.put("start recording", "Starts recording your movement, camera and actions in this room from where you're standing. Same as /ar start record.");
+        d.put("stop recording", "Stops the recording and saves it as this room's route. Same as /ar stop record.");
+        d.put("stop route", "Stops the route that's playing back right now.");
+        d.put("nodes", "The nodes of the route for the room you're standing in, in order. Delete removes one; /ar list prints the same list in chat.");
+        d.put("edit breaker blocks", "Breaker edit mode: right-click a block to add it to the dungeon breaker node, shift-right-click to remove it. Your held item won't fire while this is on. Same as /ar edit db.");
+        d.put("list in chat", "Prints this room's nodes in chat with their numbers, for /ar delete <n>.");
+        d.put("new/clear route", "Deletes every node in this room's route. Stops playback first if it's running. Same as /ar clear.");
+        d.put("new/delete", "Removes this node from the route.");
+        d.put("routes file", "Cheat build only. All your routes live in one JSON file you can edit in Notepad and hand to someone as-is.");
+        d.put("open routes folder", "Opens the config folder that holds killer560smod-autoroutes.json, so you can copy it out or paste a friend's copy in.");
+        d.put("reload routes", "Re-reads killer560smod-autoroutes.json from disk without restarting. Chat says how many routes loaded, or names the file if it failed to parse. Same as /ar reload.");
+        d.put("colours", "Cheat build only. Node marker colours in the world - one colour for everything, or one per node type.");
+        d.put("uniform colour", "ON: every node marker uses the single Colour below. OFF: each node type gets its own colour (superboom red, use-item bat-purple, and so on).");
+        d.put("colour", "The one colour every node marker uses while Uniform Colour is on.");
+        d.put("active node colour", "The colour of the node the route is currently heading for while it plays back.");
+        d.put("etherwarp colour", "Marker colour for etherwarp nodes.");
+        d.put("dungeon breaker colour", "Marker colour for dungeon breaker nodes.");
+        d.put("use item colour", "Marker colour for use-item nodes (Spirit Sceptre, pearls, and so on).");
+        d.put("walk colour", "Marker colour for walk nodes.");
+        d.put("boom colour", "Marker colour for superboom nodes.");
+        d.put("await colour", "Marker colour for await nodes (wait for a secret, a delay, the room to clear).");
+        d.put("start colour", "Marker colour for start nodes - the node a route arms from.");
+        d.put("rotate colour", "Marker colour for rotate nodes.");
+        d.put("unsneak colour", "Marker colour for unsneak nodes.");
+        d.put("command colour", "Marker colour for command nodes.");
+        d.put("render style", "Cheat build only. How node markers are drawn: Box, Filled Box or Cylinder, with line thickness and marker height sliders like QUOI's.");
+        d.put("new/style", "Box (wireframe), Filled Box, or Cylinder markers.");
+        d.put("thickness", "Line thickness of the node markers, 1-8.");
+        d.put("new/height", "Height of each node marker in blocks, 0.1-1.0.");
+        d.put("keybinds", "Cheat build only. One key per /ar command, all unbound by default. Click a row, press a key; Esc clears. Keys only fire in-game, never while a menu or chat is open.");
+        d.put("start recording key", "Same as /ar start record.");
+        d.put("stop recording key", "Same as /ar stop record.");
+        d.put("add etherwarp node key", "Same as /ar add ew - adds an etherwarp node at the block you're looking at.");
+        d.put("add dungeon breaker node key", "Same as /ar add breaker - adds a dungeon breaker node here; pick its blocks with Edit Breaker Blocks.");
+        d.put("add use item node key", "Same as /ar add use - adds a node that uses the item you're holding, matched by the item itself, not its slot.");
+        d.put("add walk node key", "Same as /ar add walk - adds a walk node where you're standing.");
+        d.put("add superboom node key", "Same as /ar add boom - adds a superboom node.");
+        d.put("add await node key", "Same as /ar add await - adds a wait-for node.");
+        d.put("add start node key", "Same as /ar add start - adds the node this room's route arms from.");
+        d.put("edit breaker blocks key", "Same as /ar edit db - toggles breaker edit mode.");
+        d.put("clear room route key", "Same as /ar clear - deletes this room's whole route.");
+        d.put("list nodes key", "Same as /ar list - prints this room's nodes in chat.");
+        d.put("delete last node key", "Deletes the most recently added node - the keybind version of /ar delete <n>.");
+        d.put("reload routes file key", "Same as /ar reload - re-reads the routes file from disk.");

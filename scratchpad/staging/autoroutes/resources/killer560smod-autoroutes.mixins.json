@@ -1,0 +1,12 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.autoroutes.mixin",
+	"client": [
+		"AutoRoutesInputMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

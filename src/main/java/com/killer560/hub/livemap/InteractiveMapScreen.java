@@ -712,6 +712,12 @@ public class InteractiveMapScreen extends Screen {
                 int gx = cell % LiveMapFeature.GRID;
                 int gz = cell / LiveMapFeature.GRID;
                 int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : LiveMapFeature.groupsView().get(gid).mainIdx;
+                // Clicking the room you are already standing in means "take me back to the start of my
+                // route here", not "path me to this room's own spot" (killer560, 2026-09-16). Auto Routes
+                // only claims the click for that exact case; every other room falls straight through.
+                if (com.killer560.hub.autoroutes.AutoRoutesFeature.onMapRoomClicked(layout, room)) {
+                    return;
+                }
                 AutoClearUtils.pathToRoom(layout, room, tile, 0);
             } else {
                 toggleWaypoints(LiveMapFeature.groupsView().get(gid));

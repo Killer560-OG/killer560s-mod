@@ -133,6 +133,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.leveraura.LeverAuraFeature.register();
         com.killer560.hub.terminalaura.TerminalAuraFeature.register();
         com.killer560.hub.terminaltrigger.TerminalTriggerbotFeature.register();
+        com.killer560.hub.autoroutes.AutoRoutesFeature.register();
+        com.killer560.hub.autoroutes.AutoRoutesCommands.register();
+        com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
+        com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
         com.killer560.hub.shorts.ShortsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);

@@ -385,6 +385,8 @@ public final class ProfileManager {
                 com.killer560.hub.leveraura.LeverAuraConfig::load,
                 com.killer560.hub.terminalaura.TerminalAuraConfig::load,
                 com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
+                com.killer560.hub.autoroutes.AutoRoutesConfig::load,
+                com.killer560.hub.autoroutes.RouteStore::reload,
                 com.killer560.hub.chunkcache.ChunkCacheConfig::load,
                 com.killer560.hub.pathfinding.PathfindingConfig::load,
                 com.killer560.hub.f7spots.F7SpotsConfig::load,

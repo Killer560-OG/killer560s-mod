@@ -62,6 +62,7 @@
     "killer560smod-scoreboard.mixins.json",
     "killer560smod-arrowalign.mixins.json",
     "killer560smod-livemap.mixins.json",
+    "killer560smod-autoroutes.mixins.json",
     "killer560smod-mainmenu.mixins.json",
     "killer560smod-puzzlepackets.mixins.json",
     "killer560smod-partyfinder.mixins.json",
