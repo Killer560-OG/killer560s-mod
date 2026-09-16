@@ -732,9 +732,9 @@ public class TermismPracticeScreen extends Screen {
         Item item = stack.getItem();
         if (item == Items.MAGENTA_STAINED_GLASS_PANE || item == Items.LIME_STAINED_GLASS_PANE
                 || item == Items.LIME_TERRACOTTA || item == Items.RED_TERRACOTTA) {
-            return TerminalSolverFeature.MELODY_ENDPOINT_COLOR;
+            return com.killer560.hub.terminals.TerminalSolverConfig.color(com.killer560.hub.terminals.TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT);
         }
-        return TerminalSolverFeature.MELODY_TRACK_BASE_COLOR;
+        return com.killer560.hub.terminals.TerminalSolverConfig.color(com.killer560.hub.terminals.TerminalSolverConfig.OverlayColor.MELODY_TRACK);
     }
 
     /** Custom GUI ON: per killer560's "my solver overlay still isnt happening on it which I want...

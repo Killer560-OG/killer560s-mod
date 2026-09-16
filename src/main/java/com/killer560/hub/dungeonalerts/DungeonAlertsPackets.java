@@ -22,7 +22,9 @@ public final class DungeonAlertsPackets {
     public static void onSound(ClientboundSoundPacket packet) {
         guard("sound/secret", () -> SecretSound.onSoundPacket(packet));
         guard("sound/springboots", () -> SpringBootsOverlay.onSoundPacket(packet));
-        guard("sound/ragnarock", () -> RagnarockAlert.onSoundPacket(packet));
+        // Rag Axe lives in com.killer560.hub.ragaxe now; it reuses this one sound-packet bridge
+        // rather than adding a second mixin for the same packet.
+        guard("sound/ragaxe", () -> com.killer560.hub.ragaxe.RagAxeFeature.onSoundPacket(packet));
     }
 
     public static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {
@@ -45,7 +47,7 @@ public final class DungeonAlertsPackets {
     }
 
     private static void guard(String what, Runnable action) {
-        // Skyblock Only: every Dungeon Alerts packet reaction (Shadow Assassin, Secret Sound, Spring Boots, Ragnarock,
+        // Skyblock Only: every Dungeon Alerts packet reaction (Shadow Assassin, Secret Sound, Spring Boots, Rag Axe,
         // Terracotta) goes through here.
         if (!com.killer560.hub.util.SkyblockGate.allows()) {
             return;

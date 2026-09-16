@@ -1,5 +1,8 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.terminals.TerminalSolverConfig;
@@ -16,7 +19,12 @@ import java.util.List;
  *  "a toggleable option for gui scale size, and selecting which terminals it works on." Auto Terminals
  *  (2026-09-09) - real auto-clicking, cheat build only - moved out to its own {@link AutoTerminalTab}
  *  per killer560's explicit "make auto terms into its own section in dungeons" follow-up request; this
- *  tab's own solving/highlighting works identically on both builds regardless. */
+ *  tab's own solving/highlighting works identically on both builds regardless.
+ *  <p>
+ *  Overlay Colours (2026-09-15, killer560: "add the option to set custom colors for terminal overlays")
+ *  - one picker button per real drawing role (see {@link TerminalSolverConfig.OverlayColor}), plus a
+ *  Reset Colours button. Everything is legit-build behaviour, so every header here is the normal orange
+ *  {@link SectionHeaders} one, not the cheat red. */
 public class TerminalSolverTab extends BaseTab {
 
     public TerminalSolverTab() {
@@ -143,8 +151,94 @@ public class TerminalSolverTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Highlights the correct slot(s) to click - never clicks for you."),
                 Minecraft.getInstance().font));
+        y += 24;
+
+        // ------------------------------------------------------------------ overlay colours
+        y = buildColorSection(widgets, contentX, y, contentWidth, requestRebuild);
 
         return widgets;
+    }
+
+    /** One colour-picker button per real drawing role, grouped the same way the overlay itself is:
+     *  per-terminal-type highlights first, then Melody's own per-role board palette, then the shared
+     *  panel/text chrome. Every button opens the existing {@link ColorPickerScreen} (live preview while
+     *  dragging) and saves on every change, so a colour survives a restart like every other setting in
+     *  this mod. Single 220-wide column, matching the toggles above - two 108-wide columns would clip
+     *  labels like "Melody Moving Piece Colour". */
+    private static int buildColorSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
+                                         Runnable requestRebuild) {
+        Minecraft mc = Minecraft.getInstance();
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Overlay Colours", false), mc.font));
+        y += 14;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Defaults are the stock orange theme. Alpha is adjustable;"), mc.font));
+        y += 11;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("the panel background stays opaque so nothing bleeds through."), mc.font));
+        y += 16;
+
+        TerminalSolverConfig.OverlayColor[] order = {
+                TerminalSolverConfig.OverlayColor.PANES,
+                TerminalSolverConfig.OverlayColor.STARTS_WITH,
+                TerminalSolverConfig.OverlayColor.SELECT,
+                TerminalSolverConfig.OverlayColor.NUMBERS_NEXT,
+                TerminalSolverConfig.OverlayColor.NUMBERS_AFTER_NEXT,
+                TerminalSolverConfig.OverlayColor.NUMBERS_THIRD,
+                TerminalSolverConfig.OverlayColor.RUBIX_LEFT_CLICK,
+                TerminalSolverConfig.OverlayColor.RUBIX_RIGHT_CLICK,
+                TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT,
+                TerminalSolverConfig.OverlayColor.MELODY_MOVING,
+                TerminalSolverConfig.OverlayColor.MELODY_BUTTON,
+                TerminalSolverConfig.OverlayColor.MELODY_TRACK,
+                TerminalSolverConfig.OverlayColor.PANEL_BACKGROUND,
+                TerminalSolverConfig.OverlayColor.PANEL_BORDER,
+                TerminalSolverConfig.OverlayColor.LABEL_TEXT,
+                TerminalSolverConfig.OverlayColor.RUBIX_COUNT_TEXT,
+        };
+
+        for (TerminalSolverConfig.OverlayColor key : order) {
+            widgets.add(colorButton(key, contentX, y, 220));
+            y += 20;
+        }
+        y += 4;
+
+        widgets.add(SettingsButtonWidget.builder(resetText(), btn -> {
+                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                    cfg.resetOverlayColors();
+                    cfg.save();
+                    // Full rebuild - every swatch above has to redraw in its restored colour, and a
+                    // button can't reach its siblings' labels on its own.
+                    requestRebuild.run();
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        return y;
+    }
+
+    /** One colour row. The swatch on the button label is redrawn live from the picker's own callback, so
+     *  the menu matches the in-game colour the moment you let go of the slider (2026-09-14 rule - see
+     *  {@link ColorSwatch}), without needing a whole tab rebuild per drag. */
+    private static AbstractWidget colorButton(TerminalSolverConfig.OverlayColor key, int x, int y, int width) {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        return SettingsButtonWidget.builder(ColorSwatch.label(key.label(), cfg.getOverlayColor(key)), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, key.label(),
+                            cfg.getOverlayColor(key), key.defaultArgb(), argb -> {
+                        cfg.setOverlayColor(key, argb);
+                        cfg.save();
+                        btn.setMessage(ColorSwatch.label(key.label(), cfg.getOverlayColor(key)));
+                    }));
+                }).bounds(x, y, width, 18).build();
+    }
+
+    /** The "already default" hint goes AFTER a colon on purpose - {@code SettingTooltips#key} cuts the
+     *  label at the first ':', so the tooltip key stays "reset colours" in both states instead of
+     *  changing out from under {@code SettingTooltipsData} whenever the colours are stock. */
+    private static Component resetText() {
+        return Component.literal("Reset Colours"
+                + (TerminalSolverConfig.getInstance().isOverlayColorsDefault() ? ": §7default" : ""));
     }
 
     private static Component enabledText() {

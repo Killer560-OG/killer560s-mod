@@ -101,23 +101,6 @@ public class DungeonAlertsTab extends BaseTab {
             y[0] += 22;
         }
 
-        // --- Ragnarock ---
-        header(w, contentX, y, contentWidth, "Ragnarock");
-        master(w, contentX, y, contentWidth, "Ragnarock", () -> cfg.ragEnabled, v -> cfg.ragEnabled = v, requestRebuild);
-        if (cfg.ragEnabled) {
-            toggle(w, contentX, y[0], half, "Cast Alert", () -> cfg.ragCastAlert, v -> cfg.ragCastAlert = v);
-            toggle(w, colB, y[0], half, "Cancel Alert", () -> cfg.ragCancelAlert, v -> cfg.ragCancelAlert = v);
-            y[0] += 22;
-            toggle(w, contentX, y[0], half, "Strength Message", () -> cfg.ragStrengthMessage, v -> cfg.ragStrengthMessage = v);
-            toggle(w, colB, y[0], half, "Announce in Party", () -> cfg.ragAnnounceStrength, v -> cfg.ragAnnounceStrength = v);
-            y[0] += 22;
-            toggle(w, contentX, y[0], half, "Buff Timer HUD", () -> cfg.ragBuffTimer, v -> cfg.ragBuffTimer = v);
-            toggle(w, colB, y[0], half, "Buff Ended Alert", () -> cfg.ragEndAlert, v -> cfg.ragEndAlert = v);
-            y[0] += 22;
-            toggle(w, contentX, y[0], contentWidth, "M7 Dragon Alert", () -> cfg.ragM7Alert, v -> cfg.ragM7Alert = v);
-            y[0] += 22;
-        }
-
         // --- Class Colors ---
         header(w, contentX, y, contentWidth, "Class Colors");
         master(w, contentX, y, contentWidth, "Class Colors", () -> cfg.classColorsEnabled, v -> cfg.classColorsEnabled = v, requestRebuild);
@@ -163,7 +146,7 @@ public class DungeonAlertsTab extends BaseTab {
         }
 
         w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7HUD parts (Spring Boots, Ragnarock, Room Alerts) move in the HUD editor."),
+                Component.literal("§7HUD parts (Spring Boots, Room Alerts) move in the HUD editor. Ragnarock moved to the Rag Axe tab."),
                 Minecraft.getInstance().font));
         return w;
     }

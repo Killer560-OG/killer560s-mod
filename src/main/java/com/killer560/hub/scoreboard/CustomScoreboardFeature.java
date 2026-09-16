@@ -85,7 +85,13 @@ public final class CustomScoreboardFeature {
     public static void register() {
         CustomScoreboardConfig.getInstance();
         ScoreboardExtraData.register();
-        ScoreboardBlur.register();
+        // Only register the blur pipeline when the user has actually switched blur on. RenderPipelines.register
+        // puts it in the static list ShaderManager precompiles on every resource reload, and a GLSL compile
+        // failure there is a hard crash - so an untested shader must never load for someone who isn't using it.
+        // Turning blur on therefore takes effect on the next launch (the tab says so).
+        if (CustomScoreboardConfig.getInstance().isBackgroundBlur()) {
+            ScoreboardBlur.register();
+        }
         ClientTickEvents.END_CLIENT_TICK.register(CustomScoreboardFeature::tick);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "custom_scoreboard"),

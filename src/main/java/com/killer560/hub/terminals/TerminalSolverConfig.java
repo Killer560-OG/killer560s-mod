@@ -10,6 +10,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Random;
 
 /** Persisted Terminal Solver settings - see {@link TerminalSolverFeature}. Ships disabled by default,
@@ -29,6 +31,89 @@ public final class TerminalSolverConfig {
     public static final int MAX_AUTO_CLICK_DELAY_MS = 500;
     public static final int MIN_MELODY_LOOKAHEAD = 0;
     public static final int MAX_MELODY_LOOKAHEAD = 4;
+
+    // ---- Overlay colours (2026-09-15, killer560: "add the option to set custom colors for terminal
+    // overlays") ----
+    /** Alpha floor applied to every overlay colour except {@link OverlayColor#PANEL_BACKGROUND} (which is
+     *  forced opaque instead). The picker exposes a real alpha slider - translucent highlights are a
+     *  legitimate choice and are NOT clamped up to opaque - but a colour dragged all the way to alpha 0
+     *  would draw literally nothing, which reads as "the solver broke" rather than as a colour setting.
+     *  Turning a highlight off is what the per-type toggles above are for, so the floor keeps a colour
+     *  always at least faintly visible. */
+    public static final int MIN_OVERLAY_ALPHA = 0x10;
+
+    /** Every colour the terminal overlays actually draw with. Each constant's {@code defaultArgb} is
+     *  EXACTLY the value that used to be hardcoded in {@link TerminalSolverFeature} (THEME_ORANGE /
+     *  BRIGHT_ORANGE / MUTED_ORANGE / FAINT_ORANGE / PANEL_BG_COLOR / the Melody palette / ...), so
+     *  nothing changes visually until the user actually edits one.
+     *  <p>
+     *  Roles that carry real meaning stay separate constants on purpose rather than being collapsed into
+     *  one "highlight colour": Numbers' next vs after-next vs 3rd tier is the whole point of that reveal,
+     *  Rubix's left-click vs right-click tells you which mouse button to use, and Melody's endpoint /
+     *  moving-piece / button / track roles are what make its board readable at a glance. */
+    public enum OverlayColor {
+        PANES("colorPanes", "Panes Colour", 0xFFFFA500, false),
+        NUMBERS_NEXT("colorNumbersNext", "Numbers Next Colour", 0xFFFFA500, false),
+        NUMBERS_AFTER_NEXT("colorNumbersAfterNext", "Numbers After Next Colour", 0xFFB37744, false),
+        NUMBERS_THIRD("colorNumbersThird", "Numbers 3rd Colour", 0xFF4D3319, false),
+        STARTS_WITH("colorStartsWith", "Starts With Colour", 0xFFFFA500, false),
+        SELECT("colorSelect", "Select All Colour", 0xFFFFA500, false),
+        RUBIX_LEFT_CLICK("colorRubixLeftClick", "Rubix Left Click Colour", 0xFFFF8C00, false),
+        RUBIX_RIGHT_CLICK("colorRubixRightClick", "Rubix Right Click Colour", 0xFF3399FF, false),
+        MELODY_ENDPOINT("colorMelodyEndpoint", "Melody Endpoint Colour", 0xFFFFA500, false),
+        MELODY_MOVING("colorMelodyMoving", "Melody Moving Piece Colour", 0xFFFFA500, false),
+        MELODY_BUTTON("colorMelodyButton", "Melody Button Colour", 0xFFFFA500, false),
+        MELODY_TRACK("colorMelodyTrack", "Melody Track Colour", 0xFFCDA775, false),
+        /** Forced fully opaque on both load and set - a translucent panel fill can never fully hide the
+         *  real screen still being drawn underneath it, which is exactly the "Inactive Terminal"/"CLICK
+         *  HERE" ghost-text bleed-through killer560 screenshotted in round 10 (the old constant had
+         *  already been bumped from 0xEE to 0xFF for that reason). The alpha slider is therefore a no-op
+         *  for this one entry. */
+        PANEL_BACKGROUND("colorPanelBackground", "Panel Background Colour", 0xFF241206, true),
+        PANEL_BORDER("colorPanelBorder", "Panel Border Colour", 0xFFFFA500, false),
+        /** The little per-slot label drawn over the vanilla (non-Custom-GUI) overlay. */
+        LABEL_TEXT("colorLabelText", "Label Text Colour", 0xFFFFFFFF, false),
+        /** Rubix's click-count number, drawn centred inside its filled Custom GUI cell. */
+        RUBIX_COUNT_TEXT("colorRubixCountText", "Rubix Count Text Colour", 0xFF000000, false);
+
+        private final String key;
+        private final String label;
+        private final int defaultArgb;
+        private final boolean forceOpaque;
+
+        OverlayColor(String key, String label, int defaultArgb, boolean forceOpaque) {
+            this.key = key;
+            this.label = label;
+            this.defaultArgb = defaultArgb;
+            this.forceOpaque = forceOpaque;
+        }
+
+        /** JSON key in {@code killer560smod-terminalsolver.json}. */
+        public String key() {
+            return key;
+        }
+
+        /** Button label in the Terminal Solver tab. Every one ends in "Colour" so its lower-cased form
+         *  stays a unique {@code SettingTooltipsData} key - bare "Panes"/"Starts With"/"Select" are
+         *  already taken by this same tab's per-type solve toggles. */
+        public String label() {
+            return label;
+        }
+
+        public int defaultArgb() {
+            return defaultArgb;
+        }
+
+        /** See {@link TerminalSolverConfig#MIN_OVERLAY_ALPHA} and {@link #PANEL_BACKGROUND}. */
+        public int sanitize(int argb) {
+            if (forceOpaque) {
+                return argb | 0xFF000000;
+            }
+            int alpha = (argb >>> 24) & 0xFF;
+            return alpha >= MIN_OVERLAY_ALPHA ? argb : (MIN_OVERLAY_ALPHA << 24) | (argb & 0x00FFFFFF);
+        }
+    }
+
 
     private static final Random RANDOM = new Random();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -97,6 +182,8 @@ public final class TerminalSolverConfig {
     // whole row anytime it gets a proper click" - ignores melodyLookaheadClicks entirely and bursts every
     // remaining row down to the last one, not just a capped number of them.
     private MelodySkipMode melodySkipMode = MelodySkipMode.EDGES;
+    /** Never null and always fully populated - see the constructor. */
+    private final Map<OverlayColor, Integer> overlayColors = new EnumMap<>(OverlayColor.class);
 
     /** See {@link #melodySkipMode}'s own doc. */
     public enum MelodySkipMode {
@@ -104,6 +191,9 @@ public final class TerminalSolverConfig {
     }
 
     private TerminalSolverConfig() {
+        for (OverlayColor c : OverlayColor.values()) {
+            overlayColors.put(c, c.defaultArgb());
+        }
     }
 
     public static TerminalSolverConfig getInstance() {
@@ -149,6 +239,11 @@ public final class TerminalSolverConfig {
             cfg.announceCompletionTime = ConfigJson.getBool(obj, "announceCompletionTime", true);
             cfg.melodyLookaheadClicks = clampMelodyLookahead(ConfigJson.getInt(obj, "melodyLookaheadClicks", 0));
             cfg.melodySkipMode = ConfigJson.getEnum(obj, "melodySkipMode", MelodySkipMode.class, MelodySkipMode.EDGES);
+            // Per-key reads (ConfigJson) so one bad/missing colour falls back to just that colour's
+            // default instead of resetting every other setting in the file.
+            for (OverlayColor c : OverlayColor.values()) {
+                cfg.overlayColors.put(c, c.sanitize(ConfigJson.getInt(obj, c.key(), c.defaultArgb())));
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalSolverConfig();
@@ -182,6 +277,9 @@ public final class TerminalSolverConfig {
             obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
+            for (OverlayColor c : OverlayColor.values()) {
+                obj.addProperty(c.key(), getOverlayColor(c));
+            }
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -403,5 +501,45 @@ public final class TerminalSolverConfig {
 
     public void setMelodySkipMode(MelodySkipMode melodySkipMode) {
         this.melodySkipMode = melodySkipMode != null ? melodySkipMode : MelodySkipMode.EDGES;
+    }
+
+    /** @return the live ARGB for {@code key}, already sanitized (see {@link OverlayColor#sanitize}).
+     *  Falls back to the default if the map somehow has no entry, so a draw call can never NPE. */
+    public int getOverlayColor(OverlayColor key) {
+        if (key == null) {
+            return 0xFFFFFFFF;
+        }
+        Integer v = overlayColors.get(key);
+        return v == null ? key.defaultArgb() : v;
+    }
+
+    public void setOverlayColor(OverlayColor key, int argb) {
+        if (key != null) {
+            overlayColors.put(key, key.sanitize(argb));
+        }
+    }
+
+    /** "Reset Colours" button - puts every overlay colour back to the value it shipped with. Callers
+     *  still have to {@link #save()} (same as every other setter here). */
+    public void resetOverlayColors() {
+        for (OverlayColor c : OverlayColor.values()) {
+            overlayColors.put(c, c.defaultArgb());
+        }
+    }
+
+    /** @return true if every overlay colour is still its shipped default - drives the Reset button's
+     *  own enabled/disabled look in {@code TerminalSolverTab}. */
+    public boolean isOverlayColorsDefault() {
+        for (OverlayColor c : OverlayColor.values()) {
+            if (getOverlayColor(c) != c.defaultArgb()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Shorthand for the render code - {@code TerminalSolverConfig.color(OverlayColor.PANES)}. */
+    public static int color(OverlayColor key) {
+        return getInstance().getOverlayColor(key);
     }
 }

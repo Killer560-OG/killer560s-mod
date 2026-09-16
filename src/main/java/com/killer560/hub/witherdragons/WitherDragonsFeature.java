@@ -108,11 +108,15 @@ public final class WitherDragonsFeature {
             lastDragonDeath = null;
             P5State.reset();
         }
+        // Outside the P5 gate: leaving P5 without changing level (dying, a /warp out) otherwise strands every
+        // dragon entity in the map until the next world change.
+        if (!DRAGON_ENTITIES.isEmpty()) {
+            DRAGON_ENTITIES.values().removeIf(e -> e.isRemoved());
+        }
         if (client.level == null || !trackingActive() || !P5State.inP5()) {
             return;
         }
         pollStatues(client.level);
-        DRAGON_ENTITIES.values().removeIf(e -> e.isRemoved());
     }
 
     /** Odin BlockUpdateEvent: a statue block becoming air = that dragon died (not timed). Polled here as a
@@ -502,7 +506,9 @@ public final class WitherDragonsFeature {
 
         @Override
         public int defaultY() {
-            return 200;
+            // 200 is Ability Timers' default (AbilityTimersFeature.TimersHudElement), 240 is King Relic Timer's,
+            // 260 Dungeon Info / Simon Says, 320 Split Timers - 280 is the free slot in the x=10 column.
+            return 280;
         }
 
         @Override

@@ -31,8 +31,14 @@ import org.slf4j.LoggerFactory;
  * <li>{@code shaders/core/scoreboard_blur.fsh} samples that copy around {@code gl_FragCoord} with a small gaussian
  * kernel. Only the scoreboard rectangle is ever touched, so the rest of the HUD is unaffected.</li>
  * </ol>
- * Any failure (shader missing, texture copy rejected, VulkanMod) turns the blur off for the session and logs once; the
- * scoreboard then just draws without it.
+ * A runtime failure (texture copy rejected, resize rejected, the {@code GuiRenderer} hook not applying, VulkanMod)
+ * turns the blur off for the session and logs once; the scoreboard then just draws without it.
+ * <p>
+ * <b>Not</b> covered: because {@link RenderPipelines#register} puts the pipeline in
+ * {@code RenderPipelines.getStaticPipelines()}, {@code ShaderManager#apply} precompiles it with every vanilla pipeline
+ * during the resource reload and throws {@code RuntimeException("Failed to compile pipelines: ...")} if it fails. A
+ * broken/missing {@code scoreboard_blur.vsh}/{@code .fsh} therefore fails the whole resource reload instead of just
+ * disabling the blur - keep the two shaders valid GLSL 330 that matches vanilla's core-shader format.
  */
 public final class ScoreboardBlur {
 
@@ -113,6 +119,9 @@ public final class ScoreboardBlur {
                 }
                 RenderSystem.getDevice().createCommandEncoder().clearColorTexture(target.getColorTexture(), 0);
                 setup = null;
+                // The copy for the new size hasn't happened yet: hide the quads for this frame rather than risk
+                // drawing the cleared (opaque black) texture if the copy below doesn't run.
+                copyConfirmed = false;
             }
             if (setup == null) {
                 setup = TextureSetup.singleTexture(target.getColorTextureView(),
@@ -122,7 +131,9 @@ public final class ScoreboardBlur {
             Matrix3x2f pose = new Matrix3x2f(g.pose());
             float poseScale = (float) Math.sqrt(Math.abs(pose.determinant()));
             int radiusPx = (int) Math.round(Math.max(1, Math.min(20, strength)) * guiScale * Math.max(0.25f, poseScale));
-            int alpha = copyConfirmed ? 0xFF000000 : 0;
+            // MainTarget#allocateColorAttachment returns null when the GPU is out of memory, and copyIfNeeded then
+            // skips the copy - so check here, while the quads can still be submitted invisible, not after.
+            int alpha = copyConfirmed && main.getColorTexture() != null ? 0xFF000000 : 0;
             int color = alpha | (Math.max(1, Math.min(255, radiusPx)) << 16);
             for (int row = 0; row < h; row++) {
                 int in = CustomScoreboardFeature.roundedInset(row, h, r);
@@ -156,6 +167,9 @@ public final class ScoreboardBlur {
             RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
             if (main.width != target.width || main.height != target.height
                     || main.getColorTexture() == null || target.getColorTexture() == null) {
+                // Nothing was copied: keep the quads invisible until one really lands, so the next frames can't
+                // sample a stale or cleared (opaque black) texture.
+                copyConfirmed = false;
                 return;
             }
             RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(main.getColorTexture(),

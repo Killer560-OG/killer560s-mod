@@ -735,7 +735,7 @@ final class SettingTooltipsData {
         d.put("separator between events", "Puts an empty line between each active event in the Events block.");
         d.put("border softness", "Fades extra rings outside the border for a soft glow (0 = crisp edge).");
         d.put("screen margin", "Gap in pixels between the snapped scoreboard and the screen edge.");
-        d.put("background blur", "Blurs the game behind the scoreboard box. Turns itself off if your graphics setup can't do it (e.g. VulkanMod).");
+        d.put("background blur (restart)", "Blurs the game behind the scoreboard box. Takes effect after you restart Minecraft, because the blur shader only loads when this is on. Turns itself off if your graphics setup can't do it (e.g. VulkanMod).");
         d.put("blur strength", "How far the background blur samples, in pixels.");
         d.put("min width", "Minimum width of the scoreboard box, so it stops resizing with short lines.");
         d.put("min height", "Minimum height of the scoreboard box.");
@@ -774,5 +774,105 @@ final class SettingTooltipsData {
         d.put("p5 dragon lines", "Adds one Split Timers line per dragon (spawn to kill) during M7 Phase 5.");
         d.put("p5 relic lines", "Adds Split Timers lines for the relic spawn and each relic being placed.");
         d.put("p5 lines position", "Draw the Phase 5 lines in a column to the right of the splits, or underneath them.");
+
+        // Chunk Cache
+        d.put("chunk cache", "Keeps every chunk you've loaded readable in memory after Minecraft would unload it, so the Interactive Map, secret waypoints and solvers still see rooms you walked away from. Cleared on every world change. Skyblock only.");
+        d.put("max cached chunks", "How many chunks to keep in memory (500-20000). Oldest are dropped first; roughly 6 KB per chunk, so 4000 chunks is about 25 MB.");
+        d.put("clear cache", "Throws away every chunk cached for the current world right now. Chunks the game still has loaded are unaffected.");
+
+        // Pathfinding / Fairy Souls
+        d.put("pathfinding", "Shows the fastest walking route to anywhere on the island, using SkyHanni's public island graph data (downloaded at runtime, nothing bundled). Skyblock only.");
+        d.put("show path", "Draws the route line in the world.");
+        d.put("dim whole route", "Also draws the rest of the route faintly, not just the next stretch.");
+        d.put("target label", "Shows the destination's name and remaining distance above it.");
+        d.put("path color", "Color of the route line.");
+        d.put("target color", "Color of the destination box, beam and label.");
+        d.put("visible path", "How many blocks of the route ahead of you are drawn brightly.");
+        d.put("re-path after", "How far you can stray from the route before it is recalculated.");
+        d.put("stop navigation", "Cancels the current route.");
+        d.put("fairy souls", "Tracks which Fairy Souls you have found on each island and guides you to the ones you are missing.");
+        d.put("guide", "Nearest Soul points at the closest missing soul; Route Whole Island orders every missing soul into one short route.");
+        d.put("soul waypoints", "Boxes every missing Fairy Soul within 96 blocks.");
+        d.put("soul counter hud", "Shows found/total for this island on the HUD (drag it in the HUD editor).");
+        d.put("start on island join", "Starts guiding automatically when you arrive on an island with missing souls.");
+        d.put("guide me now", "Starts guiding to the missing souls on this island right now.");
+        d.put("mark island found", "Logs every soul on this island as found.");
+        d.put("reset this island", "Clears the found-soul log for this island on this profile. Click twice to confirm.");
+        d.put("reset found souls (profile)", "Clears the found-soul log for every island on this profile. Click twice to confirm.");
+        d.put("auto walk path", "Cheat build: walks the route for you. Stops the moment you press a key, click, move the mouse, open a screen or take damage.");
+        d.put("auto fairy souls", "Cheat build: walks the whole island route and clicks each Fairy Soul by itself.");
+        d.put("auto mode", "Walk uses etherwarps only when walking cannot get there; Etherwarp warps whenever it clearly saves time; Fast Etherwarp chains warps the whole way.");
+        d.put("auto click souls", "Right-clicks the soul when it arrives. Off means you click it yourself.");
+        d.put("sprint", "Sprints on long straight stretches.");
+        d.put("turn speed", "How fast the camera turns while auto walking, in degrees per tick.");
+        d.put("start/stop key", "Starts or stops Auto Fairy Souls.");
+        d.put("start auto fairy souls", "Starts the automatic run now.");
+
+        // Terminal overlay colours
+        d.put("panes colour", "Colour of the highlight on every red pane in the 'Correct all the panes!' terminal.");
+        d.put("starts with colour", "Colour of the highlight on matching items in the 'What starts with' terminal.");
+        d.put("select all colour", "Colour of the highlight on matching items in the 'Select all the [color] items!' terminal.");
+        d.put("numbers next colour", "Colour of the slot you need to click RIGHT NOW in the Numbers terminal.");
+        d.put("numbers after next colour", "Colour of the slot after the next one in the Numbers terminal. Keep it different from Numbers Next so you can tell them apart.");
+        d.put("numbers 3rd colour", "Colour of the 3rd upcoming click in the Numbers terminal. Only used while Numbers 3-Tier Reveal is ON.");
+        d.put("rubix left click colour", "Colour of Rubix panes you should LEFT click to cycle forwards.");
+        d.put("rubix right click colour", "Colour of Rubix panes you should RIGHT click to cycle backwards. Keep it clearly different from the left-click colour.");
+        d.put("melody endpoint colour", "Colour of Melody's two fixed track endpoint panes in Custom GUI.");
+        d.put("melody moving piece colour", "Colour of Melody's moving marker pane in Custom GUI.");
+        d.put("melody button colour", "Colour of the real buttons you click in Melody's Custom GUI.");
+        d.put("melody track colour", "Colour of Melody's static track background in Custom GUI.");
+        d.put("panel background colour", "Background fill of the Custom GUI panel. Always drawn fully opaque, so the alpha slider does nothing here - a see-through panel would let the real terminal show through.");
+        d.put("panel border colour", "Outline around the Custom GUI panel.");
+        d.put("label text colour", "Colour of the small text label drawn on a highlighted slot when Custom GUI is OFF.");
+        d.put("rubix count text colour", "Colour of the click-count number drawn inside each Rubix cell when Custom GUI is ON.");
+        d.put("reset colours", "Puts every terminal overlay colour back to the stock orange defaults. Shows 'default' when nothing has been changed.");
+
+        // F7 Spots (walk waypoints, crush timer, aim spots)
+        d.put("walk waypoints", "Draws your own F7/M7 walk-to waypoints as a box with a beam and label. Starts empty - add them with Add Waypoint Here.");
+        d.put("waypoint color", "Colour of walk-to waypoints that don't have their own colour set in the config file.");
+        d.put("waypoint labels", "Shows each waypoint's name above its box.");
+        d.put("waypoint distance", "Adds how many blocks away the waypoint is to its label.");
+        d.put("current phase only", "Only shows waypoints tagged with the boss phase you're actually in. Off shows every waypoint for the floor.");
+        d.put("waypoint beam", "Height of the light column above each waypoint box, 0 turns the beam off.");
+        d.put("new waypoint phase", "Which phase the NEXT added waypoint is tagged with. Auto uses the phase you're in.");
+        d.put("new waypoint floor", "Which floor the NEXT added waypoint is tagged with. Auto uses the floor you're on.");
+        d.put("add waypoint here", "Saves the block you're standing on as a waypoint, tagged with the phase/floor selected above.");
+        d.put("remove last waypoint", "Deletes the most recently added waypoint. Shows how many are saved.");
+        d.put("crush timer hud", "F7/M7 P2: times Storm's crushes ('Oof' / 'Ouch, that hurt!') and shows the count. Counts up unless a Crush Interval is set.");
+        d.put("crush title", "Shows a big screen title when Storm gets crushed, and when the interval countdown hits zero.");
+        d.put("purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
+        d.put("pad color", "Colour of the crush pad outlines.");
+        d.put("show all pads", "Also outlines the green and yellow pads, not just purple. (The 4th red pad is broken in-game.)");
+        d.put("crush interval", "Seconds until a pillar is usable again. No source publishes a real number, so it's off by default - the HUD just counts up.");
+        d.put("crush warning", "How many seconds before the interval runs out the countdown turns red.");
+        d.put("crush trigger text", "Optional chat text that also restarts the crush countdown, e.g. Storm's Giga Lightning line. Leave blank to use only his crush lines.");
+        d.put("aim spots", "Draws crosshair markers at your saved Last Breath aim spots for the phase you're in. Starts empty.");
+        d.put("aim spot color", "Colour of the aim-spot crosshair markers.");
+        d.put("aim spot labels", "Shows each aim spot's name next to its marker.");
+        d.put("aim spot distance", "Adds how many blocks away the aim spot is to its label.");
+        d.put("aim spot size", "How large the aim-spot crosshair marker is drawn.");
+        d.put("show all classes", "Shows every aim spot instead of only the ones tagged for your dungeon class.");
+        d.put("show all situations", "Shows every aim spot regardless of which phase or dragon it's tagged for.");
+        d.put("arrow stack spots", "Adds NoammAddons' optimal arrow-stack aim points for the five P5 dragons. Not Last Breath spots - stack positions.");
+        d.put("new aim situation", "Which dragon/phase the NEXT added aim spot is tagged with. Auto uses where you are.");
+        d.put("new aim class", "Which class the NEXT added aim spot is tagged for. Auto uses your class.");
+        d.put("add aim spot here", "Saves the exact point your crosshair is on (your eye position if it's aimed at nothing) as an aim spot.");
+        d.put("remove last aim spot", "Deletes the most recently added aim spot. Shows how many are saved.");
+
+        // Rag Axe
+        d.put("rag axe", "Ragnarock Axe helper: cast detection, channel/buff/cooldown countdowns and built-in 'rag now' prompts for F7-M7 and F5/M5. Skyblock only, nothing is clicked for you.");
+        d.put("sound is buff start", "Treats the cast sound as the moment the buff applies instead of the start of the 3s channel. Only flip this if the timers read 3s early in a real run.");
+        d.put("channel countdown", "HUD line counting the 3s channel down to the moment the Strength buff applies.");
+        d.put("buff countdown", "HUD line counting the 10s Ragnarock Strength buff down.");
+        d.put("cooldown countdown", "HUD line counting the ability cooldown down from your cast.");
+        d.put("off cooldown alert", "Shows 'Ragnarock Ready' when the cooldown finishes.");
+        d.put("also show title", "Rag prompts also draw the prompt text as a vanilla title, not just on the HUD element.");
+        d.put("skip tank/healer", "Suppresses the two M7 dragon rag prompts while you are playing Tank or Healer, like Odin and NoammAddons do.");
+        d.put("m7 wither king line", "Prompts you to rag on the Wither King's 'I no longer wish to fight' line, so the buff lands as P5 starts.");
+        d.put("m7 dragon spawns", "Prompts before each P5 dragon actually spawns, using the live spawn countdown. Needs Wither Dragons (or King Relics) turned on.");
+        d.put("m7 necron drop-down", "Prompts after Necron's entry line so the buff is up when he lands. The 8s line-to-landing figure is this mod's estimate; tune with the lead slider.");
+        d.put("m7 storm (p2)", "Prompts after Storm's entry line so the buff is up when P2 starts. The 5s figure is an estimate; tune with the lead slider.");
+        d.put("f5/m5 livid", "Prompts near the end of Livid's 390-tick invulnerability, so the buff is up the moment he can be damaged.");
+        d.put("pad cycle timer", "NoammAddons' Storm pad timer: a repeating 20-server-tick countdown that starts on Storm's P2 line and runs until he dies, so you can time pad drops. Shown in ticks.");
     }
 }

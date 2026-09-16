@@ -14,7 +14,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** One persisted settings file for the whole Dungeon Alerts pack (Shadow Assassin Alert, Secret Sound,
- *  Terracotta Timer, Spring Boots Overlay, Ragnarock, Class Colors, Room Alerts). Every feature ships OFF.
+ *  Terracotta Timer, Spring Boots Overlay, Class Colors, Room Alerts). Every feature ships OFF.
+ *  <p>Ragnarock moved out of this file in the Rag Axe batch - it now lives in
+ *  {@code com.killer560.hub.ragaxe.RagAxeConfig} ({@code killer560smod-ragaxe.json}), which migrates the old
+ *  {@code rag*} keys out of this file once. They are deliberately left in place here (unread) so the migration
+ *  still works if the new config is ever deleted.
  *  Every setter is followed by {@link #save()} at the GUI call site (killer560's settings-persistence rule). */
 public final class DungeonAlertsConfig {
 
@@ -41,16 +45,6 @@ public final class DungeonAlertsConfig {
     // Spring Boots Overlay
     public boolean springBootsEnabled = false;
     public boolean springBootsBox = true;
-
-    // Ragnarock
-    public boolean ragEnabled = false;
-    public boolean ragCastAlert = true;
-    public boolean ragCancelAlert = true;
-    public boolean ragStrengthMessage = true;
-    public boolean ragAnnounceStrength = false;
-    public boolean ragBuffTimer = true;
-    public boolean ragEndAlert = true;
-    public boolean ragM7Alert = false;
 
     // Class Colors
     public boolean classColorsEnabled = false;
@@ -89,14 +83,6 @@ public final class DungeonAlertsConfig {
                 cfg.terracottaEnabled = bool(o, "terracottaEnabled", cfg.terracottaEnabled);
                 cfg.springBootsEnabled = bool(o, "springBootsEnabled", cfg.springBootsEnabled);
                 cfg.springBootsBox = bool(o, "springBootsBox", cfg.springBootsBox);
-                cfg.ragEnabled = bool(o, "ragEnabled", cfg.ragEnabled);
-                cfg.ragCastAlert = bool(o, "ragCastAlert", cfg.ragCastAlert);
-                cfg.ragCancelAlert = bool(o, "ragCancelAlert", cfg.ragCancelAlert);
-                cfg.ragStrengthMessage = bool(o, "ragStrengthMessage", cfg.ragStrengthMessage);
-                cfg.ragAnnounceStrength = bool(o, "ragAnnounceStrength", cfg.ragAnnounceStrength);
-                cfg.ragBuffTimer = bool(o, "ragBuffTimer", cfg.ragBuffTimer);
-                cfg.ragEndAlert = bool(o, "ragEndAlert", cfg.ragEndAlert);
-                cfg.ragM7Alert = bool(o, "ragM7Alert", cfg.ragM7Alert);
                 cfg.classColorsEnabled = bool(o, "classColorsEnabled", cfg.classColorsEnabled);
                 cfg.classColorsTab = bool(o, "classColorsTab", cfg.classColorsTab);
                 cfg.classColorsNametags = bool(o, "classColorsNametags", cfg.classColorsNametags);
@@ -127,14 +113,6 @@ public final class DungeonAlertsConfig {
             o.addProperty("terracottaEnabled", terracottaEnabled);
             o.addProperty("springBootsEnabled", springBootsEnabled);
             o.addProperty("springBootsBox", springBootsBox);
-            o.addProperty("ragEnabled", ragEnabled);
-            o.addProperty("ragCastAlert", ragCastAlert);
-            o.addProperty("ragCancelAlert", ragCancelAlert);
-            o.addProperty("ragStrengthMessage", ragStrengthMessage);
-            o.addProperty("ragAnnounceStrength", ragAnnounceStrength);
-            o.addProperty("ragBuffTimer", ragBuffTimer);
-            o.addProperty("ragEndAlert", ragEndAlert);
-            o.addProperty("ragM7Alert", ragM7Alert);
             o.addProperty("classColorsEnabled", classColorsEnabled);
             o.addProperty("classColorsTab", classColorsTab);
             o.addProperty("classColorsNametags", classColorsNametags);

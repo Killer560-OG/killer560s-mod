@@ -461,7 +461,11 @@ public final class ScoreboardExtraData {
         long total = 0;
         boolean any = false;
         while (m.find()) {
-            long n = Long.parseLong(m.group(1));
+            // (\d+) is unbounded: a long digit run (garbled lore/tab line) overflows Long.parseLong.
+            long n = parseLong(m.group(1));
+            if (n < 0) {
+                continue;
+            }
             char unit = Character.toLowerCase(m.group(2).charAt(0));
             total += switch (unit) {
                 case 'y' -> n * 365L * 86_400_000L;

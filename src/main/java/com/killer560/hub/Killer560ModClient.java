@@ -99,8 +99,14 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new PosmsgHudElement());
         com.killer560.hub.thorn.ThornFeature.register();
         HudElementRegistry.register(com.killer560.hub.thorn.ThornFeature.HUD);
+        com.killer560.hub.f7spots.F7SpotsFeature.register();
+        com.killer560.hub.ragaxe.RagAxeFeature.register();
+        com.killer560.hub.ragaxe.RagAxeFeature.hudElements().forEach(HudElementRegistry::register);
+        HudElementRegistry.register(com.killer560.hub.f7spots.F7SpotsFeature.HUD);
         com.killer560.hub.scorecalc.ScoreCalculatorFeature.register();
         com.killer560.hub.witherdragons.WitherDragonsFeature.register();
+        com.killer560.hub.chunkcache.ChunkCacheManager.register();
+        com.killer560.hub.pathfinding.PathfindingFeature.register();
         HudElementRegistry.register(new com.killer560.hub.witherdragons.WitherDragonsFeature.DragonTimersHudElement());
         HudElementRegistry.register(new com.killer560.hub.witherdragons.KingRelicsFeature.RelicTimerHudElement());
         HudElementRegistry.register(com.killer560.hub.scorecalc.ScoreCalculatorFeature.ScoreHudElement.INSTANCE);

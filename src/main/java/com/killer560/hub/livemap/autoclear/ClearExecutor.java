@@ -70,6 +70,10 @@ public final class ClearExecutor {
     private static Object lastLevel = null;
     private static volatile boolean sneakMixinApplied = false;
     private static boolean forcedSneakKey = false;
+    // 2026-09-15: set while another feature (Pathfinding's Auto Fairy Souls) owns the queue, so its hops are not
+    // cancelled just because the Interactive Map's own "Teleport Pathing"/"Auto Blood Rush" toggles are off.
+    // Nothing else changes: when it is false this class behaves exactly as before.
+    private static volatile boolean externalOwner = false;
 
     private ClearExecutor() {
     }
@@ -172,6 +176,11 @@ public final class ClearExecutor {
         pendingCompletion = null;
     }
 
+    /** Lets another feature run its own hop queue here while the Interactive Map's own toggles are off. */
+    public static void setExternalOwner(boolean value) {
+        externalOwner = value;
+    }
+
     public static void queueInteract(float yaw, float pitch) {
         pendingInteract = new float[]{yaw, pitch};
     }
@@ -217,7 +226,7 @@ public final class ClearExecutor {
             return;
         }
         LiveMapConfig cfg = LiveMapConfig.getInstance();
-        if (!cfg.isPathingEnabled() && !cfg.isBloodRushEnabled() && (nodes != null || pathPending)) {
+        if (!externalOwner && !cfg.isPathingEnabled() && !cfg.isBloodRushEnabled() && (nodes != null || pathPending)) {
             cancel();
         }
         doInteract(client);
@@ -265,6 +274,9 @@ public final class ClearExecutor {
         onComplete = null;
         pendingCompletion = null;
         pendingInteract = null;
+        // A world change drops the queue and its completion callback, so no external feature owns it any more.
+        // (Already false whenever nothing external is running, so this changes nothing for the Interactive Map.)
+        externalOwner = false;
         generation++;
     }
 

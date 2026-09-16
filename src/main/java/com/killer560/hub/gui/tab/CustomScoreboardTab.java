@@ -327,7 +327,7 @@ public class CustomScoreboardTab extends BaseTab {
         widgets.add(slider(colBX, y, colW, cfg.getMargin(), 0, 50, v -> "Screen Margin: " + v, cfg::setMargin, cfg));
         y += 22;
 
-        widgets.add(toggle("Background Blur", cfg::isBackgroundBlur, cfg::setBackgroundBlur, cfg, x, y, colW));
+        widgets.add(toggle("Background Blur (restart)", cfg::isBackgroundBlur, cfg::setBackgroundBlur, cfg, x, y, colW));
         widgets.add(slider(colBX, y, colW, cfg.getBlurStrength(), 1, 20, v -> "Blur Strength: " + v, cfg::setBlurStrength, cfg));
         y += 22;
 

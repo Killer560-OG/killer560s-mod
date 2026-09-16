@@ -57,62 +57,30 @@ public final class TerminalSolverFeature {
     // terminal grid" than hardcoding each type's own grid slot count.
     private static final int PLAYER_INVENTORY_SIZE = 36;
 
-    // Per killer560's "focus on the orange side of the mod's gui... more orange in a sense for the
-    // tiles" request (2026-09-09) - the mod's own established amber/orange accent (see
-    // SettingsButtonWidget's own BORDER_HOVER), leaned into here instead of the old green/cyan/gold
-    // rainbow mix, everywhere the puzzle itself doesn't force a specific color choice.
-    private static final int THEME_ORANGE = 0xFFFF8C00;
-    // "Having them be bright would be better" (2026-09-09, round 4) - a more vivid/saturated orange
-    // than THEME_ORANGE specifically for Panes/Numbers' flat boxes, which are otherwise a big flat
-    // area of solid color (unlike an outline or a small Select box) where "bright" reads better.
-    private static final int BRIGHT_ORANGE = 0xFFFFA500;
-    private static final int MUTED_ORANGE = 0xFFB37744;
-    // Round 11's first guess (0xFFCC9966, lighter than MUTED_ORANGE) was too close to tier 2 to tell
-    // apart - per killer560's round-12 follow-up "it is very hard to tell which one is second and which
-    // is 3rd, I should barely be able to see the 3rd one", this is now much darker/dimmer instead, close
-    // to the panel's own background color so it barely stands out at all.
-    private static final int FAINT_ORANGE = 0xFF4D3319;
+    // Overlay colours (2026-09-15, killer560: "add the option to set custom colors for terminal
+    // overlays"). Every colour this class draws with used to be a hardcoded constant right here
+    // (THEME_ORANGE 0xFFFF8C00, BRIGHT_ORANGE 0xFFFFA500, MUTED_ORANGE 0xFFB37744, FAINT_ORANGE
+    // 0xFF4D3319, PANEL_BG_COLOR 0xFF241206, the Melody palette, the Rubix left/right split). They now
+    // live in TerminalSolverConfig.OverlayColor, whose per-constant defaults are EXACTLY those same
+    // values - the tuning history behind each of them (rounds 4-17 of killer560's own screenshot
+    // feedback: "having them be bright would be better", "I should barely be able to see the 3rd one",
+    // the panel's opaque-not-0xEE fix, Melody's track base walked down 0xFFF2E0 -> 0xCDA775) is written
+    // up on the enum constants themselves, so the reasoning didn't get lost by moving them.
+    //
+    // Read fresh on every draw rather than cached in a field, so dragging the colour picker live-updates
+    // the terminal that's already open behind it.
+    private static int color(TerminalSolverConfig.OverlayColor key) {
+        return TerminalSolverConfig.color(key);
+    }
 
-    private static final int PANES_COLOR = BRIGHT_ORANGE;
-    private static final int STARTS_WITH_COLOR = BRIGHT_ORANGE;
-    // Per killer560's "make more of the actual in element gui orange" request (2026-09-09, round 7) -
-    // the panel itself (background + border) leans into the same theme now, not just the highlighted
-    // cells: a warm dark amber instead of a neutral gray-black, and the same bright orange as every
-    // other accent for the border (was a muted brown that barely read as "orange" at a glance). Shared
-    // by every type's panel, Melody included - it used to have its own identical-value constant.
-    // Alpha bumped to fully opaque (was 0xEE, ~93%) per killer560's round-10 screenshot showing real
-    // background content ("Inactive Terminal"/"CLICK HERE" ghost text) bleeding through the panel fill
-    // right as a terminal opens - a translucent panel can never fully hide whatever's still being drawn
-    // underneath it, however briefly, so opaque is the only way to guarantee nothing shows through.
-    private static final int PANEL_BG_COLOR = 0xFF241206;
-    private static final int PANEL_BORDER_COLOR = BRIGHT_ORANGE;
-    // Melody's own per-role palette. Round 9 (2026-09-09) had the two fixed endpoint pieces as
-    // THEME_ORANGE, the moving piece as its own darker shade, buttons as a light orange, and the static
-    // track base as black. Round 10 (2026-09-09) revised per killer560's exact follow-up: the endpoints
-    // now match the panel border color itself (not just the general theme orange), the moving piece
-    // matches the endpoints exactly (was a separate darker shade), and the static track base goes from
-    // black to a very light orange instead - see #melodySlotColor for the classification.
-    // Public - per killer560's round-18 "add melody [to Termism]" request, TermismPracticeScreen (a
-    // different package) reuses these exact same colors for its own Melody practice mode's Custom-GUI-on
-    // overlay, instead of hardcoding a second copy that could drift out of sync with future tuning here.
-    public static final int MELODY_ENDPOINT_COLOR = PANEL_BORDER_COLOR;
-    private static final int MELODY_MOVING_PIECE_COLOR = MELODY_ENDPOINT_COLOR;
-    // Round 12 (2026-09-09): per killer560's "the bar that shows where I actually need to click... is
-    // the same as the rest of the gui, that should be the same color as the moving square" - the real
-    // clickable buttons are the functionally important part, so they now match the bright
-    // endpoint/moving color exactly instead of their own separate light shade.
-    private static final int MELODY_BUTTON_COLOR = MELODY_ENDPOINT_COLOR;
-    // Round 10's 0xFFFFF2E0 read as basically white, round 11's 0xFFFFCC80 still wasn't light enough per
-    // killer560's round-12 "you can lighten up the main 4x5" follow-up. Round 15 dimmed it back down to
-    // 0xFFF5D2A0 ("so close to perfect... just make those white spaces a little bit dimmer"); round 16
-    // dimmed further to 0xFFDCB37D ("even dimmer"); round 17's "still fairly bright... a hair dimmer" is
-    // one more small step down from there. Public for the same reason as MELODY_ENDPOINT_COLOR above.
-    public static final int MELODY_TRACK_BASE_COLOR = 0xFFCDA775;
-    // Rubix keeps a real functional 2-color split (left-click vs right-click), per killer560's explicit
-    // request - orange for the common forward/left-click case, a clearly distinct blue for the reverse/
-    // right-click case, rather than 4 shades that don't actually mean anything extra at a glance.
-    private static final int RUBIX_LEFT_CLICK_COLOR = THEME_ORANGE;
-    private static final int RUBIX_RIGHT_CLICK_COLOR = 0xFF3399FF;
+    /** Public - {@link com.killer560.hub.termism.TermismPracticeScreen} (a different package) reads these
+     *  two directly for its own Melody practice overlay. They are now only the DEFAULT values: the live,
+     *  user-configurable colours are {@code TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT} and
+     *  {@code .MELODY_TRACK}. Termism should be switched over to {@code TerminalSolverConfig.color(...)}
+     *  so a custom Melody palette applies in practice mode too - not done here to keep this change
+     *  scoped to the terminals package. */
+    public static final int MELODY_ENDPOINT_COLOR = TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT.defaultArgb();
+    public static final int MELODY_TRACK_BASE_COLOR = TerminalSolverConfig.OverlayColor.MELODY_TRACK.defaultArgb();
 
     // Real Hypixel Rubix mechanic (confirmed via Odin's own RubixHandler): each click on a pane
     // advances it ONE step through this 5-color cycle - no adjacency/neighbor coupling despite the name.
@@ -245,7 +213,14 @@ public final class TerminalSolverFeature {
     // Public - per killer560's round-13 "my solver overlay still isnt happening on [Termism]" request,
     // TermismPracticeScreen (a different package) reuses this exact record via the public #solve entry
     // point below, instead of re-deriving its own approximation of the real highlight logic.
-    public record SlotHighlight(int color, String label) {
+    public record SlotHighlight(int color, String label, boolean primary) {
+        /** The 2-arg form every solver except Numbers uses. {@code primary} only means anything for
+         *  Numbers (see {@link #pickAutoClickTarget}), where it marks the ONE slot that must be clicked
+         *  next; it used to be inferred by comparing the highlight's colour against BRIGHT_ORANGE, which
+         *  stops working the moment the user is allowed to give two Numbers tiers the same colour. */
+        public SlotHighlight(int color, String label) {
+            this(color, label, false);
+        }
     }
 
     private TerminalSolverFeature() {
@@ -840,7 +815,7 @@ public final class TerminalSolverFeature {
     }
 
     /** @return which highlighted slot to click next, and how - Numbers must always be the current
-     *  BRIGHT_ORANGE (lowest-count, next-in-order) entry specifically, never the muted "following"
+     *  primary (lowest-count, next-in-order) entry specifically, never the muted "following"
      *  preview tier; every other type has no ordering constraint, so any highlighted entry is fine.
      *  Rubix additionally needs the real signed click direction its own label already encodes (see
      *  {@link #solveRubix}) - reused here rather than re-deriving it, the same "-" prefix check
@@ -857,14 +832,14 @@ public final class TerminalSolverFeature {
      *  clicked, which stays highlighted until the server's response lands - so the re-click guard capped
      *  every one of them at ping even with other free slots on the board. {@code awaitingConfirm} slots
      *  (see {@link #pendingClicks}) are now skipped for every order-free type. Numbers keeps its strict
-     *  order: if its one in-order BRIGHT_ORANGE slot is awaiting confirm, returns null (wait) rather than
+     *  order: if its one in-order primary slot is awaiting confirm, returns null (wait) rather than
      *  ever jumping ahead to the next number.
      *  @return null if nothing is clickable right now (no valid highlight, or all of them excluded). */
     public static AutoClickTarget pickAutoClickTarget(TerminalType type, Map<Integer, SlotHighlight> highlights,
                                                       Set<Integer> awaitingConfirm) {
         if (type == TerminalType.NUMBERS) {
             for (Map.Entry<Integer, SlotHighlight> entry : highlights.entrySet()) {
-                if (entry.getValue().color() == BRIGHT_ORANGE) {
+                if (entry.getValue().primary()) {
                     return awaitingConfirm.contains(entry.getKey()) ? null : new AutoClickTarget(entry.getKey(), 0, ContainerInput.CLONE);
                 }
             }
@@ -1175,8 +1150,10 @@ public final class TerminalSolverFeature {
         graphics.pose().translate(layout.originX, layout.originY);
         graphics.pose().scale(layout.scale, layout.scale);
 
-        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING, PANEL_BG_COLOR);
-        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
+        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING,
+                color(TerminalSolverConfig.OverlayColor.PANEL_BACKGROUND));
+        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2,
+                color(TerminalSolverConfig.OverlayColor.PANEL_BORDER));
 
         List<Slot> slots = screen.getMenu().slots;
         DyeColor movingColor = findMelodyMovingColor(slots);
@@ -1255,15 +1232,15 @@ public final class TerminalSolverFeature {
     private static int melodySlotColor(ItemStack stack, DyeColor movingColor) {
         DyeColor pane = paneDyeColor(stack);
         if (pane == null) {
-            return MELODY_BUTTON_COLOR;
+            return color(TerminalSolverConfig.OverlayColor.MELODY_BUTTON);
         }
         if (isMelodyEndpointColor(pane)) {
-            return MELODY_ENDPOINT_COLOR;
+            return color(TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT);
         }
         if (movingColor != null && pane == movingColor) {
-            return MELODY_MOVING_PIECE_COLOR;
+            return color(TerminalSolverConfig.OverlayColor.MELODY_MOVING);
         }
-        return MELODY_TRACK_BASE_COLOR;
+        return color(TerminalSolverConfig.OverlayColor.MELODY_TRACK);
     }
 
     // Real bug found and fixed (2026-09-09, round 14), per killer560's screenshot comparison against a
@@ -1297,7 +1274,8 @@ public final class TerminalSolverFeature {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(x0, y0 + SLOT_SIZE - 7);
                 graphics.pose().scale(textScale, textScale);
-                graphics.text(Minecraft.getInstance().font, highlight.label(), 1, 1, 0xFFFFFFFF, true);
+                graphics.text(Minecraft.getInstance().font, highlight.label(), 1, 1,
+                        color(TerminalSolverConfig.OverlayColor.LABEL_TEXT), true);
                 graphics.pose().popMatrix();
             }
         }
@@ -1322,8 +1300,10 @@ public final class TerminalSolverFeature {
         graphics.pose().translate(layout.originX, layout.originY);
         graphics.pose().scale(layout.scale, layout.scale);
 
-        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING, PANEL_BG_COLOR);
-        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2, PANEL_BORDER_COLOR);
+        graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING,
+                color(TerminalSolverConfig.OverlayColor.PANEL_BACKGROUND));
+        graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2,
+                color(TerminalSolverConfig.OverlayColor.PANEL_BORDER));
 
         List<Slot> slots = screen.getMenu().slots;
         for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
@@ -1349,7 +1329,8 @@ public final class TerminalSolverFeature {
                 Font font = Minecraft.getInstance().font;
                 int textY = y0 + (SLOT_SIZE - font.lineHeight) / 2 + 1;
                 int textX = x0 + SLOT_SIZE / 2 - Math.round(font.width(highlight.label()) / 2f) + 1;
-                graphics.text(font, highlight.label(), textX, textY, 0xFF000000, false);
+                graphics.text(font, highlight.label(), textX, textY,
+                        color(TerminalSolverConfig.OverlayColor.RUBIX_COUNT_TEXT), false);
             }
         }
         graphics.pose().popMatrix();
@@ -1552,7 +1533,7 @@ public final class TerminalSolverFeature {
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
             if (items.get(i).getItem() == Items.RED_STAINED_GLASS_PANE) {
-                result.put(i, new SlotHighlight(PANES_COLOR, null));
+                result.put(i, new SlotHighlight(color(TerminalSolverConfig.OverlayColor.PANES), null));
             }
         }
         return result;
@@ -1585,13 +1566,13 @@ public final class TerminalSolverFeature {
         slots.sort(Comparator.comparingInt(i -> items.get(i).getCount()));
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         if (!slots.isEmpty()) {
-            result.put(slots.get(0), new SlotHighlight(BRIGHT_ORANGE, null));
+            result.put(slots.get(0), new SlotHighlight(color(TerminalSolverConfig.OverlayColor.NUMBERS_NEXT), null, true));
         }
         if (slots.size() > 1) {
-            result.put(slots.get(1), new SlotHighlight(MUTED_ORANGE, null));
+            result.put(slots.get(1), new SlotHighlight(color(TerminalSolverConfig.OverlayColor.NUMBERS_AFTER_NEXT), null));
         }
         if (slots.size() > 2 && TerminalSolverConfig.getInstance().isNumbersThreeTierReveal()) {
-            result.put(slots.get(2), new SlotHighlight(FAINT_ORANGE, null));
+            result.put(slots.get(2), new SlotHighlight(color(TerminalSolverConfig.OverlayColor.NUMBERS_THIRD), null));
         }
         return result;
     }
@@ -1620,7 +1601,7 @@ public final class TerminalSolverFeature {
                 continue;
             }
             if (name.regionMatches(true, 0, letter, 0, letter.length())) {
-                result.put(i, new SlotHighlight(STARTS_WITH_COLOR, null));
+                result.put(i, new SlotHighlight(color(TerminalSolverConfig.OverlayColor.STARTS_WITH), null));
             }
         }
         return result;
@@ -1650,7 +1631,7 @@ public final class TerminalSolverFeature {
             String name = stripColor(item.getHoverName().getString()).toLowerCase(Locale.ROOT);
             for (String prefix : prefixes) {
                 if (name.startsWith(prefix)) {
-                    result.put(i, new SlotHighlight(BRIGHT_ORANGE, null));
+                    result.put(i, new SlotHighlight(color(TerminalSolverConfig.OverlayColor.SELECT), null));
                     break;
                 }
             }
@@ -1755,7 +1736,9 @@ public final class TerminalSolverFeature {
     }
 
     private static int rubixColorFor(int clicksRequired) {
-        return clicksRequired > 0 ? RUBIX_LEFT_CLICK_COLOR : RUBIX_RIGHT_CLICK_COLOR;
+        return clicksRequired > 0
+                ? color(TerminalSolverConfig.OverlayColor.RUBIX_LEFT_CLICK)
+                : color(TerminalSolverConfig.OverlayColor.RUBIX_RIGHT_CLICK);
     }
 
     private static DyeColor paneDyeColor(ItemStack item) {

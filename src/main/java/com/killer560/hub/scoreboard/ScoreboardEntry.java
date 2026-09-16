@@ -1068,7 +1068,12 @@ public enum ScoreboardEntry {
         if (visiting != null) {
             Matcher m = VISITING_AMOUNT.matcher(visiting);
             if (m.find()) {
-                return Integer.parseInt(m.group(2));
+                try {
+                    // (\d+) is unbounded, so a garbled sidebar line would overflow Integer.parseInt.
+                    return Integer.parseInt(m.group(2));
+                } catch (NumberFormatException ignored) {
+                    // fall through to the island default
+                }
             }
         }
         String lobby = group(ScoreboardPattern.LOBBY_CODE, sidebar(), "code");

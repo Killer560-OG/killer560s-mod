@@ -42,7 +42,6 @@ public final class DungeonAlertsFeature {
         SecretSound.register();
         TerracottaTimer.register();
         SpringBootsOverlay.register();
-        RagnarockAlert.register();
         ClassColors.register();
         RoomAlerts.register();
 
@@ -51,7 +50,6 @@ public final class DungeonAlertsFeature {
                 lastLevel = client.level;
                 TerracottaTimer.onWorldChange();
                 SpringBootsOverlay.reset();
-                RagnarockAlert.onWorldChange();
                 ClassColors.onWorldChange();
                 RoomAlerts.onWorldChange();
             }
@@ -69,7 +67,7 @@ public final class DungeonAlertsFeature {
     /** The lead registers these into {@link HudElementRegistry} (one call each). Same instances are looked
      *  up by id when drawing in-game, so positions come from the HUD editor. */
     public static List<HudElement> hudElements() {
-        return List.of(SpringBootsOverlay.HUD, RagnarockAlert.TIMER_HUD, RagnarockAlert.M7_HUD, RoomAlerts.HUD);
+        return List.of(SpringBootsOverlay.HUD, RoomAlerts.HUD);
     }
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
