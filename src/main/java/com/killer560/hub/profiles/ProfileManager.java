@@ -213,6 +213,7 @@ public final class ProfileManager {
                 com.killer560.hub.automeow.AutoMeowConfig::load,
                 com.killer560.hub.autopuzzles.AutoPuzzlesConfig::load,
                 com.killer560.hub.motionblur.MotionBlurConfig::load,
+                com.killer560.hub.discordrpc.DiscordRpcConfig::load,
                 com.killer560.hub.arrowalign.ArrowAlignConfig::load,
                 com.killer560.hub.secrettrigger.SecretTriggerbotConfig::load,
                 com.killer560.hub.doorhelpers.DoorHelpersConfig::load,

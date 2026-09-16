@@ -53,7 +53,6 @@ public class NewTab extends FolderTab {
                 new DungeonExtrasTab(),
                 new DungeonQueueTab(),
                 new MotionBlurTab(),
-                new WindowLayoutTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
                 new VoiceToTextTab(),
@@ -99,6 +98,7 @@ public class NewTab extends FolderTab {
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoPuzzlesTab());
+            tabs.add(new FastLeapTab());
             tabs.add(new CheatUtilsTab());
             tabs.add(new SecretTriggerbotTab());
             tabs.add(new DoorHelpersTab());

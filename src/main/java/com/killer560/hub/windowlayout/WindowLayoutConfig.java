@@ -33,6 +33,9 @@ public final class WindowLayoutConfig {
     private boolean respectTaskbar = true;
     private int pickerKeyCode = -1;
     private boolean restoreOnLaunch = false;
+    /** Full Monitor (count == 1) ends in borderless fullscreen rather than a plain full-size window
+     *  (killer560, 2026-09-15). Default ON: picking Full Monitor is asking for the whole screen. */
+    private boolean fullMonitorBorderless = true;
 
     private boolean hasLastPlacement = false;
     private int lastMonitorIndex = 0;
@@ -64,6 +67,7 @@ public final class WindowLayoutConfig {
                 cfg.respectTaskbar = getBool(o, "respectTaskbar", true);
                 cfg.pickerKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(o, "pickerKeyCode", -1));
                 cfg.restoreOnLaunch = getBool(o, "restoreOnLaunch", false);
+                cfg.fullMonitorBorderless = getBool(o, "fullMonitorBorderless", true);
                 cfg.hasLastPlacement = getBool(o, "hasLastPlacement", false);
                 cfg.lastMonitorIndex = Math.max(0, getInt(o, "lastMonitorIndex", 0));
                 cfg.lastMonitorDevice = getString(o, "lastMonitorDevice");
@@ -89,6 +93,7 @@ public final class WindowLayoutConfig {
             o.addProperty("respectTaskbar", respectTaskbar);
             o.addProperty("pickerKeyCode", pickerKeyCode);
             o.addProperty("restoreOnLaunch", restoreOnLaunch);
+            o.addProperty("fullMonitorBorderless", fullMonitorBorderless);
             o.addProperty("hasLastPlacement", hasLastPlacement);
             o.addProperty("lastMonitorIndex", lastMonitorIndex);
             o.addProperty("lastMonitorDevice", lastMonitorDevice);
@@ -158,6 +163,14 @@ public final class WindowLayoutConfig {
 
     public void setGap(int gap) {
         this.gap = clamp(gap, 0, MAX_GAP);
+    }
+
+    public boolean isFullMonitorBorderless() {
+        return fullMonitorBorderless;
+    }
+
+    public void setFullMonitorBorderless(boolean v) {
+        fullMonitorBorderless = v;
     }
 
     public boolean isRespectTaskbar() {

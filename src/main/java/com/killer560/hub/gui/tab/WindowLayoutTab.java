@@ -13,9 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Window Layout settings - tile several Minecraft instances on one monitor. */
-public class WindowLayoutTab extends BaseTab implements KeyCaptureTab {
+public class WindowLayoutTab extends BaseTab {
 
-    private boolean capturingPickerKey = false;
 
     public WindowLayoutTab() {
         super("Window Layout");
@@ -92,11 +91,13 @@ public class WindowLayoutTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Restore on Launch", cfg.isRestoreOnLaunch()));
                 }).bounds(contentX, y, colW, 18).build());
 
-        Component keyLabel = capturingPickerKey ? Component.literal("Press any key...") : pickerKeyText(cfg);
-        widgets.add(SettingsButtonWidget.builder(keyLabel, btn -> {
-                    capturingPickerKey = true;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(colBX, y, colW, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(onOff("Full Monitor Borderless", cfg.isFullMonitorBorderless()), btn -> {
+                    cfg.setFullMonitorBorderless(!cfg.isFullMonitorBorderless());
+                    cfg.save();
+                    btn.setMessage(onOff("Full Monitor Borderless", cfg.isFullMonitorBorderless()));
+                }).bounds(contentX, y, colW, 18).build());
+
 
         return widgets;
     }
@@ -118,26 +119,9 @@ public class WindowLayoutTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Monitor: §b" + (m == null ? (cfg.getMonitorIndex() + 1) + " (missing)" : m.label()));
     }
 
-    private static Component pickerKeyText(WindowLayoutConfig cfg) {
-        String name = cfg.getPickerKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getPickerKeyCode()).getDisplayName().getString();
-        return Component.literal("Picker Key: §b" + name);
-    }
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
-    @Override
-    public boolean isListeningForKey() {
-        return capturingPickerKey;
-    }
-
-    @Override
-    public void onKeyCaptured(int keyCode) {
-        WindowLayoutConfig cfg = WindowLayoutConfig.getInstance();
-        cfg.setPickerKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
-        capturingPickerKey = false;
-        cfg.save();
-    }
 }

@@ -38,6 +38,11 @@ import java.util.regex.Pattern;
  * </ul>
  * One {@link #register()} call wires this, {@link I4LeapFeature}, {@link LeapManager}, {@link Floor7Tracker},
  * {@link Teammates} and {@link PosmsgTargets}.
+ * <p>
+ * TEMPORARY (2026-09-15): {@link LeapGroup#TEST} ("Test Leap") is a testing aid with no position or phase
+ * condition - it always leaps to its own class. It touches exactly two places in here, both marked TEMPORARY:
+ * the top of {@link #attemptFastLeap()} (manual click) and {@link #testAutoOverride(FastLeapConfig)} (the
+ * automatic side). Expected to be removed once killer560 has finished testing.
  */
 public final class FastLeapFeature {
 
@@ -336,6 +341,20 @@ public final class FastLeapFeature {
 
     private static boolean attemptFastLeap() {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
+        // TEMPORARY test leap (2026-09-15, killer560: "add a test fast leap... it will always leap to that class
+        // no matter where I am and it is only for testing right now and will be removed after I finish testing").
+        // Deliberately the FIRST thing checked, above every position/phase branch below, so the test leap wins
+        // wherever you're standing - that's the whole point of it, and the settings page says so in grey.
+        if (cfg.isLeapEnabled(LeapGroup.TEST)) {
+            DungeonClass test = cfg.getTestLeapClass();
+            if (test == null) {
+                ModChat.send("Fast Leap", ModChat.bad("Test leap is on but no class is selected"));
+                return true;
+            }
+            LOGGER.info("[FastLeap] Test leap (position ignored) -> {}", test.displayName());
+            leapNow(test, cfg);
+            return true;
+        }
         if (!Floor7Tracker.inBoss()) {
             String opener = doorOpener;
             if (!cfg.isLeapEnabled(LeapGroup.DOOR) || "Unknown".equals(opener) || opener.equalsIgnoreCase(Teammates.selfName())
@@ -451,12 +470,38 @@ public final class FastLeapFeature {
 
     private static void leap(String name) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
+        DungeonClass test = testAutoOverride(cfg);
+        if (test != null) {
+            leapNow(test, cfg);
+            return;
+        }
         LeapManager.leap(name, cfg.isBlockInputs(), cfg.isFastMode(), cfg.isSwapBack());
     }
 
     private static void leap(DungeonClass clazz) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
+        DungeonClass test = testAutoOverride(cfg);
+        leapNow(test != null ? test : clazz, cfg);
+    }
+
+    /** Fires a leap at a class with no test-leap override applied - every leap ultimately goes out through
+     *  here or {@link LeapManager#leap(String, boolean, boolean, boolean)}. */
+    private static void leapNow(DungeonClass clazz, FastLeapConfig cfg) {
         LeapManager.leap(clazz, cfg.isBlockInputs(), cfg.isFastMode(), cfg.isSwapBack());
+    }
+
+    /** TEMPORARY test leap (2026-09-15, killer560) - see {@link LeapGroup#TEST}. The ONE decision point for the
+     *  automatic side: {@link #leap(String)} and {@link #leap(DungeonClass)} are what every auto trigger in this
+     *  class funnels through, so with "Test Leap" AND its "Auto" both on, whichever auto trigger fires (door
+     *  opened, Storm crush, P3 stage done, relic, ...) is redirected to the test class instead of that leap's own
+     *  target - no per-trigger special cases anywhere else. With Auto off, the test leap only acts on a manual
+     *  fast-leap click (see {@link #attemptFastLeap()}) and the automatic leaps behave exactly as before.
+     *  @return the class to leap to instead, or null when the test leap isn't overriding anything. */
+    private static DungeonClass testAutoOverride(FastLeapConfig cfg) {
+        if (!cfg.isLeapEnabled(LeapGroup.TEST) || !cfg.isLeapAuto(LeapGroup.TEST)) {
+            return null;
+        }
+        return cfg.getTestLeapClass();
     }
 
     // ------------------------------------------------------------------------------------------------------------

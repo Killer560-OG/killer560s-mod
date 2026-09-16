@@ -447,7 +447,6 @@ final class SettingTooltipsData {
         d.put("gap", "Space in pixels (0-20) left around and between window cells.");
         d.put("respect taskbar", "Fits cells inside the monitor's work area so windows do not cover the taskbar. OFF uses the full monitor.");
         d.put("restore on launch", "On game start, moves the window back into the last cell you picked in the layout picker.");
-        d.put("picker key", "Key that opens the layout picker in-game or on the title screen. Unset by default; press Escape while capturing to clear it.");
         d.put("mask invincibility", "HUD timers for Spirit Mask, Bonzo's Mask and Phoenix pet invincibility and cooldowns, started when their proc message appears in chat.");
         d.put("spirit", "Shows the Spirit Mask timer on the HUD (3s invincible, 30s cooldown).");
         d.put("bonzo", "Shows the Bonzo's Mask timer on the HUD (3s invincible, fixed 180s cooldown estimate).");
@@ -670,9 +669,7 @@ final class SettingTooltipsData {
         d.put("edit hud keybind", "Key that opens the HUD position editor from in-game. Click, then press a key; Escape unbinds it.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders, so alt-tabbing is instant. Toggle it off and on once the first time you use it.");
         d.put("fullbright", "Renders the world at full brightness no matter the light level or your brightness slider.");
-        d.put("themed main menu", "Replaces the vanilla title screen with the mod's black and orange one. OFF brings back the normal main menu.");
-        d.put("main menu embers", "Drifting ember particles behind the themed main menu. Only shows while Themed Main Menu is ON.");
-        d.put("themed other menus", "Uses the black and orange theme on every other menu too: multiplayer, options, world select, and other mods' screens. Needs Themed Main Menu ON. Chests and inventories stay normal.");
+        d.put("themed main menu", "The mod's black and orange theme for the game's own menus: the title screen with its animated background and embers, plus multiplayer, options, world select and other mods' screens. OFF brings back the vanilla menus. Chests and inventories are never themed.");
         d.put("auto join skyblock", "Sends /skyblock a few seconds after you join Hypixel. Skipped if you type a command first, and doesn't re-trigger after /lobby.");
         d.put("profile name", "Name for a new settings profile. Type it here, then click Save Current As New.");
         d.put("save current as new", "Saves all of your current mod settings as a new profile with the name typed to the left.");
@@ -875,5 +872,13 @@ final class SettingTooltipsData {
         d.put("m7 storm (p2)", "Prompts after Storm's entry line so the buff is up when P2 starts. The 5s figure is an estimate; tune with the lead slider.");
         d.put("f5/m5 livid", "Prompts near the end of Livid's 390-tick invulnerability, so the buff is up the moment he can be damaged.");
         d.put("pad cycle timer", "NoammAddons' Storm pad timer: a repeating 20-server-tick countdown that starts on Storm's P2 line and runs until he dies, so you can time pad drops. Shown in ticks.");
+        d.put("full monitor borderless", "Picking Full Monitor puts the game into borderless fullscreen on that monitor instead of leaving a plain full-size window. Turn this off to get a normal window with a title bar.");
+
+        // Discord Rich Presence
+        d.put("discord rich presence", "Shows \"Playing Killer560's Mod\" on your Discord profile while the game is open. Needs the Discord desktop app running; off by default.");
+        d.put("hide details", "Privacy mode: your friends only see the mod name and nothing about where you are - no island, area, dungeon floor or phase.");
+        d.put("show island / area", "Adds your current SkyBlock island and area to the presence (e.g. \"Hub - Village\"). Only ever shown while you're actually on Hypixel.");
+        d.put("show dungeon info", "While in a Catacombs run, shows the floor and the F7/M7 boss phase instead of the island/area.");
+        d.put("show elapsed time", "Shows a running \"XX:XX elapsed\" timer on your Discord profile, counting from when Rich Presence connected.");
     }
 }

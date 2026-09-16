@@ -55,7 +55,15 @@ public final class FastLeapConfig {
         P3("P3"),
         MIDDLE("Middle"),
         P4("P4"),
-        RELIC("Relic");
+        RELIC("Relic"),
+        /** TEMPORARY - testing aid added 2026-09-15 at killer560's request ("also add a test fast leap that
+         *  will have the option to auto leap or just fast leap and select a class... it is only for testing
+         *  right now and will be removed after I finish testing"). Unlike every other leap it has no position
+         *  or phase condition at all: while it's on it always leaps to {@link FastLeapConfig#getTestLeapClass()},
+         *  wherever you are, which is exactly why it must not outlive the testing. REMOVE this constant (and
+         *  the {@code testLeapClass} field below, the Test branch in {@code FastLeapSection.buildLeapEditor}
+         *  and the test hooks in {@code FastLeapFeature}) when testing is done. */
+        TEST("Test");
 
         public final String label;
 
@@ -115,6 +123,9 @@ public final class FastLeapConfig {
     private boolean swapBack = false;
     private boolean disableAfterBloodOpen = false;
     private boolean onlyWhenGateBlown = false;
+    /** TEMPORARY - the class {@link LeapGroup#TEST} always leaps to (2026-09-15 testing aid, see that enum
+     *  constant). null = nothing picked yet, which makes the test leap a no-op. Remove with the test leap. */
+    private DungeonClass testLeapClass = null;
     private final Map<LeapGroup, GroupSettings> groups = new EnumMap<>(LeapGroup.class);
     private final Map<LeapTarget, TargetSettings> targets = new EnumMap<>(LeapTarget.class);
 
@@ -150,6 +161,9 @@ public final class FastLeapConfig {
                 cfg.swapBack = bool(obj, "swapBack", false);
                 cfg.disableAfterBloodOpen = bool(obj, "disableAfterBloodOpen", false);
                 cfg.onlyWhenGateBlown = bool(obj, "onlyWhenGateBlown", false);
+                // TEMPORARY (test leap, 2026-09-15) - remove with LeapGroup.TEST
+                String testClass = str(obj, "testLeapClass", "");
+                cfg.testLeapClass = testClass.isEmpty() ? null : DungeonClass.byName(testClass);
                 if (obj.has("groups") && obj.get("groups").isJsonObject()) {
                     JsonObject g = obj.getAsJsonObject("groups");
                     for (LeapGroup group : LeapGroup.values()) {
@@ -196,6 +210,8 @@ public final class FastLeapConfig {
             obj.addProperty("swapBack", swapBack);
             obj.addProperty("disableAfterBloodOpen", disableAfterBloodOpen);
             obj.addProperty("onlyWhenGateBlown", onlyWhenGateBlown);
+            // TEMPORARY (test leap, 2026-09-15) - remove with LeapGroup.TEST
+            obj.addProperty("testLeapClass", testLeapClass == null ? "" : testLeapClass.name());
             JsonObject g = new JsonObject();
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
@@ -320,6 +336,18 @@ public final class FastLeapConfig {
 
     public void setOnlyWhenGateBlown(boolean v) {
         onlyWhenGateBlown = v;
+    }
+
+    // ---- TEMPORARY: test leap (2026-09-15) ---------------------------------------------------------------------
+    // Testing aid only - see LeapGroup.TEST. Delete this whole block when the test leap is removed.
+
+    /** @return the class {@link LeapGroup#TEST} always leaps to, or null when none has been picked. */
+    public DungeonClass getTestLeapClass() {
+        return testLeapClass;
+    }
+
+    public void setTestLeapClass(DungeonClass clazz) {
+        testLeapClass = clazz;
     }
 
     // ---- per leap ---------------------------------------------------------------------------------------------
