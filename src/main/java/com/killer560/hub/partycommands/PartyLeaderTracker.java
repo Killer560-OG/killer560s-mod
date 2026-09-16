@@ -76,6 +76,17 @@ final class PartyLeaderTracker {
         }
     }
 
+    /** True for the lines that mean this client is no longer in the party it was in (left, kicked, disbanded).
+     *  {@link PartyCommandsFeature} uses it to drop anything it had queued for that party. */
+    static boolean clearsParty(String plain) {
+        for (Pattern p : CLEARED) {
+            if (p.matcher(plain).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** @return the known leader, or null when unknown / not in a party. */
     static String get() {
         return leader;

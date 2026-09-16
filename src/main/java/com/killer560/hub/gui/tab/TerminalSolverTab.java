@@ -5,7 +5,9 @@ import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.terminals.TerminalQolConfig;
 import com.killer560.hub.terminals.TerminalSolverConfig;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -24,11 +26,36 @@ import java.util.List;
  *  Overlay Colours (2026-09-15, killer560: "add the option to set custom colors for terminal overlays")
  *  - one picker button per real drawing role (see {@link TerminalSolverConfig.OverlayColor}), plus a
  *  Reset Colours button. Everything is legit-build behaviour, so every header here is the normal orange
- *  {@link SectionHeaders} one, not the cheat red. */
-public class TerminalSolverTab extends BaseTab {
+ *  {@link SectionHeaders} one, not the cheat red.
+ *  <p>
+ *  Terminal QoL (2026-09-16) - five small terminal-adjacent features ported from Devonian, see
+ *  {@link com.killer560.hub.terminals.TerminalQolFeature}. They live under this tab because they are all
+ *  terminal-scoped, but none of them touches the solver: every one works with the solver toggle off.
+ *  Legit-build behaviour too (Melody Keys sends one click per keypress, the same class as the mod's existing
+ *  Slot Binds / Loadout Keybinds / Custom Leap Menu keys), so orange headers throughout. */
+public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
+
+    /** True while the Drop Key button is waiting for the next keypress - see {@link #onKeyCaptured}. */
+    private boolean capturingDropKey = false;
 
     public TerminalSolverTab() {
         super("Terminal Solver");
+    }
+
+    @Override
+    public boolean isListeningForKey() {
+        return capturingDropKey;
+    }
+
+    @Override
+    public void onKeyCaptured(int keyCode) {
+        TerminalQolConfig cfg = TerminalQolConfig.getInstance();
+        // Escape clears the binding, same convention DoorHelpersTab/AbilityTimersTab already use. -1 here means
+        // "unbound", which for this feature is a real, useful setting: nothing at all can drop an item while a
+        // terminal is open (Devonian's own default for TerminalDropKey is GLFW_KEY_UNKNOWN too).
+        cfg.setDropKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        capturingDropKey = false;
+        cfg.save();
     }
 
     @Override
@@ -156,7 +183,195 @@ public class TerminalSolverTab extends BaseTab {
         // ------------------------------------------------------------------ overlay colours
         y = buildColorSection(widgets, contentX, y, contentWidth, requestRebuild);
 
+        // ------------------------------------------------------------------ terminal QoL
+        y = buildQolSection(widgets, contentX, y, contentWidth, requestRebuild);
+
         return widgets;
+    }
+
+    /** Terminal QoL - Protection / Drop Key / Melody Keys / GUI Scale / Hide Completion. Each master toggle
+     *  reveals its own sub-settings on a rebuild, the same collapse pattern {@code DoorHelpersTab} uses, so the
+     *  section is five buttons tall until something is actually turned on. */
+    private int buildQolSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
+                                Runnable requestRebuild) {
+        Minecraft mc = Minecraft.getInstance();
+        TerminalQolConfig cfg = TerminalQolConfig.getInstance();
+        int gap = 8;
+        int col2W = (contentWidth - gap) / 2;
+        int col2bX = contentX + col2W + gap;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Terminal QoL", false), mc.font));
+        y += 14;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Works with the solver above on or off."), mc.font));
+        y += 16;
+
+        // ---- Terminal Protection ----
+        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Protection", cfg.isProtectionEnabledRaw()), btn -> {
+                    cfg.setProtectionEnabled(!cfg.isProtectionEnabledRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
+        if (cfg.isProtectionEnabledRaw()) {
+            int span = TerminalQolConfig.MAX_PROTECTION_MS - TerminalQolConfig.MIN_PROTECTION_MS;
+            widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, thresholdText(cfg),
+                    (cfg.getProtectionThresholdMs() - TerminalQolConfig.MIN_PROTECTION_MS) / (double) span) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(thresholdText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setProtectionThresholdMs(
+                            (int) Math.round(TerminalQolConfig.MIN_PROTECTION_MS + this.value * span));
+                    cfg.save();
+                }
+            });
+            widgets.add(SettingsButtonWidget.builder(onOff("Subtract Ping", cfg.isProtectionSubtractPing()), btn -> {
+                        cfg.setProtectionSubtractPing(!cfg.isProtectionSubtractPing());
+                        cfg.save();
+                        btn.setMessage(onOff("Subtract Ping", cfg.isProtectionSubtractPing()));
+                    }).bounds(col2bX, y, col2W, 18).build());
+            y += 20;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("Eats the first click that lands this soon after a terminal"), mc.font));
+            y += 11;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("opens. 400ms minus your ping is the usual safe value."), mc.font));
+            y += 16;
+        }
+
+        // ---- Drop Key ----
+        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Drop Key", cfg.isDropKeyEnabledRaw()), btn -> {
+                    cfg.setDropKeyEnabled(!cfg.isDropKeyEnabledRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
+        if (cfg.isDropKeyEnabledRaw()) {
+            widgets.add(SettingsButtonWidget.builder(dropKeyText(cfg), btn -> {
+                        capturingDropKey = true;
+                        btn.setMessage(Component.literal("Press any key..."));
+                    }).bounds(contentX, y, col2W, 18).build());
+            y += 20;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("Your Drop key becomes this while a terminal is open, so"), mc.font));
+            y += 11;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("Q can't throw your blade. Escape = nothing can drop."), mc.font));
+            y += 16;
+        }
+
+        // ---- Melody Keys ----
+        widgets.add(SettingsButtonWidget.builder(onOff("Melody Keys 1-4", cfg.isMelodyKeysEnabledRaw()), btn -> {
+                    cfg.setMelodyKeysEnabled(!cfg.isMelodyKeysEnabledRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Melody Keys 1-4", cfg.isMelodyKeysEnabledRaw()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 22;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Press 1-4 to click Melody's four rows instead of mousing."), mc.font));
+        y += 18;
+
+        // ---- Terminal GUI Scale ----
+        int scaleSpan = TerminalQolConfig.MAX_GUI_SCALE - TerminalQolConfig.MIN_GUI_SCALE;
+        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, terminalScaleText(cfg),
+                (cfg.getTerminalGuiScaleRaw() - TerminalQolConfig.MIN_GUI_SCALE) / (double) scaleSpan) {
+            @Override
+            protected void updateMessage() {
+                setMessage(terminalScaleText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setTerminalGuiScale((int) Math.round(TerminalQolConfig.MIN_GUI_SCALE + this.value * scaleSpan));
+                cfg.save();
+            }
+        });
+        widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, melodyScaleText(cfg),
+                (cfg.getMelodyGuiScaleRaw() - TerminalQolConfig.MIN_GUI_SCALE) / (double) scaleSpan) {
+            @Override
+            protected void updateMessage() {
+                setMessage(melodyScaleText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setMelodyGuiScale((int) Math.round(TerminalQolConfig.MIN_GUI_SCALE + this.value * scaleSpan));
+                cfg.save();
+            }
+        });
+        y += 20;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("Minecraft's GUI scale while a terminal is open. Auto = off."), mc.font));
+        y += 18;
+
+        // ---- Hide Completion ----
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Completion Titles", cfg.isHideCompletionTitlesRaw()), btn -> {
+                    cfg.setHideCompletionTitles(!cfg.isHideCompletionTitlesRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Completion Chat", cfg.isHideCompletionChatRaw()), btn -> {
+                    cfg.setHideCompletionChat(!cfg.isHideCompletionChatRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 22;
+
+        if (cfg.isHideCompletionChatRaw()) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§eNote: this also hides Terminal Timers' own split times,"), mc.font));
+            y += 11;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§ewhich are appended to these same lines."), mc.font));
+            y += 15;
+        }
+
+        if (cfg.isHideCompletionTitlesRaw() || cfg.isHideCompletionChatRaw()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Only Hide Others'", cfg.isHideCompletionOnlyOthers()), btn -> {
+                        cfg.setHideCompletionOnlyOthers(!cfg.isHideCompletionOnlyOthers());
+                        cfg.save();
+                        btn.setMessage(onOff("Only Hide Others'", cfg.isHideCompletionOnlyOthers()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+        }
+
+        return y;
+    }
+
+    private static Component onOff(String label, boolean value) {
+        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    private static Component thresholdText(TerminalQolConfig cfg) {
+        return Component.literal("Threshold: " + cfg.getProtectionThresholdMs() + "ms");
+    }
+
+    private static Component terminalScaleText(TerminalQolConfig cfg) {
+        int v = cfg.getTerminalGuiScaleRaw();
+        return Component.literal("Terminal Scale: " + (v == 0 ? "Auto" : String.valueOf(v)));
+    }
+
+    private static Component melodyScaleText(TerminalQolConfig cfg) {
+        int v = cfg.getMelodyGuiScaleRaw();
+        return Component.literal("Melody Scale: " + (v == 0 ? "Auto" : String.valueOf(v)));
+    }
+
+    private Component dropKeyText(TerminalQolConfig cfg) {
+        if (capturingDropKey) {
+            return Component.literal("Press any key...");
+        }
+        int key = cfg.getDropKeyCode();
+        String name = key == -1 ? "Unbound" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
+        return Component.literal("Drop Key: " + name);
     }
 
     /** One colour-picker button per real drawing role, grouped the same way the overlay itself is:

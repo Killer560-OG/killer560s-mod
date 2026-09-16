@@ -25,6 +25,7 @@ public final class DungeonAlertsPackets {
         // Rag Axe lives in com.killer560.hub.ragaxe now; it reuses this one sound-packet bridge
         // rather than adding a second mixin for the same packet.
         guard("sound/ragaxe", () -> com.killer560.hub.ragaxe.RagAxeFeature.onSoundPacket(packet));
+        guard("sound/abilitycooldown", () -> com.killer560.hub.abilitycooldown.AbilityCooldownFeature.onSoundPacket(packet));
     }
 
     public static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {

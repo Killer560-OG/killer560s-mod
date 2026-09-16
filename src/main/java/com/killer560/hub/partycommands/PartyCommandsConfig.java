@@ -20,8 +20,8 @@ import java.util.Locale;
  * <p>
  * Every command is its own toggle and every one of them ships OFF, plus a second master switch
  * ({@link #isAllowDestructive()}) that the party-mutating ones ({@link Command#isDestructive()}: warp, warp +
- * transfer, kick, demote, floor queue) need on top of their own toggle. Turning the feature on therefore does
- * nothing at all until the user deliberately picks which commands teammates may run.
+ * transfer, kick, re-invite, demote, floor queue) need on top of their own toggle. Turning the feature on
+ * therefore does nothing at all until the user deliberately picks which commands teammates may run.
  * <p>
  * Toggles live in one {@code EnumMap} rather than a field per command (there are 14 of them); each still gets
  * its own JSON key ("cmd.warp", "cmd.kick", ...) read through {@link ConfigJson}, so a hand-edited or
@@ -38,6 +38,7 @@ public final class PartyCommandsConfig {
         TRANSFER("Transfer To Sender", false, "pt", "ptme", "transfer"),
         INVITE("Invite", false, "invite", "inv"),
         KICK("Kick", true, "kick", "k"),
+        REINVITE("Reinvite", true, "reinv", "reinvite"),
         DEMOTE("Demote", true, "demote"),
         PROMOTE("Promote", false, "promote"),
         BOOP("Boop", false, "boop"),

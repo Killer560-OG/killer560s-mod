@@ -190,6 +190,14 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.itemprotect.ItemProtectFeature.register();
+        com.killer560.hub.objecthider.ObjectHiderFeature.register();
+        com.killer560.hub.abilitycooldown.AbilityCooldownFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.abilitycooldown.AbilityCooldownFeature.CooldownHudElement());
+        com.killer560.hub.lagdisplay.LagDisplayFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.lagdisplay.LagDisplayFeature.LagHudElement());
+        com.killer560.hub.terminals.TerminalQolFeature.register();
+        com.killer560.hub.goldorfrenzy.GoldorFrenzyFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.goldorfrenzy.GoldorFrenzyFeature.GoldorFrenzyHudElement());
         com.killer560.hub.itembrowser.ItemBrowserFeature.register();
         I4SensorsFeature.register();
         com.killer560.hub.i4sensors.AutoI4Feature.register();

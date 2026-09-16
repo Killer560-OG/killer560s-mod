@@ -7,6 +7,7 @@ import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,6 +59,10 @@ import java.util.regex.Pattern;
  * </ul>
  * Argument names are re-validated against {@link #NAME_PATTERN} before they are ever concatenated into a
  * command string, so no chat text can smuggle extra arguments into {@code sendCommand}.
+ * <p>
+ * One command here is NOT Odin's: {@code !reinv} / {@code !reinvite} (2026-09-16, killer560's own request) -
+ * kick the teammate who asked and invite them back 5s later, the usual fix for a party/instance bug. It goes
+ * through the same teammate gate, its own toggle and the destructive switch; see {@link #reinvite}.
  */
 public final class PartyCommandsFeature {
 
@@ -84,13 +90,26 @@ public final class PartyCommandsFeature {
     /** A dropped command only ever reports itself this often, so the rejection can't become the spam. */
     private static final long REJECT_LOG_GAP_MS = 15_000L;
 
+    /** {@code !reinv}: how long to leave the player out before inviting them back (the usual party/instance
+     *  bug fix is a kick and a re-invite a few seconds later, not an instant one). */
+    private static final long REINVITE_DELAY_MS = 5_000L;
+    private static final String REINVITE_KEY = "reinvite:";
+
     private static final Deque<Long> GLOBAL_TIMES = new ArrayDeque<>();
     private static final Map<String, Deque<Long>> SENDER_TIMES = new HashMap<>();
     private static long lastGlobalAtMs = 0L;
     private static long lastRejectLogAtMs = 0L;
 
-    /** Pending delayed sends (Odin's {@code runIn(n)} ticks): warp-then-transfer, end-of-run downtime. */
-    private record Pending(long dueAtMs, Runnable action) {
+    /**
+     * Pending delayed sends (Odin's {@code runIn(n)} ticks): warp-then-transfer, end-of-run downtime, and
+     * {@code !reinv}'s 5s gap. Run from the client tick, never a sleep.
+     * <p>
+     * {@code key} names a cancellable entry ("reinvite:&lt;name&gt;", used to cancel one and to refuse a second
+     * one for the same player); {@code guard} is re-checked the moment the entry comes due and a false answer
+     * drops it instead of running it - so a queued {@code /p invite} can never fire into a party, world or run
+     * that isn't the one it was queued for.
+     */
+    private record Pending(long dueAtMs, String key, BooleanSupplier guard, Runnable action) {
     }
 
     private static final List<Pending> PENDING = new ArrayList<>();
@@ -119,6 +138,11 @@ public final class PartyCommandsFeature {
             return;
         }
         PartyLeaderTracker.onServerLine(plain);
+        // Left / kicked / disbanded: any queued !reinv invite would land in a party this client is no longer
+        // part of (or re-invite someone into a brand new one), so drop them as soon as Hypixel says so.
+        if (PartyLeaderTracker.clearsParty(plain)) {
+            cancelReinvites("you're no longer in that party");
+        }
         if (!DOWNTIME.isEmpty() && END_OF_RUN.matcher(plain).matches()) {
             // Odin: runIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat - a
             // teammate's "!dt" never makes your client speak.
@@ -189,7 +213,7 @@ public final class PartyCommandsFeature {
     /** Commands Hypixel only lets the party leader run - Odin gates these on {@code PartyUtils.isLeader()}. */
     private static boolean needsLeader(Command command) {
         return switch (command) {
-            case WARP, WARP_TRANSFER, ALL_INVITE, TRANSFER, KICK, DEMOTE, PROMOTE, QUEUE_INSTANCE -> true;
+            case WARP, WARP_TRANSFER, ALL_INVITE, TRANSFER, KICK, REINVITE, DEMOTE, PROMOTE, QUEUE_INSTANCE -> true;
             default -> false;
         };
     }
@@ -218,6 +242,7 @@ public final class PartyCommandsFeature {
                 }
                 execute(command, sender, "p kick " + target, "kicked " + target);
             }
+            case REINVITE -> reinvite(sender);
             case DEMOTE -> execute(command, sender, "p demote " + sender, "demoted themself");
             case PROMOTE -> execute(command, sender, "p promote " + sender, "promoted themself");
             case INVITE -> invite(sender, arg);
@@ -409,6 +434,52 @@ public final class PartyCommandsFeature {
         DOWNTIME.clear();
     }
 
+    // ------------------------------------------------------------------ reinvite (!reinv)
+
+    /**
+     * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back
+     * {@link #REINVITE_DELAY_MS} later - the usual fix for a player stuck in a broken party/instance state.
+     * <p>
+     * The gap is a scheduled client-tick entry, never a sleep, and it is re-validated the moment it comes due
+     * ({@link #reinviteStillValid}) plus cancelled outright from {@link #onServerLine} the moment this client
+     * stops being in that party. A queued invite therefore never fires into a different party, world or run -
+     * the worst case is that it is dropped and the player is simply left to re-join normally.
+     */
+    private static void reinvite(String sender) {
+        String key = REINVITE_KEY + sender.toLowerCase(Locale.US);
+        if (isPending(key)) {
+            // Already kicked and waiting - a second "!reinv" must not queue a second invite (the per-sender
+            // rate limit is 8s, longer than the delay, so this is the belt to that braces).
+            LOGGER.info("[PartyCommands] \"!reinv\" from {} ignored - a re-invite is already pending", sender);
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        ClientLevel level = client.level;
+        boolean wasInDungeon = DungeonState.isInDungeon();
+        execute(Command.REINVITE, sender, "p kick " + sender,
+                "asked to be re-invited - kicked, inviting back in " + (REINVITE_DELAY_MS / 1000) + "s");
+        schedule(REINVITE_DELAY_MS, key, () -> reinviteStillValid(level, wasInDungeon), () -> {
+            sendCommand("p invite " + sender);
+            log(sender, "re-invited");
+        });
+    }
+
+    /** Re-checked when the queued invite is due: same world, still connected, still in the run it was asked in,
+     *  still the leader, and the command still turned on. Any of those changing drops the invite. */
+    private static boolean reinviteStillValid(ClientLevel level, boolean wasInDungeon) {
+        if (!PartyCommandsConfig.getInstance().allows(Command.REINVITE)) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.getConnection() == null || client.level != level) {
+            return false;
+        }
+        if (wasInDungeon && !DungeonState.isInDungeon()) {
+            return false;
+        }
+        return !PartyLeaderTracker.knownNotLeader();
+    }
+
     // ------------------------------------------------------------------ invite
 
     private static void invite(String sender, String arg) {
@@ -487,13 +558,17 @@ public final class PartyCommandsFeature {
     }
 
     private static void schedule(long delayMs, Runnable action) {
+        schedule(delayMs, null, null, action);
+    }
+
+    private static void schedule(long delayMs, String key, BooleanSupplier guard, Runnable action) {
         synchronized (PENDING) {
-            PENDING.add(new Pending(System.currentTimeMillis() + delayMs, action));
+            PENDING.add(new Pending(System.currentTimeMillis() + delayMs, key, guard, action));
         }
     }
 
     private static void runPending() {
-        List<Runnable> due = null;
+        List<Pending> due = null;
         synchronized (PENDING) {
             if (PENDING.isEmpty()) {
                 return;
@@ -504,19 +579,56 @@ public final class PartyCommandsFeature {
                     if (due == null) {
                         due = new ArrayList<>();
                     }
-                    due.add(PENDING.remove(i).action());
+                    due.add(PENDING.remove(i));
                 }
             }
         }
         if (due == null) {
             return;
         }
-        for (Runnable action : due) {
+        for (Pending pending : due) {
             try {
-                action.run();
+                if (pending.guard() != null && !pending.guard().getAsBoolean()) {
+                    LOGGER.info("[PartyCommands] Dropped pending {} - conditions changed before it was due",
+                            pending.key() == null ? "action" : pending.key());
+                    continue;
+                }
+                pending.action().run();
             } catch (RuntimeException e) {
                 LOGGER.error("[PartyCommands] Delayed action failed", e);
             }
         }
+    }
+
+    /** True while a {@code !reinv} for this player is still waiting - a second one is ignored, never queued. */
+    private static boolean isPending(String key) {
+        synchronized (PENDING) {
+            for (Pending pending : PENDING) {
+                if (key.equals(pending.key())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Drops every queued re-invite (the party is gone / this client left it), so none can fire later. */
+    private static void cancelReinvites(String reason) {
+        List<String> cancelled = new ArrayList<>();
+        synchronized (PENDING) {
+            for (int i = PENDING.size() - 1; i >= 0; i--) {
+                String key = PENDING.get(i).key();
+                if (key != null && key.startsWith(REINVITE_KEY)) {
+                    cancelled.add(key.substring(REINVITE_KEY.length()));
+                    PENDING.remove(i);
+                }
+            }
+        }
+        if (cancelled.isEmpty()) {
+            return;
+        }
+        ModChat.send("Party Commands", ModChat.bad("Re-invite cancelled"), ModChat.text(" for "),
+                ModChat.value(String.join(", ", cancelled)), ModChat.dim(" - " + reason + "."));
+        LOGGER.info("[PartyCommands] Cancelled queued re-invite(s) {} - {}", cancelled, reason);
     }
 }

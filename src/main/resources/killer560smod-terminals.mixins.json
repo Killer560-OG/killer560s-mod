@@ -5,6 +5,9 @@
 	"package": "com.killer560.hub.terminals.mixin",
 	"client": [
 		"TerminalAutoClickInputBlockMixin",
+		"TerminalQolChatMixin",
+		"TerminalQolInputMixin",
+		"TerminalQolTitleMixin",
 		"TerminalSolverBackgroundMixin",
 		"TerminalSolverContainerRenderMixin",
 		"TerminalSolverSlotMixin",

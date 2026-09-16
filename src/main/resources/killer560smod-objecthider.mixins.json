@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.objecthider.mixin",
+	"client": [
+		"AbstractArrowInGroundAccessor",
+		"ObjectHiderPacketMixin",
+		"ObjectHiderParticleMixin",
+		"ObjectHiderRenderMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

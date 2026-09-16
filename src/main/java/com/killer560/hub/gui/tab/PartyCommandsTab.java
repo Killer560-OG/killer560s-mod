@@ -14,8 +14,8 @@ import java.util.List;
 
 /** Party Commands settings - Odin's party commands, but only a real party/dungeon teammate can trigger one.
  *  See {@link com.killer560.hub.partycommands.PartyCommandsFeature} for the rules. Every command is its own
- *  toggle and every one starts OFF; the party-mutating ones (warp, warp + transfer, kick, demote, queue floor)
- *  need the separate "Allow Destructive Commands" switch as well. */
+ *  toggle and every one starts OFF; the party-mutating ones (warp, warp + transfer, kick, reinvite, demote,
+ *  queue floor) need the separate "Allow Destructive Commands" switch as well. */
 public class PartyCommandsTab extends BaseTab {
 
     public PartyCommandsTab() {
@@ -76,7 +76,7 @@ public class PartyCommandsTab extends BaseTab {
         if (cfg.isAllowDestructive()) {
             y = addToggles(widgets, cfg, true, y, colAX, colBX, colW);
         } else {
-            widgets.add(note(contentX, y, contentWidth, "Warp, warp + transfer, kick, demote and floor queue stay off."));
+            widgets.add(note(contentX, y, contentWidth, "Warp, warp + transfer, kick, reinvite, demote and queue stay off."));
             y += 16;
         }
 

@@ -1057,7 +1057,7 @@ final class SettingTooltipsData {
 
         // Party Commands
         d.put("party commands/party commands", "Lets your party/dungeon teammates run party commands by typing them in party chat. Nobody outside your party can trigger anything. Every command is off until you turn it on.");
-        d.put("party commands/allow destructive commands", "Extra switch needed before Warp, Warp + Transfer, Kick, Demote and Queue Floor can run, even when those are individually on.");
+        d.put("party commands/allow destructive commands", "Extra switch needed before Warp, Warp + Transfer, Kick, Reinvite, Demote and Queue Floor can run, even when those are individually on.");
         d.put("party commands/confirm invites", "!invite only prints a click-to-invite line instead of inviting by itself. Off means the invite is sent immediately.");
         d.put("party commands/warp", "!warp from a teammate warps the party (you must be leader).");
         d.put("party commands/warp + transfer", "!wt warps the party, then transfers it to whoever asked.");
@@ -1065,6 +1065,7 @@ final class SettingTooltipsData {
         d.put("party commands/transfer to sender", "!ptme / !pt transfers the party to whoever asked (or to a named member).");
         d.put("party commands/invite", "!invite <name> invites that player. See Confirm Invites.");
         d.put("party commands/kick", "!kick <name> removes that player from the party.");
+        d.put("party commands/reinvite", "!reinv (or !reinvite) kicks the teammate who typed it and invites them back 5 seconds later - the usual fix for a stuck party or instance. The invite is dropped if you leave the party or the run before it fires.");
         d.put("party commands/demote", "!demote applies to the teammate who typed it.");
         d.put("party commands/promote", "!promote applies to the teammate who typed it.");
         d.put("party commands/boop", "!boop <name> sends /boop to that player.");
@@ -1092,5 +1093,63 @@ final class SettingTooltipsData {
         d.put("confirm to force", "Makes the first blocked drop a warning instead of a wall: press drop again within 3 seconds to drop it anyway.");
         d.put("block every drop", "Extends Prevent Hotbar Drops to every item, not just protected ones. Confirm To Force still applies.");
         d.put("block sound", "Plays a short low note whenever a drop, sale or move is blocked. The chat message is always sent either way.");
+
+        // Object Hider pack + Terminal QoL + Goldor Frenzy
+        d.put("blindness effect", "Drops the server's blindness effect for you, so P3 blind doesn't black out your screen. Client-side only.");
+        d.put("healer fairy", "Stops the healer's floating fairy model from rendering.");
+        d.put("power orbs", "Stops dungeon support orbs (and their dust clouds) from rendering. Orbs still work.");
+        d.put("keep nearby orbs", "Keeps orbs within the radius below visible, so you can still see the orb you're standing in.");
+        d.put("keep radius", "How close an orb has to be (in blocks) to stay visible. 1-20.");
+        d.put("soulweaver skulls", "Stops the skulls spawned by Soulweaver Gloves from rendering.");
+        d.put("archer passive", "Hides the spinning bone meal items the archer passive drops.");
+        d.put("sheep", "Hides sheep inside dungeons.");
+        d.put("wither cloak creepers", "Hides the invisible charged creepers Wither Cloak spawns. They still block clicks.");
+        d.put("wither shield hearts", "Hides the heart particles from Wither Shield healing.");
+        d.put("dying dragons", "Hides M7 dragons once they start their death animation, so P5 stays readable.");
+        d.put("wither king model", "Hides the Wither King's armor-stand model and his witch particles in the M7 arena.");
+        d.put("boss damage splash", "Hides the floating damage numbers in the boss room.");
+        d.put("clean end", "Once the boss dies, hides every mob, player and particle until the reward chests spawn.");
+        d.put("f3/m3 keep guardians", "Clean End exception: on F3/M3, guardians stay visible while you're sneaking.");
+        d.put("grounded arrows", "Stops arrows stuck in blocks from rendering.");
+        d.put("death animations", "Hides mobs the moment they die instead of playing the fall-over animation. Livid's clones are exempt.");
+        d.put("hide dead nametags", "Also hides the nametag above a mob that has just died.");
+        d.put("block break particles", "Hides the block-crack particles from breaking or hitting blocks.");
+        d.put("explosion particles", "Hides the big explosion puff particles.");
+        d.put("smoke particles", "Hides vanilla smoke particles.");
+        d.put("terminal solver/terminal protection", "Ignores your terminal clicks for a short window after the GUI opens, so a ghost or double click queued before it populated can't hit the wrong slot. Plays a low note when it swallows one.");
+        d.put("terminal solver/threshold", "How long after a terminal opens clicks are ignored, 100-700 ms. 400 ms minus your ping is the value people run.");
+        d.put("terminal solver/subtract ping", "Takes your current ping off the threshold above, so it stays right when your connection changes.");
+        d.put("terminal solver/terminal drop key", "Re-binds your Drop key while a terminal is open, so Q can't throw your weapon mid-terms. Restored the moment the terminal closes.");
+        d.put("terminal solver/drop key", "The key that drops items while a terminal is open. Press Escape while setting it to leave it unbound, which means nothing can drop at all.");
+        d.put("terminal solver/melody keys 1-4", "Press 1-4 to click Melody's four row buttons instead of moving the mouse. One click per key press; nothing is automated.");
+        d.put("terminal solver/terminal scale", "Minecraft's GUI scale while a terminal is open. Auto leaves your normal scale alone.");
+        d.put("terminal solver/melody scale", "A separate GUI scale just for Melody, whose board is much wider than the other terminals.");
+        d.put("terminal solver/hide completion titles", "Hides the \"Player activated a terminal! (3/7)\" title and subtitle so the screen stays readable mid-terminal.");
+        d.put("terminal solver/hide completion chat", "Hides the same lines in chat. This also hides Terminal Timers' split times, which are appended to those lines.");
+        d.put("terminal solver/only hide others'", "Keeps your own completion line visible and hides only the rest of the party's.");
+        d.put("goldor frenzy/goldor frenzy timer", "Counts down to Goldor's next P3 damage tick (every 3 seconds) so you can time a heal or mask instead of eating it on terminals.");
+        d.put("goldor frenzy/pre-goldor", "Also counts the ~5 second gap between Storm dying and Goldor arriving.");
+        d.put("goldor frenzy/show total", "Shows how long P3 has been running instead of the countdown to the next tick.");
+
+        // Ability cooldowns + lag display
+        d.put("ability cooldowns", "Detects the ability you used (sound, action bar or chat) and counts down its real cooldown. Values ported from SkyHanni. Skyblock only.");
+        d.put("dungeon abilities only", "Only time and list the abilities that matter in dungeons, instead of the whole table.");
+        d.put("text only", "Drops the colour swatch and draws the cooldown list as plain coloured text.");
+        d.put("show when ready", "Also lists an ability as READY once its cooldown ends, instead of dropping it off the list.");
+        d.put("colour by remaining", "Turns a countdown orange under 3s and red under 1s.");
+        d.put("max lines", "How many cooldown lines the HUD will draw at once, 1-12. Soonest-ready first.");
+        d.put("sound detection", "Starts timers from the ability's own sound (pitch and volume, from SkyHanni). The most accurate source.");
+        d.put("action bar detection", "Starts timers from Hypixel's '-N Mana (Ability)' action bar line. Covers the abilities that have no sound.");
+        d.put("click window", "A heard ability sound only starts YOUR timer if you clicked an item within this long, so a teammate's ability can't start your countdown. Raise it if you play on high ping.");
+        d.put("mage reduction", "Shortens cooldowns by the Mage class reduction while you are playing Mage in a dungeon. Off by default.");
+        d.put("unique class", "You are the only Mage in the party, so the base reduction is 50% instead of 25%.");
+        d.put("mage class level", "Your Mage class level, used for the extra 1% reduction per 2 levels. Nothing reads it from tab yet, so set it here.");
+        d.put("lag display", "Shows how long ago the last server tick arrived, plus ping, FPS and a click counter, in one movable HUD element.");
+        d.put("server lag", "Shows 'zzz for N.NNs' once the server has gone quiet for longer than the Lag Threshold.");
+        d.put("lag threshold", "How long the server has to go silent before the lag line appears. Devonian's default is 300ms.");
+        d.put("ping", "Shows your own ping from the tab list, coloured green under 50ms up to red over 200ms.");
+        d.put("fps", "Shows your current frames per second.");
+        d.put("cps counter", "Shows your left and right clicks per second over the last second. Sampled once per frame, so a click can be missed at very low FPS.");
+        d.put("colour by value", "Colours the lag, ping and FPS numbers by how good they are instead of drawing them white.");
     }
 }
