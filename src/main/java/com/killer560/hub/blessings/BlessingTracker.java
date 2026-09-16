@@ -33,6 +33,8 @@ public final class BlessingTracker {
     private static final Map<Blessing, Integer> LEVELS = new EnumMap<>(Blessing.class);
     /** Party message is sent at most once per blessing per run (killer560's "once per blessing" rule). */
     private static final EnumSet<Blessing> PARTY_SENT = EnumSet.noneOf(Blessing.class);
+    /** False until the first dungeon footer of this world was parsed; that parse only seeds levels. */
+    private static boolean primed = false;
 
     private BlessingTracker() {
     }
@@ -61,10 +63,13 @@ public final class BlessingTracker {
                 continue;
             }
             LEVELS.put(blessing, level);
-            if (level > previous) {
+            if (primed && level > previous) {
                 announce(blessing, level);
             }
         }
+        // Only after the whole footer is parsed: the first parse of a world seeds every level silently,
+        // so joining a run in progress can't announce (and /pc) five blessings in one tick.
+        primed = true;
     }
 
     public static int level(Blessing blessing) {
@@ -86,6 +91,7 @@ public final class BlessingTracker {
     public static void reset() {
         LEVELS.clear();
         PARTY_SENT.clear();
+        primed = false;
     }
 
     private static void announce(Blessing blessing, int level) {

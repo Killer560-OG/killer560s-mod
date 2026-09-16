@@ -17,7 +17,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -151,8 +150,10 @@ public final class VoiceToTextFeature {
         Files.createDirectories(parent);
         Path zipFile = parent.resolve("model-download.zip");
         LOGGER.info("[VoiceToText] Downloading speech model from {}", MODEL_URL);
-        URL url = URI.create(MODEL_URL).toURL();
-        try (InputStream in = url.openStream()) {
+        java.net.URLConnection conn = URI.create(MODEL_URL).toURL().openConnection();
+        conn.setConnectTimeout(15_000);
+        conn.setReadTimeout(120_000);
+        try (InputStream in = conn.getInputStream()) {
             Files.copy(in, zipFile, StandardCopyOption.REPLACE_EXISTING);
         }
         LOGGER.info("[VoiceToText] Extracting speech model...");

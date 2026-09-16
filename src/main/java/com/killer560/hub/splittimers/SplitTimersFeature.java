@@ -37,6 +37,14 @@ import java.util.regex.Pattern;
  * M7 Phase 5 (2026-09-15): optional dragon (spawn -&gt; kill) and relic (spawn / placed) lines from {@link P5Splits},
  * fed by {@code com.killer560.hub.witherdragons}, drawn in a column to the right of the split rows (or under them).
  * <p>
+ * Clear phase (2026-09-16, gap analysis 2.1): three optional additions, all off by default -
+ * <b>Clear Splits</b> (Devonian {@code dungeons/clear/RunSplits.kt} + {@code api/dungeon/Stages.kt}) cuts the two
+ * clear rows into Blood Rush / Blood Open / Watcher Dialogue / Blood Clear; <b>Watcher Move</b>
+ * ({@link WatcherMoveTracker}, Devonian {@code dungeons/clear/WatcherSplits.kt}) adds an entity-movement row; and
+ * <b>Core Entry Times</b> ({@link CoreEntryTimes}, killer560's own request) times each player into the core after
+ * terminals. The synthesised Boss Entry row (Devonian {@code Stages.BossEntry}) now sums however many clear
+ * segments exist instead of assuming exactly three.
+ * <p>
  * Re-verified 2026-09-15 against Odin main @38ddc1b (SplitsManager.kt / Splits.kt): split names, the "&lt;previous&gt;
  * took X" chat, currentRows' segment = next split - this split, and the Boss Entry row after index 2 all match -
  * the "split labels off by one" report was the pre-c571b1d behaviour (each split used to be labelled with the
@@ -44,7 +52,7 @@ import java.util.regex.Pattern;
  */
 public final class SplitTimersFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-splittimers");
+    static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-splittimers");
 
     private record SplitDef(Pattern pattern, String label) {
     }
@@ -60,6 +68,50 @@ public final class SplitTimersFeature {
             "\\[BOSS\\] The Watcher: You have proven yourself\\. You may pass\\.", "§dPortal Entry");
     private static final SplitDef TOTAL = def(
             "^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$", "§1Total");
+
+    // ---------------------------------------------------------------------------------------------
+    // Clear-phase splits (2026-09-16) - optional, off by default (SplitTimersConfig.isClearSplits()).
+    // Ported from Devonian api/dungeon/Stages.kt's Clear tree + features/dungeons/clear/RunSplits.kt
+    // ("Displays how long your party has take to complete Blood Rush, Blood Open & Boss Enter") and
+    // features/dungeons/clear/WatcherSplits.kt ("Displays Dialog Time, Watcher Move and Blood Clear").
+    //
+    // With this off the list is exactly the three Odin rows this feature shipped with:
+    //   Blood Open  = Mort's line          -> blood door opened / Watcher greeting
+    //   Blood Clear = blood door opened    -> "You have proven yourself. You may pass."
+    //   Portal Entry= "You have proven..." -> the boss's own entry dialogue
+    // With it on, those same two spans are cut into Devonian's four:
+    //   Blood Rush      = Mort's line              -> Blood Key obtained (Devonian: Clear's start ->
+    //                     RunSplits' "Blood Rush"; the rush itself)
+    //   Blood Open      = Blood Key obtained       -> blood door opened (Devonian Stages.BloodOpen "&4Blood")
+    //   Watcher Dialogue= blood door opened        -> "Let's see how you can handle this."
+    //                     (Devonian Stages.WatcherDialog "&cWatcher Dialog")
+    //   Blood Clear     = "Let's see how you..."   -> "You have proven yourself." (Devonian Stages.WatcherClear)
+    // Boss Entry (Devonian Stages.BossEntry "&9Boss Entry", = Mort's line -> boss entry dialogue) is the row the
+    // HUD already synthesises by summing every clear segment; it now sums however many there are.
+    //
+    // Blood Key line: the three real forms this repo already matches in doorhelpers/LookAtDoorFeature.onChat
+    // ("has obtained Blood Key", "Blood Key was picked up", "RIGHT CLICK on the BLOOD DOOR ...").
+    private static final SplitDef BLOOD_RUSH = def(BLOOD_OPEN.pattern().pattern(), "§2Blood Rush");
+    private static final SplitDef BLOOD_KEY = def(
+            "^(?:.*(?:has obtained Blood Key|Blood Key was picked up).*|RIGHT CLICK on the BLOOD DOOR.*)$",
+            "§2Blood Open");
+    private static final SplitDef WATCHER_DIALOGUE = def(BLOOD_CLEAR.pattern().pattern(), "§cWatcher Dialogue");
+    // Devonian WatcherSplits: WatcherDialog's stop trigger, i.e. the line the blood mobs start on.
+    private static final SplitDef WATCHER_FIGHT = def(
+            "^\\[BOSS\\] The Watcher: Let's see how you can handle this\\.$", "§bBlood Clear");
+
+    /** Devonian's four clear segments, or the original three, depending on {@code clearSplits}. */
+    private static List<SplitDef> clearPrefix(boolean clearSplits) {
+        return clearSplits
+                ? List.of(BLOOD_RUSH, BLOOD_KEY, WATCHER_DIALOGUE, WATCHER_FIGHT, PORTAL_ENTRY)
+                : List.of(BLOOD_OPEN, BLOOD_CLEAR, PORTAL_ENTRY);
+    }
+
+    /** Index in {@link #clearPrefix} of the split that fires when the blood door opens - the moment the Watcher
+     *  Move clock starts, and so the row the Watcher Move row is inserted after. */
+    private static int doorOpenIndex(boolean clearSplits) {
+        return clearSplits ? 2 : 1;
+    }
 
     private static final List<SplitDef> ENTRANCE_SPLITS = List.of();
 
@@ -99,9 +151,10 @@ public final class SplitTimersFeature {
         return new SplitDef(Pattern.compile(regex), label);
     }
 
-    /** Odin's buildDungeonSplits: [Blood Open, Blood Clear, Portal Entry] + floor splits + [Total].
+    /** Odin's buildDungeonSplits: [Blood Open, Blood Clear, Portal Entry] + floor splits + [Total] - or, with Clear
+     *  Splits on, Devonian's finer clear prefix in place of those three ({@link #clearPrefix}).
      *  Empty when the floor is unknown (Odin returns early in that case too). */
-    private static List<SplitDef> splitsForFloor(String floor) {
+    private static List<SplitDef> splitsForFloor(String floor, boolean clearSplits) {
         if (floor == null || floor.isEmpty()) {
             return List.of();
         }
@@ -129,10 +182,7 @@ public final class SplitTimersFeature {
                 return List.of();
             }
         }
-        List<SplitDef> all = new ArrayList<>();
-        all.add(BLOOD_OPEN);
-        all.add(BLOOD_CLEAR);
-        all.add(PORTAL_ENTRY);
+        List<SplitDef> all = new ArrayList<>(clearPrefix(clearSplits));
         all.addAll(bossSplits);
         all.add(TOTAL);
         return List.copyOf(all);
@@ -142,6 +192,11 @@ public final class SplitTimersFeature {
         List<SplitDef> splits = List.of();
         /** Wall-clock time each split's trigger line fired (0 = not yet). Parallel to {@link #splits}. */
         long[] timeMs = new long[0];
+        /** How many of {@link #splits} are clear-phase splits (3, or 5 with Clear Splits on) - the Boss Entry row
+         *  is their sum and is inserted after them. Snapshotted per run so a mid-run toggle can't desync it. */
+        int clearCount = 3;
+        /** Index of the split that fires when the blood door opens - see {@link #doorOpenIndex}. */
+        int doorOpenIndex = 1;
     }
 
     private record SplitRow(String name, long timeMs, boolean isCurrent) {
@@ -177,6 +232,8 @@ public final class SplitTimersFeature {
             if (lastLevel != null) {
                 run = new RunState();
                 P5Splits.reset();
+                WatcherMoveTracker.reset();
+                CoreEntryTimes.reset();
             }
             lastLevel = client.level;
         }
@@ -189,8 +246,15 @@ public final class SplitTimersFeature {
         if (!inDungeon && wasInDungeon) {
             run = new RunState();
             P5Splits.reset();
+            WatcherMoveTracker.reset();
+            CoreEntryTimes.reset();
         }
         wasInDungeon = inDungeon;
+
+        if (SplitTimersConfig.getInstance().isEnabled()) {
+            WatcherMoveTracker.tick();
+            CoreEntryTimes.tick();
+        }
 
         if (finishDelayTicks >= 0 && --finishDelayTicks < 0) {
             if (SplitTimersConfig.getInstance().isAnnounceInChat() && client.player != null) {
@@ -231,11 +295,16 @@ public final class SplitTimersFeature {
         String raw = plain != null ? plain : message.getString();
 
         if ("Starting in 1 second.".equals(raw)) {
+            boolean clearSplits = SplitTimersConfig.getInstance().isClearSplits();
             RunState fresh = new RunState();
-            fresh.splits = splitsForFloor(DungeonState.getFloor());
+            fresh.splits = splitsForFloor(DungeonState.getFloor(), clearSplits);
             fresh.timeMs = new long[fresh.splits.size()];
+            fresh.clearCount = clearPrefix(clearSplits).size();
+            fresh.doorOpenIndex = doorOpenIndex(clearSplits);
             run = fresh;
             P5Splits.reset();
+            WatcherMoveTracker.reset();
+            CoreEntryTimes.reset();
             finishDelayTicks = -1;
             if (fresh.splits.isEmpty()) {
                 LOGGER.warn("[SplitTimers] Run START line seen but NO splits resolved for floor={} (inDungeon={}) - nothing will be timed this run",
@@ -245,6 +314,18 @@ public final class SplitTimersFeature {
                         DungeonState.getFloor(), fresh.splits.size(), plainLabel(fresh.splits.get(0)));
             }
             return;
+        }
+
+        // Side hooks that are NOT splits: they read the same real lines but must work whether or not Clear Splits
+        // put that line in the split list, so they are matched before (and independently of) the split loop.
+        if (BLOOD_CLEAR.pattern().matcher(raw).matches()) {
+            WatcherMoveTracker.onBloodDoorOpened();
+        } else if (WATCHER_FIGHT.pattern().matcher(raw).matches()) {
+            WatcherMoveTracker.onDialogueEnd();
+        } else if ("The Core entrance is opening!".equals(raw)) {
+            CoreEntryTimes.onCoreOpening();
+        } else if ("[BOSS] Necron: You went further than any human before, congratulations.".equals(raw)) {
+            CoreEntryTimes.onPhaseFourStarted();
         }
 
         if (run.splits.isEmpty()) {
@@ -320,6 +401,13 @@ public final class SplitTimersFeature {
             lines.add(tookLine(rowName, formatTime(row.timeMs()), "."));
         }
         SplitTimersConfig cfg = SplitTimersConfig.getInstance();
+        long watcherMoveMs = cfg.isWatcherMoveSplit() ? WatcherMoveTracker.getMoveMs() : 0L;
+        if (watcherMoveMs != 0L) {
+            lines.add(tookLine("Watcher Move", formatTime(watcherMoveMs), "."));
+        }
+        for (String core : CoreEntryTimes.lines()) {
+            lines.add(Component.empty().append(ModChat.text("Core ")).append(Component.literal(core)));
+        }
         for (String p5 : P5Splits.lines(cfg.isP5DragonLines(), cfg.isP5RelicLines(), true)) {
             lines.add(Component.empty().append(ModChat.text("P5 ")).append(Component.literal(p5)));
         }
@@ -465,8 +553,28 @@ public final class SplitTimersFeature {
         public int height() {
             int rows = displayRows().size();
             int p5 = p5Lines().size();
-            int total = SplitTimersConfig.getInstance().isP5LinesRight() ? Math.max(rows, p5) : rows + p5;
+            int core = coreLines().size();
+            int total = SplitTimersConfig.getInstance().isP5LinesRight() ? Math.max(rows, p5) + core : rows + p5 + core;
             return 12 * Math.max(1, total);
+        }
+
+        /** F7/M7 "time to enter the core after terms" rows ({@link CoreEntryTimes}), with a header when there are
+         *  any. In the HUD editor a sample is shown while the toggle is on, so the block can be positioned. */
+        private static List<String> coreLines() {
+            if (!SplitTimersConfig.getInstance().isCoreEntryTimes()) {
+                return List.of();
+            }
+            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+                return CoreEntryTimes.editorLines();
+            }
+            List<String> lines = CoreEntryTimes.lines();
+            if (lines.isEmpty()) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>(lines.size() + 1);
+            out.add("§6§lCore Entry");
+            out.addAll(lines);
+            return out;
         }
 
         /** M7 Phase 5 dragon/relic lines ({@link P5Splits}), with a header row when there are any. In the HUD
@@ -498,22 +606,33 @@ public final class SplitTimersFeature {
             return out;
         }
 
-        /** Odin's Splits HUD: every row but the Total, with a "Boss Entry" row (sum of the first three
-         *  segments) after Portal Entry, hiding rows still at 0. */
+        /** Odin's Splits HUD: every row but the Total, with a "Boss Entry" row (Devonian {@code Stages.BossEntry} -
+         *  the sum of every clear segment, however many Clear Splits made) after the last clear split, hiding rows
+         *  still at 0. With Watcher Move on and measured, Devonian's {@code WatcherSplits} "Watcher Move" row is
+         *  inserted right after the segment that starts when the blood door opens. */
         private static List<SplitRow> displayRows() {
             List<SplitRow> rows = currentRows();
             if (rows.isEmpty()) {
                 return List.of();
             }
             List<SplitRow> segments = rows.subList(0, rows.size() - 1);
+            int clearCount = Math.min(run.clearCount, segments.size());
+            long watcherMoveMs = SplitTimersConfig.getInstance().isWatcherMoveSplit()
+                    ? WatcherMoveTracker.getMoveMs() : 0L;
             List<SplitRow> out = new ArrayList<>();
             for (int i = 0; i < segments.size(); i++) {
                 SplitRow row = segments.get(i);
                 if (row.timeMs() != 0L) {
                     out.add(row);
                 }
-                if (i == 2 && rows.size() > 3) {
-                    long bossTime = segments.get(0).timeMs() + segments.get(1).timeMs() + segments.get(2).timeMs();
+                if (i == run.doorOpenIndex && watcherMoveMs != 0L) {
+                    out.add(new SplitRow("§cWatcher Move", watcherMoveMs, false));
+                }
+                if (i == clearCount - 1 && segments.size() > clearCount) {
+                    long bossTime = 0L;
+                    for (int j = 0; j < clearCount; j++) {
+                        bossTime += segments.get(j).timeMs();
+                    }
                     if (bossTime != 0L) {
                         out.add(new SplitRow("§9Boss Entry", bossTime, false));
                     }
@@ -543,6 +662,12 @@ public final class SplitTimersFeature {
             for (String line : p5Lines()) {
                 graphics.text(Minecraft.getInstance().font, line, p5X, p5Y, 0xFFFFFFFF, false);
                 p5Y += 12;
+            }
+            // Core entry rows always sit in the left column, under whatever is already there.
+            int coreY = right ? lineY : p5Y;
+            for (String line : coreLines()) {
+                graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
+                coreY += 12;
             }
         }
     }

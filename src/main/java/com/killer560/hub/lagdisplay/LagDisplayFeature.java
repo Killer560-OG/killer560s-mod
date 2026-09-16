@@ -23,7 +23,7 @@ import java.util.Locale;
  * <p>Ported from Devonian {@code features/misc/LagDisplay.kt} (the "zzz for N.NNs" readout and its
  * 50-1000 ms threshold slider, default 300 ms) plus {@code misc/{PingDisplay,FPSDisplay}.kt}, and
  * NoammAddons {@code features/impl/visual/InfoDisplay.kt} (local source
- * {@code C:\Users\Hunter\noammaddonsmod}) for the CPS counter - NoammAddons counts click timestamps and
+ * a local NoammAddons checkout) for the CPS counter - NoammAddons counts click timestamps and
  * drops anything older than 1000 ms, which is exactly what {@link #cps(Deque)} does.
  *
  * <p><b>Server-tick source.</b> No new clock: this subscribes to the mod's existing

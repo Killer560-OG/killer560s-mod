@@ -132,8 +132,15 @@ public final class RunSummaryFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             if (active) {
-                LOGGER.info("[RunSummary] World changed before the run ended - discarding the partial record (floor={})", floor);
-                resetRun();
+                if (runEndMs > 0L) {
+                    // The end-of-run line was already seen - Auto Requeue or a warp just beat the assembly
+                    // delay. Keep the completed run instead of throwing it away (2026-09-16 review).
+                    LOGGER.info("[RunSummary] World changed after the run ended - saving it now (floor={})", floor);
+                    finishRun();
+                } else {
+                    LOGGER.info("[RunSummary] World changed before the run ended - discarding the partial record (floor={})", floor);
+                    resetRun();
+                }
             }
         }
         if (!active) {

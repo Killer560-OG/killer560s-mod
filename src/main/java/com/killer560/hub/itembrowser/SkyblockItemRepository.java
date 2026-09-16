@@ -97,6 +97,7 @@ public final class SkyblockItemRepository {
     private static List<SkyblockItemEntry> fetchAndParse() {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(ITEMS_URL))
+                    .timeout(java.time.Duration.ofSeconds(60))
                     .header("User-Agent", "Killer560sMod-ItemBrowser/1.0")
                     .GET()
                     .build();

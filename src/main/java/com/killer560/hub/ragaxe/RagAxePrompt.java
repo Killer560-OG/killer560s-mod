@@ -16,7 +16,7 @@ package com.killer560.hub.ragaxe;
  * <ul>
  * <li>{@link #M7_DRAGONS} 3000 ms - reproduces NoammAddons' own M7 alert exactly (its
  * {@code features/impl/dungeon/Ragnarock.kt} shows "rag" the moment the Wither King line lands, and the
- * channel is 3 s), local copy C:\Users\Hunter\noammaddonsmod.
+ * channel is 3 s), local copy a local NoammAddons checkout.
  * <li>{@link #M7_DRAGON_SPAWN} 0 - not line-timed at all: it reads the live per-dragon spawn countdown out
  * of {@code com.killer560.hub.witherdragons} (Odin's 100-server-tick particle-burst countdown) and prompts
  * {@code lead} ms before that dragon actually spawns. Tick-accurate, no estimate involved.

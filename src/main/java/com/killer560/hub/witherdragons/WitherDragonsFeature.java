@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  * M7 Phase 5 Wither Dragons - port of Odin's {@code WitherDragons} module
  * (https://github.com/odtheking/Odin/tree/main/src/main/kotlin/com/odtheking/odin/features/impl/boss :
  * WitherDragons.kt, WitherDragonsEnum.kt, DragonCheck.kt, DragonPriority.kt), with NoammAddons' additions
- * (arrow-hit counter, packed-ice spray check - local copy C:\Users\Hunter\noammaddonsmod,
+ * (arrow-hit counter, packed-ice spray check - local copy a local NoammAddons checkout,
  * features/impl/floor7/dragons). SkyHanni has no M7 dragon features (its dragon code is End dragons only).
  * <p>
  * Flow (Odin):

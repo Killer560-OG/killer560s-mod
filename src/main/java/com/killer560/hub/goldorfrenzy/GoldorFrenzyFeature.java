@@ -17,7 +17,7 @@ import java.util.Locale;
  * Goldor Frenzy Timer - a countdown to Goldor's next P3 damage tick, so a heal / mask / absorption can be
  * timed instead of eating the tick mid-terminal. Ported from Devonian
  * {@code features/dungeons/f7/GoldorFrenzyTimer.kt} (source read 2026-09-16 at
- * {@code C:\Users\Hunter\UsersHunterdevonian}), including its exact chat triggers and tick counts:
+ * a local Devonian checkout), including its exact chat triggers and tick counts:
  * <ul>
  * <li>{@code "[BOSS] Storm: I should have known that I stood no chance."} - starts a one-shot 100-tick (5s)
  *     countdown to Goldor actually arriving ({@code preGoldorTicks = 100}).

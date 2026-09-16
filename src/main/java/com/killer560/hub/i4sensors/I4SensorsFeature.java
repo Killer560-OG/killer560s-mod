@@ -37,7 +37,7 @@ import java.util.Set;
  * sim testing ("build any and all loggers you need for it to prepare it for sim testing").
  * <p>
  * Real device layout now CONFIRMED from NoammAddons' own {@code I4Helper.kt}/{@code AutoI4.kt} (cloned
- * reference at C:\Users\Hunter\noammaddonsmod): a 3x3 wall of target blocks at z=50, x in {68,66,64}, y in
+ * reference at a local NoammAddons checkout): a 3x3 wall of target blocks at z=50, x in {68,66,64}, y in
  * {130,128,126}; a lit target is {@code EMERALD_BLOCK}, a hit one turns {@code BLUE_TERRACOTTA}; the player
  * stands on the device at y~127, x 62-65, z 34-37 and shoots them with a bow. Noamm times its rod swap /
  * mask swap / leap off server ticks counted from Storm's death line (174 / 244 / 307) and treats an armor

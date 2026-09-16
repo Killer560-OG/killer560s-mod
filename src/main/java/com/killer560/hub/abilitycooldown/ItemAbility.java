@@ -13,7 +13,7 @@ import java.util.Locale;
  * the next time SkyHanni's is updated; only the human-readable labels and the {@link #isDungeon()} flag are
  * this mod's own additions.
  *
- * <p>Cross-checked against Devonian (local Kotlin source, {@code C:\Users\Hunter\UsersHunterdevonian}):
+ * <p>Cross-checked against Devonian (local Kotlin source, a local Devonian checkout):
  * <ul>
  *   <li>{@code features/misc/WitherShieldTimer.kt} uses {@code cooldown = if (scrolls.size == 3) 100 else 200}
  *       server ticks, i.e. 5 s with all three scrolls (Wither Impact) and 10 s for the shield alone -

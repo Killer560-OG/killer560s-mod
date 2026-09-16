@@ -94,7 +94,9 @@ public final class TranslateFeature {
                 && !"en".equalsIgnoreCase(cfg.getTargetLanguageCode());
         boolean autoCorrectActive = AutoCorrectConfig.getInstance().isEnabled();
         boolean emotesActive = ChatEmoteConfig.getInstance().isEnabled();
-        LOGGER.info("tryIntercept called: message=\"{}\" translateActive={} autoCorrectActive={} emotesActive={}",
+        // debug, not info: this fires for every outgoing chat line (incl. /msg) and would put the
+        // user's whole chat history into latest.log (2026-09-16 audit).
+        LOGGER.debug("tryIntercept called: message=\"{}\" translateActive={} autoCorrectActive={} emotesActive={}",
                 normalizedMessage, translateActive, autoCorrectActive, emotesActive);
 
         if (!translateActive && !autoCorrectActive && !emotesActive) {
@@ -242,6 +244,7 @@ public final class TranslateFeature {
     private static TranslationResult translateGoogle(String text, String targetCode) throws Exception {
         String url = GOOGLE_ENDPOINT + "?client=gtx&sl=auto&tl=" + urlEncode(targetCode) + "&dt=t&q=" + urlEncode(text);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(java.time.Duration.ofSeconds(10))
                 .header("User-Agent", BROWSER_USER_AGENT)
                 .GET().build();
         HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -284,6 +287,7 @@ public final class TranslateFeature {
         String myMemorySource = "auto".equalsIgnoreCase(sourceCode) ? "autodetect" : sourceCode;
         String url = MYMEMORY_ENDPOINT + "?q=" + urlEncode(text) + "&langpair=" + urlEncode(myMemorySource + "|" + targetCode);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(java.time.Duration.ofSeconds(10))
                 .header("User-Agent", BROWSER_USER_AGENT)
                 .GET().build();
         HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -291,7 +295,7 @@ public final class TranslateFeature {
             throw new RuntimeException("MyMemory returned HTTP " + response.statusCode());
         }
 
-        LOGGER.info("MyMemory raw response: {}", response.body());
+        LOGGER.debug("MyMemory raw response: {}", response.body());
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
         JsonObject responseData = root.getAsJsonObject("responseData");
         if (responseData == null || !responseData.has("translatedText")) {

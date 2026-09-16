@@ -45,7 +45,10 @@ public final class PartyCommandsConfig {
         DOWNTIME("Downtime", false, "dt", "downtime"),
         UN_DOWNTIME("Un-Downtime", false, "undt", "undowntime"),
         QUEUE_INSTANCE("Queue Floor (!f7/!m7/!t5)", true, "f1"),
-        RACISM("Racism (joke)", false, "racism");
+        // Destructive: on someone else's command this account posts "<name> is N% racist" into party chat -
+        // a reportable chat line typed by a third party, so it sits behind the same master switch as
+        // kick/transfer rather than being on by default with the harmless info commands (2026-09-16 audit).
+        RACISM("Racism (joke)", true, "racism");
 
         private final String label;
         private final boolean destructive;

@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /** Persisted Terminal QoL settings - see {@link TerminalQolFeature}. Ported from Devonian's own
  *  {@code features/dungeons/f7/{TerminalProtection, TerminalDropKey, MelodyKeys, CustomTerminalScale,
- *  TerminalHideCompletion}.kt} (source read 2026-09-16 at {@code C:\Users\Hunter\UsersHunterdevonian}).
+ *  TerminalHideCompletion}.kt} (source read 2026-09-16 at a local Devonian checkout).
  *  <p>
  *  Deliberately a SEPARATE file from {@link TerminalSolverConfig} ({@code killer560smod-terminalsolver.json})
  *  rather than more keys inside it: none of these five settings touch the solver's own highlighting at all -

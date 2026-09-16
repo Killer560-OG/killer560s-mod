@@ -13,7 +13,7 @@ import java.util.Locale;
  * The five Corrupted King Relics. Skyblock item ids and cauldron positions from Odin's {@code KingRelics.Relic}
  * (https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/KingRelics.kt);
  * item names ("Corrupted Red Relic") and the placed-relic armor-stand x/z ({@code coords}) from NoammAddons'
- * {@code WitherRelic.kt} (local copy C:\Users\Hunter\noammaddonsmod, utils/dungeons/enums). Both sources agree
+ * {@code WitherRelic.kt} (local copy a local NoammAddons checkout, utils/dungeons/enums). Both sources agree
  * on all five cauldron positions.
  */
 public enum KingRelic {

@@ -1176,5 +1176,18 @@ final class SettingTooltipsData {
         d.put("runs kept", "How many finished runs to keep in config/killer560smod-runs/history.json (5-500). Oldest are dropped first. Personal bests are worked out from whatever is still kept.");
         d.put("open last run", "Opens the full summary of the most recent finished run.");
         d.put("clear history", "Deletes every stored run. Personal bests go with them - they are derived from the stored runs, not saved separately.");
+
+        // Teammate highlight + clear splits + core entry
+        d.put("teammate highlight", "Boxes your dungeon party in the world, colored by each player's class (the same colors Class Colors and the Live Map use). Legit mode only shows a teammate you can actually see.");
+        d.put("unknown class color", "Color used for a teammate whose dungeon class isn't known yet (tab list not read, or outside a dungeon).");
+        d.put("show name", "Draws the teammate's name above their box.");
+        d.put("show distance", "Adds how many blocks away they are; on its own it shows just the distance.");
+        d.put("highlight self", "Also boxes your own player model (third person / freelook).");
+        d.put("skip dead", "Skips teammates the tab list currently shows as DEAD.");
+        d.put("clear splits", "Splits the clear phase into Blood Rush (start to blood key), Blood Open (key to blood door), Watcher Dialogue and Blood Clear instead of two rows. Changes what the Blood Open and Blood Clear rows mean.");
+        d.put("watcher move", "Adds a row for how long after the blood door opens the Watcher actually starts moving.");
+        d.put("core entry times", "F7/M7: after the terminals are done, times how long each player takes to get into the core. A player you never see enter shows a dash.");
+        d.put("slowest to chat", "Prints the slowest player into the core to your own chat only, once per run.");
+        d.put("slowest to party", "Sends that same line to PARTY chat, where everyone in the run sees it. Once per run.");
     }
 }

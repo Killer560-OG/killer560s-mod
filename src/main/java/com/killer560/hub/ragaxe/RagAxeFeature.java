@@ -31,7 +31,7 @@ import java.util.Locale;
  * <p>
  * Sources: Odin {@code features/impl/skyblock/Ragnarock.kt} (detection, cancel alert, 1.5x strength),
  * NoammAddons {@code features/impl/dungeon/Ragnarock.kt} (M7 "rag" overlay + its 7-note pling arpeggio, local
- * copy C:\Users\Hunter\noammaddonsmod), hypixelskyblock.minecraft.wiki/w/Ragnarock (3 s channel, 10 s buff,
+ * copy a local NoammAddons checkout), hypixelskyblock.minecraft.wiki/w/Ragnarock (3 s channel, 10 s buff,
  * 20 s cooldown, 500 mana). Skytils and SkyHanni have no Ragnarock feature to port from.
  * <p>
  * Everything ships OFF. Purely informational: no clicking, no aiming, nothing sent to the server except the

@@ -103,6 +103,13 @@ public final class PartyFinderStatsApi {
                 if (names.size() >= MAX_NAMES_PER_REQUEST) {
                     break;
                 }
+                // Names come from parsed item lore and go straight into the URL path - only accept real
+                // Minecraft usernames so a crafted party title can't inject path segments / query strings
+                // into the request (2026-09-16 audit).
+                if (name == null || !name.matches("[A-Za-z0-9_]{1,16}")) {
+                    QUEUE.remove(name);
+                    continue;
+                }
                 names.add(name);
             }
             names.forEach(QUEUE::remove);

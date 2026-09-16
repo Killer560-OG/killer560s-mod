@@ -127,12 +127,18 @@ public final class SpotifyLyricsFeature {
     // ---- Poll + send ----
 
     private static void tick() {
+        // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
+        // credentials were entered the key + username were sent to ws.audioscrobbler.com every 2 s for
+        // the whole session even with the feature disabled (2026-09-16 audit).
+        if (!enabled) {
+            return;
+        }
         ENGINE.poll(lastFmApiKey, lastFmUsername, lyricTimingOffsetMs, fullLyrics);
 
         // Skyblock Only: this runs on a timer, so it checks your location directly rather than
         // SkyblockGate.allows() (which lets the mod's own screens through) - opening the mod menu in another
         // game mode must never start sending lyrics there.
-        if (!enabled || (com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock())) {
+        if (com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock()) {
             return;
         }
         String lyric = ENGINE.getCurrentLyric();

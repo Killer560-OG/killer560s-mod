@@ -51,6 +51,54 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 24;
 
+        // Clear-phase splits (2026-09-16) - see SplitTimersFeature's clearPrefix()/WatcherMoveTracker.
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Clear Phase", false), Minecraft.getInstance().font));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(onOff("Clear Splits", cfg.isClearSplits()), btn -> {
+                    cfg.setClearSplits(!cfg.isClearSplits());
+                    cfg.save();
+                    btn.setMessage(onOff("Clear Splits", cfg.isClearSplits()));
+                }).bounds(contentX, y, 160, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Watcher Move", cfg.isWatcherMoveSplit()), btn -> {
+                    cfg.setWatcherMoveSplit(!cfg.isWatcherMoveSplit());
+                    cfg.save();
+                    btn.setMessage(onOff("Watcher Move", cfg.isWatcherMoveSplit()));
+                }).bounds(contentX + 168, y, 160, 18).build());
+        y += 22;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Clear Splits: Blood Rush / Blood Open / Watcher Dialogue / Blood Clear"),
+                Minecraft.getInstance().font));
+        y += 16;
+
+        // Core entry times (2026-09-16, killer560: "time to enter core after terms finish").
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Core Entry (F7/M7)", false), Minecraft.getInstance().font));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(onOff("Core Entry Times", cfg.isCoreEntryTimes()), btn -> {
+                    cfg.setCoreEntryTimes(!cfg.isCoreEntryTimes());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, 220, 18).build());
+        y += 22;
+        if (cfg.isCoreEntryTimes()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Slowest To Chat", cfg.isCoreEntrySlowestChat()), btn -> {
+                        cfg.setCoreEntrySlowestChat(!cfg.isCoreEntrySlowestChat());
+                        cfg.save();
+                        btn.setMessage(onOff("Slowest To Chat", cfg.isCoreEntrySlowestChat()));
+                    }).bounds(contentX, y, 160, 18).build());
+            widgets.add(SettingsButtonWidget.builder(onOff("Slowest To Party", cfg.isCoreEntrySlowestParty()), btn -> {
+                        cfg.setCoreEntrySlowestParty(!cfg.isCoreEntrySlowestParty());
+                        cfg.save();
+                        btn.setMessage(onOff("Slowest To Party", cfg.isCoreEntrySlowestParty()));
+                    }).bounds(contentX + 168, y, 160, 18).build());
+            y += 22;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§7Slowest To Party posts in PARTY chat - everyone sees it."),
+                    Minecraft.getInstance().font));
+            y += 16;
+        }
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 com.killer560.hub.gui.SectionHeaders.header("M7 Phase 5 Lines", false), Minecraft.getInstance().font));
         y += 14;

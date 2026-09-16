@@ -69,6 +69,9 @@ import java.util.Set;
  */
 public final class ChunkCacheManager {
 
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-chunkcache");
+    private static boolean warnedNoStore;
+
     /** Set while a renderer lookup is running, so the {@code getChunk} fallback stays out of its way. */
     private static final ThreadLocal<boolean[]> BYPASS = ThreadLocal.withInitial(() -> new boolean[1]);
 
@@ -128,6 +131,10 @@ public final class ChunkCacheManager {
         }
         ChunkCacheStore store = storeOf(level);
         if (store == null) {
+            if (active && !warnedNoStore) {
+                warnedNoStore = true;
+                LOGGER.warn("[ChunkCache] ClientChunkCache mixin did not apply - the chunk cache is inactive");
+            }
             return;
         }
         if (!cfg.isEnabledRaw() && !keepChunksLoadedRaw()) {

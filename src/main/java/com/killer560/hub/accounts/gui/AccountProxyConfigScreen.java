@@ -92,6 +92,9 @@ public class AccountProxyConfigScreen extends Screen {
         this.passwordField = new EditBox(this.font, fieldX, passwordFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
                 Component.literal("Password"));
         this.passwordField.setMaxLength(256);
+        // Masked: the saved SOCKS password must not be re-rendered in cleartext every time the screen opens.
+        this.passwordField.addFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(
+                "*".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
         this.passwordField.setHint(Component.literal("Password").withStyle(ChatFormatting.WHITE));
         this.passwordField.setValue(existing != null ? existing.getPassword() : "");
         this.addRenderableWidget(this.passwordField);

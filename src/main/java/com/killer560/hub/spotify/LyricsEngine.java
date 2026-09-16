@@ -133,11 +133,12 @@ public final class LyricsEngine {
     private NowPlaying fetchNowPlaying(String apiKey, String username) throws Exception {
         String url = LASTFM_URL + "?method=user.getrecenttracks&user=" + urlEncode(username)
                 + "&api_key=" + urlEncode(apiKey) + "&format=json&limit=1";
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(10)).GET().build();
         HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() / 100 != 2) {
-            SpotifyLyricsFeature.LOGGER.warn("Last.fm now-playing request failed: HTTP {} body={}",
-                    response.statusCode(), response.body());
+            // Status only - the error body can echo request details (the URL carries the user's API key).
+            SpotifyLyricsFeature.LOGGER.warn("Last.fm now-playing request failed: HTTP {}", response.statusCode());
             return null;
         }
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -173,7 +174,8 @@ public final class LyricsEngine {
     private List<LyricLine> fetchLyrics(String artist, String title) {
         try {
             String url = LRCLIB_URL + "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(java.time.Duration.ofSeconds(10)).GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 SpotifyLyricsFeature.LOGGER.warn("lrclib search failed: HTTP {} for artist='{}' title='{}'",

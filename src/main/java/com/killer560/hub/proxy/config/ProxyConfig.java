@@ -327,6 +327,10 @@ public final class ProxyConfig {
         if (profile == null) {
             this.enabled = false;
             this.host = "";
+            // Also drop the previous account's credentials - otherwise they stay on disk in proxyclient.json
+            // after swapping to an account that has no proxy assigned (2026-09-16 audit).
+            this.username = "";
+            this.password = "";
             save();
             return;
         }

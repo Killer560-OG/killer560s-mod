@@ -224,8 +224,10 @@ public final class PartyCommandsFeature {
             case WARP -> execute(command, sender, "p warp", "warped the party");
             case WARP_TRANSFER -> {
                 execute(command, sender, "p warp", "warped the party");
-                // Odin: runIn(12) ticks, then transfer to the person who asked.
-                schedule(700L, () -> {
+                // Odin: runIn(12) ticks, then transfer to the person who asked. Guarded so that if this client
+                // left / was kicked / the party disbanded inside that window, the delayed "/p transfer" doesn't
+                // fire into whatever party it is in by then (2026-09-16 audit; same idea as the !reinv guard).
+                schedule(700L, "warp-transfer", () -> isTeammate(sender), () -> {
                     sendCommand("p transfer " + sender);
                     log(sender, "took the party (warp + transfer)");
                 });
@@ -586,6 +588,8 @@ public final class PartyCommandsFeature {
         if (due == null) {
             return;
         }
+        // The backwards remove-loop above collects newest-first; run in scheduling order.
+        java.util.Collections.reverse(due);
         for (Pending pending : due) {
             try {
                 if (pending.guard() != null && !pending.guard().getAsBoolean()) {

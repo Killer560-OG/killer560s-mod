@@ -140,7 +140,8 @@ public final class ProximityVoiceFeature {
             new Thread(() -> {
                 try {
                     StunClient.Result result = StunClient.discoverPublicAddress(socket);
-                    LOGGER.info("[ProximityVoice] Public address: {}:{}", result.ip(), result.port());
+                    // Don't write the user's public IP into latest.log - logs get pasted into Discord for support.
+                    LOGGER.info("[ProximityVoice] STUN discovery finished (public port {})", result.port());
                 } catch (Exception e) {
                     LOGGER.warn("[ProximityVoice] STUN discovery failed - proximity voice may not reach peers behind strict NATs", e);
                 } finally {
@@ -230,6 +231,13 @@ public final class ProximityVoiceFeature {
                     continue;
                 }
                 UUID senderId = readUuid(packet.getData());
+                // Only play audio from a peer we learned about through party chat, and only from the
+                // address that peer announced - otherwise anyone who learns this socket's IP:port can
+                // inject audio into the game (2026-09-16 audit).
+                InetSocketAddress known = peerAddresses.get(senderId);
+                if (known == null || packet.getAddress() == null || !packet.getAddress().equals(known.getAddress())) {
+                    continue;
+                }
                 int audioLen = packet.getLength() - 16;
                 playAudio(senderId, packet.getData(), 16, audioLen);
             } catch (Exception ignored) {
@@ -315,6 +323,14 @@ public final class ProximityVoiceFeature {
         if (!raw.contains(TAG)) {
             return;
         }
+        // Only accept beacons that arrived as real party chat ("Party > [RANK] Name: [K560V]..."). Beacons
+        // are only ever sent via /pc, so this loses nothing - but without it ANY player in the lobby (or a
+        // /msg, or an NPC line) could type a beacon and have this client stream its microphone to an
+        // attacker-chosen address (2026-09-16 audit). A whisper renders as "From ..." and public chat as
+        // "[RANK] Name: ...", so neither can satisfy the prefix.
+        if (!raw.startsWith("Party > ")) {
+            return;
+        }
         Matcher m = PEER_PATTERN.matcher(raw);
         if (!m.find()) {
             return;
@@ -326,6 +342,13 @@ public final class ProximityVoiceFeature {
             }
             String ip = m.group(2);
             int port = Integer.parseInt(m.group(3));
+            if (port <= 0 || port > 65535) {
+                return;
+            }
+            // A party is at most 5 players; anything beyond that is beacon spam.
+            if (!peerAddresses.containsKey(sessionId) && peerAddresses.size() >= 8) {
+                return;
+            }
             peerAddresses.put(sessionId, new InetSocketAddress(InetAddress.getByName(ip), port));
         } catch (Exception ignored) {
         }

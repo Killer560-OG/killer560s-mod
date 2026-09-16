@@ -81,6 +81,10 @@ public class DirectSessionLoginScreen extends Screen {
         this.tokenField = new EditBox(this.font, centerX - fieldWidth / 2, y, fieldWidth, 20,
                 Component.literal("Session Token"));
         this.tokenField.setMaxLength(4096);
+        // Credential field: never draw the token itself (screenshots / streams / shoulder-surfing). Paste,
+        // clear and the IGN resolve below still work - only the glyphs are replaced.
+        this.tokenField.addFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(
+                "*".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
         this.tokenField.setHint(Component.literal("Session/access token..."));
         this.tokenField.setValue(initialValue);
         this.tokenField.setResponder(text -> {

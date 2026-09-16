@@ -162,7 +162,7 @@ public final class NavigationManager {
             return;
         }
         String island = IslandDetector.graphIsland();
-        if (island == null || !island.equals(pathIsland)) {
+        if (pathIsland != null && !pathIsland.equals(island)) {
             stop("left the island", true);
             return;
         }

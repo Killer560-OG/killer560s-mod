@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * The one Ragnarock cast detector and the three timers it drives. Detection is Odin's
  * ({@code features/impl/skyblock/Ragnarock.kt}): a wolf <i>death</i> sound at pitch exactly
  * {@value #CAST_PITCH} while holding a {@code RAGNAROCK_AXE}. NoammAddons' copy
- * ({@code features/impl/dungeon/Ragnarock.kt}, local C:\Users\Hunter\noammaddonsmod) is the same check with
+ * ({@code features/impl/dungeon/Ragnarock.kt}, local a local NoammAddons checkout) is the same check with
  * the pitch comparison inverted, which is a bug there - Odin's sense is used.
  * <p>
  * Ability numbers, all from hypixelskyblock.minecraft.wiki/w/Ragnarock ("RIGHT CLICK - Mana Cost: 500 -

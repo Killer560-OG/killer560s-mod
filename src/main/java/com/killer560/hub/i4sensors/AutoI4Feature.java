@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
  * setting"). Cheat build only (see {@link I4SensorsConfig#isAutoI4Enabled}).
  * <p>
  * Device logic ported from NoammAddons' own confirmed {@code AutoI4.kt}/{@code I4Helper.kt} (cloned at
- * C:\Users\Hunter\noammaddonsmod), not guessed: while standing on the device (Noamm's isOnDev) holding a bow,
+ * a local NoammAddons checkout), not guessed: while standing on the device (Noamm's isOnDev) holding a bow,
  * whenever one of the 9 wall targets ({@link I4SensorsFeature#DEV_BLOCKS}) turns {@code EMERALD_BLOCK},
  * aim at Noamm's own per-column aim point (x 67.5 / 65.5 - between columns, so a Terminator's side arrow
  * catches the neighbour - y = 131 - 2*row, z 50) and shoot. With Predictions on, immediately follows up with

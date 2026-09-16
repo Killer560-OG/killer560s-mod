@@ -6,7 +6,7 @@ import java.util.List;
  * The only aim spots this mod ships with built-in coordinates for, and the reason each one is trusted.
  * <p>
  * <b>What IS built in</b> - {@link #ARROW_STACK}: NoammAddons' "Dragon Arrow Stack" indicator ("Shows the optimal
- * arrow stack aim position"), local copy {@code C:\Users\Hunter\noammaddonsmod},
+ * arrow stack aim position"), local copy a local NoammAddons checkout,
  * {@code features/impl/floor7/dragons/WitherDragons.kt}. Its target point is
  * {@code (fixedStackPositions[dragon] ?: dragon.spawnPos).add(0.5, 3.5, 0.5)}, with
  * <pre>
@@ -21,7 +21,7 @@ import java.util.List;
  * <p>
  * <b>What IS built in</b> - {@link #DEVONIAN_LB}: Devonian's Last Breath waypoints for the five P5 dragons.
  * Source: {@code devonian-1.29.9.jar} in the 26.1.2 (Dungeons) mods folder and the local checkout
- * {@code C:\Users\Hunter\UsersHunterdevonian} (v1.25.9 - identical values),
+ * a local Devonian checkout (v1.25.9 - identical values),
  * {@code features/dungeons/m7/M7Dragon.kt}, enum field {@code waypoints}. They are drawn by
  * {@code features/dungeons/m7/DragonBoxes.kt}'s "Dragon Waypoints" switch, whose description is
  * "currently only lb waypoints" and whose search tags are {@code "last"} / {@code "breath"} - that switch is the

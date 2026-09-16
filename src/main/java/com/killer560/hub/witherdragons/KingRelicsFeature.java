@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
 /**
  * M7 Phase 5 relic helpers - port of Odin's {@code KingRelics} module
  * (https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/KingRelics.kt)
- * plus NoammAddons' {@code M7Relics.kt} (local copy C:\Users\Hunter\noammaddonsmod, features/impl/floor7):
+ * plus NoammAddons' {@code M7Relics.kt} (local copy a local NoammAddons checkout, features/impl/floor7):
  * <ul>
  * <li>Relic spawn timer: Necron's "All this, for nothing..." line starts a {@code Relic Spawn Ticks} (Odin default
  * 38) server-tick countdown shown on the "King Relic Timer" HUD.

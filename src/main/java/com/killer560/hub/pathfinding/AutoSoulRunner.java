@@ -84,6 +84,12 @@ public final class AutoSoulRunner {
         AutoWalker.startSession();
         if (!FairySoulsFeature.isGuiding()) {
             FairySoulsFeature.start(cfg.getSoulMode());
+            if (!FairySoulsFeature.isGuiding()) {
+                // The graph is still downloading - don't report the island finished (2026-09-16 review).
+                active = false;
+                AutoWalker.endSession("no soul route yet");
+                return;
+            }
         }
         ModChat.send(CHAT, ModChat.text("Started in mode "), ModChat.value(cfg.getAutoMode().label),
                 ModChat.dim(" - any key press, click or mouse move stops it."));
@@ -245,6 +251,7 @@ public final class AutoSoulRunner {
             }
             return;
         }
+        AutoWalker.rebaseCamera();
         Vec3 landing = EtherwarpHopper.expectedLanding();
         if (landing != null && player.position().distanceTo(landing) > 4.0) {
             attempts++;

@@ -317,13 +317,18 @@ public final class HypixelMarketPrices {
     }
 
     private static String auctionsUrl(String apiKey, int page) {
-        String base = AUCTIONS_URL + "?page=" + page;
-        return (apiKey != null && !apiKey.isBlank()) ? base + "&key=" + apiKey : base;
+        // /skyblock/auctions is a keyless endpoint (Hypixel API docs: "does not require an API key").
+        // The shared built-in key used to be appended as "&key=" here, which (a) put it in a query string
+        // that proxies/CDNs/access logs record, on every install, hundreds of pages every 10 minutes, and
+        // (b) charged the whole AH scan against that one key's rate limit for every user at once.
+        // The key parameter is kept for call-site compatibility but deliberately unused (2026-09-16 audit).
+        return AUCTIONS_URL + "?page=" + page;
     }
 
     private JsonObject getJson(String url) {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(java.time.Duration.ofSeconds(30))
                     .header("User-Agent", "Killer560sMod-RNGMeter/1.0")
                     .GET()
                     .build();

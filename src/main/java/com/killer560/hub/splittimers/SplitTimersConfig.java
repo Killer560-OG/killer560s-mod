@@ -34,6 +34,20 @@ public final class SplitTimersConfig {
     private boolean p5RelicLines = false;
     /** true = a column to the right of the normal split rows, false = under them. */
     private boolean p5LinesRight = true;
+    // Clear-phase splits (2026-09-16, gap analysis 2.1 "Clear-phase run splits"): breaks the existing
+    // Blood Open / Blood Clear pair into Devonian's four finer clear segments (Blood Rush, Blood Open,
+    // Watcher Dialogue, Blood Clear). New, and it changes what the two existing rows mean, so default OFF -
+    // with it off the split list is byte-for-byte the Odin one this feature shipped with.
+    private boolean clearSplits = false;
+    /** Devonian {@code WatcherSplits} "Watcher Move" - entity-movement driven, not a chat line. Default OFF. */
+    private boolean watcherMoveSplit = false;
+    // Core entry times (2026-09-16, killer560: "add a time to enter core after terms finish timer with an
+    // option to send slowest to chat") - see CoreEntryTimes.
+    private boolean coreEntryTimes = false;
+    /** Prints the slowest player into the core as a client-side Mod Chat line. Default OFF. */
+    private boolean coreEntrySlowestChat = false;
+    /** Sends that same line to PARTY chat (everyone sees it). Separate toggle, default OFF, once per run. */
+    private boolean coreEntrySlowestParty = false;
 
     private SplitTimersConfig() {
     }
@@ -60,6 +74,11 @@ public final class SplitTimersConfig {
             cfg.p5DragonLines = ConfigJson.getBool(obj, "p5DragonLines", false);
             cfg.p5RelicLines = ConfigJson.getBool(obj, "p5RelicLines", false);
             cfg.p5LinesRight = ConfigJson.getBool(obj, "p5LinesRight", true);
+            cfg.clearSplits = ConfigJson.getBool(obj, "clearSplits", false);
+            cfg.watcherMoveSplit = ConfigJson.getBool(obj, "watcherMoveSplit", false);
+            cfg.coreEntryTimes = ConfigJson.getBool(obj, "coreEntryTimes", false);
+            cfg.coreEntrySlowestChat = ConfigJson.getBool(obj, "coreEntrySlowestChat", false);
+            cfg.coreEntrySlowestParty = ConfigJson.getBool(obj, "coreEntrySlowestParty", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new SplitTimersConfig();
@@ -76,6 +95,11 @@ public final class SplitTimersConfig {
             obj.addProperty("p5DragonLines", p5DragonLines);
             obj.addProperty("p5RelicLines", p5RelicLines);
             obj.addProperty("p5LinesRight", p5LinesRight);
+            obj.addProperty("clearSplits", clearSplits);
+            obj.addProperty("watcherMoveSplit", watcherMoveSplit);
+            obj.addProperty("coreEntryTimes", coreEntryTimes);
+            obj.addProperty("coreEntrySlowestChat", coreEntrySlowestChat);
+            obj.addProperty("coreEntrySlowestParty", coreEntrySlowestParty);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -127,5 +151,45 @@ public final class SplitTimersConfig {
 
     public void setP5LinesRight(boolean p5LinesRight) {
         this.p5LinesRight = p5LinesRight;
+    }
+
+    public boolean isClearSplits() {
+        return clearSplits;
+    }
+
+    public void setClearSplits(boolean clearSplits) {
+        this.clearSplits = clearSplits;
+    }
+
+    public boolean isWatcherMoveSplit() {
+        return watcherMoveSplit;
+    }
+
+    public void setWatcherMoveSplit(boolean watcherMoveSplit) {
+        this.watcherMoveSplit = watcherMoveSplit;
+    }
+
+    public boolean isCoreEntryTimes() {
+        return coreEntryTimes;
+    }
+
+    public void setCoreEntryTimes(boolean coreEntryTimes) {
+        this.coreEntryTimes = coreEntryTimes;
+    }
+
+    public boolean isCoreEntrySlowestChat() {
+        return coreEntrySlowestChat;
+    }
+
+    public void setCoreEntrySlowestChat(boolean coreEntrySlowestChat) {
+        this.coreEntrySlowestChat = coreEntrySlowestChat;
+    }
+
+    public boolean isCoreEntrySlowestParty() {
+        return coreEntrySlowestParty;
+    }
+
+    public void setCoreEntrySlowestParty(boolean coreEntrySlowestParty) {
+        this.coreEntrySlowestParty = coreEntrySlowestParty;
     }
 }

@@ -71,6 +71,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Ability Timers — a generic list of named countdown timers, each with its own keybind to start/restart it the moment you use that real ability
 - Dungeon Info — a secrets-found HUD (from the tab list), run-time tracker, score-milestone messages, and mimic/prince/bat kill alerts (dungeons only)
 - Dungeon Alerts — Shadow Assassin alert, secret-collected sound, F6/M6 Terracotta timers, Spring Boots height HUD, dungeon class colors on nametags and tab, and room-entry alerts
+- Teammate Highlight — boxes your dungeon party in the world coloured by their class, with optional name and distance labels, a self toggle and a dead-teammate skip; legit mode only shows a teammate you can actually see, the **cheat** build can box through walls
 - Mob ESP — highlights star-tier dungeon mobs by name filter (real vanilla Glowing); legit mode only glows what you can already see via a real raycast, the **cheat** build can glow through walls too
 - Mapping — a data-gathering tool for building future map features ("Dump Held Map Now"); funny map/mimic highlight/class recolor are reserved settings that don't draw anything yet
 - Etherwarp Waypoints — per-run-only reminders for secret etherwarp spots you've marked, never saved to disk

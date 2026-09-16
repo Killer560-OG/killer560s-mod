@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 /**
  * Terminal QoL pack for F7/M7 P3 - five small terminal-adjacent features that are independent of the
  * Terminal Solver's own highlighting and work whether that is on or off. Every one is ported from
- * Devonian (Kotlin source read 2026-09-16 at {@code C:\Users\Hunter\UsersHunterdevonian\src\main\kotlin\
+ * Devonian (Kotlin source read 2026-09-16 at {@code src/main/kotlin/
  * com\github\synnerz\devonian\features\dungeons\f7\}), named per feature below:
  * <ul>
  * <li><b>Terminal Protection</b> ({@code TerminalProtection.kt}) - swallows the FIRST click that lands

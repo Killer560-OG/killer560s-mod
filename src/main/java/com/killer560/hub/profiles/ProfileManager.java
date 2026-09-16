@@ -69,6 +69,76 @@ public final class ProfileManager {
                 && !EXCLUDED_FILES.contains(fileName);
     }
 
+    /**
+     * Setting files that are legitimately part of a profile but carry one per-user secret field alongside
+     * the real settings (2026-09-16 audit): the Profile Viewer's own Hypixel API key lives in
+     * {@code killer560smod-profileviewer.json} next to its source/keybind/page settings. Excluding the whole
+     * file would drop those settings from profiles, so instead the secret fields are blanked when a profile
+     * is saved (and therefore exported) and the user's live value is kept when a profile is applied.
+     */
+    private static final java.util.Map<String, Set<String>> SECRET_FIELDS = java.util.Map.of(
+            "killer560smod-profileviewer.json", Set.of("apiKey")
+    );
+
+    /** Copies {@code source} to {@code target} with that file's secret fields blanked. Returns false (and
+     *  writes nothing) when the file has no secret fields or can't be parsed, so the caller falls back to a
+     *  plain copy. */
+    private static boolean copyWithSecretsStripped(Path source, Path target) {
+        Set<String> secrets = SECRET_FIELDS.get(source.getFileName().toString());
+        if (secrets == null) {
+            return false;
+        }
+        try {
+            com.google.gson.JsonObject obj = com.google.gson.JsonParser
+                    .parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
+            for (String field : secrets) {
+                if (obj.has(field)) {
+                    obj.addProperty(field, "");
+                }
+            }
+            Files.writeString(target, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(obj),
+                    StandardCharsets.UTF_8);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Copies profile file {@code source} over live file {@code live}, keeping the live file's secret fields
+     *  when the profile's copy has them blank/missing (a shared profile never carries them). Returns false
+     *  when the file has no secret fields or can't be merged, so the caller falls back to a plain copy. */
+    private static boolean copyPreservingSecrets(Path source, Path live) {
+        Set<String> secrets = SECRET_FIELDS.get(source.getFileName().toString());
+        if (secrets == null) {
+            return false;
+        }
+        try {
+            com.google.gson.JsonObject incoming = com.google.gson.JsonParser
+                    .parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
+            com.google.gson.JsonObject current = null;
+            if (Files.isRegularFile(live)) {
+                try {
+                    current = com.google.gson.JsonParser
+                            .parseString(Files.readString(live, StandardCharsets.UTF_8)).getAsJsonObject();
+                } catch (Exception ignored) {
+                    // Unreadable live file: nothing to preserve.
+                }
+            }
+            for (String field : secrets) {
+                boolean incomingBlank = !incoming.has(field) || incoming.get(field).isJsonNull()
+                        || (incoming.get(field).isJsonPrimitive() && incoming.get(field).getAsString().isBlank());
+                if (incomingBlank && current != null && current.has(field)) {
+                    incoming.add(field, current.get(field));
+                }
+            }
+            Files.writeString(live, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(incoming),
+                    StandardCharsets.UTF_8);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private ProfileManager() {
     }
 
@@ -135,7 +205,10 @@ public final class ProfileManager {
             Files.createDirectories(dir);
             int count = 0;
             for (Path file : liveConfigFiles()) {
-                Files.copy(file, dir.resolve(file.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                Path target = dir.resolve(file.getFileName());
+                if (!copyWithSecretsStripped(file, target)) {
+                    Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+                }
                 count++;
             }
             return new Result(true, "§a[Profiles] Saved " + count + " setting file(s) as profile \"" + name + "\".");
@@ -162,7 +235,10 @@ public final class ProfileManager {
                     if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) {
                         continue;
                     }
-                    Files.copy(file, CONFIG_DIR.resolve(file.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                    Path live = CONFIG_DIR.resolve(file.getFileName());
+                    if (!copyPreservingSecrets(file, live)) {
+                        Files.copy(file, live, StandardCopyOption.REPLACE_EXISTING);
+                    }
                     count++;
                 }
             }
@@ -314,6 +390,8 @@ public final class ProfileManager {
                 com.killer560.hub.maxor.MaxorConfig::load,
                 com.killer560.hub.blessings.BlessingsConfig::load,
                 com.killer560.hub.runsummary.RunSummaryConfig::load,
+                com.killer560.hub.runstats.RunStatsConfig::load,
+                com.killer560.hub.teammates.TeammatesConfig::load,
                 com.killer560.hub.ragaxe.RagAxeConfig::load,
                 com.killer560.hub.thorn.ThornConfig::load,
                 com.killer560.hub.witherdragons.WitherDragonsConfig::load,

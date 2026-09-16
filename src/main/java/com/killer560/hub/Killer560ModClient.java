@@ -121,6 +121,7 @@ public class Killer560ModClient implements ClientModInitializer {
         DungeonInfoFeature.register();
         HudElementRegistry.register(new DungeonInfoFeature.InfoHudElement());
         MobEspFeature.register();
+        com.killer560.hub.teammates.TeammatesFeature.register();
         SimonSaysFeature.register();
         HudElementRegistry.register(new SimonSaysFeature.PartyProgressHudElement());
         TickTimersFeature.register();
@@ -209,6 +210,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.i4sensors.AutoI4Feature.register();
         LiveMapFeature.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
+        com.killer560.hub.runstats.RunStatsFeature.register();
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
         ProximityVoiceFeature.register();

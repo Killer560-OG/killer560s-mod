@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 /**
  * Maxor's Crystals (F7/M7 Phase 1) - a port of NoammAddons'
  * {@code src/main/kotlin/com/github/noamm9/features/impl/floor7/MaxorsCrystals.kt} (local copy at
- * {@code C:\Users\Hunter\noammaddonsmod}). Everything is default OFF ({@link MaxorConfig}).
+ * a local NoammAddons checkout). Everything is default OFF ({@link MaxorConfig}).
  *
  * <h2>Ported exactly, with its source line</h2>
  * <ul>

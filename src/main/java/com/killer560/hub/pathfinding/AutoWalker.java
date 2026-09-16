@@ -120,6 +120,17 @@ public final class AutoWalker {
         return stuck;
     }
 
+    /** Forget the last applied rotation after a server-driven one (the etherwarp teleport reply). */
+
+    public static void rebaseCamera() {
+
+        lastAppliedYaw = Float.NaN;
+
+        lastAppliedPitch = Float.NaN;
+
+    }
+
+
     public static void clearStuck() {
         stuck = false;
         bestRemaining = Double.MAX_VALUE;
@@ -174,7 +185,7 @@ public final class AutoWalker {
             stop("you clicked");
             return;
         }
-        if (!Float.isNaN(lastAppliedYaw)
+        if (!EtherwarpHopper.isBusy() && !Float.isNaN(lastAppliedYaw)
                 && (Math.abs(player.getYRot() - lastAppliedYaw) > 0.05f || Math.abs(player.getXRot() - lastAppliedPitch) > 0.05f)) {
             stop("you moved the camera");
             return;

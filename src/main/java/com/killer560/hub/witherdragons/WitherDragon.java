@@ -10,7 +10,7 @@ import java.util.UUID;
  * (spawnPos, statuePos, aabbDimensions, particle xRange/zRange):
  * https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/WitherDragonsEnum.kt
  * (identical spawn/box/range values in NoammAddons' {@code WitherDragonEnum.kt}, local copy
- * C:\Users\Hunter\noammaddonsmod, except Blue's box minY 16 there vs 13 in Odin - Odin's kept). Type names
+ * a local NoammAddons checkout, except Blue's box minY 16 there vs 13 in Odin - Odin's kept). Type names
  * (Power/Flame/Apex/Ice/Soul) and {@code skipKillTime} (ticks after spawn an arrow hit still counts toward the
  * "arrows hit" stat) are from NoammAddons.
  */

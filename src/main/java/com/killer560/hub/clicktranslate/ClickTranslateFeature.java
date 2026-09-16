@@ -60,7 +60,7 @@ public final class ClickTranslateFeature {
 
     /** @return true if {@code style}'s click event was one of ours and has been fully handled. */
     public static boolean tryHandleClick(Style style) {
-        LOGGER.info("tryHandleClick: style={} clickEvent={}", style, style == null ? null : style.getClickEvent());
+        LOGGER.debug("tryHandleClick: style={} clickEvent={}", style, style == null ? null : style.getClickEvent());
         if (style == null || !(style.getClickEvent() instanceof ClickEvent.Custom custom)) {
             return false;
         }

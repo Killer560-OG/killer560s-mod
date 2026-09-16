@@ -59,6 +59,13 @@ public final class ChatCommandsFeature {
     // Hypixel chat-rate-limit kick.
     private static final long COOLDOWN_MS = 2000;
     private static long lastReplyAtMs = 0;
+    // Per-sender floor and a per-minute ceiling on top of the flat gap (2026-09-16 audit): DMs are on by
+    // default, so without these ANY player on Hypixel could drive ~30 outgoing lines/min from this account
+    // indefinitely with "!ping" spam - enough for Hypixel's own spam auto-mute.
+    private static final long PER_SENDER_COOLDOWN_MS = 8_000;
+    private static final int MAX_REPLIES_PER_MINUTE = 10;
+    private static final java.util.Map<String, Long> LAST_REPLY_BY_SENDER = new java.util.HashMap<>();
+    private static final java.util.ArrayDeque<Long> REPLY_TIMES = new java.util.ArrayDeque<>();
 
     private ChatCommandsFeature() {
     }
@@ -66,7 +73,12 @@ public final class ChatCommandsFeature {
     public static void register() {
         ClientReceiveMessageEvents.CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) -> onMessage(message));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onMessage(message));
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            // Action-bar text is not chat - never feed it to the command / leader parsers.
+            if (!overlay) {
+                onMessage(message);
+            }
+        });
     }
 
     private static void onMessage(Component message) {
@@ -165,6 +177,22 @@ public final class ChatCommandsFeature {
         long now = System.currentTimeMillis();
         if (now - lastReplyAtMs < COOLDOWN_MS) {
             return;
+        }
+        String senderKey = senderName.toLowerCase(Locale.ROOT);
+        Long lastForSender = LAST_REPLY_BY_SENDER.get(senderKey);
+        if (lastForSender != null && now - lastForSender < PER_SENDER_COOLDOWN_MS) {
+            return;
+        }
+        while (!REPLY_TIMES.isEmpty() && now - REPLY_TIMES.peekFirst() > 60_000L) {
+            REPLY_TIMES.pollFirst();
+        }
+        if (REPLY_TIMES.size() >= MAX_REPLIES_PER_MINUTE) {
+            return;
+        }
+        REPLY_TIMES.addLast(now);
+        LAST_REPLY_BY_SENDER.put(senderKey, now);
+        if (LAST_REPLY_BY_SENDER.size() > 256) {
+            LAST_REPLY_BY_SENDER.values().removeIf(t -> now - t > PER_SENDER_COOLDOWN_MS);
         }
         lastReplyAtMs = now;
         sendToChannel(reply, senderName, channel);

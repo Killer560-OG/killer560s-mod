@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -165,17 +164,22 @@ public final class RoomDatabase {
     }
 
     private static String fetchText(String url) throws IOException {
-        URL u = URI.create(url).toURL();
-        try (InputStream in = u.openStream()) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+        java.net.URLConnection conn = URI.create(url).toURL().openConnection();
+        conn.setConnectTimeout(10_000);
+        conn.setReadTimeout(20_000);
+        try (InputStream in = conn.getInputStream()) {
+            // Version string: anything beyond a few KB is not what we asked for.
+            return new String(in.readNBytes(4096), StandardCharsets.UTF_8).trim();
         }
     }
 
     private static void downloadAndExtract(Path dir) throws IOException {
         Files.createDirectories(dir);
         Path zipFile = dir.resolve("download.zip");
-        URL url = URI.create(DOWNLOAD_URL).toURL();
-        try (InputStream in = url.openStream()) {
+        java.net.URLConnection conn = URI.create(DOWNLOAD_URL).toURL().openConnection();
+        conn.setConnectTimeout(10_000);
+        conn.setReadTimeout(60_000);
+        try (InputStream in = conn.getInputStream()) {
             Files.copy(in, zipFile, StandardCopyOption.REPLACE_EXISTING);
         }
         try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(zipFile))) {
