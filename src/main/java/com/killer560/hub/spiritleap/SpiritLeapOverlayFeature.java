@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,7 +35,7 @@ import java.util.regex.Pattern;
  * Spot order comes from the Leap Order editor ({@link com.killer560.hub.leapmenu.LeapOrderScreen}) for the class
  * you are playing; anyone not placed there fills the remaining spots in Hypixel's own order. Targets are
  * re-read from the live slots every frame because Hypixel's items arrive after the screen opens (NoammAddons
- * 26.1.2 LeapMenu does the same).
+ * 26.1.2 LeapMenu does the same) - but only once those slots have settled, see {@code MenuState}.
  */
 public final class SpiritLeapOverlayFeature {
 
@@ -48,6 +47,20 @@ public final class SpiritLeapOverlayFeature {
     private static final int GAP = 6;
 
     private record LeapTarget(String name, int slotIndex) {
+    }
+
+    /**
+     * Per-screen "the menu has settled" state. Hypixel sends the screen first and the head stacks a few ticks later
+     * (and can re-send them), so the first frames of a leap menu read empty or half-filled slots - which would draw
+     * the wrong names in the wrong spots and, worse, leap to whoever happened to be in the quarter you clicked.
+     * Same content-stability gate {@code terminals/TerminalSolverFeature} uses instead of a blind delay: targets are
+     * only accepted once two consecutive frames read the same slots with at least one head in them, and nothing is
+     * drawn or clicked before that.
+     */
+    private static final class MenuState {
+        private List<ItemStack> snapshot = List.of();
+        private boolean settled;
+        private List<LeapTarget> targets = List.of();
     }
 
     /** The leap screen currently being replaced, or null - read by the hide mixin. */
@@ -90,20 +103,16 @@ public final class SpiritLeapOverlayFeature {
             }
         });
 
-        AtomicReference<List<LeapTarget>> current = new AtomicReference<>(List.of());
+        MenuState state = new MenuState();
         AtomicLong lastLeapAtMs = new AtomicLong(0L);
         LOGGER.info("[SpiritLeap] Leap screen '{}' opened (containerId={}), playing class {}",
                 containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, LeapMenuFeature.playingClass());
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) -> {
-            List<LeapTarget> fresh = readTargets(containerScreen);
-            if (!fresh.equals(current.get())) {
-                LOGGER.info("[SpiritLeap] Leap targets (containerId={}): {}", containerScreen.getMenu().containerId, fresh);
-                current.set(fresh);
-                PartyTracker.noteTeammates(fresh.stream().map(LeapTarget::name).toList());
-            }
+            poll(containerScreen, state);
             if (isHiding(s)) {
-                render(graphics, s.width, s.height, layout(fresh), mouseX, mouseY);
+                // nothing is drawn until the slots settle - a couple of frames, never a fixed delay
+                render(graphics, s.width, s.height, layout(state.targets), mouseX, mouseY);
             }
         });
 
@@ -111,9 +120,10 @@ public final class SpiritLeapOverlayFeature {
             if (!isHiding(s)) {
                 return true;
             }
-            LeapTarget[] spots = layout(readTargets(containerScreen));
+            poll(containerScreen, state);
+            LeapTarget[] spots = layout(state.targets);
             int spot = spotFor(event.x(), event.y(), s.width, s.height);
-            if (spot >= 0 && spots[spot] != null) {
+            if (state.settled && spot >= 0 && spots[spot] != null) {
                 leap(client, containerScreen, spots[spot], "click spot " + spot, lastLeapAtMs);
             }
             return false; // never let a click reach the hidden chest/inventory
@@ -127,9 +137,10 @@ public final class SpiritLeapOverlayFeature {
             }
             int key = event.key();
             if (key >= InputConstants.KEY_1 && key <= InputConstants.KEY_4) {
-                LeapTarget[] spots = layout(readTargets(containerScreen));
+                poll(containerScreen, state);
+                LeapTarget[] spots = layout(state.targets);
                 LeapTarget t = spots[key - InputConstants.KEY_1];
-                if (t != null) {
+                if (state.settled && t != null) {
                     leap(client, containerScreen, t, "key " + (key - InputConstants.KEY_1 + 1), lastLeapAtMs);
                 }
                 return false;
@@ -153,6 +164,46 @@ public final class SpiritLeapOverlayFeature {
                 target.slotIndex(), screen.getMenu().containerId);
         client.gameMode.handleContainerInput(screen.getMenu().containerId, target.slotIndex(), 0,
                 ContainerInput.PICKUP, client.player);
+    }
+
+    /**
+     * Re-reads the menu's own slots and keeps {@code state.targets} in step with them, but only once the slots have
+     * settled (see {@link MenuState}). After that the targets are refreshed whenever they really change - Hypixel
+     * re-sends the contents of an open leap menu (a teammate dying/leaving) - but a read that has gone empty is
+     * ignored: that is the menu being torn down, not a new set of targets.
+     */
+    private static void poll(AbstractContainerScreen<?> containerScreen, MenuState state) {
+        List<ItemStack> items = containerItems(containerScreen);
+        boolean anyHead = items.stream().anyMatch(item -> !item.isEmpty() && item.is(Items.PLAYER_HEAD));
+        if (!state.settled) {
+            if (anyHead && ItemStack.listMatches(items, state.snapshot)) {
+                state.settled = true;
+                state.targets = readTargets(containerScreen);
+                LOGGER.info("[SpiritLeap] Leap menu settled (containerId={}): {}",
+                        containerScreen.getMenu().containerId, state.targets);
+                PartyTracker.noteTeammates(state.targets.stream().map(LeapTarget::name).toList());
+            }
+            state.snapshot = anyHead ? List.copyOf(items) : List.of();
+            return;
+        }
+        List<LeapTarget> fresh = readTargets(containerScreen);
+        if (!fresh.isEmpty() && !fresh.equals(state.targets)) {
+            LOGGER.info("[SpiritLeap] Leap targets changed (containerId={}): {}",
+                    containerScreen.getMenu().containerId, fresh);
+            state.targets = fresh;
+            PartyTracker.noteTeammates(fresh.stream().map(LeapTarget::name).toList());
+        }
+    }
+
+    /** The container's own slot contents (never the 36 appended player-inventory slots). */
+    private static List<ItemStack> containerItems(AbstractContainerScreen<?> containerScreen) {
+        List<Slot> slots = containerScreen.getMenu().slots;
+        int containerSlotCount = Math.max(0, slots.size() - 36);
+        List<ItemStack> items = new ArrayList<>(containerSlotCount);
+        for (int i = 0; i < containerSlotCount; i++) {
+            items.add(slots.get(i).getItem());
+        }
+        return items;
     }
 
     /** Player heads from the container's own slots (never the 36 appended player-inventory slots). */

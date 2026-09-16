@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.leapmenu.LeapMenuConfig;
@@ -319,7 +320,7 @@ public final class LiveMapFeature {
                 // an already-known ROOM tile - unless another tile of the same room already identified it.
                 if (grid[idx] == Tile.ROOM && rowEven && colEven && roomEntryGrid[idx] == null
                         && RoomDatabase.isReady() && !cachedGroupHasEntry(idx)
-                        && client.level.isLoaded(new BlockPos(wx, 70, wz))) {
+                        && ChunkCacheManager.isLoadedOrCached(client.level, new BlockPos(wx, 70, wz))) {
                     identifyTile(client, idx, wx, wz);
                 }
                 if (grid[idx] != Tile.UNKNOWN) {
@@ -327,7 +328,7 @@ public final class LiveMapFeature {
                 }
 
                 BlockPos probe = new BlockPos(wx, 70, wz);
-                if (!client.level.isLoaded(probe)) {
+                if (!ChunkCacheManager.isLoadedOrCached(client.level, probe)) {
                     continue;
                 }
                 int roofHeight = getHighestY(client, wx, wz);
@@ -411,7 +412,7 @@ public final class LiveMapFeature {
         }
         if (entry != null && !"L".equals(entry.shape) && worldTiles.size() > 1
                 && worldTiles.size() >= RoomDatabase.shapeTileCount(entry.shape)
-                && client.level.isLoaded(new BlockPos(mainX, 70, mainZ))) {
+                && ChunkCacheManager.isLoadedOrCached(client.level, new BlockPos(mainX, 70, mainZ))) {
             int minX = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;
             int minZ = Integer.MAX_VALUE;
@@ -436,7 +437,7 @@ public final class LiveMapFeature {
         for (int t : worldTiles) {
             int wx = START_X + (t % GRID) * HALF_ROOM;
             int wz = START_Z + (t / GRID) * HALF_ROOM;
-            if (!client.level.isLoaded(new BlockPos(wx, 70, wz))) {
+            if (!ChunkCacheManager.isLoadedOrCached(client.level, new BlockPos(wx, 70, wz))) {
                 continue;
             }
             int roofHeight = getHighestY(client, wx, wz);
@@ -725,7 +726,8 @@ public final class LiveMapFeature {
             if (grid[idx] != Tile.UNKNOWN) {
                 known++;
             } else if (client.level != null && (idx % GRID) % 2 == 0 && (idx / GRID) % 2 == 0
-                    && !client.level.isLoaded(new BlockPos(START_X + (idx % GRID) * HALF_ROOM, 70, START_Z + (idx / GRID) * HALF_ROOM))) {
+                    && !ChunkCacheManager.isLoadedOrCached(client.level,
+                            new BlockPos(START_X + (idx % GRID) * HALF_ROOM, 70, START_Z + (idx / GRID) * HALF_ROOM))) {
                 unloadedRoomCells++;
             }
             if (grid[idx] == Tile.ROOM && (idx % GRID) % 2 == 0 && (idx / GRID) % 2 == 0) {

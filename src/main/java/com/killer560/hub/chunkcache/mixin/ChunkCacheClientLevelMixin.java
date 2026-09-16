@@ -10,13 +10,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Keeps a cached chunk's block entities alive. 26.1.2's {@code ClientLevel.unload(LevelChunk)} (called from
- * {@code ClientChunkCache$Storage.replace} and {@code .drop}) starts with {@code chunk.clearAllBlockEntities()},
- * which marks every block entity removed and empties the chunk's map - so without this, a cached chunk would still
- * have its blocks but would answer null for every chest/skull/sign in it.
+ * {@code ClientChunkCache$Storage.replace} and {@code .drop}, both of which take the chunk out of vanilla's storage
+ * array <em>before</em> calling this) starts with {@code chunk.clearAllBlockEntities()}, which marks every block
+ * entity removed and empties the chunk's map - so without this, a cached chunk would still have its blocks but would
+ * answer null for every chest/skull/sign in it.
  * <p>
- * The map is snapshotted at HEAD and restored at RETURN, with each block entity un-removed but NOT re-registered
- * (no tickers), so nothing in an evicted chunk ticks or renders. Both halves run on the client thread (packet
- * handling), which is the only place vanilla unloads chunks from.
+ * HEAD marks the chunk as "the one being evicted into the cache", which is what makes
+ * {@link ChunkCacheLevelChunkMixin} skip the block-entity half of {@code clearAllBlockEntities} - the map is then
+ * never mutated at all, so nothing can race with the worker threads that read cached chunks. RETURN un-registers
+ * those block entities from the level's off-screen render set, and restores the map by hand only in the fallback
+ * case where that redirect did not apply. Both halves run on the client thread (packet handling), which is the only
+ * place vanilla unloads chunks from.
  */
 @Mixin(ClientLevel.class)
 public abstract class ChunkCacheClientLevelMixin {

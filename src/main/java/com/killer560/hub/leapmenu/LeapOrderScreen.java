@@ -124,7 +124,11 @@ public class LeapOrderScreen extends Screen {
     }
 
     private String[] currentLayout() {
-        return LeapMenuFeature.arrange(PartyTracker.teammates(), LeapMenuConfig.getInstance().getClassOrder(editing));
+        // teammatesInLeapOrder(), not teammates(): spots nobody has been placed in yet must auto-fill in the order
+        // the real Spirit Leap menu shows (its container slot order), not the party listing order - otherwise the
+        // saved layout is off by a position until something is swapped.
+        return LeapMenuFeature.arrange(PartyTracker.teammatesInLeapOrder(),
+                LeapMenuConfig.getInstance().getClassOrder(editing));
     }
 
     @Override

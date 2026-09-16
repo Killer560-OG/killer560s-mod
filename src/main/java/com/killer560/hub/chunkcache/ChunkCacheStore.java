@@ -47,6 +47,13 @@ public final class ChunkCacheStore {
         return entry == null ? null : entry.chunk();
     }
 
+    /** @return true when this exact chunk object is the one cached for that position. Does not touch LRU order, so
+     *  it is safe to ask on bookkeeping paths (ticker registration, unload) without promoting the entry. */
+    public synchronized boolean holds(long key, LevelChunk chunk) {
+        Entry entry = entries.get(key);
+        return entry != null && entry.chunk() == chunk;
+    }
+
     /** Stores (or replaces) the chunk for a position. @return the chunk that was stored there before, if different. */
     public synchronized LevelChunk put(long key, LevelChunk chunk) {
         int bytes = estimateBytes(chunk);

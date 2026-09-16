@@ -32,6 +32,9 @@ public final class LeapMessageFeature {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapmessage");
 
     private static final Pattern LEAP_MESSAGE = Pattern.compile("^You have teleported to (.+)!$");
+    /** The IGN at the end of whatever the line captured, so a rank prefix or a stray formatting code never ends up
+     *  in the party message (same trailing-IGN pattern the custom leap menu reads heads with). */
+    private static final Pattern IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\s*$");
     private static final int DELAY_TICKS = 10; // 0.5s at the normal 20 ticks/sec
 
     // Single pending slot, not a queue - leaps happening less than 0.5s apart would clobber a still-
@@ -78,7 +81,7 @@ public final class LeapMessageFeature {
             }
             return;
         }
-        String targetName = m.group(1);
+        String targetName = ign(m.group(1));
         LOGGER.info("[LeapMessage] Leap detected to \"{}\": leapingTo={} (message blank={}), cringe={}{}",
                 targetName, cfg.isLeapingToEnabled(), cfg.getCustomMessage().isBlank(), cfg.isCringeEnabled(),
                 delayTicksRemaining >= 0 ? " - NOTE: overwriting a still-pending delayed cringe send" : "");
@@ -96,6 +99,13 @@ public final class LeapMessageFeature {
                 CringeFeature.sendRandom("pc");
             }
         }
+    }
+
+    /** @return the plain IGN in {@code captured} (formatting stripped, rank prefix dropped), else the trimmed text. */
+    private static String ign(String captured) {
+        String plain = ChatObserver.strip(captured);
+        Matcher m = IGN.matcher(plain);
+        return m.find() ? m.group(1) : plain;
     }
 
     private static void sendLeapingTo(String targetName) {

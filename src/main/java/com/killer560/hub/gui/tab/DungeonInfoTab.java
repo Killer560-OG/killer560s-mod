@@ -125,11 +125,11 @@ public class DungeonInfoTab extends BaseTab {
         y += 20;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7No live automatic score detection yet - Send Now / a future keybind"),
+                Component.literal("§7These two are manual - Send Now is their only trigger. For"),
                 Minecraft.getInstance().font));
         y += 12;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7is the trigger for now (Hypixel's real score formula isn't ported)."),
+                Component.literal("§7automatic 270/300 alerts use the Score Calculator tab instead."),
                 Minecraft.getInstance().font));
 
         return widgets;

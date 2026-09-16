@@ -164,4 +164,14 @@ public final class ChatObserver {
         String plain = ChatFormatting.stripFormatting(raw);
         return plain == null ? raw : plain;
     }
+
+    /** The same stripping for a raw string that is not a chat line - item/entity names, container titles - trimmed
+     *  (the {@code stripName} the puzzle solvers use, shared so name comparisons all normalise the same way). */
+    public static String strip(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String plain = ChatFormatting.stripFormatting(raw);
+        return (plain == null ? raw : plain).trim();
+    }
 }

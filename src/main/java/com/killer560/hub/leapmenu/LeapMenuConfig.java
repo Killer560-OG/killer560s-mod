@@ -31,6 +31,10 @@ public final class LeapMenuConfig {
      *  "" = spot left for auto-fill. */
     private final Map<String, List<String>> classOrders = new LinkedHashMap<>();
     private String lastEditedClass = null;
+    /** The teammate order Hypixel's own Spirit Leap menu last showed (container slot order) - the order the Leap
+     *  Order editor lays its spots out in, so the editor starts from the real menu's order instead of the party
+     *  listing order. Persisted so it survives a restart (the first edit after an update is otherwise blind). */
+    private final List<String> lastLeapOrder = new ArrayList<>();
 
     private LeapMenuConfig() {
     }
@@ -60,6 +64,13 @@ public final class LeapMenuConfig {
                         }
                     }
                 }
+                if (root.has("lastLeapOrder") && root.get("lastLeapOrder").isJsonArray()) {
+                    for (var el : root.getAsJsonArray("lastLeapOrder")) {
+                        if (el.isJsonPrimitive() && !el.getAsString().isBlank()) {
+                            cfg.lastLeapOrder.add(el.getAsString());
+                        }
+                    }
+                }
                 if (root.has("lastEditedClass") && root.get("lastEditedClass").isJsonPrimitive()) {
                     cfg.lastEditedClass = root.get("lastEditedClass").getAsString();
                 }
@@ -80,6 +91,9 @@ public final class LeapMenuConfig {
                 orders.add(key, a);
             });
             root.add("classOrders", orders);
+            JsonArray leapOrder = new JsonArray();
+            lastLeapOrder.forEach(leapOrder::add);
+            root.add("lastLeapOrder", leapOrder);
             if (lastEditedClass != null) {
                 root.addProperty("lastEditedClass", lastEditedClass);
             }
@@ -112,6 +126,21 @@ public final class LeapMenuConfig {
         if (playing != null) {
             classOrders.remove(playing.name());
         }
+    }
+
+    /** @return the last real leap-menu order (never null); empty until a leap menu has been seen. */
+    public List<String> getLastLeapOrder() {
+        return new ArrayList<>(lastLeapOrder);
+    }
+
+    /** @return true when this changed the stored order (the caller then saves). */
+    public boolean setLastLeapOrder(List<String> namesInSlotOrder) {
+        if (namesInSlotOrder == null || namesInSlotOrder.isEmpty() || lastLeapOrder.equals(namesInSlotOrder)) {
+            return false;
+        }
+        lastLeapOrder.clear();
+        lastLeapOrder.addAll(namesInSlotOrder);
+        return true;
     }
 
     public DungeonClass getLastEditedClass() {

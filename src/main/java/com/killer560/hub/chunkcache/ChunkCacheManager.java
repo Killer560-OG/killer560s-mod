@@ -6,16 +6,19 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkSource;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Chunk Cache (killer560, 2026-09-15): keeps every chunk this client has loaded reachable in memory for the rest of
@@ -35,8 +38,20 @@ import java.util.Map;
  * object the server sent for a position, a chunk that is still live in vanilla's ring is returned by vanilla itself
  * and is never shadowed by a stale copy; when the server re-sends a chunk, the cached copy is replaced.
  * <p>
- * Block entities survive the eviction: {@code ClientLevel.unload} clears a chunk's block-entity map, so the map is
- * snapshotted before it runs and put back (un-removed) afterwards, without re-registering any tickers.
+ * Block entities survive the eviction: {@code ClientLevel.unload} would clear a chunk's block-entity map, so for a
+ * chunk this cache owns the two block-entity calls inside {@code LevelChunk.clearAllBlockEntities} are skipped
+ * ({@code ChunkCacheLevelChunkMixin}) - the map is left exactly as it was, never cleared and never re-filled, so a
+ * worker thread reading a cached chunk can never see a half-restored map. The ticker half of that method runs
+ * untouched, and a cache-only chunk registers nothing new either: {@code addAndRegisterBlockEntity} is cancelled for
+ * it, so no block-entity ticker and no off-screen renderer entry is ever created behind vanilla's back.
+ *
+ * <h2>Who sees cached chunks</h2>
+ * Content reads see them: {@code getBlockState}, {@code getFluidState}, {@code getBlockEntity}, heightmaps and
+ * biomes all funnel through {@code getChunk(x, z, FULL, ...)} and are the whole point of the feature. Vanilla's
+ * <em>decisions</em> do not: {@code ChunkSource.hasChunk} (and therefore {@code Level.isLoaded}) and
+ * {@code Level.getChunkForCollisions} are routed back to a vanilla-only lookup, so entity/particle collision and
+ * every {@code isLoaded} gate behave as if this feature were off. Mod code that deliberately wants "loaded, or
+ * cached" asks {@link #isLoadedOrCached} instead.
  *
  * <h2>Known limitation</h2>
  * The server sends no block updates for chunks it no longer tracks, so a cached chunk is a snapshot from the moment
@@ -48,7 +63,9 @@ import java.util.Map;
  * terrain; the two renderer lookups ({@code SectionRenderDispatcher$RenderSection.doesChunkExistAt} and
  * {@code RenderRegionCache}'s section copy) are routed back to a vanilla-only lookup, so the world looks exactly like
  * it does without this feature. Entity handling and the light engine (which asks for {@code ChunkStatus.EMPTY}, never
- * {@code FULL}) are untouched for the same reason.
+ * {@code FULL}) are untouched for the same reason. The one renderer path that survives a chunk's eviction -
+ * {@code ClientLevel.globallyRenderedBlockEntities}, which {@code LevelRenderer} only prunes when an entry reports
+ * removed - is cleaned out by hand on unload, since cached block entities are deliberately never marked removed.
  */
 public final class ChunkCacheManager {
 
@@ -60,8 +77,12 @@ public final class ChunkCacheManager {
     private static volatile int maxChunks = ChunkCacheConfig.DEFAULT_CHUNKS;
 
     private static WeakReference<ClientLevel> lastLevel = new WeakReference<>(null);
-    /** Block entities of the chunk currently inside {@code ClientLevel.unload} (client thread only). */
+    /** The chunk currently inside {@code ClientLevel.unload} that this cache owns (client thread only). */
+    private static LevelChunk unloadingCacheOnlyChunk;
+    /** Fallback snapshot for the chunk inside {@code ClientLevel.unload} (client thread only, see below). */
     private static Map<BlockPos, BlockEntity> pendingBlockEntities;
+    /** Set once {@code ChunkCacheLevelChunkMixin} has proved it applied, which makes the snapshot path dead code. */
+    private static boolean blockEntitiesKeptByMixin;
 
     private ChunkCacheManager() {
     }
@@ -116,9 +137,10 @@ public final class ChunkCacheManager {
     }
 
     private static void onLevelChanged(ClientLevel level) {
-        // If ClientLevel.unload ever threw between the HEAD and RETURN injections, this still holds that chunk's
-        // block entities (and through them the old level). Never carry it across a world change.
+        // If ClientLevel.unload ever threw between the HEAD and RETURN injections, these still hold that chunk's
+        // block entities (and through them the old level). Never carry them across a world change.
         pendingBlockEntities = null;
+        unloadingCacheOnlyChunk = null;
         ClientLevel previous = lastLevel.get();
         if (previous != null) {
             releaseAll(storeOf(previous));
@@ -167,10 +189,19 @@ public final class ChunkCacheManager {
         trim(store);
     }
 
-    /** HEAD of {@code ClientLevel.unload} - vanilla is about to clear this chunk's block entities. */
+    /**
+     * HEAD of {@code ClientLevel.unload}. Marks the chunk so {@code ChunkCacheLevelChunkMixin} leaves its
+     * block-entity map alone (nothing is cleared, so nothing has to be put back and no worker thread can observe a
+     * half-restored map). The snapshot below is only taken until that mixin has proved it applied.
+     */
     public static void beforeUnload(LevelChunk chunk) {
         pendingBlockEntities = null;
-        if (!active || chunk == null) {
+        unloadingCacheOnlyChunk = null;
+        if (!isCacheOnly(chunk)) {
+            return;
+        }
+        unloadingCacheOnlyChunk = chunk;
+        if (blockEntitiesKeptByMixin) {
             return;
         }
         Map<BlockPos, BlockEntity> blockEntities = chunk.getBlockEntities();
@@ -179,28 +210,58 @@ public final class ChunkCacheManager {
         }
     }
 
-    /** RETURN of {@code ClientLevel.unload} - put the block entities back so cached chests/skulls stay readable. */
+    /**
+     * RETURN of {@code ClientLevel.unload}. Drops the chunk's block entities out of the level's off-screen render
+     * set ({@code LevelRenderer} only prunes that set when an entry reports removed, and cached block entities are
+     * deliberately never marked removed - without this a beacon in an evicted chunk would keep drawing its beam),
+     * then restores the map by hand if - and only if - the redirect above is not in effect.
+     */
     public static void afterUnload(LevelChunk chunk) {
         Map<BlockPos, BlockEntity> snapshot = pendingBlockEntities;
+        boolean cacheOnly = chunk != null && unloadingCacheOnlyChunk == chunk;
         pendingBlockEntities = null;
-        if (snapshot == null || !active || chunk == null) {
+        unloadingCacheOnlyChunk = null;
+        if (!cacheOnly) {
             return;
         }
-        Map<BlockPos, BlockEntity> blockEntities = chunk.getBlockEntities();
-        for (Map.Entry<BlockPos, BlockEntity> entry : snapshot.entrySet()) {
-            BlockEntity blockEntity = entry.getValue();
-            if (blockEntity == null) {
-                continue;
+        if (snapshot != null && !blockEntitiesKeptByMixin) {
+            // Fallback only: the redirect did not apply, so vanilla really did clear the map. This writes to a map
+            // worker threads may be reading, which is exactly why the redirect exists.
+            Map<BlockPos, BlockEntity> blockEntities = chunk.getBlockEntities();
+            for (Map.Entry<BlockPos, BlockEntity> entry : snapshot.entrySet()) {
+                BlockEntity blockEntity = entry.getValue();
+                if (blockEntity == null) {
+                    continue;
+                }
+                // Un-remove, but deliberately NOT through setBlockEntity/addAndRegisterBlockEntity: no tickers are
+                // registered for a cached chunk, so nothing in an evicted chunk ticks.
+                blockEntity.clearRemoved();
+                blockEntities.put(entry.getKey(), blockEntity);
             }
-            // Un-remove, but deliberately NOT through setBlockEntity/addAndRegisterBlockEntity: no tickers are
-            // registered for a cached chunk, so nothing in an evicted chunk ticks.
-            blockEntity.clearRemoved();
-            blockEntities.put(entry.getKey(), blockEntity);
+        }
+        dropFromOffScreenRendering(chunk);
+    }
+
+    /** Un-registers a cached chunk's block entities from {@code ClientLevel.globallyRenderedBlockEntities}. */
+    private static void dropFromOffScreenRendering(LevelChunk chunk) {
+        if (!(chunk.getLevel() instanceof ClientLevel clientLevel)) {
+            return;
+        }
+        try {
+            Set<BlockEntity> offScreen = clientLevel.getGloballyRenderedBlockEntities();
+            if (offScreen.isEmpty()) {
+                return;
+            }
+            for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
+                offScreen.remove(blockEntity);
+            }
+        } catch (RuntimeException ignored) {
+            // Cosmetic bookkeeping; never let it break an unload.
         }
     }
 
-    /** Vanilla-only lookup (renderer paths), bypassing the cache fallback. */
-    public static ChunkAccess vanillaGetChunk(ClientLevel level, int x, int z, ChunkStatus status, boolean load) {
+    /** Vanilla-only lookup (renderer paths, collision, {@code ChunkSource.hasChunk}), bypassing the cache fallback. */
+    public static ChunkAccess vanillaGetChunk(Level level, int x, int z, ChunkStatus status, boolean load) {
         if (!active) {
             return level.getChunk(x, z, status, load);
         }
@@ -212,6 +273,74 @@ public final class ChunkCacheManager {
         } finally {
             flag[0] = previous;
         }
+    }
+
+    /** Vanilla-only lookup for {@code ChunkSource.hasChunk} - see {@code ChunkCacheChunkSourceMixin}. */
+    public static ChunkAccess vanillaGetChunk(ChunkSource source, int x, int z, ChunkStatus status, boolean load) {
+        if (!active) {
+            return source.getChunk(x, z, status, load);
+        }
+        boolean[] flag = BYPASS.get();
+        boolean previous = flag[0];
+        flag[0] = true;
+        try {
+            return source.getChunk(x, z, status, load);
+        } finally {
+            flag[0] = previous;
+        }
+    }
+
+    /**
+     * The mod's explicit "cached reads allowed" loaded-ness question, for feature code that deliberately wants the
+     * rooms it has already visited to keep counting as readable (the Interactive Map and its scanners, the room
+     * database, the dungeon trackers). Vanilla's {@code Level.isLoaded} is left alone by this feature - see
+     * {@code ChunkCacheChunkSourceMixin} - so this is the only way to see cached chunks as "loaded".
+     */
+    public static boolean isLoadedOrCached(Level level, BlockPos pos) {
+        if (level == null || pos == null) {
+            return false;
+        }
+        if (level.isLoaded(pos)) {
+            return true;
+        }
+        if (!active || level.isOutsideBuildHeight(pos) || !(level instanceof ClientLevel clientLevel)) {
+            return false;
+        }
+        ChunkCacheStore store = storeOf(clientLevel);
+        return store != null
+                && store.get(ChunkPos.pack(SectionPos.blockToSectionCoord(pos.getX()),
+                                           SectionPos.blockToSectionCoord(pos.getZ()))) != null;
+    }
+
+    /**
+     * @return true when this chunk is one the cache is keeping alive and vanilla itself has already let go of it.
+     *         Cache-only chunks register nothing with the level (no tickers, no off-screen rendering) - see
+     *         {@code ChunkCacheLevelChunkMixin}.
+     */
+    public static boolean isCacheOnly(LevelChunk chunk) {
+        if (!active || chunk == null || !(chunk.getLevel() instanceof ClientLevel clientLevel)) {
+            return false;
+        }
+        ChunkCacheStore store = storeOf(clientLevel);
+        if (store == null) {
+            return false;
+        }
+        ChunkPos pos = chunk.getPos();
+        // Cheap identity check first: only the exact object this cache owns can be cache-only, and the store lookup
+        // deliberately does not touch LRU order.
+        return store.holds(ChunkPos.pack(pos.x(), pos.z()), chunk) && !isLive(chunk);
+    }
+
+    /**
+     * {@code LevelChunk.clearAllBlockEntities} asking whether to skip the block-entity half of its work. True only
+     * for the chunk {@code ClientLevel.unload} is currently evicting into this cache, on the client thread.
+     */
+    public static boolean keepsBlockEntities(LevelChunk chunk) {
+        if (chunk == null || unloadingCacheOnlyChunk != chunk) {
+            return false;
+        }
+        blockEntitiesKeptByMixin = true;
+        return true;
     }
 
     /** Vanilla-only lookup (renderer paths), bypassing the cache fallback. */

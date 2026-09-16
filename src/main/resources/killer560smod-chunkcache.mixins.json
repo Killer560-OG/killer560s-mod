@@ -4,8 +4,11 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.chunkcache.mixin",
 	"client": [
+		"ChunkCacheChunkSourceMixin",
 		"ChunkCacheClientChunkCacheMixin",
 		"ChunkCacheClientLevelMixin",
+		"ChunkCacheLevelChunkMixin",
+		"ChunkCacheLevelMixin",
 		"ChunkCachePacketListenerMixin",
 		"ChunkCacheRenderRegionCacheMixin",
 		"ChunkCacheRenderSectionMixin"

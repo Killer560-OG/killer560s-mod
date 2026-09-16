@@ -204,10 +204,12 @@ public final class PartyTracker {
         MEMBERS.removeIf(existing -> existing.equalsIgnoreCase(name));
     }
 
-    /** Called when a leap menu opens - the heads in it are definitely teammates. */
-    public static void noteTeammates(List<String> names) {
+    /** Called once a leap menu's slots have settled - the heads in it are definitely teammates, and the order they
+     *  come in is Hypixel's own leap menu order (container slot order), which the Leap Order editor lays its spots
+     *  out in. Remembered (and persisted) so the editor's spots start where the real menu puts them. */
+    public static void noteTeammates(List<String> namesInSlotOrder) {
         boolean changed = false;
-        for (String n : names) {
+        for (String n : namesInSlotOrder) {
             int before = MEMBERS.size();
             add(n);
             changed |= MEMBERS.size() != before;
@@ -215,6 +217,33 @@ public final class PartyTracker {
         if (changed) {
             logIfChanged();
         }
+        LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+        if (cfg.setLastLeapOrder(namesInSlotOrder)) {
+            cfg.save();
+            LOGGER.info("[PartyTracker] Leap menu order: {}", namesInSlotOrder);
+        }
+    }
+
+    /** Teammates in the order the real Spirit Leap menu last showed them (anyone it hasn't shown yet keeps Hypixel's
+     *  listing order, after the ones it has). The Leap Order editor fills its 4 spots from this, so an untouched
+     *  layout matches the live menu instead of being one position out. */
+    public static List<String> teammatesInLeapOrder() {
+        List<String> remaining = teammates();
+        List<String> order = LeapMenuConfig.getInstance().getLastLeapOrder();
+        if (order.isEmpty()) {
+            return remaining;
+        }
+        List<String> out = new ArrayList<>(remaining.size());
+        for (String wanted : order) {
+            for (int i = 0; i < remaining.size(); i++) {
+                if (remaining.get(i).equalsIgnoreCase(wanted)) {
+                    out.add(remaining.remove(i));
+                    break;
+                }
+            }
+        }
+        out.addAll(remaining);
+        return out;
     }
 
     private static void logIfChanged() {

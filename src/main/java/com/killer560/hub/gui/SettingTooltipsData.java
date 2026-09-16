@@ -13,6 +13,7 @@ final class SettingTooltipsData {
     static void register(Map<String, String> d) {
         part1(d);
         part2(d);
+        part3(d);
     }
 
     private static void part1(Map<String, String> d) {
@@ -264,9 +265,9 @@ final class SettingTooltipsData {
         d.put("prince killed msg message", "Type the party chat message sent when a Prince is killed.");
         d.put("bat killed msg", "Sends the message below to party chat when Hypixel says 'A Bat has been slain. +1 Bonus Score'. Dungeons only, once per run.");
         d.put("bat killed msg message", "Type the party chat message sent when a bonus-score bat is killed.");
-        d.put("270 msg", "Saved toggle for the 270 score message. No automatic score detection yet, so it is only sent with Send Now.");
+        d.put("270 msg", "Saved toggle for this tab's 270 score message, which is only ever sent by Send Now. For automatic 270 alerts use the Score Calculator tab instead.");
         d.put("270 message", "Type the party chat message for reaching 270 score.");
-        d.put("300 msg", "Saved toggle for the 300 score message. No automatic score detection yet, so it is only sent with Send Now.");
+        d.put("300 msg", "Saved toggle for this tab's 300 score message, which is only ever sent by Send Now. For automatic 300 alerts use the Score Calculator tab instead.");
         d.put("300 message", "Type the party chat message for reaching 300 score.");
         d.put("send now", "Sends that row's score milestone message (270 or 300) to party chat right now.");
         d.put("starred mobs", "Highlights starred mobs and player-model minibosses (Shadow Assassin, Lost Adventurer, etc.) during dungeon clear, not in boss.");
@@ -880,5 +881,178 @@ final class SettingTooltipsData {
         d.put("show island / area", "Adds your current SkyBlock island and area to the presence (e.g. \"Hub - Village\"). Only ever shown while you're actually on Hypixel.");
         d.put("show dungeon info", "While in a Catacombs run, shows the floor and the F7/M7 boss phase instead of the island/area.");
         d.put("show elapsed time", "Shows a running \"XX:XX elapsed\" timer on your Discord profile, counting from when Rich Presence connected.");
+    }
+
+    /** 2026-09-16 sweep: descriptions for the newer tabs that shipped without any. */
+    private static void part3(Map<String, String> d) {
+        // ---- shared cheat-build section headers ----
+        d.put("cheat build - automation", "Everything below this line only exists in the cheat jar and automates clicks or aim for you. Against Hypixel's rules - use at your own risk.");
+        d.put("cheat build - auto walking", "Cheat build only. Below this line the mod walks your character along the path itself instead of just drawing it.");
+        d.put("cheat build - thorn esp", "Cheat build only. Thorn ESP extras below this line that see through blocks.");
+
+        // ---- Custom Scoreboard ----
+        d.put("line options", "Page of per-line tweaks (mayor, tunings, arrows, party) for the lines the custom scoreboard draws.");
+        d.put("chunked stats", "Page for the combined stats line: which stats appear in it and how many share each row.");
+        d.put("hide with tab list", "Hides the custom scoreboard while you hold the player-list key.");
+        d.put("hide with chat open", "Hides the custom scoreboard while the chat box is open.");
+        d.put("outside skyblock", "What to show when you are not on SkyBlock: Vanilla leaves the server's own sidebar alone, Minimal Board draws a stripped-down custom one.");
+        d.put("cache on island switch", "Keeps the previous board on screen for a moment while a new island's sidebar and tab list load, instead of flashing through half-empty states.");
+        d.put("clickable lines", "Lets you click scoreboard lines that have a command behind them (with chat open) to run it.");
+        d.put("show number changes", "Briefly appends the change (+1200, -50) next to a number when it moves.");
+        d.put("unknown line warning", "Prints a one-off chat note when the server shows a sidebar line this mod does not recognise. Rate limited, Hypixel only.");
+        d.put("date in lobby code", "Puts today's date in front of the lobby code line at the bottom of the board.");
+        d.put("date format", "Which date pattern the lobby code line uses. Only matters with Date In Lobby Code on.");
+        d.put("mayor perks", "Lists the current mayor's perks under the Mayor line.");
+        d.put("next mayor timer", "Adds a countdown to the next mayor election to the Mayor line.");
+        d.put("show minister", "Also lists the minister and their perk alongside the mayor.");
+        d.put("magical power", "Adds your Magical Power total in brackets after the Maxwell power line. Needs your bags opened once.");
+        d.put("compact tuning", "Squeezes your Maxwell tunings onto one line instead of listing them one per row.");
+        d.put("tuning amount", "How many tunings to list (1-8) when Compact Tuning is off.");
+        d.put("arrow amount", "Shows your quiver as a plain count or as a percentage of a full quiver.");
+        d.put("color arrow amount", "Colours the quiver count by how full it is, red when nearly empty through green when nearly full.");
+        d.put("max island players", "Adds the island's player cap to the Players line (e.g. 12/24) instead of just your count.");
+        d.put("party leader", "Marks the party leader in the party list.");
+        d.put("stats per line", "How many chunked stats share one scoreboard row (1-10).");
+        d.put("alpha footer", "Footer text used instead of the normal one while you are on the Alpha network. Supports colour codes.");
+        d.put("gradient border", "Fades the border from the Border Color at the top to the Border Bottom Color at the bottom.");
+        d.put("border bottom color", "Bottom colour of the border gradient. Only used while Gradient Border is ON.");
+        d.put("chroma border", "Cycles the border through the rainbow instead of using the fixed border colours.");
+        d.put("chroma speed", "How fast the chroma border cycles, 1-20.");
+        d.put("image background", "Draws background.png from the scoreboard image folder behind the board instead of a flat colour.");
+        d.put("image opacity", "How solid the background image is, 5-100%. Only used while Image Background is ON.");
+        d.put("reload image", "Re-reads background.png off disk so a change to the file shows up without a restart.");
+        d.put("reload image (no background.png)", "Re-reads background.png - but there is no background.png in the folder yet. Use Open Image Folder and drop one in first.");
+        d.put("open image folder", "Opens the folder the scoreboard background image is read from.");
+
+        // ---- Live Map / Interactive Map ----
+        d.put("interactive map", "Full-screen dungeon map you open with a key, with room names, checkmarks and player markers. Dungeons only.");
+        d.put("open from hud click", "Lets you click the small HUD map (with chat open) to open the full Interactive Map.");
+        d.put("map scale", "Size of the full Interactive Map, 1-10.");
+        d.put("font scale", "Size of the text drawn on the Interactive Map, 0.5x to 3x.");
+        d.put("highlight colour", "Colour used to highlight the room your cursor is over on the Interactive Map.");
+        d.put("player heads", "Draws each player's skin face as their map marker instead of a plain dot.");
+        d.put("class colours", "Colours player markers and their names by dungeon class.");
+        d.put("player names", "When to write teammates' names next to their markers: never, only while holding a leap item, or always.");
+        d.put("icon scale", "Size of the player markers on the Interactive Map, 0.5x to 3x.");
+        d.put("peek key", "Hold this key to blow the small HUD map up to Peek Scale. Esc clears it.");
+        d.put("peek scale", "How much bigger the HUD map gets while the Peek Key is held, 1.25x to 4x.");
+        d.put("close on", "Whether the Interactive Map closes when you let the open key go (Release) or when you press it again (Repress).");
+        d.put("teleport pathing", "Cheat build only. Etherwarp-paths you to a room or door you pick on the Interactive Map.");
+        d.put("start key", "Cheat build only. While the Interactive Map is open, paths you to the start of the room you are in. Esc clears it.");
+        d.put("locked door key", "Cheat build only. While the Interactive Map is open, paths you to the nearest locked (wither) door. Esc clears it.");
+        d.put("face door on arrival", "Cheat build only. Turns you to look at the door once pathing gets you there.");
+        d.put("keep chunks loaded", "Cheat build only. Holds onto chunks the server unloads so pathing can still route through rooms you have left. Uses the Chunk Cache.");
+        d.put("path threads", "Cheat build only. How many threads the etherwarp pathfinder searches with, 1-16. Higher finds paths faster but costs more CPU.");
+        d.put("path timeout", "Cheat build only. How long the pathfinder may search before giving up, 200-1000 ms.");
+        d.put("auto blood rush", "Cheat build only. Etherwarp-rushes you door to door towards blood as soon as it is toggled on.");
+        d.put("blood rush key", "Cheat build only. Toggles Auto Blood Rush on and off. Works with the map open or closed. Esc clears it.");
+        d.put("click door on arrival", "Cheat build only. Clicks the wither door once Blood Rush reaches it, instead of only standing there.");
+        d.put("door timeout", "Cheat build only. How long Blood Rush waits on one door before giving up on it and picking another.");
+
+        // ---- Auto Puzzles (cheat build) ----
+        d.put("auto blaze", "Cheat build only. Shoots the Higher/Lower blazes in order with your held shortbow. Needs the Blaze solver on.");
+        d.put("auto creeper beams", "Cheat build only. Shoots the two matching creeper-beam lanterns with your held shortbow. Needs the Creeper Beams solver on.");
+        d.put("auto ice path", "Cheat build only. Shoots the silverfish along the solved ice path with your held shortbow. Needs the Ice Path solver on.");
+        d.put("auto boulder", "Cheat build only. Clicks the Boulder push blocks in solution order. Needs the Boulder solver on.");
+        d.put("auto water board", "Cheat build only. Flips the Water Board levers in the solved order. Needs the Water Board solver on.");
+        d.put("auto tic tac toe", "Cheat build only. Shoots the best Tic Tac Toe square on your turn. Needs the Tic Tac Toe solver on.");
+        d.put("auto teleport maze", "Cheat build only. Walks the Teleport Maze pads towards the exit. Needs the Teleport Maze solver on.");
+        d.put("auto ice fill", "Cheat build only. Walks the Ice Fill path for you. Needs the Ice Fill solver on.");
+        d.put("shoot cooldown", "Cheat build only. Minimum wait between bow shots for the bow puzzles (Blaze, Creeper Beams, Ice Path).");
+        d.put("miss cooldown", "Cheat build only. Extra wait after a shot that did not land before the bow autos try again.");
+        d.put("boulder click delay", "Cheat build only. Wait between Auto Boulder's clicks.");
+        d.put("ice fill delay", "Cheat build only. Wait in ticks between Auto Ice Fill's movement steps.");
+        d.put("etherwarp reposition", "Cheat build only. AOTV-warps you onto each puzzle's standing spot before the auto starts, instead of expecting you to walk there.");
+
+        // ---- Door Helpers (cheat build) ----
+        d.put("auto door opener", "Cheat build only. Clicks wither and blood doors for you while clearing a dungeon.");
+        d.put("look at door", "Cheat build only. Snaps your aim onto the nearest door so a normal click opens it.");
+        d.put("in menus", "Cheat build only. Lets Auto Door Opener keep clicking while a GUI (chest, menu) is open. Off by default.");
+        d.put("on key pickup", "Cheat build only. Automatically looks at the door the moment you pick up its key, without pressing the keybind.");
+        d.put("retry delay", "Cheat build only. Minimum wait between Auto Door Opener's click attempts on the same door.");
+
+        // ---- Score Calculator ----
+        d.put("hud", "Options for what the Score Calculator's HUD element shows. Move the element itself in the HUD editor.");
+        d.put("formula", "Tweaks to the score estimate itself, for things the client cannot read directly (Paul's EZPZ perk, a Spirit pet).");
+        d.put("270 score alert", "What happens when the estimated score first reaches 270: title, party message, chat note.");
+        d.put("300 score alert", "What happens when the estimated score first reaches 300: title, party message, chat note.");
+        d.put("270 title text", "Type the on-screen title shown at 270 score. Accepts colour codes.");
+        d.put("300 title text", "Type the on-screen title shown at 300 score. Accepts colour codes.");
+
+        // ---- small solvers ----
+        d.put("tic tac toe solver", "Reads the Tic Tac Toe item frames and outlines the best square to shoot on your turn. Never clicks for you.");
+        d.put("show prediction", "Also outlines the square you are likely to want next (yellow), not just the current best move.");
+        d.put("ice path solver", "Draws the shortest silverfish push path to the exit in green. Never hits the silverfish for you.");
+        d.put("outline next stop", "Outlines the next stop on the ice path in red so you can see where the silverfish should end up.");
+        d.put("teleport maze solver", "Marks the pads you have already used and narrows the exit down from your teleport facing. Never moves you.");
+        d.put("tracer to best pad", "Draws a line from you to the pad the solver currently thinks is the exit.");
+
+        // ---- Thorn (F4/M4) ----
+        d.put("spirit bear counter", "Tracking for Thorn's Spirit Bear: a HUD count of bears left and optional overkill reporting.");
+        d.put("thorn esp", "Highlights for the Thorn fight: the Spirit Bear, spirit mobs and the Spirit Bow drop.");
+        d.put("stun spots", "Saved waypoints for where to stand to stun Thorn, drawn in the world during F4/M4.");
+        d.put("spirit bear", "Colour of the Spirit Bear highlight.");
+        d.put("spirit mob", "Colour of the spirit mob highlights.");
+        d.put("spirit bow", "Colour of the Spirit Bow drop highlight.");
+
+        // ---- F7 Spots ----
+        d.put("walk-to waypoints", "Your own saved standing spots for F7/M7, drawn in the world and filtered by phase and floor.");
+        d.put("storm crush timer (p2)", "Timers and pad highlights for Storm's crush in P2.");
+        d.put("last breath aim spots", "Saved aim points for Last Breath, filtered by your class and the situation.");
+        d.put("crush trigger text (optional)", "Optional chat text that starts the crush timer instead of the built-in trigger. Leave blank to use the default.");
+
+        // ---- Lever Aura ----
+        d.put("lights device", "Cheat build only. Which lights-device levers the aura flicks in F7/M7 P3 Section 2, and when.");
+        d.put("section levers", "Cheat build only. Whether the aura also flicks the levers that open each P3 section.");
+        d.put("timing & range", "Cheat build only. How far the Lever Aura reaches and how long it waits between flicks.");
+
+        // ---- Cheat Utils ----
+        d.put("secret aura (dungeons)", "Cheat build only. Clicks nearby secret chests, levers and Wither Essence for you while clearing a dungeon.");
+        d.put("auto gfs (dungeons, /gfs from sacks)", "Cheat build only. Runs /gfs to top your pearls, leaps, superbooms and jerries back up from your sacks during a run.");
+        d.put("auto ult (f7/m7 boss, healer/tank)", "Cheat build only. Casts your Healer or Tank ultimate at set moments in the F7/M7 boss.");
+        d.put("auto chocolate factory (in its gui)", "Cheat build only. Plays the Chocolate Factory menu for you: clicks the cookie, buys upgrades, claims strays.");
+
+        // ---- Rag Axe ----
+        d.put("cast", "Alerts around casting the Ragnarock Axe: the 3s channel starting, it being cancelled, and the strength buff landing.");
+        d.put("timers", "Countdown HUDs for the axe: the 3s channel, the 10s strength buff and the 20s cooldown.");
+        d.put("rag prompts", "Prompts that tell you to start casting early enough that the 3s channel finishes exactly on a boss moment.");
+        d.put("prompt text", "Type the text the rag prompts show. Supports colour codes.");
+
+        // ---- misc single settings ----
+        d.put("dragon alerts", "Party chat messages about the M7 dragons: spawns, time alive, ice sprays, arrows hit and the dragon count.");
+        d.put("starred mob", "Colour of the starred-mob highlights.");
+        d.put("bat", "Colour of the secret-bat highlights.");
+        d.put("wither", "Cheat build only. Colour of the Wither boss highlights.");
+        d.put("display", "What the pathfinder draws: the path itself, the whole route dimmed, the target label and chat feedback.");
+        d.put("island", "Which SkyBlock island the pathfinder has graph data loaded for right now. Read-only.");
+        d.put("m7 phase 5 lines", "Extra split lines for M7 P5: one per dragon and one per King relic.");
+        d.put("mining - planned (not in 1.3)", "Mining features that are designed but not built yet - nothing under this heading does anything in 1.3.");
+        d.put("memory", "How much of the chunk cache is allowed to stay in RAM, plus what it is holding right now.");
+        d.put("sessions", "How many tracked Experimentation Table sessions you have done, split by game. Read-only.");
+        d.put("reward value", "Total Bazaar value of everything the profit tracker has seen you win, plus enchanting XP and bits spent. Read-only.");
+        d.put("last", "Summary of your most recent tracked experiment session. Read-only.");
+        d.put("click again to reset", "Confirm step: click a second time within 3 seconds to wipe the profit totals. It goes back to normal on its own if you don't.");
+        d.put("status", "Whether Discord Rich Presence is actually connected right now. Read-only - if it says not connected, the Discord desktop app probably isn't running.");
+        d.put("what to show", "Which details of what you are doing get sent to your Discord profile.");
+        d.put("current run time", "This run's elapsed time as the mod sees it, real time plus the 'without lag' server-tick time. Read-only.");
+        d.put("score milestone messages", "Manual party messages for hitting 270 and 300, each sent only by its own Send Now button.");
+        d.put("terminals to solve", "Which of the six F7 terminal types the solver draws highlights for. Each one can be turned off on its own.");
+        d.put("terminals to auto-click", "Cheat build only. Which terminal types get clicked automatically. Each still needs its solver on in Terminal Solver.");
+        d.put("restrict when these apply", "Limits the enlarged hitboxes to dungeons, or to the boss fight, so they don't get in the way elsewhere.");
+        d.put("overlay colours", "Colours the terminal solver draws its highlights in. Defaults are the stock orange theme.");
+        d.put("active profile", "Which saved settings profile is loaded right now, or none if you are on the default settings.");
+        d.put("currently", "The language this feature is set to right now. Pick a different one from the list below.");
+        d.put("real item catalog", "How many real SkyBlock items the browser has loaded. If it says not loaded yet, press Refresh Item Catalog.");
+        d.put("leaps", "Cheat build only. Per-teammate Fast Leap rows - which leap targets are enabled and which of them fire automatically.");
+        d.put("< back", "Returns to the previous page of this tab without changing anything.");
+        d.put("browser", "Whether the YT Shorts browser window is running right now. Read-only.");
+        d.put("session", "Croesus profit claimed since the game started.");
+        d.put("all-time", "Croesus profit claimed across every session, saved to disk.");
+        d.put("area", "Which island the waypoint route below is bound to. Routes only draw on the area they were made in.");
+        d.put("animations", "Which first-person item animations to cut: the swing, the equip pull-up and the idle hand sway.");
+        d.put("both hands", "The position, size and rotation sliders below apply to the item in either hand. Turn on Separate Off Hand to split them.");
+        d.put("main hand", "The sliders below only move the main-hand item. Shown because Separate Off Hand is ON.");
+        d.put("off hand", "The sliders below only move the off-hand item. Shown because Separate Off Hand is ON.");
+        d.put("leap message", "Chat messages sent when you leap to someone: the normal one, the cringe one, and the \"Leaping to\" line.");
     }
 }

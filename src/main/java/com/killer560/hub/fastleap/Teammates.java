@@ -2,6 +2,7 @@ package com.killer560.hub.fastleap;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -142,7 +143,7 @@ public final class Teammates {
 
     public static String selfName() {
         Minecraft client = Minecraft.getInstance();
-        return client.player == null ? "" : client.player.getName().getString();
+        return client.player == null ? "" : ChatObserver.strip(client.player.getName().getString());
     }
 
     /** All known teammates except yourself. */
@@ -166,7 +167,7 @@ public final class Teammates {
         if (name == null) {
             return null;
         }
-        String lower = name.trim().toLowerCase(Locale.ROOT);
+        String lower = ChatObserver.strip(name).toLowerCase(Locale.ROOT);
         for (Teammate t : noSelf()) {
             if (t.name().toLowerCase(Locale.ROOT).equals(lower)) {
                 return t;

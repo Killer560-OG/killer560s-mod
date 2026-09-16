@@ -2,6 +2,7 @@ package com.killer560.hub.fastleap;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -427,6 +428,9 @@ public final class LeapManager {
         int containerSlotCount = Math.max(0, slots.size() - 36);
         boolean loaded = false;
         Slot match = null;
+        // Names in real container-slot order, so the Leap Order editor can show the same order the live menu uses
+        // even for someone who never opens the custom leap menu (2026-09-16).
+        List<String> slotOrder = new java.util.ArrayList<>(4);
         for (int i = 0; i < containerSlotCount; i++) {
             Slot slot = slots.get(i);
             ItemStack item = slot.getItem();
@@ -434,10 +438,16 @@ public final class LeapManager {
                 continue;
             }
             loaded = true;
-            if (matchesName(item, a.current.name())) {
-                match = slot;
-                break;
+            String plain = com.killer560.hub.util.ChatObserver.strip(item.getHoverName().getString());
+            if (!plain.isEmpty()) {
+                slotOrder.add(plain);
             }
+            if (match == null && matchesName(item, a.current.name())) {
+                match = slot;
+            }
+        }
+        if (loaded && !slotOrder.isEmpty()) {
+            com.killer560.hub.leapmenu.PartyTracker.noteTeammates(slotOrder);
         }
         if (match == null && loaded && a.request.fallback != null && a.current == a.request.target) {
             if (++a.loadedNoMatchTicks >= FALLBACK_AFTER_LOADED_TICKS) {
@@ -507,7 +517,9 @@ public final class LeapManager {
 
     static AbstractContainerScreen<?> leapMenuScreen(Screen screen) {
         if (screen instanceof AbstractContainerScreen<?> container) {
-            String title = container.getTitle().getString();
+            // stripped first: a title with formatting codes between the words ("§dSpirit §dLeap") would
+            // otherwise never contain the plain phrase
+            String title = ChatObserver.strip(container.getTitle().getString());
             if (title.toLowerCase(Locale.ROOT).contains(LEAP_MENU_TITLE) || isLeapMenuTitle(title)) {
                 return container;
             }
@@ -522,8 +534,7 @@ public final class LeapManager {
     /** Exact leap menu titles - QUOI {@code equalsOneOf("Spirit Leap", "Teleport to Player")} (the second is the
      *  Infinileap title). Exact so a Bazaar/AH page for the item is never hidden or clicked. */
     static boolean isLeapMenuTitle(String title) {
-        String plain = net.minecraft.ChatFormatting.stripFormatting(title);
-        String t = plain == null ? "" : plain.trim();
+        String t = ChatObserver.strip(title);
         return t.equalsIgnoreCase("Spirit Leap") || t.equalsIgnoreCase("Teleport to Player");
     }
 
@@ -541,7 +552,7 @@ public final class LeapManager {
         // p3sim.net items may lack Hypixel's custom_data id - fall back to the display name
         for (int i = 0; i < 9; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && stack.getHoverName().getString().contains("Spirit Leap")) {
+            if (!stack.isEmpty() && ChatObserver.strip(stack.getHoverName().getString()).contains("Spirit Leap")) {
                 return i;
             }
         }
@@ -562,12 +573,13 @@ public final class LeapManager {
 
     /** Exact (case-insensitive) stripped item name, else the name as a whole word inside it (e.g. "[MVP+] Name"). */
     private static boolean matchesName(ItemStack item, String name) {
-        String hover = net.minecraft.ChatFormatting.stripFormatting(item.getHoverName().getString());
-        if (hover == null) {
+        // both sides stripped: a head named "§b[MVP§c+§b] Name" and a target name that arrived formatted
+        // (from chat / another feature) must still match
+        String h = ChatObserver.strip(item.getHoverName().getString()).toLowerCase(Locale.ROOT);
+        String n = ChatObserver.strip(name).toLowerCase(Locale.ROOT);
+        if (h.isEmpty() || n.isEmpty()) {
             return false;
         }
-        String h = hover.trim().toLowerCase(Locale.ROOT);
-        String n = name.toLowerCase(Locale.ROOT);
         if (h.equals(n)) {
             return true;
         }

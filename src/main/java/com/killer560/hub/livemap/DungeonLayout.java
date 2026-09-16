@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -90,7 +91,7 @@ public final class DungeonLayout {
             layout.doorType[idx] = type;
             if (type == DOOR_WITHER || type == DOOR_BLOOD) {
                 BlockPos pos = doorBlock(idx);
-                if (client.level != null && client.level.isLoaded(pos)) {
+                if (client.level != null && ChunkCacheManager.isLoadedOrCached(client.level, pos)) {
                     layout.doorLocked[idx] = !client.level.getBlockState(pos).isAir();
                 } else {
                     // Out of render distance: trust the map (an opened wither door turns normal-coloured there).

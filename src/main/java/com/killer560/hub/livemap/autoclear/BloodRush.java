@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap.autoclear;
 
+import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapConfig;
@@ -163,7 +164,7 @@ public final class BloodRush {
 
         DungeonLayout layout = DungeonLayout.capture();
         int blood = layout.bloodDoor();
-        if (blood >= 0 && !layout.isLocked(blood) && client.level.isLoaded(DungeonLayout.doorBlock(blood))) {
+        if (blood >= 0 && !layout.isLocked(blood) && ChunkCacheManager.isLoadedOrCached(client.level, DungeonLayout.doorBlock(blood))) {
             stop("Blood door opened");
             return;
         }

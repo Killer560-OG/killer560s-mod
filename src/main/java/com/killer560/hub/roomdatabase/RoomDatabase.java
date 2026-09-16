@@ -1,5 +1,6 @@
 package com.killer560.hub.roomdatabase;
 
+import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.google.gson.Gson;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -258,7 +259,7 @@ public final class RoomDatabase {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int i = 0; i < 4; i++) {
             pos.set(corners[i][0], roofHeight, corners[i][1]);
-            if (!level.isLoaded(pos)) {
+            if (!ChunkCacheManager.isLoadedOrCached(level, pos)) {
                 continue;
             }
             if (level.getBlockState(pos).is(Blocks.BLUE_TERRACOTTA)) {

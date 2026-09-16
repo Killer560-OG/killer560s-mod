@@ -153,7 +153,7 @@ public final class FastLeapFeature {
         // QUOI TickEvent.End relic trigger (based on NoammAddons M7Relics)
         if (cfg.isLeapEnabled(LeapGroup.RELIC) && cfg.isLeapAuto(LeapGroup.RELIC) && !pickedUpRelic && isInRelic()) {
             ItemStack relic = player.getInventory().getItem(8);
-            if (relic.getHoverName().getString().contains("Relic")) {
+            if (ChatObserver.strip(relic.getHoverName().getString()).contains("Relic")) {
                 pickedUpRelic = true;
                 LOGGER.info("[FastLeap] Relic picked up -> relic leap");
                 leapToConfigured(LeapTarget.RELIC);
@@ -167,7 +167,7 @@ public final class FastLeapFeature {
                 && client.level != null) {
             String self = Teammates.selfName();
             for (Player other : client.level.players()) {
-                String name = other.getName().getString();
+                String name = ChatObserver.strip(other.getName().getString());
                 if (name.equalsIgnoreCase(self) || Teammates.byName(name) == null) {
                     continue;
                 }
@@ -336,7 +336,8 @@ public final class FastLeapFeature {
             return true;
         }
         // p3sim.net items may lack Hypixel's custom_data id
-        return LeapManager.skyblockId(held) == null && !held.isEmpty() && held.getHoverName().getString().contains("Spirit Leap");
+        return LeapManager.skyblockId(held) == null && !held.isEmpty()
+                && ChatObserver.strip(held.getHoverName().getString()).contains("Spirit Leap");
     }
 
     private static boolean attemptFastLeap() {
