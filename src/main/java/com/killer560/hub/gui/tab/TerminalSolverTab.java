@@ -159,8 +159,27 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     cfg.setMelodyEnabled(!cfg.isMelodyEnabled());
                     cfg.save();
                     btn.setMessage(melodyText());
+                    requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
-        y += 30;
+        y += 24;
+
+        // "It should have an option to also send coords on open mel" (killer560, 2026-09-16) - took over
+        // from the Posmsg "Mel" preset. Only shown while Melody detection is on, because that detection
+        // is what fires it.
+        if (TerminalSolverConfig.getInstance().isMelodyEnabled()) {
+            widgets.add(SettingsButtonWidget.builder(melodySendCoordsText(), btn -> {
+                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                        cfg.setMelodySendCoordsOnOpen(!cfg.isMelodySendCoordsOnOpen());
+                        cfg.save();
+                        btn.setMessage(melodySendCoordsText());
+                    }).bounds(contentX, y, 220, 20).build());
+            y += 24;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("Types \"Mel at x, y, z\" into party chat when the Melody terminal opens."),
+                    Minecraft.getInstance().font));
+            y += 18;
+        }
+        y += 6;
 
         widgets.add(SettingsButtonWidget.builder(numbersThreeTierText(), btn -> {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
@@ -487,6 +506,11 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
 
     private static Component selectText() {
         return Component.literal("Select: " + (TerminalSolverConfig.getInstance().isSelectEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component melodySendCoordsText() {
+        return Component.literal("Send Mel Coords On Open: "
+                + (TerminalSolverConfig.getInstance().isMelodySendCoordsOnOpen() ? "§aON" : "§cOFF"));
     }
 
     private static Component melodyText() {

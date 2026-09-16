@@ -132,11 +132,24 @@ public final class EtherwarpOverlayFeature {
             return;
         }
 
-        float r = etherPos.succeeded() ? 0.2f : 1.0f;
-        float g = etherPos.succeeded() ? 1.0f : 0.2f;
-        float b = 0.2f;
         AABB box = cfg.isFullBlock() ? new AABB(etherPos.pos()) : realBoxFor(client.level, etherPos.pos());
-        WorldRenderUtils.renderOutlineBox(context, box, r, g, b, 1f, 2f);
+        // Colour + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
+        // exact green/red outline this always drew. Style semantics copied from Simon Says so "Filled" and
+        // "Filled+Outline" look the same across the mod: a plain fill uses the colour's own alpha, the combo
+        // halves the fill so the outline still reads. Never let a render exception escape into the frame.
+        try {
+            float[] c = WorldRenderUtils.argbToFloats(etherPos.succeeded() ? cfg.getSafeColor() : cfg.getFailedColor());
+            switch (cfg.getStyle()) {
+                case FILLED -> WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3]);
+                case FILLED_OUTLINE -> {
+                    WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3] * 0.5f);
+                    WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
+                }
+                default -> WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[EtherwarpOverlay] Render failed: {}", e.toString());
+        }
     }
 
     private static AABB realBoxFor(Level level, BlockPos pos) {

@@ -27,6 +27,7 @@ public class NewTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
+                new LeapCounterTab(),
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),
                 new MobEspTab(),

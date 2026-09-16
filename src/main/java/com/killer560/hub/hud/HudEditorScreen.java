@@ -6,23 +6,38 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * SkyHanni-style HUD position editor: every registered {@link HudElement} is drawn at its current
+ * SkyHanni-style HUD position editor: every listed {@link HudElement} is drawn at its current
  * position with a bounding box, click-and-drag anywhere on a box to move it, release to save.
  * Scrolling while holding a box (or just hovering one) resizes it.
+ * <p>
+ * Which elements are listed (2026-09-16): only those whose {@link HudElement#isRelevantNow()} is true -
+ * killer560: "for editing huds have it only edit huds that are supposed to be open right now. So for
+ * instance if i am in dungeons i dont need to edit the rng meter hud." The "Show All" button lists every
+ * registered element instead, so a HUD for a context you are not in right now (pre-arranging the P5 dragon
+ * timers from the hub, say) stays editable; its state persists in {@link HudConfig}. The list is fixed when
+ * the screen opens / the toggle flips rather than re-evaluated every frame, so a timer expiring mid-drag
+ * can't yank the box out from under the cursor.
  */
 public class HudEditorScreen extends Screen {
 
     private final Screen parent;
     private final Map<String, int[]> livePositions = new HashMap<>();
     private final Map<String, Float> liveScales = new HashMap<>();
+    /** Elements currently listed, in registry order (topmost last). */
+    private final List<HudElement> shown = new ArrayList<>();
+    private int hiddenCount = 0;
 
     private String draggingId = null;
     private double dragOffsetX;
     private double dragOffsetY;
+
+    private SettingsButtonWidget showAllButton;
 
     private static final int BOX_BG = 0x55FFFFFF;
     private static final int BOX_BG_DRAGGING = 0x8055FF55;
@@ -39,16 +54,44 @@ public class HudEditorScreen extends Screen {
 
     @Override
     protected void init() {
+        rebuildList();
+
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
+                .bounds(this.width / 2 - 40, this.height - 28, 80, 20).build());
+        showAllButton = SettingsButtonWidget.builder(showAllLabel(), btn -> {
+            HudConfig cfg = HudConfig.getInstance();
+            cfg.setEditorShowAll(!cfg.isEditorShowAll());
+            cfg.save();
+            btn.setMessage(showAllLabel());
+            rebuildList();
+        }).bounds(this.width / 2 + 48, this.height - 28, 110, 20).build();
+        this.addRenderableWidget(showAllButton);
+    }
+
+    private static Component showAllLabel() {
+        return Component.literal("Show All: " + (HudConfig.getInstance().isEditorShowAll() ? "§aON" : "§cOFF"));
+    }
+
+    /** Recomputes the listed elements and (re)snapshots their positions/scales. Positions come through
+     *  {@link HudElementRegistry#resolvePosition}, so a never-moved element starts inside the screen. */
+    private void rebuildList() {
+        draggingId = null;
+        shown.clear();
         livePositions.clear();
         liveScales.clear();
+        boolean showAll = HudConfig.getInstance().isEditorShowAll();
+        int hidden = 0;
         for (HudElement element : HudElementRegistry.all()) {
+            if (!showAll && !HudElementRegistry.isRelevantNow(element)) {
+                hidden++;
+                continue;
+            }
+            shown.add(element);
             int[] pos = HudElementRegistry.resolvePosition(element);
             livePositions.put(element.id(), pos);
             liveScales.put(element.id(), HudElementRegistry.resolveScale(element));
         }
-
-        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                .bounds(this.width / 2 - 40, this.height - 28, 80, 20).build());
+        hiddenCount = hidden;
     }
 
     @Override
@@ -56,14 +99,19 @@ public class HudEditorScreen extends Screen {
         graphics.fill(0, 0, this.width, this.height, 0x33000000);
         graphics.text(this.font, "§eDrag a box to reposition it, scroll to resize it. Click Done when finished.",
                 8, 8, 0xFFFFFFFF);
+        String listing = hiddenCount == 0
+                ? "§7Showing all " + shown.size() + " HUD elements."
+                : "§7Showing " + shown.size() + " HUD elements relevant right now (" + hiddenCount
+                + " hidden - turn on Show All to arrange those too).";
+        graphics.text(this.font, listing, 8, 20, 0xFFFFFFFF);
 
-        for (HudElement element : HudElementRegistry.all()) {
+        for (HudElement element : shown) {
             int[] pos = livePositions.get(element.id());
             int x = pos[0];
             int y = pos[1];
             float scale = liveScales.get(element.id());
-            int scaledW = Math.round(element.width() * scale);
-            int scaledH = Math.round(element.height() * scale);
+            int scaledW = scaledWidth(element, scale);
+            int scaledH = scaledHeight(element, scale);
             boolean dragging = element.id().equals(draggingId);
 
             graphics.fill(x, y, x + scaledW, y + scaledH, dragging ? BOX_BG_DRAGGING : BOX_BG);
@@ -71,24 +119,45 @@ public class HudEditorScreen extends Screen {
             graphics.text(this.font, element.displayName() + String.format(" (%.1fx)", scale), x + 2, y - 10, 0xFFFFFFFF);
 
             graphics.pose().pushMatrix();
-            graphics.pose().translate(x + 2, y + 2);
-            graphics.pose().scale(scale, scale);
-            element.render(graphics, 0, 0);
-            graphics.pose().popMatrix();
+            try {
+                graphics.pose().translate(x + 2, y + 2);
+                graphics.pose().scale(scale, scale);
+                element.render(graphics, 0, 0);
+            } catch (RuntimeException e) {
+                // One element's broken preview must not take the whole editor down with it.
+            } finally {
+                graphics.pose().popMatrix();
+            }
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
-    /** Topmost element whose scaled box contains (mx, my), or null. */
+    /** width()/height() run feature code; a throw here would otherwise kill the editor's render/click path. */
+    private static int scaledWidth(HudElement element, float scale) {
+        try {
+            return Math.round(element.width() * scale);
+        } catch (RuntimeException e) {
+            return Math.round(20 * scale);
+        }
+    }
+
+    private static int scaledHeight(HudElement element, float scale) {
+        try {
+            return Math.round(element.height() * scale);
+        } catch (RuntimeException e) {
+            return Math.round(10 * scale);
+        }
+    }
+
+    /** Topmost listed element whose scaled box contains (mx, my), or null. */
     private HudElement elementAt(double mx, double my) {
-        var elements = HudElementRegistry.all();
-        for (int i = elements.size() - 1; i >= 0; i--) {
-            HudElement element = elements.get(i);
+        for (int i = shown.size() - 1; i >= 0; i--) {
+            HudElement element = shown.get(i);
             int[] pos = livePositions.get(element.id());
             float scale = liveScales.get(element.id());
-            int scaledW = Math.round(element.width() * scale);
-            int scaledH = Math.round(element.height() * scale);
+            int scaledW = scaledWidth(element, scale);
+            int scaledH = scaledHeight(element, scale);
             if (mx >= pos[0] && mx <= pos[0] + scaledW && my >= pos[1] && my <= pos[1] + scaledH) {
                 return element;
             }
@@ -98,6 +167,10 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // Buttons first, so a box that happens to sit under Done / Show All doesn't swallow the click.
+        if (super.mouseClicked(event, doubleClick)) {
+            return true;
+        }
         if (event.button() == 0) {
             HudElement element = elementAt(event.x(), event.y());
             if (element != null) {
@@ -108,7 +181,7 @@ public class HudEditorScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseClicked(event, doubleClick);
+        return false;
     }
 
     @Override

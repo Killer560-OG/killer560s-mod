@@ -26,6 +26,11 @@ public final class HudConfig {
     private final Map<String, Float> scales = new HashMap<>();
     /** GLFW key code for opening the HUD editor, or -1 if unbound. */
     private int editKeyCode = -1;
+    /** HUD editor "Show All" toggle: list every registered element instead of only the ones relevant to
+     *  what the player is doing right now (see {@link HudElement#isRelevantNow()}). Persisted like every
+     *  other setting so the editor reopens the way it was left. Default off - killer560 asked for the
+     *  filtered view. */
+    private boolean editorShowAll = false;
 
     private HudConfig() {
     }
@@ -44,6 +49,7 @@ public final class HudConfig {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                 cfg.editKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "editKeyCode", -1));
+                cfg.editorShowAll = ConfigJson.getBool(obj, "editorShowAll", false);
                 JsonObject positions = ConfigJson.getObject(obj, "positions");
                 if (positions != null) {
                     for (String id : positions.keySet()) {
@@ -76,6 +82,7 @@ public final class HudConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("editKeyCode", editKeyCode);
+            obj.addProperty("editorShowAll", editorShowAll);
             JsonObject positions = new JsonObject();
             for (Map.Entry<String, int[]> entry : this.positions.entrySet()) {
                 JsonObject pos = new JsonObject();
@@ -104,6 +111,12 @@ public final class HudConfig {
         return positions.getOrDefault(id, new int[]{defaultX, defaultY});
     }
 
+    /** True once the player has moved this element themselves (a scale-only entry does not count). Used by
+     *  {@link HudElementRegistry#resolvePosition} to clamp only defaults, never a deliberate placement. */
+    public boolean hasPosition(String id) {
+        return positions.containsKey(id);
+    }
+
     public void setPosition(String id, int x, int y) {
         positions.put(id, new int[]{x, y});
     }
@@ -122,5 +135,13 @@ public final class HudConfig {
 
     public void setEditKeyCode(int editKeyCode) {
         this.editKeyCode = editKeyCode;
+    }
+
+    public boolean isEditorShowAll() {
+        return editorShowAll;
+    }
+
+    public void setEditorShowAll(boolean editorShowAll) {
+        this.editorShowAll = editorShowAll;
     }
 }

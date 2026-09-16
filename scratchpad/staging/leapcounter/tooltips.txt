@@ -1,0 +1,23 @@
+        // ---- Leap Counter (tab in New; legit, ships on both jars) ----
+        // Snippet for gui/SettingTooltipsData.java - paste next to the F7 Spots block. Keys are the widget label cut
+        // at ':' and lower-cased (see SettingTooltips). Checked against every existing key: nothing collides, so
+        // nothing needs a "new/" scope. "Alert Sound" and "HUD" were already taken, hence "Leap Alert Sound" and
+        // "Counter HUD".
+        d.put("leap counter", "F7/M7 Phase 3: counts how many teammates have spirit-leaped TO you while you stand still on a leap spot, and alerts when the expected number have arrived. Someone walking over is not counted. Off by default.");
+        d.put("expected leaps", "How many teammates should leap to you in each Phase 3 section. Always capped to your party size, so a 4-man never waits for a 5th leap.");
+        d.put("s1 leaps", "Leaps expected while you stand in section 1 (Simon Says side). killer560 gave no number for S1, so this defaults to 3 (NoammAddons' value). 0 turns S1 off.");
+        d.put("s2 leaps", "Leaps expected while you stand in section 2. Default 4 (killer560's number). 0 turns S2 off.");
+        d.put("s3 leaps", "Leaps expected while you stand in section 3. Default 3 (killer560's number). 0 turns S3 off.");
+        d.put("s4 leaps", "Leaps expected while you stand in section 4. Default 4 (killer560's number). 0 turns S4 off.");
+        d.put("core leaps", "Leaps expected once the Core entrance has opened and you stand inside the core. Default 4. 0 turns it off.");
+        d.put("relic leaps", "Leaps expected in Phase 5 (Wither King, relics). Default 4. 0 turns it off.");
+        d.put("detection", "How an arrival is told apart from someone walking over: they must cover the Jump Distance within a few ticks (or pop into view) and land within the Leap Radius of you.");
+        d.put("leap radius", "How close to you (in blocks) a teammate must land to count, 1-8. Default 3. Walking more than this far from where the first leap landed resets the count.");
+        d.put("jump distance", "Blocks a teammate must cover within a few ticks for the arrival to count as a leap rather than a walk-in, 3-20. Default 8. Lower it (5-6) if very short leaps, like the 6-block hop into the core, are being missed.");
+        d.put("alert", "What happens when the expected number of teammates have leaped to you.");
+        d.put("leap alert title", "Shows a screen title when the expected number of teammates have leaped to you.");
+        d.put("leap alert sound", "Plays the experience-orb sound with the title, same as NoammAddons.");
+        d.put("alert text (& colour codes)", "The title text. & colour codes work, e.g. &aEveryone Leaped! (the default).");
+        d.put("counter hud", "The on-screen '1/4 Leaped (S2)' line. Red until one short, yellow at one short, green when complete.");
+        d.put("leap hud", "Shows the leap count on screen while you're on a countable section. Move and resize it in the HUD editor (element: Leap Counter).");
+        d.put("show at zero", "Shows '0/4 Leaped' as soon as you're standing on a countable section, instead of only once the first teammate has leaped to you.");

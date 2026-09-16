@@ -44,10 +44,28 @@ public final class ShortsConfig {
         }
     }
 
+    /** Page colour scheme the Shorts window is asked to use (2026-09-16, killer560: "make an option for dark or
+     *  light mode"). SYSTEM is the pre-option behaviour: the browser follows Windows' own app theme. */
+    public enum Theme {
+        SYSTEM("System"), DARK("Dark"), LIGHT("Light");
+
+        public final String label;
+
+        Theme(String label) {
+            this.label = label;
+        }
+
+        public Theme next() {
+            Theme[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
+
     private static ShortsConfig instance;
 
     private boolean enabled = false;
     private Anchor anchor = Anchor.RIGHT_CENTER;
+    private Theme theme = Theme.SYSTEM;
     private int sizePercent = 60;
     private int margin = 10;
     private int opacity = 100;
@@ -80,6 +98,7 @@ public final class ShortsConfig {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(o, "enabled", false);
                 cfg.anchor = ConfigJson.getEnum(o, "anchor", Anchor.class, Anchor.RIGHT_CENTER);
+                cfg.theme = ConfigJson.getEnum(o, "theme", Theme.class, Theme.SYSTEM);
                 cfg.sizePercent = clamp(intOr(o, "sizePercent", 60), MIN_SIZE_PERCENT, MAX_SIZE_PERCENT);
                 cfg.margin = clamp(intOr(o, "margin", 10), 0, MAX_MARGIN);
                 cfg.opacity = clamp(intOr(o, "opacity", 100), MIN_OPACITY, 100);
@@ -105,6 +124,7 @@ public final class ShortsConfig {
             JsonObject o = new JsonObject();
             o.addProperty("enabled", enabled);
             o.addProperty("anchor", anchor.name());
+            o.addProperty("theme", theme.name());
             o.addProperty("sizePercent", sizePercent);
             o.addProperty("margin", margin);
             o.addProperty("opacity", opacity);
@@ -144,6 +164,14 @@ public final class ShortsConfig {
 
     public void setAnchor(Anchor anchor) {
         this.anchor = anchor == null ? Anchor.RIGHT_CENTER : anchor;
+    }
+
+    public Theme getTheme() {
+        return theme;
+    }
+
+    public void setTheme(Theme theme) {
+        this.theme = theme == null ? Theme.SYSTEM : theme;
     }
 
     public int getSizePercent() {

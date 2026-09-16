@@ -105,10 +105,22 @@ final class BrowserLauncher {
         return null;
     }
 
-    static List<String> buildCommand(Path exe, Path profile, int x, int y, int w, int h) {
+    static List<String> buildCommand(Path exe, Path profile, int x, int y, int w, int h, ShortsConfig.Theme theme) {
         List<String> cmd = new ArrayList<>();
         cmd.add(exe.toString());
         cmd.add("--app=" + SHORTS_URL);
+        // Dark/light mode (2026-09-16, killer560). The switch sets the browser's native theme before the first
+        // paint, so YouTube (in its default "Device theme" appearance) loads already dark/light instead of
+        // flashing the Windows theme first. --force-dark-mode is a long-standing Chromium switch; the light
+        // twin is documented by third parties only, and Chromium ignores switches it doesn't know, so
+        // neither can break a launch. The CDP prefers-color-scheme emulation ShortsFeature applies after
+        // connecting is what actually guarantees the result (and is what makes a live change work without
+        // a relaunch); this just removes the initial flash. SYSTEM adds nothing = the pre-option behaviour.
+        if (theme == ShortsConfig.Theme.DARK) {
+            cmd.add("--force-dark-mode");
+        } else if (theme == ShortsConfig.Theme.LIGHT) {
+            cmd.add("--force-light-mode");
+        }
         cmd.add("--user-data-dir=" + profile.toAbsolutePath());
         // 0 = let the browser pick a free port and write it to <profile>/DevToolsActivePort (no port race).
         cmd.add("--remote-debugging-port=0");

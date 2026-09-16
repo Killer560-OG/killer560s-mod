@@ -390,6 +390,7 @@ public final class ProfileManager {
                 com.killer560.hub.ap3.Ap3Config::load,
                 com.killer560.hub.ap3.Ap3Store::reload,
                 com.killer560.hub.dungeonclass.ClassOverrides::load,
+                com.killer560.hub.leapcounter.LeapCounterConfig::load,
                 com.killer560.hub.chunkcache.ChunkCacheConfig::load,
                 com.killer560.hub.pathfinding.PathfindingConfig::load,
                 com.killer560.hub.f7spots.F7SpotsConfig::load,

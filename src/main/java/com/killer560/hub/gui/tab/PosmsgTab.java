@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.posmsg.PosmsgConfig;
 import com.killer560.hub.posmsg.PosmsgEntry;
 import net.minecraft.client.Minecraft;
@@ -16,16 +17,17 @@ import java.util.List;
 import java.util.Locale;
 
 /** Posmsg (position message) waypoints - a ring drawn on the ground that types its own line into party
- *  chat the moment you walk into it. Preloaded room presets (Simon Says/EE2/EE3/Outpour/Recor/Necron's
- *  Platform/P5, per killer560's list) plus any custom ones added here or via
- *  {@code /posmsg add <message> <x> <y> <z> <radius>}.
+ *  chat the moment you walk into it, only during the F7/M7 boss fight. Preloaded room presets (Simon
+ *  Says/EE2/EE3/Outcore/Recore/Necron's Platform/P5, per killer560's list, shipped with his real
+ *  coordinates) plus any custom ones added here or via {@code /posmsg add <message> <x> <y> <z> <radius>}.
  *  <p>
  *  Controls per waypoint are the ones killer560 asked for (2026-09-16): the message field with its Set
  *  button, Enabled, Set To My Position, Show Radius, Radius, Border Thickness, Only Send Once Per Run,
- *  and the colour. Enabled sits directly under the waypoint's title and collapses everything below it
- *  when off, so an unused waypoint costs one line in a list that is already 8 entries long. The old Send
- *  button, "Show Display" and "Only If Inside" toggles are gone along with the top-left HUD list they
- *  belonged to - the ring in the world is the display now. */
+ *  the colour, and (his test-round additions) Text Scale and Text Height for the floating label. Radius
+ *  is a slider rather than a cycling button at his request. Enabled sits directly under the waypoint's
+ *  title and collapses everything below it when off, so an unused waypoint costs one line in a list
+ *  that is already 7 entries long. Every waypoint starts OFF - flipping the master switch lights up
+ *  nothing until you opt each spot in ("if you turn it on by default every individual one is off"). */
 public class PosmsgTab extends BaseTab {
 
     private static final int ROW = 18;
@@ -43,7 +45,9 @@ public class PosmsgTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(masterText(), btn -> {
                     PosmsgConfig cfg = PosmsgConfig.getInstance();
-                    cfg.setEnabled(!cfg.isEnabled());
+                    // Raw, not the Skyblock-gated isEnabled(): off-Skyblock that reads OFF regardless of
+                    // the stored value, so toggling would always write ON.
+                    cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     btn.setMessage(masterText());
                 }).bounds(contentX, y, contentWidth, 20).build());
@@ -56,7 +60,11 @@ public class PosmsgTab extends BaseTab {
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Stand where the message should send from and hit \"Set To My Position\"."),
+                Component.literal("§7Only active in the F7/M7 boss fight. Turn on each waypoint you want."),
+                Minecraft.getInstance().font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Presets are pre-positioned; \"Set To My Position\" overrides one."),
                 Minecraft.getInstance().font));
         y += 18;
 
@@ -79,7 +87,7 @@ public class PosmsgTab extends BaseTab {
         y += 14;
 
         // Enabled sits directly under the title and collapses the rest of the waypoint when it's off
-        // (killer560, 2026-09-16) - with 8+ waypoints in one scrolling list, the ones you aren't using
+        // (killer560, 2026-09-16) - with 7+ waypoints in one scrolling list, the ones you aren't using
         // should take one line, not six.
         widgets.add(SettingsButtonWidget.builder(onOff("Enabled", e.enabled), btn -> {
                     e.enabled = !e.enabled;
@@ -146,11 +154,11 @@ public class PosmsgTab extends BaseTab {
                     btn.setMessage(onOff("Show Radius", e.showRadius));
                 }).bounds(col2, y, colW, ROW).build());
 
-        widgets.add(SettingsButtonWidget.builder(radiusText(e), btn -> {
-                    e.radius = e.radius >= 10 ? 1.0 : e.radius + 0.5;
-                    PosmsgConfig.getInstance().save();
-                    btn.setMessage(radiusText(e));
-                }).bounds(col3, y, col3W, ROW).build());
+        // A slider, not a cycling button (killer560's test round, 2026-09-16). 1.0-10.0 in half-block
+        // steps; a radius typed wider than that via "/posmsg add" still loads and fires - the handle just
+        // pins to the end until you drag it.
+        widgets.add(slider(col3, y, col3W, radiusText(e),
+                PosmsgEntry.MIN_RADIUS, PosmsgEntry.MAX_RADIUS, e.radius, 0.5, v -> e.radius = v, () -> radiusText(e)));
         y += ROW + GAP;
 
         widgets.add(SettingsButtonWidget.builder(thicknessText(e), btn -> {
@@ -177,15 +185,48 @@ public class PosmsgTab extends BaseTab {
                 }).bounds(col3, y, col3W, ROW).build());
         y += ROW + GAP;
 
+        // Label controls (killer560's test round, 2026-09-16): size of the floating message text, and
+        // how far above the waypoint it floats. 0 height = sitting on the waypoint, exactly how it
+        // looked before the option existed.
+        widgets.add(slider(col1, y, colW, textScaleText(e),
+                PosmsgEntry.MIN_TEXT_SCALE, PosmsgEntry.MAX_TEXT_SCALE, e.textScale, 0.05,
+                v -> e.textScale = v, () -> textScaleText(e)));
+        widgets.add(slider(col2, y, colW, textHeightText(e),
+                PosmsgEntry.MIN_TEXT_HEIGHT, PosmsgEntry.MAX_TEXT_HEIGHT, e.textHeightOffset, 0.25,
+                v -> e.textHeightOffset = v, () -> textHeightText(e)));
         if (!e.builtin) {
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
                         PosmsgConfig.getInstance().remove(e.id);
                         requestRebuild.run();
-                    }).bounds(col1, y, colW, ROW).build());
-            y += ROW + GAP;
+                    }).bounds(col3, y, col3W, ROW).build());
         }
+        y += ROW + GAP;
 
         return y;
+    }
+
+    /** One themed slider over {@code [min, max]} snapped to {@code step}, saving on every change - same
+     *  shape as the sliders in {@code LeapMenuTab}/{@code TerminalSolverTab}, just factored out because
+     *  this tab draws three of them per waypoint. */
+    private static ThemedSliderButton slider(int x, int y, int w, Component label, double min, double max,
+                                             double current, double step, java.util.function.DoubleConsumer apply,
+                                             java.util.function.Supplier<Component> text) {
+        double span = max - min;
+        double normalized = span <= 0 ? 0 : (current - min) / span;
+        return new ThemedSliderButton(x, y, w, ROW, label, Math.max(0.0, Math.min(1.0, normalized))) {
+            @Override
+            protected void updateMessage() {
+                setMessage(text.get());
+            }
+
+            @Override
+            protected void applyValue() {
+                double raw = min + this.value * span;
+                double snapped = Math.round(raw / step) * step;
+                apply.accept(Math.max(min, Math.min(max, snapped)));
+                PosmsgConfig.getInstance().save();
+            }
+        };
     }
 
     private static Component thicknessText(PosmsgEntry e) {
@@ -196,11 +237,19 @@ public class PosmsgTab extends BaseTab {
         return Component.literal(String.format(Locale.US, "Radius: %.1f", e.radius));
     }
 
+    private static Component textScaleText(PosmsgEntry e) {
+        return Component.literal(String.format(Locale.US, "Text Scale: %.0f%%", e.textScale * 100));
+    }
+
+    private static Component textHeightText(PosmsgEntry e) {
+        return Component.literal(String.format(Locale.US, "Text Height: %.2f", e.textHeightOffset));
+    }
+
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
     private static Component masterText() {
-        return Component.literal("Posmsg: " + (PosmsgConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
+        return Component.literal("Posmsg: " + (PosmsgConfig.getInstance().isEnabledRaw() ? "§aON" : "§cOFF"));
     }
 }

@@ -2,12 +2,14 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.mobesp.MobEspConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,36 +19,44 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
-/** Dungeon ESP settings - see {@link com.killer560.hub.mobesp.MobEspFeature}. Three target rows (toggle + colour), then
- *  render options. Wither Bosses and Through Walls only exist on the cheat build. */
+/**
+ * Starred mob / bat highlight settings - see {@link com.killer560.hub.mobesp.MobEspFeature}. Two sections since
+ * 2026-09-16, per killer560: "make it so there is a starred mob hitbox's section for bats and starred mobs then
+ * there should be a red section under it that is esp and that will show them through walls and whatnot":
+ * <ul>
+ * <li><b>Starred Mob Hitboxes</b> (orange header) - the legit part: starred mobs + bats, colours, box style, line
+ *     width, range. Always depth-tested / line-of-sight only.</li>
+ * <li><b>ESP</b> (red header) - the cheat part: Through Walls, plus the F7/M7 Wither Bosses target. Built only
+ *     on the cheat jar; the legit jar never constructs a single widget of it (killer560: "If you are on the legit
+ *     version it shouldnt mention cheat things at all"), which is also why the tab itself is named
+ *     "Starred Mob Hitboxes" there and only "Dungeon ESP" on the cheat build.</li>
+ * </ul>
+ */
 public class MobEspTab extends BaseTab {
 
     public MobEspTab() {
-        super("Dungeon ESP");
+        super(com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "Dungeon ESP" : "Starred Mob Hitboxes");
     }
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         MobEspConfig cfg = MobEspConfig.getInstance();
-        boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
+        Minecraft mc = Minecraft.getInstance();
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
 
+        // ---- Starred Mob Hitboxes (legit) ----
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Starred Mob Hitboxes", false), mc.font));
+        y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Starred Mobs", cfg::getStarredMobsRaw, cfg::setStarredMobs,
                 "Starred Mob", cfg::getStarredColor, cfg::setStarredColor, MobEspConfig.DEFAULT_STARRED_COLOR);
         y += 22;
         targetRow(widgets, contentX, col2X, y, colW, "Bats", cfg::getBatsRaw, cfg::setBats,
                 "Bat", cfg::getBatColor, cfg::setBatColor, MobEspConfig.DEFAULT_BAT_COLOR);
-        y += 22;
-        if (cheat) {
-            targetRow(widgets, contentX, col2X, y, colW, "Wither Bosses", cfg::getWithersRaw, cfg::setWithers,
-                    "Wither", cfg::getWitherColor, cfg::setWitherColor, MobEspConfig.DEFAULT_WITHER_COLOR);
-            y += 22;
-        }
-        y += 8;
+        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
                     cfg.cycleStyle();
@@ -85,13 +95,23 @@ public class MobEspTab extends BaseTab {
                 cfg.save();
             }
         });
-        if (cheat) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.getThroughWallsRaw()), btn -> {
-                        cfg.setThroughWalls(!cfg.getThroughWallsRaw());
-                        cfg.save();
-                        btn.setMessage(onOff("Through Walls", cfg.getThroughWallsRaw()));
-                    }).bounds(col2X, y, colW, 18).build());
+        y += 22;
+
+        // ---- ESP (cheat jar only - not disabled, absent) ----
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return widgets;
         }
+        y += 6;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("ESP", true), mc.font));
+        y += 16;
+        widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.getThroughWallsRaw()), btn -> {
+                    cfg.setThroughWalls(!cfg.getThroughWallsRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Through Walls", cfg.getThroughWallsRaw()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        targetRow(widgets, contentX, col2X, y, colW, "Wither Bosses", cfg::getWithersRaw, cfg::setWithers,
+                "Wither", cfg::getWitherColor, cfg::setWitherColor, MobEspConfig.DEFAULT_WITHER_COLOR);
         return widgets;
     }
 

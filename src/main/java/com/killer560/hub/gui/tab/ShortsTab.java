@@ -118,6 +118,16 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(onOff("Pause When Hidden", cfg.isPauseWhenHidden()));
                 }).bounds(col2bX, y, col2W, 18).build());
+        y += 20;
+
+        // 2026-09-16, killer560: "make an option for dark or light mode. Otherwise it is perfect." Applies live
+        // to a running window (no relaunch needed); a fresh launch also starts in the chosen scheme.
+        widgets.add(SettingsButtonWidget.builder(themeText(cfg), btn -> {
+                    cfg.setTheme(cfg.getTheme().next());
+                    cfg.save();
+                    btn.setMessage(themeText(cfg));
+                    ShortsFeature.applyTheme();
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
         widgets.add(label(contentX, y, contentWidth, "§6Keybinds §7(in-game only, Esc clears)"));
@@ -167,6 +177,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
 
     private static Component anchorText(ShortsConfig cfg) {
         return Component.literal("Position: §6" + cfg.getAnchor().label);
+    }
+
+    private static Component themeText(ShortsConfig cfg) {
+        return Component.literal("Theme: §6" + cfg.getTheme().label);
     }
 
     private static Component keyText(ShortsConfig cfg, int index) {

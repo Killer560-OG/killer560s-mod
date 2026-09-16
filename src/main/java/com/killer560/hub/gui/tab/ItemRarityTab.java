@@ -3,15 +3,15 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.itemrarity.ItemRarityConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Item Rarity Backgrounds settings - see {@link com.killer560.hub.itemrarity.ItemRarityFeature}. */
+/** Item Rarity Backgrounds settings - see {@link com.killer560.hub.itemrarity.ItemRarityFeature}. Controls only:
+ *  the two grey explainer lines (what it colours, Hypixel/p3sim-only) were removed 2026-09-16 - killer560 called
+ *  them clutter. The tooltips still carry that information on hover. */
 public class ItemRarityTab extends BaseTab {
 
     public ItemRarityTab() {
@@ -29,9 +29,7 @@ public class ItemRarityTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 22;
-        widgets.add(label(contentX, y, contentWidth, "§7Colors the slot behind each Skyblock item by its rarity."));
-        y += 16;
+        y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
@@ -74,18 +72,12 @@ public class ItemRarityTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Skyblock Only", cfg.isSkyblockOnly()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(label(contentX, y, contentWidth, "§7Only on hypixel.net/p3sim.net, or items with a Skyblock id."));
 
         return widgets;
     }
 
     private static Component styleLabel(ItemRarityConfig cfg) {
         return Component.literal("Style: " + cfg.getStyle().label);
-    }
-
-    private static StringWidget label(int x, int y, int width, String text) {
-        return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
     }
 
     private static Component onOff(String label, boolean value) {

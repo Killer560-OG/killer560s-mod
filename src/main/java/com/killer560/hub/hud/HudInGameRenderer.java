@@ -36,7 +36,11 @@ public final class HudInGameRenderer {
     private static void draw(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         // Skyblock Only: none of these elements draw outside Skyblock / p3sim (the HUD editor previews them itself).
-        if (client.player == null || client.options.hideGui || !com.killer560.hub.util.SkyblockGate.allows()) {
+        // Menu check (2026-09-16): one gate here instead of "screen != null" inside every element, so chat never
+        // hides these (killer560: "dont make it hide the gui if i open chat") and the HUD editor - which draws
+        // each listed element itself - doesn't get a second copy from this layer underneath its boxes.
+        if (client.player == null || client.options.hideGui || HudVisibility.menuOpen()
+                || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {

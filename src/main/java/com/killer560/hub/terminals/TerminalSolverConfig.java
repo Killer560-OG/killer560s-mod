@@ -145,6 +145,12 @@ public final class TerminalSolverConfig {
     // old hardcoded `true`), with no way to turn it off like every other type. Defaults to true so
     // existing behavior doesn't change for anyone who never touches this toggle.
     private boolean melodyEnabled = true;
+    // "It should have an option to also send coords on open mel" (killer560, 2026-09-16) - replaces the
+    // old Posmsg "Mel" preset, which was a fixed ring and could never know WHICH terminal rolled Melody.
+    // This fires from the solver's own Melody detection (TerminalSolverFeature#beginTerminal), sending
+    // your position to party chat the moment the Melody terminal opens. Off by default: it types into
+    // party chat, so it's opt-in like every other chat-sending feature here.
+    private boolean melodySendCoordsOnOpen = false;
     private boolean customGuiEnabled = false;
     // Per killer560's "have a setting where I can make it show the one I need to click, the one after
     // that, then one after that as well" request (2026-09-09, round 11) - extends Numbers' existing
@@ -245,6 +251,7 @@ public final class TerminalSolverConfig {
             cfg.startsWithEnabled = ConfigJson.getBool(obj, "startsWithEnabled", true);
             cfg.selectEnabled = ConfigJson.getBool(obj, "selectEnabled", true);
             cfg.melodyEnabled = ConfigJson.getBool(obj, "melodyEnabled", true);
+            cfg.melodySendCoordsOnOpen = ConfigJson.getBool(obj, "melodySendCoordsOnOpen", false);
             cfg.customGuiEnabled = ConfigJson.getBool(obj, "customGuiEnabled", false);
             cfg.numbersThreeTierReveal = ConfigJson.getBool(obj, "numbersThreeTierReveal", false);
             cfg.autoTerminalsEnabled = ConfigJson.getBool(obj, "autoTerminalsEnabled", false);
@@ -291,6 +298,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("startsWithEnabled", startsWithEnabled);
             obj.addProperty("selectEnabled", selectEnabled);
             obj.addProperty("melodyEnabled", melodyEnabled);
+            obj.addProperty("melodySendCoordsOnOpen", melodySendCoordsOnOpen);
             obj.addProperty("customGuiEnabled", customGuiEnabled);
             obj.addProperty("numbersThreeTierReveal", numbersThreeTierReveal);
             obj.addProperty("autoTerminalsEnabled", autoTerminalsEnabled);
@@ -400,6 +408,16 @@ public final class TerminalSolverConfig {
 
     public void setMelodyEnabled(boolean melodyEnabled) {
         this.melodyEnabled = melodyEnabled;
+    }
+
+    /** See the field: only meaningful while {@link #isMelodyEnabled()} is on, since the send is driven
+     *  by the solver detecting the Melody terminal in the first place. */
+    public boolean isMelodySendCoordsOnOpen() {
+        return melodySendCoordsOnOpen;
+    }
+
+    public void setMelodySendCoordsOnOpen(boolean melodySendCoordsOnOpen) {
+        this.melodySendCoordsOnOpen = melodySendCoordsOnOpen;
     }
 
     public boolean isCustomGuiEnabled() {

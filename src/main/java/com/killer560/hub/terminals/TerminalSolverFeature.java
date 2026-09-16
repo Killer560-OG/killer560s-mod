@@ -462,6 +462,55 @@ public final class TerminalSolverFeature {
         wasHoldingCarriedItem = false;
         resetAutoClickState();
         diagBeginTerminal(type, title, screen);
+        if (type == TerminalType.MELODY) {
+            maybeSendMelodyCoords();
+        }
+    }
+
+    // ---- "Send Mel Coords On Open" (killer560, 2026-09-16: "It should have an option to also send coords
+    // on open mel") - replaces the Posmsg "Mel" preset. Hooked into beginTerminal rather than a new
+    // detector so it fires exactly when the solver decides a Melody terminal opened, and NOT on Hypixel's
+    // duplicate "Screen opened" packet for the same terminal (refreshState routes that elsewhere). ----
+
+    /** Where the last Melody callout was sent from, this level - a re-open of the same terminal (closed
+     *  it by accident, Custom GUI flicker) starts a fresh beginTerminal and must not spam the party. */
+    private static net.minecraft.world.phys.Vec3 lastMelodySendPos = null;
+    private static Object lastMelodySendLevel = null;
+    /** Two Melody terminals in one run are always in different sections (tens of blocks apart), so
+     *  "within this many blocks of the previous callout" is safely "the same terminal again". */
+    private static final double MELODY_RESEND_RADIUS = 6.0;
+
+    private static void maybeSendMelodyCoords() {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        if (!cfg.isMelodySendCoordsOnOpen()) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.level == null || !com.killer560.hub.util.SkyblockGate.allows()) {
+            return;
+        }
+        // Melody only exists in the F7/M7 boss fight - same gate Posmsg uses, so nothing can leak into
+        // party chat from a container that merely shares the title somewhere else.
+        if (!com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()) {
+            LOGGER.info("{} MELODY coords NOT sent: not in the F7/M7 boss fight", DIAG_TAG);
+            return;
+        }
+        net.minecraft.world.phys.Vec3 pos = client.player.position();
+        if (lastMelodySendLevel == client.level && lastMelodySendPos != null
+                && lastMelodySendPos.distanceTo(pos) <= MELODY_RESEND_RADIUS) {
+            LOGGER.info("{} MELODY coords NOT re-sent: same terminal re-opened ({} blocks from last send)",
+                    DIAG_TAG, String.format(Locale.US, "%.1f", lastMelodySendPos.distanceTo(pos)));
+            return;
+        }
+        // Block coordinates, not the raw double position - a callout is read by a human mid-fight.
+        String text = "Mel at " + client.player.getBlockX() + ", " + client.player.getBlockY() + ", "
+                + client.player.getBlockZ();
+        // Straight to party chat via sendCommand, exactly like PosmsgFeature#dispatch - NOT through
+        // TranslateFeature, so Translate / Auto Correct / Chat Emotes can't rewrite a callout mid-run.
+        client.player.connection.sendCommand("pc " + text);
+        lastMelodySendPos = pos;
+        lastMelodySendLevel = client.level;
+        LOGGER.info("{} MELODY coords sent: \"{}\"", DIAG_TAG, text);
     }
 
     /** Stops tracking entirely (no covered terminal showing). {@code reason} is only logged when a

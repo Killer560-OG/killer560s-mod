@@ -2,6 +2,7 @@ package com.killer560.hub.shorts;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ModChat;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -316,7 +317,8 @@ public final class ShortsFeature {
             BrowserLauncher.markProfileExitedCleanly(profile, LOGGER);
             BrowserLauncher.deleteDevToolsPortFile(profile);
 
-            List<String> cmd = BrowserLauncher.buildCommand(exe, profile, geom[0], geom[1], geom[2], geom[3]);
+            List<String> cmd = BrowserLauncher.buildCommand(exe, profile, geom[0], geom[1], geom[2], geom[3],
+                    ShortsConfig.getInstance().getTheme());
             LOGGER.info("[Shorts] Launching browser: {}", String.join(" ", cmd));
             process = new ProcessBuilder(cmd)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
@@ -392,6 +394,11 @@ public final class ShortsFeature {
             if (vol >= 0) {
                 EXEC.schedule(() -> runCommand("volume " + vol, cc -> str(cc.evaluate(volumeJs(vol)))), 3, TimeUnit.SECONDS);
             }
+            // Same 3s settle as the volume: YouTube's app shell has to exist before the html[dark] nudge means
+            // anything (the media emulation itself was already sent the moment CDP connected).
+            if (ShortsConfig.getInstance().getTheme() != ShortsConfig.Theme.SYSTEM) {
+                EXEC.schedule(() -> runCommand("theme (launch)", cc -> applyThemeNow(cc, "launch")), 3, TimeUnit.SECONDS);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
@@ -459,6 +466,14 @@ public final class ShortsFeature {
                         cdp = client;
                     }
                     LOGGER.info("[Shorts] CDP connected (port {}).", port);
+                    // Emulation overrides die with the CDP session, so the theme has to be re-sent on every
+                    // (re)connect, not just at launch. Own try/catch: a theme failure must not fall into this
+                    // loop's retry path and open a second client on top of the one just stored.
+                    try {
+                        LOGGER.info("[Shorts] Theme: {}.", applyThemeNow(client, "connect"));
+                    } catch (Exception e) {
+                        LOGGER.warn("[Shorts] Theme apply on connect failed: {}", e.toString());
+                    }
                     return;
                 }
                 lastError = "no page target yet";
@@ -993,6 +1008,58 @@ public final class ShortsFeature {
     }
 
     private static final AtomicBoolean volumePending = new AtomicBoolean();
+
+    /** Applies the saved dark/light theme to the running browser (debounced like the volume). Client thread. */
+    public static void applyTheme() {
+        if (!isRunning() || cdp == null) {
+            return;
+        }
+        if (themePending.compareAndSet(false, true)) {
+            EXEC.schedule(() -> {
+                themePending.set(false);
+                runCommand("theme", c -> applyThemeNow(c, "settings"));
+            }, 150, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static final AtomicBoolean themePending = new AtomicBoolean();
+
+    /**
+     * Background thread. Dark/light mode (2026-09-16, killer560: "make an option for dark or light mode") in
+     * two layers, both over the page-level CDP session this feature already holds:
+     * <ol>
+     *   <li>{@code Emulation.setEmulatedMedia} overrides {@code prefers-color-scheme} for the page. YouTube's
+     *       default "Device theme" appearance follows that media query live, so this alone flips the theme
+     *       (and survives Shorts' own in-page navigation - it only dies with the CDP session, which is why
+     *       {@code connectCdp} re-sends it). SYSTEM sends an empty feature list, i.e. clears the override.</li>
+     *   <li>A JS nudge on YouTube's own {@code html[dark]} attribute, for a profile whose YouTube Appearance
+     *       was set to an explicit Dark/Light instead of Device theme - that setting ignores the media query,
+     *       so without this the option would silently do nothing there. Only touched for DARK/LIGHT; SYSTEM
+     *       leaves whatever YouTube itself decided, exactly like before the option existed.</li>
+     * </ol>
+     * Never throws past the caller - {@code runCommand} logs a failure and moves on.
+     */
+    private static String applyThemeNow(CdpClient c, String why) throws Exception {
+        ShortsConfig.Theme theme = ShortsConfig.getInstance().getTheme();
+        JsonObject params = new JsonObject();
+        JsonArray features = new JsonArray();
+        if (theme != ShortsConfig.Theme.SYSTEM) {
+            JsonObject scheme = new JsonObject();
+            scheme.addProperty("name", "prefers-color-scheme");
+            scheme.addProperty("value", theme == ShortsConfig.Theme.DARK ? "dark" : "light");
+            features.add(scheme);
+        }
+        params.add("features", features);
+        c.send("Emulation.setEmulatedMedia", params).get(5500, TimeUnit.MILLISECONDS);
+        if (theme == ShortsConfig.Theme.SYSTEM) {
+            return "emulation cleared (" + why + ")";
+        }
+        boolean dark = theme == ShortsConfig.Theme.DARK;
+        String r = str(c.evaluate("(()=>{const h=document.documentElement;if(!h)return 'no document';"
+                + "const want=" + dark + ";if(h.hasAttribute('dark')===want)return 'already';"
+                + "if(want)h.setAttribute('dark','');else h.removeAttribute('dark');return 'nudged'})()"));
+        return theme.label.toLowerCase(Locale.ROOT) + " emulated, html[dark] " + r + " (" + why + ")";
+    }
 
     /** Client thread entry point for user-triggered commands. */
     private static void command(String name, CdpAction action) {
