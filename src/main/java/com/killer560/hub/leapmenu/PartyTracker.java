@@ -38,6 +38,8 @@ public final class PartyTracker {
 
     private static final String NAME = "(?:\\[[^]]+] )?([A-Za-z0-9_]{1,16})";
     private static final Pattern TAB_REGEX = Pattern.compile("^\\[\\d+] (?:\\[[^]]+] )*([A-Za-z0-9_]{1,16}) .*\\((\\w+)(?: (\\w+))?\\)$");
+    /** Trailing IGN of a leap-menu head name - the same pattern the custom leap menu reads its heads with. */
+    private static final Pattern LEAP_HEAD_IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
     private static final Pattern LIST_HEADER = Pattern.compile("^Party Members \\(\\d+\\)$");
     private static final Pattern LIST_LINE = Pattern.compile("^Party (?:Leader|Moderators|Members): (.+)$");
     private static final Pattern LIST_ENTRY = Pattern.compile(NAME + " ●");
@@ -208,8 +210,22 @@ public final class PartyTracker {
      *  come in is Hypixel's own leap menu order (container slot order), which the Leap Order editor lays its spots
      *  out in. Remembered (and persisted) so the editor's spots start where the real menu puts them. */
     public static void noteTeammates(List<String> namesInSlotOrder) {
+        // Normalised here, not at the call sites: the custom leap menu already hands over bare IGNs but the fast-leap
+        // path hands over raw head names ("[MVP+] Name"). Un-normalised those would enter MEMBERS as a second,
+        // never-matching "teammate", would match nobody in #teammatesInLeapOrder, and - when both paths poll the same
+        // open menu - would make the two disagree about the stored order and save the config on every tick.
+        List<String> names = new ArrayList<>(namesInSlotOrder.size());
+        for (String raw : namesInSlotOrder) {
+            String name = leapIgn(raw);
+            if (!name.isEmpty()) {
+                names.add(name);
+            }
+        }
+        if (names.isEmpty()) {
+            return;
+        }
         boolean changed = false;
-        for (String n : namesInSlotOrder) {
+        for (String n : names) {
             int before = MEMBERS.size();
             add(n);
             changed |= MEMBERS.size() != before;
@@ -218,10 +234,17 @@ public final class PartyTracker {
             logIfChanged();
         }
         LeapMenuConfig cfg = LeapMenuConfig.getInstance();
-        if (cfg.setLastLeapOrder(namesInSlotOrder)) {
+        if (cfg.setLastLeapOrder(names)) {
             cfg.save();
-            LOGGER.info("[PartyTracker] Leap menu order: {}", namesInSlotOrder);
+            LOGGER.info("[PartyTracker] Leap menu order: {}", names);
         }
+    }
+
+    /** The IGN at the end of a leap-menu head name (rank prefix and formatting dropped), else the plain name. */
+    private static String leapIgn(String raw) {
+        String plain = ChatObserver.strip(raw);
+        Matcher m = LEAP_HEAD_IGN.matcher(plain);
+        return m.find() ? m.group(1) : plain;
     }
 
     /** Teammates in the order the real Spirit Leap menu last showed them (anyone it hasn't shown yet keeps Hypixel's

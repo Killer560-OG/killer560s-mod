@@ -50,9 +50,18 @@ public abstract class ChunkCacheLevelChunkMixin {
 
     @Inject(method = "addAndRegisterBlockEntity", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$noRegistrationInCachedChunks(BlockEntity blockEntity, CallbackInfo ci) {
-        if (ChunkCacheManager.isCacheOnly((LevelChunk) (Object) this)) {
-            ci.cancel();
+        LevelChunk self = (LevelChunk) (Object) this;
+        if (!ChunkCacheManager.isCacheOnly(self)) {
+            return;
         }
+        // javap: the method's first call is setBlockEntity, which is what gives a freshly created block entity its
+        // level before the registration half runs. The caller (getBlockEntity/promotePendingBlockEntity) is handed
+        // that object back either way, so it must not go out with a null level - plenty of BlockEntity methods
+        // dereference it. Only the level is set: the chunk's map is still never written, which is the whole point.
+        if (blockEntity != null && !blockEntity.hasLevel()) {
+            blockEntity.setLevel(self.getLevel());
+        }
+        ci.cancel();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -60,7 +69,7 @@ public abstract class ChunkCacheLevelChunkMixin {
             at = @At(value = "INVOKE", target = "Ljava/util/Collection;forEach(Ljava/util/function/Consumer;)V", ordinal = 0),
             require = 0)
     private void killer560smod$keepBlockEntitiesUnremoved(Collection values, Consumer action) {
-        if (!ChunkCacheManager.keepsBlockEntities((LevelChunk) (Object) this)) {
+        if (!ChunkCacheManager.keepsBlockEntities((LevelChunk) (Object) this, false)) {
             values.forEach(action);
         }
     }
@@ -70,7 +79,7 @@ public abstract class ChunkCacheLevelChunkMixin {
             at = @At(value = "INVOKE", target = "Ljava/util/Map;clear()V", ordinal = 0),
             require = 0)
     private void killer560smod$keepBlockEntityMap(Map map) {
-        if (!ChunkCacheManager.keepsBlockEntities((LevelChunk) (Object) this)) {
+        if (!ChunkCacheManager.keepsBlockEntities((LevelChunk) (Object) this, true)) {
             map.clear();
         }
     }

@@ -81,8 +81,11 @@ public final class ChunkCacheManager {
     private static LevelChunk unloadingCacheOnlyChunk;
     /** Fallback snapshot for the chunk inside {@code ClientLevel.unload} (client thread only, see below). */
     private static Map<BlockPos, BlockEntity> pendingBlockEntities;
-    /** Set once {@code ChunkCacheLevelChunkMixin} has proved it applied, which makes the snapshot path dead code. */
+    /** Set once BOTH halves of {@code ChunkCacheLevelChunkMixin}'s clearAllBlockEntities pair have proved they
+     *  applied, which makes the snapshot path dead code. Half a pair is not enough - see {@link #keepsBlockEntities}. */
     private static boolean blockEntitiesKeptByMixin;
+    private static boolean mapClearRedirected;
+    private static boolean setRemovedRedirected;
 
     private ChunkCacheManager() {
     }
@@ -334,12 +337,22 @@ public final class ChunkCacheManager {
     /**
      * {@code LevelChunk.clearAllBlockEntities} asking whether to skip the block-entity half of its work. True only
      * for the chunk {@code ClientLevel.unload} is currently evicting into this cache, on the client thread.
+     *
+     * @param clearHalf true from the {@code blockEntities.clear()} redirect, false from the {@code setRemoved} one.
+     *                  The snapshot fallback is only retired once BOTH have proved they apply: if only one of the
+     *                  pair ever matched, vanilla still either empties the map or marks everything removed, and the
+     *                  restore in {@link #afterUnload} (which re-puts and un-removes) is what repairs either case.
      */
-    public static boolean keepsBlockEntities(LevelChunk chunk) {
+    public static boolean keepsBlockEntities(LevelChunk chunk, boolean clearHalf) {
         if (chunk == null || unloadingCacheOnlyChunk != chunk) {
             return false;
         }
-        blockEntitiesKeptByMixin = true;
+        if (clearHalf) {
+            mapClearRedirected = true;
+        } else {
+            setRemovedRedirected = true;
+        }
+        blockEntitiesKeptByMixin = mapClearRedirected && setRemovedRedirected;
         return true;
     }
 

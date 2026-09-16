@@ -179,6 +179,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
         com.killer560.hub.chatcommands.ChatCommandsFeature.register();
+        com.killer560.hub.partycommands.PartyCommandsFeature.register();
         com.killer560.hub.doorkeys.DoorKeysFeature.register();
         com.killer560.hub.trajectories.TrajectoriesFeature.register();
         com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature.register();
@@ -188,6 +189,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.partyfinder.PartyFinderOverlay.register();
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
+        com.killer560.hub.itemprotect.ItemProtectFeature.register();
         com.killer560.hub.itembrowser.ItemBrowserFeature.register();
         I4SensorsFeature.register();
         com.killer560.hub.i4sensors.AutoI4Feature.register();

@@ -59,9 +59,20 @@ public final class SpiritLeapOverlayFeature {
      */
     private static final class MenuState {
         private List<ItemStack> snapshot = List.of();
+        private long stableSinceMs;
+        private boolean pendingRead;
         private boolean settled;
         private List<LeapTarget> targets = List.of();
     }
+
+    /**
+     * How long the slots have to stay unchanged before they count as settled. Frame-to-frame stability alone is not
+     * enough: at any normal frame rate two consecutive frames are ~5-16ms apart, well inside one 50ms tick, so a menu
+     * arriving slot-by-slot reads "stable" between two packets and a click could still leap to the wrong player -
+     * exactly what this gate exists to stop. Two ticks' worth covers that without a blind fixed delay, since the
+     * window only starts once the contents have stopped changing.
+     */
+    private static final long SETTLE_MS = 110L;
 
     /** The leap screen currently being replaced, or null - read by the hide mixin. */
     private static volatile Screen activeScreen = null;
@@ -175,20 +186,29 @@ public final class SpiritLeapOverlayFeature {
     private static void poll(AbstractContainerScreen<?> containerScreen, MenuState state) {
         List<ItemStack> items = containerItems(containerScreen);
         boolean anyHead = items.stream().anyMatch(item -> !item.isEmpty() && item.is(Items.PLAYER_HEAD));
-        if (!state.settled) {
-            if (anyHead && ItemStack.listMatches(items, state.snapshot)) {
-                state.settled = true;
-                state.targets = readTargets(containerScreen);
-                LOGGER.info("[SpiritLeap] Leap menu settled (containerId={}): {}",
-                        containerScreen.getMenu().containerId, state.targets);
-                PartyTracker.noteTeammates(state.targets.stream().map(LeapTarget::name).toList());
-            }
+        long now = System.currentTimeMillis();
+        if (!anyHead || !ItemStack.listMatches(items, state.snapshot)) {
+            // Still arriving (or the menu is being torn down): remember this frame's contents and restart the window.
+            // Whatever was already settled stays in use - a read that has gone empty is a teardown, not new targets.
             state.snapshot = anyHead ? List.copyOf(items) : List.of();
+            state.stableSinceMs = now;
+            state.pendingRead = anyHead;
             return;
         }
+        if (!state.pendingRead || now - state.stableSinceMs < SETTLE_MS) {
+            return;
+        }
+        state.pendingRead = false;
         List<LeapTarget> fresh = readTargets(containerScreen);
-        if (!fresh.isEmpty() && !fresh.equals(state.targets)) {
-            LOGGER.info("[SpiritLeap] Leap targets changed (containerId={}): {}",
+        if (fresh.isEmpty()) {
+            return;
+        }
+        boolean first = !state.settled;
+        state.settled = true;
+        if (first || !fresh.equals(state.targets)) {
+            // Hypixel re-sends the contents of an open leap menu (a teammate dying/leaving); a change goes through
+            // the same window before it is trusted.
+            LOGGER.info("[SpiritLeap] Leap menu {} (containerId={}): {}", first ? "settled" : "targets changed",
                     containerScreen.getMenu().containerId, fresh);
             state.targets = fresh;
             PartyTracker.noteTeammates(fresh.stream().map(LeapTarget::name).toList());

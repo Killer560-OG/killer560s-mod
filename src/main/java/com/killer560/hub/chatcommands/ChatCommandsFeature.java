@@ -1,5 +1,7 @@
 package com.killer560.hub.chatcommands;
 
+import com.killer560.hub.partycommands.PartyCommandsConfig;
+import com.killer560.hub.partycommands.PartyCommandsFeature;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -12,12 +14,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Real "!command" chat-reply system, ported from Odin's own {@code ChatCommands.kt} - deliberately
- * scoped down to informational replies only. Odin's own real version also lets any party/guild/private
- * message trigger real party-management commands (kick/promote/demote/transfer/warp) - not ported here,
- * since that means another player's chat message text alone could make your own client attempt a real
- * party action with no confirmation from you. Also dropped "tps"/"location" (this codebase has no
- * already-verified real way to read either) rather than guess.
+ * Real "!command" chat-reply system, ported from Odin's own {@code ChatCommands.kt} - the informational
+ * half of it. Odin's same module also lets any party/guild/private message trigger real party-management
+ * commands (kick/promote/demote/transfer/warp); that half was refused here, since on Odin another player's
+ * chat text alone can make your client attempt a real party action with no check on who they are. Since
+ * 2026-09-16 it exists as {@code com.killer560.hub.partycommands.PartyCommandsFeature} instead, gated so
+ * only real party/dungeon teammates can trigger anything - see that class for the rules. This file stays
+ * the ONE chat listener for both halves: it does the channel matching and sender extraction once, hands
+ * real party-chat "!" lines to Party Commands first, and answers the informational ones itself.
+ * Also dropped "tps"/"location" (this codebase has no already-verified real way to read either) rather
+ * than guess.
  * <p>
  * Real mechanic: when a real teammate/friend types {@code !coords} (etc.) in real party/guild/private/
  * co-op chat, this replies in that same real channel via the exact real
@@ -64,21 +70,30 @@ public final class ChatCommandsFeature {
     }
 
     private static void onMessage(Component message) {
-        if (!ChatCommandsConfig.getInstance().isEnabled()) {
+        boolean chatCommands = ChatCommandsConfig.getInstance().isEnabled();
+        boolean partyCommands = PartyCommandsConfig.getInstance().isEnabled();
+        if (!chatCommands && !partyCommands) {
             return;
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
         String raw = plain != null ? plain : message.getString();
 
+        // Only ever reached from the two Fabric events above, i.e. only for lines that really arrived in a
+        // chat packet from the server - Party Commands relies on that (see its class doc) and gets every such
+        // line, not just the "!" ones, for party-leader tracking and its end-of-run downtime reminder.
+        if (partyCommands) {
+            PartyCommandsFeature.onServerLine(raw.trim());
+        }
+
         Matcher matcher;
         Channel channel;
-        if ((matcher = PARTY_REGEX.matcher(raw)).matches() && ChatCommandsConfig.getInstance().isPartyEnabled()) {
+        if ((matcher = PARTY_REGEX.matcher(raw)).matches()) {
             channel = Channel.PARTY;
-        } else if ((matcher = GUILD_REGEX.matcher(raw)).matches() && ChatCommandsConfig.getInstance().isGuildEnabled()) {
+        } else if ((matcher = GUILD_REGEX.matcher(raw)).matches()) {
             channel = Channel.GUILD;
-        } else if ((matcher = PRIVATE_REGEX.matcher(raw)).matches() && ChatCommandsConfig.getInstance().isPrivateEnabled()) {
+        } else if ((matcher = PRIVATE_REGEX.matcher(raw)).matches()) {
             channel = Channel.PRIVATE;
-        } else if ((matcher = COOP_REGEX.matcher(raw)).matches() && ChatCommandsConfig.getInstance().isCoopEnabled()) {
+        } else if ((matcher = COOP_REGEX.matcher(raw)).matches()) {
             channel = Channel.COOP;
         } else {
             return;
@@ -89,7 +104,25 @@ public final class ChatCommandsFeature {
         if (!text.startsWith("!")) {
             return;
         }
-        handleCommand(text.substring(1).trim().toLowerCase(Locale.US), senderName, channel);
+        String body = text.substring(1).trim();
+        // Party channel only: a guild member or a DM is not a teammate, so party commands never see them.
+        if (partyCommands && channel == Channel.PARTY && PartyCommandsFeature.handle(senderName, body)) {
+            return;
+        }
+        if (!chatCommands || !channelEnabled(channel)) {
+            return;
+        }
+        handleCommand(body.toLowerCase(Locale.US), senderName, channel);
+    }
+
+    private static boolean channelEnabled(Channel channel) {
+        ChatCommandsConfig cfg = ChatCommandsConfig.getInstance();
+        return switch (channel) {
+            case PARTY -> cfg.isPartyEnabled();
+            case GUILD -> cfg.isGuildEnabled();
+            case PRIVATE -> cfg.isPrivateEnabled();
+            case COOP -> cfg.isCoopEnabled();
+        };
     }
 
     private static void handleCommand(String command, String senderName, Channel channel) {

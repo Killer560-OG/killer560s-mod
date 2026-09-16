@@ -1054,5 +1054,43 @@ final class SettingTooltipsData {
         d.put("main hand", "The sliders below only move the main-hand item. Shown because Separate Off Hand is ON.");
         d.put("off hand", "The sliders below only move the off-hand item. Shown because Separate Off Hand is ON.");
         d.put("leap message", "Chat messages sent when you leap to someone: the normal one, the cringe one, and the \"Leaping to\" line.");
+
+        // Party Commands
+        d.put("party commands/party commands", "Lets your party/dungeon teammates run party commands by typing them in party chat. Nobody outside your party can trigger anything. Every command is off until you turn it on.");
+        d.put("party commands/allow destructive commands", "Extra switch needed before Warp, Warp + Transfer, Kick, Demote and Queue Floor can run, even when those are individually on.");
+        d.put("party commands/confirm invites", "!invite only prints a click-to-invite line instead of inviting by itself. Off means the invite is sent immediately.");
+        d.put("party commands/warp", "!warp from a teammate warps the party (you must be leader).");
+        d.put("party commands/warp + transfer", "!wt warps the party, then transfers it to whoever asked.");
+        d.put("party commands/all invite", "!allinvite toggles the party's all-invite setting.");
+        d.put("party commands/transfer to sender", "!ptme / !pt transfers the party to whoever asked (or to a named member).");
+        d.put("party commands/invite", "!invite <name> invites that player. See Confirm Invites.");
+        d.put("party commands/kick", "!kick <name> removes that player from the party.");
+        d.put("party commands/demote", "!demote applies to the teammate who typed it.");
+        d.put("party commands/promote", "!promote applies to the teammate who typed it.");
+        d.put("party commands/boop", "!boop <name> sends /boop to that player.");
+        d.put("party commands/downtime", "!dt [reason] sets a downtime reminder announced at the end of the run.");
+        d.put("party commands/un-downtime", "!undt clears the downtime reminder.");
+        d.put("party commands/queue floor (!f7/!m7/!t5)", "!f1-!f7, !m1-!m7 and !t1-!t5 queue the party into that dungeon floor or Kuudra tier.");
+        d.put("party commands/racism (joke)", "Odin's joke command: replies with a random percentage. Sends a message from your account.");
+
+        // Item Protection
+        d.put("item protection", "Master toggle for the four guards that stop you losing your own gear: Slot Lock, Protect Item, Auto-Protect Starred and Prevent Hotbar Drops. Only ever blocks your own clicks.");
+        d.put("slot lock", "Hover a slot in your own inventory and press the lock key. That slot's contents can't be moved, swapped, quick-crafted, thrown or dropped at all.");
+        d.put("lock key", "Keybind pressed while hovering one of your own inventory slots to lock or unlock it. Esc clears it.");
+        d.put("marker", "How a locked slot is marked: Outline, a small padlock icon, or both.");
+        d.put("lock color", "Opens a color picker for the outline and padlock drawn on locked slots (default red).");
+        d.put("clear locks", "Unlocks every locked slot at once. The number in brackets is how many are currently locked.");
+        d.put("protect item", "Keeps listed items from being dropped, sold, salvaged, traded, anvil-used or thrown. Moving them around your own inventory is still allowed.");
+        d.put("protect key", "Keybind pressed while hovering an item to add or remove it from the protected list. Remembers that exact item by its Skyblock UUID.");
+        d.put("show protected key", "Hold this key in any inventory screen to highlight every protected item on screen.");
+        d.put("item id fallback", "Lets items with no Skyblock UUID be protected by their item ID instead - which protects every copy of that item, not just the one you hovered.");
+        d.put("new/highlight color", "Opens a color picker for the outline drawn on protected items while the Show Protected key is held.");
+        d.put("add name", "Adds the typed text to the protected list. Any item whose name contains it is protected, so 'Hyperion' covers every Hyperion you own.");
+        d.put("clear saved items", "Forgets every item added with the protect key. Typed names are kept.");
+        d.put("auto-protect starred", "Treats any dungeon-starred item as protected without listing it, using the item's star data (and the visible star symbols as a fallback).");
+        d.put("prevent hotbar drops", "Swallows the drop key while you're holding a protected or locked item, so a mistimed Q in a boss fight can't throw your weapon.");
+        d.put("confirm to force", "Makes the first blocked drop a warning instead of a wall: press drop again within 3 seconds to drop it anyway.");
+        d.put("block every drop", "Extends Prevent Hotbar Drops to every item, not just protected ones. Confirm To Force still applies.");
+        d.put("block sound", "Plays a short low note whenever a drop, sale or move is blocked. The chat message is always sent either way.");
     }
 }

@@ -438,9 +438,13 @@ public final class LeapManager {
                 continue;
             }
             loaded = true;
-            String plain = com.killer560.hub.util.ChatObserver.strip(item.getHoverName().getString());
-            if (!plain.isEmpty()) {
-                slotOrder.add(plain);
+            // Heads only: a leap menu's filler/"Close" items would otherwise be recorded as teammates and as the
+            // leap order (PartyTracker normalises the rank prefix off what it is given).
+            if (item.is(net.minecraft.world.item.Items.PLAYER_HEAD)) {
+                String plain = com.killer560.hub.util.ChatObserver.strip(item.getHoverName().getString());
+                if (!plain.isEmpty()) {
+                    slotOrder.add(plain);
+                }
             }
             if (match == null && matchesName(item, a.current.name())) {
                 match = slot;

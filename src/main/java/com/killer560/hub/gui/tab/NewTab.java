@@ -86,6 +86,7 @@ public class NewTab extends FolderTab {
                 new EtherwarpOverlayTab(),
                 new SlotBindsTab(),
                 new ChatCommandsTab(),
+                new PartyCommandsTab(),
                 new DoorKeysTab(),
                 new TrajectoriesTab(),
                 new LoadoutKeybindsTab(),
@@ -94,7 +95,8 @@ public class NewTab extends FolderTab {
                 new CommandKeybindsTab(),
                 new RevertMasterStarsTab(),
                 new InventorySearchTab(),
-                new ItemBrowserTab()
+                new ItemBrowserTab(),
+                new ItemProtectTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoPuzzlesTab());

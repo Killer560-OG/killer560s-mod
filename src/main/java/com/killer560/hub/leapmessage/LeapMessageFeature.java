@@ -34,7 +34,7 @@ public final class LeapMessageFeature {
     private static final Pattern LEAP_MESSAGE = Pattern.compile("^You have teleported to (.+)!$");
     /** The IGN at the end of whatever the line captured, so a rank prefix or a stray formatting code never ends up
      *  in the party message (same trailing-IGN pattern the custom leap menu reads heads with). */
-    private static final Pattern IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\s*$");
+    private static final Pattern IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
     private static final int DELAY_TICKS = 10; // 0.5s at the normal 20 ticks/sec
 
     // Single pending slot, not a queue - leaps happening less than 0.5s apart would clobber a still-

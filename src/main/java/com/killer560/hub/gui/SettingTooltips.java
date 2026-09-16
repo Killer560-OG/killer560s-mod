@@ -34,9 +34,13 @@ public final class SettingTooltips {
         if (plain == null) {
             plain = label;
         }
-        // FolderTab draws its accordion rows as "▶ <name>" / "▼ <name>", so strip the arrow - otherwise a
+        // FolderTab draws its accordion rows as "▶ <name>" / "▼ <name>", so drop that prefix - otherwise a
         // category row's key is "▶ live map" and no description can ever match it (2026-09-16 tooltip sweep).
-        plain = plain.replace('▶', ' ').replace('▼', ' ');
+        // Prefix only, and never the whole label: Custom Scoreboard's reorder buttons ARE labelled "▲"/"▼" and
+        // have their own descriptions, which a blanket strip would turn into the empty key.
+        if (plain.length() > 1 && (plain.charAt(0) == '▶' || plain.charAt(0) == '▼')) {
+            plain = plain.substring(1);
+        }
         int colon = plain.indexOf(':');
         if (colon > 0) {
             plain = plain.substring(0, colon);
