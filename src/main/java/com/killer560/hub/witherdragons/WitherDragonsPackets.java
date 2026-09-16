@@ -31,6 +31,7 @@ public final class WitherDragonsPackets {
 
     public static void onTabList(ClientboundTabListPacket packet) {
         guard("tablist", () -> P5State.onTabFooter(packet.footer()));
+        guard("tablist/blessings", () -> com.killer560.hub.blessings.BlessingTracker.onTabFooter(packet.footer()));
     }
 
     public static void onAddEntity(ClientboundAddEntityPacket packet, ClientLevel level) {

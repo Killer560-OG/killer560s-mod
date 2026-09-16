@@ -32,6 +32,17 @@ public final class TerminalSolverConfig {
     public static final int MIN_MELODY_LOOKAHEAD = 0;
     public static final int MAX_MELODY_LOOKAHEAD = 4;
 
+    // Hover Terminals (2026-09-16, killer560: "make hover terms... if you hover a button that needs to be
+    // pressed it'll press it. Add a delay option as well in ms.") - a real macro like Auto Terminals, and
+    // gated the same three ways (cheat build + Skyblock + its own toggle). The delay is a DWELL, not a
+    // cooldown: the mouse has to stay on the same slot this long before the click is sent, so brushing
+    // the cursor across a correct slot on the way somewhere else never fires one. 0 is allowed (instant)
+    // because that is a legitimate choice for someone who wants the fastest possible sweep.
+    public static final int MIN_HOVER_DELAY_MS = 0;
+    public static final int MAX_HOVER_DELAY_MS = 1000;
+    public static final int MIN_HOVER_JITTER_MS = 0;
+    public static final int MAX_HOVER_JITTER_MS = 250;
+
     // ---- Overlay colours (2026-09-15, killer560: "add the option to set custom colors for terminal
     // overlays") ----
     /** Alpha floor applied to every overlay colour except {@link OverlayColor#PANEL_BACKGROUND} (which is
@@ -182,6 +193,20 @@ public final class TerminalSolverConfig {
     // whole row anytime it gets a proper click" - ignores melodyLookaheadClicks entirely and bursts every
     // remaining row down to the last one, not just a capped number of them.
     private MelodySkipMode melodySkipMode = MelodySkipMode.EDGES;
+    // ---- Hover Terminals (2026-09-16) - see MIN_HOVER_DELAY_MS above and HoverTerminalFeature. ----
+    private boolean hoverTerminalsEnabled = false;
+    // 100ms: long enough that a deliberate rest on a slot is clearly distinguishable from the cursor
+    // passing over it on the way to another one, short enough not to feel like waiting.
+    private int hoverDelayMs = 100;
+    // Off by default - a perfectly constant hover-to-click gap is a trivial signature, but the plain
+    // delay is what was actually asked for, so the humanising jitter is opt-in rather than a surprise
+    // inconsistency in a number the user just set.
+    private int hoverJitterMs = 0;
+    // Melody is the one type where a hover click can't be driven by the solver's highlights (it has no
+    // solved/correct set at all) - the dwell only ARMS the row button and the click fires the frame its
+    // indicator lines up. That's a different enough behaviour from the other five to be its own toggle,
+    // and it ships off.
+    private boolean hoverMelodyEnabled = false;
     /** Never null and always fully populated - see the constructor. */
     private final Map<OverlayColor, Integer> overlayColors = new EnumMap<>(OverlayColor.class);
 
@@ -239,6 +264,10 @@ public final class TerminalSolverConfig {
             cfg.announceCompletionTime = ConfigJson.getBool(obj, "announceCompletionTime", true);
             cfg.melodyLookaheadClicks = clampMelodyLookahead(ConfigJson.getInt(obj, "melodyLookaheadClicks", 0));
             cfg.melodySkipMode = ConfigJson.getEnum(obj, "melodySkipMode", MelodySkipMode.class, MelodySkipMode.EDGES);
+            cfg.hoverTerminalsEnabled = ConfigJson.getBool(obj, "hoverTerminalsEnabled", false);
+            cfg.hoverDelayMs = clampHoverDelay(ConfigJson.getInt(obj, "hoverDelayMs", 100));
+            cfg.hoverJitterMs = clampHoverJitter(ConfigJson.getInt(obj, "hoverJitterMs", 0));
+            cfg.hoverMelodyEnabled = ConfigJson.getBool(obj, "hoverMelodyEnabled", false);
             // Per-key reads (ConfigJson) so one bad/missing colour falls back to just that colour's
             // default instead of resetting every other setting in the file.
             for (OverlayColor c : OverlayColor.values()) {
@@ -277,6 +306,10 @@ public final class TerminalSolverConfig {
             obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
+            obj.addProperty("hoverTerminalsEnabled", hoverTerminalsEnabled);
+            obj.addProperty("hoverDelayMs", hoverDelayMs);
+            obj.addProperty("hoverJitterMs", hoverJitterMs);
+            obj.addProperty("hoverMelodyEnabled", hoverMelodyEnabled);
             for (OverlayColor c : OverlayColor.values()) {
                 obj.addProperty(c.key(), getOverlayColor(c));
             }
@@ -295,6 +328,14 @@ public final class TerminalSolverConfig {
 
     private static int clampMelodyLookahead(int value) {
         return Math.max(MIN_MELODY_LOOKAHEAD, Math.min(MAX_MELODY_LOOKAHEAD, value));
+    }
+
+    private static int clampHoverDelay(int value) {
+        return Math.max(MIN_HOVER_DELAY_MS, Math.min(MAX_HOVER_DELAY_MS, value));
+    }
+
+    private static int clampHoverJitter(int value) {
+        return Math.max(MIN_HOVER_JITTER_MS, Math.min(MAX_HOVER_JITTER_MS, value));
     }
 
     public boolean isEnabled() {
@@ -501,6 +542,50 @@ public final class TerminalSolverConfig {
 
     public void setMelodySkipMode(MelodySkipMode melodySkipMode) {
         this.melodySkipMode = melodySkipMode != null ? melodySkipMode : MelodySkipMode.EDGES;
+    }
+
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} exactly like
+     *  {@link #isAutoTerminalsEnabled()}, and for the same reason - hovering a slot into clicking itself
+     *  is a real macro, so the legit build can never run it even from a config.json copied over from a
+     *  cheat install. Also needs the Terminal Solver itself to be on: Hover Terminals has no solving
+     *  logic of its own and only ever clicks slots that feature has already highlighted. */
+    public boolean isHoverTerminalsEnabled() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hoverTerminalsEnabled
+                && isEnabled() && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    /** The raw toggle, ignoring every gate above - for the settings GUI's own button text, which must
+     *  still read ON off-Skyblock/outside a terminal. */
+    public boolean isHoverTerminalsEnabledRaw() {
+        return hoverTerminalsEnabled;
+    }
+
+    public void setHoverTerminalsEnabled(boolean hoverTerminalsEnabled) {
+        this.hoverTerminalsEnabled = hoverTerminalsEnabled;
+    }
+
+    public int getHoverDelayMs() {
+        return hoverDelayMs;
+    }
+
+    public void setHoverDelayMs(int hoverDelayMs) {
+        this.hoverDelayMs = clampHoverDelay(hoverDelayMs);
+    }
+
+    public int getHoverJitterMs() {
+        return hoverJitterMs;
+    }
+
+    public void setHoverJitterMs(int hoverJitterMs) {
+        this.hoverJitterMs = clampHoverJitter(hoverJitterMs);
+    }
+
+    public boolean isHoverMelodyEnabled() {
+        return hoverMelodyEnabled;
+    }
+
+    public void setHoverMelodyEnabled(boolean hoverMelodyEnabled) {
+        this.hoverMelodyEnabled = hoverMelodyEnabled;
     }
 
     /** @return the live ARGB for {@code key}, already sanitized (see {@link OverlayColor#sanitize}).

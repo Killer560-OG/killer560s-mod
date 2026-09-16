@@ -178,6 +178,26 @@ public final class TerminalQolFeature {
         return true;
     }
 
+    /** Non-consuming twin of {@link #shouldSwallowClick()}, for features that send a click on killer560's
+     *  behalf ({@link HoverTerminalFeature}) instead of judging one he actually made.
+     *  @return true while the open terminal is still inside Terminal Protection's opening window. A
+     *  synthetic click is simply not SENT while this is true, rather than sent and then swallowed -
+     *  swallowing burns Protection's deliberate one-shot ({@code terminalStart = -1L} after the first
+     *  swallow, exactly like Devonian), which would leave killer560's own real first click unprotected
+     *  because an automated click he never made had already spent it. */
+    public static boolean withinProtectionWindow() {
+        syncScreen();
+        TerminalQolConfig cfg = TerminalQolConfig.getInstance();
+        if (!cfg.isProtectionEnabled() || currentType == null || terminalOpenedAtMs < 0) {
+            return false;
+        }
+        long threshold = cfg.getProtectionThresholdMs();
+        if (cfg.isProtectionSubtractPing()) {
+            threshold -= ping();
+        }
+        return threshold > 0 && System.currentTimeMillis() - terminalOpenedAtMs <= threshold;
+    }
+
     private static int ping() {
         Minecraft client = Minecraft.getInstance();
         if (client.getConnection() == null || client.player == null) {

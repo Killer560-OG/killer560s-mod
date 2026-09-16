@@ -603,6 +603,15 @@ public final class TerminalSolverFeature {
         maybeClearAccidentalCarriedItem(screen);
         if (hasStabilizedOnce && clickContentStabilized) {
             tickAutoClick(screen, type, items);
+            // Hover Terminals (2026-09-16) - same frame-driven loop and the same two gates Auto
+            // Terminals clicks behind (content stabilized, then the initial settle window that lets
+            // Hypixel's real double-open finish), so a hover can never fire into a container that is
+            // about to be replaced. Stands fully down whenever Auto Terminals is actually running for
+            // this type - see HoverTerminalFeature's own precedence doc for why auto wins.
+            if (now - stabilizedAtMs >= INITIAL_CLICK_SETTLE_MS) {
+                HoverTerminalFeature.tick(screen, type, items, currentHighlights,
+                        cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg));
+            }
         }
     }
 
@@ -654,6 +663,10 @@ public final class TerminalSolverFeature {
         lastMelodyClickedRow = -1;
         lastMelodyClickAtMs = 0;
         scheduledMelodyClicks.clear();
+        hoverMelodyCorrectColumn = null;
+        // Hover Terminals shares every one of this method's real reset points (new terminal, quick
+        // reopen, tracking ended) - a dwell must never survive the terminal it was started in.
+        HoverTerminalFeature.reset();
     }
 
     /** Auto Terminals - real auto-clicking, cheat build only (see {@link TerminalSolverConfig
@@ -863,7 +876,7 @@ public final class TerminalSolverFeature {
      *  {@code MultiPlayerGameMode.handleContainerInput} directly keeps this on the exact same real code
      *  path a genuine click already takes (sound effects, carried-item bookkeeping included), regardless
      *  of whether Custom GUI mode happens to be on right now. */
-    private static void sendTerminalClick(ContainerScreen screen, int slotIndex, int button, ContainerInput clickType) {
+    static void sendTerminalClick(ContainerScreen screen, int slotIndex, int button, ContainerInput clickType) {
         List<Slot> slots = screen.getMenu().slots;
         if (slotIndex < 0 || slotIndex >= slots.size()) {
             LOGGER.warn("{} click NOT sent: slot {} out of range (menu has {} slots, containerId={})",
@@ -1349,22 +1362,12 @@ public final class TerminalSolverFeature {
             // it fall through to the hidden real slots underneath.
             return true;
         }
-        CustomGuiLayout layout = computeCustomGuiLayout(screen);
-        if (layout == null) {
-            return true;
-        }
-        double localX = (mouseX - layout.originX) / layout.scale;
-        double localY = (mouseY - layout.originY) / layout.scale;
-        int localCol = (int) Math.floor(localX / CELL_SIZE);
-        int localRow = (int) Math.floor(localY / CELL_SIZE);
-        int panelColumns = layout.panelWidth / CELL_SIZE;
-        int panelRows = layout.panelHeight / CELL_SIZE;
         // Clicks landing outside the (now cropped-to-content) panel grid have nothing to redirect to -
         // still consumed below, same as a click on empty panel padding always was.
-        if (localCol < 0 || localCol >= panelColumns || localRow < 0 || localRow >= panelRows) {
+        int slotIndex = customGuiSlotAt(screen, mouseX, mouseY);
+        if (slotIndex < 0) {
             return true;
         }
-        int slotIndex = (localRow + layout.minRow()) * GRID_COLUMNS + (localCol + layout.minCol());
 
         List<Slot> slots = screen.getMenu().slots;
         // Melody has no solved/correct set to check against - any real button cell is fair game (matches
@@ -1414,6 +1417,98 @@ public final class TerminalSolverFeature {
         }
         return true;
     }
+
+    /** The Custom GUI panel's own hit-test, extracted verbatim out of {@link #handleCustomGuiClick}
+     *  (2026-09-16) so Hover Terminals can ask the same question a real click already asks: which real
+     *  terminal-grid slot does the panel cell at these screen coordinates map to? While Custom GUI mode
+     *  is on the vanilla slots are hidden and redrawn somewhere else entirely, so
+     *  {@code AbstractContainerScreen.hoveredSlot} points at an invisible slot, not at the cell the
+     *  player can actually see - this is the only correct hover answer in that mode.
+     *  @return the real slot index, or -1 when the panel isn't laid out yet or the point is outside its
+     *  (cropped-to-content) grid. */
+    static int customGuiSlotAt(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
+        CustomGuiLayout layout = computeCustomGuiLayout(screen);
+        if (layout == null) {
+            return -1;
+        }
+        double localX = (mouseX - layout.originX) / layout.scale;
+        double localY = (mouseY - layout.originY) / layout.scale;
+        int localCol = (int) Math.floor(localX / CELL_SIZE);
+        int localRow = (int) Math.floor(localY / CELL_SIZE);
+        int panelColumns = layout.panelWidth / CELL_SIZE;
+        int panelRows = layout.panelHeight / CELL_SIZE;
+        if (localCol < 0 || localCol >= panelColumns || localRow < 0 || localRow >= panelRows) {
+            return -1;
+        }
+        return (localRow + layout.minRow()) * GRID_COLUMNS + (localCol + layout.minCol());
+    }
+
+    /** @return how many slots of the open container are the terminal's own grid (i.e. everything before
+     *  the player's own inventory rows - see {@link #terminalItems}). Public for Hover Terminals, which
+     *  uses it to reject a hover that is really over the player's own inventory: {@code Slot.index} is
+     *  the slot's position in {@code menu.slots} (assigned by {@code AbstractContainerMenu.addSlot},
+     *  verified via javap), so the grid is exactly indices {@code [0, this)}. */
+    public static int getCurrentTerminalSlotCount() {
+        return currentTerminalSlotCount;
+    }
+
+    /** Hover Terminals' dedupe gate. @return true when {@code slot} already has a click in flight that
+     *  the server hasn't answered yet - reusing Auto Terminals' own {@link #pendingClicks} set rather
+     *  than a second, competing idea of "already clicked", so the two features can never both count a
+     *  slot as free. Goes stale after {@link #retryTimeoutMs} so a click the server silently dropped
+     *  can't lock a slot out for the rest of the terminal (Auto Terminals re-sends those itself; hover
+     *  has no loop of its own, so it just becomes clickable again and the next dwell re-sends it). */
+    static boolean isHoverClickBlocked(int slot, long now) {
+        PendingClick pending = pendingClicks.get(slot);
+        return pending != null && now - pending.sentAtMs() < retryTimeoutMs(TerminalSolverConfig.getInstance());
+    }
+
+    /** Records a hover click in the shared {@link #pendingClicks} set, so {@link #checkPendingClicks}
+     *  confirms/releases it and feeds the same real latency EMA exactly as if Auto Terminals had sent
+     *  it. Must be called immediately BEFORE {@link #sendTerminalClick} so the snapshot is the slot's
+     *  pre-click content. */
+    static void registerHoverClick(int slot, ItemStack snapshot, long now) {
+        PendingClick previous = pendingClicks.get(slot);
+        pendingClicks.put(slot, previous == null
+                ? new PendingClick(slot, now, now, snapshot, 1)
+                : new PendingClick(slot, previous.firstSentAtMs(), now, previous.snapshot(), previous.attempt() + 1));
+    }
+
+    /** Melody's live "is a row button correct RIGHT NOW" question, for Hover Terminals - the exact same
+     *  real mechanic {@link #tickMelodyAutoClick} runs on (lime indicator slot -> row/column, magenta OR
+     *  purple endpoint pane -> target column, real button slots 16/25/34/43), kept here beside it rather
+     *  than copied into the hover class so the two can never drift apart. Deliberately keeps its own
+     *  last-seen target column: Auto Melody's copy is part of the auto-click state and is only updated
+     *  while Auto Terminals is running, which for hover is exactly when this is NOT used.
+     *  @return the clay button slot that should be clicked this very frame, or -1. */
+    static int melodyMatchedButtonSlot(List<ItemStack> items) {
+        Integer limeSlot = null;
+        Integer targetSlot = null;
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack stack = items.get(i);
+            if (stack.getItem() == Items.LIME_STAINED_GLASS_PANE) {
+                limeSlot = i;
+                continue;
+            }
+            DyeColor pane = paneDyeColor(stack);
+            if (pane != null && isMelodyEndpointColor(pane)) {
+                targetSlot = i;
+            }
+        }
+        if (targetSlot != null) {
+            hoverMelodyCorrectColumn = targetSlot % 9 - 1;
+        }
+        if (limeSlot == null || hoverMelodyCorrectColumn == null) {
+            return -1;
+        }
+        int row = (int) Math.floor(limeSlot / 9.0) - 1;
+        if (row < 0 || row >= MELODY_CLAY_SLOTS.size()) {
+            return -1;
+        }
+        return limeSlot % 9 - 1 == hoverMelodyCorrectColumn ? MELODY_CLAY_SLOTS.get(row) : -1;
+    }
+
+    private static Integer hoverMelodyCorrectColumn;
 
     private record CustomGuiLayout(int originX, int originY, float scale, int panelWidth, int panelHeight, int minCol, int minRow) {
     }

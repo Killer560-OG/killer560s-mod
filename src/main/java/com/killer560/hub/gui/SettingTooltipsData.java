@@ -1151,5 +1151,30 @@ final class SettingTooltipsData {
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second over the last second. Sampled once per frame, so a click can be missed at very low FPS.");
         d.put("colour by value", "Colours the lag, ping and FPS numbers by how good they are instead of drawing them white.");
+
+        // P3 Nav
+        d.put("p3 nav/gate highlight", "Boxes the Phase 3 section gate you're heading for. The box disappears the moment the gate is actually destroyed.");
+        d.put("p3 nav/gate style", "Outline, Fill, or both, for the gate box.");
+        d.put("p3 nav/gate line width", "Thickness of the gate box outline.");
+        d.put("p3 nav/hide once destroyed", "ON hides the gate box as soon as the gate is broken. OFF keeps it drawn for the section you're in.");
+        d.put("p3 nav/terminal esp", "Boxes every unfinished terminal in Phase 3. A terminal stops being boxed the instant it's completed.");
+        d.put("p3 nav/device esp", "Boxes every un-flicked lever and unfinished device in Phase 3, using the \"Not Activated\" hologram above them.");
+        d.put("p3 nav/esp style", "Outline, Fill, or both, for terminal and device boxes.");
+        d.put("p3 nav/esp line width", "Thickness of the terminal and device box outlines.");
+        d.put("p3 nav/current section only", "ON only boxes the section you're standing in. OFF boxes everything left in Phase 3.");
+        d.put("p3 nav/through walls", "Cheat build only. Draws terminal and device boxes through blocks instead of only when you can see them.");
+
+        // Hover Terminals + Run Summary
+        d.put("hover terminals", "Cheat build only. Resting the mouse on a slot the solver says is correct clicks it for you. Needs Terminal Solver on; stands down while Auto Terminals is running for that terminal.");
+        d.put("hover delay", "Cheat build only. How long the mouse must stay on the same slot before Hover Terminals clicks it, 0-1000 ms. Moving off resets the timer.");
+        d.put("hover jitter", "Cheat build only. Adds a random 0-N ms on top of Hover Delay each time, so the hover-to-click gap is not perfectly constant. Off = exact delay.");
+        d.put("hover melody", "Cheat build only. Hovering a Melody row button arms it; the click fires the moment that row's moving pane lines up, not on the delay.");
+        d.put("run summary", "Records one entry per finished dungeon run - splits, device/terminal times, secrets, crypts, deaths, failed puzzles, this mod's estimated score and Hypixel's real Team Score, your class, party size - and keeps the last N so you can open any of them again. Informational only. Skyblock only.");
+        d.put("don't repeat split timers", "While Split Timers is announcing in chat, leaves the per-phase lines out of this summary so the two never post the same times twice.");
+        d.put("announce personal bests", "Says so in chat when a run beats the fastest time or best score stored for that floor. Master and normal floors are tracked separately.");
+        d.put("record device/terminal times", "Also stores every \"completed a device/terminal\" line with how far into the phase it landed.");
+        d.put("runs kept", "How many finished runs to keep in config/killer560smod-runs/history.json (5-500). Oldest are dropped first. Personal bests are worked out from whatever is still kept.");
+        d.put("open last run", "Opens the full summary of the most recent finished run.");
+        d.put("clear history", "Deletes every stored run. Personal bests go with them - they are derived from the stored runs, not saved separately.");
     }
 }
