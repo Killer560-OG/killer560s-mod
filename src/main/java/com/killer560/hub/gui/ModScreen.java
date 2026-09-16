@@ -3,6 +3,7 @@ package com.killer560.hub.gui;
 import com.killer560.hub.gui.tab.BaseTab;
 import com.killer560.hub.gui.tab.ChatTab;
 import com.killer560.hub.gui.tab.DisplayTab;
+import com.killer560.hub.gui.tab.MiningWipTab;
 import com.killer560.hub.gui.tab.DungeonTab;
 import com.killer560.hub.gui.tab.FolderTab;
 import com.killer560.hub.gui.tab.GeneralTab;
@@ -89,6 +90,7 @@ public class ModScreen extends Screen {
             tabs.add(new HomeTab());
             tabs.add(new ProfilesTab());
             tabs.add(new NewTab());
+            tabs.add(new MiningWipTab());
             tabs.add(new GeneralTab());
             tabs.add(new DisplayTab());
             tabs.add(new ChatTab());
@@ -168,7 +170,7 @@ public class ModScreen extends Screen {
         for (BaseTab tab : visible) {
             int index = tabs.indexOf(tab);
             boolean selected = index == selectedTab;
-            this.addRenderableWidget(new MenuRowWidget(panelX + 8, tabY, sidebarW - 16, 20, tab.name, selected, false, () -> {
+            this.addRenderableWidget(new MenuRowWidget(panelX + 8, tabY, sidebarW - 16, 20, tab.name, selected, false, tab.isCheatOnly(), () -> {
                 selectedTab = index;
                 scrollOffset = 0;
                 rebuild();

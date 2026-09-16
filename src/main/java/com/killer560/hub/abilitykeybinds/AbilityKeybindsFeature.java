@@ -45,14 +45,14 @@ public final class AbilityKeybindsFeature {
         }
 
         boolean abilityDown = cfg.getAbilityKeyCode() >= 0
-                && InputConstants.isKeyDown(client.getWindow(), cfg.getAbilityKeyCode());
+                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAbilityKeyCode());
         if (abilityDown && !abilityKeyWasDown) {
             useAbility(client, false);
         }
         abilityKeyWasDown = abilityDown;
 
         boolean ultimateDown = cfg.getUltimateKeyCode() >= 0
-                && InputConstants.isKeyDown(client.getWindow(), cfg.getUltimateKeyCode());
+                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getUltimateKeyCode());
         if (ultimateDown && !ultimateKeyWasDown) {
             useAbility(client, true);
         }

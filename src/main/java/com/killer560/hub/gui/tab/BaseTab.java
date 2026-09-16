@@ -20,6 +20,15 @@ public abstract class BaseTab {
     public abstract List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth,
                                                         Runnable requestRebuild);
 
+    /** Whether this whole tab only exists in the cheat jar (i.e. it's only ever added to a folder behind
+     *  {@code BuildVariant.CHEAT_FEATURES_ENABLED}). Cheat-only tabs get their title drawn red wherever tab
+     *  names are listed (main sidebar, {@link FolderTab} accordion headers) - 2026-09-15 rule, see
+     *  {@link com.killer560.hub.gui.SectionHeaders}. Override to return true; the name string itself stays
+     *  plain so search matching and tooltips are unaffected. */
+    public boolean isCheatOnly() {
+        return false;
+    }
+
     /** Whether this tab matches the given search text (blank query always matches). Checks this tab's
      *  own name AND (per killer560's report, 2026-09-08: search found top-level tabs by name and accordion
      *  sub-tabs by name, but not an individual SETTING buried inside a sub-tab) the actual labels of
@@ -49,7 +58,10 @@ public abstract class BaseTab {
     protected boolean widgetsMatchSearch(String query) {
         String q = query.toLowerCase(Locale.US);
         for (AbstractWidget widget : buildWidgets(0, 0, 200, () -> {})) {
-            if (widget.getMessage().getString().toLowerCase(Locale.US).contains(q)) {
+            // Strip § codes first so a styled header (e.g. SectionHeaders' "§c§l" prefix, or a mid-string
+            // colour code) never breaks a match that spans the formatting.
+            String text = net.minecraft.ChatFormatting.stripFormatting(widget.getMessage().getString());
+            if (text != null && text.toLowerCase(Locale.US).contains(q)) {
                 return true;
             }
         }

@@ -85,7 +85,7 @@ public final class VoiceToTextFeature {
             keyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
         if (down && !keyWasDown) {
             onKeyPressed();
         } else if (!down && keyWasDown) {

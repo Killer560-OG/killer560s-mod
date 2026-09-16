@@ -52,6 +52,27 @@ public class SplitTimersTab extends BaseTab {
         y += 24;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("M7 Phase 5 Lines", false), Minecraft.getInstance().font));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(onOff("P5 Dragon Lines", cfg.isP5DragonLines()), btn -> {
+                    cfg.setP5DragonLines(!cfg.isP5DragonLines());
+                    cfg.save();
+                    btn.setMessage(onOff("P5 Dragon Lines", cfg.isP5DragonLines()));
+                }).bounds(contentX, y, 160, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("P5 Relic Lines", cfg.isP5RelicLines()), btn -> {
+                    cfg.setP5RelicLines(!cfg.isP5RelicLines());
+                    cfg.save();
+                    btn.setMessage(onOff("P5 Relic Lines", cfg.isP5RelicLines()));
+                }).bounds(contentX + 168, y, 160, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(p5PosLabel(cfg), btn -> {
+                    cfg.setP5LinesRight(!cfg.isP5LinesRight());
+                    cfg.save();
+                    btn.setMessage(p5PosLabel(cfg));
+                }).bounds(contentX, y, 220, 18).build());
+        y += 26;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Odin's splits: Blood Open/Clear, Portal Entry, each boss phase"),
                 Minecraft.getInstance().font));
         y += 12;
@@ -64,6 +85,10 @@ public class SplitTimersTab extends BaseTab {
                 Minecraft.getInstance().font));
 
         return widgets;
+    }
+
+    private static Component p5PosLabel(SplitTimersConfig cfg) {
+        return Component.literal("P5 Lines Position: §6" + (cfg.isP5LinesRight() ? "Right" : "Below"));
     }
 
     private static Component onOff(String label, boolean value) {

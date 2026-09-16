@@ -171,9 +171,9 @@ public final class SimonSaysConfig {
             // method) so an old saved "0" from before the 0-tick option was removed (2026-09-14) gets
             // corrected to the new 1-20 range on load, instead of silently staying at 0 forever.
             cfg.setAutoStartClickDelayTicks(getInt(obj, "autoStartClickDelayTicks", 3));
-            cfg.announceKeyCode = getInt(obj, "resetKeyCode", -1);
+            cfg.announceKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "resetKeyCode", -1));
             cfg.autoRestartEnabled = getBool(obj, "autoRestartEnabled", false);
-            cfg.restartKeyCode = getInt(obj, "restartKeyCode", -1);
+            cfg.restartKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "restartKeyCode", -1));
             cfg.autoSendResetMessage = getBool(obj, "autoSendResetMessage", false);
             cfg.resetMessageText = obj.has("resetMessageText") ? obj.get("resetMessageText").getAsString() : "Resetting Simon Says";
             cfg.diagnosticLoggingEnabled = getBool(obj, "diagnosticLoggingEnabled", false);

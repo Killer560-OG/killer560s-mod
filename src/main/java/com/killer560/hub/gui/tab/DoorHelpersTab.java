@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.doorhelpers.DoorHelpersConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -21,6 +22,12 @@ public class DoorHelpersTab extends BaseTab implements KeyCaptureTab {
 
     public DoorHelpersTab() {
         super("Door Helpers");
+    }
+
+    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    @Override
+    public boolean isCheatOnly() {
+        return true;
     }
 
     @Override
@@ -47,7 +54,7 @@ public class DoorHelpersTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
 
         // ---- Auto Door Opener ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§6§lAuto Door Opener"), mc.font));
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Auto Door Opener", true), mc.font));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Door Opener", cfg.isAutoDoorEnabledRaw()), btn -> {
                     cfg.setAutoDoorEnabled(!cfg.isAutoDoorEnabledRaw());
@@ -113,7 +120,7 @@ public class DoorHelpersTab extends BaseTab implements KeyCaptureTab {
         y += 6;
 
         // ---- Look At Door ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§6§lLook At Door"), mc.font));
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Look At Door", true), mc.font));
         y += 16;
         widgets.add(SettingsButtonWidget.builder(onOff("Look At Door", cfg.isLookAtDoorEnabledRaw()), btn -> {
                     cfg.setLookAtDoorEnabled(!cfg.isLookAtDoorEnabledRaw());

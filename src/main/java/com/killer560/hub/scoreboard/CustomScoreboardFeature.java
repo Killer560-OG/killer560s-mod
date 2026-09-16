@@ -85,6 +85,7 @@ public final class CustomScoreboardFeature {
     public static void register() {
         CustomScoreboardConfig.getInstance();
         ScoreboardExtraData.register();
+        ScoreboardBlur.register();
         ClientTickEvents.END_CLIENT_TICK.register(CustomScoreboardFeature::tick);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "custom_scoreboard"),
@@ -224,7 +225,17 @@ public final class CustomScoreboardFeature {
 
     /** Off-Skyblock "Minimal Board": title, today's date and time, online players, footer. */
     private static List<ScoreboardLine> buildMinimal(Minecraft client, CustomScoreboardConfig cfg) {
-        List<ScoreboardLine> out = new ArrayList<>(ScoreboardEntry.TITLE.lines(cfg));
+        List<ScoreboardLine> out = new ArrayList<>();
+        if (cfg.isUseCustomTitle() && cfg.isUseCustomTitleOutsideSkyblock()) {
+            out.addAll(ScoreboardEntry.TITLE.lines(cfg));
+        } else {
+            // SkyHanni ScoreboardElementTitle: outside SkyBlock the server's own title unless "Custom Title Outside SkyBlock".
+            net.minecraft.world.scores.Objective objective = ScoreboardData.sidebarObjective(client);
+            String title = objective == null ? "" : ScoreboardData.formatted(objective.getDisplayName(), false);
+            if (!title.isEmpty()) {
+                out.add(new ScoreboardLine(title, cfg.getTitleAlignment()));
+            }
+        }
         out.add(ScoreboardLine.of(""));
         out.add(ScoreboardLine.of("§7" + cfg.getDateFormat().today() + " §8"
                 + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(cfg.isTime24h() ? "HH:mm" : "h:mma", java.util.Locale.US)).toLowerCase(java.util.Locale.ROOT)));
@@ -378,14 +389,14 @@ public final class CustomScoreboardFeature {
         try {
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            drawBoard(graphics, font, 0, 0, lines, cfg);
+            drawBoard(graphics, font, 0, 0, lines, cfg, true);
         } catch (RuntimeException e) {
             // A broken frame must never take down the rest of the HUD.
         } finally {
             graphics.pose().popMatrix();
         }
         int inset = borderSize(cfg) + cfg.getPadding();
-        Layout layout = new Layout(lines, pos[0], pos[1], scale, inset, inset, contentWidth(font, lines),
+        Layout layout = new Layout(lines, pos[0], pos[1], scale, inset, inset, innerWidth(font, lines, cfg),
                 font.lineHeight + cfg.getLineSpacing(), font.lineHeight);
         lastLayout = layout;
         if (chatOpen && cfg.isLineActions()) {
@@ -468,17 +479,18 @@ public final class CustomScoreboardFeature {
         int h = Math.round(boxH * scale);
         int sw = graphics.guiWidth();
         int sh = graphics.guiHeight();
+        int margin = cfg.getMargin();
         int x = switch (cfg.getHorizontalSnap()) {
             case NONE -> stored[0];
-            case LEFT -> 0;
+            case LEFT -> margin;
             case CENTER -> (sw - w) / 2;
-            case RIGHT -> sw - w;
+            case RIGHT -> sw - w - margin;
         };
         int y = switch (cfg.getVerticalSnap()) {
             case NONE -> stored[1];
-            case TOP -> 0;
+            case TOP -> margin;
             case CENTER -> (sh - h) / 2;
-            case BOTTOM -> sh - h;
+            case BOTTOM -> sh - h - margin;
         };
         if (x != stored[0] || y != stored[1]) {
             HudConfig.getInstance().setPosition(ELEMENT_ID, x, y);
@@ -511,23 +523,33 @@ public final class CustomScoreboardFeature {
         return lines.isEmpty() ? 0 : lines.size() * font.lineHeight + (lines.size() - 1) * cfg.getLineSpacing();
     }
 
+    /** Text area width: the widest line, widened to honour "Min Width" (SkyBlock Custom Scoreboard). */
+    private static int innerWidth(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
+        return Math.max(contentWidth(font, lines), cfg.getMinWidth() - 2 * (cfg.getPadding() + borderSize(cfg)));
+    }
+
     static int boxWidth(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
-        return contentWidth(font, lines) + 2 * (cfg.getPadding() + borderSize(cfg));
+        return innerWidth(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg));
     }
 
     static int boxHeight(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
-        return contentHeight(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg));
+        return Math.max(cfg.getMinHeight(), contentHeight(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg)));
     }
 
-    static void drawBoard(GuiGraphicsExtractor g, Font font, int x, int y, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
+    /** @param inGame true for the real HUD (background blur only exists there, never in the HUD editor preview) */
+    static void drawBoard(GuiGraphicsExtractor g, Font font, int x, int y, List<ScoreboardLine> lines, CustomScoreboardConfig cfg,
+                          boolean inGame) {
         int b = borderSize(cfg);
         int pad = cfg.getPadding();
-        int contentW = contentWidth(font, lines);
+        int contentW = innerWidth(font, lines, cfg);
         int w = boxWidth(font, lines, cfg);
         int h = boxHeight(font, lines, cfg);
         int radius = cfg.isRoundedCorners() ? Math.min(cfg.getCornerRadius(), Math.min(w, h) / 2) : 0;
         long now = System.currentTimeMillis();
 
+        if (inGame && cfg.isBackgroundBlur()) {
+            ScoreboardBlur.submit(g, x, y, w, h, radius, cfg.getBlurStrength());
+        }
         if (cfg.isBackgroundEnabled()) {
             Identifier image = cfg.isImageBackground() ? ScoreboardBackgroundImage.texture() : null;
             if (image != null) {
@@ -538,7 +560,13 @@ public final class CustomScoreboardFeature {
             }
         }
         if (b > 0) {
-            drawRoundedBorder(g, x, y, w, h, radius, b, cfg, now);
+            drawRoundedBorder(g, x, y, w, h, radius, b, cfg, now, 1f);
+            // "Border Softness": SkyHanni's outline blur, approximated with fading 1px rings outside the border.
+            int soft = cfg.getBorderSoftness();
+            for (int i = 1; i <= soft; i++) {
+                float fade = (1f - i / (float) (soft + 1)) * 0.6f;
+                drawRoundedBorder(g, x - i, y - i, w + 2 * i, h + 2 * i, radius > 0 ? radius + i : 0, 1, cfg, now, fade);
+            }
         }
 
         int textX = x + b + pad;
@@ -562,6 +590,11 @@ public final class CustomScoreboardFeature {
                 g.text(font, popup, lx + font.width(line.text()), ly, (alpha << 24) | 0xFFFFFF, cfg.isTextShadow());
             }
         }
+    }
+
+    /** {@link #inset} for {@link ScoreboardBlur}. */
+    static int roundedInset(int row, int h, int r) {
+        return inset(row, h, r);
     }
 
     /** Horizontal inset of row {@code row} (0-based) of a {@code h}-tall rounded rectangle with corner radius {@code r}. */
@@ -655,7 +688,7 @@ public final class CustomScoreboardFeature {
     }
 
     static void drawRoundedBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
-                                  CustomScoreboardConfig cfg, long now) {
+                                  CustomScoreboardConfig cfg, long now, float alphaMul) {
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -664,6 +697,9 @@ public final class CustomScoreboardFeature {
         int innerR = Math.max(0, r - t);
         for (int row = 0; row < h; row++) {
             int color = borderColor(cfg, row, h, now);
+            if (alphaMul < 1f) {
+                color = Math.round((color >>> 24) * alphaMul) << 24 | (color & 0xFFFFFF);
+            }
             if ((color >>> 24) == 0) {
                 continue;
             }
@@ -757,7 +793,7 @@ public final class CustomScoreboardFeature {
             if (!cfg.isEnabled() || !(client.screen instanceof HudEditorScreen)) {
                 return;
             }
-            drawBoard(graphics, client.font, x, y, previewLines(), cfg);
+            drawBoard(graphics, client.font, x, y, previewLines(), cfg, false);
         }
     }
 }

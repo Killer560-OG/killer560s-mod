@@ -117,10 +117,20 @@ public class DirectSessionLoginScreen extends Screen {
         }
     }
 
+    /** Same animated title-screen background as the account switcher - see {@link AccountScreenBackground}. */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (!AccountScreenBackground.draw(graphics, this)) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        }
+    }
+
     /** Black + amber theme (2026-09-09) - see {@link AccountSwitcherScreen#extractRenderState}. */
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        if (!AccountScreenBackground.themed()) {
+            graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFCC6600);
     }

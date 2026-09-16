@@ -89,7 +89,7 @@ public final class StorageSearchFeature {
             keyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), code);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         // Only from in-game (no screen open) so typing the key into a chat box / sign never opens it.
         if (down && !keyWasDown && client.screen == null) {
             client.setScreenAndShow(new StorageSearchScreen(null, ""));

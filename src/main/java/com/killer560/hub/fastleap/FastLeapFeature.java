@@ -296,6 +296,11 @@ public final class FastLeapFeature {
         if (!isHoldingLeap(player)) {
             return false;
         }
+        if (LeapManager.isBusy()) {
+            // A leap is already in flight (its menu may be hidden) - swallow the click instead of queueing a
+            // second leap that would only print "Queued" then "On cooldown".
+            return true;
+        }
         long now = System.currentTimeMillis();
         if (now - lastClick < cfg.getClickDelayMs()) {
             return true;

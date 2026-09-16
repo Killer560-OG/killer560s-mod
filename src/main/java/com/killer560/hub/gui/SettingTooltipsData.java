@@ -680,5 +680,99 @@ final class SettingTooltipsData {
         d.put("export", "Zips this profile so you can send it to someone. An on-screen message shows where the file was saved.");
         d.put("new/every run", "This waypoint can be sent any number of times. Click to switch to Once Per Run.");
         d.put("new/once per run", "This waypoint can only be sent once per dungeon run. Click to switch to Every Run.");
+
+        // Lever Aura (tab in New; describe() scopes by top-level tab "new")
+        d.put("lever aura", "Cheat build only. F7/M7 P3 Section 2: flicks the Lights device levers (and optionally S2's section levers) for you, no camera turn. Each lever is clicked at most once.");
+        d.put("pre-flick lights before s2", "While S2 isn't open yet, flicks each unlit Lights lever (4 corners + 2 middle) once when in range.");
+        d.put("finish lights when s2 opens", "After S1 is cleared: flicks the last unlit Lights lever, or the nearest unlit one if several are left. If all are already lit, flicks exactly one lever to activate the device.");
+        d.put("s2 section levers", "Flicks S2's two section levers once after S2 opens, only while their Not Activated stand is still above them.");
+        d.put("s2 section levers early", "Also flicks S2's section levers once before S2 opens. They get one more try after S2 opens if still Not Activated.");
+        d.put("chat feedback", "Posts a local chat line for every lever Lever Aura flicks.");
+        // Thorn
+        d.put("spirit bear hud", "Shows Spirit Bear progress in F4/M4 boss: kills out of 25 (F4) or 30 (M4), then a spawn countdown, then Alive/Killed. Movable in the HUD editor.");
+        d.put("show overkill", "Adds a line to the Spirit Bear HUD counting spirit mobs killed after the ring was already full (kills beyond what the bear needed).");
+        d.put("overkill chat", "Sends a client-side chat line with each Spirit Bear's overkill count when its ring resets.");
+        d.put("spirit bear esp", "Highlights the Spirit Bear during the Thorn fight. Only while you can see it unless Through Walls is on (cheat build).");
+        d.put("spirit mob esp", "Highlights the spirit animals (wolf, bull, bat, rabbit, chicken, sheep) during the Thorn fight.");
+        d.put("spirit bow esp", "Highlights the Spirit Bow dropped by the Spirit Bear so it's easy to find.");
+        d.put("spirit bear color", "Opens a color picker for the Spirit Bear highlight.");
+        d.put("spirit mob color", "Opens a color picker for the spirit mob highlight.");
+        d.put("spirit bow color", "Opens a color picker for the Spirit Bow highlight.");
+        d.put("thorn esp style", "How Thorn ESP draws: Outline Box, Filled Box, or Glow.");
+        d.put("thorn esp line width", "Outline thickness for Thorn ESP boxes.");
+        d.put("thorn esp through walls", "Cheat build only. Thorn ESP highlights targets through walls instead of only when visible.");
+        d.put("stun spot waypoints", "Draws your saved stun-spot waypoints during the F4/M4 boss. None are built in; add them below or in killer560smod-thorn.json.");
+        d.put("stun spot color", "Opens a color picker for stun-spot waypoints.");
+        d.put("stun spot labels", "Shows each stun spot's name above its box.");
+        d.put("add stun spot here", "Saves a stun spot at the block you're standing on, for the current floor (or any floor outside F4/M4).");
+        d.put("remove last stun spot", "Deletes the most recently added stun spot.");
+        // Score Calculator
+        d.put("score calculator", "Estimates the dungeon score (S+/S/A...) live from the tab list and sidebar. Dungeons only.");
+        d.put("show breakdown", "Adds Skill, Explore (rooms + secrets), Speed and Bonus lines under the score.");
+        d.put("secrets needed", "Shows how many more secrets you need for S+, assuming every room and puzzle gets finished.");
+        d.put("crypts & deaths", "Shows crypts (out of 5) and team deaths on the score HUD.");
+        d.put("mimic & prince", "Shows whether the Mimic (F6/F7) and a Prince have been killed.");
+        d.put("score text shadow", "Draws the score HUD text with a shadow.");
+        d.put("paul (ezpz)", "Paul's EZPZ perk adds +10 bonus score. Auto checks Hypixel's election API; Force On/Off overrides it.");
+        d.put("assume spirit pet", "Counts the first death as -1 instead of -2, like Odin, as if the first player to die had a Spirit pet.");
+        d.put("270 title", "Shows a title when the estimated score first reaches 270 this run.");
+        d.put("preview 270 title", "Shows the 270 title right now so you can check how it looks. Sends nothing.");
+        d.put("270 party message", "Sends the text below to party chat once per run when the score reaches 270. Off by default.");
+        d.put("300 title", "Shows a title when the estimated score first reaches 300 this run.");
+        d.put("preview 300 title", "Shows the 300 title right now so you can check how it looks. Sends nothing.");
+        d.put("300 party message", "Sends the text below to party chat once per run when the score reaches 300. Off by default.");
+        d.put("score chat note", "Prints a local chat line with the time and floor when 270/300 is reached.");
+        d.put("alert sound", "Plays a sound with the 270/300 title.");
+        // Dungeon Extras
+        d.put("outside dungeons", "Auto Dialogue normally only answers NPC dialogue inside dungeons. ON lets it work everywhere.");
+        // Custom Scoreboard (new options)
+        d.put("exact skyblock minutes", "Computes the SkyBlock time from the game clock so the minutes tick every minute, instead of Hypixel's 10-minute steps.");
+        d.put("custom title off skyblock", "Off Skyblock, use your custom title instead of the server's own scoreboard title on the minimal board.");
+        d.put("unclaimed bits", "Shows your bits as bits/bits available. The available count updates when you open the SkyBlock Menu, Community Shop or Booster Cookie menu.");
+        d.put("powder display", "Powder line shows Available (current), Total (all ever earned) or both. Totals come from the /hotm menu.");
+        d.put("perkpocalypse mayor", "While Jerry is mayor, also shows the temporary Perkpocalypse mayor and how long it lasts. Open /calendar to update it.");
+        d.put("hide purse in dungeons", "Hides the Purse line inside the Catacombs, where coins don't matter.");
+        d.put("separator between events", "Puts an empty line between each active event in the Events block.");
+        d.put("border softness", "Fades extra rings outside the border for a soft glow (0 = crisp edge).");
+        d.put("screen margin", "Gap in pixels between the snapped scoreboard and the screen edge.");
+        d.put("background blur", "Blurs the game behind the scoreboard box. Turns itself off if your graphics setup can't do it (e.g. VulkanMod).");
+        d.put("blur strength", "How far the background blur samples, in pixels.");
+        d.put("min width", "Minimum width of the scoreboard box, so it stops resizing with short lines.");
+        d.put("min height", "Minimum height of the scoreboard box.");
+
+        // M7 Wither Dragons / King Relics / P5 splits
+        d.put("wither dragons", "Tracks the five M7 Phase 5 dragons: spawn timers in-world and on a HUD, spawn boxes, health, and which one your team should take. Info only, nothing is aimed or clicked.");
+        d.put("spawn timers", "Shows each spawning dragon's countdown above its spawn point and on the Wither Dragon Timers HUD.");
+        d.put("timer style", "How the dragon countdown reads: Milliseconds, Seconds or Ticks.");
+        d.put("timer symbol", "Appends ms/s/t after the dragon countdown.");
+        d.put("dragon boxes", "Draws the wireframe spawn box of every dragon that isn't dead.");
+        d.put("target tracer", "Draws a line from you to the priority dragon's spawn point while it is spawning.");
+        d.put("dragon health", "Shows each living dragon's health above it, coloured by how low it is.");
+        d.put("dragon title", "Big on-screen title when a dragon spawns.");
+        d.put("title for", "Your Priority titles only the dragon your team should take; Every Dragon titles each one as it starts spawning.");
+        d.put("title sound", "Plays a ping with the spawn title.");
+        d.put("dragon names", "Show dragons by colour (Red) or by type (Power).");
+        d.put("send dragon spawned", "Client-side chat message each time a dragon actually spawns, with its spawn count.");
+        d.put("send time alive", "Client-side chat message with how long a dragon was alive when it dies.");
+        d.put("send ice sprayed", "Client-side chat message with how many ticks after spawn a dragon was ice sprayed.");
+        d.put("send arrows hit", "Adds how many arrows hit the priority dragon inside its skip window to its death message.");
+        d.put("send dragon counts", "Client-side message naming the dragon when the Wither King confirms a kill.");
+        d.put("dragon priority", "Picks the dragon YOUR class should go to using the power/split rules instead of a fixed order.");
+        d.put("paul buff", "Treats your Power blessing as 1.25x (Paul's perk) when deciding the split.");
+        d.put("normal power", "Power needed before the class split applies. 0 means always split.");
+        d.put("easy power", "Power needed when Purple is one of the spawning dragons (the easier split).");
+        d.put("purple solo debuff", "Which class solo debuffs Purple; the other one helps Berserk/Mage instead.");
+        d.put("solo debuff on all splits", "Applies the solo-debuff rule to every split, not just ones with Purple.");
+        d.put("your class", "Auto reads your class from the dungeon tab list; pick one manually if the tab list can't be read (e.g. p3sim).");
+        d.put("king relics", "M7 relic helpers: spawn countdown, cauldron highlight for the relic you hold, and placement times.");
+        d.put("relic spawn timer", "Shows the countdown until the relics spawn on the King Relic Timer HUD.");
+        d.put("relic spawn ticks", "How many ticks after Necron's last line the relics spawn (Odin's default is 38).");
+        d.put("highlight cauldron", "Boxes and beams the cauldron that matches the relic you are carrying.");
+        d.put("cauldron tracer", "Also draws a line from you to that cauldron.");
+        d.put("send place time", "Client-side message with how long after Phase 5 started you placed your relic.");
+        d.put("party relic summary", "Lists everyone's relic placement times once all five relics are in.");
+        d.put("p5 dragon lines", "Adds one Split Timers line per dragon (spawn to kill) during M7 Phase 5.");
+        d.put("p5 relic lines", "Adds Split Timers lines for the relic spawn and each relic being placed.");
+        d.put("p5 lines position", "Draw the Phase 5 lines in a column to the right of the splits, or underneath them.");
     }
 }

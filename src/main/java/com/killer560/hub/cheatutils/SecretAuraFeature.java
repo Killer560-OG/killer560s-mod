@@ -232,6 +232,11 @@ public final class SecretAuraFeature {
 
     /** QUOI {@code isBossBlock}: P3 lever with a "Not Activated" stand above, or an unpowered device lever. */
     private static boolean isBossLeverClickable(Minecraft client, BlockPos pos, BlockState state) {
+        // Lever Aura owns the S2 Lights levers (and, with its Section Levers option on, S2's two section levers)
+        // while it's on - don't double-click them here: its whole point is clicking each of them exactly once.
+        if (com.killer560.hub.leveraura.LeverAuraFeature.owns(pos)) {
+            return false;
+        }
         if (DEVICE_LEVERS.contains(pos)) {
             return state.hasProperty(LeverBlock.POWERED) && !state.getValue(LeverBlock.POWERED);
         }

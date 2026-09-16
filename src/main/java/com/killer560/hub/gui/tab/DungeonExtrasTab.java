@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.dungeonextras.DungeonExtrasConfig;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
@@ -95,7 +96,7 @@ public class DungeonExtrasTab extends BaseTab {
         }
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lCheat Build - Automation"), mc.font));
+                SectionHeaders.header("Cheat Build - Automation", true), mc.font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Dialogue", cfg.isAutoDialogueEnabledRaw()), btn -> {
@@ -131,6 +132,13 @@ public class DungeonExtrasTab extends BaseTab {
             });
             widgets.add(filter);
             y += 26;
+
+            widgets.add(SettingsButtonWidget.builder(onOff("Outside Dungeons", cfg.isAutoDialogueOutsideDungeons()), btn -> {
+                        cfg.setAutoDialogueOutsideDungeons(!cfg.isAutoDialogueOutsideDungeons());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += 24;
         }
 
         widgets.add(SettingsButtonWidget.builder(onOff("Breaker Aura", cfg.isBreakerAuraEnabledRaw()), btn -> {

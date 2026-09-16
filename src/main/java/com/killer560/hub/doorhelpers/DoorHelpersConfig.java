@@ -74,7 +74,7 @@ public final class DoorHelpersConfig {
             cfg.autoDoorSwing = ConfigJson.getBool(obj, "autoDoorSwing", cfg.autoDoorSwing);
             cfg.autoDoorInMenus = ConfigJson.getBool(obj, "autoDoorInMenus", cfg.autoDoorInMenus);
             cfg.lookAtDoorEnabled = ConfigJson.getBool(obj, "lookAtDoorEnabled", cfg.lookAtDoorEnabled);
-            cfg.lookAtDoorKey = ConfigJson.getInt(obj, "lookAtDoorKey", cfg.lookAtDoorKey);
+            cfg.lookAtDoorKey = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "lookAtDoorKey", cfg.lookAtDoorKey));
             cfg.lookAtDoorOnKeyPickup = ConfigJson.getBool(obj, "lookAtDoorOnKeyPickup", cfg.lookAtDoorOnKeyPickup);
             cfg.setLookAtDoorSpeed(ConfigJson.getInt(obj, "lookAtDoorSpeed", cfg.lookAtDoorSpeed));
             instance = cfg;

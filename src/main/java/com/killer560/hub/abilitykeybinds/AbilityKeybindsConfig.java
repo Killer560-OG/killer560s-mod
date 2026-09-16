@@ -46,8 +46,8 @@ public final class AbilityKeybindsConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             AbilityKeybindsConfig cfg = new AbilityKeybindsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.abilityKeyCode = ConfigJson.getInt(obj, "abilityKeyCode", -1);
-            cfg.ultimateKeyCode = ConfigJson.getInt(obj, "ultimateKeyCode", -1);
+            cfg.abilityKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "abilityKeyCode", -1));
+            cfg.ultimateKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "ultimateKeyCode", -1));
             instance = cfg;
         } catch (Exception e) {
             instance = new AbilityKeybindsConfig();

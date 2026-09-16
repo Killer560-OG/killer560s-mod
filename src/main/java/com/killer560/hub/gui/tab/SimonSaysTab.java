@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.simonsays.SimonSaysConfig;
@@ -180,7 +181,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         // separated from the settings above it - same red divider MaskInvincibilityTab already uses for
         // exactly this reason.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lCheat Build - Automation"), Minecraft.getInstance().font));
+                SectionHeaders.header("Cheat Build - Automation", true), Minecraft.getInstance().font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {

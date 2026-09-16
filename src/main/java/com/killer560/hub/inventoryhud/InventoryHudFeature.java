@@ -60,7 +60,7 @@ public final class InventoryHudFeature {
             keyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), code);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         // Only from in-game so typing the key into chat / a sign never flips it.
         if (down && !keyWasDown && client.screen == null) {
             cfg.setToggledVisible(!cfg.isToggledVisible());
@@ -106,7 +106,7 @@ public final class InventoryHudFeature {
             case TOGGLE_KEY -> cfg.isToggledVisible();
             case HOLD_KEY -> cfg.getKeyCode() >= 0 && client.getWindow() != null
                     && !(client.screen instanceof ChatScreen)
-                    && InputConstants.isKeyDown(client.getWindow(), cfg.getKeyCode());
+                    && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getKeyCode());
         };
     }
 

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.i4sensors.I4SensorsConfig;
@@ -53,7 +54,7 @@ public class I4SensorsTab extends BaseTab {
         }
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lCheat Build - Automation"), Minecraft.getInstance().font));
+                SectionHeaders.header("Cheat Build - Automation", true), Minecraft.getInstance().font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto i4", cfg.isAutoI4Enabled()), btn -> {

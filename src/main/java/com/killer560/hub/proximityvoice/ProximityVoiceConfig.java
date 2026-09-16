@@ -48,7 +48,7 @@ public final class ProximityVoiceConfig {
             ProximityVoiceConfig cfg = new ProximityVoiceConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.pushToTalk = ConfigJson.getBool(obj, "pushToTalk", true);
-            cfg.pushToTalkKeyCode = ConfigJson.getInt(obj, "pushToTalkKeyCode", -1);
+            cfg.pushToTalkKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "pushToTalkKeyCode", -1));
             // Routed through the real setters (not a direct field assignment) so a hand-edited or
             // corrupted value (e.g. maxRange 0 or negative) gets clamped back into a valid range on load
             // instead of silently making proximity voice permanently inaudible with no visible error -

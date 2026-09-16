@@ -97,6 +97,13 @@ public class Killer560ModClient implements ClientModInitializer {
         SimDiagnosticFeature.register();
         PosmsgFeature.register();
         HudElementRegistry.register(new PosmsgHudElement());
+        com.killer560.hub.thorn.ThornFeature.register();
+        HudElementRegistry.register(com.killer560.hub.thorn.ThornFeature.HUD);
+        com.killer560.hub.scorecalc.ScoreCalculatorFeature.register();
+        com.killer560.hub.witherdragons.WitherDragonsFeature.register();
+        HudElementRegistry.register(new com.killer560.hub.witherdragons.WitherDragonsFeature.DragonTimersHudElement());
+        HudElementRegistry.register(new com.killer560.hub.witherdragons.KingRelicsFeature.RelicTimerHudElement());
+        HudElementRegistry.register(com.killer560.hub.scorecalc.ScoreCalculatorFeature.ScoreHudElement.INSTANCE);
         AbilityTimersFeature.register();
         HudElementRegistry.register(new AbilityTimersFeature.TimersHudElement());
         DungeonInfoFeature.register();
@@ -112,6 +119,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.splittimers.TerminalTimersFeature.register();
         com.killer560.hub.itemrarity.ItemRarityFeature.register();
         com.killer560.hub.cheatutils.CheatUtils.register();
+        com.killer560.hub.leveraura.LeverAuraFeature.register();
         com.killer560.hub.shorts.ShortsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);
@@ -505,7 +513,7 @@ public class Killer560ModClient implements ClientModInitializer {
             editKeyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), code);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         if (down && !editKeyWasDown && !(client.screen instanceof HudEditorScreen)) {
             client.setScreen(new HudEditorScreen(client.screen));
         }
@@ -524,7 +532,7 @@ public class Killer560ModClient implements ClientModInitializer {
             experimentsCancelKeyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), code);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         if (down && !experimentsCancelKeyWasDown) {
             ExperimentsFeature.emergencyCancel();
         }

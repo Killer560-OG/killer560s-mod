@@ -109,7 +109,7 @@ public final class LookAtDoorFeature {
     /** Clear phase, feature enabled. */
     static void tick(Minecraft client, DoorHelpersConfig cfg) {
         int key = cfg.getLookAtDoorKey();
-        boolean down = key >= 0 && client.screen == null && InputConstants.isKeyDown(client.getWindow(), key);
+        boolean down = key >= 0 && client.screen == null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key);
         boolean pressed = down && !keyWasDown;
         keyWasDown = down;
 

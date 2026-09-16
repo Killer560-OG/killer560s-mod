@@ -5,7 +5,8 @@
 	"package": "com.killer560.hub.fastleap.mixin",
 	"client": [
 		"FastLeapKeyboardHandlerMixin",
-		"FastLeapMouseHandlerMixin"
+		"FastLeapMouseHandlerMixin",
+		"FastLeapHideMenuMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

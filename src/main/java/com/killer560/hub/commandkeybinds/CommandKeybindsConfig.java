@@ -51,14 +51,14 @@ public final class CommandKeybindsConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             CommandKeybindsConfig cfg = new CommandKeybindsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.petsKey = getInt(obj, "petsKey", -1);
-            cfg.storageKey = getInt(obj, "storageKey", -1);
-            cfg.armorKey = getInt(obj, "armorKey", -1);
-            cfg.equipmentKey = getInt(obj, "equipmentKey", -1);
-            cfg.loadoutsKey = getInt(obj, "loadoutsKey", -1);
-            cfg.statsKey = getInt(obj, "statsKey", -1);
-            cfg.dungeonHubKey = getInt(obj, "dungeonHubKey", -1);
-            cfg.potionBagKey = getInt(obj, "potionBagKey", -1);
+            cfg.petsKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "petsKey", -1));
+            cfg.storageKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "storageKey", -1));
+            cfg.armorKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "armorKey", -1));
+            cfg.equipmentKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "equipmentKey", -1));
+            cfg.loadoutsKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "loadoutsKey", -1));
+            cfg.statsKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "statsKey", -1));
+            cfg.dungeonHubKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "dungeonHubKey", -1));
+            cfg.potionBagKey = com.killer560.hub.util.KeyUtil.sanitize(getInt(obj, "potionBagKey", -1));
             instance = cfg;
         } catch (Exception e) {
             instance = new CommandKeybindsConfig();

@@ -44,7 +44,7 @@ public final class VoiceToTextConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             VoiceToTextConfig cfg = new VoiceToTextConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.pushToTalkKeyCode = ConfigJson.getInt(obj, "pushToTalkKeyCode", -1);
+            cfg.pushToTalkKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "pushToTalkKeyCode", -1));
             cfg.sendToPartyChat = ConfigJson.getBool(obj, "sendToPartyChat", true);
             instance = cfg;
         } catch (Exception e) {

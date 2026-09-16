@@ -66,7 +66,7 @@ public final class WaypointRoutesConfig {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             cfg.enabled = getBool(obj, "enabled", false);
             for (int i = 0; i < KEY_JSON.length; i++) {
-                cfg.keyCodes[i] = obj.has(KEY_JSON[i]) ? obj.get(KEY_JSON[i]).getAsInt() : -1;
+                cfg.keyCodes[i] = obj.has(KEY_JSON[i]) ? com.killer560.hub.util.KeyUtil.sanitize(obj.get(KEY_JSON[i]).getAsInt()) : -1;
             }
             cfg.lineToNext = getBool(obj, "lineToNext", true);
             cfg.routeLines = getBool(obj, "routeLines", true);

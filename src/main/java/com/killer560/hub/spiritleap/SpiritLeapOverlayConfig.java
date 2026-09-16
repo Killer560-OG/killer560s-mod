@@ -19,6 +19,11 @@ public final class SpiritLeapOverlayConfig {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-spiritleapoverlay.json");
 
+    /** Scale range of the custom leap menu (2026-09-15, killer560: "let the scale go up to 400%"). The renderer
+     *  still shrinks the boxes to fit the window, so a big scale never pushes them off-screen. */
+    public static final float MIN_SCALE = 0.5f;
+    public static final float MAX_SCALE = 4.0f;
+
     private static SpiritLeapOverlayConfig instance;
 
     private boolean enabled = false;
@@ -46,7 +51,7 @@ public final class SpiritLeapOverlayConfig {
             SpiritLeapOverlayConfig cfg = new SpiritLeapOverlayConfig();
             cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
             cfg.useClassColors = !obj.has("useClassColors") || obj.get("useClassColors").getAsBoolean();
-            cfg.scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
+            cfg.setScale(obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f);
             instance = cfg;
         } catch (Exception e) {
             instance = new SpiritLeapOverlayConfig();
@@ -86,6 +91,6 @@ public final class SpiritLeapOverlayConfig {
     }
 
     public void setScale(float scale) {
-        this.scale = Math.max(0.5f, Math.min(2.0f, scale));
+        this.scale = Float.isFinite(scale) ? Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale)) : 1.0f;
     }
 }

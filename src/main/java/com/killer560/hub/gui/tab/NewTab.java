@@ -36,6 +36,7 @@ public class NewTab extends FolderTab {
                 new EtherwarpTab(),
                 new TickTimersTab(),
                 new SplitTimersTab(),
+                new WitherDragonsTab(),
                 new TerminalTimersTab(),
                 new ItemRarityTab(),
                 new ShortsTab(),
@@ -71,6 +72,8 @@ public class NewTab extends FolderTab {
                 new TeleportMazeSolverTab(),
                 new IcePathSolverTab(),
                 new LividSolverTab(),
+                new ThornTab(),
+                new ScoreCalculatorTab(),
                 new QuiverDisplayTab(),
                 new InventoryHudTab(),
                 new RealTimeTab(),
@@ -97,6 +100,7 @@ public class NewTab extends FolderTab {
             tabs.add(new DoorHelpersTab());
             tabs.add(new DungeonBreakerTab());
             tabs.add(new DioriteGlassTab());
+            tabs.add(new LeverAuraTab());
         }
         return tabs;
     }

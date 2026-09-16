@@ -83,6 +83,10 @@ public final class AutoDialogueFeature {
         if (!cfg.isAutoDialogueEnabled() || !plain.startsWith(OPTION_PREFIX) || plain.contains(FACTION_CHOICE)) {
             return;
         }
+        // Bug fix (2026-09-15): the QUOI reference runs anywhere; limited to dungeons unless the user opts out.
+        if (!cfg.isAutoDialogueOutsideDungeons() && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+            return;
+        }
         List<Component> siblings = message.getSiblings();
         if (siblings.isEmpty()) {
             return;
@@ -148,7 +152,9 @@ public final class AutoDialogueFeature {
         if (pendingCommand == null) {
             return;
         }
-        if (client.player == null || client.getConnection() == null || !DungeonExtrasConfig.getInstance().isAutoDialogueEnabled()) {
+        DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        if (client.player == null || client.getConnection() == null || !cfg.isAutoDialogueEnabled()
+                || (!cfg.isAutoDialogueOutsideDungeons() && !com.killer560.hub.secrets.DungeonState.isInDungeon())) {
             pendingCommand = null;
             return;
         }

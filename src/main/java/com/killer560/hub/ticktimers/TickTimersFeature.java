@@ -3,6 +3,7 @@ package com.killer560.hub.ticktimers;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
@@ -22,9 +23,18 @@ import java.util.regex.Pattern;
  * - real boss dialogue lines and real countdown lengths (Necron/Goldor: 60 ticks; Storm's pad: 20
  * ticks; lightning: 560 ticks; the purple-pillar "PY" window: 95 ticks; Storm's second-phase crush
  * window: 620 ticks), not guessed. Goldor's "Tick:" and Storm's pad timers REPEAT (re-arm on reaching 0)
- * exactly like Odin's, until their real stop lines. Counts client ticks, not Odin's server ticks (Odin
- * derives those from ClientboundPingPacket in a Connection mixin this mod doesn't have), so lag can
- * drift them slightly. Deliberately omits Odin's "Secrets" pulse timer - that one isn't a
+ * exactly like Odin's, until their real stop lines. Counts SERVER ticks like Odin's {@code TickEvent.Server}
+ * (2026-09-15: via {@link ServerTickClock}, one tick per non-zero ClientboundPingPacket, falling back to client
+ * ticks on a server that doesn't send per-tick pings), so client lag no longer drifts Goldor's 3s tick.
+ * <p>
+ * Goldor "one-shot" report, re-verified 2026-09-15 against Odin main @38ddc1b TickTimers.kt: Odin's server tick does
+ * {@code if (goldorTickTime == 0 && goldorStartTime <= 0 && goldorHud.enabled) goldorTickTime = 60} BEFORE the
+ * decrements - that re-arm (restored in c571b1d) is exactly what's below. It can only stop repeating if Goldor's
+ * line arrives &lt;44 ticks after Storm's death line (Start still &gt; 0 when Tick hits 0); real runs in the Dungeons
+ * instance's logs show ~5s (100 ticks) between them, and p3sim ~15s, so it repeats there too (the gate is dropped
+ * anyway, see the comment on the re-arm).
+ * <p>
+ * Deliberately omits Odin's "Secrets" pulse timer - that one isn't a
  * real per-secret prediction (Hypixel doesn't expose secret-spawn timing), just a repeating 20-tick
  * cosmetic pulse, and killer560's list already has a real secret-count feature elsewhere
  * ({@code DungeonInfoFeature}).
@@ -76,6 +86,8 @@ public final class TickTimersFeature {
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(TickTimersFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ServerTickClock.register();
+        ServerTickClock.subscribe(TickTimersFeature::serverTick);
     }
 
     private static void onChatMessage(Component message) {
@@ -140,6 +152,10 @@ public final class TickTimersFeature {
                     DungeonState.isBossPhaseActive(), inDungeon, DungeonState.getFloor());
             diagWasCounting = diagCounting;
         }
+    }
+
+    /** Odin {@code on<TickEvent.Server>} (boss-only part). */
+    private static void serverTick() {
         if (!TickTimersConfig.getInstance().isEnabled() || !DungeonState.isBossPhaseActive()) {
             return;
         }
@@ -155,7 +171,13 @@ public final class TickTimersFeature {
         // is opening!", so the Tick timer showed one 3s countdown at the start of P3 and then vanished.
         // Odin's TickTimers.kt restarts it at 60 every time it hits 0 (Goldor's real 3s damage tick) for all
         // of P3, until CORE_OPENING_REGEX sets it to -1. Restored exactly, including Odin's HUD-enabled gate.
-        if (goldorTickTime == 0 && goldorStartTime <= 0 && cfg.isGoldorTimer()) {
+        // 2026-09-15 hardening (one deliberate deviation from Odin): Odin also requires goldorStartTime <= 0 here,
+        // which means the Tick timer dies for the rest of P3 if Goldor's taunt lands less than 44 ticks after
+        // Storm's death line (Tick reaches 0 while the 104-tick Start countdown is still running, so it is never
+        // re-armed). Real logs show ~100 ticks between those lines, but the gate buys nothing: while Start runs the
+        // HUD shows "Start:" instead of "Tick:" anyway, and the Core-entrance line still sets both to -1. Dropping
+        // it only removes that failure mode; the countdown's alignment is unchanged.
+        if (goldorTickTime == 0 && cfg.isGoldorTimer()) {
             goldorTickTime = 60;
             diagGoldorRestarts++;
         }

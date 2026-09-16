@@ -100,6 +100,20 @@ public final class ScoreboardExtraData {
     private static final Pattern ARROWS_REMAINING = Pattern.compile("Arrows Remaining: (?<amount>[\\d,]+)");
     private static final Pattern ARROW_RAN_OUT = Pattern.compile("QUIVER! You have run out of (?<type>.+)s!");
     private static final Pattern QUIVER_CLEARED = Pattern.compile("Cleared your quiver!|Your quiver is now completely empty!");
+    /** BitsApi.bitsAvailableMenuPattern (plain). */
+    private static final Pattern BITS_AVAILABLE_LORE = Pattern.compile("\\s*Bits Available: (?<amount>[\\d,]+).*");
+    /** BitsApi.bitsFromFameRankUpChatPattern (plain). */
+    private static final Pattern BITS_AVAILABLE_CHAT = Pattern.compile("You gained (?<amount>[\\d,]+) Bits Available compounded from all your previously eaten cookies!.*");
+    private static final Pattern FAME_RANK_MENU_TITLE = Pattern.compile("Community Shop|Booster Cookie");
+    /** HotmData heart/reset item names and HotmApi.PowderType heartPattern/resetPattern (plain). */
+    private static final Pattern HOTM_TITLE = Pattern.compile("Heart of the Mountain");
+    private static final Pattern HOTM_HEART_POWDER = Pattern.compile(".*?(?<type>Mithril|Gemstone|Glacite) Powder: (?<powder>[\\d,]+).*");
+    private static final Pattern HOTM_RESET_POWDER = Pattern.compile("\\s*- (?<powder>[\\d,]+) (?<type>Mithril|Gemstone|Glacite) Powder.*");
+    /** CalendarApi.calendarGuiPattern / ElectionApi.mayorHeadPattern / perkpocalypsePerksPattern (plain). */
+    private static final Pattern CALENDAR_TITLE = Pattern.compile("Calendar and Events");
+    private static final Pattern PERKPOCALYPSE_PERKS = Pattern.compile("\\s*Perkpocalypse Perks:\\s*");
+    static final String[] POWDER_TYPES = {"Mithril", "Gemstone", "Glacite"};
+    private static final long SIX_HOURS_MS = 6L * 60 * 60 * 1000;
 
     public record Perk(String name, String description) {
     }
@@ -129,6 +143,15 @@ public final class ScoreboardExtraData {
     private static int quiverAmount = -1;
     private static boolean hasBow = false;
     private static boolean wearingSkeletonMaster = false;
+    /** -1 = never seen (SkyBlock Menu / Community Shop / Booster Cookie menus). */
+    private static long bitsAvailable = -1L;
+    private static long lastBits = -1L;
+    /** Total powder per {@link #POWDER_TYPES} (available + spent in the tree), -1 unknown. */
+    private static final long[] powderTotal = {-1L, -1L, -1L};
+    private static final long[] lastPowder = {-1L, -1L, -1L};
+    /** Perkpocalypse (Mayor Jerry) mayor name, or null, and when it expires. */
+    private static String jerryMayor = null;
+    private static long jerryMayorExpiresAtMs = 0L;
 
     private static boolean loaded = false;
     private static volatile boolean dirty = false;
@@ -153,6 +176,8 @@ public final class ScoreboardExtraData {
             try {
                 readTabCookie();
                 readScreen(client);
+                trackBits();
+                trackPowder();
                 if (++tickCounter >= 2) {
                     tickCounter = 0;
                     readInventory(client.player);
@@ -168,6 +193,183 @@ public final class ScoreboardExtraData {
         long now = System.currentTimeMillis();
         if (dirty && now - lastSaveMs > 5000L) {
             save();
+        }
+    }
+
+    // ---- bits available / powder totals (SkyHanni BitsApi.updateBits / HotmApi.PowderType.setAmount) ----
+
+    /** Bits gained on the sidebar come out of "Bits Available" (claimed from the cookie buff). */
+    private static void trackBits() {
+        String raw = ChunkedStat.BITS.raw();
+        if (raw == null) {
+            return;
+        }
+        long bits = parseLong(raw);
+        if (bits < 0) {
+            return;
+        }
+        if (lastBits >= 0 && bits > lastBits && bitsAvailable > 0) {
+            bitsAvailable = Math.max(0L, bitsAvailable - (bits - lastBits));
+            dirty = true;
+        }
+        lastBits = bits;
+    }
+
+    /** Powder gained while mining raises the total; spending it in the tree doesn't. */
+    private static void trackPowder() {
+        if (!ScoreboardData.inIsland("Dwarven Mines", "Crystal Hollows", "Mineshaft")) {
+            return;
+        }
+        long[] current = ScoreboardEntry.powderAmounts();
+        for (int i = 0; i < POWDER_TYPES.length; i++) {
+            if (current[i] < 0) {
+                continue;
+            }
+            if (lastPowder[i] >= 0 && current[i] > lastPowder[i] && powderTotal[i] >= 0) {
+                powderTotal[i] += current[i] - lastPowder[i];
+                dirty = true;
+            }
+            lastPowder[i] = current[i];
+        }
+    }
+
+    private static void setBitsAvailable(long amount) {
+        if (amount >= 0 && amount != bitsAvailable) {
+            bitsAvailable = amount;
+            dirty = true;
+        }
+    }
+
+    /** Any item in the open menu carrying a "Bits Available: N" lore line. */
+    private static void readBitsAvailable(List<Slot> slots) {
+        for (Slot slot : slots) {
+            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) {
+                continue;
+            }
+            for (String line : plainLore(slot.getItem())) {
+                Matcher m = BITS_AVAILABLE_LORE.matcher(line);
+                if (m.matches()) {
+                    setBitsAvailable(parseLong(m.group("amount")));
+                    return;
+                }
+            }
+        }
+    }
+
+    /** HOTM tree: total = available (Heart of the Mountain item) + refundable (Reset Heart of the Mountain item). */
+    private static void readHotm(List<Slot> slots) {
+        long[] available = {-1L, -1L, -1L};
+        long[] spent = {0L, 0L, 0L};
+        boolean resetSeen = false;
+        for (Slot slot : slots) {
+            if (slot.container instanceof Inventory || slot.getItem().isEmpty()) {
+                continue;
+            }
+            String name = plainName(slot.getItem()).trim();
+            boolean heart = name.equals("Heart of the Mountain");
+            boolean reset = name.equals("Reset Heart of the Mountain");
+            if (!heart && !reset) {
+                continue;
+            }
+            resetSeen |= reset;
+            for (String line : plainLore(slot.getItem())) {
+                Matcher m = (heart ? HOTM_HEART_POWDER : HOTM_RESET_POWDER).matcher(line);
+                if (m.matches()) {
+                    int idx = powderIndex(m.group("type"));
+                    long value = parseLong(m.group("powder"));
+                    if (idx >= 0 && value >= 0) {
+                        if (heart) {
+                            available[idx] = value;
+                        } else {
+                            spent[idx] = value;
+                        }
+                    }
+                }
+            }
+        }
+        if (!resetSeen) {
+            return;
+        }
+        for (int i = 0; i < POWDER_TYPES.length; i++) {
+            if (available[i] >= 0 && powderTotal[i] != available[i] + spent[i]) {
+                powderTotal[i] = available[i] + spent[i];
+                lastPowder[i] = available[i];
+                dirty = true;
+            }
+        }
+    }
+
+    static int powderIndex(String type) {
+        for (int i = 0; i < POWDER_TYPES.length; i++) {
+            if (POWDER_TYPES[i].equals(type)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // ---- Perkpocalypse mayor (SkyHanni ElectionApi.jerryExtraMayor) ----
+
+    /** Calendar's "Mayor Jerry" item: the first Perkpocalypse perk (2 lines under the header) names the extra mayor. */
+    private static void readCalendar(List<Slot> slots) {
+        for (Slot slot : slots) {
+            if (slot.container instanceof Inventory || !"Mayor Jerry".equals(plainName(slot.getItem()).trim())) {
+                continue;
+            }
+            List<String> lore = plainLore(slot.getItem());
+            for (int i = 0; i + 2 < lore.size(); i++) {
+                if (!PERKPOCALYPSE_PERKS.matcher(lore.get(i)).matches()) {
+                    continue;
+                }
+                String name = mayorFromPerk(lore.get(i + 2).trim());
+                if (name == null) {
+                    return;
+                }
+                long now = System.currentTimeMillis();
+                long nextMayor = now + timeUntilNextMayorMs();
+                long lastMayor = nextMayor - SKYBLOCK_YEAR_MS;
+                long expires = -1L;
+                for (int k = 1; k <= 21; k++) {
+                    long t = lastMayor + SIX_HOURS_MS * k;
+                    if (t > now) {
+                        expires = Math.min(t, nextMayor);
+                        break;
+                    }
+                }
+                if (expires > 0 && (!name.equals(jerryMayor) || expires != jerryMayorExpiresAtMs)) {
+                    jerryMayor = name;
+                    jerryMayorExpiresAtMs = expires;
+                    dirty = true;
+                }
+                return;
+            }
+        }
+    }
+
+    /** SkyHanni {@code ElectionCandidate.getMayorFromPerk} for the mayors Perkpocalypse can pick. */
+    static String mayorFromPerk(String perk) {
+        return switch (perk) {
+            case "SLASHED Pricing", "Slayer XP Buff", "Pathfinder" -> "Aatrox";
+            case "Prospection", "Mining XP Buff", "Mining Fiesta", "Molten Forge" -> "Cole";
+            case "Huntress' Intuition", "Mythological Ritual", "Pet XP Buff", "Sharing is Caring" -> "Diana";
+            case "Volume Trading", "Shopping Spree", "Stock Exchange", "Long Term Investment" -> "Diaz";
+            case "Pelt-pocalypse", "Grand Feast", "GOATed", "Blooming Business", "Pest Eradicator" -> "Finnegan";
+            case "Sweet Benevolence", "A Time for Giving", "Chivalrous Carnival", "Extra Event (Mining)",
+                 "Extra Event (Fishing)", "Extra Event (Spooky)" -> "Foxy";
+            case "Fishing XP Buff", "Luck of the Sea 2.0", "Fishing Festival", "Double Trouble" -> "Marina";
+            case "Marauder", "EZPZ", "Benediction" -> "Paul";
+            case "Bribe", "Darker Auctions" -> "Scorpius";
+            case "TURBO MINIONS!!!", "QUAD TAXES!!!", "DOUBLE MOBS HP!!!", "MOAR SKILLZ!!!" -> "Derpy";
+            case "Fundraising", "Minion Union", "Universal Income", "Work Better", "Work Harder", "Work Smarter" -> "Aura";
+            default -> null;
+        };
+    }
+
+    private static long parseLong(String s) {
+        try {
+            return Long.parseLong(s.replace(",", "").trim());
+        } catch (NumberFormatException e) {
+            return -1L;
         }
     }
 
@@ -297,6 +499,12 @@ public final class ScoreboardExtraData {
         } else if (QUIVER_CLEARED.matcher(plain).matches()) {
             quiverAmount = 0;
             dirty = true;
+        } else if ((m = BITS_AVAILABLE_CHAT.matcher(plain)).matches()) {
+            long gained = parseLong(m.group("amount"));
+            if (gained > 0) {
+                bitsAvailable = Math.max(0L, bitsAvailable) + gained;
+                dirty = true;
+            }
         }
     }
 
@@ -313,6 +521,7 @@ public final class ScoreboardExtraData {
         title = title.trim();
         List<Slot> slots = screen.getMenu().slots;
         if (title.equals("SkyBlock Menu")) {
+            readBitsAvailable(slots);
             for (Slot slot : slots) {
                 if (slot.container instanceof Inventory || !"Booster Cookie".equals(plainName(slot.getItem()))) {
                     continue;
@@ -335,6 +544,12 @@ public final class ScoreboardExtraData {
             readYourBags(slots);
         } else if (STATS_TUNING_TITLE.matcher(title).matches()) {
             readStatsTuning(slots);
+        } else if (FAME_RANK_MENU_TITLE.matcher(title).matches()) {
+            readBitsAvailable(slots);
+        } else if (HOTM_TITLE.matcher(title).matches()) {
+            readHotm(slots);
+        } else if (CALENDAR_TITLE.matcher(title).matches()) {
+            readCalendar(slots);
         }
     }
 
@@ -621,6 +836,19 @@ public final class ScoreboardExtraData {
             }
             quiverArrow = ConfigJson.getString(obj, "quiverArrow", null);
             quiverAmount = ConfigJson.getInt(obj, "quiverAmount", -1);
+            bitsAvailable = ConfigJson.getLong(obj, "bitsAvailable", -1L);
+            JsonArray powderArray = ConfigJson.getArray(obj, "powderTotal");
+            if (powderArray != null) {
+                for (int i = 0; i < powderTotal.length && i < powderArray.size(); i++) {
+                    try {
+                        powderTotal[i] = powderArray.get(i).getAsLong();
+                    } catch (RuntimeException ignored) {
+                        powderTotal[i] = -1L;
+                    }
+                }
+            }
+            jerryMayor = ConfigJson.getString(obj, "jerryMayor", null);
+            jerryMayorExpiresAtMs = ConfigJson.getLong(obj, "jerryMayorExpiresAtMs", 0L);
             String election = ConfigJson.getString(obj, "electionJson", null);
             if (election != null) {
                 try {
@@ -664,6 +892,16 @@ public final class ScoreboardExtraData {
                 obj.addProperty("quiverArrow", quiverArrow);
             }
             obj.addProperty("quiverAmount", quiverAmount);
+            obj.addProperty("bitsAvailable", bitsAvailable);
+            JsonArray powderArray = new JsonArray();
+            for (long total : powderTotal) {
+                powderArray.add(total);
+            }
+            obj.add("powderTotal", powderArray);
+            if (jerryMayor != null) {
+                obj.addProperty("jerryMayor", jerryMayor);
+                obj.addProperty("jerryMayorExpiresAtMs", jerryMayorExpiresAtMs);
+            }
             String election = electionJson;
             if (election != null) {
                 obj.addProperty("electionJson", election);
@@ -749,5 +987,24 @@ public final class ScoreboardExtraData {
 
     public static boolean wearingSkeletonMasterChestplate() {
         return wearingSkeletonMaster;
+    }
+
+    /** Unclaimed bits from the cookie buff, -1 unknown. */
+    public static long bitsAvailable() {
+        return bitsAvailable;
+    }
+
+    /** Total Mithril/Gemstone/Glacite powder ({@link #POWDER_TYPES} index), -1 unknown. */
+    public static long powderTotal(int index) {
+        return index >= 0 && index < powderTotal.length ? powderTotal[index] : -1L;
+    }
+
+    /** The Perkpocalypse mayor while Jerry is mayor and it hasn't expired, else null. */
+    public static String jerryMayor() {
+        return jerryMayor != null && jerryMayorExpiresAtMs > System.currentTimeMillis() ? jerryMayor : null;
+    }
+
+    public static long jerryMayorExpiresAtMs() {
+        return jerryMayorExpiresAtMs;
     }
 }

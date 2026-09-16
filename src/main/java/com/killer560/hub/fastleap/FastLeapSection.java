@@ -16,47 +16,50 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 import java.util.function.Consumer;
 
-/** Settings UI for {@link FastLeapFeature} (placed in the Leap Menu tab). Labels only, compact rows; a leap's
- *  sub-settings only show while that leap is enabled. */
+/** Settings UI for {@link FastLeapFeature} (placed in the Leap Menu tab, which draws the section header). Labels only,
+ *  compact rows on one grid (2026-09-15 consolidation): the general settings share two rows of thirds, every leap's
+ *  on/off switch sits in a 3-column grid, and each ENABLED leap then gets its own block (Auto + extra option, then its
+ *  target rows) with the names in one aligned label column. */
 public final class FastLeapSection {
 
-    private static final int ROW = 18;
-    private static final int GAP = 4;
-    private static final int LABEL_W = 44;
+    /** Shared row metrics for the whole Leap Menu tab. */
+    public static final int ROW = 18;
+    public static final int GAP = 4;
+    public static final int LABEL_W = 72;
+    /** Narrowest grid column that still fits the longest leap switch label ("Door Opener Leap: OFF"). */
+    private static final int MIN_GROUP_COL_W = 124;
 
     private FastLeapSection() {
     }
 
+    /** Builds the Fast Leap controls (no header - the caller draws it). @return the y below the last row. */
     public static int build(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return y;
         }
         FastLeapConfig cfg = FastLeapConfig.getInstance();
-        widgets.add(new StringWidget(x, y, width, 12, Component.literal("§6§lFast Leap"), Minecraft.getInstance().font));
-        y += 14;
+        int third = (width - GAP * 2) / 3;
+        int lastW = width - (third + GAP) * 2;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Fast Leap", cfg.isEnabledSetting()), btn -> {
+        boolean enabled = cfg.isEnabledSetting();
+        widgets.add(SettingsButtonWidget.builder(onOff("Fast Leap", enabled), btn -> {
             cfg.setEnabled(!cfg.isEnabledSetting());
             cfg.save();
             requestRebuild.run();
-        }).bounds(x, y, width, ROW).build());
-        y += ROW + GAP;
-        if (!cfg.isEnabledSetting()) {
-            return y + 8;
+        }).bounds(x, y, enabled ? third : width, ROW).build());
+        if (!enabled) {
+            return y + ROW + GAP;
         }
-
-        int half = (width - GAP) / 2;
-        int third = (width - GAP * 2) / 3;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Target Mode: §6" + cfg.getTargetMode().label), btn -> {
             TargetMode[] all = TargetMode.values();
             cfg.setTargetMode(all[(cfg.getTargetMode().ordinal() + 1) % all.length]);
             cfg.save();
             requestRebuild.run();
-        }).bounds(x, y, half, ROW).build());
+        }).bounds(x + third + GAP, y, third, ROW).build());
         double norm = (cfg.getClickDelayMs() - FastLeapConfig.MIN_CLICK_DELAY_MS)
                 / (double) (FastLeapConfig.MAX_CLICK_DELAY_MS - FastLeapConfig.MIN_CLICK_DELAY_MS);
-        widgets.add(new ThemedSliderButton(x + half + GAP, y, width - half - GAP, ROW, Component.literal(delayLabel(cfg)), norm) {
+        widgets.add(new ThemedSliderButton(x + (third + GAP) * 2, y, lastW, ROW, Component.literal(delayLabel(cfg)), norm) {
             @Override
             protected void updateMessage() {
                 setMessage(Component.literal(delayLabel(cfg)));
@@ -73,63 +76,75 @@ public final class FastLeapSection {
 
         widgets.add(toggle(x, y, third, "Block Inputs", cfg::isBlockInputs, v -> cfg.setBlockInputs(v), cfg));
         widgets.add(toggle(x + third + GAP, y, third, "Fast Mode", cfg::isFastMode, v -> cfg.setFastMode(v), cfg));
-        widgets.add(toggle(x + (third + GAP) * 2, y, width - (third + GAP) * 2, "Swap Back", cfg::isSwapBack, v -> cfg.setSwapBack(v), cfg));
-        y += ROW + GAP + 4;
+        widgets.add(toggle(x + (third + GAP) * 2, y, lastW, "Swap Back", cfg::isSwapBack, v -> cfg.setSwapBack(v), cfg));
+        y += ROW + GAP;
 
-        for (LeapGroup group : LeapGroup.values()) {
-            y = buildGroup(widgets, x, y, width, group, cfg, requestRebuild);
+        // every leap's on/off switch in one grid - 3 columns when "Door Opener Leap: OFF" fits, else 2
+        LeapGroup[] groups = LeapGroup.values();
+        int cols = (width - GAP * 2) / 3 >= MIN_GROUP_COL_W ? 3 : 2;
+        int colW = (width - GAP * (cols - 1)) / cols;
+        for (int i = 0; i < groups.length; i++) {
+            LeapGroup group = groups[i];
+            int col = i % cols;
+            int cx = x + (colW + GAP) * col;
+            int cw = col == cols - 1 ? width - (colW + GAP) * col : colW;
+            // "<group> Leap" is also the SettingTooltips key
+            widgets.add(SettingsButtonWidget.builder(onOff(group.label + " Leap", cfg.isLeapEnabled(group)), btn -> {
+                cfg.setLeapEnabled(group, !cfg.isLeapEnabled(group));
+                cfg.save();
+                requestRebuild.run();
+            }).bounds(cx, y, cw, ROW).build());
+            if (col == cols - 1 || i == groups.length - 1) {
+                y += ROW + GAP;
+            }
         }
-        return y + 8;
+
+        // per-leap options, only for enabled leaps
+        for (LeapGroup group : groups) {
+            if (cfg.isLeapEnabled(group)) {
+                y = buildGroup(widgets, x, y + 2, width, group, cfg, requestRebuild);
+            }
+        }
+        return y;
     }
 
     private static int buildGroup(List<AbstractWidget> widgets, int x, int y, int width, LeapGroup group,
                                   FastLeapConfig cfg, Runnable requestRebuild) {
-        boolean on = cfg.isLeapEnabled(group);
+        widgets.add(label(x, y, LABEL_W, "§6" + group.label));
+        int fx = x + LABEL_W;
+        int fw = width - LABEL_W;
         boolean hasExtra = group == LeapGroup.DOOR || (group == LeapGroup.P3 && cfg.isLeapAuto(LeapGroup.P3));
-        int cols = !on ? 1 : hasExtra ? 3 : 2;
-        int colW = (width - GAP * (cols - 1)) / cols;
-
-        widgets.add(SettingsButtonWidget.builder(onOff(group.label + " Leap", on), btn -> {
-            cfg.setLeapEnabled(group, !cfg.isLeapEnabled(group));
-            cfg.save();
-            requestRebuild.run();
-        }).bounds(x, y, on ? colW : width, ROW).build());
-        if (!on) {
-            return y + ROW + GAP;
-        }
-        int autoX = x + colW + GAP;
-        int autoW = cols == 2 ? width - colW - GAP : colW;
+        int autoW = hasExtra ? (fw - GAP) / 2 : fw;
         if (group == LeapGroup.P3) {
             widgets.add(SettingsButtonWidget.builder(onOff("Auto", cfg.isLeapAuto(group)), btn -> {
                 cfg.setLeapAuto(group, !cfg.isLeapAuto(group));
                 cfg.save();
                 requestRebuild.run();
-            }).bounds(autoX, y, autoW, ROW).build());
+            }).bounds(fx, y, autoW, ROW).build());
         } else {
-            widgets.add(toggle(autoX, y, autoW, "Auto", () -> cfg.isLeapAuto(group), v -> cfg.setLeapAuto(group, v), cfg));
+            widgets.add(toggle(fx, y, autoW, "Auto", () -> cfg.isLeapAuto(group), v -> cfg.setLeapAuto(group, v), cfg));
         }
-        int extraX = x + (colW + GAP) * 2;
-        int extraW = width - (colW + GAP) * 2;
+        int extraX = fx + autoW + GAP;
+        int extraW = fw - autoW - GAP;
         if (group == LeapGroup.DOOR) {
             widgets.add(toggle(extraX, y, extraW, "After Blood Off", cfg::isDisableAfterBloodOpen, v -> cfg.setDisableAfterBloodOpen(v), cfg));
-        } else if (group == LeapGroup.P3 && cfg.isLeapAuto(LeapGroup.P3)) {
+        } else if (hasExtra) {
             widgets.add(toggle(extraX, y, extraW, "Gate Blown Only", cfg::isOnlyWhenGateBlown, v -> cfg.setOnlyWhenGateBlown(v), cfg));
         }
         y += ROW + GAP;
 
         for (LeapTarget target : LeapTarget.values()) {
             if (target.group == group) {
-                y = buildTarget(widgets, x, y, width, target, cfg, requestRebuild);
+                y = buildTarget(widgets, x, y, width, target, cfg);
             }
         }
-        return y + 2;
+        return y;
     }
 
     private static int buildTarget(List<AbstractWidget> widgets, int x, int y, int width, LeapTarget target,
-                                   FastLeapConfig cfg, Runnable requestRebuild) {
+                                   FastLeapConfig cfg) {
         int indent = 8;
-        widgets.add(new StringWidget(x + indent, y + 5, LABEL_W - indent, 10, Component.literal("§7" + target.label),
-                Minecraft.getInstance().font));
+        widgets.add(label(x + indent, y, LABEL_W - indent, "§7" + target.label));
         int fx = x + LABEL_W;
         int fw = width - LABEL_W;
         switch (cfg.getTargetMode()) {
@@ -166,6 +181,11 @@ public final class FastLeapSection {
 
     interface BoolGetter {
         boolean get();
+    }
+
+    /** A row label, vertically centred on a {@link #ROW}-high control starting at {@code y}. */
+    public static StringWidget label(int x, int y, int w, String text) {
+        return new StringWidget(x, y + (ROW - 8) / 2, Math.max(1, w), 10, Component.literal(text), Minecraft.getInstance().font);
     }
 
     static SettingsButtonWidget toggle(int x, int y, int w, String label, BoolGetter getter, Consumer<Boolean> setter,

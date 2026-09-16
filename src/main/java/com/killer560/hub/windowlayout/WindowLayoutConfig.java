@@ -62,7 +62,7 @@ public final class WindowLayoutConfig {
                 cfg.monitorName = getString(o, "monitorName");
                 cfg.gap = clamp(getInt(o, "gap", 0), 0, MAX_GAP);
                 cfg.respectTaskbar = getBool(o, "respectTaskbar", true);
-                cfg.pickerKeyCode = getInt(o, "pickerKeyCode", -1);
+                cfg.pickerKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(o, "pickerKeyCode", -1));
                 cfg.restoreOnLaunch = getBool(o, "restoreOnLaunch", false);
                 cfg.hasLastPlacement = getBool(o, "hasLastPlacement", false);
                 cfg.lastMonitorIndex = Math.max(0, getInt(o, "lastMonitorIndex", 0));

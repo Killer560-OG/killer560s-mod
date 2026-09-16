@@ -265,7 +265,7 @@ public class DvdTab extends BaseTab {
         int y = contentY;
 
         EditBox speedField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Speed"));
-        speedField.setValue(String.format("%.2f", e.speedMultiplier));
+        speedField.setValue(String.format(java.util.Locale.US, "%.2f", e.speedMultiplier));
         widgets.add(speedField);
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set Speed (current " + String.format("%.2fx", e.speedMultiplier) + ")"), btn -> {
                     Float v = parseFloat(speedField.getValue());
@@ -308,7 +308,7 @@ public class DvdTab extends BaseTab {
         }
 
         EditBox scaleField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, ROW_H, Component.literal("Scale"));
-        scaleField.setValue(String.format("%.2f", e.scale));
+        scaleField.setValue(String.format(java.util.Locale.US, "%.2f", e.scale));
         widgets.add(scaleField);
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set Scale (current " + String.format("%.2fx", e.scale) + ")"), btn -> {
                     Float v = parseFloat(scaleField.getValue());

@@ -30,6 +30,12 @@ public class SecretsTab extends BaseTab {
         super("Full Block");
     }
 
+    /** Only added to {@link DungeonTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    @Override
+    public boolean isCheatOnly() {
+        return true;
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

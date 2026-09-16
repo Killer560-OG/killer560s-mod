@@ -150,6 +150,21 @@ public final class CustomScoreboardConfig {
         }
     }
 
+    /** SkyHanni's DisplayConfig.PowderDisplay. */
+    public enum PowderDisplay {
+        AVAILABLE("Available"), TOTAL("Total"), BOTH("Available/Total");
+
+        public final String label;
+
+        PowderDisplay(String label) {
+            this.label = label;
+        }
+
+        public PowderDisplay next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
     public enum ArrowDisplay {
         NUMBER("Number"), PERCENTAGE("Percentage");
 
@@ -180,6 +195,7 @@ public final class CustomScoreboardConfig {
     public static final int DEFAULT_BORDER_BOTTOM_COLOR = 0xFFFFA040;
     public static final String DEFAULT_TITLE = "&&6&&lSKYBLOCK";
     public static final String DEFAULT_FOOTER = "&&ewww.hypixel.net";
+    public static final String DEFAULT_ALPHA_FOOTER = "&&ealpha.hypixel.net";
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -204,6 +220,8 @@ public final class CustomScoreboardConfig {
     private boolean useCustomTitle = true;
     private String customTitle = DEFAULT_TITLE;
     private String customFooter = DEFAULT_FOOTER;
+    private String customAlphaFooter = DEFAULT_ALPHA_FOOTER;
+    private boolean useCustomTitleOutsideSkyblock = false;
     private boolean hideEmptyLines = true;
     private boolean hideConsecutiveEmptyLines = true;
     private boolean hideEmptyLinesAtTopAndBottom = true;
@@ -223,10 +241,16 @@ public final class CustomScoreboardConfig {
     private boolean dateInLobbyCode = true;
     private DateFormat dateFormat = DateFormat.US_SLASH_MMDDYY;
     private boolean time24h = false;
+    private boolean timeExactMinutes = false;
+    private boolean separatorBetweenEvents = false;
     // line options
     private boolean showMayorPerks = true;
     private boolean showMayorTime = true;
     private boolean showMinister = true;
+    private boolean showJerryMayor = true;
+    private boolean showUnclaimedBits = false;
+    private PowderDisplay powderDisplay = PowderDisplay.AVAILABLE;
+    private boolean hidePurseInDungeons = false;
     private boolean showMagicalPower = true;
     private boolean compactTuning = false;
     private int tuningAmount = 2;
@@ -250,6 +274,12 @@ public final class CustomScoreboardConfig {
     private int chromaSpeed = 5;
     private boolean imageBackground = false;
     private int imageOpacity = 100;
+    private int margin = 0;
+    private int minWidth = 0;
+    private int minHeight = 0;
+    private int borderSoftness = 0;
+    private boolean backgroundBlur = false;
+    private int blurStrength = 6;
     private final List<Row<ScoreboardEntry>> entries = new ArrayList<>();
     private final List<Row<ScoreboardEvent>> events = new ArrayList<>();
     private final List<Row<ChunkedStat>> chunkedStats = new ArrayList<>();
@@ -292,6 +322,8 @@ public final class CustomScoreboardConfig {
                 cfg.useCustomTitle = ConfigJson.getBool(obj, "useCustomTitle", cfg.useCustomTitle);
                 cfg.customTitle = ConfigJson.getString(obj, "customTitle", cfg.customTitle);
                 cfg.customFooter = ConfigJson.getString(obj, "customFooter", cfg.customFooter);
+                cfg.customAlphaFooter = ConfigJson.getString(obj, "customAlphaFooter", cfg.customAlphaFooter);
+                cfg.useCustomTitleOutsideSkyblock = ConfigJson.getBool(obj, "useCustomTitleOutsideSkyblock", cfg.useCustomTitleOutsideSkyblock);
                 cfg.hideEmptyLines = ConfigJson.getBool(obj, "hideEmptyLines", cfg.hideEmptyLines);
                 cfg.hideConsecutiveEmptyLines = ConfigJson.getBool(obj, "hideConsecutiveEmptyLines", cfg.hideConsecutiveEmptyLines);
                 cfg.hideEmptyLinesAtTopAndBottom = ConfigJson.getBool(obj, "hideEmptyLinesAtTopAndBottom", cfg.hideEmptyLinesAtTopAndBottom);
@@ -310,9 +342,15 @@ public final class CustomScoreboardConfig {
                 cfg.dateInLobbyCode = ConfigJson.getBool(obj, "dateInLobbyCode", cfg.dateInLobbyCode);
                 cfg.dateFormat = ConfigJson.getEnum(obj, "dateFormat", DateFormat.class, cfg.dateFormat);
                 cfg.time24h = ConfigJson.getBool(obj, "time24h", cfg.time24h);
+                cfg.timeExactMinutes = ConfigJson.getBool(obj, "timeExactMinutes", cfg.timeExactMinutes);
+                cfg.separatorBetweenEvents = ConfigJson.getBool(obj, "separatorBetweenEvents", cfg.separatorBetweenEvents);
                 cfg.showMayorPerks = ConfigJson.getBool(obj, "showMayorPerks", cfg.showMayorPerks);
                 cfg.showMayorTime = ConfigJson.getBool(obj, "showMayorTime", cfg.showMayorTime);
                 cfg.showMinister = ConfigJson.getBool(obj, "showMinister", cfg.showMinister);
+                cfg.showJerryMayor = ConfigJson.getBool(obj, "showJerryMayor", cfg.showJerryMayor);
+                cfg.showUnclaimedBits = ConfigJson.getBool(obj, "showUnclaimedBits", cfg.showUnclaimedBits);
+                cfg.powderDisplay = ConfigJson.getEnum(obj, "powderDisplay", PowderDisplay.class, cfg.powderDisplay);
+                cfg.hidePurseInDungeons = ConfigJson.getBool(obj, "hidePurseInDungeons", cfg.hidePurseInDungeons);
                 cfg.showMagicalPower = ConfigJson.getBool(obj, "showMagicalPower", cfg.showMagicalPower);
                 cfg.compactTuning = ConfigJson.getBool(obj, "compactTuning", cfg.compactTuning);
                 cfg.tuningAmount = clamp(ConfigJson.getInt(obj, "tuningAmount", cfg.tuningAmount), 1, 8);
@@ -335,6 +373,12 @@ public final class CustomScoreboardConfig {
                 cfg.chromaSpeed = clamp(ConfigJson.getInt(obj, "chromaSpeed", cfg.chromaSpeed), 1, 20);
                 cfg.imageBackground = ConfigJson.getBool(obj, "imageBackground", cfg.imageBackground);
                 cfg.imageOpacity = clamp(ConfigJson.getInt(obj, "imageOpacity", cfg.imageOpacity), 5, 100);
+                cfg.margin = clamp(ConfigJson.getInt(obj, "margin", cfg.margin), 0, 50);
+                cfg.minWidth = clamp(ConfigJson.getInt(obj, "minWidth", cfg.minWidth), 0, 400);
+                cfg.minHeight = clamp(ConfigJson.getInt(obj, "minHeight", cfg.minHeight), 0, 400);
+                cfg.borderSoftness = clamp(ConfigJson.getInt(obj, "borderSoftness", cfg.borderSoftness), 0, 10);
+                cfg.backgroundBlur = ConfigJson.getBool(obj, "backgroundBlur", cfg.backgroundBlur);
+                cfg.blurStrength = clamp(ConfigJson.getInt(obj, "blurStrength", cfg.blurStrength), 1, 20);
                 loadRows(ConfigJson.getArray(obj, "entries"), cfg.entries, ScoreboardEntry.class);
                 loadRows(ConfigJson.getArray(obj, "events"), cfg.events, ScoreboardEvent.class);
                 loadRows(ConfigJson.getArray(obj, "chunkedStats"), cfg.chunkedStats, ChunkedStat.class);
@@ -413,6 +457,8 @@ public final class CustomScoreboardConfig {
             obj.addProperty("useCustomTitle", useCustomTitle);
             obj.addProperty("customTitle", customTitle);
             obj.addProperty("customFooter", customFooter);
+            obj.addProperty("customAlphaFooter", customAlphaFooter);
+            obj.addProperty("useCustomTitleOutsideSkyblock", useCustomTitleOutsideSkyblock);
             obj.addProperty("hideEmptyLines", hideEmptyLines);
             obj.addProperty("hideConsecutiveEmptyLines", hideConsecutiveEmptyLines);
             obj.addProperty("hideEmptyLinesAtTopAndBottom", hideEmptyLinesAtTopAndBottom);
@@ -431,9 +477,15 @@ public final class CustomScoreboardConfig {
             obj.addProperty("dateInLobbyCode", dateInLobbyCode);
             obj.addProperty("dateFormat", dateFormat.name());
             obj.addProperty("time24h", time24h);
+            obj.addProperty("timeExactMinutes", timeExactMinutes);
+            obj.addProperty("separatorBetweenEvents", separatorBetweenEvents);
             obj.addProperty("showMayorPerks", showMayorPerks);
             obj.addProperty("showMayorTime", showMayorTime);
             obj.addProperty("showMinister", showMinister);
+            obj.addProperty("showJerryMayor", showJerryMayor);
+            obj.addProperty("showUnclaimedBits", showUnclaimedBits);
+            obj.addProperty("powderDisplay", powderDisplay.name());
+            obj.addProperty("hidePurseInDungeons", hidePurseInDungeons);
             obj.addProperty("showMagicalPower", showMagicalPower);
             obj.addProperty("compactTuning", compactTuning);
             obj.addProperty("tuningAmount", tuningAmount);
@@ -456,6 +508,12 @@ public final class CustomScoreboardConfig {
             obj.addProperty("chromaSpeed", chromaSpeed);
             obj.addProperty("imageBackground", imageBackground);
             obj.addProperty("imageOpacity", imageOpacity);
+            obj.addProperty("margin", margin);
+            obj.addProperty("minWidth", minWidth);
+            obj.addProperty("minHeight", minHeight);
+            obj.addProperty("borderSoftness", borderSoftness);
+            obj.addProperty("backgroundBlur", backgroundBlur);
+            obj.addProperty("blurStrength", blurStrength);
             obj.add("entries", saveRows(entries));
             obj.add("events", saveRows(events));
             obj.add("chunkedStats", saveRows(chunkedStats));
@@ -994,5 +1052,117 @@ public final class CustomScoreboardConfig {
 
     public void setImageOpacity(int v) {
         imageOpacity = clamp(v, 5, 100);
+    }
+
+    public String getCustomAlphaFooter() {
+        return customAlphaFooter;
+    }
+
+    public void setCustomAlphaFooter(String v) {
+        customAlphaFooter = v == null ? "" : v;
+    }
+
+    public boolean isUseCustomTitleOutsideSkyblock() {
+        return useCustomTitleOutsideSkyblock;
+    }
+
+    public void setUseCustomTitleOutsideSkyblock(boolean v) {
+        useCustomTitleOutsideSkyblock = v;
+    }
+
+    public boolean isTimeExactMinutes() {
+        return timeExactMinutes;
+    }
+
+    public void setTimeExactMinutes(boolean v) {
+        timeExactMinutes = v;
+    }
+
+    public boolean isSeparatorBetweenEvents() {
+        return separatorBetweenEvents;
+    }
+
+    public void setSeparatorBetweenEvents(boolean v) {
+        separatorBetweenEvents = v;
+    }
+
+    public boolean isShowJerryMayor() {
+        return showJerryMayor;
+    }
+
+    public void setShowJerryMayor(boolean v) {
+        showJerryMayor = v;
+    }
+
+    public boolean isShowUnclaimedBits() {
+        return showUnclaimedBits;
+    }
+
+    public void setShowUnclaimedBits(boolean v) {
+        showUnclaimedBits = v;
+    }
+
+    public PowderDisplay getPowderDisplay() {
+        return powderDisplay;
+    }
+
+    public void setPowderDisplay(PowderDisplay v) {
+        powderDisplay = v;
+    }
+
+    public boolean isHidePurseInDungeons() {
+        return hidePurseInDungeons;
+    }
+
+    public void setHidePurseInDungeons(boolean v) {
+        hidePurseInDungeons = v;
+    }
+
+    public int getMargin() {
+        return margin;
+    }
+
+    public void setMargin(int v) {
+        margin = clamp(v, 0, 50);
+    }
+
+    public int getMinWidth() {
+        return minWidth;
+    }
+
+    public void setMinWidth(int v) {
+        minWidth = clamp(v, 0, 400);
+    }
+
+    public int getMinHeight() {
+        return minHeight;
+    }
+
+    public void setMinHeight(int v) {
+        minHeight = clamp(v, 0, 400);
+    }
+
+    public int getBorderSoftness() {
+        return borderSoftness;
+    }
+
+    public void setBorderSoftness(int v) {
+        borderSoftness = clamp(v, 0, 10);
+    }
+
+    public boolean isBackgroundBlur() {
+        return backgroundBlur;
+    }
+
+    public void setBackgroundBlur(boolean v) {
+        backgroundBlur = v;
+    }
+
+    public int getBlurStrength() {
+        return blurStrength;
+    }
+
+    public void setBlurStrength(int v) {
+        blurStrength = clamp(v, 1, 20);
     }
 }

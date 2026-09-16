@@ -43,7 +43,7 @@ public final class HudConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-                cfg.editKeyCode = ConfigJson.getInt(obj, "editKeyCode", -1);
+                cfg.editKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "editKeyCode", -1));
                 JsonObject positions = ConfigJson.getObject(obj, "positions");
                 if (positions != null) {
                     for (String id : positions.keySet()) {

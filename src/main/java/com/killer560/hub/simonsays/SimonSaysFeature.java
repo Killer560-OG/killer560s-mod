@@ -810,7 +810,7 @@ public final class SimonSaysFeature {
             announceKeyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
         if (down && !announceKeyWasDown) {
             LOGGER.info("[SimonSays] Manual announce via keybind.");
             if (client.player != null) {
@@ -1426,7 +1426,7 @@ public final class SimonSaysFeature {
             restartKeyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), key);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key);
         if (down && !restartKeyWasDown && client.screen == null) {
             if (autoStartRunning) {
                 LOGGER.info("[SimonSays] Restart key pressed but a start-button burst is already running - ignored.");

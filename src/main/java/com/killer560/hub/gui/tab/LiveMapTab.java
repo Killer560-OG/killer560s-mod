@@ -107,6 +107,9 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---------------------------------------------------------------- teleport pathing (cheat)
+        widgets.add(new net.minecraft.client.gui.components.StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Cheat Build - Automation", true), net.minecraft.client.Minecraft.getInstance().font));
+        y += 16;
         widgets.add(SettingsButtonWidget.builder(onOff("Teleport Pathing", cfg.isPathingEnabledRaw()), btn -> {
                     cfg.setPathingEnabled(!cfg.isPathingEnabledRaw());
                     cfg.save();

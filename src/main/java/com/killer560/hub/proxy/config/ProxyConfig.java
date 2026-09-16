@@ -85,9 +85,73 @@ public final class ProxyConfig {
     }
 
     /** The proxy a new connection should use: the universal one when it's on, otherwise this instance's. */
-    public static ProxyConfig effective() {
+    public static synchronized ProxyConfig effective() {
+        // One universal() read, tested on that same object: calling universal() twice (once for u, once inside
+        // isUniversalActive) could re-read the file in between and return a stale, disabled u while the new file is
+        // on - the netty thread would then connect with NO proxy. Synchronized so the choice is atomic vs the toggles.
         ProxyConfig u = universal();
         return u.isEnabled() && u.hasValidAddress() ? u : getInstance();
+    }
+
+    /** True when the universal proxy is actually in force (on AND has an address) - same test as {@link #effective()}. */
+    public static boolean isUniversalActive() {
+        ProxyConfig u = universal();
+        return u.isEnabled() && u.hasValidAddress();
+    }
+
+    // ---- Universal toggle (2026-09-15, killer560: "For universal that should just be a toggle on or off not open any
+    // menu. Remove the edit universal button.") There is no separate universal editor anymore: the universal file is
+    // always a published copy of an instance proxy. ----
+
+    /**
+     * Turns the universal proxy ON by publishing this instance's proxy settings (type/host/port/credentials) into the
+     * shared universal file, so every instance connects through it.
+     *
+     * @return false - and changes nothing - when this instance's proxy has no valid address to publish.
+     */
+    public static synchronized boolean enableUniversalFromInstance() {
+        ProxyConfig inst = getInstance();
+        if (!inst.hasValidAddress()) {
+            return false;
+        }
+        ProxyConfig u = universal();
+        u.copyConnectionFrom(inst);
+        u.setEnabled(true);
+        u.save();
+        return true;
+    }
+
+    /** Turns the universal proxy OFF (settings kept in the file, just disabled). */
+    public static synchronized void disableUniversal() {
+        ProxyConfig u = universal();
+        u.setEnabled(false);
+        u.save();
+    }
+
+    /**
+     * Called after this instance's proxy is saved from its editor ("Set Instance Proxy"): while the universal proxy is
+     * ON, mirror the new settings into it so it can still be edited without a separate universal editor. Clearing the
+     * instance address therefore also switches universal off. No-op while universal is OFF. Deliberately NOT called
+     * from {@link #applyAccountProfile} - an account swap changes only this instance's proxy; universal still wins.
+     */
+    public static synchronized void syncUniversalFromInstance() {
+        ProxyConfig u = universal();
+        if (!u.isEnabled()) {
+            return;
+        }
+        u.copyConnectionFrom(getInstance());
+        u.setEnabled(u.hasValidAddress());
+        u.save();
+    }
+
+    /** Copies the connection settings (not {@code enabled}, not the save path) from {@code source}. */
+    private void copyConnectionFrom(ProxyConfig source) {
+        this.type = source.type;
+        this.host = source.host;
+        this.port = source.port;
+        this.username = source.username;
+        this.password = source.password;
+        normalize();
     }
 
     public boolean isUniversal() {

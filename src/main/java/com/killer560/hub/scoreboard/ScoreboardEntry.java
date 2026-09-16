@@ -90,6 +90,9 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             String line = trim(firstMatches(ScoreboardPattern.TIME, sidebar()));
+            if (cfg.isTimeExactMinutes()) {
+                return single(exactTime(line, cfg.isTime24h(), System.currentTimeMillis()));
+            }
             return single(cfg.isTime24h() ? to24h(line) : line);
         }
 
@@ -221,7 +224,8 @@ public enum ScoreboardEntry {
 
         @Override
         boolean showIsland() {
-            return !inIsland("The Rift");
+            return !inIsland("The Rift")
+                    && !(CustomScoreboardConfig.getInstance().isHidePurseInDungeons() && inIsland("Catacombs"));
         }
 
         @Override
@@ -264,7 +268,23 @@ public enum ScoreboardEntry {
     BITS("Bits", true, ScoreboardPattern.BITS) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return number(cfg, "Bits", "bits", ChunkedStat.BITS.raw(), "§b");
+            if (!cfg.isShowUnclaimedBits()) {
+                return number(cfg, "Bits", "bits", ChunkedStat.BITS.raw(), "§b");
+            }
+            // SkyHanni CustomScoreboardUtils.getBitsLine with "Show unclaimed bits".
+            String raw = ChunkedStat.BITS.raw();
+            long available = ScoreboardExtraData.bitsAvailable();
+            String bits = raw == null ? "0" : formatStringNum(raw.trim());
+            if (cfg.isHideEmptyLines() && isZero(bits) && available <= 0) {
+                return List.of();
+            }
+            String availableText = available < 0 ? "?" : ScoreboardLine.formatNumber(available);
+            ScoreboardLine line = ScoreboardLine.of(formatNumberDisplay("Bits", bits + "§7/§b" + availableText, "§b"));
+            if (raw != null) {
+                line = NumberChangeTracker.track(cfg, line, "bits", raw.trim(), "§b");
+            }
+            return List.of(line.withActions(List.of("§7Bits§8/§7Bits Available",
+                    "§7Click to open the SkyBlock Menu to resync"), "sbmenu"));
         }
 
         @Override
@@ -387,6 +407,9 @@ public enum ScoreboardEntry {
                 List<ScoreboardLine> lines = row.id.lines(cfg);
                 if (lines.isEmpty()) {
                     continue;
+                }
+                if (cfg.isSeparatorBetweenEvents() && !out.isEmpty()) {
+                    out.add(ScoreboardLine.of(""));
                 }
                 out.addAll(lines);
                 if (!cfg.isShowAllActiveEvents()) {
@@ -596,38 +619,49 @@ public enum ScoreboardEntry {
     POWDER("Powder", true, ScoreboardPattern.POWDER) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            String[] names = {"Mithril", "Gemstone", "Glacite"};
+            String[] names = ScoreboardExtraData.POWDER_TYPES;
             String[] colors = {"§2", "§d", "§b"};
-            String[] amounts = new String[3];
-            List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_POWDERS);
-            for (int i = 1; i < widget.size(); i++) {
-                Matcher m = ScoreboardPattern.TAB_POWDER_LINE.matcher(ScoreboardData.tabPlain().get(widget.get(i)));
-                if (m.matches()) {
-                    amounts[indexOf(names, m.group("type"))] = m.group("amount");
-                }
-            }
-            for (String line : sidebar()) {
-                Matcher m = ScoreboardPattern.POWDER.matcher(line);
-                if (m.matches() && !m.group("amount").isEmpty()) {
-                    int idx = indexOf(names, m.group("type"));
-                    if (amounts[idx] == null) {
-                        amounts[idx] = m.group("amount");
-                    }
-                }
-            }
+            long[] current = powderAmounts();
+            CustomScoreboardConfig.PowderDisplay display = cfg.getPowderDisplay();
+            boolean anyKnown = false;
             boolean allEmpty = true;
-            for (String a : amounts) {
-                allEmpty &= isZero(a);
+            long[] total = new long[3];
+            for (int i = 0; i < 3; i++) {
+                total[i] = ScoreboardExtraData.powderTotal(i);
+                anyKnown |= current[i] >= 0;
+                boolean empty = switch (display) {
+                    case AVAILABLE -> current[i] <= 0;
+                    case TOTAL -> total[i] <= 0;
+                    case BOTH -> current[i] <= 0 && total[i] <= 0;
+                };
+                allEmpty &= empty;
             }
-            if (allEmpty && (cfg.isHideEmptyLines() || amounts[0] == null && amounts[1] == null && amounts[2] == null)) {
+            if (allEmpty && (cfg.isHideEmptyLines() || !anyKnown)) {
                 return List.of();
             }
-            List<String> out = new ArrayList<>();
-            out.add("§9§lPowder");
+            List<String> hover = display == CustomScoreboardConfig.PowderDisplay.AVAILABLE ? null
+                    : List.of("§7Totals update from the /hotm menu", "§eClick to open it");
+            String command = hover == null ? null : "hotm";
+            List<ScoreboardLine> out = new ArrayList<>();
+            out.add(ScoreboardLine.of("§9§lPowder").withActions(hover, command));
             for (int i = 0; i < 3; i++) {
-                out.add(" §7- " + formatNumberDisplay(names[i], formatStringNum(amounts[i] == null ? "0" : amounts[i]), colors[i]));
+                String cur = ScoreboardLine.formatNumber(Math.max(0L, current[i]));
+                String tot = total[i] < 0 ? "?" : ScoreboardLine.formatNumber(total[i]);
+                String value = switch (display) {
+                    case AVAILABLE -> cur;
+                    case TOTAL -> tot;
+                    case BOTH -> cur + "§7/" + colors[i] + tot;
+                };
+                out.add(ScoreboardLine.of(" §7- " + formatNumberDisplay(names[i], value, colors[i])).withActions(hover, command));
             }
-            return ScoreboardLine.of(out);
+            return out;
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of("§9§lPowder", " §7- " + formatNumberDisplay("Mithril", "54,646", "§2"),
+                    " §7- " + formatNumberDisplay("Gemstone", "51,234", "§d"),
+                    " §7- " + formatNumberDisplay("Glacite", "86,574", "§b"));
         }
 
         @Override
@@ -662,6 +696,14 @@ public enum ScoreboardEntry {
                         out.add(ScoreboardLine.of(" §7- §e" + perk.name()).withActions(wrap(perk.description(), "§7"), "calendar"));
                     }
                 }
+            }
+            // SkyHanni ScoreboardElementMayor.addJerryMayor: Mayor Jerry's Perkpocalypse mayor (read from /calendar).
+            String jerryMayor = cfg.isShowJerryMayor() && "Jerry".equals(mayor.name()) ? ScoreboardExtraData.jerryMayor() : null;
+            if (jerryMayor != null) {
+                String jerryTime = cfg.isShowMayorTime() ? " §7(§6" + ScoreboardLine.formatDuration(
+                        ScoreboardExtraData.jerryMayorExpiresAtMs() - System.currentTimeMillis(), 2) + "§7)" : "";
+                out.add(ScoreboardLine.of(candidateName(jerryMayor) + jerryTime).withActions(
+                        List.of("§dPerkpocalypse §7mayor (changes every 6 hours)", "", "§eClick to open the calendar"), "calendar"));
             }
             return out;
         }
@@ -729,11 +771,8 @@ public enum ScoreboardEntry {
     FOOTER("Footer", true, ScoreboardPattern.FOOTER) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            String footer = cfg.getCustomFooter();
             String hypixel = firstMatches(ScoreboardPattern.FOOTER, sidebar());
-            if (hypixel != null && hypixel.contains("alpha") && footer.equals(CustomScoreboardConfig.DEFAULT_FOOTER)) {
-                footer = "&&ealpha.hypixel.net";
-            }
+            String footer = hypixel != null && hypixel.contains("alpha") ? cfg.getCustomAlphaFooter() : cfg.getCustomFooter();
             List<ScoreboardLine> out = new ArrayList<>();
             for (String part : footer.replace("&&", "§").split("\\\\n")) {
                 out.add(new ScoreboardLine(part, cfg.getFooterAlignment()));
@@ -794,6 +833,53 @@ public enum ScoreboardEntry {
             return List.of("§652,763,737 §7| §d64,647 §7| §6249M", "§b59,264 §7| §c23,495 §7| §23,210,307");
         }
     },
+    IRL_TIME("IRL Time", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single(irlTime(cfg));
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of(irlTime(CustomScoreboardConfig.getInstance()));
+        }
+    },
+    PET("Pet", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_PET);
+            if (widget.size() < 2) {
+                return List.of();
+            }
+            List<String> hover = List.of("§7Needs the Pet tab widget", "§eClick to open the Pets menu");
+            List<ScoreboardLine> out = new ArrayList<>();
+            String pet = ScoreboardData.tabFormatted().get(widget.get(1)).trim();
+            if (pet.isEmpty() || pet.replaceAll("§.", "").trim().equalsIgnoreCase("None")) {
+                if (cfg.isHideEmptyLines()) {
+                    return List.of();
+                }
+                pet = "§cNone";
+            }
+            out.add(ScoreboardLine.of(formatNumberDisplay("Pet", pet, "§f")).withActions(hover, "pets"));
+            if (widget.size() >= 3) {
+                String progress = ScoreboardData.tabFormatted().get(widget.get(2)).trim();
+                if (!progress.isEmpty()) {
+                    out.add(ScoreboardLine.of(" " + progress).withActions(hover, "pets"));
+                }
+            }
+            return out;
+        }
+
+        @Override
+        boolean showIsland() {
+            return !inIsland("The Rift");
+        }
+
+        @Override
+        List<String> sample() {
+            return List.of(formatNumberDisplay("Pet", "§6[Lvl 100] Golden Dragon", "§f"), " §bMAX LEVEL");
+        }
+    },
     EMPTY_LINE5("Separator", false) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
@@ -801,6 +887,60 @@ public enum ScoreboardEntry {
         }
     },
     EMPTY_LINE6("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE7("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE8("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE9("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE10("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE11("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE12("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE13("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE14("Separator", false) {
+        @Override
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
+            return single("");
+        }
+    },
+    EMPTY_LINE15("Separator", false) {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             return single("");
@@ -860,6 +1000,66 @@ public enum ScoreboardEntry {
             hour += 12;
         }
         return m.group("prefix") + String.format(java.util.Locale.US, "%02d", hour) + ":" + m.group("minute") + m.group("rest");
+    }
+
+    private static final long SKYBLOCK_EPOCH_MS = 1559829300000L;
+    /** One SkyBlock day = 20 real minutes. */
+    private static final long SKYBLOCK_DAY_MS = 20L * 60 * 1000;
+
+    /**
+     * SkyHanni's {@code SkyBlockTime.now().formatted(exactMinutes = true)}: the sidebar only moves in 10-minute steps, so
+     * the time is computed from the SkyBlock epoch and swapped into the sidebar line (keeping its weather symbol).
+     */
+    static String exactTime(String line, boolean h24, long nowMs) {
+        if (line == null) {
+            return null;
+        }
+        Matcher m = TIME_12H.matcher(line);
+        if (!m.matches()) {
+            return line;
+        }
+        long into = Math.floorMod(nowMs - SKYBLOCK_EPOCH_MS, SKYBLOCK_DAY_MS);
+        long minutesOfDay = into * 24L * 60L / SKYBLOCK_DAY_MS;
+        int hour = (int) (minutesOfDay / 60);
+        int minute = (int) (minutesOfDay % 60);
+        String time = h24
+                ? String.format(java.util.Locale.US, "%02d:%02d", hour, minute)
+                : String.format(java.util.Locale.US, "%d:%02d%s", hour % 12 == 0 ? 12 : hour % 12, minute, hour < 12 ? "am" : "pm");
+        return m.group("prefix") + time + m.group("rest");
+    }
+
+    /** SkyBlock Custom Scoreboard's {@code IrlTimeElement}. */
+    static String irlTime(CustomScoreboardConfig cfg) {
+        return "§7" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(
+                cfg.isTime24h() ? "HH:mm" : "hh:mma", java.util.Locale.US)).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** Mithril/Gemstone/Glacite powder currently available (tab widget first, then sidebar), -1 when unseen. */
+    static long[] powderAmounts() {
+        String[] names = ScoreboardExtraData.POWDER_TYPES;
+        long[] out = {-1L, -1L, -1L};
+        List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_POWDERS);
+        for (int i = 1; i < widget.size(); i++) {
+            Matcher m = ScoreboardPattern.TAB_POWDER_LINE.matcher(ScoreboardData.tabPlain().get(widget.get(i)));
+            if (m.matches()) {
+                out[indexOf(names, m.group("type"))] = toLong(m.group("amount"));
+            }
+        }
+        for (String line : sidebar()) {
+            Matcher m = ScoreboardPattern.POWDER.matcher(line);
+            if (m.matches() && !m.group("amount").isEmpty()) {
+                int idx = indexOf(names, m.group("type"));
+                if (out[idx] < 0) {
+                    out[idx] = toLong(m.group("amount"));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static long toLong(String raw) {
+        Double d = ScoreboardLine.parse(raw);
+        return d == null ? -1L : Math.max(0L, Math.round(d));
     }
 
     /** SkyHanni's {@code HypixelData.getMaxPlayersForCurrentServer} with the SkyHanni-REPO {@code IslandType.json} caps. */

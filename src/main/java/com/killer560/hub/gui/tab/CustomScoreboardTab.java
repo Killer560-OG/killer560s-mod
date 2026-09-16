@@ -154,6 +154,11 @@ public class CustomScoreboardTab extends BaseTab {
                 () -> cfg.setDateFormat(cfg.getDateFormat().next()), cfg, colBX, y, colW));
         y += 22;
 
+        widgets.add(toggle("Exact SkyBlock Minutes", cfg::isTimeExactMinutes, cfg::setTimeExactMinutes, cfg, x, y, colW));
+        widgets.add(toggle("Custom Title Off Skyblock", cfg::isUseCustomTitleOutsideSkyblock,
+                cfg::setUseCustomTitleOutsideSkyblock, cfg, colBX, y, colW));
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Custom Title", cfg.isUseCustomTitle()), btn -> {
                     cfg.setUseCustomTitle(!cfg.isUseCustomTitle());
                     cfg.save();
@@ -184,6 +189,17 @@ public class CustomScoreboardTab extends BaseTab {
             cfg.save();
         });
         widgets.add(footer);
+        y += 22;
+
+        EditBox alphaFooter = new EditBox(client.font, x, y, width, 18, Component.literal("Alpha Footer"));
+        alphaFooter.setMaxLength(256);
+        alphaFooter.setValue(cfg.getCustomAlphaFooter());
+        alphaFooter.setHint(Component.literal("§8Alpha Footer"));
+        alphaFooter.setResponder(text -> {
+            cfg.setCustomAlphaFooter(text);
+            cfg.save();
+        });
+        widgets.add(alphaFooter);
     }
 
     private void buildOptions(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width) {
@@ -210,6 +226,15 @@ public class CustomScoreboardTab extends BaseTab {
 
         widgets.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers, cfg::setShowMaxIslandPlayers, cfg, x, y, colW));
         widgets.add(toggle("Party Leader", cfg::isShowPartyLeader, cfg::setShowPartyLeader, cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Unclaimed Bits", cfg::isShowUnclaimedBits, cfg::setShowUnclaimedBits, cfg, x, y, colW));
+        widgets.add(cycle(() -> "Powder Display: §6" + cfg.getPowderDisplay().label,
+                () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()), cfg, colBX, y, colW));
+        y += 22;
+
+        widgets.add(toggle("Perkpocalypse Mayor", cfg::isShowJerryMayor, cfg::setShowJerryMayor, cfg, x, y, colW));
+        widgets.add(toggle("Hide Purse In Dungeons", cfg::isHidePurseInDungeons, cfg::setHidePurseInDungeons, cfg, colBX, y, colW));
     }
 
     private void buildStats(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
@@ -221,7 +246,11 @@ public class CustomScoreboardTab extends BaseTab {
 
     private void buildEvents(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
                              Runnable requestRebuild) {
-        widgets.add(toggle("Show All Active Events", cfg::isShowAllActiveEvents, cfg::setShowAllActiveEvents, cfg, x, y, width));
+        int gap = 8;
+        int colW = (width - gap) / 2;
+        widgets.add(toggle("Show All Active Events", cfg::isShowAllActiveEvents, cfg::setShowAllActiveEvents, cfg, x, y, colW));
+        widgets.add(toggle("Separator Between Events", cfg::isSeparatorBetweenEvents, cfg::setSeparatorBetweenEvents, cfg,
+                x + colW + gap, y, colW));
         y += 24;
         buildRows(widgets, cfg, cfg.events(), e -> e.label, x, y, width, requestRebuild, cfg::resetEvents);
     }
@@ -292,6 +321,18 @@ public class CustomScoreboardTab extends BaseTab {
 
         widgets.add(toggle("Chroma Border", cfg::isChromaBorder, cfg::setChromaBorder, cfg, x, y, colW));
         widgets.add(slider(colBX, y, colW, cfg.getChromaSpeed(), 1, 20, v -> "Chroma Speed: " + v, cfg::setChromaSpeed, cfg));
+        y += 22;
+
+        widgets.add(slider(x, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness, cfg));
+        widgets.add(slider(colBX, y, colW, cfg.getMargin(), 0, 50, v -> "Screen Margin: " + v, cfg::setMargin, cfg));
+        y += 22;
+
+        widgets.add(toggle("Background Blur", cfg::isBackgroundBlur, cfg::setBackgroundBlur, cfg, x, y, colW));
+        widgets.add(slider(colBX, y, colW, cfg.getBlurStrength(), 1, 20, v -> "Blur Strength: " + v, cfg::setBlurStrength, cfg));
+        y += 22;
+
+        widgets.add(slider(x, y, colW, cfg.getMinWidth(), 0, 400, v -> "Min Width: " + v, cfg::setMinWidth, cfg));
+        widgets.add(slider(colBX, y, colW, cfg.getMinHeight(), 0, 400, v -> "Min Height: " + v, cfg::setMinHeight, cfg));
         y += 22;
 
         widgets.add(toggle("Image Background", cfg::isImageBackground, cfg::setImageBackground, cfg, x, y, colW));

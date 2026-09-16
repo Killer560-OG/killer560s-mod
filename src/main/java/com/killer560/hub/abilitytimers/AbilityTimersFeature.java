@@ -51,7 +51,7 @@ public final class AbilityTimersFeature {
             if (!e.enabled || e.keyCode < 0) {
                 continue;
             }
-            boolean down = InputConstants.isKeyDown(client.getWindow(), e.keyCode);
+            boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), e.keyCode);
             boolean wasDown = keyWasDown.getOrDefault(e.id, false);
             if (down && !wasDown) {
                 boolean diagWasRunning = e.isRunning(System.currentTimeMillis());

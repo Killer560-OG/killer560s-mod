@@ -207,6 +207,8 @@ public final class ScoreboardPattern {
     public static final Pattern TAB_POWDERS = p("Powders:");
     public static final Pattern TAB_POWDER_LINE = p("\\s*(?<type>Mithril|Gemstone|Glacite)(?: Powder)?: (?<amount>[\\d,.]+).*");
     public static final Pattern TAB_BROODMOTHER = p("Broodmother: (?<stage>.*)");
+    /** TabWidget.PET header ("Pet:"), the pet and its level progress are the indented lines under it. */
+    public static final Pattern TAB_PET = p("Pet:");
 
     // ---- action bar (unformatted) ----
     public static final Pattern ACTION_BAR_SECRETS = p(".*?(?<found>\\d+)/(?<total>\\d+) Secrets.*");

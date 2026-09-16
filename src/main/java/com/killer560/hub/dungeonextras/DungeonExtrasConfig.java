@@ -35,6 +35,8 @@ public final class DungeonExtrasConfig {
     private int autoDialogueDelayTicks = 5;
     /** Comma-separated NPC names; blank = any NPC (reference behaviour). */
     private String autoDialogueNpcFilter = "";
+    /** Off (default): Auto Dialogue only acts while {@code DungeonState.isInDungeon()}. On: anywhere on Skyblock. */
+    private boolean autoDialogueOutsideDungeons = false;
 
     // Breaker Aura (cheat)
     private boolean breakerAuraEnabled = false;
@@ -67,6 +69,7 @@ public final class DungeonExtrasConfig {
                 cfg.autoDialogueEnabled = bool(o, "autoDialogueEnabled", cfg.autoDialogueEnabled);
                 cfg.autoDialogueDelayTicks = clampInt(o.has("autoDialogueDelayTicks") ? o.get("autoDialogueDelayTicks").getAsInt() : cfg.autoDialogueDelayTicks, 0, 40);
                 cfg.autoDialogueNpcFilter = o.has("autoDialogueNpcFilter") ? o.get("autoDialogueNpcFilter").getAsString() : cfg.autoDialogueNpcFilter;
+                cfg.autoDialogueOutsideDungeons = bool(o, "autoDialogueOutsideDungeons", cfg.autoDialogueOutsideDungeons);
                 cfg.breakerAuraEnabled = bool(o, "breakerAuraEnabled", cfg.breakerAuraEnabled);
                 cfg.breakerAuraReach = clamp((float) (o.has("breakerAuraReach") ? o.get("breakerAuraReach").getAsDouble() : cfg.breakerAuraReach), 1f, 5.5f);
                 cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 5);
@@ -92,6 +95,7 @@ public final class DungeonExtrasConfig {
             o.addProperty("autoDialogueEnabled", autoDialogueEnabled);
             o.addProperty("autoDialogueDelayTicks", autoDialogueDelayTicks);
             o.addProperty("autoDialogueNpcFilter", autoDialogueNpcFilter);
+            o.addProperty("autoDialogueOutsideDungeons", autoDialogueOutsideDungeons);
             o.addProperty("breakerAuraEnabled", breakerAuraEnabled);
             o.addProperty("breakerAuraReach", breakerAuraReach);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
@@ -136,6 +140,8 @@ public final class DungeonExtrasConfig {
     public void setAutoDialogueDelayTicks(int v) { autoDialogueDelayTicks = clampInt(v, 0, 40); }
     public String getAutoDialogueNpcFilter() { return autoDialogueNpcFilter; }
     public void setAutoDialogueNpcFilter(String v) { autoDialogueNpcFilter = v == null ? "" : v; }
+    public boolean isAutoDialogueOutsideDungeons() { return autoDialogueOutsideDungeons; }
+    public void setAutoDialogueOutsideDungeons(boolean v) { autoDialogueOutsideDungeons = v; }
 
     // ---- Breaker Aura (cheat) ----
     public boolean isBreakerAuraEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }

@@ -33,6 +33,14 @@ import java.util.regex.Pattern;
  * persisted history this session has no design for yet), no Kuudra splits (out of scope for this
  * request), and no per-split tick time (Odin counts server ticks from ping packets, which this mod has
  * no hook for).
+ * <p>
+ * M7 Phase 5 (2026-09-15): optional dragon (spawn -&gt; kill) and relic (spawn / placed) lines from {@link P5Splits},
+ * fed by {@code com.killer560.hub.witherdragons}, drawn in a column to the right of the split rows (or under them).
+ * <p>
+ * Re-verified 2026-09-15 against Odin main @38ddc1b (SplitsManager.kt / Splits.kt): split names, the "&lt;previous&gt;
+ * took X" chat, currentRows' segment = next split - this split, and the Boss Entry row after index 2 all match -
+ * the "split labels off by one" report was the pre-c571b1d behaviour (each split used to be labelled with the
+ * phase that ENDED at its line) and is already fixed; nothing further changed there.
  */
 public final class SplitTimersFeature {
 
@@ -168,6 +176,7 @@ public final class SplitTimersFeature {
             }
             if (lastLevel != null) {
                 run = new RunState();
+                P5Splits.reset();
             }
             lastLevel = client.level;
         }
@@ -179,6 +188,7 @@ public final class SplitTimersFeature {
         }
         if (!inDungeon && wasInDungeon) {
             run = new RunState();
+            P5Splits.reset();
         }
         wasInDungeon = inDungeon;
 
@@ -225,6 +235,7 @@ public final class SplitTimersFeature {
             fresh.splits = splitsForFloor(DungeonState.getFloor());
             fresh.timeMs = new long[fresh.splits.size()];
             run = fresh;
+            P5Splits.reset();
             finishDelayTicks = -1;
             if (fresh.splits.isEmpty()) {
                 LOGGER.warn("[SplitTimers] Run START line seen but NO splits resolved for floor={} (inDungeon={}) - nothing will be timed this run",
@@ -307,6 +318,10 @@ public final class SplitTimersFeature {
             SplitRow row = rows.get(i);
             String rowName = i == rows.size() - 1 ? "Total" : ChatFormatting.stripFormatting(row.name());
             lines.add(tookLine(rowName, formatTime(row.timeMs()), "."));
+        }
+        SplitTimersConfig cfg = SplitTimersConfig.getInstance();
+        for (String p5 : P5Splits.lines(cfg.isP5DragonLines(), cfg.isP5RelicLines(), true)) {
+            lines.add(Component.empty().append(ModChat.text("P5 ")).append(Component.literal(p5)));
         }
         pendingFinishMessages = lines;
         finishDelayTicks = 10;
@@ -438,14 +453,49 @@ public final class SplitTimersFeature {
             return 320;
         }
 
+        private static final int SPLIT_COLUMN_WIDTH = 160;
+        private static final int P5_COLUMN_WIDTH = 130;
+
         @Override
         public int width() {
-            return 160;
+            return SPLIT_COLUMN_WIDTH + (p5Lines().isEmpty() || !SplitTimersConfig.getInstance().isP5LinesRight() ? 0 : P5_COLUMN_WIDTH);
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, displayRows().size());
+            int rows = displayRows().size();
+            int p5 = p5Lines().size();
+            int total = SplitTimersConfig.getInstance().isP5LinesRight() ? Math.max(rows, p5) : rows + p5;
+            return 12 * Math.max(1, total);
+        }
+
+        /** M7 Phase 5 dragon/relic lines ({@link P5Splits}), with a header row when there are any. In the HUD
+         *  editor a sample is shown while either toggle is on, so the column can be positioned before a run. */
+        private static List<String> p5Lines() {
+            SplitTimersConfig cfg = SplitTimersConfig.getInstance();
+            if (!cfg.isP5DragonLines() && !cfg.isP5RelicLines()) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>();
+            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+                out.add("§5§lP5");
+                if (cfg.isP5DragonLines()) {
+                    out.add("§5Purple §8#1§f: 11.35s");
+                    out.add("§cRed §8#1§f: §79.80s");
+                }
+                if (cfg.isP5RelicLines()) {
+                    out.add("§3Relic Spawn§f: 1.90s");
+                    out.add("§6Orange Relic§f: 8.45s");
+                }
+                return out;
+            }
+            List<String> lines = P5Splits.lines(cfg.isP5DragonLines(), cfg.isP5RelicLines(), false);
+            if (lines.isEmpty()) {
+                return List.of();
+            }
+            out.add("§5§lP5");
+            out.addAll(lines);
+            return out;
         }
 
         /** Odin's Splits HUD: every row but the Total, with a "Boss Entry" row (sum of the first three
@@ -474,14 +524,25 @@ public final class SplitTimersFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!SplitTimersConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+            var screen = Minecraft.getInstance().screen;
+            if (!SplitTimersConfig.getInstance().isEnabled()
+                    || (screen != null && !(screen instanceof com.killer560.hub.hud.HudEditorScreen))) {
                 return;
             }
             int lineY = y;
-            for (SplitRow row : displayRows()) {
-                String text = row.name() + "§f: " + formatTime(row.timeMs());
-                graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);
-                lineY += 12;
+            if (screen == null) {
+                for (SplitRow row : displayRows()) {
+                    String text = row.name() + "§f: " + formatTime(row.timeMs());
+                    graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);
+                    lineY += 12;
+                }
+            }
+            boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
+            int p5X = right ? x + SPLIT_COLUMN_WIDTH : x;
+            int p5Y = right ? y : lineY;
+            for (String line : p5Lines()) {
+                graphics.text(Minecraft.getInstance().font, line, p5X, p5Y, 0xFFFFFFFF, false);
+                p5Y += 12;
             }
         }
     }

@@ -145,9 +145,19 @@ public class AccountProxyConfigScreen extends Screen {
         this.passwordField.setValue("");
     }
 
+    /** Same animated title-screen background as the account switcher - see {@link AccountScreenBackground}. */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (!AccountScreenBackground.draw(graphics, this)) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        }
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        if (!AccountScreenBackground.themed()) {
+            guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        }
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         outlineField(guiGraphics, this.addressField);
         outlineField(guiGraphics, this.usernameField);

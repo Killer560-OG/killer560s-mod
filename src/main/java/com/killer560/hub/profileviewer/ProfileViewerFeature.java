@@ -124,7 +124,7 @@ public final class ProfileViewerFeature {
             keyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), code);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         if (down && !keyWasDown && client.screen == null) {
             Target target = self();
             Entity looked = client.crosshairPickEntity;

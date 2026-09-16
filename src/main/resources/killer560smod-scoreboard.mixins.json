@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.scoreboard.mixin",
 	"client": [
+		"CustomScoreboardBlurMixin",
 		"CustomScoreboardGuiMixin",
 		"CustomScoreboardTabOverlayAccessor"
 	],

@@ -46,7 +46,7 @@ public final class StorageSearchConfig {
                     cfg.enabled = obj.get("enabled").getAsBoolean();
                 }
                 if (obj.has("keyCode")) {
-                    cfg.keyCode = obj.get("keyCode").getAsInt();
+                    cfg.keyCode = com.killer560.hub.util.KeyUtil.sanitize(obj.get("keyCode").getAsInt());
                 }
                 if (obj.has("searchLore")) {
                     cfg.searchLore = obj.get("searchLore").getAsBoolean();

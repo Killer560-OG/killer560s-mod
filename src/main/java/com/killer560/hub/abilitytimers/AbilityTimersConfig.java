@@ -69,7 +69,7 @@ public final class AbilityTimersConfig {
                             e.id = getString(obj, "id", e.id);
                             e.name = getString(obj, "name", e.name);
                             e.durationMs = ConfigJson.getInt(obj, "durationMs", e.durationMs);
-                            e.keyCode = ConfigJson.getInt(obj, "keyCode", -1);
+                            e.keyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "keyCode", -1));
                             e.colorHex = getString(obj, "colorHex", e.colorHex);
                             e.enabled = ConfigJson.getBool(obj, "enabled", true);
                             cfg.entries.add(e);

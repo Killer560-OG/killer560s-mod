@@ -16,6 +16,12 @@ public class SecretTriggerbotTab extends BaseTab {
         super("Secret Triggerbot");
     }
 
+    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    @Override
+    public boolean isCheatOnly() {
+        return true;
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

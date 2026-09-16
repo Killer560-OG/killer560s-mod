@@ -52,7 +52,7 @@ public class ProfileViewerScreen extends Screen {
     static final int MAXED = 0xFFFFAA00;
 
     static final String[] PAGES = {"Basic Info", "Dungeons", "Inventories", "Pets", "Collections", "Mining", "Bestiary",
-            "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc"};
+            "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc", "Weight"};
     static final int PAGE_BASIC = 0;
     static final int PAGE_DUNGEONS = 1;
     static final int PAGE_INVENTORIES = 2;
@@ -66,6 +66,8 @@ public class ProfileViewerScreen extends Screen {
     static final int PAGE_FARMING = 10;
     static final int PAGE_NETWORTH = 11;
     static final int PAGE_MISC = 12;
+    /** Appended last so a remembered page index from an older config still points at the same page. */
+    static final int PAGE_WEIGHT = 13;
 
     private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Bags"};
 
@@ -98,6 +100,7 @@ public class ProfileViewerScreen extends Screen {
     int subView = 0;
     int subPage = 0;
     private final ExtraPages extraPages = new ExtraPages(this);
+    private final WeightPage weightPage = new WeightPage(this);
     private final List<int[]> tabRects = new ArrayList<>();
 
     record Hotspot(int x, int y, int w, int h, Runnable action) {
@@ -128,6 +131,7 @@ public class ProfileViewerScreen extends Screen {
         int gen = ++generation;
         state = State.LOADING;
         extraPages.reset(force);
+        weightPage.reset();
         dropdownOpen = false;
         rebuildSafe();
         CompletableFuture<ProfileViewerApi.ResolvedPlayer> resolved;
@@ -369,7 +373,11 @@ public class ProfileViewerScreen extends Screen {
                     case PAGE_PETS -> drawPets(g, p, mouseX, mouseY);
                     default -> {
                         try {
-                            extraPages.draw(g, page, p, mouseX, mouseY);
+                            if (page == PAGE_WEIGHT) {
+                                weightPage.draw(g, p, mouseX, mouseY);
+                            } else {
+                                extraPages.draw(g, page, p, mouseX, mouseY);
+                            }
                         } catch (RuntimeException e) {
                             // A malformed/unexpected field must never take the screen down mid-frame.
                             centered(g, "Couldn't show this page (" + e.getClass().getSimpleName() + ").", contentY + contentH / 2 - 4, BAD);
@@ -466,6 +474,7 @@ public class ProfileViewerScreen extends Screen {
             case PAGE_RIFT -> Items.ENDER_EYE;
             case PAGE_FARMING -> Items.WHEAT;
             case PAGE_NETWORTH -> Items.GOLD_INGOT;
+            case PAGE_WEIGHT -> Items.ANVIL;
             default -> Items.PAPER;
         });
     }

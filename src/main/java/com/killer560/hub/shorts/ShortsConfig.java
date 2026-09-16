@@ -87,11 +87,11 @@ public final class ShortsConfig {
                 cfg.hidden = ConfigJson.getBool(o, "hidden", false);
                 cfg.pauseWhenHidden = ConfigJson.getBool(o, "pauseWhenHidden", false);
                 cfg.volume = clamp(intOr(o, "volume", -1), -1, 100);
-                cfg.toggleKey = intOr(o, "toggleKey", -1);
-                cfg.nextKey = intOr(o, "nextKey", -1);
-                cfg.previousKey = intOr(o, "previousKey", -1);
-                cfg.playPauseKey = intOr(o, "playPauseKey", -1);
-                cfg.muteKey = intOr(o, "muteKey", -1);
+                cfg.toggleKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "toggleKey", -1));
+                cfg.nextKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "nextKey", -1));
+                cfg.previousKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "previousKey", -1));
+                cfg.playPauseKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "playPauseKey", -1));
+                cfg.muteKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "muteKey", -1));
             } catch (Exception e) {
                 cfg = new ShortsConfig();
             }

@@ -110,7 +110,7 @@ public final class ProximityVoiceFeature {
 
         if (cfg.isPushToTalk() && cfg.getPushToTalkKeyCode() >= 0) {
             Minecraft client = Minecraft.getInstance();
-            boolean down = client.getWindow() != null && InputConstants.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
+            boolean down = client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
             transmitting = down && !cfg.isMutedSelf();
             keyWasDown = down;
         } else {

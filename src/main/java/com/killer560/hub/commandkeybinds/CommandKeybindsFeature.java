@@ -48,7 +48,7 @@ public final class CommandKeybindsFeature {
     }
 
     private static boolean pollKey(Minecraft client, int keyCode, boolean wasDown, String command) {
-        boolean isDown = keyCode >= 0 && InputConstants.isKeyDown(client.getWindow(), keyCode);
+        boolean isDown = keyCode >= 0 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), keyCode);
         if (isDown && !wasDown) {
             client.player.connection.sendCommand(command);
         }

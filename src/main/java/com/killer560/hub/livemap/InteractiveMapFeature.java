@@ -78,10 +78,10 @@ public final class InteractiveMapFeature {
 
         // HUD peek: held key enlarges the HUD map.
         peeking = hasWindow && cfg.isEnabled() && cfg.getPeekKeyCode() >= 0 && client.screen == null
-                && InputConstants.isKeyDown(client.getWindow(), cfg.getPeekKeyCode());
+                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPeekKeyCode());
 
         // QUOI open key: press opens (only from no screen); Release closes on release, Repress closes on the next press.
-        boolean openDown = hasWindow && cfg.getOpenKeyCode() >= 0 && InputConstants.isKeyDown(client.getWindow(), cfg.getOpenKeyCode());
+        boolean openDown = hasWindow && cfg.getOpenKeyCode() >= 0 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getOpenKeyCode());
         boolean mapOpen = client.screen instanceof InteractiveMapScreen;
         if (cfg.isInteractiveMapEnabled() && inClear && !isDead(client)) {
             if (openDown && !openWasDown) {
@@ -99,20 +99,20 @@ public final class InteractiveMapFeature {
         mapOpen = client.screen instanceof InteractiveMapScreen;
 
         // QUOI start / locked door keys only act while the map is open.
-        boolean startDown = hasWindow && cfg.getStartKeyCode() >= 0 && InputConstants.isKeyDown(client.getWindow(), cfg.getStartKeyCode());
+        boolean startDown = hasWindow && cfg.getStartKeyCode() >= 0 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getStartKeyCode());
         if (startDown && !startWasDown && mapOpen && inClear && cfg.isPathingEnabled() && !isDead(client)) {
             pathToCurrentRoomStart();
         }
         startWasDown = startDown;
         boolean lockedDown = hasWindow && cfg.getLockedDoorKeyCode() >= 0
-                && InputConstants.isKeyDown(client.getWindow(), cfg.getLockedDoorKeyCode());
+                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getLockedDoorKeyCode());
         if (lockedDown && !lockedWasDown && mapOpen && inClear && cfg.isPathingEnabled() && !isDead(client)) {
             pathToLockedDoor();
         }
         lockedWasDown = lockedDown;
 
         boolean bloodDown = hasWindow && cfg.getBloodRushKeyCode() >= 0
-                && InputConstants.isKeyDown(client.getWindow(), cfg.getBloodRushKeyCode());
+                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getBloodRushKeyCode());
         if (bloodDown && !bloodRushWasDown && (client.screen == null || mapOpen) && cfg.isBloodRushEnabled()) {
             BloodRush.toggle();
         }

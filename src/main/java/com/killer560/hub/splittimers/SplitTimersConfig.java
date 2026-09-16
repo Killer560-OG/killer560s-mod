@@ -28,6 +28,12 @@ public final class SplitTimersConfig {
     // rewrites the real "X completed a device!"/"X activated a lever!" chat line in place to append how
     // long the current split segment has been running. Defaults on, matching that being a definite ask.
     private boolean announceDeviceTimes = true;
+    // M7 Phase 5 lines (2026-09-15, killer560's M7 request "split timers lines to the right ... relic stuff"):
+    // per-dragon spawn->kill and relic spawn/placed rows from P5Splits. New, so default OFF.
+    private boolean p5DragonLines = false;
+    private boolean p5RelicLines = false;
+    /** true = a column to the right of the normal split rows, false = under them. */
+    private boolean p5LinesRight = true;
 
     private SplitTimersConfig() {
     }
@@ -51,6 +57,9 @@ public final class SplitTimersConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", true);
             cfg.announceDeviceTimes = ConfigJson.getBool(obj, "announceDeviceTimes", true);
+            cfg.p5DragonLines = ConfigJson.getBool(obj, "p5DragonLines", false);
+            cfg.p5RelicLines = ConfigJson.getBool(obj, "p5RelicLines", false);
+            cfg.p5LinesRight = ConfigJson.getBool(obj, "p5LinesRight", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new SplitTimersConfig();
@@ -64,6 +73,9 @@ public final class SplitTimersConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("announceInChat", announceInChat);
             obj.addProperty("announceDeviceTimes", announceDeviceTimes);
+            obj.addProperty("p5DragonLines", p5DragonLines);
+            obj.addProperty("p5RelicLines", p5RelicLines);
+            obj.addProperty("p5LinesRight", p5LinesRight);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -91,5 +103,29 @@ public final class SplitTimersConfig {
 
     public void setAnnounceDeviceTimes(boolean announceDeviceTimes) {
         this.announceDeviceTimes = announceDeviceTimes;
+    }
+
+    public boolean isP5DragonLines() {
+        return p5DragonLines;
+    }
+
+    public void setP5DragonLines(boolean p5DragonLines) {
+        this.p5DragonLines = p5DragonLines;
+    }
+
+    public boolean isP5RelicLines() {
+        return p5RelicLines;
+    }
+
+    public void setP5RelicLines(boolean p5RelicLines) {
+        this.p5RelicLines = p5RelicLines;
+    }
+
+    public boolean isP5LinesRight() {
+        return p5LinesRight;
+    }
+
+    public void setP5LinesRight(boolean p5LinesRight) {
+        this.p5LinesRight = p5LinesRight;
     }
 }

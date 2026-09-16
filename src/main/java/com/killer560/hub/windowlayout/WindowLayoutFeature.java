@@ -122,7 +122,7 @@ public final class WindowLayoutFeature {
             pickerKeyWasDown = false;
             return;
         }
-        boolean down = InputConstants.isKeyDown(client.getWindow(), key);
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key);
         if (down && !pickerKeyWasDown && (client.screen == null || client.screen instanceof TitleScreen)) {
             openPicker();
         }

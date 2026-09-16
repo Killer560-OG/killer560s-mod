@@ -16,6 +16,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -48,6 +49,11 @@ public class AccountSwitcherScreen extends Screen {
     private Map<String, StoredBanStatus> banStatuses = Map.of();
     private String statusMessage;
     private boolean busy;
+
+    private static final long UNIVERSAL_HINT_MS = 2500L;
+    private SettingsButtonWidget universalButton;
+    /** Util.getMillis() until which the Universal button shows "Set Instance Proxy first"; 0 = no hint. */
+    private long universalHintUntil;
 
     public AccountSwitcherScreen(Screen parent) {
         super(Component.literal("Swap Accounts"));
@@ -128,40 +134,70 @@ public class AccountSwitcherScreen extends Screen {
                 .bounds(this.width / 2 - buttonWidth / 2, belowListY + 26, buttonWidth, 20)
                 .build());
 
-        // Proxy controls (2026-09-15: moved here from the multiplayer screen). "Instance Proxy" is this instance's own
-        // proxy (also set automatically by an account's saved proxy on swap); "Universal Proxy" is shared by every
-        // instance and, while ON, is used for every connection regardless of the instance/account proxy.
+        // Proxy controls (2026-09-15: moved here from the multiplayer screen). "Set Instance Proxy" opens this
+        // instance's own proxy editor (the instance proxy is also set automatically by an account's saved proxy on
+        // swap). "Universal" is a plain ON/OFF toggle (killer560: "should just be a toggle on or off not open any
+        // menu"): ON publishes this instance's proxy to every instance, OFF disables it. Same two rows / heights as
+        // before, so the account list layout below it doesn't move.
         int proxyY = belowListY + 58;
-        int half = (buttonWidth - 4) / 2;
-        this.addRenderableWidget(SettingsButtonWidget.builder(instanceProxyLabel(), btn ->
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Instance Proxy"), btn ->
                         Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this)))
                 .bounds(this.width / 2 - buttonWidth / 2, proxyY, buttonWidth, 20)
                 .build());
-        this.addRenderableWidget(SettingsButtonWidget.builder(universalToggleLabel(), btn -> {
-                    ProxyConfig u = ProxyConfig.universal();
-                    if (!u.isEnabled() && !u.hasValidAddress()) {
-                        Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this, u));
-                        return;
-                    }
-                    u.setEnabled(!u.isEnabled());
-                    u.save();
-                    rebuild();
-                })
-                .bounds(this.width / 2 - buttonWidth / 2, proxyY + 26, half, 20)
-                .build());
-        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Edit Universal"), btn ->
-                        Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this, ProxyConfig.universal())))
-                .bounds(this.width / 2 - buttonWidth / 2 + half + 4, proxyY + 26, half, 20)
-                .build());
+        this.universalButton = SettingsButtonWidget.builder(universalToggleLabel(), btn -> onUniversalToggled())
+                .bounds(this.width / 2 - buttonWidth / 2, proxyY + 26, buttonWidth, 20)
+                .build();
+        this.addRenderableWidget(this.universalButton);
+    }
+
+    /** ON -> OFF disables the shared universal file; OFF -> ON publishes this instance's proxy into it. With no
+     *  instance proxy address there's nothing to publish, so it stays OFF and the button briefly says so (no menu is
+     *  opened; ModChat isn't usable on the title screen). */
+    private void onUniversalToggled() {
+        if (ProxyConfig.isUniversalActive()) {
+            ProxyConfig.disableUniversal();
+            this.universalHintUntil = 0L;
+        } else if (!ProxyConfig.enableUniversalFromInstance()) {
+            this.universalHintUntil = Util.getMillis() + UNIVERSAL_HINT_MS;
+        } else {
+            this.universalHintUntil = 0L;
+        }
+        refreshUniversalLabel();
+    }
+
+    private void refreshUniversalLabel() {
+        if (this.universalButton != null) {
+            this.universalButton.setMessage(universalToggleLabel());
+        }
+    }
+
+    /** Keeps the Universal label current: expires the "Set Instance Proxy first" hint and picks up another
+     *  instance toggling the shared file (ProxyConfig.universal() re-reads it when its mtime changes). */
+    @Override
+    public void tick() {
+        super.tick();
+        refreshUniversalLabel();
+    }
+
+    /** Title-screen animated background (2026-09-15, killer560: "make this menu have the same moving background")
+     *  when the main-menu theme is on and no world is loaded - see {@link AccountScreenBackground}. Otherwise
+     *  vanilla's background path runs as before. */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (!AccountScreenBackground.draw(graphics, this)) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        }
     }
 
     /** Black + amber theme (2026-09-09), matching {@link com.killer560.hub.gui.ModScreen} - per
      *  killer560's "make the account switcher and proxy mod more fit the new theme." Same dim overlay
-     *  instead of the vanilla blurred background, title drawn in the same amber accent as the main
-     *  menu's own header. */
+     *  instead of the vanilla blurred background (only when the themed title background isn't drawn),
+     *  title drawn in the same amber accent as the main menu's own header. */
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        if (!AccountScreenBackground.themed()) {
+            graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFCC6600);
     }
@@ -229,16 +265,12 @@ public class AccountSwitcherScreen extends Screen {
         Minecraft.getInstance().setScreen(this.parent);
     }
 
-    private static Component instanceProxyLabel() {
-        ProxyConfig c = ProxyConfig.getInstance();
-        boolean overridden = ProxyConfig.universal().isEnabled() && ProxyConfig.universal().hasValidAddress();
-        String state = c.isEnabled() ? "§aEnabled" : "§cDisabled";
-        return Component.literal("Instance Proxy: " + state + (overridden ? " §7(universal on)" : ""));
-    }
-
-    private static Component universalToggleLabel() {
-        ProxyConfig u = ProxyConfig.universal();
-        return Component.literal("Universal: " + (u.isEnabled() ? "§aON" : "§cOFF"));
+    private Component universalToggleLabel() {
+        if (this.universalHintUntil != 0L && Util.getMillis() < this.universalHintUntil) {
+            return Component.literal("§cSet Instance Proxy first");
+        }
+        this.universalHintUntil = 0L;
+        return Component.literal("Universal: " + (ProxyConfig.isUniversalActive() ? "§aON" : "§cOFF"));
     }
 
     private static Component proxyButtonLabel(PrismAccount account) {

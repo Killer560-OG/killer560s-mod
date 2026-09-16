@@ -204,10 +204,13 @@ public final class SpiritLeapOverlayFeature {
 
     private static void render(GuiGraphicsExtractor graphics, int width, int height, LeapTarget[] spots, int mouseX, int mouseY) {
         float scale = SpiritLeapOverlayConfig.getInstance().getScale();
+        // Up to 400% (SpiritLeapOverlayConfig.MAX_SCALE): whatever the setting, the 2x2 grid (boxes + gaps) is shrunk to
+        // fit inside the window with a 10px margin, so it never runs off-screen on small windows / big GUI scales.
         float fit = Math.min((width - 20) / (float) (BOX_W * 2 + GAP * 2), (height - 20) / (float) (BOX_H * 2 + GAP * 2));
-        scale = Math.max(0.4f, Math.min(scale, fit));
-        int boxW = (int) (BOX_W * scale);
-        int boxH = (int) (BOX_H * scale);
+        scale = Math.max(0.1f, Math.min(scale, fit));
+        int boxW = Math.max(1, (int) (BOX_W * scale));
+        int boxH = Math.max(1, (int) (BOX_H * scale));
+        int gap = Math.max(2, Math.round(GAP * scale));
         int centerX = width / 2;
         int centerY = height / 2;
         int hovered = spotFor(mouseX, mouseY, width, height);
@@ -218,8 +221,8 @@ public final class SpiritLeapOverlayFeature {
             if (target == null) {
                 continue;
             }
-            int x0 = spot % 2 == 0 ? centerX - GAP - boxW : centerX + GAP;
-            int y0 = spot < 2 ? centerY - GAP - boxH : centerY + GAP;
+            int x0 = spot % 2 == 0 ? centerX - gap - boxW : centerX + gap;
+            int y0 = spot < 2 ? centerY - gap - boxH : centerY + gap;
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(target.name());
             int color = SpiritLeapOverlayConfig.getInstance().isUseClassColors() && cls != null ? cls.color() : 0xFFCC6600;
 
@@ -228,7 +231,9 @@ public final class SpiritLeapOverlayFeature {
             int fill = dead ? (spot == hovered ? 0xE0501414 : 0xCC350A0A) : (spot == hovered ? 0xE0262626 : 0xCC0D0D0D);
             graphics.fill(x0, y0, x0 + boxW, y0 + boxH, fill);
             graphics.outline(x0, y0, boxW, boxH, color);
-            float textScale = Math.max(1.0f, scale * 1.5f);
+            // name grows with the box but never spills out of it (long IGNs at high scale / shrunk boxes)
+            float maxText = Math.min((boxW - 8) / (float) Math.max(1, font.width(target.name())), (boxH - 4) / 9.0f);
+            float textScale = Math.max(0.5f, Math.min(Math.max(1.0f, scale * 1.5f), maxText));
             graphics.pose().pushMatrix();
             try {
                 graphics.pose().translate(x0 + boxW / 2.0f, y0 + boxH / 2.0f);

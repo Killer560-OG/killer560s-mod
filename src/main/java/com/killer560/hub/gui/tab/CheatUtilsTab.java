@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
@@ -23,6 +24,12 @@ public class CheatUtilsTab extends BaseTab {
 
     public CheatUtilsTab() {
         super("Cheat Utils");
+    }
+
+    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    @Override
+    public boolean isCheatOnly() {
+        return true;
     }
 
     @Override
@@ -146,7 +153,7 @@ public class CheatUtilsTab extends BaseTab {
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
         y[0] += 6;
-        w.add(new StringWidget(x, y[0], width, 12, Component.literal("§6" + text), Minecraft.getInstance().font));
+        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(text, true), Minecraft.getInstance().font));
         y[0] += 16;
     }
 

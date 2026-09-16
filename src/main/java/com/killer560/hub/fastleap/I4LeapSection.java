@@ -3,6 +3,7 @@ package com.killer560.hub.fastleap;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.I4LeapConfig.BackupType;
 import com.killer560.hub.fastleap.I4LeapConfig.TargetType;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -25,7 +26,8 @@ public final class I4LeapSection {
             return y;
         }
         I4LeapConfig cfg = I4LeapConfig.getInstance();
-        widgets.add(new StringWidget(x, y, width, 12, Component.literal("§6§lI4 Leap"), Minecraft.getInstance().font));
+        // cheat-only section -> red header (SectionHeaders rule, 2026-09-15)
+        widgets.add(new StringWidget(x, y, width, 12, SectionHeaders.header("I4 Leap", true), Minecraft.getInstance().font));
         y += 14;
 
         widgets.add(SettingsButtonWidget.builder(FastLeapSection.onOff("I4 Leap", cfg.isEnabled()), btn -> {

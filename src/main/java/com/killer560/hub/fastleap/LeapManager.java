@@ -10,6 +10,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -38,6 +39,15 @@ import java.util.Locale;
  * QUOI's leap cooldown is kept: after a successful leap no new leap uses the item for {@code 48 * mage multiplier}
  * ticks ("On cooldown"), so a queued/auto leap never blocks inputs waiting for a menu that can't open.
  * Escape is never blocked (see {@link FastLeapInput}).
+ * <p>
+ * Hidden menu (2026-09-15, killer560: "for fastleap dont render the leap menu opening"): when the leap menu this
+ * manager's own item use opened arrives, {@code FastLeapHideMenuMixin} cancels {@code Minecraft.setScreen} for it
+ * ({@link #interceptLeapScreen}). Vanilla has already assigned {@code player.containerMenu} by then
+ * ({@code MenuScreens.ScreenConstructor.fromPacket}), so the slot packets still fill the menu and the click works
+ * exactly as before - but no screen is ever shown: no chest, no custom leap menu, no darkened background, the mouse
+ * stays grabbed and the hotbar/crosshair stay up. Every exit path ({@link #finish}, {@link #abort}, world change)
+ * closes the headless menu, so it can never linger. A leap menu the player opened themselves, an already-open menu,
+ * or one that arrives after the leap timed out is shown normally.
  */
 public final class LeapManager {
 
@@ -80,6 +90,8 @@ public final class LeapManager {
         int loadedNoMatchTicks;
         boolean fastBlockActive;
         boolean fastBlockFinished;
+        /** The menu was swallowed by {@link #interceptLeapScreen} - it has no screen, so it must be closed by hand. */
+        boolean hidden;
 
         Active(Request request, boolean preOpened) {
             this.request = request;
@@ -200,6 +212,7 @@ public final class LeapManager {
         if (active != null) {
             Active a = active;
             active = null;
+            closeHiddenMenu(a);
             a.menu = null;
         }
         restoreUseInput();
@@ -211,9 +224,65 @@ public final class LeapManager {
         FastLeapFeature.LOGGER.error("[FastLeap] Leap aborted after an exception - inputs restored", t);
         incoming = null;
         pending = null;
+        Active a = active;
         active = null;
+        if (a != null) {
+            try {
+                closeHiddenMenu(a);
+            } catch (RuntimeException ignored) {
+                // already failing - never throw out of the safety net
+            }
+        }
         restoreUseInput();
         restoreMovement();
+    }
+
+    /**
+     * Called from {@code FastLeapHideMenuMixin} at the HEAD of {@code Minecraft.setScreen}. Swallows the leap menu
+     * screen when it is the one this manager is waiting for, so a fast/auto leap never shows it.
+     *
+     * @return true to cancel {@code setScreen} (the menu stays open headless, {@link #poll} clicks it)
+     */
+    public static boolean interceptLeapScreen(Minecraft client, Screen screen) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return false;
+        }
+        Active a = active;
+        // only a leap WE started by using the item (not an already-open / manually opened menu), still waiting for
+        // its menu (or re-adopting a menu Hypixel re-sent while we were already hiding)
+        if (a == null || a.preOpened || !a.usedItem || (a.menu != null && !a.hidden)) {
+            return false;
+        }
+        // nothing else on screen: replacing e.g. chat/pause would close it, so let vanilla show the menu there
+        if (client.screen != null || !(screen instanceof AbstractContainerScreen<?> container)) {
+            return false;
+        }
+        LocalPlayer player = client.player;
+        // fromPacket assigns containerMenu right before setScreen - this proves we are on the open-screen packet path.
+        // Same title test poll() uses to accept the menu (so p3sim.net's menu is hidden exactly when it would be clicked);
+        // safe because it only applies within the container timeout of our own item use.
+        if (player == null || player.containerMenu != container.getMenu() || leapMenuScreen(container) == null) {
+            return false;
+        }
+        a.menu = container.getMenu();
+        a.hidden = true;
+        beginFastBlock(a);
+        FastLeapFeature.LOGGER.info("[FastLeap] Leap menu '{}' opened hidden (containerId {})",
+                container.getTitle().getString(), a.menu.containerId);
+        return true;
+    }
+
+    /** Close a headless leap menu: tell the server and drop back to the inventory menu - without {@code setScreen(null)},
+     *  which would also close whatever screen (pause menu, chat) the player opened in the meantime. */
+    private static void closeHiddenMenu(Active a) {
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        if (!a.hidden || a.menu == null || player == null || player.containerMenu != a.menu) {
+            return;
+        }
+        player.connection.send(new ServerboundContainerClosePacket(a.menu.containerId));
+        player.containerMenu = player.inventoryMenu;
+        FastLeapFeature.LOGGER.info("[FastLeap] Closed hidden leap menu (containerId {})", a.menu.containerId);
     }
 
     static void onStartTick(Minecraft client) {
@@ -406,7 +475,11 @@ public final class LeapManager {
         LocalPlayer player = client.player;
         // ContainerManager cleanup: close the task's own menu if it's still open
         if (player != null && a.menu != null && player.containerMenu == a.menu) {
-            player.closeContainer();
+            if (a.hidden) {
+                closeHiddenMenu(a);
+            } else {
+                player.closeContainer();
+            }
         }
         switch (result) {
             case SUCCESS -> {
@@ -433,19 +506,25 @@ public final class LeapManager {
     // ------------------------------------------------------------------------------------------------------------
 
     static AbstractContainerScreen<?> leapMenuScreen(Screen screen) {
-        if (screen instanceof AbstractContainerScreen<?> container
-                && container.getTitle().getString().toLowerCase(Locale.ROOT).contains(LEAP_MENU_TITLE)) {
-            return container;
+        if (screen instanceof AbstractContainerScreen<?> container) {
+            String title = container.getTitle().getString();
+            if (title.toLowerCase(Locale.ROOT).contains(LEAP_MENU_TITLE) || isLeapMenuTitle(title)) {
+                return container;
+            }
         }
         return null;
     }
 
     private static boolean isExactLeapMenu(Screen screen) {
-        if (!(screen instanceof AbstractContainerScreen<?> container)) {
-            return false;
-        }
-        String plain = net.minecraft.ChatFormatting.stripFormatting(container.getTitle().getString());
-        return plain != null && plain.trim().equalsIgnoreCase("Spirit Leap");
+        return screen instanceof AbstractContainerScreen<?> container && isLeapMenuTitle(container.getTitle().getString());
+    }
+
+    /** Exact leap menu titles - QUOI {@code equalsOneOf("Spirit Leap", "Teleport to Player")} (the second is the
+     *  Infinileap title). Exact so a Bazaar/AH page for the item is never hidden or clicked. */
+    static boolean isLeapMenuTitle(String title) {
+        String plain = net.minecraft.ChatFormatting.stripFormatting(title);
+        String t = plain == null ? "" : plain.trim();
+        return t.equalsIgnoreCase("Spirit Leap") || t.equalsIgnoreCase("Teleport to Player");
     }
 
     static boolean isLeapItem(ItemStack stack) {

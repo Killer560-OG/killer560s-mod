@@ -53,7 +53,7 @@ public abstract class FolderTab extends BaseTab {
             boolean isExpanded = expanded.contains(index);
             String arrow = isExpanded ? "▼ " : "▶ ";
             widgets.add(new MenuRowWidget(contentX, y, contentWidth, HEADER_HEIGHT,
-                    arrow + subTabs.get(index).name, isExpanded, true, () -> {
+                    arrow + subTabs.get(index).name, isExpanded, true, subTabs.get(index).isCheatOnly(), () -> {
                         if (!expanded.add(index)) {
                             expanded.remove(index);
                         }
@@ -73,6 +73,21 @@ public abstract class FolderTab extends BaseTab {
             }
         }
         return widgets;
+    }
+
+    /** A folder is cheat-only only if every sub-tab in it is (none of the current top-level folders are -
+     *  they all mix in legit tabs - but a future all-cheat folder then gets a red sidebar title for free). */
+    @Override
+    public boolean isCheatOnly() {
+        if (subTabs.isEmpty()) {
+            return false;
+        }
+        for (BaseTab sub : subTabs) {
+            if (!sub.isCheatOnly()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Matches if this folder's own name matches, OR any of its sub-tabs' names do - so this folder

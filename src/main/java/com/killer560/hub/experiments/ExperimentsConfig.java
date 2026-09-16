@@ -141,7 +141,7 @@ public final class ExperimentsConfig {
             cfg.randomDelayMaxMs = obj.has("randomDelayMaxMs")
                     ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("randomDelayMaxMs").getAsInt())) : 0;
             cfg.autoSwapGuardianPet = obj.has("autoSwapGuardianPet") && obj.get("autoSwapGuardianPet").getAsBoolean();
-            cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? obj.get("emergencyCancelKeyCode").getAsInt() : -1;
+            cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? com.killer560.hub.util.KeyUtil.sanitize(obj.get("emergencyCancelKeyCode").getAsInt()) : -1;
             cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
             cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
             cfg.profitTrackerEnabled = obj.has("profitTrackerEnabled") && obj.get("profitTrackerEnabled").getAsBoolean();

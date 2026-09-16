@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.bloodcamp.BloodCampConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -51,7 +52,7 @@ public class BloodCampTab extends BaseTab {
         }
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lCheat Build - Automation"), net.minecraft.client.Minecraft.getInstance().font));
+                SectionHeaders.header("Cheat Build - Automation", true), net.minecraft.client.Minecraft.getInstance().font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {

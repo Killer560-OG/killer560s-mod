@@ -90,7 +90,7 @@ public final class InventoryHudConfig {
                 cfg.hideWhenEmpty = bool(obj, "hideWhenEmpty", cfg.hideWhenEmpty);
                 cfg.hideInScreens = bool(obj, "hideInScreens", cfg.hideInScreens);
                 cfg.visibility = enumValue(obj, "visibility", Visibility.class, cfg.visibility);
-                cfg.keyCode = obj.has("keyCode") ? obj.get("keyCode").getAsInt() : cfg.keyCode;
+                cfg.keyCode = obj.has("keyCode") ? com.killer560.hub.util.KeyUtil.sanitize(obj.get("keyCode").getAsInt()) : cfg.keyCode;
                 cfg.toggledVisible = bool(obj, "toggledVisible", cfg.toggledVisible);
             } catch (Exception e) {
                 cfg = new InventoryHudConfig();

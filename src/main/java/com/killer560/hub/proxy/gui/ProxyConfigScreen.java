@@ -1,5 +1,6 @@
 package com.killer560.hub.proxy.gui;
 
+import com.killer560.hub.accounts.gui.AccountScreenBackground;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.proxy.config.ProxyType;
@@ -10,9 +11,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Configuration screen opened from the multiplayer server list. Lets the user
+ * Instance proxy editor, opened from the Swap Accounts screen's "Set Instance Proxy" button. Lets the user
  * pick the SOCKS version, enter the proxy address, optionally supply
- * credentials, and Apply / Go Back / Reset.
+ * credentials, and Apply / Go Back / Reset. While the universal proxy is ON, saving here also republishes
+ * the settings to the universal file (see {@link ProxyConfig#syncUniversalFromInstance()}).
  */
 public class ProxyConfigScreen extends Screen {
 
@@ -27,6 +29,8 @@ public class ProxyConfigScreen extends Screen {
 
     private ProxyType selectedType;
     private int warningY;
+    /** Editing the instance proxy while the universal proxy is ON (Apply will republish it) - read in init(). */
+    private boolean universalOn;
 
     // Layout constants
     private static final int FIELD_WIDTH = 200;
@@ -62,6 +66,7 @@ public class ProxyConfigScreen extends Screen {
     protected void init() {
         ProxyConfig config = this.target;
         this.selectedType = config.getType();
+        this.universalOn = !config.isUniversal() && ProxyConfig.isUniversalActive();
 
         int centerX = this.width / 2;
         int fieldX = centerX - FIELD_WIDTH / 2;
@@ -151,6 +156,7 @@ public class ProxyConfigScreen extends Screen {
             config.setEnabled(config.hasValidAddress());
         }
         config.save();
+        syncUniversal();
         onClose();
     }
 
@@ -164,12 +170,34 @@ public class ProxyConfigScreen extends Screen {
         config.setPassword("");
         config.setEnabled(false);
         config.save();
+        syncUniversal();
+        this.universalOn = !config.isUniversal() && ProxyConfig.isUniversalActive();
+    }
+
+    /** 2026-09-15: the separate universal editor is gone ("Remove the edit universal button"), so while Universal is
+     *  ON, saving the instance proxy here also republishes it to the shared universal file (clearing it turns
+     *  universal off). No-op while Universal is OFF or when editing the universal config directly. */
+    private void syncUniversal() {
+        if (!this.target.isUniversal()) {
+            ProxyConfig.syncUniversalFromInstance();
+        }
+    }
+
+    /** Same animated title-screen background as the account switcher it's opened from - see AccountScreenBackground. */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (!AccountScreenBackground.draw(graphics, this)) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        }
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // Black + amber theme (2026-09-09) - see AccountSwitcherScreen#extractRenderState.
-        guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        // Black + amber theme (2026-09-09) - see AccountSwitcherScreen#extractRenderState. The dim overlay is only
+        // needed when the themed title background isn't drawn.
+        if (!AccountScreenBackground.themed()) {
+            guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        }
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         // Recolor each field's border AFTER vanilla draws its own (see the doc comment on
         // FIELD_BORDER) - drawn on top rather than replacing vanilla's rendering entirely, so
@@ -198,6 +226,11 @@ public class ProxyConfigScreen extends Screen {
         // Warning footer
         guiGraphics.centeredText(this.font, Component.literal("Do NOT use free proxies."),
                 centerX, this.warningY, COLOR_WARNING);
+
+        if (this.universalOn) {
+            guiGraphics.centeredText(this.font, Component.literal("Universal is ON - Apply also updates every instance."),
+                    centerX, this.warningY + 12, COLOR_TITLE);
+        }
     }
 
     /** Recolors one field's border to match the theme - see the doc comment on {@link #FIELD_BORDER}. */

@@ -68,7 +68,7 @@ public class GifPlayerTab extends BaseTab {
         EditBox speedField = new EditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
                 Component.literal("Speed"));
         speedField.setMaxLength(8);
-        speedField.setValue(String.format("%.2f", GifPlayerConfig.getInstance().getSpeedMultiplier()));
+        speedField.setValue(String.format(java.util.Locale.US, "%.2f", GifPlayerConfig.getInstance().getSpeedMultiplier()));
         widgets.add(speedField);
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     Float parsed = parseFloat(speedField.getValue());
