@@ -13,12 +13,12 @@ import java.util.List;
  *  session) were added 2026-09-14 per killer560's "add things like posmsg and whatnot... everything I
  *  haven't tested" request - untested is untested regardless of which session built it.
  *  <p>
- *  {@code LeapMenuTab} (2026-09-14, later same day) is now a consolidated tab combining what used to be
- *  4 separate ones - the old "Leap Order" tab, {@code SpiritLeapOverlayTab} ("Custom Leap Menu"),
- *  {@code FastLeapTab}, and {@code LeapMessageTab} (moved in from the Dungeon tab) - per killer560's own
- *  "everything related to spirit leaps should be under one setting called leap menu" request. Stays here
- *  in New for now per his own instruction; the plan is for the whole consolidated tab to move to Dungeon
- *  once confirmed working, same as everything else in this list eventually does. */
+ *  {@code LeapMenuTab} (2026-09-14, later same day) consolidated what used to be 4 separate tabs - the
+ *  old "Leap Order" tab, {@code SpiritLeapOverlayTab} ("Custom Leap Menu"), {@code FastLeapTab}, and
+ *  {@code LeapMessageTab} - per killer560's own "everything related to spirit leaps should be under one
+ *  setting called leap menu" request. It has since been confirmed working and moved on to the Dungeon
+ *  tab (2026-09-16), exactly the journey every tab in this list is meant to make. Fast/Auto Leap is its
+ *  own top-level tab (cheat build only) and is NOT part of that move. */
 public class NewTab extends FolderTab {
 
     public NewTab() {
@@ -27,7 +27,6 @@ public class NewTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                new LeapMenuTab(),
                 new PosmsgTab(),
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),

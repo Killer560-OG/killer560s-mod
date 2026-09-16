@@ -132,10 +132,12 @@ public class LeapMenuTab extends BaseTab {
                 }).bounds(x, y, Math.max(1, width), ROW).build());
         y += ROW + GAP;
 
-        // the message itself gets the whole line - it used to share a row with Set, which cut off most of what you
-        // were typing ("make it so the actual chat message line with set next to it takes up a full line")
+        // Set sits on the right of the field itself (2026-09-16, killer560: "put the set button to the right of the
+        // box i type in to set the leap message"); the {name} reminder keeps its own line underneath, so the field
+        // is still nearly full width and you can read everything you type.
         // message text "Leaping To message" is also the SettingTooltips key - keep it
-        EditBox messageField = new EditBox(Minecraft.getInstance().font, x, y, Math.max(1, width), ROW,
+        int msgW = Math.max(1, width - SET_W - GAP);
+        EditBox messageField = new EditBox(Minecraft.getInstance().font, x, y, msgW, ROW,
                 Component.literal("Leaping To message"));
         messageField.setMaxLength(200);
         messageField.setValue(LeapMessageConfig.getInstance().getCustomMessage());
@@ -146,15 +148,15 @@ public class LeapMenuTab extends BaseTab {
             cfg.save();
         });
         widgets.add(messageField);
-        y += ROW + GAP;
-
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     LeapMessageConfig cfg = LeapMessageConfig.getInstance();
                     cfg.setCustomMessage(messageField.getValue());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(x, y, SET_W, ROW).build());
-        widgets.add(FastLeapSection.label(x + SET_W + GAP, y, Math.max(1, width - SET_W - GAP),
+                }).bounds(x + msgW + GAP, y, SET_W, ROW).build());
+        y += ROW + GAP;
+
+        widgets.add(FastLeapSection.label(x, y, Math.max(1, width),
                 "§7{name} becomes the IGN you leapt to"));
     }
 

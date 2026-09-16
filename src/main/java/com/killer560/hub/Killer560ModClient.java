@@ -31,7 +31,6 @@ import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.posmsg.PosmsgConfig;
 import com.killer560.hub.posmsg.PosmsgEntry;
 import com.killer560.hub.posmsg.PosmsgFeature;
-import com.killer560.hub.posmsg.PosmsgHudElement;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.rngmeter.MagicFindTracker;
 import com.killer560.hub.secrets.DungeonState;
@@ -96,7 +95,6 @@ public class Killer560ModClient implements ClientModInitializer {
         DungeonState.register();
         SimDiagnosticFeature.register();
         PosmsgFeature.register();
-        HudElementRegistry.register(new PosmsgHudElement());
         com.killer560.hub.thorn.ThornFeature.register();
         HudElementRegistry.register(com.killer560.hub.thorn.ThornFeature.HUD);
         com.killer560.hub.f7spots.F7SpotsFeature.register();

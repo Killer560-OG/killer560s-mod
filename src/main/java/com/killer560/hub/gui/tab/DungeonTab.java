@@ -8,8 +8,8 @@ import java.util.List;
  *  terminal-practice request) on every build; Full Block/hitboxes and Auto Terminals (2026-09-10, cheat
  *  build only - per killer560's "cheat variant should have hitbox's auto etable and auto terms" request)
  *  are omitted from this list entirely on the legit build, which has neither feature at all, not just a
- *  disabled-looking version of them. Leap Message moved OUT of here (2026-09-14) into the New tab's
- *  consolidated {@code LeapMenuTab} - see that class's own doc for why. */
+ *  disabled-looking version of them. Leap Message moved OUT of here (2026-09-14) into the consolidated
+ *  {@code LeapMenuTab}, which then moved back in here whole (2026-09-16) once killer560 confirmed it. */
 public class DungeonTab extends FolderTab {
 
     public DungeonTab() {
@@ -21,6 +21,10 @@ public class DungeonTab extends FolderTab {
                 new RngMeterTab(),
                 new TerminalSolverTab(),
                 new TermismTab(),
+                // Moved out of New 2026-09-16 at killer560's request ("you can move the leap menu tab
+                // into dungeons") - the consolidated Leap Menu (leap order, custom leap overlay, leap
+                // message) is confirmed working, so it lives with the rest of the dungeon features now.
+                new LeapMenuTab(),
                 // Moved out of New 2026-09-14 - killer560 confirmed Simon Says (solver + Auto Start/Solve)
                 // working after real runs ("I think ss is now done").
                 new SimonSaysTab()

@@ -18,9 +18,13 @@ import java.util.List;
  *  built-in room presets - per killer560's request, this ships with one preset per named room
  *  (Simon Says, EE2, EE3, Outpour, Recor, Necron's Platform, P5), each starting UNCONFIGURED
  *  (x=y=z=0, {@code configured=false}) since real in-game coordinates for these rooms weren't
- *  available to seed here - see each preset's own comment below. Use "Set to my position" in the
- *  Posmsg tab (or manually type X/Y/Z) once, in-game, standing on the real spot; the preset then
- *  behaves exactly like a custom one from that point on. */
+ *  available to seed here. Use "Set To My Position" in the Posmsg tab once, in-game, standing on the
+ *  real spot; the preset then behaves exactly like a custom one from that point on.
+ *  <p>
+ *  2026-09-16: entries gained a {@code message} (the plain line typed into party chat, "at hee2") and
+ *  lost {@code showDisplay}/{@code showOnlyInsideRadius}, which only ever controlled the top-left HUD
+ *  list that has since been replaced by a real in-world ring. Those two keys are simply ignored when an
+ *  older config is read - nothing else in the file changes, so downgrading isn't destructive either. */
 public final class PosmsgConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -69,6 +73,7 @@ public final class PosmsgConfig {
                             PosmsgEntry e = new PosmsgEntry();
                             e.id = ConfigJson.getString(obj, "id", e.id);
                             e.name = ConfigJson.getString(obj, "name", e.name);
+                            e.message = ConfigJson.getString(obj, "message", "");
                             e.enabled = ConfigJson.getBool(obj, "enabled", true);
                             e.x = ConfigJson.getDouble(obj, "x", 0);
                             e.y = ConfigJson.getDouble(obj, "y", 0);
@@ -76,9 +81,7 @@ public final class PosmsgConfig {
                             e.radius = ConfigJson.getDouble(obj, "radius", 3.0);
                             e.configured = ConfigJson.getBool(obj, "configured", false);
                             e.showRadius = ConfigJson.getBool(obj, "showRadius", true);
-                            e.showDisplay = ConfigJson.getBool(obj, "showDisplay", true);
                             e.colorHex = ConfigJson.getString(obj, "colorHex", e.colorHex);
-                            e.showOnlyInsideRadius = ConfigJson.getBool(obj, "showOnlyInsideRadius", false);
                             e.onceOnlyPerRun = ConfigJson.getBool(obj, "onceOnlyPerRun", false);
                             e.builtin = ConfigJson.getBool(obj, "builtin", false);
                             cfg.entries.add(e);
@@ -96,6 +99,7 @@ public final class PosmsgConfig {
             cfg.seedPresets();
             cfg.presetsSeeded = true;
         }
+        cfg.fillBlankPresetMessages();
         instance = cfg;
         if (!parseFailed) {
             instance.save();
@@ -105,29 +109,50 @@ public final class PosmsgConfig {
     /** Adds the built-in room presets exactly once (first-ever load) - never re-added after that, even
      *  if the player deletes one, since {@link #presetsSeeded} latches true forever once this runs. */
     private void seedPresets() {
-        addPreset("Simon Says");
-        // "For EE to make sure that it is the high one up by lever device" - killer560's own wording;
-        // kept verbatim rather than guessing at Hypixel's internal room name for it.
-        addPreset("EE2 (High - Lever Device)");
-        // "for EE three make sure it is the low one"
-        addPreset("EE3 (Low)");
-        addPreset("Outpour");
-        // Kept as "Recor" verbatim (killer560's own term) rather than guessing a canonical Hypixel
-        // room name that couldn't be confirmed - rename it in the tab once you know which room it is.
-        addPreset("Recor");
-        addPreset("Necron's Platform");
-        addPreset("P5");
-        // Fast Leap's "Leap to Mel" preset (2026-09-13 request) - same unconfigured-until-you-set-it
-        // treatment as every other preset above.
-        addPreset("Mel");
+        for (var preset : PRESET_MESSAGES.entrySet()) {
+            PosmsgEntry e = new PosmsgEntry();
+            e.name = preset.getKey();
+            e.message = preset.getValue();
+            e.builtin = true;
+            e.configured = false;
+            entries.add(e);
+        }
     }
 
-    private void addPreset(String name) {
-        PosmsgEntry e = new PosmsgEntry();
-        e.name = name;
-        e.builtin = true;
-        e.configured = false;
-        entries.add(e);
+    /** Preset room -&gt; the line it types in party chat, in killer560's own "at hee2" style. Kept as a
+     *  map so {@link #fillBlankPresetMessages()} can also backfill configs saved before waypoints had a
+     *  message field at all (they used to send a machine-readable coordinate payload instead). */
+    private static final java.util.LinkedHashMap<String, String> PRESET_MESSAGES = new java.util.LinkedHashMap<>();
+
+    static {
+        PRESET_MESSAGES.put("Simon Says", "at ss");
+        // "For EE to make sure that it is the high one up by lever device" - killer560's own wording;
+        // kept verbatim rather than guessing at Hypixel's internal room name for it.
+        PRESET_MESSAGES.put("EE2 (High - Lever Device)", "at ee2");
+        // "for EE three make sure it is the low one"
+        PRESET_MESSAGES.put("EE3 (Low)", "at ee3");
+        PRESET_MESSAGES.put("Outpour", "at outpour");
+        // Kept as "Recor" verbatim (killer560's own term) rather than guessing a canonical Hypixel
+        // room name that couldn't be confirmed - rename it in the tab once you know which room it is.
+        PRESET_MESSAGES.put("Recor", "at recor");
+        PRESET_MESSAGES.put("Necron's Platform", "at necron's platform");
+        PRESET_MESSAGES.put("P5", "at p5");
+        // Fast Leap's "Leap to Mel" preset (2026-09-13 request) - same unconfigured-until-you-set-it
+        // treatment as every other preset above.
+        PRESET_MESSAGES.put("Mel", "at mel");
+    }
+
+    /** Presets seeded before the message field existed have a blank message, which would make them type
+     *  their full list label ("EE2 (High - Lever Device)") into party chat. Fill those in once. */
+    private void fillBlankPresetMessages() {
+        for (PosmsgEntry e : entries) {
+            if (e.builtin && (e.message == null || e.message.isBlank())) {
+                String preset = PRESET_MESSAGES.get(e.name);
+                if (preset != null) {
+                    e.message = preset;
+                }
+            }
+        }
     }
 
     public void save() {
@@ -141,6 +166,7 @@ public final class PosmsgConfig {
                 JsonObject obj = new JsonObject();
                 obj.addProperty("id", e.id);
                 obj.addProperty("name", e.name);
+                obj.addProperty("message", e.message == null ? "" : e.message);
                 obj.addProperty("enabled", e.enabled);
                 obj.addProperty("x", e.x);
                 obj.addProperty("y", e.y);
@@ -148,9 +174,7 @@ public final class PosmsgConfig {
                 obj.addProperty("radius", e.radius);
                 obj.addProperty("configured", e.configured);
                 obj.addProperty("showRadius", e.showRadius);
-                obj.addProperty("showDisplay", e.showDisplay);
                 obj.addProperty("colorHex", e.colorHex);
-                obj.addProperty("showOnlyInsideRadius", e.showOnlyInsideRadius);
                 obj.addProperty("onceOnlyPerRun", e.onceOnlyPerRun);
                 obj.addProperty("builtin", e.builtin);
                 array.add(obj);
@@ -176,6 +200,7 @@ public final class PosmsgConfig {
     public PosmsgEntry addNew() {
         PosmsgEntry e = new PosmsgEntry();
         e.name = "Waypoint " + (entries.size() + 1);
+        e.message = "";
         entries.add(e);
         save();
         return e;
@@ -186,9 +211,16 @@ public final class PosmsgConfig {
         save();
     }
 
+    /** Looks a waypoint up by its list label, or failing that by the message it sends - so
+     *  {@code /killer560 posmsg send at hee2} works as well as the full preset name. */
     public PosmsgEntry byName(String name) {
         for (PosmsgEntry e : entries) {
             if (e.name.equalsIgnoreCase(name)) {
+                return e;
+            }
+        }
+        for (PosmsgEntry e : entries) {
+            if (e.sendText().equalsIgnoreCase(name)) {
                 return e;
             }
         }

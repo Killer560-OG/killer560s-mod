@@ -8,9 +8,9 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.Locale;
 
-/** Draggable HUD list of this run's etherwarp/secret-spot bookmarks - name + live distance, same visual
- *  shape as {@link com.killer560.hub.posmsg.PosmsgHudElement} (a plain text list, no in-world 3D marker -
- *  see that class's own note on why this codebase has no verified hook for real 3D world rendering yet). */
+/** Draggable HUD list of this run's etherwarp/secret-spot bookmarks - name + live distance. Posmsg used
+ *  to have a matching list; it was replaced with real in-world rings (2026-09-16, see
+ *  {@code PosmsgRenderer}), so this one could get the same treatment via {@code WorldRenderUtils}. */
 public final class EtherwarpHudElement implements HudElement {
 
     private static final int COLOR = 0xFFCC6600;
