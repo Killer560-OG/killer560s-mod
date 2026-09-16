@@ -126,6 +126,7 @@ public final class RouteExecutor {
     private static boolean mixinApplied;
     private static boolean fallbackKeysHeld;
     private static boolean warnedFallback;
+    private static boolean warnedNoKeyAccessor;
     private static boolean warnedCommandBlocked;
     private static boolean wantForward;
     private static boolean wantBackward;
@@ -153,10 +154,23 @@ public final class RouteExecutor {
             java.util.Set.of("you moved", "you moved the camera", "you clicked");
 
     private static boolean stoppedByUser;
+    /** Set when a route runs to its end. The player is then standing IN the last node, which with
+     *  start-only OFF is a different node from the one it armed on - so it armed again and re-ran that
+     *  node's use/boom/command a second time (2026-09-16 review). */
+    private static boolean justFinished;
 
     /** True when the last stop was the player taking over. Cleared by {@code clearStoppedByUser}. */
     public static boolean wasStoppedByUser() {
         return stoppedByUser;
+    }
+
+    /** True while the player is still standing in the node a finished route ended on. */
+    public static boolean justFinished() {
+        return justFinished;
+    }
+
+    public static void clearJustFinished() {
+        justFinished = false;
     }
 
     public static void clearStoppedByUser() {
@@ -209,6 +223,8 @@ public final class RouteExecutor {
     /** Starts playback of {@code route} from {@code startNode} (a node of that route). Only the feature's arming
      *  logic calls this, after every interlock in {@link AutoRoutesFeature} has passed. */
     static boolean start(Route r, RouteCoords.Frame f, RouteNode startNode) {
+        justFinished = false;
+        warnedCommandBlocked = false; // per run, not per session (2026-09-16 review)
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || r == null || f == null || startNode == null) {
@@ -245,6 +261,7 @@ public final class RouteExecutor {
     }
 
     private static void complete() {
+        justFinished = true;
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();
         stop(null);
@@ -305,6 +322,11 @@ public final class RouteExecutor {
             }
             return com.killer560.hub.util.KeyUtil.isKeyDown(window, key.getValue());
         } catch (Throwable t) {
+            if (!warnedNoKeyAccessor) {
+                warnedNoKeyAccessor = true;
+                LOGGER.warn("[AutoRoutes] Key accessor unavailable ({}) - movement keys cannot stop a route on "
+                        + "the fallback path. Use the mouse, a click, or open a screen.", t.toString());
+            }
             return false;
         }
     }
@@ -366,7 +388,10 @@ public final class RouteExecutor {
             stop("a screen opened");
             return;
         }
-        if (userPressedMovementKeyInFallback(client)) {
+        // Only a DRIVEN route is the bot's alone. A path-less, nodes-only route expects the player to walk
+        // between rings, so their movement keys must not abort it - the mixin path already knew that and the
+        // fallback did not (2026-09-16 review).
+        if (route != null && !route.path().isEmpty() && userPressedMovementKeyInFallback(client)) {
             stop("you moved");
             return;
         }

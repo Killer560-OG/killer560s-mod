@@ -54,11 +54,13 @@ public final class Ap3Config {
     public static final String KEY_RELOAD = "reload";
     public static final String KEY_START = "start";
     public static final String KEY_STOP = "stop";
+    /** Re-places the LAST node at your position/look (the key-shaped half of {@code /ap3 replace <n>}). */
+    public static final String KEY_REPLACE_LAST = "replace_last";
 
     public static final List<String> KEYBIND_IDS = List.of(
             KEY_ADD_LINE, KEY_ADD_AXIS_LINE, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_DETECTOR,
             KEY_ADD_TERMINAL, KEY_ADD_WAIT, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BREAKER, KEY_EDIT_DB, KEY_LIST,
-            KEY_DELETE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP);
+            KEY_DELETE_LAST, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP);
 
     public static final float MIN_THICKNESS = 1f;
     public static final float MAX_THICKNESS = 8f;
@@ -74,6 +76,13 @@ public final class Ap3Config {
     public static final double MAX_LEAP_RADIUS = 12.0;
     public static final int MIN_DEFAULT_WAIT = 0;
     public static final int MAX_DEFAULT_WAIT = 60_000;
+    /** Same bounds Posmsg's per-waypoint text scale / height use ({@code posmsg/PosmsgEntry}). */
+    public static final float MIN_LABEL_SCALE = 0.25f;
+    public static final float MAX_LABEL_SCALE = 4f;
+    public static final float MIN_LABEL_HEIGHT = 0f;
+    public static final float MAX_LABEL_HEIGHT = 5f;
+    /** White: readable over every node colour, and the colour the labels always had before it was a setting. */
+    public static final int DEFAULT_LABEL_COLOR = 0xFFFFFFFF;
 
     private static Ap3Config instance;
 
@@ -99,6 +108,23 @@ public final class Ap3Config {
     private float thickness = 3f;
     private float height = 0.1f;
     private boolean showLabels = true;
+    /**
+     * World labels (killer560, 2026-09-16: "for ap3 specifically have it label nodes that i make. For instance the
+     * very first node is 1 the second is 2 and so on. It should be toggleable for color and if it shows"). The
+     * number is ON by default because that is what he asked for; type and details default ON so a label looks
+     * exactly as it did before these toggles existed ("#3 Line 4.0 x 1.0").
+     */
+    private boolean showNodeNumbers = true;
+    private boolean showNodeType = true;
+    private boolean showNodeDetails = true;
+    /** "toggleable for color": ON = each label in its own node's colour (the number matches the box it sits on),
+     *  OFF = every label in {@link #labelColorArgb}. ON is how labels were always drawn. */
+    private boolean labelUseNodeColor = true;
+    private int labelColorArgb = DEFAULT_LABEL_COLOR;
+    /** Multiplier on the label size (1 = the size it has always been) and blocks lifted above the marker (0 =
+     *  where it has always sat) - the same two knobs Posmsg's waypoints got. */
+    private float labelScale = 1f;
+    private float labelHeightOffset = 0f;
     /** Alignment (LINE / AXIS_LINE) is done within this many blocks of the target. */
     private double alignTolerance = 0.05;
     private int alignTimeoutTicks = 100;
@@ -164,6 +190,13 @@ public final class Ap3Config {
                 cfg.setThickness(ConfigJson.getFloat(o, "thickness", cfg.thickness));
                 cfg.setHeight(ConfigJson.getFloat(o, "height", cfg.height));
                 cfg.showLabels = ConfigJson.getBool(o, "showLabels", cfg.showLabels);
+                cfg.showNodeNumbers = ConfigJson.getBool(o, "showNodeNumbers", cfg.showNodeNumbers);
+                cfg.showNodeType = ConfigJson.getBool(o, "showNodeType", cfg.showNodeType);
+                cfg.showNodeDetails = ConfigJson.getBool(o, "showNodeDetails", cfg.showNodeDetails);
+                cfg.labelUseNodeColor = ConfigJson.getBool(o, "labelUseNodeColor", cfg.labelUseNodeColor);
+                cfg.labelColorArgb = ConfigJson.getInt(o, "labelColorArgb", cfg.labelColorArgb);
+                cfg.setLabelScale(ConfigJson.getFloat(o, "labelScale", cfg.labelScale));
+                cfg.setLabelHeightOffset(ConfigJson.getFloat(o, "labelHeightOffset", cfg.labelHeightOffset));
                 cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignTolerance", cfg.alignTolerance));
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
@@ -202,6 +235,13 @@ public final class Ap3Config {
             o.addProperty("thickness", thickness);
             o.addProperty("height", height);
             o.addProperty("showLabels", showLabels);
+            o.addProperty("showNodeNumbers", showNodeNumbers);
+            o.addProperty("showNodeType", showNodeType);
+            o.addProperty("showNodeDetails", showNodeDetails);
+            o.addProperty("labelUseNodeColor", labelUseNodeColor);
+            o.addProperty("labelColorArgb", labelColorArgb);
+            o.addProperty("labelScale", labelScale);
+            o.addProperty("labelHeightOffset", labelHeightOffset);
             o.addProperty("alignTolerance", alignTolerance);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
@@ -301,8 +341,44 @@ public final class Ap3Config {
         }
     }
 
+    /** Master switch for the world labels; the three parts below pick what a label says. */
     public boolean isShowLabels() { return showLabels; }
     public void setShowLabels(boolean v) { showLabels = v; }
+
+    public boolean isShowNodeNumbers() { return showNodeNumbers; }
+    public void setShowNodeNumbers(boolean v) { showNodeNumbers = v; }
+
+    public boolean isShowNodeType() { return showNodeType; }
+    public void setShowNodeType(boolean v) { showNodeType = v; }
+
+    public boolean isShowNodeDetails() { return showNodeDetails; }
+    public void setShowNodeDetails(boolean v) { showNodeDetails = v; }
+
+    public boolean isLabelUseNodeColor() { return labelUseNodeColor; }
+    public void setLabelUseNodeColor(boolean v) { labelUseNodeColor = v; }
+
+    public int getLabelColorArgb() { return labelColorArgb; }
+    public void setLabelColorArgb(int argb) { labelColorArgb = argb; }
+
+    /** The colour a node's label is drawn in: the node's own marker colour, or the one fixed label colour. Always
+     *  opaque - a translucent marker colour must not fade its number out. */
+    public int labelColorFor(Ap3Node node, int markerArgb) {
+        return (labelUseNodeColor ? markerArgb : labelColorArgb) | 0xFF000000;
+    }
+
+    public float getLabelScale() { return labelScale; }
+    public void setLabelScale(float v) {
+        if (Float.isFinite(v)) {
+            labelScale = Math.max(MIN_LABEL_SCALE, Math.min(MAX_LABEL_SCALE, Math.round(v * 20f) / 20f));
+        }
+    }
+
+    public float getLabelHeightOffset() { return labelHeightOffset; }
+    public void setLabelHeightOffset(float v) {
+        if (Float.isFinite(v)) {
+            labelHeightOffset = Math.max(MIN_LABEL_HEIGHT, Math.min(MAX_LABEL_HEIGHT, Math.round(v * 20f) / 20f));
+        }
+    }
 
     // ------------------------------------------------------------------------------------------- executor
 
@@ -383,6 +459,8 @@ public final class Ap3Config {
     public void setListKey(int code) { setKeybind(KEY_LIST, code); }
     public int getDeleteLastKey() { return getKeybind(KEY_DELETE_LAST); }
     public void setDeleteLastKey(int code) { setKeybind(KEY_DELETE_LAST, code); }
+    public int getReplaceLastKey() { return getKeybind(KEY_REPLACE_LAST); }
+    public void setReplaceLastKey(int code) { setKeybind(KEY_REPLACE_LAST, code); }
     public int getClearKey() { return getKeybind(KEY_CLEAR); }
     public void setClearKey(int code) { setKeybind(KEY_CLEAR, code); }
     public int getReloadKey() { return getKeybind(KEY_RELOAD); }

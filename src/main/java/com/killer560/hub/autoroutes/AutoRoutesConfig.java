@@ -48,9 +48,13 @@ public final class AutoRoutesConfig {
 
     /** Stable keybind ids, one per {@code /ar} command - all default to unbound ({@link KeyUtil#NONE}). Unknown
      *  ids passed to {@link #getKeybind}/{@link #setKeybind} are accepted too (stored under their own name). */
-    public static final List<String> KEYBIND_IDS = List.of(
-            "startRecord", "stopRecord", "addEtherwarp", "addBreaker", "addUse", "addWalk", "addBoom", "addAwait",
-            "addStart", "editDb", "clear", "list", "deleteLast", "reload");
+    /** Built from {@link AutoRoutesCommands.Action} so the stored ids ARE the ids the tab and keybinds use.
+     *  The hand-written list had a different naming scheme ("startRecord" vs "start_record"), so the settings
+     *  file carried 14 permanently unbound entries alongside the 14 real ones (2026-09-16 review). */
+    public static final java.util.List<String> KEYBIND_IDS = java.util.Arrays.stream(
+                    com.killer560.hub.autoroutes.AutoRoutesCommands.Action.values())
+            .map(a -> a.id)
+            .toList();
 
     public static final float MIN_THICKNESS = 1f;
     public static final float MAX_THICKNESS = 8f;

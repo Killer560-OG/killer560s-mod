@@ -178,13 +178,9 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         w.add(stop);
         y[0] += 24;
 
-        if (safe(RouteExecutor::isRunning)) {
-            w.add(SettingsButtonWidget.builder(Component.literal("§cStop Route"), btn -> {
-                        RouteExecutor.stop("stopped from settings");
-                        rebuild.run();
-                    }).bounds(x, y[0], half, 20).build());
-            y[0] += 24;
-        }
+        // No "Stop Route" button here on purpose: RouteExecutor stops on ANY screen opening, this one
+        // included, so a route can never still be running by the time this tab draws. The button was
+        // unreachable and its tooltip described something nobody could ever see (2026-09-16 review).
         label(w, x, y, width, "§7Stand on the node the route should start from, Start, run the room, Stop. Chat commands: /ar");
     }
 
@@ -319,9 +315,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         if (safe(RouteRecorder::isRecording)) {
             return "§aRecording " + AutoRoutesCommands.roomName() + "... §7Stop when you've finished the room.";
         }
-        if (safe(RouteExecutor::isRunning)) {
-            return "§aRoute running in " + AutoRoutesCommands.roomName() + ".";
-        }
         if (safe(AutoRoutesFeature::isEditMode)) {
             return "§eBreaker edit mode - right-click blocks to add, shift-right-click to remove.";
         }
@@ -361,17 +354,10 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     /** The picker's "reset" colour per node type - killer560's examples: "superboom nodes red, bat nodes
      *  bat-coloured" (a Spirit Sceptre use node, so a dark bat-purple). Mirror any change in the core config. */
+    /** Delegates rather than keeping a second table - the duplicate had drifted from the shipped defaults
+     *  for seven node types, so "reset" set a colour that was never the default (2026-09-16 review). */
     private static int defaultColor(RouteNode.Type type) {
-        return switch (type) {
-            case BOOM -> 0xFFFF3333;
-            case USE_ITEM -> 0xFF8A5CBF;
-            case ETHERWARP -> 0xFF00FFFF;
-            case DUNGEON_BREAKER -> 0xFFFFAA00;
-            case START -> 0xFF55FF55;
-            case WALK -> 0xFFFFFFFF;
-            case AWAIT -> 0xFFFFFF55;
-            default -> 0xFFCC6600;
-        };
+        return AutoRoutesConfig.defaultNodeColor(type);
     }
 
     private static void openRoutesFolder() {

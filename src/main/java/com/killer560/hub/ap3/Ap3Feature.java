@@ -297,6 +297,115 @@ public final class Ap3Feature {
         return deleteNode(nodes.size() - 1);
     }
 
+    // ---- in-place editing (killer560: "make it easier to edit them") ----
+    // All 0-BASED indices here, like deleteNode; the command layer and the tab convert from the 1-based number
+    // the player sees. Every one of these stops a running chain (the executor holds a node index) and saves.
+
+    /**
+     * Moves node {@code index} to {@code newIndex} in the chain being edited, shifting the nodes in between -
+     * "move up" is {@code index - 1}, "move down" is {@code index + 1}. The node object keeps its identity, so
+     * the tab's edit page can stay open on it across the move.
+     */
+    public static boolean moveNode(int index, int newIndex) {
+        Ap3Chain chain = currentChain();
+        if (chain == null || index < 0 || index >= chain.nodes().size()) {
+            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+            return false;
+        }
+        int size = chain.nodes().size();
+        int target = Math.max(0, Math.min(size - 1, newIndex));
+        if (target == index) {
+            chat(ModChat.text("#" + (index + 1) + " is already "),
+                    ModChat.value(target == 0 ? "first" : target == size - 1 ? "last" : "#" + (target + 1)),
+                    ModChat.text("."));
+            return false;
+        }
+        Ap3Node node = chain.nodes().remove(index);
+        chain.nodes().add(target, node);
+        saveChains();
+        chat(ModChat.text("Moved "), ModChat.value("#" + (index + 1) + " " + node.type.label()),
+                ModChat.text(" to "), ModChat.value("#" + (target + 1)), ModChat.dim(" in " + chain.label()));
+        return true;
+    }
+
+    /**
+     * Re-places node {@code index} where you stand and/or look, without deleting and re-adding it (which would
+     * also lose its number in the chain and every modifier on it). {@code position} = snapped feet position,
+     * {@code look} = yaw/pitch. An AXIS_LINE re-measures its wall when the position moves and is left untouched
+     * when no wall is found, same rule as placing one.
+     */
+    public static boolean replaceNode(int index, boolean position, boolean look) {
+        Ap3Chain chain = currentChain();
+        if (chain == null || index < 0 || index >= chain.nodes().size()) {
+            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null) {
+            return false;
+        }
+        if (!isP3Live()) {
+            chatBad("Not in F7/M7 Phase 3 - nodes are placed in the boss arena only.");
+            return false;
+        }
+        if (!position && !look) {
+            return false;
+        }
+        Ap3Node node = chain.nodes().get(index);
+        // Work on a copy so a refused wall measurement leaves the real node exactly as it was.
+        Ap3Node probe = node.copy();
+        if (position) {
+            Vec3 pos = player.position();
+            probe.x = Ap3Node.snapXZ(pos.x);
+            probe.y = Ap3Node.snapY(pos.y);
+            probe.z = Ap3Node.snapXZ(pos.z);
+        }
+        if (look) {
+            // Stored yaw is DATA (Rotation 360 rule) - wrapped for the file, never written back to the player.
+            probe.yaw = Mth.wrapDegrees(player.getYRot());
+            probe.pitch = Mth.clamp(player.getXRot(), -90f, 90f);
+        }
+        if (node.type == Ap3Node.Type.AXIS_LINE) {
+            // The wall is measured from the node's position along its yaw, so either change can move it.
+            Ap3Executor.measureWall(client.level, player, probe);
+            if (probe.wallAxis == Ap3Node.WallAxis.NONE) {
+                chatBad("No wall within 8 blocks in front / left / right - #" + (index + 1) + " was not moved.");
+                return false;
+            }
+        }
+        node.x = probe.x;
+        node.y = probe.y;
+        node.z = probe.z;
+        node.yaw = probe.yaw;
+        node.pitch = probe.pitch;
+        node.wallAxis = probe.wallAxis;
+        node.wallDistance = probe.wallDistance;
+        saveChains();
+        chat(ModChat.text(position ? "Re-placed " : "Re-aimed "), ModChat.value("#" + (index + 1) + " " + node.describe()),
+                ModChat.dim(" in " + chain.label()));
+        return true;
+    }
+
+    /**
+     * Applies {@code edit} to node {@code index}, saves, and prints one "Set #n ..." line - the command form of a
+     * field edit ({@code /ap3 set <n> length 4}). The tab's sliders call {@link #saveChains()} directly instead:
+     * a slider fires on every pixel of a drag and must not print a chat line per pixel.
+     */
+    public static boolean editNode(int index, String what, java.util.function.Consumer<Ap3Node> edit) {
+        Ap3Chain chain = currentChain();
+        if (chain == null || index < 0 || index >= chain.nodes().size()) {
+            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+            return false;
+        }
+        Ap3Node node = chain.nodes().get(index);
+        edit.accept(node);
+        saveChains();
+        chat(ModChat.text("Set "), ModChat.value("#" + (index + 1) + " " + what),
+                ModChat.dim(" - " + node.describe()));
+        return true;
+    }
+
     /** Removes the whole chain being edited. @return true when one existed. */
     public static boolean clearCurrentChain() {
         if (currentSectionNumber() == 0) {
@@ -556,7 +665,7 @@ public final class Ap3Feature {
     /** 1-BASED, to match /ap3 list, /ap3 delete, the world labels and the tab. */
     private static int breakerIndex() {
         Ap3Chain chain = currentChain();
-        return chain == null || editBreakerNode == null ? -1 : chain.indexOf(editBreakerNode) + 1;
+        return chain == null || editBreakerNode == null ? -1 : chain.numberOf(editBreakerNode);
     }
 
     static void chat(Component... parts) {

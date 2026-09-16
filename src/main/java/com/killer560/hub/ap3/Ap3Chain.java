@@ -46,6 +46,23 @@ public final class Ap3Chain {
         return nodes.indexOf(node);
     }
 
+    /**
+     * The 1-BASED number of {@code node} - the ONE number every player-visible surface shows for it: the world
+     * label, {@code /ap3 list}, {@code /ap3 delete <n>}, the tab rows and the edit page. killer560: "the very
+     * first node is 1 the second is 2 and so on". 0 when the node is not in this chain. Everything that prints a
+     * node number goes through here or {@code index + 1} on this list, never a recomputed offset - this feature
+     * has already had one 0/1-based mismatch found in review.
+     */
+    public int numberOf(Ap3Node node) {
+        int i = nodes.indexOf(node);
+        return i < 0 ? 0 : i + 1;
+    }
+
+    /** Whether {@code node} is one of this chain's nodes (by identity - a copy is a different node). */
+    public boolean contains(Ap3Node node) {
+        return node != null && nodes.indexOf(node) >= 0;
+    }
+
     /** Stable file key: {@code "S3"} or {@code "S3:MAGE"}. */
     public String key() {
         return key(section, classFilter);

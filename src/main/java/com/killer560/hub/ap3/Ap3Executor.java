@@ -1189,7 +1189,7 @@ public final class Ap3Executor {
 
     /** 1-BASED, to match /ap3 list, /ap3 delete, the world labels and the tab. */
     private static int number(Ap3Node node) {
-        return chain == null ? -1 : chain.indexOf(node) + 1;
+        return chain == null ? -1 : chain.numberOf(node);
     }
 
     /** Selects the hotbar slot (client + {@code ServerboundSetCarriedItemPacket}) and reports true once it is the

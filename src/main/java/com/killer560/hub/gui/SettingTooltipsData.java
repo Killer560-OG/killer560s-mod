@@ -316,7 +316,6 @@ final class SettingTooltipsData {
         d.put("recording", "Cheat build only. Record a route: stand on the node it should start from, Start, run the room how you want it replayed, Stop. Same as /ar start record and /ar stop record.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room from where you're standing. Same as /ar start record.");
         d.put("stop recording", "Stops the recording and saves it as this room's route. Same as /ar stop record.");
-        d.put("stop route", "Stops the route that's playing back right now.");
         d.put("nodes", "The nodes of the route for the room you're standing in, in order. Delete removes one; /ar list prints the same list in chat.");
         d.put("edit breaker blocks", "Breaker edit mode: right-click a block to add it to the dungeon breaker node, shift-right-click to remove it. Your held item won't fire while this is on. Same as /ar edit db.");
         d.put("list in chat", "Prints this room's nodes in chat with their numbers, for /ar delete <n>.");
@@ -334,7 +333,7 @@ final class SettingTooltipsData {
         d.put("use item colour", "Marker colour for use-item nodes (Spirit Sceptre, pearls, and so on).");
         d.put("walk colour", "Marker colour for walk nodes.");
         d.put("boom colour", "Marker colour for superboom nodes.");
-        d.put("await colour", "Marker colour for await nodes (wait for a secret, a delay, the room to clear).");
+        d.put("await colour", "Colour of Await nodes - the ones that hold the route until a secret is collected or a delay passes.");
         d.put("start colour", "Marker colour for start nodes - the node a route arms from.");
         d.put("rotate colour", "Marker colour for rotate nodes.");
         d.put("unsneak colour", "Marker colour for unsneak nodes.");

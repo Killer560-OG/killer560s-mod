@@ -71,8 +71,13 @@ public final class Ap3Renderer {
                 }
             }
             if (cfg.isShowLabels() && playerPos.distanceTo(real) <= LABEL_DISTANCE) {
-                // 1-based, same as /ap3 list and /ap3 delete - the number on the label has to be the number you can type.
-                renderLabel(ctx, camera, real.x, real.y + height + 0.35, real.z, label(i + 1, node), argb | 0xFF000000);
+                // 1-based through the chain's own helper, same as /ap3 list, /ap3 delete and the tab - the number
+                // on the label has to be the number you can type (AutoRoutesRenderer does the same).
+                String text = label(cfg, chain.numberOf(node), node);
+                if (!text.isEmpty()) {
+                    renderLabel(ctx, camera, real.x, real.y + height + 0.35 + cfg.getLabelHeightOffset(), real.z,
+                            text, cfg.labelColorFor(node, argb), cfg.getLabelScale());
+                }
             }
         }
         if (chainLine.size() >= 2) {
@@ -84,19 +89,45 @@ public final class Ap3Renderer {
         }
     }
 
-    private static String label(int number, Ap3Node node) {
-        StringBuilder sb = new StringBuilder("#").append(number).append(' ').append(node.type.label());
-        switch (node.type) {
-            case LINE, AXIS_LINE -> sb.append(String.format(Locale.US, " %.1f x %.1f", node.length, node.width));
-            case WALK, RUN -> sb.append(String.format(Locale.US, " %.1f", node.length));
-            case WAIT -> sb.append(' ').append(node.waitMs).append("ms");
-            case LEAP -> sb.append(' ').append(node.leapDescription());
-            case LEAP_DETECTOR -> sb.append(" x").append(node.leapCount);
-            case BREAKER -> sb.append(' ').append(node.breakerBlocks.size()).append(" blk");
-            default -> {
+    /**
+     * "#3 Line 4.0 x 1.0" with each part behind its own toggle: the 1-based number (killer560: "the very first node
+     * is 1 the second is 2 and so on"), the type name, and the per-type detail. Empty when every part is off, so
+     * the caller draws nothing rather than a blank label.
+     */
+    static String label(Ap3Config cfg, int number, Ap3Node node) {
+        StringBuilder sb = new StringBuilder();
+        if (cfg.isShowNodeNumbers() && number > 0) {
+            sb.append('#').append(number);
+        }
+        if (cfg.isShowNodeType()) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(node.type.label());
+        }
+        if (cfg.isShowNodeDetails()) {
+            String detail = detail(node);
+            if (!detail.isEmpty()) {
+                if (sb.length() > 0) {
+                    sb.append(' ');
+                }
+                sb.append(detail);
             }
         }
         return sb.toString();
+    }
+
+    /** The per-type modifier only ("4.0 x 1.0", "500ms", "x2"); empty for types without one. */
+    private static String detail(Ap3Node node) {
+        return switch (node.type) {
+            case LINE, AXIS_LINE -> String.format(Locale.US, "%.1f x %.1f", node.length, node.width);
+            case WALK, RUN -> String.format(Locale.US, "%.1f", node.length);
+            case WAIT -> node.waitMs + "ms";
+            case LEAP -> node.leapDescription();
+            case LEAP_DETECTOR -> "x" + node.leapCount;
+            case BREAKER -> node.breakerBlocks.size() + " blk";
+            default -> "";
+        };
     }
 
     /** The active span (centre line, tail to length) and the tolerance band (edges at +-width/2). */
@@ -155,9 +186,10 @@ public final class Ap3Renderer {
         }
     }
 
-    /** Camera-facing text at a world position - {@code posmsg/PosmsgRenderer.renderLabel}. */
+    /** Camera-facing text at a world position - {@code posmsg/PosmsgRenderer.renderLabel}, including its
+     *  {@code textScale} multiplier on top of the distance-based size. */
     private static void renderLabel(LevelRenderContext ctx, Camera camera, double x, double y, double z, String text,
-                                    int color) {
+                                    int color, float textScale) {
         var bufferSource = ctx.bufferSource();
         PoseStack poseStack = ctx.poseStack();
         if (bufferSource == null || poseStack == null || text == null || text.isBlank()) {
@@ -166,7 +198,7 @@ public final class Ap3Renderer {
         Font font = Minecraft.getInstance().font;
         Vec3 cam = camera.position();
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
-        float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
+        float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0)) * Math.max(0.05f, textScale);
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);

@@ -196,7 +196,7 @@ public final class RouteRecorder {
         // ---- clicks (only with no screen open, so GUI clicks don't count) ----
         boolean useDown = client.options.keyUse.isDown();
         boolean attackDown = client.options.keyAttack.isDown();
-        if (client.screen == null) {
+        if (client.screen == null && !AutoRoutesFeature.isEditMode()) {
             if (useDown && !useWasDown) {
                 onRightClick(player, sampleIndex);
             }

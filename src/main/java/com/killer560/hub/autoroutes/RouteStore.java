@@ -39,7 +39,7 @@ import java.util.Map;
  * </pre>
  * Loading is defensive because this file is meant to be handed around: node/sample counts and string lengths are
  * capped, NaN/infinite/absurd coordinates are dropped, a malformed node is skipped (the rest of the room loads), and
- * a file whose parse fails is copied aside as {@code killer560smod-autoroutes.broken-<time>.json} and never saved
+ * a file whose parse fails is copied aside as {@code killer560smod-autoroutes.broken.json (plus a timestamped sibling for any later, different corruption)} and never saved
  * over - the same rule {@code routes/RouteStore} and {@code posmsg/PosmsgConfig} follow.
  */
 public final class RouteStore {
@@ -146,6 +146,12 @@ public final class RouteStore {
                     Path backup = file.resolveSibling("killer560smod-autoroutes.broken.json");
                     if (!Files.exists(backup)) {
                         Files.copy(file, backup);
+                    } else if (Files.mismatch(file, backup) != -1L) {
+                        // A DIFFERENT corruption than the one already kept. Skipping it meant the next
+                        // /ar add cleared parseFailed and saved straight over it, losing the file with no
+                        // backup at all (2026-09-16 review).
+                        Files.copy(file, file.resolveSibling(
+                                "killer560smod-autoroutes.broken-" + System.currentTimeMillis() + ".json"));
                     }
                 } catch (Exception backupError) {
                     LOGGER.warn("[AutoRoutes] Could not back up the unreadable routes file", backupError);

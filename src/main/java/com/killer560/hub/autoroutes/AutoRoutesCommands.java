@@ -66,7 +66,7 @@ public final class AutoRoutesCommands {
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
         /** The command takes a number; a key can't, so the keybind deletes the LAST node (the one you just added). */
-        DELETE_LAST("delete", "Delete Last Node", "/ar delete <n>"),
+        DELETE_LAST("delete", "Delete Node (key: last)", "/ar delete <n>"),
         RELOAD("reload", "Reload Routes File", "/ar reload");
 
         public final String id;
@@ -215,9 +215,7 @@ public final class AutoRoutesCommands {
     private static void startRecord() {
         String status = RouteRecorder.startRecording();
         if (status == null) {
-            ModChat.send(FEATURE, ModChat.bad("Couldn't start recording"),
-                    ModChat.text(" - stand in a dungeon room on the node you want the route to start from."));
-            return;
+            return; // the recorder said why - "already recording", "room not identified yet", ...
         }
         ModChat.send(FEATURE, ModChat.text(status));
     }
@@ -233,14 +231,20 @@ public final class AutoRoutesCommands {
 
     private static void add(RouteNode.Type type) {
         // The recorder owns where the node lands (look target for etherwarp, feet for walk, held item for use...)
-        // and reports its own failures; this just confirms and nudges toward the next step where there is one.
-        RouteRecorder.addNode(type);
+        // and returns null having already said why when it refuses. This used to ignore that and print
+        // "Added Use Item node" straight after "Hold the item to use first." (2026-09-16 review) - and threw
+        // away the detail the recorder had earned: the matched item id, the await condition, and the
+        // "no etherwarpable block in sight" warning.
+        String status = RouteRecorder.addNode(type);
+        if (status == null) {
+            return;
+        }
         Component tail = switch (type) {
-            case DUNGEON_BREAKER -> ModChat.dim(" node - /ar edit db, then right-click its blocks.");
-            case USE_ITEM -> ModChat.dim(" node - matched on the item you're holding right now.");
-            default -> ModChat.text(" node.");
+            case DUNGEON_BREAKER -> ModChat.dim(" - /ar edit db, then right-click its blocks.");
+            case USE_ITEM -> ModChat.dim(" - matched on the item, not the slot.");
+            default -> ModChat.text("");
         };
-        ModChat.send(FEATURE, ModChat.text("Added "), ModChat.value(typeName(type)), tail);
+        ModChat.send(FEATURE, ModChat.text(status), tail);
     }
 
     /**
@@ -382,23 +386,16 @@ public final class AutoRoutesCommands {
     }
 
     /** "Dungeon Breaker", "Use Item", ... from the enum constant. */
+    /** One name per node type everywhere - this used to say "Boom" while the world label, the colour button
+     *  and the keybind row all said "Superboom" (2026-09-16 review). */
     public static String typeName(RouteNode.Type type) {
-        String[] words = type.name().toLowerCase(Locale.ROOT).split("_");
-        StringBuilder sb = new StringBuilder();
-        for (String w : words) {
-            if (w.isEmpty()) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append(' ');
-            }
-            sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
-        }
-        return sb.toString();
+        return type.label();
     }
 
-    /** One-line description of a node for {@code /ar list} and the tab's node rows. */
+    /** One-line description of a node for {@code /ar list} and the tab's node rows. Delegates to the node's
+     *  own describe(), which carries the item id, block count, await amount and coordinates - this used to
+     *  return the bare type name and throw all of that away (2026-09-16 review). */
     public static String describe(RouteNode node) {
-        return typeName(node.type());
+        return node.describe();
     }
 }

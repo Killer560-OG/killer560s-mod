@@ -1,9 +1,12 @@
 package com.killer560.hub.ap3;
 
 import com.google.gson.JsonParser;
+import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.ModChat;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.minecraft.client.Minecraft;
@@ -85,6 +88,9 @@ public final class Ap3Commands {
         LIST("list", "List Chain", "/ap3 list"),
         /** The command takes a number; a key can't, so the keybind deletes the LAST node (the one you just added). */
         DELETE_LAST("delete", "Delete Last Chain Node", "/ap3 delete <n>"),
+        /** Same shape: the key re-places the LAST node where you now stand and look - "I added it, stepped to a
+         *  better spot" without a delete + add that would lose the node's modifiers. */
+        REPLACE_LAST("replace_last", "Re-place Last Chain Node", "/ap3 replace <n> [pos|look]"),
         CLEAR("clear", "Clear Chain", "/ap3 clear"),
         RELOAD("reload", "Reload Chains File", "/ap3 reload"),
         START("start", "Start Chain", "/ap3 start"),
@@ -159,8 +165,93 @@ public final class Ap3Commands {
                                         .executes(context -> {
                                             int n = IntegerArgumentType.getInteger(context, "n");
                                             return guarded(() -> delete(n - 1)) ? 1 : 0;
-                                        })))));
+                                        })))
+                        // ---- in-place editing (killer560: "make it easier to edit them"). Every <n> and <m> is
+                        // the 1-based number "/ap3 list" and the world labels show; converted to 0-based right here.
+                        // "/ap3 move <n> up|down|to <m>"
+                        .then(ClientCommands.literal("move")
+                                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
+                                        .then(ClientCommands.literal("up").executes(context -> {
+                                            int n = IntegerArgumentType.getInteger(context, "n");
+                                            return move(n - 1, n - 2) ? 1 : 0;
+                                        }))
+                                        .then(ClientCommands.literal("down").executes(context -> {
+                                            int n = IntegerArgumentType.getInteger(context, "n");
+                                            return move(n - 1, n) ? 1 : 0;
+                                        }))
+                                        .then(ClientCommands.literal("to")
+                                                .then(ClientCommands.argument("m", IntegerArgumentType.integer(1))
+                                                        .executes(context -> {
+                                                            int n = IntegerArgumentType.getInteger(context, "n");
+                                                            int m = IntegerArgumentType.getInteger(context, "m");
+                                                            return move(n - 1, m - 1) ? 1 : 0;
+                                                        })))))
+                        // "/ap3 replace <n>" = position AND look; "pos" / "look" for just one half.
+                        .then(ClientCommands.literal("replace")
+                                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
+                                        .executes(context -> replace(IntegerArgumentType.getInteger(context, "n") - 1, true, true) ? 1 : 0)
+                                        .then(ClientCommands.literal("pos").executes(context ->
+                                                replace(IntegerArgumentType.getInteger(context, "n") - 1, true, false) ? 1 : 0))
+                                        .then(ClientCommands.literal("look").executes(context ->
+                                                replace(IntegerArgumentType.getInteger(context, "n") - 1, false, true) ? 1 : 0))))
+                        // "/ap3 set <n> length|width|wait|count|leap|colour ..." - the per-type modifiers.
+                        .then(ClientCommands.literal("set")
+                                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
+                                        .then(ClientCommands.literal("length")
+                                                .then(ClientCommands.argument("v", DoubleArgumentType.doubleArg(Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH))
+                                                        .executes(context -> setLength(
+                                                                IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                DoubleArgumentType.getDouble(context, "v")) ? 1 : 0)))
+                                        .then(ClientCommands.literal("width")
+                                                .then(ClientCommands.argument("v", DoubleArgumentType.doubleArg(Ap3Node.MIN_WIDTH, Ap3Node.MAX_WIDTH))
+                                                        .executes(context -> setWidth(
+                                                                IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                DoubleArgumentType.getDouble(context, "v")) ? 1 : 0)))
+                                        .then(ClientCommands.literal("wait")
+                                                .then(ClientCommands.argument("ms", IntegerArgumentType.integer(MIN_WAIT_MS, MAX_WAIT_MS))
+                                                        .executes(context -> setWaitMs(
+                                                                IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                IntegerArgumentType.getInteger(context, "ms")) ? 1 : 0)))
+                                        .then(ClientCommands.literal("count")
+                                                .then(ClientCommands.argument("k", IntegerArgumentType.integer(1, Ap3Node.MAX_LEAP_COUNT))
+                                                        .executes(context -> setLeapCount(
+                                                                IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                IntegerArgumentType.getInteger(context, "k")) ? 1 : 0)))
+                                        .then(ClientCommands.literal("leap")
+                                                .then(ClientCommands.literal("default").executes(context -> setLeap(
+                                                        IntegerArgumentType.getInteger(context, "n") - 1,
+                                                        Ap3Node.LeapMode.DEFAULT, null, null) ? 1 : 0))
+                                                .then(ClientCommands.literal("class")
+                                                        .then(ClientCommands.argument("c", StringArgumentType.word())
+                                                                .executes(context -> setLeap(
+                                                                        IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                        Ap3Node.LeapMode.CLASS,
+                                                                        DungeonClass.byName(StringArgumentType.getString(context, "c")), null) ? 1 : 0)))
+                                                .then(ClientCommands.literal("ign")
+                                                        .then(ClientCommands.argument("name", StringArgumentType.word())
+                                                                .executes(context -> setLeap(
+                                                                        IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                        Ap3Node.LeapMode.IGN, null,
+                                                                        StringArgumentType.getString(context, "name")) ? 1 : 0))))
+                                        .then(ClientCommands.literal("colour")
+                                                .then(ClientCommands.literal("reset").executes(context -> setColour(
+                                                        IntegerArgumentType.getInteger(context, "n") - 1, null) ? 1 : 0))
+                                                .then(ClientCommands.argument("hex", StringArgumentType.word())
+                                                        .executes(context -> setColour(
+                                                                IntegerArgumentType.getInteger(context, "n") - 1,
+                                                                StringArgumentType.getString(context, "hex")) ? 1 : 0)))))));
     }
+
+    /** The non-keybind commands, for {@link #help()} - they all take a node number, which a key can't carry. */
+    private static final String[][] EDIT_HELP = {
+            {"/ap3 move <n> up|down|to <m>", "Reorder a node"},
+            {"/ap3 replace <n> [pos|look]", "Re-place node n where you stand / look"},
+            {"/ap3 set <n> length|width <v>", "Line / Axis Line / Walk / Run size"},
+            {"/ap3 set <n> wait <ms>", "Wait node delay"},
+            {"/ap3 set <n> count <k>", "Leap Detector: teammates that must leap"},
+            {"/ap3 set <n> leap default|class <c>|ign <name>", "Leap node target"},
+            {"/ap3 set <n> colour <hex>|reset", "Per-node marker colour"},
+    };
 
     private static int exec(Action action) {
         run(action);
@@ -221,6 +312,7 @@ public final class Ap3Commands {
             case EDIT_BREAKER -> toggleEditMode();
             case LIST -> list();
             case DELETE_LAST -> deleteLast();
+            case REPLACE_LAST -> replaceLast();
             case CLEAR -> clear();
             case RELOAD -> reload();
             case START -> startChain();
@@ -256,6 +348,10 @@ public final class Ap3Commands {
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
+        for (String[] line : EDIT_HELP) {
+            ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
+        }
+        ModChat.send(FEATURE, ModChat.dim("<n> is the node's number from /ap3 list and its world label (first node = 1)."));
     }
 
     // ---- actions ----
@@ -337,6 +433,136 @@ public final class Ap3Commands {
         if (!Ap3Feature.deleteNode(index)) {
             return;
         }
+    }
+
+    /** The keybind half of {@code /ap3 replace}: the LAST node, position and look, like the delete key. */
+    private static void replaceLast() {
+        int size = Ap3Feature.currentChainNodes().size();
+        if (size == 0) {
+            ModChat.send(FEATURE, ModChat.text("No nodes to re-place in "), ModChat.value(sectionName()), ModChat.text("."));
+            return;
+        }
+        Ap3Feature.replaceNode(size - 1, true, true);
+    }
+
+    // ---- in-place editing: 0-BASED indices, shared by the command tree and the tab's edit page ----
+    // Same contract as delete(): the range check lives here so the one chat line carries the number the player
+    // typed, and each goes through guarded() so a tab button gets the same gating + exception fence as a command.
+
+    /** {@code /ap3 move <n> ...} - the core does the shifting and prints the "Moved" line. */
+    public static boolean move(int index, int newIndex) {
+        return guarded(() -> {
+            if (!checkIndex(index)) {
+                return;
+            }
+            Ap3Feature.moveNode(index, newIndex);
+        });
+    }
+
+    /** {@code /ap3 replace <n> [pos|look]}. */
+    public static boolean replace(int index, boolean position, boolean look) {
+        return guarded(() -> {
+            if (!checkIndex(index)) {
+                return;
+            }
+            Ap3Feature.replaceNode(index, position, look);
+        });
+    }
+
+    public static boolean setLength(int index, double v) {
+        return edit(index, "length " + fmt(v), n -> n.type().isCorridor() || n.type().isMover(),
+                "length applies to Line, Axis Line, Walk and Run nodes", n -> n.setLength(v));
+    }
+
+    public static boolean setWidth(int index, double v) {
+        return edit(index, "width " + fmt(v), n -> n.type().isCorridor(),
+                "width applies to Line and Axis Line nodes", n -> n.setWidth(v));
+    }
+
+    public static boolean setWaitMs(int index, int ms) {
+        return edit(index, "wait " + ms + " ms", n -> n.type() == Ap3Node.Type.WAIT,
+                "wait applies to Wait nodes", n -> n.setWaitMs(ms));
+    }
+
+    public static boolean setLeapCount(int index, int k) {
+        return edit(index, "count " + k, n -> n.type() == Ap3Node.Type.LEAP_DETECTOR,
+                "count applies to Leap Detector nodes", n -> n.setLeapCount(k));
+    }
+
+    /** {@code /ap3 set <n> leap default | class <c> | ign <name>} - the same three modes a leap node is added with. */
+    public static boolean setLeap(int index, Ap3Node.LeapMode mode, DungeonClass clazz, String ign) {
+        if (mode == Ap3Node.LeapMode.CLASS && clazz == null) {
+            ModChat.send(FEATURE, ModChat.bad("Unknown class"), ModChat.text(" - mage / archer / berserk / tank / healer."));
+            return false;
+        }
+        String cleanIgn = ign == null || ign.isBlank() ? null : ign.trim();
+        if (mode == Ap3Node.LeapMode.IGN && cleanIgn == null) {
+            ModChat.send(FEATURE, ModChat.bad("Leap IGN missing."));
+            return false;
+        }
+        String what = switch (mode) {
+            case CLASS -> "leap -> " + clazz.displayName();
+            case IGN -> "leap -> " + cleanIgn;
+            default -> "leap -> Fast Leap target";
+        };
+        return edit(index, what, n -> n.type() == Ap3Node.Type.LEAP, "the leap target applies to Leap nodes", n -> {
+            n.leapMode = mode;
+            n.leapClass = mode == Ap3Node.LeapMode.CLASS ? clazz : null;
+            n.leapIgn = mode == Ap3Node.LeapMode.IGN ? cleanIgn : null;
+        });
+    }
+
+    /** {@code /ap3 set <n> colour <hex>|reset}: "RRGGBB" or "AARRGGBB", '#' optional; null clears the override. */
+    public static boolean setColour(int index, String hex) {
+        Integer argb = null;
+        if (hex != null) {
+            String t = hex.trim();
+            if (t.startsWith("#")) {
+                t = t.substring(1);
+            }
+            try {
+                if (t.length() != 6 && t.length() != 8) {
+                    throw new NumberFormatException();
+                }
+                long v = Long.parseLong(t, 16);
+                argb = (int) (t.length() == 6 ? v | 0xFF000000L : v);
+            } catch (NumberFormatException e) {
+                ModChat.send(FEATURE, ModChat.bad("Bad colour "), ModChat.value(hex),
+                        ModChat.text(" - use RRGGBB hex (e.g. FFA040) or \"reset\"."));
+                return false;
+            }
+        }
+        Integer picked = argb;
+        return edit(index, picked == null ? "colour reset" : String.format(Locale.ROOT, "colour #%06X", picked & 0xFFFFFF),
+                n -> true, "", n -> n.colour = picked);
+    }
+
+    /** One field edit: index check, "does this type have that field" check, then the core applies + saves + prints. */
+    private static boolean edit(int index, String what, java.util.function.Predicate<Ap3Node> applies, String why,
+                                java.util.function.Consumer<Ap3Node> change) {
+        return guarded(() -> {
+            if (!checkIndex(index)) {
+                return;
+            }
+            Ap3Node node = Ap3Feature.currentChainNodes().get(index);
+            if (!applies.test(node)) {
+                ModChat.send(FEATURE, ModChat.bad("#" + (index + 1) + " is a " + typeName(node.type()) + " node"),
+                        ModChat.text(" - " + why + "."));
+                return;
+            }
+            Ap3Feature.editNode(index, what, change);
+        });
+    }
+
+    /** Range check with the player's own number in the message; 0-based in, 1-based out. */
+    private static boolean checkIndex(int index) {
+        List<Ap3Node> nodes = Ap3Feature.currentChainNodes();
+        if (index < 0 || index >= nodes.size()) {
+            ModChat.send(FEATURE, ModChat.bad("No node #" + (index + 1)),
+                    ModChat.text(nodes.isEmpty() ? " - the chain is empty." : " - there are " + nodes.size() + "."));
+            return false;
+        }
+        return true;
     }
 
     private static void clear() {

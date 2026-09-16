@@ -69,6 +69,9 @@ public final class AutoRoutesFeature {
     private static boolean mapArrivalGuard;
     /** Set while a map / Blood Rush teleport is in flight, so the room change it causes doesn't clear the guard. */
     private static boolean arrivedByTeleport;
+    /** Ticks after a teleport finishes before {@link #arrivedByTeleport} is dropped, to outlast LiveMap's room-identity lag. */
+    private static final int TELEPORT_SETTLE_TICKS = 5;
+    private static int teleportSettleTicks;
     private static boolean externalTeleport;
     /** The node the player is currently standing in (so a finished route doesn't instantly re-arm underfoot). */
     private static RouteNode latchedNode;
@@ -183,7 +186,7 @@ public final class AutoRoutesFeature {
     public static boolean deleteNode(int index) {
         Route route = currentRoute();
         if (route == null || index < 0 || index >= route.nodes().size()) {
-            chatBad("No node #" + index + " in this room.");
+            chatBad("No node #" + (index + 1) + " in this room.");
             return false;
         }
         RouteNode removed = route.nodes().remove(index);
@@ -206,6 +209,9 @@ public final class AutoRoutesFeature {
         }
         if (RouteRecorder.isRecording()) {
             RouteRecorder.discard();
+        // A stop the player made must not outlive the run it happened in: it used to persist into the next
+        // dungeon and silently refuse to arm until they stepped off and back onto a node (2026-09-16 review).
+        RouteExecutor.clearStoppedByUser();
         }
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("route cleared");
@@ -213,8 +219,7 @@ public final class AutoRoutesFeature {
         editBreakerNode = null;
         boolean removed = RouteStore.getInstance().remove(frame.roomName());
         RouteStore.getInstance().save();
-        if (removed) {
-            } else {
+        if (!removed) {
             chatBad(frame.roomName() + " has no route.");
         }
         return removed;
@@ -228,6 +233,9 @@ public final class AutoRoutesFeature {
      * @return true when consumed (the caller skips its own pathing).
      */
     public static boolean onMapRoomClicked(DungeonLayout layout, int room) {
+        // Asking to be taken to the start node is as deliberate as typing /ar start: a stop the player made
+        // earlier must not make the route refuse to arm when they land (2026-09-16 review).
+        RouteExecutor.clearStoppedByUser();
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         if (!cfg.isEnabled() || layout == null || room < 0 || room != layout.currentRoom()) {
             return false;
@@ -320,6 +328,11 @@ public final class AutoRoutesFeature {
             // Interlock 3 + 4: closing the map re-arms from the START node only, and only the START node.
             mapWasOpen = false;
             mapArrivalGuard = true;
+            // The map is only closed by its key, so in Repress mode the whole warp can happen while it is
+            // still open - and the room change then arrived with arrivedByTeleport false, which cleared the
+            // very guard it should have kept. You cannot walk with a screen open, so any room change seen
+            // across a map-open span is a teleport (2026-09-16 review).
+            arrivedByTeleport = true;
             latchedNode = null;
         }
         hidden = false;
@@ -335,7 +348,14 @@ public final class AutoRoutesFeature {
             // exists to prevent (2026-09-16 review). Latch it so that branch knows the arrival was a
             // teleport, not walking in through a door.
             arrivedByTeleport = true;
+            teleportSettleTicks = TELEPORT_SETTLE_TICKS;
             return;
+        }
+        if (teleportSettleTicks > 0 && --teleportSettleTicks == 0) {
+            // A same-room warp (the map click that takes you to your own start node) never produces a room
+            // change, so the flag had nothing to clear it and start-only stayed enforced for one extra room
+            // afterwards. Clear it once the teleport has settled instead (2026-09-16 review).
+            arrivedByTeleport = false;
         }
         if (externalTeleport) {
             // Our start-node warp ended without its completion callback (no path found): release the queue.
@@ -361,6 +381,8 @@ public final class AutoRoutesFeature {
             }
             lastRoom = frame.roomName();
             latchedNode = null;
+            // New room, clean slate - see resetForWorld.
+            RouteExecutor.clearStoppedByUser();
             if (!externalTeleport && !arrivedByTeleport) {
                 mapArrivalGuard = false; // walked in through a door: mid-route entry is the toggle's call again
             }
@@ -406,12 +428,20 @@ public final class AutoRoutesFeature {
         }
         if (inside == null) {
             latchedNode = null;
-            // Clear of every node: a route the player stopped by hand may arm again from here.
+            // Clear of every node: a route the player stopped by hand - or that just finished on top of one -
+            // may arm again from here.
             RouteExecutor.clearStoppedByUser();
+            RouteExecutor.clearJustFinished();
             return;
         }
         if (inside == latchedNode) {
             return; // still standing where the last run started / ended
+        }
+        if (RouteExecutor.justFinished()) {
+            // Latch where the route ended without starting anything: otherwise the last node's action runs
+            // a second time the moment it finishes (2026-09-16 review).
+            latchedNode = inside;
+            return;
         }
         if (RouteExecutor.wasStoppedByUser()) {
             // The player took the controls back while standing inside a node. Re-arming here would mean
@@ -483,6 +513,7 @@ public final class AutoRoutesFeature {
         AutoRoutesEditInput.reset();
         editBreakerNode = null;
         arrivedByTeleport = false;
+        teleportSettleTicks = 0;
         latchedNode = null;
         lastRoom = null;
         mapWasOpen = false;
@@ -502,6 +533,13 @@ public final class AutoRoutesFeature {
     }
 
     private static Route currentRoute() {
+        // While recording, the live route is the recorder's - reading the saved one made /ar list show the
+        // previous route's nodes and /ar clear delete the saved route while the recording carried on
+        // (2026-09-16 review).
+        Route recording = RouteRecorder.recordingRoute();
+        if (recording != null) {
+            return recording;
+        }
         RouteCoords.Frame frame = RouteCoords.Frame.current();
         return frame == null ? null : RouteStore.getInstance().forRoom(frame.roomName());
     }
