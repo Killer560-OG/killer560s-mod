@@ -178,7 +178,9 @@ public class F7SpotsTab extends BaseTab {
         widgets.add(toggle(col2X, y, colW, "Show All Situations", cfg::isAimAllSituations, cfg::setAimAllSituations));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Arrow Stack Spots", cfg::isAimArrowStack, cfg::setAimArrowStack));
-        widgets.add(new ThemedSliderButton(col2X, y, colW, 18, sizeText(cfg),
+        widgets.add(toggle(col2X, y, colW, "Devonian LB Spots", cfg::isAimDevonianLb, cfg::setAimDevonianLb));
+        y += 22;
+        widgets.add(new ThemedSliderButton(contentX, y, colW, 18, sizeText(cfg),
                 (cfg.getAimSize() - F7SpotsConfig.MIN_AIM_SIZE) / (F7SpotsConfig.MAX_AIM_SIZE - F7SpotsConfig.MIN_AIM_SIZE)) {
             @Override
             protected void updateMessage() {

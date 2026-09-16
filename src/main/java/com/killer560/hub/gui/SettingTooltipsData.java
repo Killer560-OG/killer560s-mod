@@ -854,6 +854,7 @@ final class SettingTooltipsData {
         d.put("show all classes", "Shows every aim spot instead of only the ones tagged for your dungeon class.");
         d.put("show all situations", "Shows every aim spot regardless of which phase or dragon it's tagged for.");
         d.put("arrow stack spots", "Adds NoammAddons' optimal arrow-stack aim points for the five P5 dragons. Not Last Breath spots - stack positions.");
+        d.put("devonian lb spots", "Adds Devonian's five built-in Last Breath waypoints for the P5 dragons. Devonian marks an X/Z column, so the crosshair sits at the top of it (y 17).");
         d.put("new aim situation", "Which dragon/phase the NEXT added aim spot is tagged with. Auto uses where you are.");
         d.put("new aim class", "Which class the NEXT added aim spot is tagged for. Auto uses your class.");
         d.put("add aim spot here", "Saves the exact point your crosshair is on (your eye position if it's aimed at nothing) as an aim spot.");

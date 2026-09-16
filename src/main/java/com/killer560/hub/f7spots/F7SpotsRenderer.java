@@ -80,13 +80,17 @@ public final class F7SpotsRenderer {
 
     private static void renderAimSpots(LevelRenderContext context, F7SpotsConfig cfg, Player player, Camera camera) {
         List<AimSpot> spots = cfg.getAimSpots();
-        List<AimSpot> builtIn = cfg.isAimArrowStack() ? AimSpots.ARROW_STACK : List.of();
-        if (spots.isEmpty() && builtIn.isEmpty()) {
+        List<AimSpot> arrowStack = cfg.isAimArrowStack() ? AimSpots.ARROW_STACK : List.<AimSpot>of();
+        List<AimSpot> devonianLb = cfg.isAimDevonianLb() ? AimSpots.DEVONIAN_LB : List.<AimSpot>of();
+        if (spots.isEmpty() && arrowStack.isEmpty() && devonianLb.isEmpty()) {
             return;
         }
         DungeonClass self = P5State.selfClass();
         Floor7Tracker.Phase phase = currentPhase();
-        for (AimSpot spot : builtIn) {
+        for (AimSpot spot : arrowStack) {
+            drawAimSpot(context, cfg, player, camera, spot, self, phase);
+        }
+        for (AimSpot spot : devonianLb) {
             drawAimSpot(context, cfg, player, camera, spot, self, phase);
         }
         for (AimSpot spot : spots) {

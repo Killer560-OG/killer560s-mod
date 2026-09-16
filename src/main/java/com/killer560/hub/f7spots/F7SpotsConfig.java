@@ -95,6 +95,7 @@ public final class F7SpotsConfig {
     private boolean aimAllClasses = false;
     private boolean aimAllSituations = false;
     private boolean aimArrowStack = false;
+    private boolean aimDevonianLb = false;
     private float aimSize = 0.5f;
     private int aimColor = DEFAULT_AIM_COLOR;
     private final List<AimSpot> aimSpotList = new ArrayList<>();
@@ -143,6 +144,7 @@ public final class F7SpotsConfig {
             cfg.aimAllClasses = ConfigJson.getBool(obj, "aimAllClasses", false);
             cfg.aimAllSituations = ConfigJson.getBool(obj, "aimAllSituations", false);
             cfg.aimArrowStack = ConfigJson.getBool(obj, "aimArrowStack", false);
+            cfg.aimDevonianLb = ConfigJson.getBool(obj, "aimDevonianLb", false);
             cfg.setAimSize(ConfigJson.getFloat(obj, "aimSize", 0.5f));
             cfg.aimColor = ConfigJson.getInt(obj, "aimColor", DEFAULT_AIM_COLOR);
 
@@ -218,6 +220,7 @@ public final class F7SpotsConfig {
             obj.addProperty("aimAllClasses", aimAllClasses);
             obj.addProperty("aimAllSituations", aimAllSituations);
             obj.addProperty("aimArrowStack", aimArrowStack);
+            obj.addProperty("aimDevonianLb", aimDevonianLb);
             obj.addProperty("aimSize", aimSize);
             obj.addProperty("aimColor", aimColor);
 
@@ -352,6 +355,10 @@ public final class F7SpotsConfig {
     /** NoammAddons' arrow-stack aim points, see {@link AimSpots}. */
     public boolean isAimArrowStack() { return aimArrowStack; }
     public void setAimArrowStack(boolean v) { aimArrowStack = v; }
+
+    /** Devonian's Last Breath waypoints for the five P5 dragons, see {@link AimSpots#DEVONIAN_LB}. */
+    public boolean isAimDevonianLb() { return aimDevonianLb; }
+    public void setAimDevonianLb(boolean v) { aimDevonianLb = v; }
 
     public float getAimSize() { return aimSize; }
     public void setAimSize(float v) {
