@@ -275,6 +275,11 @@ final class SettingTooltipsData {
         d.put("wither bosses", "Cheat build only. Highlights the real Wither bosses (Maxor, Storm, Goldor, Necron) in the F7/M7 boss. Ignores Range.");
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");
+        d.put("terminal triggerbot", "Opens the P3 terminal your crosshair is already on, after the delay. Never moves your camera; Terminal Aura is the open-anything-in-range version.");
+        d.put("terminal aura", "Opens P3 terminals by itself when one comes within range. It only opens them - Auto Terminals is what solves them. Never rotates your camera.");
+        d.put("ground only", "Only acts while you are standing on the ground, never mid-air or mid-jump.");
+        d.put("leap delay", "Waits a moment after a Spirit Leap before opening anything, so you don't take the terminal the person you leapt to was walking into.");
+        d.put("leap delay time", "How long to wait after a leap before Terminal Aura opens anything.");
         d.put("through walls", "Cheat build only. Highlights targets even without line of sight and draws boxes through blocks. OFF only shows targets you can currently see.");
         d.put("diagnostic logging", "While in a dungeon, logs held-map changes to latest.log every 5 seconds. For map research only; draws nothing.");
         d.put("dump held map now", "Saves the raw 128x128 pixel data of the map you are holding to config/killer560smod-mapdumps for reverse-engineering.");

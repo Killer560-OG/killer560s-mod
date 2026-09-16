@@ -383,6 +383,8 @@ public final class ProfileManager {
                 com.killer560.hub.ticktimers.TickTimersConfig::load,
                 com.killer560.hub.trajectories.TrajectoriesConfig::load,
                 com.killer560.hub.leveraura.LeverAuraConfig::load,
+                com.killer560.hub.terminalaura.TerminalAuraConfig::load,
+                com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
                 com.killer560.hub.chunkcache.ChunkCacheConfig::load,
                 com.killer560.hub.pathfinding.PathfindingConfig::load,
                 com.killer560.hub.f7spots.F7SpotsConfig::load,

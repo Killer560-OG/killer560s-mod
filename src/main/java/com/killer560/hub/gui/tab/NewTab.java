@@ -115,6 +115,8 @@ public class NewTab extends FolderTab {
             tabs.add(new DungeonBreakerTab());
             tabs.add(new DioriteGlassTab());
             tabs.add(new LeverAuraTab());
+            tabs.add(new TerminalAuraTab());
+            tabs.add(new TerminalTriggerbotTab());
         }
         return tabs;
     }
