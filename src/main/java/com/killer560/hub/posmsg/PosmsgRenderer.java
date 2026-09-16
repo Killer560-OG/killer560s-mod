@@ -21,8 +21,8 @@ import java.util.List;
  * The ring is the real trigger boundary, not a decoration: its radius is exactly the distance
  * {@link PosmsgFeature} fires at, so "the circle lit up as I crossed it" and "the message went out"
  * are the same event. A second, taller ring is drawn at eye height so the circle is still findable
- * when you're looking across a room rather than at your feet, and the message text floats above the
- * middle. Depth-tested (no drawing through walls), same as Secret Waypoints and F7 Spots.
+ * when you're looking across a room rather than at your feet, and the message text sits on the waypoint
+ * itself. Depth-tested (no drawing through walls), same as Secret Waypoints and F7 Spots.
  */
 public final class PosmsgRenderer {
 
@@ -57,11 +57,15 @@ public final class PosmsgRenderer {
             // signal the chat line gives you, a tick before the chat line arrives.
             boolean standingInside = distance <= e.radius;
             float alpha = standingInside ? 1f : 0.65f;
-            float thickness = standingInside ? 3f : 2f;
+            // Per-waypoint line width, thickened slightly while you're inside so the crossing still reads.
+            float thickness = (float) Math.max(0.5, e.thickness) * (standingInside ? 1.5f : 1f);
             WorldRenderUtils.renderLineStrip(context, ring(e, GROUND_OFFSET), c[0], c[1], c[2], alpha, thickness);
-            WorldRenderUtils.renderLineStrip(context, ring(e, 1.6), c[0], c[1], c[2], alpha * 0.45f, 1.5f);
+            WorldRenderUtils.renderLineStrip(context, ring(e, 1.6), c[0], c[1], c[2], alpha * 0.45f,
+                    Math.max(0.5f, thickness * 0.6f));
             if (distance <= LABEL_DISTANCE) {
-                renderLabel(context, camera, e.x, e.y + 2.1, e.z, e.sendText(), e.color());
+                // Exactly on the waypoint, not floating above it (killer560, 2026-09-16: "Make the text
+                // not offset though from the waypoint"). SEE_THROUGH keeps it legible at floor level.
+                renderLabel(context, camera, e.x, e.y, e.z, e.sendText(), e.color());
             }
         }
     }

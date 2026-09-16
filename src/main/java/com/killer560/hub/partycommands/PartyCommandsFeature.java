@@ -213,7 +213,7 @@ public final class PartyCommandsFeature {
     /** Commands Hypixel only lets the party leader run - Odin gates these on {@code PartyUtils.isLeader()}. */
     private static boolean needsLeader(Command command) {
         return switch (command) {
-            case WARP, WARP_TRANSFER, ALL_INVITE, TRANSFER, KICK, REINVITE, DEMOTE, PROMOTE, QUEUE_INSTANCE -> true;
+            case WARP, WARP_TRANSFER, ALL_INVITE, TRANSFER, KICK, KICK_OFFLINE, REINVITE, DEMOTE, PROMOTE, QUEUE_INSTANCE -> true;
             default -> false;
         };
     }
@@ -244,6 +244,7 @@ public final class PartyCommandsFeature {
                 }
                 execute(command, sender, "p kick " + target, "kicked " + target);
             }
+            case KICK_OFFLINE -> execute(command, sender, "p kickoffline", "kicked the offline members");
             case REINVITE -> reinvite(sender);
             case DEMOTE -> execute(command, sender, "p demote " + sender, "demoted themself");
             case PROMOTE -> execute(command, sender, "p promote " + sender, "promoted themself");

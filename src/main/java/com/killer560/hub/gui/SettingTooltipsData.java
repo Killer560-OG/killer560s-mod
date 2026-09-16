@@ -247,6 +247,7 @@ final class SettingTooltipsData {
         d.put("set to my position", "Saves where you are standing as this waypoint's centre. Needed before the ring is drawn or the message can send.");
         d.put("show radius", "Draws the ring in the world. Off hides the ring; the waypoint still sends its message when you walk in.");
         d.put("radius", "Distance in blocks this waypoint or route point covers - for Posmsg it is both the ring you see and the distance that triggers the message.");
+        d.put("border thickness", "How thick the waypoint's ring is drawn. It thickens automatically while you are standing inside it.");
         d.put("only send once per run", "Off (default): sends every time you walk in. On: sends at most once per dungeon run.");
         d.put("color", "Colour used for this element. Click to change it.");
         d.put("ability timers", "Master switch: bound keys start countdowns and running timers show in the Ability Timers HUD list (hidden while a screen is open).");

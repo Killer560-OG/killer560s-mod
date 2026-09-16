@@ -31,6 +31,8 @@ public final class PosmsgEntry {
     public boolean configured = false;
     /** Draw the circle in the world. Off = the waypoint still fires, you just can't see its edge. */
     public boolean showRadius = true;
+    /** Line width of that circle, in the same units {@code WorldRenderUtils.renderLineStrip} takes. */
+    public double thickness = 2.0;
     /** Plain RGB hex, e.g. "CC6600" - no leading '#'. */
     public String colorHex = "CC6600";
     /** OFF by default: the waypoint fires every single time you walk into it. Turning it on limits it

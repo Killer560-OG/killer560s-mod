@@ -20,10 +20,12 @@ import java.util.Locale;
  *  Platform/P5, per killer560's list) plus any custom ones added here or via
  *  {@code /posmsg add <message> <x> <y> <z> <radius>}.
  *  <p>
- *  Controls per waypoint are exactly the seven killer560 asked for (2026-09-16): the message field with
- *  its Set button, Enabled, Set To My Position, Show Radius, Radius, Only Send Once Per Run, and the
- *  colour. The old Send button, "Show Display" and "Only If Inside" toggles are gone along with the
- *  top-left HUD list they belonged to - the ring in the world is the display now. */
+ *  Controls per waypoint are the ones killer560 asked for (2026-09-16): the message field with its Set
+ *  button, Enabled, Set To My Position, Show Radius, Radius, Border Thickness, Only Send Once Per Run,
+ *  and the colour. Enabled sits directly under the waypoint's title and collapses everything below it
+ *  when off, so an unused waypoint costs one line in a list that is already 8 entries long. The old Send
+ *  button, "Show Display" and "Only If Inside" toggles are gone along with the top-left HUD list they
+ *  belonged to - the ring in the world is the display now. */
 public class PosmsgTab extends BaseTab {
 
     private static final int ROW = 18;
@@ -76,6 +78,28 @@ public class PosmsgTab extends BaseTab {
                 Minecraft.getInstance().font));
         y += 14;
 
+        // Enabled sits directly under the title and collapses the rest of the waypoint when it's off
+        // (killer560, 2026-09-16) - with 8+ waypoints in one scrolling list, the ones you aren't using
+        // should take one line, not six.
+        widgets.add(SettingsButtonWidget.builder(onOff("Enabled", e.enabled), btn -> {
+                    e.enabled = !e.enabled;
+                    PosmsgConfig.getInstance().save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + GAP;
+
+        if (!e.enabled) {
+            // Delete still has to be reachable on a disabled custom waypoint, or it could never be removed.
+            if (!e.builtin) {
+                widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
+                            PosmsgConfig.getInstance().remove(e.id);
+                            requestRebuild.run();
+                        }).bounds(contentX, y, (contentWidth - GAP * 2) / 3, ROW).build());
+                y += ROW + GAP;
+            }
+            return y;
+        }
+
         // The message line first - it's the whole point of the waypoint, so it gets the widest row.
         int msgW = Math.max(1, contentWidth - SET_W - GAP);
         EditBox messageField = new EditBox(Minecraft.getInstance().font, contentX, y, msgW, ROW,
@@ -104,12 +128,6 @@ public class PosmsgTab extends BaseTab {
         int col3 = contentX + (colW + GAP) * 2;
         int col3W = Math.max(1, contentWidth - (colW + GAP) * 2);
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Enabled", e.enabled), btn -> {
-                    e.enabled = !e.enabled;
-                    PosmsgConfig.getInstance().save();
-                    btn.setMessage(onOff("Enabled", e.enabled));
-                }).bounds(col1, y, colW, ROW).build());
-
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set To My Position"), btn -> {
                     var player = Minecraft.getInstance().player;
                     if (player != null) {
@@ -120,19 +138,25 @@ public class PosmsgTab extends BaseTab {
                         PosmsgConfig.getInstance().save();
                         requestRebuild.run();
                     }
-                }).bounds(col2, y, colW, ROW).build());
+                }).bounds(col1, y, colW, ROW).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Show Radius", e.showRadius), btn -> {
                     e.showRadius = !e.showRadius;
                     PosmsgConfig.getInstance().save();
                     btn.setMessage(onOff("Show Radius", e.showRadius));
-                }).bounds(col3, y, col3W, ROW).build());
-        y += ROW + GAP;
+                }).bounds(col2, y, colW, ROW).build());
 
         widgets.add(SettingsButtonWidget.builder(radiusText(e), btn -> {
                     e.radius = e.radius >= 10 ? 1.0 : e.radius + 0.5;
                     PosmsgConfig.getInstance().save();
                     btn.setMessage(radiusText(e));
+                }).bounds(col3, y, col3W, ROW).build());
+        y += ROW + GAP;
+
+        widgets.add(SettingsButtonWidget.builder(thicknessText(e), btn -> {
+                    e.thickness = e.thickness >= 6.0 ? 1.0 : e.thickness + 0.5;
+                    PosmsgConfig.getInstance().save();
+                    btn.setMessage(thicknessText(e));
                 }).bounds(col1, y, colW, ROW).build());
 
         // Plain on/off, default off = fires every time you walk in (killer560, 2026-09-16: "by default
@@ -162,6 +186,10 @@ public class PosmsgTab extends BaseTab {
         }
 
         return y;
+    }
+
+    private static Component thicknessText(PosmsgEntry e) {
+        return Component.literal(String.format(Locale.US, "Border Thickness: %.1f", e.thickness));
     }
 
     private static Component radiusText(PosmsgEntry e) {

@@ -38,6 +38,9 @@ public final class PartyCommandsConfig {
         TRANSFER("Transfer To Sender", false, "pt", "ptme", "transfer"),
         INVITE("Invite", false, "invite", "inv"),
         KICK("Kick", true, "kick", "k"),
+        // Odin has this one and we didn't (spotted 2026-09-16 while checking parity). Same destructive
+        // flag as Kick, since it removes party members.
+        KICK_OFFLINE("Kick Offline", true, "kickoffline", "ko"),
         REINVITE("Reinvite", true, "reinv", "reinvite"),
         DEMOTE("Demote", true, "demote"),
         PROMOTE("Promote", false, "promote"),
@@ -45,10 +48,13 @@ public final class PartyCommandsConfig {
         DOWNTIME("Downtime", false, "dt", "downtime"),
         UN_DOWNTIME("Un-Downtime", false, "undt", "undowntime"),
         QUEUE_INSTANCE("Queue Floor (!f7/!m7/!t5)", true, "f1"),
-        // Destructive: on someone else's command this account posts "<name> is N% racist" into party chat -
-        // a reportable chat line typed by a third party, so it sits behind the same master switch as
-        // kick/transfer rather than being on by default with the harmless info commands (2026-09-16 audit).
-        RACISM("Racism (joke)", true, "racism");
+        // Not destructive: it doesn't touch the party, and killer560's call (2026-09-16) is that the whole
+        // Odin set ships with each command's own toggle as the gate - "all of odins party commands are
+        // fine. You should be able to toggle specific ones if you dont want them but it should have every
+        // one of them." Worth knowing anyway: this posts "<name> is N% racist" from YOUR account when
+        // someone else types it, so it is your account that eats a Hypixel report. Every command,
+        // this one included, defaults OFF and has to be turned on deliberately.
+        RACISM("Racism (joke)", false, "racism");
 
         private final String label;
         private final boolean destructive;

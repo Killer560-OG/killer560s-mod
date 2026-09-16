@@ -81,6 +81,7 @@ public final class PosmsgConfig {
                             e.radius = ConfigJson.getDouble(obj, "radius", 3.0);
                             e.configured = ConfigJson.getBool(obj, "configured", false);
                             e.showRadius = ConfigJson.getBool(obj, "showRadius", true);
+                            e.thickness = ConfigJson.getDouble(obj, "thickness", 2.0);
                             e.colorHex = ConfigJson.getString(obj, "colorHex", e.colorHex);
                             e.onceOnlyPerRun = ConfigJson.getBool(obj, "onceOnlyPerRun", false);
                             e.builtin = ConfigJson.getBool(obj, "builtin", false);
@@ -174,6 +175,7 @@ public final class PosmsgConfig {
                 obj.addProperty("radius", e.radius);
                 obj.addProperty("configured", e.configured);
                 obj.addProperty("showRadius", e.showRadius);
+                obj.addProperty("thickness", e.thickness);
                 obj.addProperty("colorHex", e.colorHex);
                 obj.addProperty("onceOnlyPerRun", e.onceOnlyPerRun);
                 obj.addProperty("builtin", e.builtin);
