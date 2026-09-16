@@ -1,0 +1,28 @@
+--- a/src/main/java/com/killer560/hub/fastleap/Teammates.java	2026-09-16 00:26:28.085374700 -0500
++++ b/src/main/java/com/killer560/hub/fastleap/Teammates.java	2026-09-16 12:23:57.510562300 -0500
+@@ -1,5 +1,6 @@
+ package com.killer560.hub.fastleap;
+ 
++import com.killer560.hub.dungeonclass.ClassOverrides;
+ import com.killer560.hub.dungeonclass.DungeonClass;
+ import com.killer560.hub.secrets.DungeonState;
+ import com.killer560.hub.util.ChatObserver;
+@@ -176,13 +177,16 @@
+         return null;
+     }
+ 
+-    /** QUOI {@code dungeonTeammatesNoSelf.firstOrNull { !it.isDead && it.clazz == clazz }}. */
++    /** QUOI {@code dungeonTeammatesNoSelf.firstOrNull { !it.isDead && it.clazz == clazz }}, with the mod-wide
++     *  {@link ClassOverrides} applied to each teammate's class - so "leap to the berserk" goes to whoever killer560
++     *  has marked as doing berserk's terminal, not necessarily a real berserk. {@link #mageCooldownMultiplier()}
++     *  deliberately stays on the REAL tab-list class: the leap cooldown is a game mechanic, not a role. */
+     public static Teammate firstAliveOfClass(DungeonClass clazz) {
+         if (clazz == null) {
+             return null;
+         }
+         for (Teammate t : noSelf()) {
+-            if (!t.dead() && t.clazz() == clazz) {
++            if (!t.dead() && ClassOverrides.classOf(t.name(), t.clazz()) == clazz) {
+                 return t;
+             }
+         }

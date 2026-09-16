@@ -118,6 +118,7 @@ public class NewTab extends FolderTab {
             tabs.add(new TerminalAuraTab());
             tabs.add(new TerminalTriggerbotTab());
             tabs.add(new AutoRoutesTab());
+            tabs.add(new Ap3Tab());
         }
         return tabs;
     }

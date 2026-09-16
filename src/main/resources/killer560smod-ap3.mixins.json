@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.ap3.mixin",
+	"client": [
+		"Ap3InputMixin",
+		"Ap3RotationSendMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

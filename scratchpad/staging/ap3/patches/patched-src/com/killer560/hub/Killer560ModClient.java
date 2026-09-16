@@ -137,10 +137,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autoroutes.AutoRoutesCommands.register();
         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
         com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
+        // AP3 (boss-only P3 chains; mutually exclusive with Auto Routes by game state - see Ap3InputMixin).
         com.killer560.hub.ap3.Ap3Feature.register();
         com.killer560.hub.ap3.Ap3EditInput.register();
-        com.killer560.hub.ap3.Ap3Commands.register();
-        com.killer560.hub.ap3.Ap3Keybinds.register();
         com.killer560.hub.shorts.ShortsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);

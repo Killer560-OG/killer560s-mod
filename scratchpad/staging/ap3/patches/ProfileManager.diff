@@ -1,0 +1,12 @@
+--- a/src/main/java/com/killer560/hub/profiles/ProfileManager.java	2026-09-16 11:13:23.630197200 -0500
++++ b/src/main/java/com/killer560/hub/profiles/ProfileManager.java	2026-09-16 12:24:06.288376300 -0500
+@@ -387,6 +387,9 @@
+                 com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
+                 com.killer560.hub.autoroutes.AutoRoutesConfig::load,
+                 com.killer560.hub.autoroutes.RouteStore::reload,
++                com.killer560.hub.ap3.Ap3Config::load,
++                com.killer560.hub.ap3.Ap3Store::reload,
++                com.killer560.hub.dungeonclass.ClassOverrides::load,
+                 com.killer560.hub.chunkcache.ChunkCacheConfig::load,
+                 com.killer560.hub.pathfinding.PathfindingConfig::load,
+                 com.killer560.hub.f7spots.F7SpotsConfig::load,

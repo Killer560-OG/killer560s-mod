@@ -1,0 +1,12 @@
+--- a/src/main/java/com/killer560/hub/Killer560ModClient.java	2026-09-16 11:13:23.630197200 -0500
++++ b/src/main/java/com/killer560/hub/Killer560ModClient.java	2026-09-16 12:24:08.973029200 -0500
+@@ -137,6 +137,9 @@
+         com.killer560.hub.autoroutes.AutoRoutesCommands.register();
+         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
+         com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
++        // AP3 (boss-only P3 chains; mutually exclusive with Auto Routes by game state - see Ap3InputMixin).
++        com.killer560.hub.ap3.Ap3Feature.register();
++        com.killer560.hub.ap3.Ap3EditInput.register();
+         com.killer560.hub.shorts.ShortsFeature.register();
+         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
+         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);

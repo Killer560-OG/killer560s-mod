@@ -1,0 +1,23 @@
+--- a/src/main/java/com/killer560/hub/leapmenu/PartyTracker.java	2026-09-16 01:14:53.391901700 -0500
++++ b/src/main/java/com/killer560/hub/leapmenu/PartyTracker.java	2026-09-16 12:23:50.135295700 -0500
+@@ -1,5 +1,6 @@
+ package com.killer560.hub.leapmenu;
+ 
++import com.killer560.hub.dungeonclass.ClassOverrides;
+ import com.killer560.hub.dungeonclass.DungeonClass;
+ import com.killer560.hub.secrets.DungeonState;
+ import com.killer560.hub.util.ChatObserver;
+@@ -295,8 +296,12 @@
+         return name != null && DEAD.contains(name.toLowerCase(Locale.US));
+     }
+ 
++    /** A teammate's class: the mod-wide manual override for that IGN when one is set ({@link ClassOverrides} -
++     *  killer560: "five mages but one mage is doing berserk's term"), else what the dungeon tab list / Party Finder
++     *  showed. The leap menus, Live Map, Run Stats, Teammates, Ability Cooldown, Run Summary, Core Entry Times and
++     *  {@code P5State.selfClass()} all read through here, so one override fixes all of them at once. */
+     public static DungeonClass classOf(String name) {
+-        return name == null ? null : CLASSES.get(name.toLowerCase(Locale.US));
++        return name == null ? null : ClassOverrides.classOf(name, CLASSES.get(name.toLowerCase(Locale.US)));
+     }
+ 
+     /** Your own class from the dungeon tab list, or null outside a dungeon / before the tab list shows it. */

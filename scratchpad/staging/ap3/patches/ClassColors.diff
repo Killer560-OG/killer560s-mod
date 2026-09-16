@@ -1,0 +1,40 @@
+--- a/src/main/java/com/killer560/hub/dungeonalerts/ClassColors.java	2026-09-15 22:28:56.978412900 -0500
++++ b/src/main/java/com/killer560/hub/dungeonalerts/ClassColors.java	2026-09-16 12:24:04.076697500 -0500
+@@ -1,5 +1,6 @@
+ package com.killer560.hub.dungeonalerts;
+ 
++import com.killer560.hub.dungeonclass.ClassOverrides;
+ import com.killer560.hub.dungeonclass.DungeonClass;
+ import com.killer560.hub.secrets.DungeonState;
+ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+@@ -100,7 +101,11 @@
+ 
+     static DungeonClass selfClass() {
+         Minecraft client = Minecraft.getInstance();
+-        return client.player == null ? null : CLASSES.get(client.player.getGameProfile().name());
++        if (client.player == null) {
++            return null;
++        }
++        String name = client.player.getGameProfile().name();
++        return ClassOverrides.classOf(name, CLASSES.get(name));
+     }
+ 
+     /** Called from the PlayerTabOverlay#getNameForDisplay mixin. Returns {@code original} untouched unless this
+@@ -116,7 +121,7 @@
+             return original;
+         }
+         String name = m.group(1);
+-        DungeonClass clazz = CLASSES.get(name);
++        DungeonClass clazz = ClassOverrides.classOf(name, CLASSES.get(name));
+         if (clazz == null) {
+             return original;
+         }
+@@ -177,7 +182,7 @@
+         String selfName = client.player.getGameProfile().name();
+         for (Player player : client.level.players()) {
+             String name = player.getGameProfile().name();
+-            DungeonClass clazz = CLASSES.get(name);
++            DungeonClass clazz = ClassOverrides.classOf(name, CLASSES.get(name));
+             if (clazz == null || name.equals(selfName) || player.getUUID().version() != 4) {
+                 continue;
+             }

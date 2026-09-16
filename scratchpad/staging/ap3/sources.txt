@@ -1,0 +1,11 @@
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Chain.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Config.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3EditInput.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Executor.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Feature.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Node.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Renderer.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/Ap3Store.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/mixin/Ap3InputMixin.java
+scratchpad/staging/ap3/com/killer560/hub/ap3/mixin/Ap3RotationSendMixin.java
+scratchpad/staging/ap3/com/killer560/hub/dungeonclass/ClassOverrides.java

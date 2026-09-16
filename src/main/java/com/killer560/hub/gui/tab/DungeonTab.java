@@ -25,6 +25,9 @@ public class DungeonTab extends FolderTab {
                 // into dungeons") - the consolidated Leap Menu (leap order, custom leap overlay, leap
                 // message) is confirmed working, so it lives with the rest of the dungeon features now.
                 new LeapMenuTab(),
+                // Not cheat-only: setting someone's class fixes the normal leap menu and every
+                // class-coloured display too, not just AP3's leap nodes (killer560, 2026-09-16).
+                new ClassOverridesTab(),
                 // Moved out of New 2026-09-14 - killer560 confirmed Simon Says (solver + Auto Start/Solve)
                 // working after real runs ("I think ss is now done").
                 new SimonSaysTab()
