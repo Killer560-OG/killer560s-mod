@@ -24,12 +24,21 @@ public abstract class FolderTab extends BaseTab {
     private final List<BaseTab> subTabs;
     // Empty by default so everything starts collapsed, matching the reference screenshot.
     private final Set<Integer> expanded = new HashSet<>();
+    /** When true, sub-tab 0 renders inline at the top with no accordion header and cannot be collapsed -
+     *  for a folder whose first section is the thing you always came here for (killer560, 2026-09-16:
+     *  "Remove the mod and hud dropdown, those settings should always be visible at the top"). */
+    private boolean pinFirst;
     // Set by ModScreen right before buildWidgets, since a FolderTab has no other way to see the menu's
     // own search field text (2026-09-14, killer560's own report: "if i search for simon says it shows
     // the whole new category, it should hide everything in that category that isnt simon says" - the
     // OUTER sidebar already narrowed to just this folder via matchesSearch, but the folder's own
     // accordion list still showed every single sub-tab regardless of the query once you were inside it).
     private String activeSearchQuery = "";
+
+    /** Marks sub-tab 0 as always-open and header-less. Call from the subclass constructor. */
+    protected void pinFirstSection() {
+        this.pinFirst = true;
+    }
 
     protected FolderTab(String name, List<BaseTab> subTabs) {
         super(name);
@@ -45,7 +54,19 @@ public abstract class FolderTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
         boolean searching = !activeSearchQuery.isBlank();
-        for (int i = 0; i < subTabs.size(); i++) {
+        if (pinFirst && !subTabs.isEmpty() && !searching) {
+            List<AbstractWidget> pinned = subTabs.get(0).buildWidgets(contentX, y, contentWidth, requestRebuild);
+            for (AbstractWidget w : pinned) {
+                com.killer560.hub.gui.SettingTooltips.scope(w, subTabs.get(0).name);
+            }
+            widgets.addAll(pinned);
+            int bottom = y;
+            for (AbstractWidget w : pinned) {
+                bottom = Math.max(bottom, w.getY() + w.getHeight());
+            }
+            y = bottom + SECTION_GAP;
+        }
+        for (int i = pinFirst && !searching ? 1 : 0; i < subTabs.size(); i++) {
             if (searching && !subTabs.get(i).matchesSearch(activeSearchQuery)) {
                 continue;
             }
@@ -64,6 +85,11 @@ public abstract class FolderTab extends BaseTab {
             if (isExpanded) {
                 List<AbstractWidget> subWidgets = subTabs.get(index)
                         .buildWidgets(contentX + INDENT, y, contentWidth - INDENT, requestRebuild);
+                // Remember which sub-tab owns each widget so its tooltip can be scoped to the feature and
+                // not just to this folder - see SettingTooltips#scope for the collision that motivated it.
+                for (AbstractWidget w : subWidgets) {
+                    com.killer560.hub.gui.SettingTooltips.scope(w, subTabs.get(index).name);
+                }
                 widgets.addAll(subWidgets);
                 int bottom = y;
                 for (AbstractWidget w : subWidgets) {

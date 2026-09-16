@@ -10,7 +10,9 @@ public class HelpersTab extends FolderTab {
 
     public HelpersTab() {
         super("Helpers", List.of(
-                new ExperimentsTab()
+                new ExperimentsTab(),
+                // Moved out of New 2026-09-16.
+                new EtherwarpOverlayTab()
         ));
     }
 }

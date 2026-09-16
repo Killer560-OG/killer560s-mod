@@ -276,7 +276,7 @@ final class SettingTooltipsData {
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");
         d.put("auto routes", "Cheat build only. Records what you do in a dungeon room and replays it the next time you land on that room's start node. Off by default - nothing runs until you turn it on.");
-        d.put("new/mode", "Legit turns your camera for every etherwarp with the human-looking rotation and only ever starts a route from its start node. Obvious skips the camera turn.");
+        d.put("auto routes/mode", "Legit turns your camera for every etherwarp with the human-looking rotation and only ever starts a route from its start node. Obvious skips the camera turn.");
         d.put("start from start node only", "A route only arms when you land on its start node - never halfway through, and never by crossing the map. Forced ON in Legit mode.");
         d.put("recording", "Cheat build only. Record a route: stand on the node it should start from, Start, run the room how you want it replayed, Stop. Same as /ar start record and /ar stop record.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room from where you're standing. Same as /ar start record.");
@@ -286,7 +286,7 @@ final class SettingTooltipsData {
         d.put("edit breaker blocks", "Breaker edit mode: right-click a block to add it to the dungeon breaker node, shift-right-click to remove it. Your held item won't fire while this is on. Same as /ar edit db.");
         d.put("list in chat", "Prints this room's nodes in chat with their numbers, for /ar delete <n>.");
         d.put("new/clear route", "Deletes every node in this room's route. Stops playback first if it's running. Same as /ar clear.");
-        d.put("new/delete", "Removes this node from the route.");
+        d.put("auto routes/delete", "Removes this node from the route.");
         d.put("routes file", "Cheat build only. All your routes live in one JSON file you can edit in Notepad and hand to someone as-is.");
         d.put("open routes folder", "Opens the config folder that holds killer560smod-autoroutes.json, so you can copy it out or paste a friend's copy in.");
         d.put("reload routes", "Re-reads killer560smod-autoroutes.json from disk without restarting. Chat says how many routes loaded, or names the file if it failed to parse. Same as /ar reload.");
@@ -305,7 +305,7 @@ final class SettingTooltipsData {
         d.put("unsneak colour", "Marker colour for unsneak nodes.");
         d.put("command colour", "Marker colour for command nodes.");
         d.put("render style", "Cheat build only. How node markers are drawn: Box, Filled Box or Cylinder, with line thickness and marker height sliders like QUOI's.");
-        d.put("new/style", "Box (wireframe), Filled Box, or Cylinder markers.");
+        d.put("auto routes/style", "Box (wireframe), Filled Box, or Cylinder markers.");
         d.put("thickness", "Line thickness of the node markers, 1-8.");
         d.put("new/height", "Height of each node marker in blocks, 0.1-1.0.");
         d.put("keybinds", "Cheat build only. One key per /ar command, all unbound by default. Click a row, press a key; Esc clears. Keys only fire in-game, never while a menu or chat is open.");
@@ -681,7 +681,7 @@ final class SettingTooltipsData {
         d.put("corner radius", "How rounded the corners are, in pixels (1-20). Needs Rounded Corners ON.");
         d.put("border", "Draws an outline around the scoreboard box.");
         d.put("border color", "Colour of the scoreboard outline. Opens a colour picker.");
-        d.put("border thickness", "Width of the scoreboard outline in pixels (1-5).");
+        d.put("custom scoreboard/border thickness", "Width of the scoreboard outline in pixels (1-5).");
         d.put("open my profile", "Opens the profile viewer on your own Skyblock profile.");
         d.put("source", "Where profile data comes from: the Hypixel API using your own key, the keyless SkyBlockPV backend, or Auto (your key first if set, then the backend).");
         d.put("remember last page", "Reopens the profile viewer on the page you last had open instead of the first page.");

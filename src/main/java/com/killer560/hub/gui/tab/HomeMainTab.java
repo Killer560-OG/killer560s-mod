@@ -7,7 +7,9 @@ import com.killer560.hub.updatecheck.UpdateCheckFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.SectionHeaders;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
@@ -39,7 +41,18 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
+        var font = Minecraft.getInstance().font;
+        int gap = 8;
+        int half = (contentWidth - gap) / 2;
+        int rightW = Math.max(1, contentWidth - half - gap);
         int y = contentY;
+
+        // Reformatted 2026-09-16: this used to be five 220px-wide buttons stacked in one column down the
+        // left, leaving most of the panel empty. Two columns under real headings instead, so the update /
+        // Discord actions read as separate from the things that change how the mod behaves.
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Mod", false), font));
+        y += 16;
 
         widgets.add(SettingsButtonWidget.builder(updateButtonText(), btn -> {
                     // Only ever assigned from a real click on a real rendered widget - never from
@@ -57,25 +70,27 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                     lastCheckResultText = null;
                     btn.setMessage(updateButtonText());
                     UpdateCheckFeature.checkForUpdateAsync(result -> onUpdateCheckResult(result, btn));
-                }).bounds(contentX, y, 220, 20).build());
-        y += 26;
+                }).bounds(contentX, y, half, 20).build());
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Join Discord"), btn ->
                     Util.getPlatform().openUri(DISCORD_INVITE_URL)
-                ).bounds(contentX, y, 220, 20).build());
+                ).bounds(contentX + half + gap, y, rightW, 20).build());
         y += 26;
 
         widgets.add(SettingsButtonWidget.builder(skyblockOnlyText(), btn -> {
                     com.killer560.hub.util.SkyblockGate.setEnabled(!com.killer560.hub.util.SkyblockGate.isEnabled());
                     btn.setMessage(skyblockOnlyText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 26;
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 30;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("HUD", false), font));
+        y += 16;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit HUD Positions"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new HudEditorScreen(client.screen));
-                }).bounds(contentX, y, 220, 20).build());
-        y += 26;
+                }).bounds(contentX, y, half, 20).build());
 
         Component keybindLabel = listening
                 ? Component.literal("Press any key...")
@@ -83,7 +98,8 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(keybindLabel, btn -> {
                     listening = true;
                     btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(contentX, y, 220, 20).build());
+                }).bounds(contentX + half + gap, y, rightW, 20).build());
+        y += 26;
 
         return widgets;
     }

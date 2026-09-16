@@ -1,5 +1,6 @@
 package com.killer560.hub.posmsg;
 
+import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.SkyblockGate;
@@ -33,6 +34,10 @@ import java.util.Set;
  * "Only send once per run" ({@link PosmsgEntry#onceOnlyPerRun}, default OFF) is tracked here and reset
  * whenever {@link DungeonState#isInDungeon()} goes false -&gt; true, the same fresh-run edge every other
  * per-run reset in this mod watches, and on any world change.
+ * <p>
+ * Only live inside the F7/M7 boss fight ({@link #active()}): every preset is a boss-arena spot, and
+ * killer560 wants the feature completely inert everywhere else - no rings, no sends - so a ring can't
+ * show up at matching coordinates in some other floor or the hub, and nothing fires while clearing.
  */
 public final class PosmsgFeature {
 
@@ -58,6 +63,12 @@ public final class PosmsgFeature {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(PosmsgRenderer::render);
     }
 
+    /** Master switch, Skyblock gate AND the F7/M7 boss gate - the single check both the tick loop and
+     *  {@link PosmsgRenderer} use, so "nothing draws" and "nothing sends" can never disagree. */
+    static boolean active() {
+        return PosmsgConfig.getInstance().isEnabled() && Floor7Tracker.inF7Boss();
+    }
+
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
@@ -72,24 +83,24 @@ public final class PosmsgFeature {
         wasInDungeon = inDungeonNow;
 
         Player player = client.player;
-        if (player == null || client.level == null || !PosmsgConfig.getInstance().isEnabled()) {
+        if (player == null || client.level == null) {
             return;
         }
+        // Inside/outside membership is tracked every tick regardless of any gate, and only the SEND is
+        // gated - so a ring you're already standing in when the feature (master, per-waypoint, or the
+        // boss fight itself) becomes live does not fire the instant it goes live; walking out and back
+        // in is what fires it. Previously the disabled branch dropped the id instead, which did the
+        // exact opposite of what its own comment promised.
+        boolean live = active();
         Vec3 pos = player.position();
         for (PosmsgEntry e : PosmsgConfig.getInstance().entries()) {
             if (!e.configured) {
                 continue;
             }
             double distance = pos.distanceTo(new Vec3(e.x, e.y, e.z));
-            if (!e.enabled) {
-                // Re-arm a waypoint you turned off while standing in it, so switching it back on later
-                // doesn't fire the instant it's re-enabled.
-                inside.remove(e.id);
-                continue;
-            }
             if (distance > e.radius + EXIT_MARGIN) {
                 inside.remove(e.id);
-            } else if (distance <= e.radius && inside.add(e.id)) {
+            } else if (distance <= e.radius && inside.add(e.id) && live && e.enabled) {
                 trySend(e);
             }
         }

@@ -14,17 +14,36 @@ import java.util.UUID;
  *  tab edits fields on the live instance and saves after each change. */
 public final class PosmsgEntry {
 
+    public static final double MIN_RADIUS = 1.0;
+    public static final double MAX_RADIUS = 10.0;
+    public static final double MIN_TEXT_SCALE = 0.25;
+    public static final double MAX_TEXT_SCALE = 4.0;
+    public static final double MIN_TEXT_HEIGHT = 0.0;
+    public static final double MAX_TEXT_HEIGHT = 5.0;
+
     public String id = UUID.randomUUID().toString();
     /** List label. For custom waypoints this is just the message; presets keep their room name. */
     public String name = "Waypoint";
     /** Exactly what gets typed into party chat, e.g. "at hee2". Blank falls back to {@link #name}. */
     public String message = "";
-    /** Master per-waypoint toggle - "toggle each individual circle" from killer560's request. */
-    public boolean enabled = true;
+    /** Master per-waypoint toggle - "toggle each individual circle" from killer560's request. OFF by
+     *  default since his 2026-09-16 test round: "in posmsg if you turn it on by default every individual
+     *  one is off" - flipping the master switch must never light up seven rings at once; you opt each
+     *  spot in. */
+    public boolean enabled = false;
     public double x;
     public double y;
     public double z;
     public double radius = 3.0;
+    /** Multiplier on the floating message label's size (1.0 = the size it has always been). Per waypoint,
+     *  killer560's 2026-09-16 request for a text scale option. Clamped to {@link #MIN_TEXT_SCALE}..
+     *  {@link #MAX_TEXT_SCALE} by the tab and on load. */
+    public double textScale = 1.0;
+    /** How many blocks above the waypoint the label floats. 0 (default) keeps the label sitting ON the
+     *  waypoint, which is how it looked before this option existed (and what killer560 asked for at the
+     *  time: "Make the text not offset though from the waypoint") - the option only exists so a label at
+     *  floor level can be lifted when a ring is somewhere you look across, not down at. */
+    public double textHeightOffset = 0.0;
     /** False until real coordinates have been set (either typed in or captured via "Set to my
      *  position") - a freshly seeded preset with x=y=z=0 must never actually be sendable, since 0,0,0
      *  is a real (wrong) in-world location, not an "unset" sentinel. */
@@ -48,6 +67,18 @@ public final class PosmsgEntry {
     public String sendText() {
         String text = message == null ? "" : message.trim();
         return text.isEmpty() ? name : text;
+    }
+
+    public static double clampRadius(double v) {
+        return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, v));
+    }
+
+    public static double clampTextScale(double v) {
+        return Math.max(MIN_TEXT_SCALE, Math.min(MAX_TEXT_SCALE, v));
+    }
+
+    public static double clampTextHeight(double v) {
+        return Math.max(MIN_TEXT_HEIGHT, Math.min(MAX_TEXT_HEIGHT, v));
     }
 
     public int color() {

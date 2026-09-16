@@ -27,7 +27,6 @@ public class NewTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                new PosmsgTab(),
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),
                 new MobEspTab(),
@@ -43,8 +42,6 @@ public class NewTab extends FolderTab {
                 new RunStatsTab(),
                 new WitherDragonsTab(),
                 new TerminalTimersTab(),
-                new ItemRarityTab(),
-                new ShortsTab(),
                 new DungeonAlertsTab(),
                 new RagAxeTab(),
                 new NameChangerTab(),
@@ -57,27 +54,14 @@ public class NewTab extends FolderTab {
                 new PathfindingTab(),
                 new DungeonExtrasTab(),
                 new DungeonQueueTab(),
-                new MotionBlurTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
-                new VoiceToTextTab(),
                 new I4SensorsTab(),
                 new LiveMapTab(),
                 new SecretWaypointsTab(),
                 new ProximityVoiceTab(),
                 new AutoCloseChestTab(),
                 new BloodCampTab(),
-                new BoulderSolverTab(),
-                new QuizSolverTab(),
-                new IceFillSolverTab(),
-                new WeirdosSolverTab(),
-                new WaterSolverTab(),
-                new BeamsSolverTab(),
-                new BlazeSolverTab(),
-                new TicTacToeSolverTab(),
-                new TeleportMazeSolverTab(),
-                new IcePathSolverTab(),
-                new LividSolverTab(),
                 new ThornTab(),
                 new F7SpotsTab(),
                 new P3NavTab(),
@@ -87,11 +71,9 @@ public class NewTab extends FolderTab {
                 new ScoreCalculatorTab(),
                 new QuiverDisplayTab(),
                 new InventoryHudTab(),
-                new RealTimeTab(),
                 new CustomScoreboardTab(),
                 new ProfileViewerTab(),
                 new PlayerStatsTab(),
-                new EtherwarpOverlayTab(),
                 new SlotBindsTab(),
                 new ChatCommandsTab(),
                 new PartyCommandsTab(),
@@ -107,7 +89,6 @@ public class NewTab extends FolderTab {
                 new ItemProtectTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            tabs.add(new AutoPuzzlesTab());
             tabs.add(new FastLeapTab());
             tabs.add(new CheatUtilsTab());
             tabs.add(new SecretTriggerbotTab());

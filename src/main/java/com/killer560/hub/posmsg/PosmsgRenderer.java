@@ -20,9 +20,12 @@ import java.util.List;
  * <p>
  * The ring is the real trigger boundary, not a decoration: its radius is exactly the distance
  * {@link PosmsgFeature} fires at, so "the circle lit up as I crossed it" and "the message went out"
- * are the same event. A second, taller ring is drawn at eye height so the circle is still findable
- * when you're looking across a room rather than at your feet, and the message text sits on the waypoint
- * itself. Depth-tested (no drawing through walls), same as Secret Waypoints and F7 Spots.
+ * are the same event. Exactly one ring, on the ground: the second ring that used to be drawn at eye
+ * height is gone at killer560's request ("there is still this faint upper ring that shouldnt be
+ * there", 2026-09-16). The message label sits on the waypoint by default and can be lifted per
+ * waypoint via {@link PosmsgEntry#textHeightOffset} and resized via {@link PosmsgEntry#textScale}.
+ * Depth-tested (no drawing through walls), same as Secret Waypoints and F7 Spots. Nothing at all is
+ * drawn outside the F7/M7 boss fight - see {@link PosmsgFeature#active()}.
  */
 public final class PosmsgRenderer {
 
@@ -39,13 +42,10 @@ public final class PosmsgRenderer {
     static void render(LevelRenderContext context) {
         Minecraft client = Minecraft.getInstance();
         Player player = client.player;
-        if (client.level == null || player == null || !SkyblockGate.allows()) {
+        if (client.level == null || player == null || !SkyblockGate.allows() || !PosmsgFeature.active()) {
             return;
         }
         PosmsgConfig cfg = PosmsgConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
         Camera camera = client.gameRenderer.getMainCamera();
         for (PosmsgEntry e : cfg.entries()) {
             if (!e.enabled || !e.configured || !e.showRadius) {
@@ -60,12 +60,12 @@ public final class PosmsgRenderer {
             // Per-waypoint line width, thickened slightly while you're inside so the crossing still reads.
             float thickness = (float) Math.max(0.5, e.thickness) * (standingInside ? 1.5f : 1f);
             WorldRenderUtils.renderLineStrip(context, ring(e, GROUND_OFFSET), c[0], c[1], c[2], alpha, thickness);
-            WorldRenderUtils.renderLineStrip(context, ring(e, 1.6), c[0], c[1], c[2], alpha * 0.45f,
-                    Math.max(0.5f, thickness * 0.6f));
             if (distance <= LABEL_DISTANCE) {
-                // Exactly on the waypoint, not floating above it (killer560, 2026-09-16: "Make the text
-                // not offset though from the waypoint"). SEE_THROUGH keeps it legible at floor level.
-                renderLabel(context, camera, e.x, e.y, e.z, e.sendText(), e.color());
+                // On the waypoint unless the player lifted it (offset defaults to 0 - killer560's original
+                // "Make the text not offset though from the waypoint"). SEE_THROUGH keeps it legible at
+                // floor level.
+                renderLabel(context, camera, e.x, e.y + e.textHeightOffset, e.z, e.sendText(), e.color(),
+                        (float) e.textScale);
             }
         }
     }
@@ -84,7 +84,7 @@ public final class PosmsgRenderer {
 
     /** Camera-facing text at a world position - same approach as {@code F7SpotsRenderer.renderLabel}. */
     private static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
-                                    String text, int color) {
+                                    String text, int color, float textScale) {
         var bufferSource = context.bufferSource();
         PoseStack poseStack = context.poseStack();
         if (bufferSource == null || poseStack == null || text == null || text.isBlank()) {
@@ -93,7 +93,8 @@ public final class PosmsgRenderer {
         Font font = Minecraft.getInstance().font;
         Vec3 cam = camera.position();
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
-        float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
+        // Distance-compensated base size (same curve as F7 Spots) times the per-waypoint multiplier.
+        float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0)) * Math.max(0.05f, textScale);
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);

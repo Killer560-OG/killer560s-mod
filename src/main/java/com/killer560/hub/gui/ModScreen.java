@@ -13,6 +13,7 @@ import com.killer560.hub.gui.tab.HudElementsTab;
 import com.killer560.hub.gui.tab.KeyCaptureTab;
 import com.killer560.hub.gui.tab.NewTab;
 import com.killer560.hub.gui.tab.ProfilesTab;
+import com.killer560.hub.gui.tab.PuzzleSolversTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -97,6 +98,8 @@ public class ModScreen extends Screen {
             tabs.add(new HudElementsTab());
             tabs.add(new HelpersTab());
             tabs.add(new DungeonTab());
+            // Its own category rather than eleven separate rows buried in New (killer560, 2026-09-16).
+            tabs.add(new PuzzleSolversTab());
         }
         if (selectedTab >= tabs.size() || selectedTab < 0) {
             selectedTab = 0;
@@ -163,6 +166,8 @@ public class ModScreen extends Screen {
 
     private void rebuild() {
         this.clearWidgets();
+        // The widgets themselves are discarded here, so their tooltip scopes go with them.
+        SettingTooltips.clearScopes();
         this.addRenderableWidget(searchField);
 
         List<BaseTab> visible = visibleTabs();
@@ -312,7 +317,7 @@ public class ModScreen extends Screen {
         }
         String text;
         try {
-            text = SettingTooltips.describe(tabs.get(selectedTab).name, hovered.getMessage().getString());
+            text = SettingTooltips.describe(tabs.get(selectedTab).name, hovered, hovered.getMessage().getString());
         } catch (RuntimeException e) {
             return;
         }

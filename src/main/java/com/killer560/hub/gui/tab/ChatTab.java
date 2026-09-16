@@ -21,7 +21,9 @@ public class ChatTab extends FolderTab {
                 new AutoMeowTab(),
                 new CringeTab(),
                 new SpotifyTab(),
-                new ScreenshotCopyTab()
+                new ScreenshotCopyTab(),
+                // Confirmed working 2026-09-16 ("voice to text works perfectly"), moved out of New.
+                new VoiceToTextTab()
                 // Mod Chat and Voice To Text are new this session (2026-09-13) - they live in the "New"
                 // tab only until killer560 confirms they work, then move back here.
         ));
