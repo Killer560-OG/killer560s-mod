@@ -125,6 +125,8 @@ public final class RouteExecutor {
     // ---- input ----
     private static boolean mixinApplied;
     private static boolean fallbackKeysHeld;
+    private static boolean warnedFallback;
+    private static boolean warnedCommandBlocked;
     private static boolean wantForward;
     private static boolean wantBackward;
     private static boolean wantLeft;
@@ -143,8 +145,29 @@ public final class RouteExecutor {
     }
 
     /** Stops playback and tells the user why (chat, when chat feedback is on). Safe to call when idle. */
+    /** Reasons that mean "the player took over" rather than "the route ended or the world changed". After
+     *  one of these the feature must not re-arm until they have walked clear of every node (2026-09-16
+     *  review: tapping W stopped a route and releasing W restarted it, because the player was still
+     *  standing inside the ring the bot had just walked them through). */
+    private static final java.util.Set<String> USER_STOP_REASONS =
+            java.util.Set.of("you moved", "you moved the camera", "you clicked");
+
+    private static boolean stoppedByUser;
+
+    /** True when the last stop was the player taking over. Cleared by {@code clearStoppedByUser}. */
+    public static boolean wasStoppedByUser() {
+        return stoppedByUser;
+    }
+
+    public static void clearStoppedByUser() {
+        stoppedByUser = false;
+    }
+
     public static void stop(String reason) {
         boolean wasRunning = running;
+        if (wasRunning && reason != null && USER_STOP_REASONS.contains(reason)) {
+            stoppedByUser = true;
+        }
         running = false;
         stopReason = reason;
         activeNode = null;
@@ -241,6 +264,51 @@ public final class RouteExecutor {
         mixinApplied = true;
     }
 
+    /**
+     * Without the input mixin the executor drives by holding the key MAPPINGS, which means
+     * {@code KeyMapping.isDown()} reports the bot's own state and the player's real keypresses become
+     * invisible - so "press W to stop" silently stopped working (2026-09-16 review). Poll the physical keys
+     * through GLFW instead, the same way every raw-polled keybind in this mod already does.
+     * <p>
+     * A route that cannot be stopped by the player is the worst failure this feature has, so this also logs
+     * once when the fallback is first used: the mixin config is {@code required:false} by design, and
+     * without a line in the log a non-applying mixin would be completely invisible.
+     */
+    private static boolean userPressedMovementKeyInFallback(Minecraft client) {
+        if (mixinApplied || !fallbackKeysHeld) {
+            return false;
+        }
+        if (!warnedFallback) {
+            warnedFallback = true;
+            LOGGER.warn("[AutoRoutes] Input mixin did not apply - driving with key mappings instead. "
+                    + "Movement keys are polled directly so you can still stop a route.");
+        }
+        var options = client.options;
+        var window = client.getWindow();
+        return rawDown(window, options.keyUp) || rawDown(window, options.keyDown)
+                || rawDown(window, options.keyLeft) || rawDown(window, options.keyRight)
+                || rawDown(window, options.keyJump);
+    }
+
+    /** The physical state of whatever key a mapping is bound to, ignoring the mapping's own down-flag
+     *  (which the fallback path is busy forcing). Degrades to "not pressed" rather than throwing if the
+     *  accessor mixin didn't apply either - the camera latch, clicks, opening a screen and the tab's Stop
+     *  Route button all still stop a route without it. */
+    private static boolean rawDown(com.mojang.blaze3d.platform.Window window,
+                                   net.minecraft.client.KeyMapping mapping) {
+        try {
+            com.mojang.blaze3d.platform.InputConstants.Key key =
+                    ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) mapping)
+                            .killer560smod$getKey();
+            if (key == null || key.getType() != com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM) {
+                return false;
+            }
+            return com.killer560.hub.util.KeyUtil.isKeyDown(window, key.getValue());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** From the input mixin: the player pressed a movement key themselves. A route with no recorded path is
      *  QUOI-style (the player walks between nodes), so only a driven route stops on it. */
     public static void onUserMovementInput() {
@@ -296,6 +364,10 @@ public final class RouteExecutor {
         }
         if (client.screen != null) {
             stop("a screen opened");
+            return;
+        }
+        if (userPressedMovementKeyInFallback(client)) {
+            stop("you moved");
             return;
         }
         if (cameraGraceTicks > 0) {
@@ -433,7 +505,11 @@ public final class RouteExecutor {
             wantRight = lft < -0.38;
         }
         boolean climb = tgt.y - pos.y > 0.6 && h < 1.6;
-        wantJump = player.onGround() && (target.jump() || at.jump() || climb || player.horizontalCollision)
+        // horizontalCollision alone is deliberately NOT a jump trigger: brushing a wall while walking past
+        // it would jump every single ground tick, which the recording never did (2026-09-16 review). Only
+        // jump where the recording jumped, or where the next sample is genuinely above us.
+        wantJump = player.onGround() && (target.jump() || at.jump() || climb
+                || (player.horizontalCollision && climb))
                 || (player.isInWater() && climb);
         wantSneak = forceSneak || (!unsneakOverride && (at.sneak() || target.sneak()));
         wantSprint = !wantSneak && wantForward && (at.sprint() || target.sprint()) && !player.isInWater();
@@ -493,6 +569,10 @@ public final class RouteExecutor {
 
     private static void finishAction() {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
+        // Release the camera as soon as the node is done. Without this a QUOI-style path-less route (nodes
+        // only, no recorded walk) kept pulling the view back to the finished node's yaw every frame while
+        // the player tried to walk to the next one themselves (2026-09-16 review).
+        RouteRotation.clear();
         activeNode = null;
         step = null;
         nextNode++;
@@ -512,6 +592,22 @@ public final class RouteExecutor {
                 finishAction();
             }
             case COMMAND -> {
+                // Gated behind an explicit opt-in (default OFF). The routes file is meant to be handed
+                // around between friends, and a COMMAND node runs whatever string is in that file from
+                // YOUR account the moment you step on a start node - /pay, /p leave, chat spam, anything
+                // (2026-09-16 review). QUOI has the same action ungated; we don't, because killer560
+                // specifically intends to share these files.
+                if (!AutoRoutesConfig.getInstance().isAllowCommandNodes()) {
+                    if (!warnedCommandBlocked) {
+                        warnedCommandBlocked = true;
+                        AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.bad("Skipped a command node"),
+                                com.killer560.hub.util.ModChat.dim(
+                                        " - turn on \"Allow Command Nodes\" if this route is yours."));
+                        LOGGER.warn("[AutoRoutes] Blocked COMMAND node: {}", node.command);
+                    }
+                    finishAction();
+                    return;
+                }
                 if (node.command != null && !node.command.isBlank()) {
                     String cmd = node.command.trim();
                     if (cmd.startsWith("/")) {
@@ -537,7 +633,10 @@ public final class RouteExecutor {
             step = Step.AIM;
             return;
         }
-        if (RouteRotation.settled(1.5f) || stepTicks > AIM_TIMEOUT) {
+        // !isActive() covers obvious mode, where aimAt() snaps and clears the controller instead of
+        // running an approach - settled() is false forever in that case, so the node used to sit out the
+        // whole AIM_TIMEOUT before moving on (2026-09-16 review).
+        if (!RouteRotation.isActive() || RouteRotation.settled(1.5f) || stepTicks > AIM_TIMEOUT) {
             finishAction();
         }
     }

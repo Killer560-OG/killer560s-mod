@@ -140,7 +140,13 @@ public final class RouteStore {
                 store.routes.clear();
                 LOGGER.warn("[AutoRoutes] Failed to parse {} - backing it up, nothing will be saved over it", FILE_NAME, e);
                 try {
-                    Files.copy(file, file.resolveSibling("killer560smod-autoroutes.broken-" + System.currentTimeMillis() + ".json"));
+                    // One backup per broken file, not one per reload: /ar reload and every profile switch
+                    // come back through here, and the original is already safe after the first copy
+                    // (2026-09-16 review).
+                    Path backup = file.resolveSibling("killer560smod-autoroutes.broken.json");
+                    if (!Files.exists(backup)) {
+                        Files.copy(file, backup);
+                    }
                 } catch (Exception backupError) {
                     LOGGER.warn("[AutoRoutes] Could not back up the unreadable routes file", backupError);
                 }

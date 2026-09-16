@@ -67,6 +67,8 @@ public final class AutoRoutesFeature {
     private static boolean hidden;
     /** Interlock 4: set by any map / Blood Rush teleport, cleared once the START node arms or the room changes. */
     private static boolean mapArrivalGuard;
+    /** Set while a map / Blood Rush teleport is in flight, so the room change it causes doesn't clear the guard. */
+    private static boolean arrivedByTeleport;
     private static boolean externalTeleport;
     /** The node the player is currently standing in (so a finished route doesn't instantly re-arm underfoot). */
     private static RouteNode latchedNode;
@@ -107,12 +109,15 @@ public final class AutoRoutesFeature {
                 RouteExecutor.stop("edit mode");
             }
             pickEditBreakerNode();
-            chat(ModChat.text("Edit mode "), ModChat.good("on"), ModChat.dim(editBreakerNode == null
-                    ? " - no dungeon breaker node in this room (/ar add breaker)"
-                    : " - right-click adds blocks to breaker #" + breakerIndex() + ", shift-right-click removes"));
+            // Only the part AutoRoutesCommands can't say: WHICH breaker node the clicks will land on.
+            chat(editBreakerNode == null
+                    ? ModChat.bad("No dungeon breaker node in this room")
+                    : ModChat.text("Editing breaker "),
+                    editBreakerNode == null
+                            ? ModChat.dim(" - add one with /ar add breaker")
+                            : ModChat.value("#" + breakerIndex()));
         } else {
             editBreakerNode = null;
-            chat(ModChat.text("Edit mode "), ModChat.bad("off"));
         }
     }
 
@@ -189,7 +194,6 @@ public final class AutoRoutesFeature {
             RouteExecutor.stop("route edited");
         }
         RouteStore.getInstance().save();
-        chat(ModChat.text("Deleted #" + index + " "), ModChat.value(removed.type.label()));
         return true;
     }
 
@@ -210,8 +214,7 @@ public final class AutoRoutesFeature {
         boolean removed = RouteStore.getInstance().remove(frame.roomName());
         RouteStore.getInstance().save();
         if (removed) {
-            chat(ModChat.text("Cleared the route for "), ModChat.value(frame.roomName()));
-        } else {
+            } else {
             chatBad(frame.roomName() + " has no route.");
         }
         return removed;
@@ -327,6 +330,11 @@ public final class AutoRoutesFeature {
                 RouteExecutor.stop(BloodRush.isRunning() ? "Auto Blood Rush" : "Interactive Map teleport");
             }
             mapArrivalGuard = true;
+            // The teleport we are waiting on IS a room change, and the room-change branch below used to
+            // clear the guard the moment it landed - handing back exactly the mid-route entry the guard
+            // exists to prevent (2026-09-16 review). Latch it so that branch knows the arrival was a
+            // teleport, not walking in through a door.
+            arrivedByTeleport = true;
             return;
         }
         if (externalTeleport) {
@@ -353,9 +361,10 @@ public final class AutoRoutesFeature {
             }
             lastRoom = frame.roomName();
             latchedNode = null;
-            if (!externalTeleport) {
+            if (!externalTeleport && !arrivedByTeleport) {
                 mapArrivalGuard = false; // walked in through a door: mid-route entry is the toggle's call again
             }
+            arrivedByTeleport = false;
             if (editMode) {
                 pickEditBreakerNode();
             }
@@ -397,10 +406,19 @@ public final class AutoRoutesFeature {
         }
         if (inside == null) {
             latchedNode = null;
+            // Clear of every node: a route the player stopped by hand may arm again from here.
+            RouteExecutor.clearStoppedByUser();
             return;
         }
         if (inside == latchedNode) {
             return; // still standing where the last run started / ended
+        }
+        if (RouteExecutor.wasStoppedByUser()) {
+            // The player took the controls back while standing inside a node. Re-arming here would mean
+            // every W tap stops the route and every release restarts it (2026-09-16 review) - they have to
+            // walk clear of the route first.
+            latchedNode = inside;
+            return;
         }
         latchedNode = inside;
         if (inside.type == RouteNode.Type.START) {
@@ -459,7 +477,12 @@ public final class AutoRoutesFeature {
             RouteExecutor.stop(reason);
         }
         RouteRecorder.discard();
+        // Edit mode swallows every block right-click, so leaving it on across a world change meant walking
+        // into the next dungeon unable to open a chest or flip a lever (2026-09-16 review).
+        editMode = false;
+        AutoRoutesEditInput.reset();
         editBreakerNode = null;
+        arrivedByTeleport = false;
         latchedNode = null;
         lastRoom = null;
         mapWasOpen = false;
@@ -506,9 +529,12 @@ public final class AutoRoutesFeature {
         }
     }
 
+    /** 1-BASED, to match /ar list, /ar delete and the settings tab. Every number the player ever sees for a
+     *  node has to agree, or reading "#3" off a world label and typing "/ar delete 3" deletes a different
+     *  node (2026-09-16 review). */
     private static int breakerIndex() {
         Route route = currentRoute();
-        return route == null || editBreakerNode == null ? -1 : route.indexOf(editBreakerNode);
+        return route == null || editBreakerNode == null ? -1 : route.indexOf(editBreakerNode) + 1;
     }
 
     static void chat(Component... parts) {

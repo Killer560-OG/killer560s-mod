@@ -75,7 +75,9 @@ public final class AutoRoutesRenderer {
                 default -> WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
             }
             if (editMode && playerPos.distanceTo(real) <= LABEL_DISTANCE) {
-                int index = route.indexOf(node);
+                // 1-based, same as /ar list and /ar delete - the number on the label has to be the number
+                // you can type (2026-09-16 review).
+                int index = route.indexOf(node) + 1;
                 renderLabel(ctx, camera, real.x, real.y + height + 0.35, real.z,
                         "#" + index + " " + node.type.label(), argb | 0xFF000000);
             }

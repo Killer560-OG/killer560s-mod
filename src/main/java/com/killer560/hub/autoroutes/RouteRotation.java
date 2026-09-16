@@ -23,6 +23,8 @@ import net.minecraft.util.Mth;
 public final class RouteRotation {
 
     private static boolean active;
+    /** Latched in {@link #frame()} the moment the live rotation differs from what was last written. */
+    private static boolean userMoved;
     private static boolean humanized;
     private static float targetYaw;
     private static float targetPitch;
@@ -91,6 +93,7 @@ public final class RouteRotation {
     public static void clear() {
         active = false;
         humanized = false;
+        userMoved = false;
         lastFrameNanos = 0L;
         overshootYaw = 0f;
         overshootPitch = 0f;
@@ -127,13 +130,24 @@ public final class RouteRotation {
                 && feintYaw == 0f && feintPitch == 0f;
     }
 
-    /** True when the live rotation no longer matches what this class last wrote - the player touched the mouse. */
+    /**
+     * True when the player has turned the mouse since this class last wrote the rotation.
+     * <p>
+     * This is a LATCH set inside {@link #frame()}, not a comparison done by the caller, and that detail is
+     * the whole bug it fixes (2026-09-16 review). {@code Minecraft.runTick} runs ticks, then applies
+     * accumulated mouse movement, and only then renders - so by the time the next tick compared
+     * {@code getYRot()} against {@code lastAppliedYaw}, this frame step had already overwritten the
+     * player's own mouse input and re-recorded it. The comparison could never be true, the abort was dead
+     * code, and the route dragged the camera back out of the player's hands every frame. AutoWalker's
+     * version of this check works only because it writes once per tick, not per frame.
+     */
     public static boolean userMovedCamera(LocalPlayer player) {
-        if (player == null || Float.isNaN(lastAppliedYaw)) {
-            return false;
-        }
-        return Math.abs(player.getYRot() - lastAppliedYaw) > 0.05f
-                || Math.abs(player.getXRot() - lastAppliedPitch) > 0.05f;
+        return userMoved;
+    }
+
+    /** Clears the latch - called whenever a new approach begins or the controller is stopped. */
+    public static void clearUserMoved() {
+        userMoved = false;
     }
 
     /** Per-render-frame step (registered on {@code LevelRenderEvents} by the feature, like SimonSays'
@@ -153,6 +167,13 @@ public final class RouteRotation {
 
         float currentYaw = player.getYRot();
         float currentPitch = player.getXRot();
+        // Check BEFORE writing: this is the only moment the player's own mouse movement is still visible,
+        // since the write below replaces it (see userMovedCamera).
+        if (!Float.isNaN(lastAppliedYaw)
+                && (Math.abs(Mth.wrapDegrees(currentYaw - lastAppliedYaw)) > 0.05f
+                    || Math.abs(currentPitch - lastAppliedPitch) > 0.05f)) {
+            userMoved = true;
+        }
         float rawYaw = targetYaw;
         float rawPitch = targetPitch;
 

@@ -323,6 +323,7 @@ final class SettingTooltipsData {
         d.put("list nodes key", "Same as /ar list - prints this room's nodes in chat.");
         d.put("delete last node key", "Deletes the most recently added node - the keybind version of /ar delete <n>.");
         d.put("reload routes file key", "Same as /ar reload - re-reads the routes file from disk.");
+        d.put("allow command nodes", "Lets command nodes send chat and commands from your account. Off by default: a routes file from someone else could otherwise make you run anything. Only turn it on for routes you wrote.");
         d.put("terminal triggerbot", "Opens the P3 terminal your crosshair is already on, after the delay. Never moves your camera; Terminal Aura is the open-anything-in-range version.");
         d.put("terminal aura", "Opens P3 terminals by itself when one comes within range. It only opens them - Auto Terminals is what solves them. Never rotates your camera.");
         d.put("ground only", "Only acts while you are standing on the ground, never mid-air or mid-jump.");

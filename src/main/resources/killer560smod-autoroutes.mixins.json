@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.autoroutes.mixin",
 	"client": [
-		"AutoRoutesInputMixin"
+		"AutoRoutesInputMixin",
+		"KeyMappingKeyAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 0

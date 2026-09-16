@@ -139,6 +139,17 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
         label(w, contentX, y, contentWidth, "§7ON: a route only arms when you land on its start node - never halfway through, never via the map.");
 
+        w.add(SettingsButtonWidget.builder(onOff("Allow Command Nodes", cfg.isAllowCommandNodes()), btn -> {
+                    cfg.setAllowCommandNodes(!cfg.isAllowCommandNodes());
+                    cfg.save();
+                    btn.setMessage(onOff("Allow Command Nodes", cfg.isAllowCommandNodes()));
+                }).bounds(contentX, y[0], BTN_W, 20).build());
+        y[0] += 24;
+        label(w, contentX, y, contentWidth,
+                "§7OFF: command nodes are skipped. A shared routes file can make your account run any");
+        label(w, contentX, y, contentWidth,
+                "§7command or send any chat - only turn this on for routes you wrote yourself.");
+
         buildRecordingSection(w, contentX, y, contentWidth, half, requestRebuild);
         buildNodesSection(w, contentX, y, contentWidth, requestRebuild);
         buildRoutesFileSection(w, contentX, y, contentWidth, half, requestRebuild);
