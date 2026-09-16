@@ -284,9 +284,8 @@ public final class Ap3Commands {
             return;
         }
         if (on) {
-            ModChat.send(FEATURE, ModChat.text("Breaker edit mode "), ModChat.good("ON"),
-                    ModChat.text(" - right-click a block to add it, shift-right-click to remove. "),
-                    ModChat.dim("/ap3 edit db again to finish."));
+            ModChat.send(FEATURE, ModChat.dim(
+                    "Right-click a block to add it, shift-right-click to remove. /ap3 edit db again to finish."));
         } else {
             ModChat.send(FEATURE, ModChat.text("Breaker edit mode "), ModChat.bad("OFF"), ModChat.text("."));
         }
@@ -338,7 +337,6 @@ public final class Ap3Commands {
         if (!Ap3Feature.deleteNode(index)) {
             return;
         }
-        ModChat.send(FEATURE, ModChat.text("Deleted "), ModChat.dim("#" + (index + 1) + " "), ModChat.value(what), ModChat.text("."));
     }
 
     private static void clear() {
@@ -354,8 +352,6 @@ public final class Ap3Commands {
             Ap3Feature.setEditMode(false);
         }
         Ap3Feature.clearCurrentChain();
-        ModChat.send(FEATURE, ModChat.text("Cleared "), ModChat.value(count + " node" + (count == 1 ? "" : "s")),
-                ModChat.text(" from "), ModChat.value(sectionName()), ModChat.text("."));
     }
 
     /**
@@ -415,8 +411,6 @@ public final class Ap3Commands {
             // The core refused for a reason we didn't pre-check and said why.
             return;
         }
-        ModChat.send(FEATURE, ModChat.text("Started "), ModChat.value(sectionName()), ModChat.text(" chain - " + count + " node"
-                + (count == 1 ? "" : "s") + ". "), ModChat.dim("Move your mouse or a movement key to stop."));
     }
 
     private static void stopChain() {
@@ -425,7 +419,6 @@ public final class Ap3Commands {
             return;
         }
         Ap3Executor.stop("/ap3 stop");
-        ModChat.send(FEATURE, ModChat.text("Stopped."));
     }
 
     // ---- shared helpers (also used by the tab) ----

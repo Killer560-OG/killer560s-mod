@@ -121,7 +121,10 @@ public final class Ap3Node {
     public static final double MAX_LENGTH = 64.0;
     public static final double MIN_WIDTH = 0.1;
     public static final double MAX_WIDTH = 16.0;
-    public static final int MAX_WAIT_MS = 600_000;
+    /** Matches {@code Ap3Commands.MAX_WAIT_MS}, which is what the command and the tooltip promise. The load
+     *  path used to accept ten times this, so a hand-edited or shared file could sit a chain still for ten
+     *  minutes with nothing in the UI able to express it (2026-09-16 review). */
+    public static final int MAX_WAIT_MS = 120_000;
     public static final int MAX_LEAP_COUNT = 4;
     /** Half-width of the rendered marker box. */
     public static final double MARKER_HALF = 0.25;

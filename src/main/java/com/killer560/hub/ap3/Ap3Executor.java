@@ -83,6 +83,8 @@ public final class Ap3Executor {
     private static final double SETTLE_SPEED = 0.02;
     private static final int SETTLE_TICKS = 2;
     private static final double CORRIDOR_TAIL = 0.5;
+    /** How far sideways off a WALK/RUN node you may be and still have it drive you (2026-09-16 review). */
+    private static final double MOVE_START_LATERAL = 1.5;
     private static final double CORRIDOR_ANGLE = 10.0;
     private static final double MAX_CORRIDOR_NUDGE = 0.6;
     private static final double WALL_SEARCH = 8.0;
@@ -400,7 +402,7 @@ public final class Ap3Executor {
         pollClick(client);
         if (clickLatch) {
             clickLatch = false;
-            if (activeNode != null) {
+            if (activeNode != null && activeNode.type.isWaiting()) {
                 // killer560: "if I ever left click manually, then it should act like the terminal was completed.
                 // Same thing for leaps or any other type of wait modifier." One mechanism for every node type.
                 Ap3Node skipped = activeNode;
@@ -469,6 +471,9 @@ public final class Ap3Executor {
     private static void finishNode() {
         // Release the camera as soon as the node is done - a finished LOOK must not keep pulling the view back.
         RouteRotation.clear();
+        // ...and drop the grace window with it. Click-skipping a LEAP used to leave 205 ticks of grace
+        // running, which silently made the next LOOK node uninterruptible by the mouse (2026-09-16 review).
+        cameraGraceTicks = 0;
         clearMovement();
         activeNode = null;
         step = null;
@@ -601,6 +606,18 @@ public final class Ap3Executor {
     // ---- WALK / RUN: move in the recorded world direction without facing it ------------------------------
 
     private static void tickMove(Minecraft client, LocalPlayer player, Ap3Node node) {
+        if (step == Step.PREP) {
+            // Sanity-check that we are actually AT this node before driving off along its heading. The stuck
+            // detector only notices when progress stops, so without this a node behind the player (a
+            // hand-edited coordinate, the wrong section, a chain entered from somewhere else) walked them
+            // forward until the length ran out (2026-09-16 review).
+            double startAlong = node.alongOffset(player.position());
+            double startLateral = node.lateralOffset(player.position());
+            if (Math.abs(startAlong) > node.length + 0.5 || Math.abs(startLateral) > MOVE_START_LATERAL) {
+                stop("not standing at " + node.type.label() + " #" + number(node));
+                return;
+            }
+        }
         Ap3Config cfg = Ap3Config.getInstance();
         Vec3 pos = player.position();
         double along = node.alongOffset(pos);

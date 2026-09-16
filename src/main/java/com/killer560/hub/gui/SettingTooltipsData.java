@@ -279,6 +279,9 @@ final class SettingTooltipsData {
         d.put("highlight style", "How the highlight is drawn: outline, filled, or both. Click to cycle.");
         d.put("highlight line width", "Thickness of the highlight outline.");
         d.put("show all", "HUD editor: show every element, including ones that would not be on screen right now. Off shows only what is relevant where you are.");
+        d.put("45° walk angle", "Walk and run nodes use the diagonal movement input, which the game moves about 2% faster than a straight one. Where you travel is unchanged and your camera is never turned.");
+        d.put("continue into next section", "When a chain finishes, start the next section's chain by itself. It never resumes a chain you stopped by hand.");
+        d.put("ap3/chat feedback", "Print a chat line for what AP3 does - nodes added, chains started and stopped, and why a chain stopped.");
         d.put("border thickness", "How thick the waypoint's ring is drawn. It thickens automatically while you are standing inside it.");
         d.put("only send once per run", "Off (default): sends every time you walk in. On: sends at most once per dungeon run.");
         d.put("color", "Colour used for this element. Click to change it.");
@@ -359,7 +362,7 @@ final class SettingTooltipsData {
         d.put("ap3", "Cheat build only. Walks a hand-placed node chain through each F7/M7 Phase 3 terminal section. Boss only - it never arms in clear. Off by default; nothing runs until you turn it on.");
         d.put("ap3 status", "Which gate is closed right now: outside the F7/M7 boss, in boss but not Phase 3, or Phase 3 with the section you're in and whether a chain is running.");
         d.put("chain", "The node chain for the P3 section you're standing in, top to bottom. Each row shows the node's type, its modifier (length/width, wait ms, leap target) and its snapped position. Same numbers as /ap3 list.");
-        d.put("start chain", "Runs this section's chain from its first node. Only in F7/M7 Phase 3. Moving your mouse or pressing a movement key stops it. Same as /ap3 start.");
+        d.put("start chain", "Runs this section's chain from its first node. Only in F7/M7 Phase 3. Any movement key stops it; the mouse only stops it while a Look node is turning the camera. Same as /ap3 start.");
         d.put("stop chain", "Stops the running chain immediately and releases every key. Works at any time, even with AP3 off. Same as /ap3 stop.");
         d.put("breaker edit mode", "While ON, right-clicking a block adds it to this chain's breaker node and shift-right-click removes it; your held item won't fire. Same as /ap3 edit db.");
         d.put("list chain in chat", "Prints this section's nodes in chat, numbered from 1 - the number /ap3 delete <n> wants. Same as /ap3 list.");
@@ -508,10 +511,6 @@ final class SettingTooltipsData {
         d.put("+ add rename", "Adds a new empty row to the rename list; fill in the real IGN and the name to show.");
         d.put("real ign", "Type the player's real Minecraft username (up to 16 characters) to rename on your screen.");
         d.put("shown as", "Type the name to display for that player instead of their real IGN. & color codes work.");
-        d.put("pack disabler", "Stops server resource packs (like Hypixel's forced Skyblock pack) from downloading or loading, answering the server itself.");
-        d.put("only on hypixel.net", "Only blocks packs from hypixel.net; other servers get the normal vanilla resource pack prompt.");
-        d.put("chat notice", "Posts a client-side chat message each time a server pack is blocked, saying whether it was declined or pretend-loaded.");
-        d.put("unload server packs now", "Removes any server resource pack that already loaded before you turned Pack Disabler on.");
         d.put("chest profit", "Shows value, cost and profit next to dungeon reward chests and in the Croesus run view, using Bazaar/AH prices from the RNG Meter feed.");
         d.put("include essence", "Counts essence rewards toward a chest's value. OFF leaves essence out of the profit math.");
         d.put("highlight best", "Highlights the most profitable unopened chest in green in the Croesus run view.");
@@ -838,7 +837,7 @@ final class SettingTooltipsData {
         d.put("finish lights when s2 opens", "After S1 is cleared: flicks the last unlit Lights lever, or the nearest unlit one if several are left. If all are already lit, flicks exactly one lever to activate the device.");
         d.put("s2 section levers", "Flicks S2's two section levers once after S2 opens, only while their Not Activated stand is still above them.");
         d.put("s2 section levers early", "Also flicks S2's section levers once before S2 opens. They get one more try after S2 opens if still Not Activated.");
-        d.put("chat feedback", "Posts a local chat line for every lever Lever Aura flicks.");
+        d.put("lever aura/chat feedback", "Posts a local chat line for every lever Lever Aura flicks.");
         // Thorn
         d.put("spirit bear hud", "Shows Spirit Bear progress in F4/M4 boss: kills out of 25 (F4) or 30 (M4), then a spawn countdown, then Alive/Killed. Movable in the HUD editor.");
         d.put("show overkill", "Adds a line to the Spirit Bear HUD counting spirit mobs killed after the ring was already full (kills beyond what the bear needed).");

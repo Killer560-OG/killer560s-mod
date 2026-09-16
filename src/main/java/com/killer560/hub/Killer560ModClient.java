@@ -146,7 +146,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);
         com.killer560.hub.namechanger.NameChangerFeature.register();
-        com.killer560.hub.packdisabler.PackDisablerFeature.register();
         com.killer560.hub.croesus.ChestProfitFeature.register();
         com.killer560.hub.croesus.AutoCroesusFeature.register();
         com.killer560.hub.hud.HudInGameRenderer.register();

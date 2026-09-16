@@ -28,7 +28,8 @@ public final class Ap3Renderer {
     private static final double GROUND_OFFSET = 0.03;
     private static final double LABEL_DISTANCE = 40.0;
     private static final float BREAKER_ALPHA = 0.28f;
-    private static final double CORRIDOR_TAIL = 0.25;
+    /** Must match {@code Ap3Executor.CORRIDOR_TAIL} - the drawn corridor is the one that is enforced. */
+    private static final double CORRIDOR_TAIL = 0.5;
     private static final double ARROW_HEAD = 0.35;
 
     private Ap3Renderer() {

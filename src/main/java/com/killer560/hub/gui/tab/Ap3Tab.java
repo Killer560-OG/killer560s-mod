@@ -108,7 +108,21 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             return w;
         }
         label(w, contentX, y, contentWidth, statusLine());
-        label(w, contentX, y, contentWidth, "§7Moving your mouse or pressing a movement key stops a running chain. A manual left-click satisfies whatever node it's waiting on.");
+        label(w, contentX, y, contentWidth, "§7Any movement key stops a running chain. Moving the mouse stops it only while a Look node is "
+                + "turning the camera - walk and run nodes leave the camera to you. A left-click satisfies "
+                + "whatever the chain is waiting on (terminal, leap, wait).");
+
+        header(w, contentX, y, contentWidth, "Movement");
+        // These had no control at all and were reachable only by hand-editing the JSON - including the
+        // 45-degree walk killer560 specifically asked for (2026-09-16 review).
+        toggle(w, contentX, y, "45° Walk Angle", cfg::isDiagonalWalk, cfg::setDiagonalWalk, null);
+        label(w, contentX, y, contentWidth, "§7Walk and run nodes travel at the diagonal input speed (about 2% faster). "
+                + "The direction you travel is unchanged, and your camera is never turned.");
+        toggle(w, contentX, y, "Continue Into Next Section", cfg::isContinueIntoNextSection,
+                cfg::setContinueIntoNextSection, null);
+        label(w, contentX, y, contentWidth, "§7After a chain finishes, start the next section's chain automatically. "
+                + "Never resumes a chain you stopped yourself.");
+        toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
 
         buildChainSection(w, contentX, y, contentWidth, half, requestRebuild);
         buildAddSection(w, contentX, y, contentWidth, requestRebuild);
@@ -246,7 +260,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         header(w, x, y, width, "AP3 Colours");
         toggle(w, x, y, "Uniform Node Colour", cfg::isUniformColor, cfg::setUniformColor, rebuild);
         if (cfg.isUniformColor()) {
-            colorButton(w, x, y[0], half, "Chain Colour", cfg.getUniformColorArgb(), 0xFF00FFFF, cfg::setUniformColorArgb);
+            colorButton(w, x, y[0], half, "Chain Colour", cfg.getUniformColorArgb(),
+                    Ap3Config.DEFAULT_UNIFORM_COLOR, cfg::setUniformColorArgb);
             colorButton(w, x + half + GAP, y[0], half, "Current Node Colour", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb);
             y[0] += 24;
             return;
@@ -329,20 +344,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     /** The picker's "reset" colour per node type. Mirror any change in the core config's defaults. */
+    /** Delegates to the config rather than keeping a second copy - the duplicate table had drifted from
+     *  the real defaults for 10 of the 11 node types, so "reset" set a colour that was never the default
+     *  (2026-09-16 review). */
     private static int defaultColor(Ap3Node.Type type) {
-        return switch (type) {
-            case LINE -> 0xFF00FFFF;
-            case AXIS_LINE -> 0xFF00AAFF;
-            case WALK -> 0xFFFFFFFF;
-            case RUN -> 0xFFFFFF55;
-            case LEAP -> 0xFFAA00FF;
-            case LEAP_DETECTOR -> 0xFFFF55FF;
-            case TERMINAL -> 0xFF55FF55;
-            case WAIT -> 0xFF6B4E2E;
-            case STOP -> 0xFFFF3333;
-            case LOOK -> 0xFFFFAA00;
-            case BREAKER -> 0xFFFFA500;
-        };
+        return Ap3Config.defaultNodeColor(type);
     }
 
     private static Integer parseMillis(String text) {

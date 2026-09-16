@@ -36,20 +36,20 @@ public final class Ap3Config {
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ap3-settings.json");
 
     /** Stable keybind ids, one per {@code /ap3} command - all default to unbound. */
-    public static final String KEY_ADD_LINE = "addLine";
-    public static final String KEY_ADD_AXIS_LINE = "addAxisLine";
-    public static final String KEY_ADD_WALK = "addWalk";
-    public static final String KEY_ADD_RUN = "addRun";
-    public static final String KEY_ADD_LEAP = "addLeap";
-    public static final String KEY_ADD_LEAP_DETECTOR = "addLeapDetector";
-    public static final String KEY_ADD_TERMINAL = "addTerminal";
-    public static final String KEY_ADD_WAIT = "addWait";
-    public static final String KEY_ADD_STOP = "addStop";
-    public static final String KEY_ADD_LOOK = "addLook";
-    public static final String KEY_ADD_BREAKER = "addBreaker";
-    public static final String KEY_EDIT_DB = "editDb";
+    public static final String KEY_ADD_LINE = "add_line";
+    public static final String KEY_ADD_AXIS_LINE = "add_axis_line";
+    public static final String KEY_ADD_WALK = "add_walk";
+    public static final String KEY_ADD_RUN = "add_run";
+    public static final String KEY_ADD_LEAP = "add_leap";
+    public static final String KEY_ADD_LEAP_DETECTOR = "add_leapdetector";
+    public static final String KEY_ADD_TERMINAL = "add_terminal";
+    public static final String KEY_ADD_WAIT = "add_wait";
+    public static final String KEY_ADD_STOP = "add_stop";
+    public static final String KEY_ADD_LOOK = "add_look";
+    public static final String KEY_ADD_BREAKER = "add_breaker";
+    public static final String KEY_EDIT_DB = "edit_db";
     public static final String KEY_LIST = "list";
-    public static final String KEY_DELETE_LAST = "deleteLast";
+    public static final String KEY_DELETE_LAST = "delete";
     public static final String KEY_CLEAR = "clear";
     public static final String KEY_RELOAD = "reload";
     public static final String KEY_START = "start";
@@ -91,7 +91,9 @@ public final class Ap3Config {
     private DungeonClass editClassFilter = null;
     private int defaultWaitMs = 1000;
     private boolean uniformColor = false;
-    private int uniformColorArgb = 0xFFFFA040;
+    /** The mod's own amber, so a uniform-coloured chain matches the menu. */
+    public static final int DEFAULT_UNIFORM_COLOR = 0xFFFFA040;
+    private int uniformColorArgb = DEFAULT_UNIFORM_COLOR;
     private int activeColorArgb = 0xFFFFFFFF;
     private final Map<Ap3Node.Type, Integer> nodeColors = new EnumMap<>(Ap3Node.Type.class);
     private float thickness = 3f;

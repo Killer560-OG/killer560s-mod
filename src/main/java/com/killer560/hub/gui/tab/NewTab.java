@@ -46,7 +46,6 @@ public class NewTab extends FolderTab {
                 new DungeonAlertsTab(),
                 new RagAxeTab(),
                 new NameChangerTab(),
-                new PackDisablerTab(),
                 new CroesusTab(),
                 new HeldItemTab(),
                 new ArrowAlignTab(),
