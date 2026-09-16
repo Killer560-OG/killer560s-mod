@@ -76,15 +76,15 @@ public class P3NavTab extends BaseTab {
                 }).bounds(contentX, y, colW, 18).build());
         y += 30;
 
-        // ---- Terminal / Device ESP ----
+        // ---- Terminal / Device Highlight (depth-tested; "ESP" was inaccurate AND cheat-sounding) ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Terminal / Device ESP", false), mc.font));
+                SectionHeaders.header("Terminal / Device Highlight", false), mc.font));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal ESP", cfg.getTerminalEspRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Highlight", cfg.getTerminalEspRaw()), btn -> {
                     cfg.setTerminalEsp(!cfg.getTerminalEspRaw());
                     cfg.save();
-                    btn.setMessage(onOff("Terminal ESP", cfg.getTerminalEspRaw()));
+                    btn.setMessage(onOff("Terminal Highlight", cfg.getTerminalEspRaw()));
                 }).bounds(contentX, y, colW, 18).build());
         colorButton(widgets, col2X, y, colW, "Terminal", cfg::getTerminalColor, argb -> {
             cfg.setTerminalColor(argb);
@@ -92,10 +92,10 @@ public class P3NavTab extends BaseTab {
         }, P3NavConfig.DEFAULT_TERMINAL_COLOR);
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Device ESP", cfg.getDeviceEspRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Device Highlight", cfg.getDeviceEspRaw()), btn -> {
                     cfg.setDeviceEsp(!cfg.getDeviceEspRaw());
                     cfg.save();
-                    btn.setMessage(onOff("Device ESP", cfg.getDeviceEspRaw()));
+                    btn.setMessage(onOff("Device Highlight", cfg.getDeviceEspRaw()));
                 }).bounds(contentX, y, colW, 18).build());
         colorButton(widgets, col2X, y, colW, "Device", cfg::getDeviceColor, argb -> {
             cfg.setDeviceColor(argb);
@@ -103,13 +103,13 @@ public class P3NavTab extends BaseTab {
         }, P3NavConfig.DEFAULT_DEVICE_COLOR);
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(styleText("ESP Style", cfg.getTerminalStyle()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(styleText("Highlight Style", cfg.getTerminalStyle()), btn -> {
                     cfg.cycleTerminalStyle();
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
         if (cfg.getTerminalStyle() != P3NavConfig.Style.FILLED) {
-            widthSlider(widgets, col2X, y, colW, "ESP Line Width", cfg.getTerminalLineWidth(), v -> {
+            widthSlider(widgets, col2X, y, colW, "Highlight Line Width", cfg.getTerminalLineWidth(), v -> {
                 cfg.setTerminalLineWidth(v);
                 cfg.save();
             }, cfg::getTerminalLineWidth);

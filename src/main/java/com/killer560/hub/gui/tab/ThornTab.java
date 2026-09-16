@@ -49,16 +49,16 @@ public class ThornTab extends BaseTab {
         widgets.add(toggle(contentX, y, colW, "Overkill Chat", cfg::getOverkillChatRaw, cfg::setOverkillChat));
         y += 28;
 
-        // ---- Thorn ESP ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Thorn ESP", false), mc.font));
+        // ---- Thorn Highlights (depth-tested unless the cheat-only Through Walls is on) ----
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Thorn Highlights", false), mc.font));
         y += 16;
-        targetRow(widgets, contentX, col2X, y, colW, "Spirit Bear ESP", cfg::getBearEspRaw, cfg::setBearEsp,
+        targetRow(widgets, contentX, col2X, y, colW, "Spirit Bear Highlight", cfg::getBearEspRaw, cfg::setBearEsp,
                 "Spirit Bear", cfg::getBearColor, cfg::setBearColor, ThornConfig.DEFAULT_BEAR_COLOR);
         y += 22;
-        targetRow(widgets, contentX, col2X, y, colW, "Spirit Mob ESP", cfg::getMobEspRaw, cfg::setMobEsp,
+        targetRow(widgets, contentX, col2X, y, colW, "Spirit Mob Highlight", cfg::getMobEspRaw, cfg::setMobEsp,
                 "Spirit Mob", cfg::getMobColor, cfg::setMobColor, ThornConfig.DEFAULT_MOB_COLOR);
         y += 22;
-        targetRow(widgets, contentX, col2X, y, colW, "Spirit Bow ESP", cfg::getBowEspRaw, cfg::setBowEsp,
+        targetRow(widgets, contentX, col2X, y, colW, "Spirit Bow Highlight", cfg::getBowEspRaw, cfg::setBowEsp,
                 "Spirit Bow", cfg::getBowColor, cfg::setBowColor, ThornConfig.DEFAULT_BOW_COLOR);
         y += 22;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Thorn ESP Style: §b" + cfg.getStyle().label), btn -> {

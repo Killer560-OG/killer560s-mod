@@ -1,6 +1,7 @@
 package com.killer560.hub.splittimers;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -642,14 +643,19 @@ public final class SplitTimersFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return SplitTimersConfig.getInstance().isEnabled() && DungeonState.isInDungeon();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            var screen = Minecraft.getInstance().screen;
-            if (!SplitTimersConfig.getInstance().isEnabled()
-                    || (screen != null && !(screen instanceof com.killer560.hub.hud.HudEditorScreen))) {
+            if (!SplitTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             int lineY = y;
-            if (screen == null) {
+            // Real rows in game (chat included - killer560: "dont make it hide the gui if i open chat"); the
+            // editor shows only the sample P5 / core-entry blocks below.
+            if (!HudVisibility.editorOpen()) {
                 for (SplitRow row : displayRows()) {
                     String text = row.name() + "§f: " + formatTime(row.timeMs());
                     graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);

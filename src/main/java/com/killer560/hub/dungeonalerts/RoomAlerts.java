@@ -114,6 +114,11 @@ final class RoomAlerts {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return DungeonAlertsConfig.getInstance().roomAlertsEnabled && DungeonState.isInDungeon();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             boolean example = DungeonAlertsFeature.isEditorOpen();
             if (!example && (!DungeonAlertsConfig.getInstance().roomAlertsEnabled || System.currentTimeMillis() >= alertUntilMs)) {

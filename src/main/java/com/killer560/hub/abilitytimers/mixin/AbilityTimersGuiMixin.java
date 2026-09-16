@@ -1,6 +1,7 @@
 package com.killer560.hub.abilitytimers.mixin;
 
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudVisibility;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -16,6 +17,11 @@ public abstract class AbilityTimersGuiMixin {
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$drawAbilityTimers(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        // Chat stays see-through (killer560: "dont make it hide the gui if i open chat"); the HUD editor draws
+        // the element itself, and the element's own render() no longer hides for either.
+        if (HudVisibility.menuOpen()) {
+            return;
+        }
         HudElementRegistry.all().stream()
                 .filter(e -> e.id().equals("ability_timers"))
                 .findFirst()

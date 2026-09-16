@@ -1,6 +1,7 @@
 package com.killer560.hub.abilitytimers;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -106,8 +107,13 @@ public final class AbilityTimersFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return AbilityTimersConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!AbilityTimersConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+            if (!AbilityTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             long now = System.currentTimeMillis();

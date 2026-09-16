@@ -115,6 +115,14 @@ public final class StorageOverlayFeature {
             }
 
             @Override
+            public boolean isRelevantNow() {
+                // Only ever drawn over a storage menu, which can't be open while the HUD editor is - so
+                // "relevant" means where you'd use it: enabled, on Skyblock, not in a dungeon.
+                return StorageOverlayConfig.getInstance().isEnabled() && com.killer560.hub.util.SkyblockGate.isOnSkyblock()
+                        && !com.killer560.hub.secrets.DungeonState.isInDungeon();
+            }
+
+            @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
                 // HUD position editor preview - a real grid isn't necessarily open right now, so show
                 // a label only. The real overlay only draws while a storage screen is actually open.

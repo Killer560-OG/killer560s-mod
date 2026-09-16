@@ -1,6 +1,7 @@
 package com.killer560.hub.dungeoninfo;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.util.ChatObserver;
@@ -342,9 +343,15 @@ public final class DungeonInfoFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
+            return (cfg.isSecretsHudEnabled() || cfg.isTimeTrackerEnabled()) && DungeonState.isInDungeon();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-            if (Minecraft.getInstance().screen != null) {
+            if (HudVisibility.hidesHud()) {
                 return;
             }
             int lineY = y;

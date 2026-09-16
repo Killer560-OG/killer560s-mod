@@ -1,6 +1,7 @@
 package com.killer560.hub.abilitycooldown;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -97,12 +98,13 @@ public final class AbilityCooldownFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            // Second column (x=200) beside Ability Timers (x=10,y=200): the old 10/320 sat exactly on Split Timers.
+            return 200;
         }
 
         @Override
         public int defaultY() {
-            return 320;
+            return 200;
         }
 
         @Override
@@ -116,9 +118,14 @@ public final class AbilityCooldownFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return AbilityCooldownConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
-            if (!cfg.isEnabled() || Minecraft.getInstance().screen != null) {
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             Font font = Minecraft.getInstance().font;

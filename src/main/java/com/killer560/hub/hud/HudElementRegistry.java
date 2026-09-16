@@ -93,6 +93,11 @@ public final class HudElementRegistry {
         if (screen == null) {
             return pos;
         }
+        // Top-left corner on screen means at least that pixel is visible - skip width()/height() (which for some
+        // elements builds their whole line list) on this per-frame path unless the corner is actually outside.
+        if (pos[0] >= 0 && pos[0] < screen[0] && pos[1] >= 0 && pos[1] < screen[1]) {
+            return pos;
+        }
         int[] size = scaledSize(element);
         boolean visible = pos[0] < screen[0] && pos[0] + size[0] > 0 && pos[1] < screen[1] && pos[1] + size[1] > 0;
         return visible ? pos : clampIntoScreen(element, pos);

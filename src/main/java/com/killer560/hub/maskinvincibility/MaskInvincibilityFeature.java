@@ -1,6 +1,7 @@
 package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -222,8 +223,13 @@ public final class MaskInvincibilityFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return MaskInvincibilityConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MaskInvincibilityConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+            if (!MaskInvincibilityConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             int lineY = y;

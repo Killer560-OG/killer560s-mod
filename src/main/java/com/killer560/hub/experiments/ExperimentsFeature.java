@@ -220,6 +220,14 @@ public final class ExperimentsFeature {
             }
 
             @Override
+            public boolean isRelevantNow() {
+                // Only ever drawn inside the Experimentation Table menu, which can't be open while the HUD editor
+                // is - so "relevant" here means "where you'd use it": enabled, on Skyblock, not in a dungeon.
+                return ExperimentsConfig.getInstance().isEnabled() && com.killer560.hub.util.SkyblockGate.isOnSkyblock()
+                        && !com.killer560.hub.secrets.DungeonState.isInDungeon();
+            }
+
+            @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
                 drawButtonBox(graphics, x, y, "Start ETable");
             }

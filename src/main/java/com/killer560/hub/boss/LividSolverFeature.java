@@ -1,6 +1,7 @@
 package com.killer560.hub.boss;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.WorldRenderUtils;
@@ -185,9 +186,17 @@ public final class LividSolverFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            LividSolverConfig cfg = LividSolverConfig.getInstance();
+            String floor = DungeonState.getFloor();
+            // Livid only exists on floor 5.
+            return cfg.isEnabled() && cfg.isShowTimer() && floor != null && floor.endsWith("5");
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             if (!LividSolverConfig.getInstance().isEnabled() || !LividSolverConfig.getInstance().isShowTimer()
-                    || Minecraft.getInstance().screen != null || invulnTicks <= 0) {
+                    || HudVisibility.hidesHud() || invulnTicks <= 0) {
                 return;
             }
             String color = invulnTicks > 260 ? "§a" : invulnTicks > 130 ? "§e" : "§c";

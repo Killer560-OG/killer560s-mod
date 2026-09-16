@@ -38,6 +38,18 @@ public class PackDisablerTab extends BaseTab {
                 Component.literal("§7Stops server resource packs (Hypixel's Skyblock pack) from downloading/loading."), font));
         y += 16;
 
+        String conflict = com.killer560.hub.packdisabler.PackDisablerFeature.conflictingModId();
+        if (conflict != null) {
+            // Both mods cancel the same packet, so running both is a coin flip over which one wins. Say so
+            // rather than showing an ON toggle that is doing nothing (2026-09-16).
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§c" + conflict + " is installed and does this too - this feature is standing down."), font));
+            y += 14;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§7Remove that mod to use this one, or leave it - it also restores the old item textures."), font));
+            y += 16;
+        }
+
         if (!cfg.isEnabled()) {
             return widgets;
         }

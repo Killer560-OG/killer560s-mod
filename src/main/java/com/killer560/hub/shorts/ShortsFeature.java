@@ -1046,19 +1046,53 @@ public final class ShortsFeature {
         if (theme != ShortsConfig.Theme.SYSTEM) {
             JsonObject scheme = new JsonObject();
             scheme.addProperty("name", "prefers-color-scheme");
-            scheme.addProperty("value", theme == ShortsConfig.Theme.DARK ? "dark" : "light");
+            // Amber is a dark theme with the mod's accent painted over it, so it emulates dark too.
+            scheme.addProperty("value", theme == ShortsConfig.Theme.LIGHT ? "light" : "dark");
             features.add(scheme);
         }
         params.add("features", features);
         c.send("Emulation.setEmulatedMedia", params).get(5500, TimeUnit.MILLISECONDS);
+        applyAmberStyleNow(c, theme == ShortsConfig.Theme.AMBER);
         if (theme == ShortsConfig.Theme.SYSTEM) {
             return "emulation cleared (" + why + ")";
         }
-        boolean dark = theme == ShortsConfig.Theme.DARK;
+        boolean dark = theme != ShortsConfig.Theme.LIGHT;
         String r = str(c.evaluate("(()=>{const h=document.documentElement;if(!h)return 'no document';"
                 + "const want=" + dark + ";if(h.hasAttribute('dark')===want)return 'already';"
                 + "if(want)h.setAttribute('dark','');else h.removeAttribute('dark');return 'nudged'})()"));
         return theme.label.toLowerCase(Locale.ROOT) + " emulated, html[dark] " + r + " (" + why + ")";
+    }
+
+    /**
+     * Amber: this mod's own theme, applied to the Shorts page as a single injected stylesheet.
+     * <p>
+     * Deliberately narrow. It recolours the progress bar, the "chrome" accents and link/hover colour to the
+     * menu's own accent and nothing else - YouTube's class names change constantly, so a stylesheet that
+     * tried to restyle the whole player would quietly rot into a broken-looking page. Anything it fails to
+     * match simply stays the dark theme underneath it, which is a fine fallback rather than a broken one.
+     * The element is removed again when the theme is not Amber, so switching away is clean.
+     */
+    private static void applyAmberStyleNow(CdpClient c, boolean on) throws Exception {
+        // The menu's accent, kept in sync with SectionHeaders/MainMenuTheme's orange by eye rather than by
+        // import: this string is CSS, and the GUI constants are ARGB ints for a different renderer.
+        final String accent = "#cc6600";
+        final String accentBright = "#ff8c1a";
+        String js = on
+                ? "(()=>{const id='k560-amber';let e=document.getElementById(id);"
+                + "if(!e){e=document.createElement('style');e.id=id;(document.head||document.documentElement).appendChild(e);}"
+                + "e.textContent=`"
+                + ":root{--yt-spec-static-brand-red:" + accent + ";--yt-spec-call-to-action:" + accent + ";"
+                + "--yt-spec-text-primary-inverse:#000;--yt-spec-brand-button-background:" + accent + ";}"
+                + ".ytp-play-progress,.ytp-swatch-background-color{background:" + accent + " !important;}"
+                + ".ytp-scrubber-button{background:" + accentBright + " !important;}"
+                + "a{color:" + accentBright + ";}"
+                + "`;return 'applied'})()"
+                : "(()=>{const e=document.getElementById('k560-amber');if(e){e.remove();return 'removed';}return 'absent'})()";
+        try {
+            c.evaluate(js);
+        } catch (Exception ignored) {
+            // A cosmetic overlay must never be the reason the Shorts window stops working.
+        }
     }
 
     /** Client thread entry point for user-triggered commands. */

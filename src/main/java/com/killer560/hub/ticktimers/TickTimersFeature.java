@@ -1,6 +1,7 @@
 package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.witherdragons.ServerTickClock;
@@ -296,8 +297,13 @@ public final class TickTimersFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return TickTimersConfig.getInstance().isEnabled() && DungeonState.isF7OrM7();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!TickTimersConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+            if (!TickTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             int lineY = y;

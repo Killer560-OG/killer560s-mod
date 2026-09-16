@@ -46,11 +46,43 @@ public final class PackDisablerFeature {
         });
     }
 
+    /** Another mod that intercepts the same packet. Cached after the first call - mods cannot load at runtime. */
+    private static Boolean conflictingMod;
+
+    /** @return the id of a loaded mod that also intercepts the resource-pack push, or null. */
+    public static String conflictingModId() {
+        var loader = net.fabricmc.loader.api.FabricLoader.getInstance();
+        for (String id : new String[]{"packdisabler", "detexturify"}) {
+            if (loader.isModLoaded(id)) {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    public static boolean conflictingModLoaded() {
+        if (conflictingMod == null) {
+            String id = conflictingModId();
+            conflictingMod = id != null;
+            if (id != null) {
+                LOGGER.info("[PackDisabler] {} is installed and intercepts the same packet - standing down.", id);
+            }
+        }
+        return conflictingMod;
+    }
+
     /** @return true if the push was handled here and vanilla handling must be skipped. */
     public static boolean onResourcePackPush(ClientCommonPacketListenerImpl listener, ClientboundResourcePackPushPacket packet,
                                               ServerData listenerServer) {
         PackDisablerConfig cfg = PackDisablerConfig.getInstance();
         if (!cfg.isEnabled()) {
+            return false;
+        }
+        if (conflictingModLoaded()) {
+            // Noamm's PackDisabler and Detexturify inject at this exact method, cancellable, same as we do -
+            // so with both installed whichever mixin happens to run first wins and the other silently does
+            // nothing. Theirs does strictly more than ours (it re-serves Hypixel's pack underneath and maps
+            // items back to their old textures), so we stand down rather than race it (2026-09-16).
             return false;
         }
         ServerData server = listenerServer != null ? listenerServer : Minecraft.getInstance().getCurrentServer();

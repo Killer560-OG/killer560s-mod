@@ -792,6 +792,11 @@ public final class CustomScoreboardFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return isActive() || minimalActive();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
             Minecraft client = Minecraft.getInstance();

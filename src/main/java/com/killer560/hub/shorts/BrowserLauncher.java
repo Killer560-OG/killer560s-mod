@@ -116,7 +116,8 @@ final class BrowserLauncher {
         // neither can break a launch. The CDP prefers-color-scheme emulation ShortsFeature applies after
         // connecting is what actually guarantees the result (and is what makes a live change work without
         // a relaunch); this just removes the initial flash. SYSTEM adds nothing = the pre-option behaviour.
-        if (theme == ShortsConfig.Theme.DARK) {
+        // Amber is a dark page with the mod's accent painted over it, so it wants the dark first-paint too.
+        if (theme == ShortsConfig.Theme.DARK || theme == ShortsConfig.Theme.AMBER) {
             cmd.add("--force-dark-mode");
         } else if (theme == ShortsConfig.Theme.LIGHT) {
             cmd.add("--force-light-mode");

@@ -1,6 +1,7 @@
 package com.killer560.hub.scorecalc;
 
 import com.google.gson.JsonArray;
+import com.killer560.hub.hud.HudVisibility;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -736,11 +737,16 @@ public final class ScoreCalculatorFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return ScoreCalculatorConfig.getInstance().isEnabled() && DungeonState.isInDungeon();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
             boolean editor = inEditor();
-            if (!cfg.isEnabled() || (client.screen != null && !editor)) {
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             if (!editor && !DungeonState.isInDungeon()) {

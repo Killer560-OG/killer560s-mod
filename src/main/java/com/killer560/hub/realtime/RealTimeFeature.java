@@ -1,6 +1,6 @@
 package com.killer560.hub.realtime;
 
-import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -100,10 +100,15 @@ public final class RealTimeFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return RealTimeConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             RealTimeConfig cfg = RealTimeConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
-            if (!cfg.isEnabled() || (client.screen != null && !(client.screen instanceof HudEditorScreen))) {
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             int color = cfg.getTextColor();

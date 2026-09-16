@@ -1,6 +1,7 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.splittimers.P5Splits;
@@ -356,6 +357,12 @@ public final class KingRelicsFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+            return cfg.isRelicsEnabled() && cfg.isRelicSpawnTimer() && DungeonState.isF7OrM7();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
@@ -365,7 +372,7 @@ public final class KingRelicsFeature {
             String text;
             if (client.screen instanceof HudEditorScreen) {
                 text = "§3Relics: 1.90s";
-            } else if (client.screen == null && relicTicksToSpawn > 0) {
+            } else if (!HudVisibility.hidesHud() && relicTicksToSpawn > 0) {
                 text = "§3Relics: " + String.format(Locale.US, "%.2f", relicTicksToSpawn / 20f) + "s";
             } else {
                 return;

@@ -28,17 +28,22 @@ public class MiningWipTab extends FolderTab {
     /** Read-only roadmap page so the tab isn't empty. */
     private static final class PlannedTab extends BaseTab {
 
+        /** Cheat-build-only plans, listed separately so the legit jar's roadmap never names them
+         *  (killer560, 2026-09-16: "If you are on the legit version it shouldnt mention cheat things at all"). */
+        private static final String[] PLANNED_CHEAT = {
+                "Auto Crystal Nucleus runs - island pathfinding + etherwarp, Jungle Temple auto parkour, auto bow",
+        };
+
         private static final String[] PLANNED = {
                 "Commission display - HUD with every commission's progress + completion alerts",
                 "Crystal Nucleus helper - crystals found/placed tracker, part locations per zone",
-                "Auto Crystal Nucleus runs (cheat) - island pathfinding + etherwarp, Jungle Temple auto parkour, auto bow",
                 "Carpet highlight while on a mining island",
                 "Mines of Divan metal detector solver",
                 "Crystal Hollows chest lockpick solver + treasure chest highlight",
                 "Goblin Queen's Den / Jungle Temple / Precursor City / Khazad-dum waypoints + shared coords",
                 "Powder tracker (mithril / gemstone / glacite per hour)",
                 "Mining ability cooldown + Sky Mall perk display",
-                "Glacite Mineshaft helpers - corpse ESP, mineshaft entrance alert, shaft type",
+                "Glacite Mineshaft helpers - corpse highlight, mineshaft entrance alert, shaft type",
                 "Fossil Excavator solver",
                 "Golden / Diamond Goblin + Scatha / worm spawn alerts",
                 "Fallen Star / Star Sentry waypoint",
@@ -63,7 +68,14 @@ public class MiningWipTab extends FolderTab {
             for (String line : PLANNED) {
                 widgets.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal("§6- §f" + line), font));
                 y += 13;
+            }            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                for (String line : PLANNED_CHEAT) {
+                    widgets.add(new StringWidget(contentX, y, contentWidth, 10,
+                            Component.literal("§c- §f" + line), font));
+                    y += 13;
+                }
             }
+
             return widgets;
         }
     }

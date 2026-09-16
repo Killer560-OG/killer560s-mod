@@ -1,6 +1,7 @@
 package com.killer560.hub.pathfinding;
 
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
@@ -280,7 +281,8 @@ public final class PathfindingFeature {
 
     private static void drawHud(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.options.hideGui || client.screen != null) {
+        // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
+        if (client.player == null || client.options.hideGui || HudVisibility.menuOpen()) {
             return;
         }
         int[] pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(HudElementImpl.INSTANCE);
@@ -361,6 +363,11 @@ public final class PathfindingFeature {
         @Override
         public int height() {
             return Math.max(10, hudLines().size() * 10);
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            return PathfindingConfig.getInstance().isEnabled();
         }
 
         @Override

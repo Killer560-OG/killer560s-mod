@@ -45,9 +45,12 @@ public final class ShortsConfig {
     }
 
     /** Page colour scheme the Shorts window is asked to use (2026-09-16, killer560: "make an option for dark or
-     *  light mode"). SYSTEM is the pre-option behaviour: the browser follows Windows' own app theme. */
+     *  light mode", then "add an onyx mode that is our orange theme... instead of onyx call it amber").
+     *  SYSTEM is the pre-option behaviour: the browser follows Windows' own app theme. AMBER is this mod's
+     *  own theme - dark emulation plus a stylesheet recolouring YouTube's chrome to the menu's accent, so
+     *  the Shorts window looks like part of the mod rather than a browser someone parked on top of it. */
     public enum Theme {
-        SYSTEM("System"), DARK("Dark"), LIGHT("Light");
+        SYSTEM("System"), DARK("Dark"), LIGHT("Light"), AMBER("Amber");
 
         public final String label;
 

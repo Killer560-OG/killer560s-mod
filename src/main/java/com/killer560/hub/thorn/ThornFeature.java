@@ -1,6 +1,7 @@
 package com.killer560.hub.thorn;
 
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -127,7 +128,8 @@ public final class ThornFeature {
 
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.screen != null || client.options.hideGui || !SkyblockGate.allows()) {
+        // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
+        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !SkyblockGate.allows()) {
             return;
         }
         int[] pos = HudElementRegistry.resolvePosition(HUD);
@@ -176,6 +178,12 @@ public final class ThornFeature {
         @Override
         public int height() {
             return 22;
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            // Floor 4 only - Thorn is the F4/M4 boss.
+            return ThornConfig.getInstance().isBearHudEnabled() && thornFloor() != null;
         }
 
         @Override

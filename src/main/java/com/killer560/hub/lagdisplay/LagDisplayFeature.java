@@ -1,6 +1,7 @@
 package com.killer560.hub.lagdisplay;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -182,12 +183,13 @@ public final class LagDisplayFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            // Second column (x=200) on the Real Time row: the old 10/220 sat exactly on Etherwarp Waypoints.
+            return 200;
         }
 
         @Override
         public int defaultY() {
-            return 220;
+            return 40;
         }
 
         @Override
@@ -201,8 +203,13 @@ public final class LagDisplayFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return LagDisplayConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!LagDisplayConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null) {
+            if (!LagDisplayConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             Font font = Minecraft.getInstance().font;

@@ -1,6 +1,7 @@
 package com.killer560.hub.simonsays;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -2910,12 +2911,13 @@ public final class SimonSaysFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            // Second column (x=200): the old 10/260 sat exactly on Dungeon Info (Secrets/Time).
+            return 200;
         }
 
         @Override
         public int defaultY() {
-            return 260;
+            return 300;
         }
 
         @Override
@@ -2940,8 +2942,13 @@ public final class SimonSaysFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() && DungeonState.isF7OrM7();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() || Minecraft.getInstance().screen != null) {
+            if (!SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             long now = System.currentTimeMillis();

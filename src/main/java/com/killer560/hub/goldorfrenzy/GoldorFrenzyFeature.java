@@ -1,6 +1,7 @@
 package com.killer560.hub.goldorfrenzy;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.witherdragons.ServerTickClock;
@@ -225,8 +226,13 @@ public final class GoldorFrenzyFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return GoldorFrenzyConfig.getInstance().isEnabled() && DungeonState.isF7OrM7();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (Minecraft.getInstance().screen != null) {
+            if (HudVisibility.hidesHud()) {
                 return;
             }
             String line = currentLine();

@@ -91,6 +91,11 @@ public final class BlessingsFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return BlessingsConfig.getInstance().isHudEnabled() && com.killer560.hub.secrets.DungeonState.isInDungeon();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             BlessingsConfig cfg = BlessingsConfig.getInstance();

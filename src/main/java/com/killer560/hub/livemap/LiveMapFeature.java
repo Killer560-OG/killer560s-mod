@@ -1,6 +1,7 @@
 package com.killer560.hub.livemap;
 
 import com.killer560.hub.chunkcache.ChunkCacheManager;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.leapmenu.LeapMenuConfig;
@@ -1012,13 +1013,16 @@ public final class LiveMapFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return LiveMapConfig.getInstance().isEnabled() && DungeonState.isInDungeon();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             LiveMapConfig cfg = LiveMapConfig.getInstance();
-            net.minecraft.client.gui.screens.Screen screen = Minecraft.getInstance().screen;
-            // Interactive map "Open From HUD Click": keep the HUD map visible behind chat so it can be clicked.
-            boolean chatShown = screen instanceof net.minecraft.client.gui.screens.ChatScreen
-                    && cfg.isOpenFromHudClick() && cfg.isInteractiveMapEnabled();
-            if (!cfg.isEnabled() || (screen != null && !chatShown) || !DungeonState.isInDungeon()) {
+            // Chat never hides the map any more (killer560: "dont make it hide the gui if i open chat") - it used to
+            // stay only for the interactive map's "Open From HUD Click"; that click path still works the same.
+            if (!cfg.isEnabled() || HudVisibility.hidesHud() || !DungeonState.isInDungeon()) {
                 return;
             }
             int cell = cfg.getCellSize();

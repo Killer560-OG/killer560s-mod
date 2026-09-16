@@ -29,7 +29,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
-- YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. **Untested** - see the New tab
+- YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System theme option. **Untested** - see the New tab
 
 **Helpers**
 - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
@@ -79,7 +79,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Mapping — a data-gathering tool for building future map features ("Dump Held Map Now"); funny map/mimic highlight/class recolor are reserved settings that don't draw anything yet
 - Etherwarp Waypoints — per-run-only reminders for secret etherwarp spots you've marked, never saved to disk
 - Custom Leap Menu — replaces the Spirit Leap GUI (the real chest and your inventory are hidden) with 4 big name boxes in your Leap Order, colored by class; click a quarter of the screen or press 1-4 to leap (scale 50-400%)
-- Etherwarp Overlay — while holding a real Etherwarp item, highlights exactly where you'd land (green if safe, red if not) using a real voxel raycast. Never moves you — the real server still handles the actual warp
+- Etherwarp Overlay — while holding a real Etherwarp item, highlights exactly where you'd land (green if safe, red if not by default - both colours and Outline / Filled / Filled+Outline style are configurable) using a real voxel raycast. Never moves you — the real server still handles the actual warp
 - Item Protection — lock inventory slots, protect named or starred items, and block the drop key so a Hyperion can't be dropped, sold, salvaged, traded or anvil-fed by accident; every block says so in chat
 - Slot Binds — link two slots in your real inventory (one must be a hotbar slot); shift-click either one to swap it with its bound partner using the same real vanilla mechanic pressing a number key over a slot uses
 - Chat Commands — replies to "!coords", "!ping", "!fps", "!time", "!holding", "!cf", "!8ball", and "!dice" from real party/guild/private/co-op chat. Never runs a party-management command from someone else's message
@@ -115,7 +115,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Themed Main Menu — the title screen in the mod's black/orange theme: themed buttons, dark animated background with drifting embers, a cleaner button column (no Realms/language/accessibility buttons, Swap Accounts in the column), and the same theme on every other menu: multiplayer, options, world select, mod list and other mods' screens, with themed buttons, text fields, sliders, checkboxes, tabs, lists, scrollbars and tooltips (one toggle in Display; chests and inventories stay normal)
 - Arrow Align — F7/M7 third device solver: clicks-needed numbers on each frame, Prevent Misclicks (crouch to override); **cheat build:** Trigger Bot with delay and Aura
 - Secret Triggerbot — **cheat build only.** Clicks a secret (chest, lever, redstone key, wither essence) when you look at it, after a delay; never re-clicks a looted secret; optional slot swap
-- Dungeon ESP — boxes or glow on starred mobs, secret bats and (cheat build) the F7/M7 wither bosses, each with its own colour
+- Starred Mob Hitboxes (named Dungeon ESP on the cheat build) — boxes or glow on starred mobs and secret bats, each with its own colour, line-of-sight only; the cheat build adds a separate red ESP section with Through Walls and the F7/M7 wither bosses
 - Door Helpers — **cheat build only.** Auto Door Opener (QUOI: aura or triggerbot on locked wither/blood doors) and Look At Door (smoothly turns to the next locked door on a key or when you pick up a key)
 - Interactive Map — full-screen dungeon map on a key: rooms, doors, secrets found, teammates, hover tooltips, zoom/pan, right-click a room to toggle its secret waypoints, and a hold-to-enlarge HUD peek. **Cheat build:** click a room or door to teleport there with etherwarp pathing, keys for room start / closest locked door, and Auto Blood Rush (teleports door to door until the blood door opens)
 - Pack Disabler — stops Hypixel's forced Skyblock resource pack from loading, without getting kicked for required packs
@@ -156,7 +156,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Proxy Client — optionally route your connection through a SOCKS proxy; set it from Swap Accounts on the main menu, per instance, or turn on a Universal proxy that every instance uses no matter what
 
 **Home**
-- A HUD editor to drag and resize the mod's on-screen elements wherever you want them
+- A HUD editor to drag and resize the mod's on-screen elements wherever you want them. It lists only the elements that apply to where you are right now (dungeon timers in a dungeon, the RNG Meter ranking outside one, and so on) - flip Show All to arrange everything at once. Every element starts fully on screen at any GUI scale or window size, and opening chat never hides the HUD (real menus still do)
 - The mod menu remembers your scroll position, selected tab, and search text between opens
 
 **Profiles**

@@ -1,6 +1,7 @@
 package com.killer560.hub.quiver;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -135,8 +136,13 @@ public final class QuiverDisplayFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return QuiverDisplayConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!QuiverDisplayConfig.getInstance().isEnabled() || Minecraft.getInstance().screen != null
+            if (!QuiverDisplayConfig.getInstance().isEnabled() || HudVisibility.hidesHud()
                     || cachedCount == null) {
                 return;
             }

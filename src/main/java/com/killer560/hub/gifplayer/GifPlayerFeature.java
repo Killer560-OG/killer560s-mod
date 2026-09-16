@@ -187,6 +187,11 @@ public final class GifPlayerFeature {
             }
 
             @Override
+            public boolean isRelevantNow() {
+                return GifPlayerConfig.getInstance().isEnabled();
+            }
+
+            @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
                 drawFrame(entry, graphics, x, y);
             }

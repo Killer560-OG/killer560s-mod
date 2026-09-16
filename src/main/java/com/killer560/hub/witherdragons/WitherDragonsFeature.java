@@ -1,6 +1,7 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.splittimers.P5Splits;
 import com.killer560.hub.splittimers.SplitTimersConfig;
@@ -501,14 +502,14 @@ public final class WitherDragonsFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            // Second column (x=200) on King Relic Timer's row (10/240) - both are P5 timers. The old 10/280 ran
+            // into Dungeon Info's third line (260 + 2 x 12).
+            return 200;
         }
 
         @Override
         public int defaultY() {
-            // 200 is Ability Timers' default (AbilityTimersFeature.TimersHudElement), 240 is King Relic Timer's,
-            // 260 Dungeon Info / Simon Says, 320 Split Timers - 280 is the free slot in the x=10 column.
-            return 280;
+            return 240;
         }
 
         @Override
@@ -541,9 +542,15 @@ public final class WitherDragonsFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+            return cfg.isEnabled() && cfg.isDragonTimer() && com.killer560.hub.secrets.DungeonState.isF7OrM7();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
-            if (!WitherDragonsConfig.getInstance().isEnabled() || (client.screen != null && !(client.screen instanceof HudEditorScreen))) {
+            if (!WitherDragonsConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             int lineY = y;

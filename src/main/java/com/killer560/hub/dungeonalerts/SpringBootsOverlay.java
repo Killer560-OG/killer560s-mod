@@ -153,6 +153,11 @@ final class SpringBootsOverlay {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return DungeonAlertsConfig.getInstance().springBootsEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             boolean example = DungeonAlertsFeature.isEditorOpen();
             if (!example && (!DungeonAlertsConfig.getInstance().springBootsEnabled || blockAmount == 0f)) {

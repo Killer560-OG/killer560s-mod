@@ -1,6 +1,7 @@
 package com.killer560.hub.f7spots;
 
 import com.killer560.hub.fastleap.Floor7Tracker;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
@@ -81,7 +82,8 @@ public final class F7SpotsFeature {
 
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.screen != null || client.options.hideGui || !SkyblockGate.allows()) {
+        // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
+        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !SkyblockGate.allows()) {
             return;
         }
         int[] pos = HudElementRegistry.resolvePosition(HUD);
@@ -130,6 +132,11 @@ public final class F7SpotsFeature {
         @Override
         public int height() {
             return 11;
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            return F7SpotsConfig.getInstance().isCrushTimerEnabled() && com.killer560.hub.secrets.DungeonState.isF7OrM7();
         }
 
         @Override

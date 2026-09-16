@@ -1,6 +1,7 @@
 package com.killer560.hub.playerstats;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -101,7 +102,8 @@ public final class PlayerStatsFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            // Second column (x=200): the old 10/440 sat exactly on Mask Invincibility Timers.
+            return 200;
         }
 
         @Override
@@ -120,9 +122,14 @@ public final class PlayerStatsFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return PlayerStatsConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
-            if (!cfg.isEnabled() || Minecraft.getInstance().screen != null) {
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
             StringBuilder text = new StringBuilder();

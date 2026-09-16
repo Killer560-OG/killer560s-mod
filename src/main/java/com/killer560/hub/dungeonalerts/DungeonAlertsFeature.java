@@ -1,6 +1,7 @@
 package com.killer560.hub.dungeonalerts;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -72,7 +73,8 @@ public final class DungeonAlertsFeature {
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.screen != null || client.options.hideGui || !com.killer560.hub.util.SkyblockGate.allows()) {
+        // menuOpen(), not "screen != null": chat must not hide these (killer560), the HUD editor still does.
+        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         // Position/scale come from HudConfig by id, so this works even before the element is in the editor list.

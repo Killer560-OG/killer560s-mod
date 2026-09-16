@@ -113,6 +113,15 @@ public final class RngMeterOverlay {
             }
 
             @Override
+            public boolean isRelevantNow() {
+                // killer560's own example: "if i am in dungeons i dont need to edit the rng meter hud". Only ever
+                // drawn over the RNG Meter menu, which can't be open while the HUD editor is - so "relevant" means
+                // where you'd use it: enabled, on Skyblock, not in a dungeon.
+                return RngMeterConfig.getInstance().isEnabled() && com.killer560.hub.util.SkyblockGate.isOnSkyblock()
+                        && !com.killer560.hub.secrets.DungeonState.isInDungeon();
+            }
+
+            @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
                 // HUD position editor preview - no real menu is open, so show placeholder sample rows.
                 List<RngMeterEngine.RankedItem> sample = List.of(

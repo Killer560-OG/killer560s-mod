@@ -274,6 +274,11 @@ public final class InventoryHudFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            return InventoryHudConfig.getInstance().isEnabled();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             InventoryHudConfig cfg = InventoryHudConfig.getInstance();
             Minecraft client = Minecraft.getInstance();

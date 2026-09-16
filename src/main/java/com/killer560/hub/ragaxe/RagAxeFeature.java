@@ -1,6 +1,7 @@
 package com.killer560.hub.ragaxe;
 
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.util.ChatObserver;
@@ -157,7 +158,8 @@ public final class RagAxeFeature {
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.screen != null || client.options.hideGui || !SkyblockGate.allows()) {
+        // menuOpen(), not "screen != null": chat must not hide these (killer560), the HUD editor still does.
+        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !SkyblockGate.allows()) {
             return;
         }
         int[] pos = HudElementRegistry.resolvePosition(element);
@@ -199,6 +201,11 @@ public final class RagAxeFeature {
         @Override
         public int height() {
             return 30;
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            return RagAxeConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -259,7 +266,9 @@ public final class RagAxeFeature {
         @Override
         public int defaultY() {
             int h = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-            return (int) (h / 2f - h * 0.056f);
+            // Noamm's 0.444h is the same row Room Alerts defaults to; one text line lower so the two centred
+            // alerts don't stack when both fire (or in the HUD editor).
+            return (int) (h / 2f - h * 0.056f) + 12;
         }
 
         @Override
@@ -270,6 +279,11 @@ public final class RagAxeFeature {
         @Override
         public int height() {
             return 10;
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            return RagAxeConfig.getInstance().isEnabled() && com.killer560.hub.secrets.DungeonState.isF7OrM7();
         }
 
         @Override

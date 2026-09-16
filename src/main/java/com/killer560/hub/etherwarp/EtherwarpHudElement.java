@@ -1,6 +1,7 @@
 package com.killer560.hub.etherwarp;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudVisibility;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.entity.player.Player;
@@ -45,8 +46,15 @@ public final class EtherwarpHudElement implements HudElement {
         return 12 * Math.max(1, EtherwarpFeature.waypoints().size());
     }
 
+    @Override
+    public boolean isRelevantNow() {
+        return EtherwarpWaypointsConfig.getInstance().isEnabled();
+    }
+
+    /** In-game gate used by {@code EtherwarpGuiMixin}: any real menu hides the list, chat does not (killer560:
+     *  "dont make it hide the gui if i open chat"), and the HUD editor draws this element itself. */
     public boolean isVisible() {
-        return Minecraft.getInstance().screen == null;
+        return !HudVisibility.menuOpen();
     }
 
     @Override

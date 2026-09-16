@@ -266,6 +266,13 @@ public final class MaxorCrystalsFeature {
         }
 
         @Override
+        public boolean isRelevantNow() {
+            MaxorConfig cfg = MaxorConfig.getInstance();
+            return (cfg.isSpawnTimerEnabled() || cfg.isPlaceAlertEnabled() || cfg.isActiveCounterEnabled())
+                    && com.killer560.hub.secrets.DungeonState.isF7OrM7();
+        }
+
+        @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             MaxorConfig cfg = MaxorConfig.getInstance();
