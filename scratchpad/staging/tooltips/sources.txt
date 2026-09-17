@@ -1,0 +1,11 @@
+com/killer560/hub/enchantcolors/EnchantColorsConfig.java
+com/killer560/hub/enchantcolors/EnchantColorsDefaults.java
+com/killer560/hub/enchantcolors/EnchantColorsFeature.java
+com/killer560/hub/enchantcolors/LegacyText.java
+com/killer560/hub/enchantcolors/mixin/EnchantColorsTooltipMixin.java
+com/killer560/hub/gui/tab/EnchantColorsTab.java
+com/killer560/hub/gui/tab/TooltipScrollTab.java
+com/killer560/hub/tooltipscroll/mixin/TooltipScrollContainerMixin.java
+com/killer560/hub/tooltipscroll/mixin/TooltipScrollGraphicsMixin.java
+com/killer560/hub/tooltipscroll/TooltipScrollConfig.java
+com/killer560/hub/tooltipscroll/TooltipScrollFeature.java

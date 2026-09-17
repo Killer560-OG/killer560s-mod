@@ -1,0 +1,14 @@
+d.put("scrollable tooltips", "Lets the mouse wheel scroll an item tooltip that is taller than the screen, instead of vanilla just cropping the bottom off. Only engages when a tooltip actually overflows.");
+d.put("hold a key to scroll", "Only scroll the tooltip while the key below is held, so the wheel keeps doing its normal job the rest of the time. Off by default.");
+d.put("scroll key", "The key to hold while scrolling a tooltip. Click, then press any key; Esc clears it.");
+d.put("invert scroll", "Flips which way the wheel moves a long tooltip.");
+d.put("lines per scroll", "How many tooltip lines one notch of the wheel moves, 1-10.");
+d.put("enchant colours", "Recolours enchantment names in Hypixel item lore so the enchants that matter stand out on a maxed item. Reads the item's own enchant NBT, so ordinary lore text is never touched. Skyblock only.");
+d.put("only configured enchantments", "ON: only enchants you have given a colour are recoloured, everything else keeps Hypixel's own blue. OFF: every recognised enchant is recoloured, using Other Enchants for the ones with no colour of their own.");
+d.put("other enchants", "Colour used for a recognised enchant that has no colour of its own. Only used while Only Configured Enchantments is OFF.");
+d.put("ultimate override", "Gives every Ultimate enchant one shared colour, detected from the item's own ultimate_ enchant id rather than its name. Wins over that enchant's per-enchant colour.");
+d.put("ultimate colour", "Opens a colour picker for Ultimate enchants (default light purple).");
+d.put("new/bold", "Draws Ultimate enchant names in bold as well as coloured, the way SkyHanni does.");
+d.put("add / edit", "Type an enchantment name in the box to the left, then click here to pick its colour. An existing name opens for editing instead of being duplicated.");
+d.put("filter enchants", "Type to narrow the list of per-enchant colours below. Does not change any setting.");
+d.put("reset colours to defaults", "Throws away your per-enchant colour list and puts back the colours the mod ships with. Does not touch the toggles above.");

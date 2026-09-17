@@ -142,6 +142,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.ap3.Ap3Commands.register();
         com.killer560.hub.ap3.Ap3Keybinds.register();
         com.killer560.hub.leapcounter.LeapCounterFeature.register();
+        com.killer560.hub.armourdye.ArmourDyeFeature.register();
+        com.killer560.hub.tooltipscroll.TooltipScrollFeature.register();
+        com.killer560.hub.enchantcolors.EnchantColorsFeature.register();
         com.killer560.hub.shorts.ShortsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.register();
         com.killer560.hub.dungeonalerts.DungeonAlertsFeature.hudElements().forEach(HudElementRegistry::register);
