@@ -172,8 +172,8 @@ public final class RngMeterOverlay {
                 // no reward items have a "Dungeon Score:" line, so correctly render nothing.
                 return;
             }
-            HudElement element = HudElementRegistry.all().stream()
-                    .filter(e -> e.id().equals(ELEMENT_ID)).findFirst().orElseThrow();
+            // byId, not a Stream: this runs every frame the overlay is on screen (2026-09-20, FPS pass).
+            HudElement element = java.util.Objects.requireNonNull(HudElementRegistry.byId(ELEMENT_ID));
             int[] pos = HudElementRegistry.resolvePosition(element);
             float scale = HudElementRegistry.resolveScale(element);
             graphics.pose().pushMatrix();
@@ -271,8 +271,7 @@ public final class RngMeterOverlay {
         if (committedScan.size() <= VISIBLE_ROWS || scrollY == 0) {
             return false;
         }
-        HudElement element = HudElementRegistry.all().stream()
-                .filter(e -> e.id().equals(ELEMENT_ID)).findFirst().orElse(null);
+        HudElement element = HudElementRegistry.byId(ELEMENT_ID);
         if (element == null) {
             return false;
         }

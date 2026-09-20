@@ -1,6 +1,7 @@
 package com.killer560.hub.etherwarp.mixin;
 
 import com.killer560.hub.etherwarp.EtherwarpHudElement;
+import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
@@ -21,14 +22,14 @@ public abstract class EtherwarpGuiMixin {
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$drawEtherwarpWaypoints(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        HudElementRegistry.all().stream()
-                .filter(e -> e.id().equals("etherwarp_waypoints"))
-                .findFirst()
-                .ifPresent(element -> {
-                    int[] pos = HudElementRegistry.resolvePosition(element);
-                    if (((EtherwarpHudElement) element).isVisible()) {
-                        element.render(graphics, pos[0], pos[1]);
-                    }
-                });
+        // Indexed lookup, not a Stream: this runs every frame (2026-09-20, FPS pass).
+        HudElement element = HudElementRegistry.byId("etherwarp_waypoints");
+        if (element == null) {
+            return;
+        }
+        int[] pos = HudElementRegistry.resolvePosition(element);
+        if (((EtherwarpHudElement) element).isVisible()) {
+            element.render(graphics, pos[0], pos[1]);
+        }
     }
 }

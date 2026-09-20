@@ -27,6 +27,19 @@ public final class HudElementRegistry {
         return ELEMENTS;
     }
 
+    /** @return the registered element with this id, or null. Indexed loop rather than a Stream because the
+     *  per-frame Gui hooks look their own element up on every single frame (2026-09-20, FPS pass) - a
+     *  filter/findFirst pipeline there allocates a Stream, an Optional and a capturing lambda each time. */
+    public static HudElement byId(String id) {
+        for (int i = 0; i < ELEMENTS.size(); i++) {
+            HudElement e = ELEMENTS.get(i);
+            if (e.id().equals(id)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
     /**
      * Top-left position to draw {@code element} at.
      * <p>

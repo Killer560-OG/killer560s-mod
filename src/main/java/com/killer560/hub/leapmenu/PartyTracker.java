@@ -38,6 +38,9 @@ public final class PartyTracker {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapmenu");
 
     private static final String NAME = "(?:\\[[^]]+] )?([A-Za-z0-9_]{1,16})";
+    /** Hoisted (2026-09-20, FPS pass): this was compiled fresh for every comma-separated member of
+     *  every "You'll be partying with" line. */
+    private static final Pattern NAME_ONLY = Pattern.compile("^" + NAME + "$");
     private static final Pattern TAB_REGEX = Pattern.compile("^\\[\\d+] (?:\\[[^]]+] )*([A-Za-z0-9_]{1,16}) .*\\((\\w+)(?: (\\w+))?\\)$");
     /** Trailing IGN of a leap-menu head name - the same pattern the custom leap menu reads its heads with. */
     private static final Pattern LEAP_HEAD_IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
@@ -116,7 +119,7 @@ public final class PartyTracker {
             add(m.group(1));
         } else if ((m = PARTYING_WITH.matcher(plain)).matches()) {
             for (String part : m.group(1).split(", ")) {
-                Matcher n = Pattern.compile("^" + NAME + "$").matcher(part.trim());
+                Matcher n = NAME_ONLY.matcher(part.trim());
                 if (n.matches()) {
                     add(n.group(1));
                 }

@@ -210,8 +210,8 @@ public final class GifPlayerFeature {
         for (Map.Entry<String, LoadedGif> mapEntry : loaded.entrySet()) {
             LoadedGif entry = mapEntry.getValue();
             advanceFrame(entry);
-            HudElement element = HudElementRegistry.all().stream()
-                    .filter(e -> e.id().equals(entry.elementId)).findFirst().orElse(null);
+            // byId, not a Stream: this loop runs for every loaded GIF every frame (2026-09-20, FPS pass).
+            HudElement element = HudElementRegistry.byId(entry.elementId);
             if (element == null) {
                 continue;
             }

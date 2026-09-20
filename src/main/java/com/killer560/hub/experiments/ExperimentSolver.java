@@ -461,12 +461,18 @@ final class ExperimentSolver {
         return names;
     }
 
+    private static final java.util.regex.Pattern SECTION_CODE = java.util.regex.Pattern.compile("§.");
+    private static final java.util.regex.Pattern XP_AMOUNT =
+            java.util.regex.Pattern.compile("^([\\d.,]+[kKmM]?)\\b");
+
     /** Extracts just the leading amount token (e.g. "131k") from a real XP tile's display name like
      *  "131k Enchanting Exp" - falls back to the full name if it doesn't match that pattern, so an
      *  unexpected format degrades to the old behavior instead of showing a blank label. */
     private static String xpAmountLabel(String name) {
-        String stripped = name.replaceAll("§.", "").trim();
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^([\\d.,]+[kKmM]?)\\b").matcher(stripped);
+        // Both patterns hoisted (2026-09-20, FPS pass): this is called per board tile per solver pass, and
+        // String.replaceAll plus an inline Pattern.compile meant two fresh regex compiles per tile.
+        String stripped = SECTION_CODE.matcher(name).replaceAll("").trim();
+        java.util.regex.Matcher m = XP_AMOUNT.matcher(stripped);
         return m.find() ? m.group(1) : stripped;
     }
 

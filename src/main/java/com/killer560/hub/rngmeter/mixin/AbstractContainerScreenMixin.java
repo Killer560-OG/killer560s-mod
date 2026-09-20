@@ -82,7 +82,8 @@ public abstract class AbstractContainerScreenMixin extends Screen {
                 // Meter") rather than a real reward - nothing to append.
                 return;
             }
-            LOGGER.info("Appending tooltip line for \"{}\": {}", name, line);
+            // No log here: getTooltipFromContainerItem is called every frame the item is hovered, so this
+            // logged once per frame (2026-09-20, FPS pass). The appended line is visible in the tooltip anyway.
             List<Component> newLines = new ArrayList<>(lines);
             newLines.add(Component.literal(line));
             cir.setReturnValue(newLines);

@@ -64,6 +64,17 @@ public final class ObjectHiderConfig {
     private ObjectHiderConfig() {
     }
 
+    /** Fast master check for {@link com.killer560.hub.objecthider.ObjectHiderFeature#shouldHideEntity}, which
+     *  vanilla calls for EVERY entity EVERY frame (2026-09-20, FPS pass). Reads the raw fields: when not one
+     *  entity-hiding toggle is set, every individual check in that method would return false anyway, so the
+     *  whole per-entity path - including the armor-stand name/NBT probes - can be skipped outright. */
+    public boolean hidesAnyEntity() {
+        return hideFairy || hideHealerOrbs || hideSoulweaverSkulls || hideArcherPassive || hideSheep
+                || hideCloakCreepers || hideDyingDragons || hideWitherKing || hideBossDamageSplash
+                || cleanEnd || hideGroundedArrows || hideDeathAnimations;
+    }
+
+
     public static ObjectHiderConfig getInstance() {
         if (instance == null) {
             load();

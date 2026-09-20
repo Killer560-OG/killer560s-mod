@@ -301,7 +301,7 @@ public final class ExperimentsFeature {
     }
 
     private static HudElement startButtonElement() {
-        return HudElementRegistry.all().stream().filter(e -> e.id().equals(START_BUTTON_ELEMENT_ID)).findFirst().orElse(null);
+        return HudElementRegistry.byId(START_BUTTON_ELEMENT_ID);
     }
 
     private static int[] resolveStartButtonPosition() {

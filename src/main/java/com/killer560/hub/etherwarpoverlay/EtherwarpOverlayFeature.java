@@ -115,7 +115,10 @@ public final class EtherwarpOverlayFeature {
             diagState("idle (main hand is not an etherwarp item)");
             return;
         }
-        String diagItemId = getSkyblockId(mainHand);
+        // Read the id off the tag getEtherwarpData already copied (2026-09-20, FPS pass): the old
+        // getSkyblockId(mainHand) helper deep-copied the held item's whole NBT a second time, every
+        // frame an etherwarp item was in hand. That helper had no other caller and is gone.
+        String diagItemId = etherData.contains("id") ? etherData.getStringOr("id", null) : null;
         boolean isConduit = ETHERWARP_CONDUIT_ID.equals(diagItemId);
         if (!client.player.isShiftKeyDown() && !isConduit) {
             diagState("holding ether item " + diagItemId + " but not sneaking");
@@ -166,15 +169,6 @@ public final class EtherwarpOverlayFeature {
         boolean isEtherItem = tag.getIntOr("ethermerge", 0) == 1
                 || ETHERWARP_CONDUIT_ID.equals(tag.contains("id") ? tag.getStringOr("id", null) : null);
         return isEtherItem ? tag : null;
-    }
-
-    private static String getSkyblockId(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return null;
-        }
-        CompoundTag tag = data.copyTag();
-        return tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
 
     private static EtherPos getEtherPos(Level level, Vec3 position, net.minecraft.world.entity.player.Player player,

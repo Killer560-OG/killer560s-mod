@@ -389,8 +389,7 @@ public final class StorageOverlayFeature {
                 ordered.put(key, StorageOverlayCache.getInstance().get(key));
             }
 
-            HudElement element = HudElementRegistry.all().stream()
-                    .filter(e -> e.id().equals(ELEMENT_ID)).findFirst().orElse(null);
+            HudElement element = HudElementRegistry.byId(ELEMENT_ID);
             if (element == null) {
                 return;
             }

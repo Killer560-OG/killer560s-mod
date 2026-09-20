@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
-import java.util.List;
+import java.util.Set;
 
 /**
  * Real bug found and fixed (2026-09-15, spotted while wiring the Dungeon Alerts HUDs): only a handful of this mod's
@@ -17,7 +17,8 @@ import java.util.List;
  */
 public final class HudInGameRenderer {
 
-    private static final List<String> UNDRAWN_ELEMENT_IDS = List.of(
+    // Set, not List: this is probed once per registered element per frame (2026-09-20, FPS pass).
+    private static final Set<String> UNDRAWN_ELEMENT_IDS = Set.of(
             "tick_timers", "split_timers", "player_stats", "quiver_display", "livid_invuln_timer",
             "mask_invincibility", "simonsays_party_progress", "live_map", "real_time", "score_calculator",
             "wither_dragon_timers", "king_relic_timer",

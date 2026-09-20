@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeoninfo.mixin;
 
+import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudVisibility;
 import net.minecraft.client.DeltaTracker;
@@ -22,12 +23,12 @@ public abstract class DungeonInfoGuiMixin {
         if (HudVisibility.menuOpen()) {
             return;
         }
-        HudElementRegistry.all().stream()
-                .filter(e -> e.id().equals("dungeon_info"))
-                .findFirst()
-                .ifPresent(element -> {
-                    int[] pos = HudElementRegistry.resolvePosition(element);
-                    element.render(graphics, pos[0], pos[1]);
-                });
+        // Indexed lookup, not a Stream: this runs every frame (2026-09-20, FPS pass).
+        HudElement element = HudElementRegistry.byId("dungeon_info");
+        if (element == null) {
+            return;
+        }
+        int[] pos = HudElementRegistry.resolvePosition(element);
+        element.render(graphics, pos[0], pos[1]);
     }
 }

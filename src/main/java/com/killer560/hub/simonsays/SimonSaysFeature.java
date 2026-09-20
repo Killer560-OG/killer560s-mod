@@ -2280,11 +2280,18 @@ public final class SimonSaysFeature {
                     logIdleAimThrottled(client);
                 }
             } else {
+                // The distance itself must NOT be part of the state string: it changes every single frame
+                // while you walk, so a "log only on change" check that includes it logs on EVERY frame
+                // instead - 2026-09-19's capture is ~600 lines of this in 29 seconds, and killer560
+                // reported the mod eating FPS in that same run. Bucket it to whole blocks so a real
+                // near/far transition still shows up, and never format the line at all when diagnostic
+                // logging is off.
                 double distSq = client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR);
-                state = String.format(Locale.US,
-                        "BLOCKED autoStartRunning=%b idleSuppressedAfterCompletion=%b goldorLineSeen=%b nearAnchor=%b (distSq=%.1f, need<=%.1f) solveStepsPending=%b rememberedFirstButton=%s clickInOrder.size=%d clickNeeded=%d",
+                state = !SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled() ? "BLOCKED" : String.format(Locale.US,
+                        "BLOCKED autoStartRunning=%b idleSuppressedAfterCompletion=%b goldorLineSeen=%b nearAnchor=%b (dist~%.0f blocks, need<=%.1f) solveStepsPending=%b rememberedFirstButton=%s clickInOrder.size=%d clickNeeded=%d",
                         autoStartRunning, idleSuppressedAfterCompletion, goldorLineSeenThisPhase, nearAnchor,
-                        distSq, IDLE_LOOK_RANGE_SQ, solveStepsPending, rememberedFirstButton, clickInOrder.size(), clickNeeded);
+                        Math.floor(Math.sqrt(distSq)), Math.sqrt(IDLE_LOOK_RANGE_SQ), solveStepsPending,
+                        rememberedFirstButton, clickInOrder.size(), clickNeeded);
             }
         }
         if (!state.equals(lastLoggedRotateFrameState)) {

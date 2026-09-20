@@ -223,11 +223,16 @@ public final class ObjectHiderFeature {
         if (entity == null) {
             return false;
         }
+        ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
+        // Vanilla calls this for every entity every frame, so the all-off case (the default) must cost one
+        // field read, not ten gated getters plus a DungeonState/Minecraft lookup - see hidesAnyEntity().
+        if (!cfg.hidesAnyEntity()) {
+            return false;
+        }
         Minecraft client = Minecraft.getInstance();
         if (entity == client.player) {
             return false;
         }
-        ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         boolean inDungeon = DungeonState.isInDungeon();
 
         if (cfg.isCleanEnd() && bossDone && inDungeon && cleanEndHides(entity, cfg, client)) {
