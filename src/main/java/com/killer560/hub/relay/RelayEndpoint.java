@@ -8,18 +8,18 @@ import java.util.Locale;
 /**
  * Where the relay lives, and how its three URLs are built from that one base.
  * <p>
- * <b>This is the single place the relay's address is defined.</b> {@link #DEFAULT_BASE_URL} is a deliberate
- * placeholder until the Worker in {@code killer560s-mod-relay} is actually deployed - change that one constant
- * and every install that never touched the setting picks the real host up. Anyone who HAS typed a URL into the
- * Mod Chat tab keeps theirs (it is persisted in {@code killer560smod-modchat.json}).
+ * <b>This is the single place the relay's address is defined.</b> Change {@link #DEFAULT_BASE_URL} and every
+ * install that never touched the setting picks the new host up. Anyone who HAS typed a URL into the Mod Chat
+ * tab keeps theirs (it is persisted in {@code killer560smod-modchat.json}).
  * <p>
- * While the constant is still the placeholder, {@link #isUsable} is false and the client never opens a socket
- * at all - no DNS lookups, no retry loop, no error spam. The feature simply reports "no relay URL set".
+ * Set to an unreachable placeholder, {@link #isUsable} returns false and the client never opens a socket at
+ * all - no DNS lookups, no retry loop, no error spam. The feature simply reports "no relay URL set".
  */
 public final class RelayEndpoint {
 
-    /** Placeholder - replace with the deployed Worker URL (e.g. {@code https://relay.<subdomain>.workers.dev}). */
-    public static final String DEFAULT_BASE_URL = "https://relay-url-not-set.invalid";
+    /** The deployed Worker (killer560's own Cloudflare account, 2026-09-20). Source lives in the separate
+     *  {@code killer560s-mod-relay} repo; see its README for the auth handshake and packet list. */
+    public static final String DEFAULT_BASE_URL = "https://killer560s-mod-relay.killer560smod.workers.dev";
 
     private RelayEndpoint() {
     }
