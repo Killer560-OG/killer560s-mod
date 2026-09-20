@@ -46,6 +46,13 @@ public final class IcePathSolverFeature {
     private static boolean moving = false;
     private static RoomEntry lastRoomEntry = null;
 
+    // [IcePathSolver] diagnostics - logging only. killer560, 2026-09-20: "ice path solver does not show at
+    // all" - this class had no state-change log at all (unlike Water/Boulder/Ice Fill), so the previous
+    // report couldn't say whether it was "never entered the room", "room found but silverfish never found
+    // in the search box" or "silverfish found but never solved". Added the same on-change pattern the
+    // other solvers already use so the next live test says exactly which one it is.
+    private static String lastLoggedState = null;
+
     private IcePathSolverFeature() {
     }
 
@@ -70,6 +77,20 @@ public final class IcePathSolverFeature {
     }
 
     private static void tick(Minecraft client) {
+        tickInner(client);
+        RoomEntry current = IcePathSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                ? LiveMapFeature.currentRoomEntry() : null;
+        String state = current == null || !ROOM.equals(current.name)
+                ? "notInRoom(enabled=" + IcePathSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
+                : "inRoom clayRot=" + java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation())
+                + " silverfishFound=" + (silverfish != null) + " pathPoints=" + path.size();
+        if (!state.equals(lastLoggedState)) {
+            LOGGER.info("[IcePathSolver] State: {}", state);
+            lastLoggedState = state;
+        }
+    }
+
+    private static void tickInner(Minecraft client) {
         if (!IcePathSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || client.level == null) {
             if (lastRoomEntry != null) {

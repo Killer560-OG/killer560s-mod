@@ -38,11 +38,24 @@ public class IceFillSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Alternate Path", cfg.isOptimizedPath()));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
+        widgets.add(SettingsButtonWidget.builder(colorLabel(cfg.getLineColor()), btn -> {
+                    cfg.cycleLineColor();
+                    cfg.save();
+                    btn.setMessage(colorLabel(cfg.getLineColor()));
+                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
     }
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    private static Component colorLabel(com.killer560.hub.puzzlesolvers.IceFillSolverConfig.LineColor color) {
+        return Component.literal("Line Color: " + color.name().charAt(0)
+                + color.name().substring(1).toLowerCase(java.util.Locale.ROOT));
     }
 }

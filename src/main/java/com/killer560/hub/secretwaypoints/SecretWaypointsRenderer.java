@@ -15,6 +15,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +35,13 @@ import java.util.Optional;
  * <p>
  * Everything is drawn in one camera-relative {@code pushPose}/{@code popPose} for the whole batch rather than
  * one per box (2026-09-20 FPS pass): with ~150 waypoints on screen that was 300 matrix pushes and 300
- * {@code getMainCamera()} lookups per frame.
+ * {@code getMainCamera()} lookups per frame. Unlike those two renderers, which fetch a fresh
+ * {@code VertexConsumer} for every single box, this one fetches one per render type and then fills it in a
+ * single uninterrupted pass - see the crash note in {@link #draw} for why that distinction matters.
  */
 final class SecretWaypointsRenderer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secretwaypoints");
 
     private SecretWaypointsRenderer() {
     }
@@ -83,40 +89,79 @@ final class SecretWaypointsRenderer {
         Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
         double maxSq = maxDistance * maxDistance;
 
-        PoseStack poseStack = context.poseStack();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-
+        // Distance cull once, into a reusable scratch array - the two passes below must walk exactly the
+        // same set, and re-running the test per pass would give back the work the batching buys.
+        if (visible.length < waypoints.size()) {
+            visible = new int[waypoints.size()];
+        }
+        int[] vis = visible;
         int drawn = 0;
-        VertexConsumer fillBuffer = null;
-        VertexConsumer lineBuffer = null;
         for (int i = 0; i < waypoints.size(); i++) {
             SecretWaypointsFeature.Waypoint wp = waypoints.get(i);
             double dx = wp.centerX() - cam.x;
             double dy = wp.centerY() - cam.y;
             double dz = wp.centerZ() - cam.z;
-            if (dx * dx + dy * dy + dz * dz > maxSq) {
-                continue;
-            }
-            drawn++;
-            if (fill) {
-                if (fillBuffer == null) {
-                    fillBuffer = buffers.getBuffer(throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox());
-                }
-                filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(), wp.a() * fillAlphaScale);
-            }
-            if (outline) {
-                if (lineBuffer == null) {
-                    lineBuffer = buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
-                }
-                lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
+            if (dx * dx + dy * dy + dz * dz <= maxSq) {
+                vis[drawn++] = i;
             }
         }
+        if (drawn == 0) {
+            return 0;
+        }
 
-        poseStack.popPose();
+        PoseStack poseStack = context.poseStack();
+        poseStack.pushPose();
+        try {
+            poseStack.translate(-cam.x, -cam.y, -cam.z);
+            PoseStack.Pose pose = poseStack.last();
+            // One getBuffer + one full pass PER RENDER TYPE, never interleaved per box. Crash fixed
+            // 2026-09-20 (killer560's log, "java.lang.IllegalStateException: Not building!"): neither of
+            // these two types is one of the level BufferSource's fixed buffers (javap-confirmed: only the
+            // glint/waterMask types are), so both draw out of its single SHARED buffer, and
+            // MultiBufferSource$BufferSource#getBuffer ends - i.e. build()s - whatever shared type was
+            // started before handing out a different one. The FPS pass had hoisted both getBuffer calls
+            // out of the loop but kept the loop alternating fill/outline per box, so box 1's outline
+            // ended the fill builder and box 2's fill then wrote into an already-built BufferBuilder.
+            // Two flat passes keep the hoist (2 draw calls for the whole batch instead of 2 per box)
+            // while making a type switch mid-pass impossible.
+            if (fill) {
+                VertexConsumer fillBuffer =
+                        buffers.getBuffer(throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox());
+                for (int i = 0; i < drawn; i++) {
+                    SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
+                    filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(), wp.a() * fillAlphaScale);
+                }
+            }
+            if (outline) {
+                VertexConsumer lineBuffer =
+                        buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
+                for (int i = 0; i < drawn; i++) {
+                    SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
+                    lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
+                }
+            }
+        } catch (Throwable t) {
+            // Never let a draw failure escape into LevelRenderer: the frame graph pass that calls this
+            // event also owns the bufferSource.endBatch() that closes every builder started above, so an
+            // exception thrown through it leaves a half-filled builder alive into the NEXT frame - which
+            // is how one bad frame used to become a crash instead of a dropped frame of waypoints.
+            if (!renderFailureLogged) {
+                renderFailureLogged = true;
+                LOGGER.error("[SecretWaypoints] Box rendering failed - waypoints will not be drawn this frame", t);
+            }
+            drawn = 0;
+        } finally {
+            poseStack.popPose();
+        }
         return drawn;
     }
+
+    /** Indices of the waypoints that passed this frame's distance cull. Render thread only; reused
+     *  rather than allocated per frame (see the FPS note in the class doc). */
+    private static int[] visible = new int[256];
+
+    /** One report per session - a broken frame repeats at the frame rate, and the stack is identical. */
+    private static boolean renderFailureLogged = false;
 
     private static final int[] EDGES = {
             0, 1, 1, 5, 5, 4, 4, 0,

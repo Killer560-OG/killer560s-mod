@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.tooltipscroll.TooltipScrollConfig;
+import com.killer560.hub.tooltipscroll.TooltipScrollFeature;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -54,10 +55,25 @@ public class TooltipScrollTab extends BaseTab implements KeyCaptureTab {
         y += 26;
 
         if (!cfg.isEnabled()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Scroll the wheel over an item whose lore is taller than the screen."),
-                    mc.font));
             return widgets;
+        }
+
+        // The mixin configs are required:false so a signature change can never stop the game booting - but
+        // that also means they could quietly do nothing, which is exactly how killer560 found this feature
+        // completely dead in-game (2026-09-20: "scrollable tooltips does not work") even with no other mods
+        // installed. Two separate flags, not one merged one - the render hook fires on ANY tooltip anywhere
+        // and is easy to trigger, so a single flag could say "alive" while the scroll half is still dead.
+        boolean renderSeen = TooltipScrollFeature.renderHookSeen();
+        boolean scrollSeen = TooltipScrollFeature.scrollHookSeen();
+        if (!renderSeen || !scrollSeen) {
+            String warning;
+            if (!renderSeen) {
+                warning = "§8Render hook hasn't fired - hover any tooltip. If this stays, the mixin didn't apply.";
+            } else {
+                warning = "§8Render hook is alive; scroll hook hasn't fired - scroll while hovering an item.";
+            }
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(warning), mc.font));
+            y += 14;
         }
 
         int half = (contentWidth - 8) / 2;
@@ -100,12 +116,6 @@ public class TooltipScrollTab extends BaseTab implements KeyCaptureTab {
             }
         });
         y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Only engages when a tooltip is taller than the screen; short"), mc.font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7tooltips are untouched and the wheel behaves normally."), mc.font));
 
         return widgets;
     }

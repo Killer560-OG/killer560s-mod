@@ -43,10 +43,12 @@ public class WaterSolverTab extends BaseTab {
                     btn.setMessage(onOff("Show Tracer", cfg.isShowTracer()));
                 }).bounds(col2aX, y, col2W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Alt. Timing", cfg.isOptimizedPath()), btn -> {
+        // Renamed from "Alt. Timing" (killer560, 2026-09-20: "rename alt timing to optimized solutions") -
+        // same setting, same data (Odin's alternate lever-timing set), clearer label.
+        widgets.add(SettingsButtonWidget.builder(onOff("Optimized Solutions", cfg.isOptimizedPath()), btn -> {
                     cfg.setOptimizedPath(!cfg.isOptimizedPath());
                     cfg.save();
-                    btn.setMessage(onOff("Alt. Timing", cfg.isOptimizedPath()));
+                    btn.setMessage(onOff("Optimized Solutions", cfg.isOptimizedPath()));
                 }).bounds(col2bX, y, col2W, 18).build());
 
         return widgets;

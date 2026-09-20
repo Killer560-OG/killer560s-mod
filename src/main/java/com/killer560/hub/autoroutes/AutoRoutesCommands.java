@@ -65,8 +65,11 @@ public final class AutoRoutesCommands {
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
-        /** The command takes a number; a key can't, so the keybind deletes the LAST node (the one you just added). */
-        DELETE_LAST("delete", "Delete Node (key: last)", "/ar delete <n>"),
+        /** The command takes a number; a key can't, so the keybind deletes the LAST node (the one you just added).
+         *  Label has no ':' of its own (2026-09-20 tooltip sweep: the old "Delete Node (key: last)" put a colon
+         *  in front of the row's own " Key: <name>" suffix, so SettingTooltips.key() cut at the wrong one and no
+         *  tooltip could ever match). */
+        DELETE_LAST("delete", "Delete Last Node", "/ar delete <n>"),
         RELOAD("reload", "Reload Routes File", "/ar reload");
 
         public final String id;

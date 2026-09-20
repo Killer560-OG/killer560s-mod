@@ -165,7 +165,9 @@ public final class IceFillSolverFeature {
         if (current == null || !"Ice Fill".equals(current.name)) {
             return;
         }
-        SolverEspRender.renderLineStrip(context, currentPath, 0.4f, 0.8f, 1.0f, 1f, 3f);
+        // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
+        IceFillSolverConfig.LineColor color = IceFillSolverConfig.getInstance().getLineColor();
+        SolverEspRender.renderLineStrip(context, currentPath, color.r, color.g, color.b, 1f, 3f);
     }
 
     private static void reset() {

@@ -38,7 +38,6 @@ public final class LiveMapConfig {
     private int roomLabels = 1;
     private int peekKeyCode = -1;
     private float peekScale = 2.0f;
-    private boolean roomNameBelowMap = true;
 
     // ---- shared map appearance (HUD + interactive map) ----
     // Defaults are the real dungeon map's own colours, decoded from Hypixel's MapColor bytes by NoammAddons'
@@ -59,6 +58,21 @@ public final class LiveMapConfig {
     private int mapBorderColor = 0xFFCC6600;
     private boolean checkmarkSprites = true;
 
+    // ---- map themes (killer560, 2026-09-20: "map themes: switchable, including a custom one matching the mod's
+    // amber look. the recolour feature should be able to save a theme") - Real/Amber overwrite the 10 colours above
+    // with a fixed preset; Custom loads back whatever was last explicitly saved with saveCurrentAsCustomTheme(). ----
+    private int mapTheme = THEME_REAL;
+    private int customColorNormal = 0xFF724318;
+    private int customColorEntrance = 0xFF00FF00;
+    private int customColorPuzzle = 0xFFB24CD8;
+    private int customColorTrap = 0xFFD87F33;
+    private int customColorMiniboss = 0xFFE5E533;
+    private int customColorFairy = 0xFFF27FA5;
+    private int customColorBlood = 0xFFFF0000;
+    private int customColorRare = 0xFFB2B2B2;
+    private int customColorUnopened = 0xFF414141;
+    private int customColorWitherDoor = 0xFF101010;
+
     // ---- Interactive map (QUOI InteractiveMap visuals + NoammAddons icon options) ----
     private boolean interactiveMapEnabled = false;
     private int openKeyCode = -1;
@@ -70,10 +84,7 @@ public final class LiveMapConfig {
     /** QUOI "Font scale" 0.5..3. */
     private float fontScale = 1f;
     private boolean textShadow = false;
-    /** QUOI "Highlight colour" (room the player is in), GREY at 50% alpha. */
-    private int highlightColor = 0x80808080;
     private int mapRoomLabels = 3;
-    private boolean playerHeads = false;
     private boolean classBorderColour = false;
     /** 0 Off, 1 Holding Leap, 2 Always. */
     private int playerNames = 0;
@@ -122,7 +133,6 @@ public final class LiveMapConfig {
                 cfg.setRoomLabels(ConfigJson.getInt(obj, "roomLabels", 1));
                 cfg.peekKeyCode = ConfigJson.getInt(obj, "peekKeyCode", -1);
                 cfg.setPeekScale(ConfigJson.getFloat(obj, "peekScale", 2f));
-                cfg.roomNameBelowMap = ConfigJson.getBool(obj, "roomNameBelowMap", true);
 
                 cfg.colourByType = ConfigJson.getBool(obj, "colourByType", true);
                 cfg.colorNormal = ConfigJson.getInt(obj, "colorNormal", 0xFF724318);
@@ -140,6 +150,21 @@ public final class LiveMapConfig {
                 cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", 0xFFCC6600);
                 cfg.checkmarkSprites = ConfigJson.getBool(obj, "checkmarkSprites", true);
 
+                cfg.mapTheme = ConfigJson.getInt(obj, "mapTheme", THEME_REAL);
+                if (cfg.mapTheme < 0 || cfg.mapTheme >= THEME_NAMES.length) {
+                    cfg.mapTheme = THEME_REAL;
+                }
+                cfg.customColorNormal = ConfigJson.getInt(obj, "customColorNormal", 0xFF724318);
+                cfg.customColorEntrance = ConfigJson.getInt(obj, "customColorEntrance", 0xFF00FF00);
+                cfg.customColorPuzzle = ConfigJson.getInt(obj, "customColorPuzzle", 0xFFB24CD8);
+                cfg.customColorTrap = ConfigJson.getInt(obj, "customColorTrap", 0xFFD87F33);
+                cfg.customColorMiniboss = ConfigJson.getInt(obj, "customColorMiniboss", 0xFFE5E533);
+                cfg.customColorFairy = ConfigJson.getInt(obj, "customColorFairy", 0xFFF27FA5);
+                cfg.customColorBlood = ConfigJson.getInt(obj, "customColorBlood", 0xFFFF0000);
+                cfg.customColorRare = ConfigJson.getInt(obj, "customColorRare", 0xFFB2B2B2);
+                cfg.customColorUnopened = ConfigJson.getInt(obj, "customColorUnopened", 0xFF414141);
+                cfg.customColorWitherDoor = ConfigJson.getInt(obj, "customColorWitherDoor", 0xFF101010);
+
                 cfg.interactiveMapEnabled = ConfigJson.getBool(obj, "interactiveMapEnabled", false);
                 cfg.openKeyCode = ConfigJson.getInt(obj, "openKeyCode", -1);
                 cfg.closeOnRepress = ConfigJson.getBool(obj, "closeOnRepress", false);
@@ -147,9 +172,7 @@ public final class LiveMapConfig {
                 cfg.setMapScale(ConfigJson.getFloat(obj, "mapScale", 5f));
                 cfg.setFontScale(ConfigJson.getFloat(obj, "fontScale", 1f));
                 cfg.textShadow = ConfigJson.getBool(obj, "textShadow", false);
-                cfg.highlightColor = ConfigJson.getInt(obj, "highlightColor", 0x80808080);
                 cfg.setMapRoomLabels(ConfigJson.getInt(obj, "mapRoomLabels", 3));
-                cfg.playerHeads = ConfigJson.getBool(obj, "playerHeads", false);
                 cfg.classBorderColour = ConfigJson.getBool(obj, "classBorderColour", false);
                 cfg.setPlayerNames(ConfigJson.getInt(obj, "playerNames", 0));
                 cfg.setIconScale(ConfigJson.getFloat(obj, "iconScale", 1f));
@@ -187,7 +210,6 @@ public final class LiveMapConfig {
             obj.addProperty("roomLabels", roomLabels);
             obj.addProperty("peekKeyCode", peekKeyCode);
             obj.addProperty("peekScale", peekScale);
-            obj.addProperty("roomNameBelowMap", roomNameBelowMap);
 
             obj.addProperty("colourByType", colourByType);
             obj.addProperty("colorNormal", colorNormal);
@@ -205,6 +227,18 @@ public final class LiveMapConfig {
             obj.addProperty("mapBorderColor", mapBorderColor);
             obj.addProperty("checkmarkSprites", checkmarkSprites);
 
+            obj.addProperty("mapTheme", mapTheme);
+            obj.addProperty("customColorNormal", customColorNormal);
+            obj.addProperty("customColorEntrance", customColorEntrance);
+            obj.addProperty("customColorPuzzle", customColorPuzzle);
+            obj.addProperty("customColorTrap", customColorTrap);
+            obj.addProperty("customColorMiniboss", customColorMiniboss);
+            obj.addProperty("customColorFairy", customColorFairy);
+            obj.addProperty("customColorBlood", customColorBlood);
+            obj.addProperty("customColorRare", customColorRare);
+            obj.addProperty("customColorUnopened", customColorUnopened);
+            obj.addProperty("customColorWitherDoor", customColorWitherDoor);
+
             obj.addProperty("interactiveMapEnabled", interactiveMapEnabled);
             obj.addProperty("openKeyCode", openKeyCode);
             obj.addProperty("closeOnRepress", closeOnRepress);
@@ -212,9 +246,7 @@ public final class LiveMapConfig {
             obj.addProperty("mapScale", mapScale);
             obj.addProperty("fontScale", fontScale);
             obj.addProperty("textShadow", textShadow);
-            obj.addProperty("highlightColor", highlightColor);
             obj.addProperty("mapRoomLabels", mapRoomLabels);
-            obj.addProperty("playerHeads", playerHeads);
             obj.addProperty("classBorderColour", classBorderColour);
             obj.addProperty("playerNames", playerNames);
             obj.addProperty("iconScale", iconScale);
@@ -313,14 +345,6 @@ public final class LiveMapConfig {
 
     public void setPeekScale(float peekScale) {
         this.peekScale = clamp(peekScale, 1.25f, 4f);
-    }
-
-    public boolean isRoomNameBelowMap() {
-        return roomNameBelowMap;
-    }
-
-    public void setRoomNameBelowMap(boolean v) {
-        this.roomNameBelowMap = v;
     }
 
     // ---------------------------------------------------------------- shared map appearance
@@ -459,6 +483,78 @@ public final class LiveMapConfig {
         colorWitherDoor = 0xFF101010;
     }
 
+    // ---------------------------------------------------------------- map themes
+
+    public static final int THEME_REAL = 0;
+    public static final int THEME_AMBER = 1;
+    public static final int THEME_CUSTOM = 2;
+    public static final String[] THEME_NAMES = {"Real Map", "Amber", "Custom"};
+
+    public int getMapTheme() {
+        return mapTheme;
+    }
+
+    /** Recolouring subheader "Map Theme" cycle - Real and Amber overwrite the 10 room/door colours with a fixed
+     *  preset; Custom loads back whatever was last saved with {@link #saveCurrentAsCustomTheme()} (the real map's
+     *  own colours the first time, before anything has been saved). Caller still calls {@link #save()}. */
+    public void applyTheme(int theme) {
+        mapTheme = theme < 0 || theme >= THEME_NAMES.length ? THEME_REAL : theme;
+        switch (mapTheme) {
+            case THEME_AMBER -> {
+                // killer560, 2026-09-20: "a custom one matching the mod's amber look" - the mod's own accent/panel
+                // colours (SettingsButtonWidget/ModScreen: #CC6600, #FFAA00, #0D0D0D...) instead of the real map's
+                // rainbow of room-type colours. Blood stays reddish and trap stays warning-red so danger still reads
+                // as danger; everything else is a shade of amber/brown/gold.
+                colorNormal = 0xFF6B3A11;
+                colorEntrance = 0xFFFFAA00;
+                colorPuzzle = 0xFFCC6600;
+                colorTrap = 0xFFFF5555;
+                colorMiniboss = 0xFFFFDD88;
+                colorFairy = 0xFFF2C9A0;
+                colorBlood = 0xFF8B0000;
+                colorRare = 0xFFB2872B;
+                colorUnopened = 0xFF3D332B;
+                colorWitherDoor = 0xFF1A1A1A;
+            }
+            case THEME_CUSTOM -> {
+                colorNormal = customColorNormal;
+                colorEntrance = customColorEntrance;
+                colorPuzzle = customColorPuzzle;
+                colorTrap = customColorTrap;
+                colorMiniboss = customColorMiniboss;
+                colorFairy = customColorFairy;
+                colorBlood = customColorBlood;
+                colorRare = customColorRare;
+                colorUnopened = customColorUnopened;
+                colorWitherDoor = customColorWitherDoor;
+            }
+            default -> resetMapColours(); // Real Map
+        }
+    }
+
+    /** Recolouring subheader "Save Theme": snapshots the live palette into the Custom slot, so Real/Amber can be
+     *  tried without losing hand-picked colours - killer560, 2026-09-20: "the recolour feature should be able to
+     *  save a theme". */
+    public void saveCurrentAsCustomTheme() {
+        customColorNormal = colorNormal;
+        customColorEntrance = colorEntrance;
+        customColorPuzzle = colorPuzzle;
+        customColorTrap = colorTrap;
+        customColorMiniboss = colorMiniboss;
+        customColorFairy = colorFairy;
+        customColorBlood = colorBlood;
+        customColorRare = colorRare;
+        customColorUnopened = colorUnopened;
+        customColorWitherDoor = colorWitherDoor;
+        mapTheme = THEME_CUSTOM;
+    }
+
+    /** A single room/door swatch was hand-edited directly - the palette is no longer exactly the Real or Amber
+     *  preset, so the theme cycle should say Custom (its saved colours are untouched until Save Theme is pressed). */
+    public void markCustomTheme() {
+        mapTheme = THEME_CUSTOM;
+    }
+
     // ---------------------------------------------------------------- interactive map
 
     public boolean isInteractiveMapEnabled() {
@@ -521,28 +617,12 @@ public final class LiveMapConfig {
         this.textShadow = v;
     }
 
-    public int getHighlightColor() {
-        return highlightColor;
-    }
-
-    public void setHighlightColor(int v) {
-        this.highlightColor = v;
-    }
-
     public int getMapRoomLabels() {
         return mapRoomLabels;
     }
 
     public void setMapRoomLabels(int v) {
         this.mapRoomLabels = v < 0 || v >= ROOM_LABEL_NAMES.length ? 3 : v;
-    }
-
-    public boolean isPlayerHeads() {
-        return playerHeads;
-    }
-
-    public void setPlayerHeads(boolean v) {
-        this.playerHeads = v;
     }
 
     public boolean isClassBorderColour() {

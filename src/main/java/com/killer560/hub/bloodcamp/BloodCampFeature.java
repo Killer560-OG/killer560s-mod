@@ -144,8 +144,13 @@ public final class BloodCampFeature {
         if (head == null || head.isEmpty() || !head.is(Items.PLAYER_HEAD)) {
             return;
         }
+        // killer560: "Whenever I join p3sim I get disconnected ... with the line Network Protocol Error. This
+        // only happens if someone else is in my server though." Another player's head slot is a PLAYER_HEAD
+        // with no resolvable "textures" property (p3sim serves unsigned skins), so getSkullTexture returns
+        // null - and Set.of(...).contains(null) throws NPE, which inside a packet handler makes the client
+        // disconnect itself with disconnect.packetError. Never hand a null to an immutable Set.
         String texture = getSkullTexture(head);
-        if (watcherEntityId == null && WATCHER_SKULL_TEXTURES.contains(texture)) {
+        if (watcherEntityId == null && texture != null && WATCHER_SKULL_TEXTURES.contains(texture)) {
             watcherEntityId = packet.getEntity();
             LOGGER.info("[BloodCamp] Watcher detected: entityId={} (thread={})", watcherEntityId, Thread.currentThread().getName());
         }
@@ -178,7 +183,12 @@ public final class BloodCampFeature {
             return;
         }
         ItemStack item = entity.getItemBySlot(EquipmentSlot.HEAD);
-        if (!item.is(Items.PLAYER_HEAD) || !MOB_SKULL_TEXTURES.contains(getSkullTexture(item))) {
+        if (!item.is(Items.PLAYER_HEAD)) {
+            return;
+        }
+        // Same null-into-Set.of hazard as onSetEquipment above - see the comment there.
+        String mobTexture = getSkullTexture(item);
+        if (mobTexture == null || !MOB_SKULL_TEXTURES.contains(mobTexture)) {
             return;
         }
 

@@ -347,7 +347,6 @@ public final class ProfileManager {
                 com.killer560.hub.lagdisplay.LagDisplayConfig::load,
                 com.killer560.hub.abilitycooldown.AbilityCooldownConfig::load,
                 com.killer560.hub.terminals.TerminalQolConfig::load,
-                com.killer560.hub.goldorfrenzy.GoldorFrenzyConfig::load,
                 com.killer560.hub.p4platform.P4PlatformHighlightConfig::load,
                 com.killer560.hub.partyfinder.PartyFinderOverlayConfig::load,
                 com.killer560.hub.playerstats.PlayerStatsConfig::load,

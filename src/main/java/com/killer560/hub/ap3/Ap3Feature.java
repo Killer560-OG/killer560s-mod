@@ -6,15 +6,20 @@ import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.fastleap.Floor7Tracker.Phase;
 import com.killer560.hub.fastleap.Floor7Tracker.Stage;
 import com.killer560.hub.fastleap.Teammates;
+import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -36,9 +41,10 @@ import java.util.regex.Pattern;
  * only, never boss), so the two features can never be live at the same time; that mutual exclusion is what makes
  * two separate {@code KeyboardInput#tick} mixins safe (see {@code mixin/Ap3InputMixin}).
  * <p>
- * This class owns registration, the tick wiring, the gate, world / phase change handling, edit mode, the chat hook
- * that feeds TERMINAL nodes, and the public API the commands / keybinds / tab code against. A tick or render
- * exception never escapes: it is logged, the feature switches itself off (saved) and says so in chat.
+ * This class owns registration, the tick wiring, the gate, world / phase change handling, node placement with its
+ * modifiers, undo / nearest-node delete, the stopwatch HUD, the chat hook that feeds TERMINAL nodes, and the public
+ * API the commands / keybinds / tab code against. A tick or render exception never escapes: it is logged, the
+ * feature switches itself off (saved) and says so in chat.
  */
 public final class Ap3Feature {
 
@@ -48,17 +54,20 @@ public final class Ap3Feature {
      *  trailing suffix so a line annotated by another mod (Odin's terminal splits) still matches. */
     private static final Pattern TERM_COMPLETED =
             Pattern.compile("^(.{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
-    /** A block further than this (squared) from the breaker node is refused (QUOI DB editor). */
-    private static final double EDIT_MAX_DIST_SQ = 30.0;
+    /** {@code /ap3 delete} with no number: the nearest node has to be this close ... */
+    private static final double NEAREST_MAX = 3.0;
+    /** ... and every other node at least this much further away, or it is not "clearly" the one he means. */
+    private static final double NEAREST_MARGIN = 1.0;
 
-    private static boolean editMode;
-    /** The BREAKER node {@code /ap3 edit db} right-clicks add blocks to (chosen when edit mode turns on). */
-    private static Ap3Node editBreakerNode;
     private static Object lastLevel;
     private static boolean wasLive;
     private static boolean renderFailed;
     private static Ap3Area lastArea;
     private static int lastSimRestart;
+    /** The most recently ADDED node and the chain it went into - what {@code /ap3 undo} removes. */
+    private static Ap3Node lastAdded;
+    private static Ap3Chain lastAddedChain;
+    private static boolean migrationReported;
 
     private Ap3Feature() {
     }
@@ -68,6 +77,11 @@ public final class Ap3Feature {
         ClientTickEvents.END_CLIENT_TICK.register(Ap3Feature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(Ap3Feature::onRenderFrame);
         ChatObserver.subscribe(Ap3Feature::onChat);
+        // Same shape as DungeonAlertsFeature: our own Fabric HUD layer draws the element at the HUD editor's
+        // position/scale; the lead registers STOPWATCH_HUD into HudElementRegistry so it can be dragged there.
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
+                Identifier.fromNamespaceAndPath("killer560smod", "ap3_stopwatch"),
+                (graphics, deltaTracker) -> drawStopwatchHud(graphics));
         LOGGER.info("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
@@ -139,81 +153,6 @@ public final class Ap3Feature {
 
     // ------------------------------------------------------------------------------------------- public API
 
-    public static void setEditMode(boolean on) {
-        if (on && !Ap3Config.getInstance().isEnabled()) {
-            chatBad("AP3 is off (cheat build + Skyblock only).");
-            return;
-        }
-        if (on == editMode) {
-            if (on) {
-                pickEditBreakerNode();
-            }
-            return;
-        }
-        editMode = on;
-        if (on) {
-            if (Ap3Executor.isRunning()) {
-                Ap3Executor.stop("edit mode");
-            }
-            pickEditBreakerNode();
-            chat(editBreakerNode == null
-                            ? ModChat.bad("No breaker node in " + currentChainLabel())
-                            : ModChat.text("Editing breaker "),
-                    editBreakerNode == null
-                            ? ModChat.dim(" - add one with /ap3 add breaker")
-                            : ModChat.value("#" + breakerIndex()));
-        } else {
-            editBreakerNode = null;
-            Ap3EditInput.reset();
-        }
-    }
-
-    public static boolean isEditMode() {
-        return editMode;
-    }
-
-    /**
-     * Edit-mode right click on a block ({@link Ap3EditInput}'s {@code UseBlockCallback}): adds it to the breaker node
-     * being edited, shift removes it. @return true when consumed - the caller then suppresses the real interaction.
-     */
-    public static boolean onEditRightClick(BlockPos pos, boolean shift) {
-        if (!editMode || pos == null || !Ap3Config.getInstance().isEnabled()) {
-            return false;
-        }
-        if (editBreakerNode == null) {
-            pickEditBreakerNode();
-            if (editBreakerNode == null) {
-                chatBad("No breaker node in " + currentChainLabel() + " - /ap3 add breaker first.");
-                return true;
-            }
-        }
-        Ap3Node node = editBreakerNode;
-        if (pos.distToCenterSqr(node.x, node.y + 1.6, node.z) > EDIT_MAX_DIST_SQ) {
-            chatBad("Block is too far from breaker #" + breakerIndex() + ".");
-            return true;
-        }
-        if (shift) {
-            if (node.breakerBlocks.remove(pos)) {
-                Ap3Store.getInstance().save();
-                chat(ModChat.text("Removed "), ModChat.value(pos.toShortString()),
-                        ModChat.dim(" from breaker #" + breakerIndex()));
-            }
-            return true;
-        }
-        if (node.breakerBlocks.contains(pos)) {
-            return true;
-        }
-        if (node.breakerBlocks.size() >= Ap3Store.MAX_BREAKER_BLOCKS) {
-            chatBad("Breaker #" + breakerIndex() + " already has " + Ap3Store.MAX_BREAKER_BLOCKS + " blocks.");
-            return true;
-        }
-        node.breakerBlocks.add(pos);
-        Ap3Store.getInstance().save();
-        chat(ModChat.text("Added "), ModChat.value(pos.toShortString()),
-                ModChat.dim(" to breaker #" + breakerIndex() + " (" + node.breakerBlocks.size() + ")"));
-        return true;
-    }
-
     /** The chain nodes are added to / listed from: the area you stand in + the tab's edit class filter. The
      *  live list, or an empty list when there is no such chain yet. */
     public static List<Ap3Node> currentChainNodes() {
@@ -236,62 +175,68 @@ public final class Ap3Feature {
         return Ap3Chain.label(area, Ap3Config.getInstance().getEditClassFilter());
     }
 
-    /** {@code /ap3 add <type>}: a node of {@code type} at your snapped position and current look. */
+    /**
+     * Everything {@code /ap3 add <type> ...} can say after the type, applied to the new node. Every field is a
+     * modifier in killer560's sense ("design these as general modifiers that apply to any node"): the box size
+     * ({@code w1 l1}), {@code wait:<ms>}, {@code close}, {@code precise}, and the leap / leap-counter targets.
+     */
+    public static final class NodeSpec {
+        public Double width;
+        public Double length;
+        public Integer waitMs;
+        public boolean close;
+        public boolean precise;
+        public Ap3Node.LeapMode leapMode;
+        public DungeonClass leapClass;
+        public String leapIgn;
+        public Integer leapCount;
+
+        void applyTo(Ap3Node node) {
+            if (width != null) {
+                node.setWidth(width);
+            }
+            if (length != null) {
+                node.setLength(length);
+            }
+            if (waitMs != null) {
+                node.setWaitAfterMs(waitMs);
+            }
+            node.closeGate = close;
+            node.precise = precise;
+            if (node.type == Ap3Node.Type.LEAP) {
+                node.leapMode = leapMode == null ? Ap3Node.LeapMode.DEFAULT : leapMode;
+                node.leapClass = node.leapMode == Ap3Node.LeapMode.CLASS ? leapClass : null;
+                node.leapIgn = node.leapMode == Ap3Node.LeapMode.IGN && leapIgn != null && !leapIgn.isBlank() ? leapIgn.trim() : null;
+            }
+            if (node.type == Ap3Node.Type.LEAP_COUNTER && leapCount != null) {
+                node.setLeapCount(leapCount);
+            }
+        }
+    }
+
+    /** {@code /ap3 add <type>}: a node of {@code type} at your position and current look, no modifiers. */
     public static boolean addNode(Ap3Node.Type type) {
-        return addNode(type, Ap3Node.DEFAULT_LENGTH, Ap3Node.DEFAULT_WIDTH);
+        return addNode(type, new NodeSpec());
     }
 
-    /** As {@link #addNode(Ap3Node.Type)} with explicit length / width (LINE, AXIS_LINE, WALK, RUN). */
-    public static boolean addNode(Ap3Node.Type type, double length, double width) {
-        Ap3Node node = captureNode(type);
+    /** {@code /ap3 add <type> [modifiers]}. */
+    public static boolean addNode(Ap3Node.Type type, NodeSpec spec) {
+        if (spec == null) {
+            spec = new NodeSpec();
+        }
+        Ap3Node node = captureNode(type, spec.precise);
         if (node == null) {
             return false;
         }
-        node.setLength(length);
-        node.setWidth(width);
-        if (type == Ap3Node.Type.WAIT) {
-            node.setWaitMs(Ap3Config.getInstance().getDefaultWaitMs());
-        }
-        return commitNode(node);
-    }
-
-    /** {@code /ap3 add wait <ms>} - killer560: "add a wait modifier in milliseconds for this one." */
-    public static boolean addWaitNode(int millis) {
-        Ap3Node node = captureNode(Ap3Node.Type.WAIT);
-        if (node == null) {
+        spec.applyTo(node);
+        if (node.type == Ap3Node.Type.LEAP && node.leapMode == Ap3Node.LeapMode.CLASS && node.leapClass == null) {
+            chatBad("Leap class missing (mage / archer / bers / tank / healer).");
             return false;
         }
-        node.setWaitMs(millis);
-        return commitNode(node);
-    }
-
-    /** {@code /ap3 add leap [class <c> | ign <name>]}. Mode null/DEFAULT = Fast Leap's target for this section. */
-    public static boolean addLeapNode(Ap3Node.LeapMode mode, DungeonClass clazz, String ign) {
-        Ap3Node node = captureNode(Ap3Node.Type.LEAP);
-        if (node == null) {
-            return false;
-        }
-        node.leapMode = mode == null ? Ap3Node.LeapMode.DEFAULT : mode;
-        node.leapClass = clazz;
-        node.leapIgn = ign == null || ign.isBlank() ? null : ign.trim();
-        if (node.leapMode == Ap3Node.LeapMode.CLASS && clazz == null) {
-            chatBad("Leap class missing (mage / archer / berserk / tank / healer).");
-            return false;
-        }
-        if (node.leapMode == Ap3Node.LeapMode.IGN && node.leapIgn == null) {
+        if (node.type == Ap3Node.Type.LEAP && node.leapMode == Ap3Node.LeapMode.IGN && node.leapIgn == null) {
             chatBad("Leap IGN missing.");
             return false;
         }
-        return commitNode(node);
-    }
-
-    /** {@code /ap3 add leapdetector <count>}. */
-    public static boolean addLeapDetectorNode(int count) {
-        Ap3Node node = captureNode(Ap3Node.Type.LEAP_DETECTOR);
-        if (node == null) {
-            return false;
-        }
-        node.setLeapCount(count);
         return commitNode(node);
     }
 
@@ -303,8 +248,9 @@ public final class Ap3Feature {
             return false;
         }
         Ap3Node removed = chain.nodes().remove(index);
-        if (removed == editBreakerNode) {
-            editBreakerNode = null;
+        if (removed == lastAdded) {
+            lastAdded = null;
+            lastAddedChain = null;
         }
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("chain edited");
@@ -320,7 +266,79 @@ public final class Ap3Feature {
         return true;
     }
 
-    /** Deletes the last node of the current chain (the {@code deleteLast} keybind). */
+    /**
+     * {@code /ap3 delete} / {@code /ap3 remove} with no number - killer560: "If he is stood clearly nearest to one
+     * node (no ambiguity with another), delete/remove should take that node without him naming a number." Nearest
+     * within {@value #NEAREST_MAX} blocks and every other node at least {@value #NEAREST_MARGIN} further, else it
+     * says so and deletes nothing.
+     */
+    public static boolean deleteNearestNode() {
+        Ap3Chain chain = currentChain();
+        Minecraft client = Minecraft.getInstance();
+        if (chain == null || chain.isEmpty() || client.player == null) {
+            chatBad("No nodes in " + currentChainLabel() + ".");
+            return false;
+        }
+        Vec3 pos = client.player.position();
+        int best = -1;
+        double bestDist = Double.MAX_VALUE;
+        double second = Double.MAX_VALUE;
+        List<Ap3Node> nodes = chain.nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+            double d = nodes.get(i).pos().distanceTo(pos);
+            if (d < bestDist) {
+                second = bestDist;
+                bestDist = d;
+                best = i;
+            } else if (d < second) {
+                second = d;
+            }
+        }
+        if (best < 0 || bestDist > NEAREST_MAX) {
+            chatBad(String.format(Locale.US, "No node within %.0f blocks - stand next to one or give its number.", NEAREST_MAX));
+            return false;
+        }
+        if (second < bestDist + NEAREST_MARGIN) {
+            chatBad(String.format(Locale.US, "Two nodes are about as close (#%d and one %.1f blocks off) - give the number.",
+                    best + 1, second));
+            return false;
+        }
+        return deleteNode(best);
+    }
+
+    /** {@code /ap3 undo}: removes the node most recently CREATED (whatever area it went into), else the last node
+     *  of the chain you stand in. */
+    public static boolean undoLastAdded() {
+        if (lastAdded != null && lastAddedChain != null) {
+            int i = lastAddedChain.indexOf(lastAdded);
+            if (i >= 0) {
+                Ap3Chain chain = lastAddedChain;
+                Ap3Node removed = chain.nodes().remove(i);
+                lastAdded = null;
+                lastAddedChain = null;
+                if (Ap3Executor.isRunning()) {
+                    Ap3Executor.stop("chain edited");
+                }
+                Ap3Store store = Ap3Store.getInstance();
+                if (chain.isEmpty()) {
+                    store.remove(chain);
+                }
+                store.markEdited();
+                store.save();
+                chat(ModChat.text("Undone "), ModChat.value("#" + (i + 1) + " " + removed.type.label()),
+                        ModChat.dim(" from " + chain.label()));
+                return true;
+            }
+        }
+        List<Ap3Node> nodes = currentChainNodes();
+        if (nodes.isEmpty()) {
+            chatBad("Nothing to undo in " + currentChainLabel() + ".");
+            return false;
+        }
+        return deleteNode(nodes.size() - 1);
+    }
+
+    /** Deletes the last node of the current chain. */
     public static boolean deleteLastNode() {
         List<Ap3Node> nodes = currentChainNodes();
         if (nodes.isEmpty()) {
@@ -363,9 +381,9 @@ public final class Ap3Feature {
 
     /**
      * Re-places node {@code index} where you stand and/or look, without deleting and re-adding it (which would
-     * also lose its number in the chain and every modifier on it). {@code position} = snapped feet position,
-     * {@code look} = yaw/pitch. An AXIS_LINE re-measures its wall when the position moves and is left untouched
-     * when no wall is found, same rule as placing one.
+     * also lose its number in the chain and every modifier on it). {@code position} = feet position (snapped to
+     * the block centre unless the node is precise), {@code look} = yaw/pitch. An AXIS_ALIGN re-reads the wall you
+     * are touching when the position moves and refuses when you are not touching one, same rule as placing one.
      */
     public static boolean replaceNode(int index, boolean position, boolean look) {
         Ap3Chain chain = currentChain();
@@ -386,34 +404,33 @@ public final class Ap3Feature {
             return false;
         }
         Ap3Node node = chain.nodes().get(index);
-        // Work on a copy so a refused wall measurement leaves the real node exactly as it was.
+        // Work on a copy so a refused wall check leaves the real node exactly as it was.
         Ap3Node probe = node.copy();
         if (position) {
             Vec3 pos = player.position();
-            probe.x = Ap3Node.snapXZ(pos.x);
+            probe.x = node.precise ? pos.x : Ap3Node.snapCentre(pos.x);
             probe.y = Ap3Node.snapY(pos.y);
-            probe.z = Ap3Node.snapXZ(pos.z);
+            probe.z = node.precise ? pos.z : Ap3Node.snapCentre(pos.z);
+            if (node.type == Ap3Node.Type.AXIS_ALIGN) {
+                Direction wall = Ap3Executor.touchingWall(client.level, player);
+                if (wall == null) {
+                    chatBad("You are not touching a wall - #" + (index + 1) + " was not moved.");
+                    return false;
+                }
+                probe.wallDir = wall;
+            }
         }
         if (look) {
             // Stored yaw is DATA (Rotation 360 rule) - wrapped for the file, never written back to the player.
             probe.yaw = Mth.wrapDegrees(player.getYRot());
             probe.pitch = Mth.clamp(player.getXRot(), -90f, 90f);
         }
-        if (node.type == Ap3Node.Type.AXIS_LINE) {
-            // The wall is measured from the node's position along its yaw, so either change can move it.
-            Ap3Executor.measureWall(client.level, player, probe);
-            if (probe.wallAxis == Ap3Node.WallAxis.NONE) {
-                chatBad("No wall within 8 blocks in front / left / right - #" + (index + 1) + " was not moved.");
-                return false;
-            }
-        }
         node.x = probe.x;
         node.y = probe.y;
         node.z = probe.z;
         node.yaw = probe.yaw;
         node.pitch = probe.pitch;
-        node.wallAxis = probe.wallAxis;
-        node.wallDistance = probe.wallDistance;
+        node.wallDir = probe.wallDir;
         saveChains();
         chat(ModChat.text(position ? "Re-placed " : "Re-aimed "), ModChat.value("#" + (index + 1) + " " + node.describe()),
                 ModChat.dim(" in " + chain.label()));
@@ -449,7 +466,10 @@ public final class Ap3Feature {
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("chain cleared");
         }
-        editBreakerNode = null;
+        if (chain != null && chain == lastAddedChain) {
+            lastAdded = null;
+            lastAddedChain = null;
+        }
         Ap3Store store = Ap3Store.getInstance();
         boolean removed = store.remove(chain);
         store.markEdited();
@@ -462,7 +482,7 @@ public final class Ap3Feature {
         return removed;
     }
 
-    /** Persist after the tab edits a node's fields in place (length, width, wait, leap modifier, colour...). */
+    /** Persist after the tab edits a node's fields in place (box, wait, close, leap modifier, colour...). */
     public static void saveChains() {
         Ap3Store store = Ap3Store.getInstance();
         store.markEdited();
@@ -474,15 +494,14 @@ public final class Ap3Feature {
 
     /** {@link Ap3Store#reload()} swapped the chains: drop anything pointing at the old objects. */
     static void onChainsReloaded() {
-        editBreakerNode = null;
-        if (editMode) {
-            pickEditBreakerNode();
-        }
+        lastAdded = null;
+        lastAddedChain = null;
+        migrationReported = false;
     }
 
     // ------------------------------------------------------------------------------------------- node capture
 
-    private static Ap3Node captureNode(Ap3Node.Type type) {
+    private static Ap3Node captureNode(Ap3Node.Type type, boolean precise) {
         Ap3Config cfg = Ap3Config.getInstance();
         if (!cfg.isEnabled()) {
             chatBad("AP3 is off (cheat build + Skyblock only).");
@@ -503,12 +522,16 @@ public final class Ap3Feature {
         }
         Vec3 pos = player.position();
         // Stored yaw is DATA (wrapped for readability in the file); it is never written back to the player.
-        Ap3Node node = new Ap3Node(type, Ap3Node.snapXZ(pos.x), Ap3Node.snapY(pos.y), Ap3Node.snapXZ(pos.z),
+        Ap3Node node = new Ap3Node(type,
+                precise ? pos.x : Ap3Node.snapCentre(pos.x), Ap3Node.snapY(pos.y), precise ? pos.z : Ap3Node.snapCentre(pos.z),
                 Mth.wrapDegrees(player.getYRot()), Mth.clamp(player.getXRot(), -90f, 90f));
-        if (type == Ap3Node.Type.AXIS_LINE) {
-            Ap3Executor.measureWall(client.level, player, node);
-            if (node.wallAxis == Ap3Node.WallAxis.NONE) {
-                chatBad("No wall within 8 blocks in front / left / right - use a Line node here.");
+        node.precise = precise;
+        if (type == Ap3Node.Type.AXIS_ALIGN) {
+            // killer560: "Cannot be placed unless you are actually touching a wall. Must be very precise." - the
+            // wall is what makes that axis exact, so there has to be one to lean on.
+            node.wallDir = Ap3Executor.touchingWall(client.level, player);
+            if (node.wallDir == null) {
+                chatBad("You are not touching a wall - walk into one, then /ap3 add axisalign (or use align).");
                 return null;
             }
         }
@@ -527,10 +550,9 @@ public final class Ap3Feature {
             return false;
         }
         chain.nodes().add(node);
+        lastAdded = node;
+        lastAddedChain = chain;
         store.save();
-        if (editMode && node.type == Ap3Node.Type.BREAKER) {
-            editBreakerNode = node;
-        }
         chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.describe()),
                 ModChat.dim(" to " + chain.label()));
         return true;
@@ -552,9 +574,10 @@ public final class Ap3Feature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             resetForWorld("world change");
+            Ap3Executor.resetStopwatch();
         }
         if (!cfg.isEnabled()) {
-            if (Ap3Executor.isRunning() || editMode) {
+            if (Ap3Executor.isRunning()) {
                 resetForWorld("AP3 turned off");
             }
             return;
@@ -562,11 +585,11 @@ public final class Ap3Feature {
         if (client.player == null || client.level == null) {
             return;
         }
+        reportMigrationOnce();
         boolean live = isBossLive();
         if (!live) {
             if (wasLive) {
-                // Leaving the boss (died to the lobby, disconnect, warped out...) ends everything, edit mode included -
-                // edit mode swallows every block right-click, and must not follow the player out of the arena.
+                // Leaving the boss (died to the lobby, disconnect, warped out...) ends everything.
                 resetForWorld("left the boss");
             }
             wasLive = false;
@@ -590,16 +613,13 @@ public final class Ap3Feature {
         Ap3Area area = currentArea();
         if (area == null ? lastArea != null : !area.equals(lastArea)) {
             lastArea = area;
-            if (editMode) {
-                pickEditBreakerNode();
-            }
         }
         if (Ap3Executor.isRunning()) {
             Ap3Executor.tick(client);
             return;
         }
         Ap3Area completed = Ap3Executor.consumeCompletedArea();
-        if (completed != null && cfg.isContinueIntoNextSection() && !editMode && area != null && !area.equals(completed)) {
+        if (completed != null && cfg.isContinueIntoNextSection() && area != null && !area.equals(completed)) {
             // Only after a chain ran to its END - never after the player stopped one (that must stay stopped) - and
             // only into a DIFFERENT area, so a chain that ends where it started can't restart itself.
             Ap3Chain next = Ap3Store.getInstance().forArea(area, selfClass());
@@ -607,6 +627,23 @@ public final class Ap3Feature {
                 Ap3Executor.start(next);
             }
         }
+    }
+
+    /** The version-1 file migration, said once in chat so a renamed / merged / dropped node is never a surprise. */
+    private static void reportMigrationOnce() {
+        if (migrationReported) {
+            return;
+        }
+        migrationReported = true;
+        List<String> notes = Ap3Store.getInstance().consumeMigrationNotes();
+        if (notes.isEmpty()) {
+            return;
+        }
+        chat(ModChat.text("Chains file updated to the new node set:"));
+        for (String note : notes) {
+            chat(ModChat.dim("- " + note));
+        }
+        chat(ModChat.dim("It is saved in the new form the next time a node changes."));
     }
 
     private static void onRenderFrame(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext ctx) {
@@ -632,7 +669,7 @@ public final class Ap3Feature {
             if (chain == null) {
                 return;
             }
-            Ap3Renderer.render(ctx, chain, editMode, Ap3Executor.activeNode());
+            Ap3Renderer.render(ctx, chain, Ap3Executor.activeNode());
         } catch (Exception e) {
             renderFailed = true;
             LOGGER.error("[AP3] Render error - disabling AP3", e);
@@ -658,15 +695,100 @@ public final class Ap3Feature {
         }
     }
 
+    // ------------------------------------------------------------------------------------------- stopwatch HUD
+
+    /** The STOPWATCH node's optional HUD - the running time while one is going, the last time otherwise. */
+    public static final HudElement STOPWATCH_HUD = new HudElement() {
+        @Override
+        public String id() {
+            return "ap3_stopwatch";
+        }
+
+        @Override
+        public String displayName() {
+            return "AP3 Stopwatch";
+        }
+
+        @Override
+        public int defaultX() {
+            return 10;
+        }
+
+        @Override
+        public int defaultY() {
+            return 140;
+        }
+
+        @Override
+        public int width() {
+            return 90;
+        }
+
+        @Override
+        public int height() {
+            return 10;
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            Ap3Config cfg = Ap3Config.getInstance();
+            return cfg.isEnabled() && cfg.isStopwatchHud();
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+            Ap3Config cfg = Ap3Config.getInstance();
+            boolean example = HudVisibility.menuOpen();
+            if (!example && (!cfg.isEnabled() || !cfg.isStopwatchHud())) {
+                return;
+            }
+            long running = Ap3Executor.stopwatchRunningMs();
+            long last = Ap3Executor.lastStopwatchMs();
+            String value;
+            if (running >= 0) {
+                value = Ap3Executor.formatStopwatch(running);
+            } else if (last >= 0) {
+                value = Ap3Executor.formatStopwatch(last);
+            } else if (example) {
+                value = "12.345s";
+            } else {
+                return;
+            }
+            var font = Minecraft.getInstance().font;
+            String label = "Stopwatch: ";
+            graphics.text(font, label, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
+            graphics.text(font, value, x + 1 + font.width(label), y + 1, running >= 0 ? 0xFFFFFFFF : (0xFF000000 | ModChat.GOOD), true);
+        }
+    };
+
+    private static void drawStopwatchHud(GuiGraphicsExtractor graphics) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            Ap3Config cfg = Ap3Config.getInstance();
+            if (client.player == null || client.options.hideGui || HudVisibility.menuOpen() || !cfg.isEnabled() || !cfg.isStopwatchHud()) {
+                return;
+            }
+            int[] pos = HudElementRegistry.resolvePosition(STOPWATCH_HUD);
+            float scale = HudElementRegistry.resolveScale(STOPWATCH_HUD);
+            graphics.pose().pushMatrix();
+            try {
+                graphics.pose().translate(pos[0], pos[1]);
+                graphics.pose().scale(scale, scale);
+                STOPWATCH_HUD.render(graphics, 0, 0);
+            } finally {
+                graphics.pose().popMatrix();
+            }
+        } catch (RuntimeException e) {
+            // never take the HUD frame down over a stopwatch
+        }
+    }
+
     // ------------------------------------------------------------------------------------------- helpers
 
     private static void resetForWorld(String reason) {
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop(reason);
         }
-        editMode = false;
-        Ap3EditInput.reset();
-        editBreakerNode = null;
         renderFailed = false;
         lastArea = null;
     }
@@ -678,34 +800,6 @@ public final class Ap3Feature {
         cfg.setEnabled(false);
         cfg.save();
         chat(ModChat.bad("Disabled"), ModChat.dim(" - " + reason));
-    }
-
-    /** The breaker node edit mode targets: the nearest BREAKER node of the chain being edited. */
-    private static void pickEditBreakerNode() {
-        editBreakerNode = null;
-        Minecraft client = Minecraft.getInstance();
-        Ap3Chain chain = currentChain();
-        if (chain == null || client.player == null) {
-            return;
-        }
-        Vec3 pos = client.player.position();
-        double best = Double.MAX_VALUE;
-        for (Ap3Node node : chain.nodes()) {
-            if (node.type != Ap3Node.Type.BREAKER) {
-                continue;
-            }
-            double d = node.pos().distanceTo(pos);
-            if (d < best) {
-                best = d;
-                editBreakerNode = node;
-            }
-        }
-    }
-
-    /** 1-BASED, to match /ap3 list, /ap3 delete, the world labels and the tab. */
-    private static int breakerIndex() {
-        Ap3Chain chain = currentChain();
-        return chain == null || editBreakerNode == null ? -1 : chain.numberOf(editBreakerNode);
     }
 
     static void chat(Component... parts) {

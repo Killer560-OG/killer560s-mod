@@ -6,19 +6,18 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * Node markers for the current area's chain: a small box per node, the corridor (centre line + width edges) of a
- * LINE / AXIS_LINE for its length, an arrow for a WALK / RUN's travel, the chain line between consecutive nodes, the
- * active node in its own colour, 1-based labels with length / width, and in edit mode a faint highlight on every
- * block a BREAKER node will break (air = red outline, present = white fill - QUOI's DB editor).
+ * Node markers for the current area's chain: a small box per node, its trigger box on the ground (width x length,
+ * turned to the node's yaw), an arrow for a WALK / RUN's travel direction, the wall side of an AXIS_ALIGN, a short
+ * ray for a LOOK / BOOM, the chain line between consecutive nodes, the active node in its own colour, and 1-based
+ * labels. Nodes stacked on the same spot get their labels lifted one step each (killer560: "Nodes stacked in the
+ * same spot must draw their labels at different heights so they can be told apart").
  * <p>
  * Everything is depth-tested against the world and drawn through {@link WorldRenderUtils} only. Any exception is
  * caught by the feature's render hook, which disables the feature instead of taking the frame down.
@@ -27,15 +26,18 @@ public final class Ap3Renderer {
 
     private static final double GROUND_OFFSET = 0.03;
     private static final double LABEL_DISTANCE = 40.0;
-    private static final float BREAKER_ALPHA = 0.28f;
-    /** Must match {@code Ap3Executor.CORRIDOR_TAIL} - the drawn corridor is the one that is enforced. */
-    private static final double CORRIDOR_TAIL = 0.5;
     private static final double ARROW_HEAD = 0.35;
+    private static final double ARROW_LENGTH = 1.5;
+    private static final double LOOK_RAY = 2.0;
+    /** Two nodes closer than this on the ground are "the same spot" for label stacking. */
+    private static final double STACK_RADIUS = 0.35;
+    /** Each further node on the same spot lifts its label by this much (in blocks, scaled with the label). */
+    private static final double STACK_STEP = 0.3;
 
     private Ap3Renderer() {
     }
 
-    static void render(LevelRenderContext ctx, Ap3Chain chain, boolean editMode, Ap3Node activeNode) {
+    static void render(LevelRenderContext ctx, Ap3Chain chain, Ap3Node activeNode) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null || chain == null) {
             return;
@@ -64,9 +66,11 @@ public final class Ap3Renderer {
                 WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
             }
             WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
+            renderTriggerBox(ctx, node, c, alpha, thickness);
             switch (node.type) {
-                case LINE, AXIS_LINE -> renderCorridor(ctx, node, c, alpha, thickness);
                 case WALK, RUN -> renderArrow(ctx, node, c, alpha, thickness);
+                case AXIS_ALIGN -> renderWallSide(ctx, node, c, alpha, thickness);
+                case LOOK, BOOM -> renderLookRay(ctx, node, c, alpha, thickness);
                 default -> {
                 }
             }
@@ -75,7 +79,9 @@ public final class Ap3Renderer {
                 // on the label has to be the number you can type (AutoRoutesRenderer does the same).
                 String text = label(cfg, chain.numberOf(node), node);
                 if (!text.isEmpty()) {
-                    renderLabel(ctx, camera, real.x, real.y + height + 0.35 + cfg.getLabelHeightOffset(), real.z,
+                    int stack = stackIndex(nodes, i);
+                    double lift = stack * STACK_STEP * Math.max(0.5f, cfg.getLabelScale());
+                    renderLabel(ctx, camera, real.x, real.y + height + 0.35 + cfg.getLabelHeightOffset() + lift, real.z,
                             text, cfg.labelColorFor(node, argb), cfg.getLabelScale());
                 }
             }
@@ -84,13 +90,23 @@ public final class Ap3Renderer {
             float[] a = WorldRenderUtils.argbToFloats(cfg.getActiveColorArgb());
             WorldRenderUtils.renderLineStrip(ctx, chainLine, a[0], a[1], a[2], 0.4f, Math.max(0.5f, thickness / 2f));
         }
-        if (editMode) {
-            renderBreakerBlocks(ctx, client, chain);
+    }
+
+    /** How many EARLIER nodes share this node's spot - its label goes that many steps higher. */
+    private static int stackIndex(List<Ap3Node> nodes, int index) {
+        Ap3Node me = nodes.get(index);
+        int stack = 0;
+        for (int j = 0; j < index; j++) {
+            Ap3Node other = nodes.get(j);
+            if (Math.abs(other.y - me.y) <= 0.5 && Math.abs(other.x - me.x) <= STACK_RADIUS && Math.abs(other.z - me.z) <= STACK_RADIUS) {
+                stack++;
+            }
         }
+        return stack;
     }
 
     /**
-     * "#3 Line 4.0 x 1.0" with each part behind its own toggle: the 1-based number (killer560: "the very first node
+     * "#3 Align 3x3" with each part behind its own toggle: the 1-based number (killer560: "the very first node
      * is 1 the second is 2 and so on"), the type name, and the per-type detail. Empty when every part is off, so
      * the caller draws nothing rather than a blank label.
      */
@@ -117,73 +133,89 @@ public final class Ap3Renderer {
         return sb.toString();
     }
 
-    /** The per-type modifier only ("4.0 x 1.0", "500ms", "x2"); empty for types without one. */
+    /** The per-type modifier plus the general ones ("3x3 precise wait:500 close"); empty when there is none. */
     private static String detail(Ap3Node node) {
-        return switch (node.type) {
-            case LINE, AXIS_LINE -> String.format(Locale.US, "%.1f x %.1f", node.length, node.width);
-            case WALK, RUN -> String.format(Locale.US, "%.1f", node.length);
-            case WAIT -> node.waitMs + "ms";
-            case LEAP -> node.leapDescription();
-            case LEAP_DETECTOR -> "x" + node.leapCount;
-            case BREAKER -> node.breakerBlocks.size() + " blk";
-            default -> "";
-        };
+        StringBuilder sb = new StringBuilder();
+        switch (node.type) {
+            case LEAP -> sb.append(node.leapDescription());
+            case LEAP_COUNTER -> sb.append('x').append(node.leapCount);
+            case AXIS_ALIGN -> sb.append(node.wallDir == null ? "no wall" : node.wallDir.getName());
+            default -> {
+            }
+        }
+        if (node.width != Ap3Node.DEFAULT_WIDTH || node.length != Ap3Node.DEFAULT_LENGTH) {
+            append(sb, Ap3Node.fmt(node.width) + "x" + Ap3Node.fmt(node.length));
+        }
+        if (node.precise && node.type.isAlign()) {
+            append(sb, "precise");
+        }
+        if (node.waitAfterMs > 0) {
+            append(sb, "wait:" + node.waitAfterMs);
+        }
+        if (node.closeGate) {
+            append(sb, "close");
+        }
+        return sb.toString();
     }
 
-    /** The active span (centre line, tail to length) and the tolerance band (edges at +-width/2). */
-    private static void renderCorridor(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
+    private static void append(StringBuilder sb, String part) {
+        if (sb.length() > 0) {
+            sb.append(' ');
+        }
+        sb.append(part);
+    }
+
+    /** The trigger box on the ground: the rectangle width x length turned to the node's yaw. Skipped for the
+     *  default 1x1 (the marker already shows the block) so a plain chain stays uncluttered. */
+    private static void renderTriggerBox(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
+        if (node.width == Ap3Node.DEFAULT_WIDTH && node.length == Ap3Node.DEFAULT_LENGTH) {
+            return;
+        }
         Vec3 d = node.dir();
         Vec3 l = node.left();
         double y = node.y + GROUND_OFFSET;
-        Vec3 start = new Vec3(node.x - d.x * CORRIDOR_TAIL, y, node.z - d.z * CORRIDOR_TAIL);
-        Vec3 end = new Vec3(node.x + d.x * node.length, y, node.z + d.z * node.length);
-        WorldRenderUtils.renderLineStrip(ctx, List.of(start, end), c[0], c[1], c[2], alpha, thickness);
+        double hl = node.length / 2.0;
         double hw = node.width / 2.0;
-        Vec3 offset = new Vec3(l.x * hw, 0, l.z * hw);
-        float edgeAlpha = alpha * 0.45f;
-        float edgeThickness = Math.max(0.5f, thickness / 2f);
-        WorldRenderUtils.renderLineStrip(ctx, List.of(start.add(offset), end.add(offset)), c[0], c[1], c[2], edgeAlpha, edgeThickness);
-        WorldRenderUtils.renderLineStrip(ctx, List.of(start.subtract(offset), end.subtract(offset)), c[0], c[1], c[2], edgeAlpha, edgeThickness);
-        if (node.type == Ap3Node.Type.AXIS_LINE) {
-            Vec3 axis = Ap3Executor.wallAxisVector(node);
-            if (axis != null) {
-                // The wall measurement: node centre to the recorded face, at chest height.
-                Vec3 from = new Vec3(node.x, node.y + 0.9, node.z);
-                Vec3 to = from.add(axis.x * node.wallDistance, 0, axis.z * node.wallDistance);
-                WorldRenderUtils.renderLineStrip(ctx, List.of(from, to), c[0], c[1], c[2], alpha * 0.7f, edgeThickness);
-            }
-        }
+        Vec3 centre = new Vec3(node.x, y, node.z);
+        Vec3 a = centre.add(d.x * hl + l.x * hw, 0, d.z * hl + l.z * hw);
+        Vec3 b = centre.add(d.x * hl - l.x * hw, 0, d.z * hl - l.z * hw);
+        Vec3 cc = centre.add(-d.x * hl - l.x * hw, 0, -d.z * hl - l.z * hw);
+        Vec3 dd = centre.add(-d.x * hl + l.x * hw, 0, -d.z * hl + l.z * hw);
+        WorldRenderUtils.renderLineStrip(ctx, List.of(a, b, cc, dd, a), c[0], c[1], c[2], alpha * 0.55f, Math.max(0.5f, thickness / 2f));
     }
 
-    /** Travel direction and distance of a WALK / RUN. */
+    /** Travel direction of a WALK / RUN (the walk is held until a STOP / align, so no length is drawn). */
     private static void renderArrow(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
         Vec3 d = node.dir();
         Vec3 l = node.left();
         double y = node.y + GROUND_OFFSET;
         Vec3 start = new Vec3(node.x, y, node.z);
-        Vec3 end = new Vec3(node.x + d.x * node.length, y, node.z + d.z * node.length);
+        Vec3 end = new Vec3(node.x + d.x * ARROW_LENGTH, y, node.z + d.z * ARROW_LENGTH);
         Vec3 headL = end.add((-d.x + l.x) * ARROW_HEAD, 0, (-d.z + l.z) * ARROW_HEAD);
         Vec3 headR = end.add((-d.x - l.x) * ARROW_HEAD, 0, (-d.z - l.z) * ARROW_HEAD);
         WorldRenderUtils.renderLineStrip(ctx, List.of(start, end), c[0], c[1], c[2], alpha, thickness);
         WorldRenderUtils.renderLineStrip(ctx, List.of(headL, end, headR), c[0], c[1], c[2], alpha, thickness);
     }
 
-    /** killer560: "blocks that will be broken by any node get a faint highlight while in edit mode". */
-    private static void renderBreakerBlocks(LevelRenderContext ctx, Minecraft client, Ap3Chain chain) {
-        for (Ap3Node node : chain.nodes()) {
-            if (node.type != Ap3Node.Type.BREAKER) {
-                continue;
-            }
-            for (BlockPos real : node.breakerBlocks) {
-                AABB box = new AABB(real.getX(), real.getY(), real.getZ(), real.getX() + 1, real.getY() + 1, real.getZ() + 1);
-                if (client.level.getBlockState(real).isAir()) {
-                    WorldRenderUtils.renderOutlineBox(ctx, box, 1f, 0.2f, 0.2f, 0.5f, 1.5f);
-                } else {
-                    WorldRenderUtils.renderFilledBox(ctx, box, 1f, 1f, 1f, BREAKER_ALPHA);
-                    WorldRenderUtils.renderOutlineBox(ctx, box, 1f, 1f, 1f, 0.6f, 1.5f);
-                }
-            }
+    /** The wall side an AXIS_ALIGN presses into: a short line from chest height toward that side. */
+    private static void renderWallSide(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
+        Vec3 w = node.wallVector();
+        if (w == null) {
+            return;
         }
+        Vec3 from = new Vec3(node.x, node.y + 0.9, node.z);
+        Vec3 to = from.add(w.x * 0.8, 0, w.z * 0.8);
+        WorldRenderUtils.renderLineStrip(ctx, List.of(from, to), c[0], c[1], c[2], alpha * 0.7f, Math.max(0.5f, thickness / 2f));
+    }
+
+    /** Where a LOOK turns to / a BOOM fires: the recorded yaw+pitch from eye height. */
+    private static void renderLookRay(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
+        double yr = Math.toRadians(node.yaw);
+        double pr = Math.toRadians(node.pitch);
+        double cp = Math.cos(pr);
+        Vec3 from = new Vec3(node.x, node.y + 1.62, node.z);
+        Vec3 to = from.add(-Math.sin(yr) * cp * LOOK_RAY, -Math.sin(pr) * LOOK_RAY, Math.cos(yr) * cp * LOOK_RAY);
+        WorldRenderUtils.renderLineStrip(ctx, List.of(from, to), c[0], c[1], c[2], alpha * 0.7f, Math.max(0.5f, thickness / 2f));
     }
 
     /** Camera-facing text at a world position - {@code posmsg/PosmsgRenderer.renderLabel}, including its

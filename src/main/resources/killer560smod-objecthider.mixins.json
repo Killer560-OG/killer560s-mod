@@ -5,9 +5,16 @@
 	"package": "com.killer560.hub.objecthider.mixin",
 	"client": [
 		"AbstractArrowInGroundAccessor",
+		"ImageButtonSpritesAccessor",
+		"ObjectHiderCooldownMixin",
+		"ObjectHiderFogMixin",
+		"ObjectHiderGuiMixin",
+		"ObjectHiderItemAnimMixin",
+		"ObjectHiderNametagMixin",
 		"ObjectHiderPacketMixin",
 		"ObjectHiderParticleMixin",
-		"ObjectHiderRenderMixin"
+		"ObjectHiderRenderMixin",
+		"ObjectHiderTextShadowMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

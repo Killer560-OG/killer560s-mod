@@ -193,6 +193,9 @@ public final class SplitTimersFeature {
         List<SplitDef> splits = List.of();
         /** Wall-clock time each split's trigger line fired (0 = not yet). Parallel to {@link #splits}. */
         long[] timeMs = new long[0];
+        /** {@link SplitLagClock#accumulatedLagMs()} snapshotted at the same instant as {@link #timeMs}[i] -
+         *  the delta between two of these entries is exactly how much of that window was real server lag. */
+        long[] lagMs = new long[0];
         /** How many of {@link #splits} are clear-phase splits (3, or 5 with Clear Splits on) - the Boss Entry row
          *  is their sum and is inserted after them. Snapshotted per run so a mid-run toggle can't desync it. */
         int clearCount = 3;
@@ -200,7 +203,20 @@ public final class SplitTimersFeature {
         int doorOpenIndex = 1;
     }
 
-    private record SplitRow(String name, long timeMs, boolean isCurrent) {
+    /** @param lagLessMs the split's duration minus lag accumulated during its window (see {@link SplitLagClock}),
+     *  or -1 when not computed/available for this row (e.g. a divider, or Watcher Move). */
+    private record SplitRow(String name, long timeMs, long lagLessMs, boolean isCurrent, boolean isDivider) {
+        static SplitRow of(String name, long timeMs, boolean isCurrent) {
+            return new SplitRow(name, timeMs, -1L, isCurrent, false);
+        }
+
+        static SplitRow withLag(String name, long timeMs, long lagLessMs, boolean isCurrent) {
+            return new SplitRow(name, timeMs, lagLessMs, isCurrent, false);
+        }
+
+        static SplitRow divider(String text) {
+            return new SplitRow(text, 0L, -1L, false, true);
+        }
     }
 
     private static RunState run = new RunState();
@@ -218,6 +234,7 @@ public final class SplitTimersFeature {
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(SplitTimersFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        SplitLagClock.register();
     }
 
     private static boolean wasInDungeon = false;
@@ -300,6 +317,7 @@ public final class SplitTimersFeature {
             RunState fresh = new RunState();
             fresh.splits = splitsForFloor(DungeonState.getFloor(), clearSplits);
             fresh.timeMs = new long[fresh.splits.size()];
+            fresh.lagMs = new long[fresh.splits.size()];
             fresh.clearCount = clearPrefix(clearSplits).size();
             fresh.doorOpenIndex = doorOpenIndex(clearSplits);
             run = fresh;
@@ -350,6 +368,7 @@ public final class SplitTimersFeature {
         }
         long now = System.currentTimeMillis();
         run.timeMs[index] = now;
+        run.lagMs[index] = SplitLagClock.accumulatedLagMs();
         SplitDef split = run.splits.get(index);
 
         // Diagnostic (2026-09-14): an earlier split never fired - its line was missed (dialogue skipped /
@@ -461,25 +480,33 @@ public final class SplitTimersFeature {
             return List.of();
         }
         long now = System.currentTimeMillis();
+        long nowLag = SplitLagClock.accumulatedLagMs();
         long lastTime = run.timeMs[n - 1];
         long latest = lastTime != 0L ? lastTime : now;
+        long latestLag = lastTime != 0L ? run.lagMs[n - 1] : nowLag;
         int current = currentIndex();
         List<SplitRow> rows = new ArrayList<>(n);
         for (int i = 0; i < n - 1; i++) {
             long t = 0L;
+            long lagless = -1L;
             if (run.timeMs[i] != 0L) {
                 long end = latest;
+                long endLag = latestLag;
                 for (int j = i + 1; j < n; j++) {
                     if (run.timeMs[j] != 0L) {
                         end = run.timeMs[j];
+                        endLag = run.lagMs[j];
                         break;
                     }
                 }
                 t = end - run.timeMs[i];
+                lagless = Math.max(0L, t - (endLag - run.lagMs[i]));
             }
-            rows.add(new SplitRow(run.splits.get(i).label(), t, i == current));
+            rows.add(SplitRow.withLag(run.splits.get(i).label(), t, lagless, i == current));
         }
-        rows.add(new SplitRow(run.splits.get(n - 1).label(), latest - run.timeMs[first], false));
+        long total = latest - run.timeMs[first];
+        long totalLagless = Math.max(0L, total - (latestLag - run.lagMs[first]));
+        rows.add(SplitRow.withLag(run.splits.get(n - 1).label(), total, totalLagless, false));
         return rows;
     }
 
@@ -555,7 +582,10 @@ public final class SplitTimersFeature {
             int rows = displayRows().size();
             int p5 = p5Lines().size();
             int core = coreLines().size();
-            int total = SplitTimersConfig.getInstance().isP5LinesRight() ? Math.max(rows, p5) + core : rows + p5 + core;
+            int totals = totalsLines().size();
+            int slowest = slowestCoreLine().size();
+            int total = SplitTimersConfig.getInstance().isP5LinesRight()
+                    ? Math.max(rows, p5) + core + totals + slowest : rows + p5 + core + totals + slowest;
             return 12 * Math.max(1, total);
         }
 
@@ -616,10 +646,10 @@ public final class SplitTimersFeature {
             if (rows.isEmpty()) {
                 return List.of();
             }
+            SplitTimersConfig cfg = SplitTimersConfig.getInstance();
             List<SplitRow> segments = rows.subList(0, rows.size() - 1);
             int clearCount = Math.min(run.clearCount, segments.size());
-            long watcherMoveMs = SplitTimersConfig.getInstance().isWatcherMoveSplit()
-                    ? WatcherMoveTracker.getMoveMs() : 0L;
+            long watcherMoveMs = cfg.isWatcherMoveSplit() ? WatcherMoveTracker.getMoveMs() : 0L;
             List<SplitRow> out = new ArrayList<>();
             for (int i = 0; i < segments.size(); i++) {
                 SplitRow row = segments.get(i);
@@ -627,19 +657,149 @@ public final class SplitTimersFeature {
                     out.add(row);
                 }
                 if (i == run.doorOpenIndex && watcherMoveMs != 0L) {
-                    out.add(new SplitRow("§cWatcher Move", watcherMoveMs, false));
+                    // No per-window lag snapshot exists for Watcher Move (it isn't a split boundary), so it
+                    // never carries a lagless "(...)" - see this batch's staging notes for why.
+                    out.add(SplitRow.of("§cWatcher Move", watcherMoveMs, false));
                 }
+                // Killer560, 2026-09-20: "add a bar separating clear and boss phase timers" + "add a boss
+                // entry timer as part of the top section" - both land here, right after the last clear
+                // segment and before the first boss segment. Boss Entry (Devonian Stages.BossEntry) is the
+                // sum of every clear segment = elapsed(run start -> the boss's own entry dialogue); it is
+                // already "live" during the clear phase because segments.get(j) is itself live for the
+                // currently-running segment (see currentRows()), and freezes the moment the boss starts.
                 if (i == clearCount - 1 && segments.size() > clearCount) {
                     long bossTime = 0L;
+                    long bossLag = 0L;
+                    boolean any = false;
                     for (int j = 0; j < clearCount; j++) {
                         bossTime += segments.get(j).timeMs();
+                        long segLagless = segments.get(j).lagLessMs();
+                        if (segLagless >= 0L) {
+                            bossLag += segments.get(j).timeMs() - segLagless;
+                            any = true;
+                        }
                     }
-                    if (bossTime != 0L) {
-                        out.add(new SplitRow("§9Boss Entry", bossTime, false));
+                    if (bossTime != 0L && cfg.isBossEntryTimer()) {
+                        long bossLagless = any ? Math.max(0L, bossTime - bossLag) : -1L;
+                        out.add(SplitRow.withLag("§9Boss Entry", bossTime, bossLagless, false));
+                    }
+                    if (bossTime != 0L && cfg.isClearBossDivider()) {
+                        out.add(SplitRow.divider(DIVIDER_TEXT));
+                    }
+                    if (cfg.isBossTimer()) {
+                        SplitRow boss = bossRow();
+                        if (boss != null) {
+                            out.add(boss);
+                        }
                     }
                 }
             }
             return out;
+        }
+
+        /** "a boss timer that runs during boss as well" - elapsed time from the boss's own entry dialogue
+         *  (the first split after the clear prefix) to the end of the fight, or now while it's still running.
+         *  Null before the boss phase has actually started this run. */
+        private static SplitRow bossRow() {
+            int bossStartIndex = run.clearCount;
+            if (bossStartIndex >= run.timeMs.length - 1 || run.timeMs[bossStartIndex] == 0L) {
+                return null;
+            }
+            int last = run.timeMs.length - 1;
+            long now = System.currentTimeMillis();
+            long end = run.timeMs[last] != 0L ? run.timeMs[last] : now;
+            long endLag = run.timeMs[last] != 0L ? run.lagMs[last] : SplitLagClock.accumulatedLagMs();
+            long elapsed = end - run.timeMs[bossStartIndex];
+            long lagless = Math.max(0L, elapsed - (endLag - run.lagMs[bossStartIndex]));
+            return SplitRow.withLag("§4Boss", elapsed, lagless, run.timeMs[last] == 0L);
+        }
+
+        /** A strikethrough run of spaces - a common Minecraft-HUD trick for drawing a plain horizontal
+         *  divider line without needing to know the font's exact pixel widths. */
+        private static final String DIVIDER_TEXT = "§8§m" + " ".repeat(34);
+
+        /** "Then add another line at the bottom separating the new lines you are going to add being the
+         *  total running time with and without lag, and the lag lost timer" - killer560, 2026-09-20.
+         *  "With lag" is the plain wall-clock total - exactly what Hypixel's own end-of-run "Defeated ...
+         *  in" line measures, untouched by SplitLagClock, so it always matches that real number. The other
+         *  two are lag-derived and hidden (not shown as a dishonest 0) until SplitLagClock has actually
+         *  seen a real server tick this connection ({@link SplitLagClock#isTrustworthy()}). */
+        private static List<String> totalsLines() {
+            SplitTimersConfig cfg = SplitTimersConfig.getInstance();
+            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+                List<String> sample = new ArrayList<>();
+                if (cfg.isTotalWithLag()) {
+                    sample.add("§eTotal (with lag)§f: 1m 23.45s");
+                }
+                if (cfg.isTotalWithoutLag()) {
+                    sample.add("§aTotal (without lag)§f: 1m 20.10s");
+                }
+                if (cfg.isLagLostLine()) {
+                    sample.add("§cLag Lost§f: 3.35s");
+                }
+                if (sample.isEmpty()) {
+                    return List.of();
+                }
+                List<String> out = new ArrayList<>(sample.size() + 1);
+                out.add(DIVIDER_TEXT);
+                out.addAll(sample);
+                return out;
+            }
+            int first = firstRecorded();
+            if (first < 0) {
+                return List.of();
+            }
+            int last = run.timeMs.length - 1;
+            long now = System.currentTimeMillis();
+            long end = run.timeMs[last] != 0L ? run.timeMs[last] : now;
+            long endLag = run.timeMs[last] != 0L ? run.lagMs[last] : SplitLagClock.accumulatedLagMs();
+            long total = end - run.timeMs[first];
+            long lag = endLag - run.lagMs[first];
+            boolean trusted = SplitLagClock.isTrustworthy();
+            List<String> content = new ArrayList<>();
+            if (cfg.isTotalWithLag()) {
+                content.add("§eTotal (with lag)§f: " + formatTime(total));
+            }
+            if (cfg.isTotalWithoutLag() && trusted) {
+                content.add("§aTotal (without lag)§f: " + formatTime(Math.max(0L, total - lag)));
+            }
+            if (cfg.isLagLostLine() && trusted) {
+                content.add("§cLag Lost§f: " + formatTime(lag));
+            }
+            if (content.isEmpty()) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>(content.size() + 1);
+            out.add(DIVIDER_TEXT);
+            out.addAll(content);
+            return out;
+        }
+
+        /** "You can at the very bottom of the split timers show the slowest person into core and their
+         *  time" - killer560, 2026-09-20. Independent of Core Entry's own chat/party announce toggles -
+         *  {@link CoreEntryTimes#slowestHudLine()} computes it live from the same data whenever any is in,
+         *  it isn't gated on the once-per-run chat announcement. */
+        private static List<String> slowestCoreLine() {
+            if (!SplitTimersConfig.getInstance().isCoreEntrySlowestHud()) {
+                return List.of();
+            }
+            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+                return List.of("§6Slowest Into Core§f: §cTeammate§f: 6.20s");
+            }
+            String line = CoreEntryTimes.slowestHudLine();
+            return line == null ? List.of() : List.of("§6Slowest Into Core§f: " + line);
+        }
+
+        /** Row text, with the lagless "(...)" appended when on and trustworthy - dividers print as-is. */
+        private static String rowText(SplitRow row) {
+            if (row.isDivider()) {
+                return row.name();
+            }
+            String text = row.name() + "§f: " + formatTime(row.timeMs());
+            if (SplitTimersConfig.getInstance().isLaglessTimes() && row.lagLessMs() >= 0L && SplitLagClock.isTrustworthy()) {
+                text += " §7(" + formatTime(row.lagLessMs()) + ")";
+            }
+            return text;
         }
 
         @Override
@@ -657,8 +817,7 @@ public final class SplitTimersFeature {
             // editor shows only the sample P5 / core-entry blocks below.
             if (!HudVisibility.editorOpen()) {
                 for (SplitRow row : displayRows()) {
-                    String text = row.name() + "§f: " + formatTime(row.timeMs());
-                    graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);
+                    graphics.text(Minecraft.getInstance().font, rowText(row), x, lineY, 0xFFFFFFFF, false);
                     lineY += 12;
                 }
             }
@@ -669,9 +828,18 @@ public final class SplitTimersFeature {
                 graphics.text(Minecraft.getInstance().font, line, p5X, p5Y, 0xFFFFFFFF, false);
                 p5Y += 12;
             }
-            // Core entry rows always sit in the left column, under whatever is already there.
+            // Core entry / totals / slowest-into-core rows always sit in the left column, under whatever
+            // is already there, in that order - the last two are the "very bottom" blocks killer560 asked for.
             int coreY = right ? lineY : p5Y;
             for (String line : coreLines()) {
+                graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
+                coreY += 12;
+            }
+            for (String line : totalsLines()) {
+                graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
+                coreY += 12;
+            }
+            for (String line : slowestCoreLine()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
                 coreY += 12;
             }

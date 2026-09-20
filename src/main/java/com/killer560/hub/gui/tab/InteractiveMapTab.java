@@ -57,17 +57,19 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
         if (cfg.isInteractiveMapEnabledRaw()) {
+            // killer560, 2026-09-20: "the room-labels option should sit nearer the top of the tab" - moved up to
+            // the first settings row, next to the Open Key, instead of sharing a row with Open From HUD Click.
             widgets.add(keyButton("Open Key", KeyTarget.OPEN, cfg.getOpenKeyCode(), contentX, y, colW));
+            widgets.add(LiveMapTab.cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getMapRoomLabels,
+                    cfg::setMapRoomLabels, cfg, colB, y, colW));
+            y += 20;
             widgets.add(SettingsButtonWidget.builder(closeOnText(cfg), btn -> {
                         cfg.setCloseOnRepress(!cfg.isCloseOnRepress());
                         cfg.save();
                         btn.setMessage(closeOnText(cfg));
-                    }).bounds(colB, y, colW, 18).build());
-            y += 20;
+                    }).bounds(contentX, y, colW, 18).build());
             widgets.add(LiveMapTab.toggle("Open From HUD Click", cfg::isOpenFromHudClick, cfg::setOpenFromHudClick,
-                    cfg, contentX, y, colW));
-            widgets.add(LiveMapTab.cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getMapRoomLabels,
-                    cfg::setMapRoomLabels, cfg, colB, y, colW));
+                    cfg, colB, y, colW));
             y += 20;
             widgets.add(LiveMapTab.slider("Map Scale", cfg::getMapScale, v -> cfg.setMapScale((float) v), 1, 10, "",
                     cfg, contentX, y, colW));

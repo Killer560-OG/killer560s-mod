@@ -1,6 +1,5 @@
 package com.killer560.hub.terminals;
 
-import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
 import com.killer560.hub.util.ChatObserver;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
@@ -245,8 +244,11 @@ public final class TerminalQolFeature {
         }
         Slot slot = slots.get(slotIndex);
         // Same real click path Custom GUI / Auto Terminals already use, so the click is indistinguishable from
-        // a mouse click on that slot (sounds, carried-item bookkeeping, the real network packet).
-        ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, 0, ContainerInput.PICKUP);
+        // a mouse click on that slot (sounds, carried-item bookkeeping, the real network packet) - including
+        // its guard against another mod's slot-click mixin throwing (see TerminalSolverFeature#invokeSlotClicked).
+        TerminalSolverFeature.invokeSlotClicked(screen, slot, 0, ContainerInput.PICKUP);
+        // Consumed either way: if the click was aborted, letting 1-4 fall through to vanilla would SWAP an
+        // item into the terminal slot, which is strictly worse than the key doing nothing.
         return true;
     }
 

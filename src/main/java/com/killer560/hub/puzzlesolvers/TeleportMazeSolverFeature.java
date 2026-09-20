@@ -129,7 +129,23 @@ public final class TeleportMazeSolverFeature {
             }
             realCells.add(cell);
         }
-        LOGGER.info("[TeleportMazeSolver] Entered maze (clayRot={},{},{}) - {} pads", cr[0], cr[1], cr[2], tpPads.size());
+        // killer560, 2026-09-20: "white hitboxes appear far away, off-centre from the actual maze area".
+        // The 30 relative PADS coordinates above are byte-for-byte identical to QUOI's own
+        // endPortalFrameLocations/cells (both are the same fixed OdinFabric-derived layout), so this logs
+        // the real-world bounding box of every transformed pad next to the player's own position - if the
+        // reported bug is real, this range will sit well away from where the player actually is standing,
+        // which would point at RoomDatabase's clay/rotation transform (see staging notes; not owned by
+        // this file) rather than the pad data itself.
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (BlockPos pad : tpPads) {
+            minX = Math.min(minX, pad.getX());
+            maxX = Math.max(maxX, pad.getX());
+            minZ = Math.min(minZ, pad.getZ());
+            maxZ = Math.max(maxZ, pad.getZ());
+        }
+        Vec3 playerPos = client.player != null ? client.player.position() : null;
+        LOGGER.info("[TeleportMazeSolver] Entered maze (clayRot={},{},{}) - {} pads, real bounds x=[{},{}] z=[{},{}], player={}",
+                cr[0], cr[1], cr[2], tpPads.size(), minX, maxX, minZ, maxZ, playerPos);
     }
 
     /** From {@code PuzzlePacketMixin}, main thread, before vanilla applies the teleport. */

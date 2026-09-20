@@ -2,11 +2,19 @@ package com.killer560.hub.objecthider;
 
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor;
+import com.killer560.hub.objecthider.mixin.ImageButtonSpritesAccessor;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.particle.HugeExplosionParticle;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SmokeParticle;
@@ -15,10 +23,13 @@ import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.sheep.Sheep;
@@ -151,6 +162,21 @@ public final class ObjectHiderFeature {
     /** SkyHanni {@code dungeon.end.chests.spawned}, formatting-stripped. */
     private static final Pattern CHESTS_SPAWNED = Pattern.compile("^\\s*(?:Master Mode )?The Catacombs - Floor .*$");
 
+    // --- QUOI Chat Replacements patterns (2026-09-20) - real, generic Hypixel broadcast/system text, not
+    // QUOI's own regex source; see ObjectHiderTab's "Needs his answer" note for the 3 QUOI entries this pack
+    // does NOT attempt (Cleaner Dungeons / Cleaner PF / Hide Even More Useless Messages) because their exact
+    // scope isn't pinned down anywhere in the research pass. ---
+    /** "Hide useless messages" - Hypixel's own dungeon pathing spam and the debug profile-id line. */
+    private static final Pattern USELESS_MESSAGE = Pattern.compile(
+            "^\\s*(?:There are blocks in the way!|Profile ID:.*)\\s*$");
+    /** "Hide discord warnings" - Hypixel's standing Discord-impersonation broadcast. */
+    private static final Pattern DISCORD_WARNING = Pattern.compile("(?i).*discord.*staff.*|.*staff.*discord.*");
+    /** "Hide microsoft warnings" - Hypixel's standing Microsoft-account-phishing broadcast. */
+    private static final Pattern MICROSOFT_WARNING = Pattern.compile("(?i).*microsoft account.*password.*");
+    /** "Hide non rank invites" (1.1.1) - a party invite from a name with no rank tag in front of it. */
+    private static final Pattern NON_RANK_INVITE =
+            Pattern.compile("^(?!\\[)(\\w{1,16}) has invited you to join their party!$");
+
     /** Devonian {@code NoDeathAnimation.kt}: nametag-stand ids derived from a dying mob's id. */
     private static final Set<Integer> deadTags = ConcurrentHashMap.newKeySet();
 
@@ -170,6 +196,68 @@ public final class ObjectHiderFeature {
         ObjectHiderConfig.getInstance();
         ChatObserver.subscribe(ObjectHiderFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ClientReceiveMessageEvents.ALLOW_CHAT.register(
+                (message, signedMessage, sender, params, receptionTimestamp) -> allowsChatLine(message));
+        ClientReceiveMessageEvents.ALLOW_GAME.register(ObjectHiderFeature::allowsGameLine);
+        ScreenEvents.AFTER_INIT.register(ObjectHiderFeature::onScreenInit);
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // QUOI Chat Replacements (2026-09-20) - see the pattern block's own comment for scope
+    // -------------------------------------------------------------------------------------------
+
+    /** @return false to drop a real chat-channel line (ALLOW_CHAT - party/guild/private/coop/global chat). */
+    private static boolean allowsChatLine(Component message) {
+        return allowsLine(message);
+    }
+
+    /** @return false to drop a system/action-bar line (ALLOW_GAME). */
+    private static boolean allowsGameLine(Component message, boolean overlay) {
+        if (overlay) {
+            // "Hide actionbar" - QUOI ChatReplacements.kt:20, all action-bar text, no content check needed.
+            return !ObjectHiderConfig.getInstance().isHideActionbar();
+        }
+        return allowsLine(message);
+    }
+
+    private static boolean allowsLine(Component message) {
+        ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
+        if (!cfg.isHideUselessMessages() && !cfg.isHideDiscordWarnings() && !cfg.isHideMicrosoftWarnings()
+                && !cfg.isHideEmptyChatMessages() && !cfg.isHideNonRankInvites()) {
+            return true;
+        }
+        String plain = ChatFormatting.stripFormatting(message.getString());
+        String text = plain != null ? plain : message.getString();
+        if (cfg.isHideEmptyChatMessages() && text.isBlank()) {
+            return false;
+        }
+        if (cfg.isHideUselessMessages() && USELESS_MESSAGE.matcher(text).matches()) {
+            return false;
+        }
+        if (cfg.isHideDiscordWarnings() && DISCORD_WARNING.matcher(text).matches()) {
+            return false;
+        }
+        if (cfg.isHideMicrosoftWarnings() && MICROSOFT_WARNING.matcher(text).matches()) {
+            return false;
+        }
+        return !cfg.isHideNonRankInvites() || !NON_RANK_INVITE.matcher(text.trim()).matches();
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // QUOI Render Optimiser "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
+    // -------------------------------------------------------------------------------------------
+
+    private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
+        if (!ObjectHiderConfig.getInstance().isHideRecipeBookButton()) {
+            return;
+        }
+        for (AbstractWidget widget : Screens.getWidgets(screen)) {
+            if (widget instanceof ImageButton button
+                    && ((ImageButtonSpritesAccessor) button).killer560smod$getSprites()
+                            == RecipeBookComponent.RECIPE_BUTTON_SPRITES) {
+                button.visible = false;
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------
@@ -246,6 +334,15 @@ public final class ObjectHiderFeature {
                 && creeper.isInvisible() && creeper.isPowered() && creeper.getHealth() == 20.0f) {
             return true;
         }
+        // QUOI 1.1.1 HidePlayers.class - other players' models, optionally scoped to dungeon/boss and a
+        // max distance. "Click Through" is deliberately not ported: that changes which entity your clicks
+        // hit, i.e. interaction/raycasting, not rendering - out of scope for a client-side render hider.
+        if (cfg.isHidePlayers() && entity instanceof RemotePlayer
+                && (!cfg.isHidePlayersDungeonOnly() || inDungeon)
+                && (!cfg.isHidePlayersBossOnly() || LiveMapFeature.isInBoss())
+                && withinHidePlayersDistance(entity, cfg, client)) {
+            return true;
+        }
         if (inDungeon) {
             if (cfg.isHideSheep() && entity instanceof Sheep) {
                 return true;
@@ -309,7 +406,7 @@ public final class ObjectHiderFeature {
         if (cfg.isHideBlockBreakParticles() && particle instanceof TerrainParticle) {
             return true;
         }
-        if (cfg.isHideExplosionParticles() && particle instanceof HugeExplosionParticle) {
+        if (cfg.isHideWitherImpactExplosions() && particle instanceof HugeExplosionParticle) {
             return true;
         }
         return cfg.isHideSmokeParticles() && particle instanceof SmokeParticle;
@@ -349,6 +446,33 @@ public final class ObjectHiderFeature {
             }
         }
         return false;
+    }
+
+    /** QUOI 1.1.1 {@code HidePlayers.class} "Distance" - 0 means no cap (hide regardless of range). */
+    private static boolean withinHidePlayersDistance(Entity entity, ObjectHiderConfig cfg, Minecraft client) {
+        int distance = cfg.getHidePlayersDistance();
+        if (distance <= 0 || client.player == null) {
+            return true;
+        }
+        return client.player.distanceToSqr(entity) <= (double) distance * distance;
+    }
+
+    /** QUOI {@code RenderOptimiser.kt} "Hide falling blocks" / "Hide lightning" - drop the spawn packet before
+     *  the entity exists at all, cheaper than cancelling its render every frame afterwards. Both are pure
+     *  client-render cosmetics; nothing about what's sent to the server changes. */
+    public static boolean shouldCancelAddEntity(ClientboundAddEntityPacket packet) {
+        if (packet == null) {
+            return false;
+        }
+        ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
+        if (!cfg.isHideFallingBlocks() && !cfg.isHideLightning()) {
+            return false;
+        }
+        EntityType<?> type = packet.getType();
+        if (cfg.isHideFallingBlocks() && type == EntityType.FALLING_BLOCK) {
+            return true;
+        }
+        return cfg.isHideLightning() && type == EntityType.LIGHTNING_BOLT;
     }
 
     /** Devonian {@code DisableBlindness.kt} - drop the local player's blindness application. */

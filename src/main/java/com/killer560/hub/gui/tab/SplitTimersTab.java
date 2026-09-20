@@ -93,11 +93,69 @@ public class SplitTimersTab extends BaseTab {
                         btn.setMessage(onOff("Slowest To Party", cfg.isCoreEntrySlowestParty()));
                     }).bounds(contentX + 168, y, 160, 18).build());
             y += 22;
+            // killer560, 2026-09-20: "at the very bottom of the split timers show the slowest person into
+            // core and their time" - separate from the chat/party lines above, which stay chat-only.
+            widgets.add(SettingsButtonWidget.builder(onOff("Slowest In HUD", cfg.isCoreEntrySlowestHud()), btn -> {
+                        cfg.setCoreEntrySlowestHud(!cfg.isCoreEntrySlowestHud());
+                        cfg.save();
+                        btn.setMessage(onOff("Slowest In HUD", cfg.isCoreEntrySlowestHud()));
+                    }).bounds(contentX, y, 220, 18).build());
+            y += 22;
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("§7Slowest To Party posts in PARTY chat - everyone sees it."),
                     Minecraft.getInstance().font));
             y += 16;
         }
+
+        // 2026-09-20 killer560 change list: divider bar, Boss Entry/Boss running timers, lagless times and
+        // the bottom Total-with/without-lag + Lag Lost lines - see SplitTimersFeature's class doc and
+        // SplitLagClock for what "lagless" means. All new, all off by default.
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Split Layout", false), Minecraft.getInstance().font));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(onOff("Clear/Boss Divider", cfg.isClearBossDivider()), btn -> {
+                    cfg.setClearBossDivider(!cfg.isClearBossDivider());
+                    cfg.save();
+                    btn.setMessage(onOff("Clear/Boss Divider", cfg.isClearBossDivider()));
+                }).bounds(contentX, y, 160, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Boss Entry Timer", cfg.isBossEntryTimer()), btn -> {
+                    cfg.setBossEntryTimer(!cfg.isBossEntryTimer());
+                    cfg.save();
+                    btn.setMessage(onOff("Boss Entry Timer", cfg.isBossEntryTimer()));
+                }).bounds(contentX + 168, y, 160, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(onOff("Boss Timer", cfg.isBossTimer()), btn -> {
+                    cfg.setBossTimer(!cfg.isBossTimer());
+                    cfg.save();
+                    btn.setMessage(onOff("Boss Timer", cfg.isBossTimer()));
+                }).bounds(contentX, y, 160, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Lagless Times", cfg.isLaglessTimes()), btn -> {
+                    cfg.setLaglessTimes(!cfg.isLaglessTimes());
+                    cfg.save();
+                    btn.setMessage(onOff("Lagless Times", cfg.isLaglessTimes()));
+                }).bounds(contentX + 168, y, 160, 18).build());
+        y += 26;
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Run Totals", false), Minecraft.getInstance().font));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(onOff("Total With Lag", cfg.isTotalWithLag()), btn -> {
+                    cfg.setTotalWithLag(!cfg.isTotalWithLag());
+                    cfg.save();
+                    btn.setMessage(onOff("Total With Lag", cfg.isTotalWithLag()));
+                }).bounds(contentX, y, 160, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Total Without Lag", cfg.isTotalWithoutLag()), btn -> {
+                    cfg.setTotalWithoutLag(!cfg.isTotalWithoutLag());
+                    cfg.save();
+                    btn.setMessage(onOff("Total Without Lag", cfg.isTotalWithoutLag()));
+                }).bounds(contentX + 168, y, 160, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(onOff("Lag Lost", cfg.isLagLostLine()), btn -> {
+                    cfg.setLagLostLine(!cfg.isLagLostLine());
+                    cfg.save();
+                    btn.setMessage(onOff("Lag Lost", cfg.isLagLostLine()));
+                }).bounds(contentX, y, 160, 18).build());
+        y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 com.killer560.hub.gui.SectionHeaders.header("M7 Phase 5 Lines", false), Minecraft.getInstance().font));

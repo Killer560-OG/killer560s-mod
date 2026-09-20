@@ -16,9 +16,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.PlayerSkin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -230,9 +228,9 @@ public final class InteractiveMapFeature {
 
     // ------------------------------------------------------------------------------------------- players
 
-    /** One marker on the map: world position, heading, and how to draw it. */
-    record MapPlayer(String name, double worldX, double worldZ, float yaw, boolean self, DungeonClass dungeonClass,
-                     PlayerSkin skin) {
+    /** One marker on the map: world position, heading, and how to draw it. No skin field any more - killer560,
+     *  2026-09-20: "i do not want it showing the white heads for mobs", so every marker is always the arrow. */
+    record MapPlayer(String name, double worldX, double worldZ, float yaw, boolean self, DungeonClass dungeonClass) {
     }
 
     private static List<MapPlayer> cachedPlayers = List.of();
@@ -260,7 +258,7 @@ public final class InteractiveMapFeature {
         }
         String selfName = client.player.getGameProfile().name();
         out.add(new MapPlayer(selfName, client.player.getX(), client.player.getZ(), client.player.getYRot(), true,
-                PartyTracker.selfClass(), client.player.getSkin()));
+                PartyTracker.selfClass()));
 
         Map<String, Player> entities = new HashMap<>();
         for (Player p : LeapMenuFeature.currentPartyMembers()) {
@@ -286,27 +284,13 @@ public final class InteractiveMapFeature {
             double[] marker = markerIdx < markers.size() ? markers.get(markerIdx) : null;
             markerIdx++;
             Player entity = entities.get(name.toLowerCase(Locale.US));
-            PlayerSkin skin = skinOf(client, name, entity);
             DungeonClass cls = PartyTracker.classOf(name);
             if (entity != null) {
-                out.add(new MapPlayer(name, entity.getX(), entity.getZ(), entity.getYRot(), false, cls, skin));
+                out.add(new MapPlayer(name, entity.getX(), entity.getZ(), entity.getYRot(), false, cls));
             } else if (marker != null) {
-                out.add(new MapPlayer(name, marker[0], marker[1], (float) marker[2], false, cls, skin));
+                out.add(new MapPlayer(name, marker[0], marker[1], (float) marker[2], false, cls));
             }
         }
         return out;
-    }
-
-    private static PlayerSkin skinOf(Minecraft client, String name, Player entity) {
-        if (entity instanceof AbstractClientPlayer acp) {
-            return acp.getSkin();
-        }
-        if (client.getConnection() != null) {
-            var info = client.getConnection().getPlayerInfo(name);
-            if (info != null) {
-                return info.getSkin();
-            }
-        }
-        return null;
     }
 }

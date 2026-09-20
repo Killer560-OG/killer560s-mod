@@ -35,10 +35,8 @@ public class NewTab extends FolderTab {
                 new DungeonInfoTab(),
                 new MobEspTab(),
                 new TeammatesTab(),
-                new MappingTab(),
                 new EtherwarpTab(),
                 new TickTimersTab(),
-                new GoldorFrenzyTab(),
                 new LagDisplayTab(),
                 new AbilityCooldownTab(),
                 new SplitTimersTab(),
@@ -86,20 +84,10 @@ public class NewTab extends FolderTab {
                 new LoadoutKeybindsTab(),
                 new AbilityKeybindsTab(),
                 new P4PlatformHighlightTab(),
-                // Moved out of the Puzzle Solvers folder 2026-09-20 - killer560: "move all solvers
-                // into the New category for now". Solver Highlights holds the one setting they share.
-                new SolverHighlightsTab(),
-                new BoulderSolverTab(),
-                new QuizSolverTab(),
-                new IceFillSolverTab(),
-                new IcePathSolverTab(),
-                new WeirdosSolverTab(),
-                new WaterSolverTab(),
-                new BeamsSolverTab(),
-                new BlazeSolverTab(),
-                new TicTacToeSolverTab(),
-                new TeleportMazeSolverTab(),
-                new LividSolverTab(),
+                // Moved into New 2026-09-20 ("move all solvers into the New category for now"), then back
+                // out the same day once killer560 tested them and changed his mind: all 11 puzzle/boss
+                // solvers plus Solver Highlights now live in the "Puzzle Solvers" folder inside Dungeon -
+                // see PuzzleSolversTab.
                 new CommandKeybindsTab(),
                 new RevertMasterStarsTab(),
                 new InventorySearchTab(),

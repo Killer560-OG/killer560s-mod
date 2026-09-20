@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.ticktimers.TickTimersConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -38,10 +36,10 @@ public class TickTimersTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Necron", cfg.isNecronTimer()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Necron Start", cfg.isNecronTimer()), btn -> {
                     cfg.setNecronTimer(!cfg.isNecronTimer());
                     cfg.save();
-                    btn.setMessage(onOff("Necron", cfg.isNecronTimer()));
+                    btn.setMessage(onOff("Necron Start", cfg.isNecronTimer()));
                 }).bounds(col1, y, 100, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Goldor", cfg.isGoldorTimer()), btn -> {
@@ -81,11 +79,30 @@ public class TickTimersTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Goldor Start", cfg.isGoldorStartTimer()));
                 }).bounds(col3, y, 108, 18).build());
-        y += 24;
+        y += 22;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Necron/Goldor/Storm countdowns from real boss dialogue lines."),
-                Minecraft.getInstance().font));
+        // Folded in from the old Goldor Frenzy Timer tab (2026-09-20 merge) - see TickTimersFeature's class doc.
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Total", cfg.isGoldorShowTotal()), btn -> {
+                    cfg.setGoldorShowTotal(!cfg.isGoldorShowTotal());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Total", cfg.isGoldorShowTotal()));
+                }).bounds(col1, y, 108, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Death Tick", cfg.isClearDeathTick()), btn -> {
+                    cfg.setClearDeathTick(!cfg.isClearDeathTick());
+                    cfg.save();
+                    btn.setMessage(onOff("Death Tick", cfg.isClearDeathTick()));
+                }).bounds(col3, y, 108, 18).build());
+        y += 20;
+
+        if (cfg.isClearDeathTick()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Stop At Boss", cfg.isDeathTickStopsAtBoss()), btn -> {
+                        cfg.setDeathTickStopsAtBoss(!cfg.isDeathTickStopsAtBoss());
+                        cfg.save();
+                        btn.setMessage(onOff("Stop At Boss", cfg.isDeathTickStopsAtBoss()));
+                    }).bounds(col3, y, 108, 18).build());
+            y += 20;
+        }
 
         return widgets;
     }

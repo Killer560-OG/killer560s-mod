@@ -126,15 +126,13 @@ public class InteractiveMapScreen extends Screen {
         int hoveredCell = inside(p, mouseX, mouseY) ? cellAt(mouseX, mouseY) : -1;
         int hoveredGroup = hoveredCell >= 0 ? LiveMapFeature.groupIdAt(hoveredCell) : -1;
         int hoveredDoor = hoveredCell >= 0 && hoveredGroup < 0 && MapPainter.isDoorCell(hoveredCell) ? hoveredCell : -1;
-        int currentIdx = LiveMapFeature.currentRoomIndex();
-        int currentGroup = currentIdx >= 0 ? LiveMapFeature.groupIdAt(currentIdx) : -1;
         DungeonLayout layout = DungeonLayout.current();
 
         graphics.enableScissor(p[0], p[1], p[2], p[3]);
         try {
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, hoveredDoor);
             for (int gid = 0; gid < groups.size(); gid++) {
-                drawRoom(graphics, groups.get(gid), gid, gid == hoveredGroup, gid == currentGroup, cfg, ox, oy, ppu);
+                drawRoom(graphics, groups.get(gid), gid, gid == hoveredGroup, cfg, ox, oy, ppu);
             }
             MapPainter.drawLabels(graphics, font, cfg.getMapRoomLabels(), cfg, ox, oy, ppu);
             List<InteractiveMapFeature.MapPlayer> players = InteractiveMapFeature.playersCached(client);
@@ -171,12 +169,11 @@ public class InteractiveMapScreen extends Screen {
         return x >= p[0] && y >= p[1] && x < p[2] && y < p[3];
     }
 
+    // killer560, 2026-09-20: "remove the current-room colour changer" - the room you're standing in no longer gets
+    // a separate tinted highlight, so this no longer takes a "current" flag at all.
     private void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, boolean hovered,
-                          boolean current, LiveMapConfig cfg, float ox, float oy, float ppu) {
+                          LiveMapConfig cfg, float ox, float oy, float ppu) {
         int color = MapPainter.roomColor(group, cfg);
-        if (current) {
-            color = MapPainter.mix(color, cfg.getHighlightColor());
-        }
         if (hovered) {
             color = MapPainter.multiply(color, 1.15f);
         }

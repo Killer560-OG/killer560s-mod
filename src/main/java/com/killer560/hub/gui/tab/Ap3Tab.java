@@ -38,26 +38,26 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
- * AP3 settings - automated F7/M7 Phase 3 terminal-section movement. Cheat build only ({@link NewTab}'s cheat
- * block), red headers, collapses to the master toggle while OFF (AutoRoutesTab / LeverAuraTab pattern: an unused
- * feature costs one line).
+ * AP3 settings - automated F7/M7 boss-fight movement. Cheat build only ({@link NewTab}'s cheat block), red headers,
+ * collapses to the master toggle while OFF (AutoRoutesTab / LeverAuraTab pattern: an unused feature costs one line).
  * <p>
  * Two views, same tab - the Fast Leap pattern killer560 asked for by name ("on the left half it is the title...,
  * on the right half is an edit button. If you press the edit button then it opens all the settings for that
  * specific" one), applied to nodes after his 2026-09-16 request to "make it easier to edit them":
  * <ul>
- *     <li>the LIST - master toggle; the boss-only / P3 status line; the chain for the section you are in with one
- *     row per node (number, type, modifier, position, Edit, Delete); Start / Stop; breaker edit mode and the
- *     node-adding buttons; Open Folder + Reload for the one shareable chains file; colours; the world-label
- *     settings; the class-override table read-only; one keybind row per command;</li>
+ *     <li>the LIST - master toggle; the boss-only status line; the chain for the area you are in with one row per
+ *     node (number, type, modifiers, position, Edit, Delete); Start / Stop / Test Mode; Undo / List / Clear; Open
+ *     Folder + Reload for the one shareable chains file; colours; the world-label settings; the stopwatch HUD; the
+ *     class-override table read-only; one keybind row per command. Nodes are ADDED with {@code /ap3 add} or the
+ *     keybinds only - killer560 (2026-09-20): "Do not list the add node section in the settings tab";</li>
  *     <li>the EDITOR - "&lt; Back", then ONE node's own page: move up / down, re-place at your position / look,
- *     the fields its type actually uses (length, width, wait ms, leap target, leap count, breaker blocks), its
- *     colour override, and Delete.</li>
+ *     the trigger box, the modifiers every node has (wait after, close gate), the fields its type uses (precise,
+ *     leap target, leap count), its colour override, and Delete.</li>
  * </ul>
  * Which view is showing is plain tab state ({@link #editingNode}) plus {@code requestRebuild}, not a separate
  * {@code Screen}, so the mod menu's search, scrolling and tab chrome keep working. The node is held by identity:
  * moving it up or down keeps the page open on it, and the page closes itself the moment the node is no longer in
- * the chain being edited (deleted, cleared, reloaded, or you walked into another section).
+ * the chain being edited (deleted, cleared, reloaded, or you walked into another area).
  * <p>
  * Every button that changes a chain or the executor goes through {@link Action#run()} or one of
  * {@link Ap3Commands}' public edit entry points - the same path as the chat command - so the GUI can't do
@@ -76,8 +76,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     /** Which keybind row is waiting for a key, or null. */
     private Action capturing;
-    /** Text in the wait-ms box; kept on the tab so a rebuild doesn't wipe a half-typed number. */
-    private String waitText = Integer.toString(Ap3Commands.getPendingWaitMillis());
     /** null = showing the list; otherwise the node whose edit page is open (held by identity, see the class doc). */
     private Ap3Node editingNode;
 
@@ -128,7 +126,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (editingNode != null) {
             Ap3Chain chain = safeChain();
             if (chain == null || !chain.contains(editingNode)) {
-                // deleted / cleared / reloaded / different section - the page has nothing to edit any more
+                // deleted / cleared / reloaded / different area - the page has nothing to edit any more
                 editingNode = null;
             } else {
                 return buildEditor(chain, editingNode, contentX, contentY, contentWidth, requestRebuild);
@@ -162,17 +160,18 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
 
         buildChainSection(w, contentX, y, contentWidth, half, requestRebuild);
-        buildAddSection(w, contentX, y, contentWidth, requestRebuild);
         buildFileSection(w, contentX, y, contentWidth, half, requestRebuild);
         buildColourSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
+        header(w, contentX, y, contentWidth, "Stopwatch");
+        toggle(w, contentX, y, "Stopwatch HUD", cfg::isStopwatchHud, cfg::setStopwatchHud, null);
         buildOverridesSection(w, contentX, y, contentWidth);
         buildKeybindSection(w, cfg, contentX, y, contentWidth);
         return w;
     }
 
     private void buildChainSection(List<AbstractWidget> w, int x, int[] y, int width, int half, Runnable rebuild) {
-        // "Chain:" with a colon so the tooltip key stays "chain" whatever section follows (SettingTooltips cuts at ':').
+        // "Chain:" with a colon so the tooltip key stays "chain" whatever area follows (SettingTooltips cuts at ':').
         header(w, x, y, width, "Chain: " + Ap3Commands.areaName());
 
         List<Ap3Node> nodes;
@@ -183,36 +182,43 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         }
         boolean running = safe(Ap3Executor::isRunning);
 
+        int colW = (width - GAP * 2) / 3;
+        int lastW = Math.max(1, width - (colW + GAP) * 2);
         SettingsButtonWidget start = SettingsButtonWidget.builder(Component.literal("§aStart Chain"), btn -> {
                     Action.START.run();
                     rebuild.run();
-                }).bounds(x, y[0], half, 20).build();
+                }).bounds(x, y[0], colW, 20).build();
         start.active = !running && !nodes.isEmpty();
         w.add(start);
         // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
         w.add(SettingsButtonWidget.builder(Component.literal("§cStop Chain"), btn -> {
                     Action.STOP.run();
                     rebuild.run();
-                }).bounds(x + half + GAP, y[0], half, 20).build());
+                }).bounds(x + colW + GAP, y[0], colW, 20).build());
+        w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
+                    Action.TEST_MODE.run();
+                    rebuild.run();
+                }).bounds(x + (colW + GAP) * 2, y[0], lastW, 20).build());
         y[0] += 24;
 
-        int colW = (width - GAP * 2) / 3;
-        w.add(SettingsButtonWidget.builder(onOff("Breaker Edit Mode", safe(Ap3Feature::isEditMode)), btn -> {
-                    Action.EDIT_BREAKER.run();
+        SettingsButtonWidget undo = SettingsButtonWidget.builder(Component.literal("Undo Last Node"), btn -> {
+                    Action.UNDO.run();
                     rebuild.run();
-                }).bounds(x, y[0], colW, ROW).build());
+                }).bounds(x, y[0], colW, ROW).build();
+        undo.active = !nodes.isEmpty();
+        w.add(undo);
         w.add(SettingsButtonWidget.builder(Component.literal("List Chain In Chat"), btn -> Action.LIST.run())
                 .bounds(x + colW + GAP, y[0], colW, ROW).build());
         SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("§cClear Chain"), btn -> {
                     Action.CLEAR.run();
                     rebuild.run();
-                }).bounds(x + (colW + GAP) * 2, y[0], Math.max(1, width - (colW + GAP) * 2), ROW).build();
+                }).bounds(x + (colW + GAP) * 2, y[0], lastW, ROW).build();
         clear.active = !nodes.isEmpty();
         w.add(clear);
         y[0] += ROW + GAP;
 
         if (nodes.isEmpty()) {
-            label(w, x, y, width, "§7No chain for " + Ap3Commands.areaName() + " yet. Stand where a node goes and use the buttons below or /ap3 add <type>.");
+            label(w, x, y, width, "§7No chain for " + Ap3Commands.areaName() + " yet. Stand where a node goes and /ap3 add <type> (or a keybind).");
             return;
         }
 
@@ -234,52 +240,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             y[0] += ROW + 2;
         }
         y[0] += GAP;
-    }
-
-    /** The node-adding buttons, three per row, then the wait row (a number box + its own Add button). */
-    private void buildAddSection(List<AbstractWidget> w, int x, int[] y, int width, Runnable rebuild) {
-        header(w, x, y, width, "Add Node");
-        Action[] adders = {
-                Action.ADD_LINE, Action.ADD_AXIS_LINE, Action.ADD_WALK,
-                Action.ADD_RUN, Action.ADD_LEAP, Action.ADD_LEAP_DETECTOR,
-                Action.ADD_TERMINAL, Action.ADD_STOP, Action.ADD_LOOK,
-                Action.ADD_BREAKER
-        };
-        int colW = (width - GAP * 2) / 3;
-        for (int i = 0; i < adders.length; i++) {
-            Action a = adders[i];
-            int col = i % 3;
-            w.add(SettingsButtonWidget.builder(Component.literal(a.label), btn -> {
-                        a.run();
-                        rebuild.run();
-                    }).bounds(x + (colW + GAP) * col, y[0], colW, ROW).build());
-            if (col == 2 || i == adders.length - 1) {
-                y[0] += ROW + 2;
-            }
-        }
-
-        // "add a wait modifier in milliseconds for this one" (killer560): the box feeds the same pending value the
-        // /ap3 add wait <ms> command sets, so the keybind adds whatever was typed here last.
-        int boxW = 90;
-        EditBox ms = new EditBox(Minecraft.getInstance().font, x, y[0], boxW, ROW, Component.literal("Wait ms"));
-        ms.setMaxLength(6);
-        ms.setHint(Component.literal("§8ms"));
-        ms.setValue(waitText);
-        ms.setResponder(text -> {
-            waitText = text;
-            Integer parsed = parseInt(text);
-            if (parsed != null) {
-                Ap3Commands.setPendingWaitMillis(parsed);
-            }
-        });
-        w.add(ms);
-        SettingsButtonWidget addWait = SettingsButtonWidget.builder(
-                Component.literal(Action.ADD_WAIT.label + ": " + Ap3Commands.getPendingWaitMillis() + " ms"), btn -> {
-                    Action.ADD_WAIT.run();
-                    rebuild.run();
-                }).bounds(x + boxW + GAP, y[0], colW, ROW).build();
-        w.add(addWait);
-        y[0] += ROW + GAP;
     }
 
     /** Same pair as Auto Routes: the folder holds the one JSON file all chains live in, share it as-is. */
@@ -417,7 +377,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         header(w, x, y, width, "Edit Node");
         label(w, x, y, width, "§6#" + (number > 0 ? number : "?") + " " + node.type().label()
                 + " §7of " + size + " in " + (chain == null ? "no chain" : chain.label()));
-        label(w, x, y, width, String.format(Locale.US, "§7At §f%.1f, %.1f, %.1f §7facing §f%.0f°§7 / §f%.0f°",
+        label(w, x, y, width, String.format(Locale.US, "§7At §f%.2f, %.1f, %.2f §7facing §f%.0f°§7 / §f%.0f°",
                 node.x(), node.y(), node.z(), node.yaw(), node.pitch()));
 
         // Order in the chain - the node object keeps its identity across a move, so this page stays open on it.
@@ -444,6 +404,37 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                     Ap3Commands.replace(index, false, true);
                     rebuild.run();
                 }).bounds(x + half + GAP, y[0], half, ROW).build());
+        y[0] += ROW + GAP;
+
+        // Every node: its trigger box and the two general modifiers.
+        header(w, x, y, width, "Trigger Box");
+        w.add(slider(x, y[0], half, widthText(node), Ap3Node.MIN_WIDTH, Ap3Node.MAX_WIDTH, node.width(), 0.5,
+                node::setWidth, () -> widthText(node), Ap3Feature::saveChains));
+        w.add(slider(x + half + GAP, y[0], half, lengthText(node), Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH, node.length(), 0.5,
+                node::setLength, () -> lengthText(node), Ap3Feature::saveChains));
+        y[0] += ROW + GAP;
+
+        header(w, x, y, width, "Node Modifiers");
+        int boxW = 90;
+        w.add(new StringWidget(x, y[0] + 3, 70, 12, Component.literal("Wait After ms:"), Minecraft.getInstance().font));
+        EditBox ms = new EditBox(Minecraft.getInstance().font, x + 70 + GAP, y[0], boxW, ROW, Component.literal("Wait After ms"));
+        ms.setMaxLength(6);
+        ms.setHint(Component.literal("§80"));
+        ms.setValue(node.waitAfterMs() > 0 ? Integer.toString(node.waitAfterMs()) : "");
+        ms.setResponder(text -> {
+            Integer parsed = text == null || text.isBlank() ? Integer.valueOf(0) : parseInt(text);
+            if (parsed != null && parsed >= 0 && parsed <= Ap3Commands.MAX_WAIT_MS) {
+                node.setWaitAfterMs(parsed);
+                Ap3Feature.saveChains();
+            }
+        });
+        w.add(ms);
+        int closeX = x + 70 + GAP + boxW + GAP;
+        w.add(SettingsButtonWidget.builder(onOff("Close Gate", node.closeGate()), btn -> {
+                    node.closeGate = !node.closeGate();
+                    Ap3Feature.saveChains();
+                    btn.setMessage(onOff("Close Gate", node.closeGate()));
+                }).bounds(closeX, y[0], Math.max(1, x + width - closeX), ROW).build());
         y[0] += ROW + GAP;
 
         buildTypeFields(w, node, x, y, width, half, rebuild);
@@ -475,43 +466,18 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     /** The fields this node's type actually uses - every one saves through {@link Ap3Feature#saveChains()}. */
     private void buildTypeFields(List<AbstractWidget> w, Ap3Node node, int x, int[] y, int width, int half, Runnable rebuild) {
         switch (node.type()) {
-            case LINE, AXIS_LINE -> {
-                header(w, x, y, width, "Corridor");
-                w.add(slider(x, y[0], half, lengthText(node), Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH, node.length(), 0.1,
-                        node::setLength, () -> lengthText(node), Ap3Feature::saveChains));
-                w.add(slider(x + half + GAP, y[0], half, widthText(node), Ap3Node.MIN_WIDTH, Ap3Node.MAX_WIDTH, node.width(), 0.1,
-                        node::setWidth, () -> widthText(node), Ap3Feature::saveChains));
+            case ALIGN, AXIS_ALIGN -> {
+                header(w, x, y, width, "Align");
+                w.add(SettingsButtonWidget.builder(onOff("Precise Coordinates", node.precise()), btn -> {
+                            node.precise = !node.precise();
+                            Ap3Feature.saveChains();
+                            btn.setMessage(onOff("Precise Coordinates", node.precise()));
+                        }).bounds(x, y[0], half, ROW).build());
                 y[0] += ROW + GAP;
-                if (node.type() == Ap3Node.Type.AXIS_LINE) {
-                    label(w, x, y, width, String.format(Locale.US, "§7Wall: §f%s §7at §f%.2f §7blocks (re-measured when the node is moved).",
-                            node.wallAxis().name().toLowerCase(Locale.ROOT), node.wallDistance()));
+                if (node.type() == Ap3Node.Type.AXIS_ALIGN) {
+                    label(w, x, y, width, "§7Wall side: §f" + (node.wallDir() == null ? "none recorded" : node.wallDir().getName())
+                            + " §7(re-read from the wall you touch when the node is moved).");
                 }
-            }
-            case WALK, RUN -> {
-                header(w, x, y, width, "Travel");
-                w.add(slider(x, y[0], width, lengthText(node), Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH, node.length(), 0.1,
-                        node::setLength, () -> lengthText(node), Ap3Feature::saveChains));
-                y[0] += ROW + GAP;
-            }
-            case WAIT -> {
-                header(w, x, y, width, "Wait");
-                int boxW = 90;
-                w.add(new StringWidget(x, y[0] + 3, 60, 12, Component.literal("Wait ms:"), Minecraft.getInstance().font));
-                // "Node Wait ms", not "Wait ms": the Add section's box already owns that tooltip key and describes
-                // the NEXT node, which is not what this box edits.
-                EditBox ms = new EditBox(Minecraft.getInstance().font, x + 60 + GAP, y[0], boxW, ROW, Component.literal("Node Wait ms"));
-                ms.setMaxLength(6);
-                ms.setHint(Component.literal("§8ms"));
-                ms.setValue(Integer.toString(node.waitMs()));
-                ms.setResponder(text -> {
-                    Integer parsed = parseInt(text);
-                    if (parsed != null && parsed >= Ap3Commands.MIN_WAIT_MS && parsed <= Ap3Commands.MAX_WAIT_MS) {
-                        node.setWaitMs(parsed);
-                        Ap3Feature.saveChains();
-                    }
-                });
-                w.add(ms);
-                y[0] += ROW + GAP;
             }
             case LEAP -> {
                 header(w, x, y, width, "Leap Target");
@@ -547,31 +513,15 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                 }
                 y[0] += ROW + GAP;
             }
-            case LEAP_DETECTOR -> {
-                header(w, x, y, width, "Leap Detector");
+            case LEAP_COUNTER -> {
+                header(w, x, y, width, "Leap Counter");
                 w.add(slider(x, y[0], width, leapCountText(node), 1, Ap3Node.MAX_LEAP_COUNT, node.leapCount(), 1,
                         v -> node.setLeapCount((int) Math.round(v)), () -> leapCountText(node), Ap3Feature::saveChains));
                 y[0] += ROW + GAP;
             }
-            case BREAKER -> {
-                header(w, x, y, width, "Breaker Blocks");
-                int count = node.breakerBlocks().size();
-                label(w, x, y, width, "§7" + count + " block" + (count == 1 ? "" : "s") + " of " + Ap3Store.MAX_BREAKER_BLOCKS + ".");
-                w.add(SettingsButtonWidget.builder(onOff("Breaker Edit Mode", safe(Ap3Feature::isEditMode)), btn -> {
-                            Action.EDIT_BREAKER.run();
-                            rebuild.run();
-                        }).bounds(x, y[0], half, ROW).build());
-                SettingsButtonWidget clearBlocks = SettingsButtonWidget.builder(Component.literal("§cClear Breaker Blocks"), btn -> {
-                            node.breakerBlocks().clear();
-                            Ap3Feature.saveChains();
-                            rebuild.run();
-                        }).bounds(x + half + GAP, y[0], half, ROW).build();
-                clearBlocks.active = count > 0;
-                w.add(clearBlocks);
-                y[0] += ROW + GAP;
-            }
             default -> {
-                // TERMINAL / STOP / LOOK carry nothing beyond position and look, which the buttons above cover.
+                // WALK / RUN / TERMINAL / STOP / LOOK / BOOM / STOPWATCH carry nothing beyond position, look and the
+                // modifiers above, which the controls above cover.
             }
         }
     }
@@ -626,13 +576,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (safe(Floor7Tracker::isOnP3Sim)) {
             where += " (p3sim)";
         }
+        String test = safe(Ap3Executor::isTestMode) ? " §e[test mode]" : "";
         if (safe(Ap3Executor::isRunning)) {
-            return "§aAP3 status: " + where + " - chain running.";
+            return "§aAP3 status: " + where + " - chain running." + test;
         }
-        if (safe(Ap3Feature::isEditMode)) {
-            return "§eAP3 status: " + where + " - breaker edit mode, right-click blocks to add, shift-right-click to remove.";
-        }
-        return "§aAP3 status: " + where + " - idle.";
+        return "§aAP3 status: " + where + " - idle." + test;
     }
 
     private Component keyText(Action action, int key) {
@@ -656,11 +604,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component lengthText(Ap3Node node) {
-        return Component.literal(String.format(Locale.US, "Length: %.1f", node.length()));
+        return Component.literal(String.format(Locale.US, "Box Length: %.1f", node.length()));
     }
 
     private static Component widthText(Ap3Node node) {
-        return Component.literal(String.format(Locale.US, "Width: %.1f", node.width()));
+        return Component.literal(String.format(Locale.US, "Box Width: %.1f", node.width()));
     }
 
     private static Component leapCountText(Ap3Node node) {

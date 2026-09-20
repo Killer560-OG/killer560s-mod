@@ -1006,7 +1006,8 @@ public final class LiveMapFeature {
 
         @Override
         public int height() {
-            return mapSize() + (LiveMapConfig.getInstance().isRoomNameBelowMap() ? 12 : 0);
+            // killer560, 2026-09-20: "remove room name below map" - the HUD is exactly the map now, no extra row.
+            return mapSize();
         }
 
         @Override
@@ -1069,18 +1070,14 @@ public final class LiveMapFeature {
             DungeonLayout layout = DungeonLayout.current();
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, -1);
 
-            int currentIdx = currentRoomIndex();
-            int currentGroup = currentIdx >= 0 ? groupOfCell[currentIdx] : -1;
+            // killer560, 2026-09-20: "remove the current-room colour changer" - every revealed room just draws its
+            // real colour now, current room or not.
             for (int gid = 0; gid < groups.size(); gid++) {
                 RoomGroup group = groups.get(gid);
                 if (!MapPainter.isRevealed(group)) {
                     continue; // legit build: the map item has not shown this room yet
                 }
-                int color = MapPainter.roomColor(group, cfg);
-                if (gid == currentGroup) {
-                    color = MapPainter.mix(color, cfg.getHighlightColor());
-                }
-                MapPainter.drawRoom(graphics, group, gid, color, ox, oy, ppu);
+                MapPainter.drawRoom(graphics, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
             }
 
             MapPainter.drawLabels(graphics, client.font, cfg.getRoomLabels(), cfg, ox, oy, ppu);
@@ -1093,13 +1090,6 @@ public final class LiveMapFeature {
                 }
                 MapPainter.drawMarker(graphics, client.font, mp, cfg, ox, oy, ppu, ppu,
                         cfg.isClassRecolorTeammates(), false, -1, -1);
-            }
-
-            if (cfg.isRoomNameBelowMap()) {
-                RoomEntry current = currentRoomEntry();
-                String label = current != null ? current.name
-                        : (RoomDatabase.isReady() ? "Unknown Room" : "Loading room data...");
-                graphics.text(client.font, label, x, y + size + 1, 0xFFFFFFFF, false);
             }
         }
     }

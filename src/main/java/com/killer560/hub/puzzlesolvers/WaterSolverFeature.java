@@ -123,6 +123,7 @@ public final class WaterSolverFeature {
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
     private static String lastLoggedState = null;
     private static String lastScanOutcome = "none";
+    private static String lastLoggedPositionDump = null;
 
     private static void tick(Minecraft client) {
         tickInner(client);
@@ -167,14 +168,33 @@ public final class WaterSolverFeature {
 
         StringBuilder extendedSlots = new StringBuilder();
         WoolColor[] colors = WoolColor.values();
+        // killer560, 2026-09-20: "water board solver does not appear at all". A real live test (2026-09-20,
+        // 15:17) showed clayRot=[-40,-74,270] but extendedSlots stayed empty the whole 18s he stood in the
+        // room - every one of the 5 candidate wool positions read as air. The 5 relative positions
+        // themselves are byte-for-byte identical to Odin's own WaterSolver.kt AND to NoammAddons' current
+        // live WaterBoardSolver.kt (cross-checked against both, accounting for their different coordinate
+        // origins - same puzzle geometry, unchanged). BoulderSolverFeature's floor scan hit the exact same
+        // symptom the same session, also at rotation=270 (see its own diagnostic log). That points at
+        // RoomDatabase's clay/rotation transform (not owned by this file - see staging notes) rather than
+        // anything in this class, but logging the real coordinates and the actual block found (not just
+        // isAir) here so the next live test can confirm it directly instead of guessing again.
+        StringBuilder positionDump = new StringBuilder();
         for (int i = 0; i < colors.length; i++) {
             BlockPos real = realPos(15, 56, colors[i].z, clayAndRotation);
-            if (!level.getBlockState(real).isAir()) {
+            boolean extended = !level.getBlockState(real).isAir();
+            if (extended) {
                 extendedSlots.append(i);
             }
+            positionDump.append(colors[i].name()).append('=').append(real.toShortString())
+                    .append(':').append(level.getBlockState(real).getBlock()).append(' ');
         }
         if (extendedSlots.length() != 3) {
             lastScanOutcome = "extendedSlots='" + extendedSlots + "'(need 3)";
+            String dump = positionDump.toString().trim();
+            if (!dump.equals(lastLoggedPositionDump)) { // block states can change tick-to-tick if ice is
+                lastLoggedPositionDump = dump;           // still forming - only log when the read changes
+                LOGGER.info("[WaterSolver] Wool scan miss - checked {}", dump);
+            }
             return;
         }
 
@@ -417,5 +437,6 @@ public final class WaterSolverFeature {
         patternIdentifier = -1;
         openedWaterTick = -1;
         tickCounter = 0;
+        lastLoggedPositionDump = null;
     }
 }

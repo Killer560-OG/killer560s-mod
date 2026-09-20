@@ -95,6 +95,18 @@ final class CoreEntryTimes {
         if (client.player == null || client.level == null) {
             return;
         }
+        // Real bug found and fixed (2026-09-20, killer560: "It did pick up one person but it was the wrong
+        // person and the wrong time"): EXPECTED used to be snapshotted ONCE in onCoreOpening() and only grew
+        // afterwards as a side effect of record()'s own "unexpected arrival" fallback below. If the party tab
+        // list hadn't finished re-parsing at that exact instant (a real risk right as the floor transitions
+        // into "The Core entrance is opening!"), EXPECTED started with only 1-2 names in it. The very first
+        // teammate to physically reach the y<=100 band then satisfied "ENTRIES.size() >= EXPECTED.size()" all
+        // by itself, so announce() fired immediately and reported that lone early arrival as "slowest" - the
+        // wrong person, with a wrong (far too early) time, while the rest of the party hadn't entered yet.
+        // PartyTracker's tab list keeps refreshing on its own regardless of this feature, so re-syncing
+        // EXPECTED against it every tick (union only, never removing anyone already recorded) means the real
+        // full roster is in place well before anyone can actually fall/walk into the core - closing the race.
+        refreshExpected(client);
         long now = System.currentTimeMillis();
         record(client.player, now);
         for (Player player : LeapMenuFeature.currentPartyMembers()) {
@@ -108,22 +120,64 @@ final class CoreEntryTimes {
         }
     }
 
+    private static void refreshExpected(Minecraft client) {
+        if (client.player != null) {
+            String self = client.player.getGameProfile().name();
+            if (!containsIgnoreCase(EXPECTED, self)) {
+                EXPECTED.add(self);
+            }
+        }
+        for (String teammate : PartyTracker.teammates()) {
+            if (!containsIgnoreCase(EXPECTED, teammate)) {
+                EXPECTED.add(teammate);
+            }
+        }
+    }
+
+    private static boolean containsIgnoreCase(List<String> list, String name) {
+        if (name == null) {
+            return false;
+        }
+        for (String s : list) {
+            if (s.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void record(Player player, long now) {
         String name = player.getGameProfile().name();
-        if (ENTRIES.containsKey(name)) {
+        // Case-insensitive: Minecraft usernames are unique case-insensitively, but the tab-list-derived
+        // EXPECTED name and this entity's real GameProfile name aren't guaranteed to match case-for-case -
+        // a mismatch here would silently create a duplicate "ghost" entry that never resolves (see this
+        // batch's staging notes for how that could also produce a wrong slowest-person result).
+        if (containsKeyIgnoreCase(ENTRIES, name)) {
             return;
         }
         double y = player.getY();
         if (y > CORE_MAX_Y || y <= CORE_MIN_Y) {
             return;
         }
-        if (!EXPECTED.contains(name)) {
+        if (!containsIgnoreCase(EXPECTED, name)) {
             // The party list wasn't complete when the core opened (tab list not parsed yet, late join) - they are
             // clearly in this run, so they join the expected list instead of being timed but never shown.
             EXPECTED.add(name);
         }
         ENTRIES.put(name, now - openedMs);
         SplitTimersFeature.LOGGER.info("[SplitTimers] Core entry: {} {}ms after the core opened", name, now - openedMs);
+    }
+
+    private static boolean containsKeyIgnoreCase(Map<String, Long> map, String name) {
+        if (name == null) {
+            return false;
+        }
+        for (String key : map.keySet()) {
+            if (key.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** HUD/chat rows: everyone expected, in party order, with a dash for anyone never seen inside the core. */
@@ -162,6 +216,18 @@ final class CoreEntryTimes {
         return String.format(Locale.US, "%.2fs", ms / 1000.0);
     }
 
+    /** The slowest entry recorded so far, or null before anyone has been timed in. Shared by the chat/party
+     *  announce and the HUD's own live "Slowest Into Core" line so they can never disagree. */
+    private static Map.Entry<String, Long> slowestEntry() {
+        Map.Entry<String, Long> slowest = null;
+        for (Map.Entry<String, Long> entry : ENTRIES.entrySet()) {
+            if (slowest == null || entry.getValue() > slowest.getValue()) {
+                slowest = entry;
+            }
+        }
+        return slowest;
+    }
+
     /** Slowest player into the core, once per run, to Mod Chat and/or party chat - both off by default. */
     private static void announce() {
         if (announced || openedMs == 0L) {
@@ -172,29 +238,38 @@ final class CoreEntryTimes {
         if (!cfg.isCoreEntryTimes() || (!cfg.isCoreEntrySlowestChat() && !cfg.isCoreEntrySlowestParty())) {
             return;
         }
-        String slowest = null;
-        long worst = -1L;
-        for (Map.Entry<String, Long> entry : ENTRIES.entrySet()) {
-            if (entry.getValue() > worst) {
-                worst = entry.getValue();
-                slowest = entry.getKey();
-            }
-        }
+        Map.Entry<String, Long> slowest = slowestEntry();
         if (slowest == null) {
             return;
         }
         int missing = EXPECTED.size() - ENTRIES.size();
         String suffix = missing > 0 ? " (" + missing + " never seen entering)" : "";
         if (cfg.isCoreEntrySlowestChat()) {
-            ModChat.send(CHAT, ModChat.text("Slowest into core: "), ModChat.value(slowest),
-                    ModChat.text(" ("), ModChat.value(format(worst)), ModChat.text(")" + suffix));
+            ModChat.send(CHAT, ModChat.text("Slowest into core: "), ModChat.value(slowest.getKey()),
+                    ModChat.text(" ("), ModChat.value(format(slowest.getValue())), ModChat.text(")" + suffix));
         }
         if (cfg.isCoreEntrySlowestParty()) {
             Minecraft client = Minecraft.getInstance();
             if (client.player != null) {
                 // Same channel command the Chat Commands feature uses for its party replies.
-                client.player.connection.sendCommand("pc Slowest into core: " + slowest + " (" + format(worst) + ")");
+                client.player.connection.sendCommand(
+                        "pc Slowest into core: " + slowest.getKey() + " (" + format(slowest.getValue()) + ")");
             }
         }
+    }
+
+    /** For the Split Timers HUD's own bottom "Slowest Into Core" line (killer560, 2026-09-20: "at the very
+     *  bottom of the split timers show the slowest person into core and their time") - independent of the
+     *  chat/party toggles and of {@link #announced}, so it can show live (whoever is slowest so far) while
+     *  the run is still going, using the exact same data {@link #announce()} does. Null before any entry. */
+    static String slowestHudLine() {
+        if (openedMs == 0L) {
+            return null;
+        }
+        Map.Entry<String, Long> slowest = slowestEntry();
+        if (slowest == null) {
+            return null;
+        }
+        return colorFor(slowest.getKey()) + slowest.getKey() + "§f: " + format(slowest.getValue());
     }
 }

@@ -92,7 +92,9 @@ public final class MappingFeature {
         }
     }
 
-    /** Real, callable-now action wired to "/killer560 mapdump" and the Mapping tab's button.
+    /** Real, callable-now action wired to "/killer560 mapdump" (2026-09-20: its Dungeon Map tab button was dropped
+     *  when the Mapping tab was deleted - see {@code LiveMapTab}'s class doc - so the command is the only way to
+     *  trigger it now).
      *  @return a user-facing status message (success with the file path, or why it couldn't dump). */
     public static String dumpHeldMap() {
         HeldMap held = findHeldMap();

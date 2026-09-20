@@ -121,7 +121,9 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         }));
                     }).bounds(contentX, y, half, 18).build());
             widgets.add(SettingsButtonWidget.builder(
-                    Component.literal("§cClear Locks (" + cfg.countLockedSlots() + ")"), btn -> {
+                    // ": " before the count (not "(N)") so SettingTooltips.key() cuts at the colon and gets a
+                    // stable "clear locks" key instead of a different, dead key for every lock count.
+                    Component.literal("§cClear Locks: " + cfg.countLockedSlots()), btn -> {
                         cfg.clearSlotLocks();
                         cfg.save();
                         requestRebuild.run();

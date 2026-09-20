@@ -11,16 +11,19 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /** Persisted "Enchant Colours" settings - see {@link EnchantColorsFeature}. Ships disabled by default.
  *  <p>
  *  Gated on {@link SkyblockGate} because this reads Hypixel's own lore text and Hypixel's
  *  {@code ExtraAttributes} NBT: outside Skyblock there is nothing for it to match, so it should follow
  *  "Skyblock Only" like every other lore-parsing feature. (Scrollable Tooltips deliberately is not - see
- *  {@code TooltipScrollConfig}.) */
+ *  {@code TooltipScrollConfig}.)
+ *  <p>
+ *  2026-09-20 rewrite (killer560: "should follow skyhanni where the color is based off of tier not enchant"):
+ *  the old per-enchant override table ({@code colors}/{@code onlyConfigured}/{@code defaultColor}) is gone,
+ *  replaced with one colour per SkyHanni tier (Poor/Good/Great/Perfect) plus the existing Ultimate colour.
+ *  An old config file's now-unused keys are simply ignored by {@link ConfigJson}'s per-key reads - no
+ *  migration needed, it just reseeds the new keys with defaults. */
 public final class EnchantColorsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -30,17 +33,24 @@ public final class EnchantColorsConfig {
     private static EnchantColorsConfig instance;
 
     private boolean enabled = false;
-    /** killer560: "an option to colour only configured enchantments vs recolouring all". When on, an enchant
-     *  with no entry in {@link #colors} is left exactly as Hypixel sent it. */
-    private boolean onlyConfigured = true;
-    /** Colour given to a recognised enchant with no entry of its own, while {@link #onlyConfigured} is off. */
-    private int defaultColor = EnchantColorsDefaults.UNLISTED;
+    /** killer560: "an option to colour only configured enchantments vs recolouring all" - now "known to the
+     *  tier table" rather than "has an override", since there is no per-enchant override anymore. When on,
+     *  an enchant {@link EnchantColorsDefaults#TIERS} has no entry for is left exactly as Hypixel sent it. */
+    private boolean onlyKnownEnchants = true;
+    /** Colour for a recognised-but-untiered enchant while {@link #onlyKnownEnchants} is off. In practice this
+     *  should rarely fire - {@link EnchantColorsDefaults#TIERS} is sourced from SkyHanni's own repo data - but
+     *  Hypixel adding a brand new enchant before this table is updated would otherwise go uncoloured. */
+    private int unknownColor = EnchantColorsDefaults.UNKNOWN;
+    private int poorColor = EnchantColorsDefaults.POOR;
+    private int goodColor = EnchantColorsDefaults.GOOD;
+    private int greatColor = EnchantColorsDefaults.GREAT;
+    private int perfectColor = EnchantColorsDefaults.PERFECT;
+    /** SkyHanni's own default (boldPerfectEnchant) - kept as a toggle rather than hardcoded, same as Ultimate. */
+    private boolean perfectBold = false;
     private boolean ultimateEnabled = true;
     private int ultimateColor = EnchantColorsDefaults.ULTIMATE;
     /** SkyHanni always renders ultimates bold; kept as a toggle rather than hardcoded. */
     private boolean ultimateBold = true;
-    /** Lore-normalised enchant name -> ARGB. Insertion-ordered so the settings list doesn't reshuffle. */
-    private Map<String, Integer> colors = EnchantColorsDefaults.build();
 
     private EnchantColorsConfig() {
     }
@@ -54,8 +64,6 @@ public final class EnchantColorsConfig {
 
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
-            // No file at all means a first run: seed the table. An EXISTING file is always honoured exactly,
-            // even with an empty "colors" object, so deleting every default sticks instead of coming back.
             instance = new EnchantColorsConfig();
             return;
         }
@@ -64,22 +72,16 @@ public final class EnchantColorsConfig {
             EnchantColorsConfig cfg = new EnchantColorsConfig();
             // Per-key reads (util/ConfigJson): one bad value must not reset the whole file to defaults.
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.onlyConfigured = ConfigJson.getBool(obj, "onlyConfigured", true);
-            cfg.defaultColor = ConfigJson.getInt(obj, "defaultColor", EnchantColorsDefaults.UNLISTED);
+            cfg.onlyKnownEnchants = ConfigJson.getBool(obj, "onlyKnownEnchants", true);
+            cfg.unknownColor = ConfigJson.getInt(obj, "unknownColor", EnchantColorsDefaults.UNKNOWN);
+            cfg.poorColor = ConfigJson.getInt(obj, "poorColor", EnchantColorsDefaults.POOR);
+            cfg.goodColor = ConfigJson.getInt(obj, "goodColor", EnchantColorsDefaults.GOOD);
+            cfg.greatColor = ConfigJson.getInt(obj, "greatColor", EnchantColorsDefaults.GREAT);
+            cfg.perfectColor = ConfigJson.getInt(obj, "perfectColor", EnchantColorsDefaults.PERFECT);
+            cfg.perfectBold = ConfigJson.getBool(obj, "perfectBold", false);
             cfg.ultimateEnabled = ConfigJson.getBool(obj, "ultimateEnabled", true);
             cfg.ultimateColor = ConfigJson.getInt(obj, "ultimateColor", EnchantColorsDefaults.ULTIMATE);
             cfg.ultimateBold = ConfigJson.getBool(obj, "ultimateBold", true);
-            JsonObject colors = ConfigJson.getObject(obj, "colors");
-            if (colors != null) {
-                Map<String, Integer> parsed = new LinkedHashMap<>();
-                for (String key : colors.keySet()) {
-                    String name = EnchantColorsFeature.normalize(key);
-                    if (!name.isEmpty()) {
-                        parsed.put(name, ConfigJson.getInt(colors, key, EnchantColorsDefaults.UNLISTED));
-                    }
-                }
-                cfg.colors = parsed;
-            }
             instance = cfg;
         } catch (Exception e) {
             instance = new EnchantColorsConfig();
@@ -92,16 +94,16 @@ public final class EnchantColorsConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("onlyConfigured", onlyConfigured);
-            obj.addProperty("defaultColor", defaultColor);
+            obj.addProperty("onlyKnownEnchants", onlyKnownEnchants);
+            obj.addProperty("unknownColor", unknownColor);
+            obj.addProperty("poorColor", poorColor);
+            obj.addProperty("goodColor", goodColor);
+            obj.addProperty("greatColor", greatColor);
+            obj.addProperty("perfectColor", perfectColor);
+            obj.addProperty("perfectBold", perfectBold);
             obj.addProperty("ultimateEnabled", ultimateEnabled);
             obj.addProperty("ultimateColor", ultimateColor);
             obj.addProperty("ultimateBold", ultimateBold);
-            JsonObject colors = new JsonObject();
-            for (Map.Entry<String, Integer> e : this.colors.entrySet()) {
-                colors.addProperty(e.getKey(), e.getValue());
-            }
-            obj.add("colors", colors);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -124,20 +126,60 @@ public final class EnchantColorsConfig {
         this.enabled = enabled;
     }
 
-    public boolean isOnlyConfigured() {
-        return onlyConfigured;
+    public boolean isOnlyKnownEnchants() {
+        return onlyKnownEnchants;
     }
 
-    public void setOnlyConfigured(boolean onlyConfigured) {
-        this.onlyConfigured = onlyConfigured;
+    public void setOnlyKnownEnchants(boolean onlyKnownEnchants) {
+        this.onlyKnownEnchants = onlyKnownEnchants;
     }
 
-    public int getDefaultColor() {
-        return defaultColor;
+    public int getUnknownColor() {
+        return unknownColor;
     }
 
-    public void setDefaultColor(int defaultColor) {
-        this.defaultColor = defaultColor;
+    public void setUnknownColor(int unknownColor) {
+        this.unknownColor = unknownColor;
+    }
+
+    public int getPoorColor() {
+        return poorColor;
+    }
+
+    public void setPoorColor(int poorColor) {
+        this.poorColor = poorColor;
+    }
+
+    public int getGoodColor() {
+        return goodColor;
+    }
+
+    public void setGoodColor(int goodColor) {
+        this.goodColor = goodColor;
+    }
+
+    public int getGreatColor() {
+        return greatColor;
+    }
+
+    public void setGreatColor(int greatColor) {
+        this.greatColor = greatColor;
+    }
+
+    public int getPerfectColor() {
+        return perfectColor;
+    }
+
+    public void setPerfectColor(int perfectColor) {
+        this.perfectColor = perfectColor;
+    }
+
+    public boolean isPerfectBold() {
+        return perfectBold;
+    }
+
+    public void setPerfectBold(boolean perfectBold) {
+        this.perfectBold = perfectBold;
     }
 
     public boolean isUltimateEnabled() {
@@ -162,30 +204,5 @@ public final class EnchantColorsConfig {
 
     public void setUltimateBold(boolean ultimateBold) {
         this.ultimateBold = ultimateBold;
-    }
-
-    public Map<String, Integer> getColors() {
-        return Collections.unmodifiableMap(colors);
-    }
-
-    /** @return the override for this lore name, or null. */
-    public Integer getColor(String normalizedName) {
-        return colors.get(normalizedName);
-    }
-
-    /** Adds or updates one override. Caller still has to {@link #save()}. */
-    public void putColor(String name, int argb) {
-        String key = EnchantColorsFeature.normalize(name);
-        if (!key.isEmpty()) {
-            colors.put(key, argb);
-        }
-    }
-
-    public void removeColor(String normalizedName) {
-        colors.remove(normalizedName);
-    }
-
-    public void resetColorsToDefaults() {
-        colors = EnchantColorsDefaults.build();
     }
 }

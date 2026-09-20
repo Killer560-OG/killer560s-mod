@@ -297,19 +297,50 @@ public final class RoomDatabase {
     }
 
     /** Real relative-to-absolute secret coordinate transform, ported from NoammAddons' own
-     *  {@code ScanUtils.getRealCoord}. */
+     *  {@code ScanUtils.getRealCoord}.
+     *  <p>
+     *  killer560, 2026-09-20: "white hitboxes really far away, off centered from the actual teleport maze
+     *  area", plus Water Board / Boulder / Ice Path "don't appear at all" - all four at rotation 270.
+     *  <b>The rotation has to be NEGATED here.</b> {@link #findRotationAndCorner} returns
+     *  {@code cornerIndex * 90} exactly like NoammAddons' {@code UniqueRoom.setRotationAndCorner}, but
+     *  NoammAddons never feeds that value straight into {@code getRealCoord} - every single call site
+     *  passes {@code 360 - rotation} first ({@code DungeonWaypoints.getRoomData}, {@code TrapHelper:45},
+     *  and every puzzle solver: {@code WaterBoardSolver:48}, {@code IcePathSolver:44},
+     *  {@code QuizSolver:52}, {@code TeleportMazeSolver:30}, {@code IceFillSolver:30}, with Boulder and
+     *  Creeper Beams using {@code 360 - r + 180} because their data is centre-mirrored). We were passing
+     *  the raw value, which is the correct rotation only where it equals its own negation - i.e. exactly
+     *  at 0 and 180, which is why those two rotations always worked and 90/270 never did.
+     *  <p>
+     *  Proof, corner index 1 (clay at {@code maxX+15, minZ-15}, the room's NE corner, rotation 90) on a
+     *  1x1 room centred (cx, cz): relative coordinates in this database are all non-negative offsets that
+     *  run INTO the room ({@code x} 1..122, {@code z} 1..60 across all 140 rooms), so a relative
+     *  {@code (rx, rz)} must land inside {@code [cx-15, cx+15] x [cz-15, cz+15]}. Raw:
+     *  {@code rotate(rx, rz, 90) = (rz, -rx)}, giving {@code (cx+15+rz, cz-15-rx)} - outside the room on
+     *  BOTH axes for every non-zero coordinate. Negated: {@code rotate(rx, rz, -90) = (-rz, rx)}, giving
+     *  {@code (cx+15-rz, cz-15+rx)} - which sweeps the room exactly. QUOI's independent implementation
+     *  agrees: its {@code Rotations.WEST} (clay {@code +15,-15}, the same NE corner) uses
+     *  {@code rotateAroundNorth = (-z, x)}, and its {@code EAST} (SW corner) uses {@code (z, -x)} - the
+     *  pair we had swapped.
+     *  <p>
+     *  Kept as a negation at the call site rather than by renumbering the corners so the value stored by
+     *  the Live Map and printed in the logs still means the same thing as NoammAddons' {@code room.rotation}. */
     public static BlockPos toRealCoord(RoomEntry.Pos relative, int clayX, int clayZ, int rotationDegrees) {
-        BlockPos rotated = rotate(relative.x, relative.y, relative.z, rotationDegrees);
+        BlockPos rotated = rotate(relative.x, relative.y, relative.z, -rotationDegrees);
         return rotated.offset(clayX, 0, clayZ);
     }
 
     /** Real absolute-to-relative secret coordinate transform - the exact inverse of {@link #toRealCoord},
      *  needed by puzzle solvers (e.g. {@code WeirdosSolver}) that read a real LIVE entity's own world
      *  position and need to reason about it in the room's own relative coordinate space (to then apply a
-     *  further relative-space offset before converting back). */
+     *  further relative-space offset before converting back).
+     *  <p>
+     *  Rotates by {@code +rotationDegrees} because {@link #toRealCoord} rotates by {@code -rotationDegrees}
+     *  (see its note). This pair always round-tripped correctly even while both halves were inverted, which
+     *  is why Weirdos Solver - the one solver that goes real -> relative -> real off a live entity - kept
+     *  working at every rotation while the fixed-coordinate solvers did not. */
     public static RoomEntry.Pos toRelativeCoord(BlockPos real, int clayX, int clayZ, int rotationDegrees) {
         BlockPos offset = real.offset(-clayX, 0, -clayZ);
-        BlockPos unrotated = rotate(offset.getX(), offset.getY(), offset.getZ(), (360 - (rotationDegrees % 360)) % 360);
+        BlockPos unrotated = rotate(offset.getX(), offset.getY(), offset.getZ(), rotationDegrees);
         RoomEntry.Pos result = new RoomEntry.Pos();
         result.x = unrotated.getX();
         result.y = unrotated.getY();
@@ -317,6 +348,9 @@ public final class RoomDatabase {
         return result;
     }
 
+    /** NoammAddons' {@code ScanUtils.BlockPos.rotate}, unchanged - note {@code 90} here is a
+     *  COUNTER-clockwise quarter turn in Minecraft's top-down frame (+x east, +z south), so callers that
+     *  want "turn the room's own frame clockwise by the corner index" pass the negated angle. */
     private static BlockPos rotate(int x, int y, int z, int degrees) {
         int normalized = ((degrees % 360) + 360) % 360;
         return switch (normalized) {

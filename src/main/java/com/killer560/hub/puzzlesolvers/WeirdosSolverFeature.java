@@ -172,7 +172,16 @@ public final class WeirdosSolverFeature {
             LOGGER.info("[WeirdosSolver] No ArmorStand named \"{}\" (color-stripped); nearby named stands: [{}]", wanted, nearby.toString().trim());
             return null;
         }
-        BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()) - 1, 69, (int) Math.floor(npc.getZ()) - 1);
+        // killer560, 2026-09-20: "each chest is exactly one block to the left of the NPC, off by -1 on
+        // one axis and +1 on the other". Root cause: the "-1, -1" below was applied to the NPC's REAL
+        // (world-space) x/z before ever rotating into the room's own relative space, while the "one
+        // relative block over" correction a few lines down IS applied post-rotation. Mixing a raw
+        // real-space nudge with a rotated relative-space nudge means the two only cancel out for one
+        // specific room orientation and combine into a diagonal miss for every other rotation - exactly
+        // the "off by -1 on one axis and +1 on the other" he saw. The class doc's own design is "the
+        // chest sits one relative block over from the NPC", so the fix is to do the ENTIRE offset in
+        // relative space (the existing `relative.x += 1` below) and nothing before it.
+        BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()), 69, (int) Math.floor(npc.getZ()));
         RoomEntry.Pos relative = RoomDatabase.toRelativeCoord(
                 npcBlockPos, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
         relative.x += 1;
@@ -188,12 +197,13 @@ public final class WeirdosSolverFeature {
         if (current == null || !"Three Weirdos".equals(current.name)) {
             return;
         }
+        // killer560, 2026-09-20: "make it a filled box rather than an outline".
         if (correctPos != null) {
-            SolverEspRender.renderOutlineBox(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 1f, 2f);
+            SolverEspRender.renderFilledBox(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 0.5f);
         }
         if (cfg.isShowWrongChests()) {
             for (BlockPos pos : wrongPositions) {
-                SolverEspRender.renderOutlineBox(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 1f, 2f);
+                SolverEspRender.renderFilledBox(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 0.5f);
             }
         }
     }

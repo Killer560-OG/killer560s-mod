@@ -32,7 +32,12 @@ public class DungeonTab extends FolderTab {
                 new ClassOverridesTab(),
                 // Moved out of New 2026-09-14 - killer560 confirmed Simon Says (solver + Auto Start/Solve)
                 // working after real runs ("I think ss is now done").
-                new SimonSaysTab()
+                new SimonSaysTab(),
+                // Puzzle Solvers dissolved into New earlier 2026-09-20, then killer560 changed his mind after
+                // testing: "put every puzzle solver back under one tab called Puzzle Solvers inside the
+                // dungeon tab... separate from Auto Puzzles, but all solvers in one tab". Ships on both
+                // builds - only Auto Puzzles below is cheat-only.
+                new PuzzleSolversTab()
         ));
         // Leap Menu, Fast Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, Etherwarp
         // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers, Mask
@@ -47,9 +52,10 @@ public class DungeonTab extends FolderTab {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new SecretsTab());
             tabs.add(new AutoTerminalTab());
-            // Auto Puzzles came here when the Puzzle Solvers category was dissolved (killer560,
-            // 2026-09-20). It is the cheat half - the solvers only show you the answer, this plays the
-            // puzzle for you - so the legit build has no such section at all.
+            // Auto Puzzles came here when the Puzzle Solvers category was first dissolved (killer560,
+            // 2026-09-20), and stayed here - deliberately separate from the Puzzle Solvers folder above -
+            // once that folder came back the same day. It is the cheat half - the solvers only show you
+            // the answer, this plays the puzzle for you - so the legit build has no such section at all.
             tabs.add(new AutoPuzzlesTab());
         }
         return tabs;

@@ -4,7 +4,6 @@ import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.PlayerFaceExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,9 +86,19 @@ final class MapPainter {
         for (int tile : group.tiles) {
             best = Math.min(best, DungeonMapScanner.stateAt(tile));
         }
-        if (best == DungeonMapScanner.STATE_UNDISCOVERED && !hideUnrevealed()
-                && LiveMapFeature.isWorldScanned(group.mainIdx)) {
-            return DungeonMapScanner.STATE_DISCOVERED; // cheat build keeps the world-scanned rooms
+        // killer560, 2026-09-20 (screenshot 14.52.05, cheat build): "it still isn't properly showing each room as
+        // grey - some still have question marks" - two teammates were standing INSIDE a room our own world scan had
+        // long since marked visited, yet it kept drawing grey with "?" because the held map's own byte for it was
+        // still STATE_UNOPENED, not STATE_UNDISCOVERED - the old check here only forgave UNDISCOVERED, so a room the
+        // map item is merely slow to redraw as opened stayed stuck behind its stale "?" even on the cheat build. Any
+        // world-scanned tile (grid[] != UNKNOWN, i.e. we resolved a real roof height there) proves the room is open,
+        // whatever the map item currently says - the legit build still never takes this branch (hideUnrevealed()).
+        if (!hideUnrevealed() && best >= DungeonMapScanner.STATE_UNOPENED) {
+            for (int tile : group.tiles) {
+                if (LiveMapFeature.isWorldScanned(tile)) {
+                    return DungeonMapScanner.STATE_DISCOVERED;
+                }
+            }
         }
         return best;
     }
@@ -371,7 +380,12 @@ final class MapPainter {
             int y1 = px(oy, uz + uh, ppu);
             graphics.fill(x0, y0, x1, y1, color);
             if (type == DungeonLayout.DOOR_WITHER && locked) {
-                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFF5A5A5A);
+                // killer560, 2026-09-20: "wither doors are very hard to see on the map" - the real map's own byte
+                // for a locked wither door is near-black (default #101010), which vanishes into the HUD background.
+                // A double amber outline (the mod's own accent colour) makes it read as a warning at a glance
+                // without touching the fill colour itself, which is still the real map's own and still a picker.
+                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
+                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
             if (idx == hoveredDoor) {
                 graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xB4FFFFFF);
@@ -623,20 +637,15 @@ final class MapPainter {
         float x = ox + (float) worldToUnits(mp.worldX()) * ppu;
         float y = oy + (float) worldToUnits(mp.worldZ()) * ppu;
         int size = Math.max(5, Math.round(8 * cfg.getIconScale() * markerScale));
-        boolean head = cfg.isPlayerHeads() && mp.skin() != null;
         DungeonClass cls = mp.dungeonClass();
-        int border = classColours && cls != null ? cls.color() : 0xFF000000;
 
+        // killer560, 2026-09-20: "i do not want it showing the white heads for mobs" - player markers are always
+        // the arrow now; the skin-head option (and its border swatch) is gone.
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, y);
         graphics.pose().rotate((float) Math.toRadians(180.0 + mp.yaw()));
-        if (head) {
-            graphics.fill(-size / 2 - 1, -size / 2 - 1, size / 2 + 1 + size % 2, size / 2 + 1 + size % 2, border);
-            PlayerFaceExtractor.extractRenderState(graphics, mp.skin(), -size / 2, -size / 2, size);
-        } else {
-            int fillColor = mp.self() ? 0xFF55FF55 : (classColours && cls != null ? cls.color() : 0xFFFFFFFF);
-            drawArrow(graphics, Math.round(size * 0.9f), fillColor);
-        }
+        int fillColor = mp.self() ? 0xFF55FF55 : (classColours && cls != null ? cls.color() : 0xFFFFFFFF);
+        drawArrow(graphics, Math.round(size * 0.9f), fillColor);
         graphics.pose().popMatrix();
 
         if (showName) {
@@ -651,14 +660,17 @@ final class MapPainter {
         return Math.abs(mouseX - x) <= size / 2f + 1 && Math.abs(mouseY - y) <= size / 2f + 1;
     }
 
-    /** Map marker pointing towards local -y (rotated to the player's heading by the caller). */
+    /** Map marker pointing towards local -y (rotated to the player's heading by the caller).
+     *  <p>
+     *  killer560, 2026-09-20 (screenshot 14.52.05): "the player arrow should read as an arrow at small scale" - the
+     *  old shape narrowed back down over its last two rows to notch the tail, which at an 8px HUD size (the default)
+     *  made a rhombus/diamond, not a pointer - exactly what shows up in his screenshot. Width is now strictly
+     *  non-decreasing from the tip (row 0, the heading) to a flat back edge, so it is a plain triangle at any size. */
     private static void drawArrow(GuiGraphicsExtractor graphics, int size, int color) {
         int half = Math.max(3, size / 2);
-        for (int row = 0; row < half * 2; row++) {
-            int w = Math.min(half, (row + 2) / 2);
-            if (row > half * 2 - 3) {
-                w = Math.max(1, w - 2); // notch at the tail
-            }
+        int rows = half * 2;
+        for (int row = 0; row < rows; row++) {
+            int w = Math.max(1, Math.round((row + 1) * (half / (float) rows)));
             graphics.fill(-w, -half + row, w, -half + row + 1, 0xFF000000);
             if (w > 1) {
                 graphics.fill(-w + 1, -half + row, w - 1, -half + row + 1, color);

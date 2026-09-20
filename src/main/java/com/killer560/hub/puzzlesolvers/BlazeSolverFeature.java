@@ -39,10 +39,12 @@ public final class BlazeSolverFeature {
     // 3bce7b36 "fix blaze solver regex" and, being `.*` rather than their `.+`, survives the glyph being
     // changed or dropped again too. (The old `Lv+` was a typo - "L" then one-or-more "v".)
     private static final Pattern BLAZE_NAME = Pattern.compile("^\\[Lv\\d+].*Blaze [\\d,]+/([\\d,]+)❤$");
+    // killer560, 2026-09-20: "the correct target should be green, the next yellow, the third red - it is
+    // currently red-first". Re-ordered; nothing else about the kill-order logic changed.
     private static final float[][] COLORS = {
-            {1.0f, 0.2f, 0.2f}, // 1st - red
-            {1.0f, 0.6f, 0.1f}, // 2nd - orange
-            {1.0f, 1.0f, 0.2f}, // 3rd - yellow
+            {0.2f, 1.0f, 0.2f}, // 1st (correct target) - green
+            {1.0f, 1.0f, 0.2f}, // 2nd (next) - yellow
+            {1.0f, 0.2f, 0.2f}, // 3rd - red
     };
     private static final float[] REST_COLOR = {1.0f, 1.0f, 1.0f};
 
@@ -173,7 +175,12 @@ public final class BlazeSolverFeature {
             Entity blaze = orderedBlazes.get(i);
             float[] color = i < COLORS.length ? COLORS[i] : REST_COLOR;
             AABB box = blaze.getBoundingBox().inflate(0.5, 1.0, 0.5).move(0.0, -1.0, 0.0);
-            SolverEspRender.renderOutlineBox(context, box, color[0], color[1], color[2], 1f, 2f);
+            // killer560, 2026-09-20: "add a fill-box option".
+            if (cfg.isFillBox()) {
+                SolverEspRender.renderFilledBox(context, box, color[0], color[1], color[2], 0.5f);
+            } else {
+                SolverEspRender.renderOutlineBox(context, box, color[0], color[1], color[2], 1f, 2f);
+            }
 
             if (cfg.isShowLines() && previousCenter != null && i <= 3) {
                 SolverEspRender.renderLineStrip(context, List.of(previousCenter, box.getCenter()),

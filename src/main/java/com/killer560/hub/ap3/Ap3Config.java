@@ -35,32 +35,35 @@ public final class Ap3Config {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ap3-settings.json");
 
-    /** Stable keybind ids, one per {@code /ap3} command - all default to unbound. */
-    public static final String KEY_ADD_LINE = "add_line";
-    public static final String KEY_ADD_AXIS_LINE = "add_axis_line";
+    /** Stable keybind ids, one per {@code /ap3} command - all default to unbound. The ids of renamed commands are
+     *  kept (add_line = Add Align, add_axisline = Add Axis Align, add_leapdetector = Add Leap Counter, delete = the
+     *  nearest-node delete) so a key bound before the 2026-09-20 rework still works. */
+    public static final String KEY_ADD_ALIGN = "add_line";
+    public static final String KEY_ADD_AXIS_ALIGN = "add_axisline";
     public static final String KEY_ADD_WALK = "add_walk";
     public static final String KEY_ADD_RUN = "add_run";
     public static final String KEY_ADD_LEAP = "add_leap";
-    public static final String KEY_ADD_LEAP_DETECTOR = "add_leapdetector";
+    public static final String KEY_ADD_LEAP_COUNTER = "add_leapdetector";
     public static final String KEY_ADD_TERMINAL = "add_terminal";
-    public static final String KEY_ADD_WAIT = "add_wait";
     public static final String KEY_ADD_STOP = "add_stop";
     public static final String KEY_ADD_LOOK = "add_look";
-    public static final String KEY_ADD_BREAKER = "add_breaker";
-    public static final String KEY_EDIT_DB = "edit_db";
+    public static final String KEY_ADD_BOOM = "add_boom";
+    public static final String KEY_ADD_STOPWATCH = "add_stopwatch";
     public static final String KEY_LIST = "list";
-    public static final String KEY_DELETE_LAST = "delete";
+    public static final String KEY_UNDO = "undo";
+    public static final String KEY_DELETE = "delete";
     public static final String KEY_CLEAR = "clear";
     public static final String KEY_RELOAD = "reload";
     public static final String KEY_START = "start";
     public static final String KEY_STOP = "stop";
+    public static final String KEY_TEST_MODE = "testmode";
     /** Re-places the LAST node at your position/look (the key-shaped half of {@code /ap3 replace <n>}). */
     public static final String KEY_REPLACE_LAST = "replace_last";
 
     public static final List<String> KEYBIND_IDS = List.of(
-            KEY_ADD_LINE, KEY_ADD_AXIS_LINE, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_DETECTOR,
-            KEY_ADD_TERMINAL, KEY_ADD_WAIT, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BREAKER, KEY_EDIT_DB, KEY_LIST,
-            KEY_DELETE_LAST, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP);
+            KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
+            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_LIST, KEY_UNDO,
+            KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE);
 
     public static final float MIN_THICKNESS = 1f;
     public static final float MAX_THICKNESS = 8f;
@@ -74,8 +77,6 @@ public final class Ap3Config {
     public static final int MAX_MOVE_TIMEOUT = 600;
     public static final double MIN_LEAP_RADIUS = 2.0;
     public static final double MAX_LEAP_RADIUS = 12.0;
-    public static final int MIN_DEFAULT_WAIT = 0;
-    public static final int MAX_DEFAULT_WAIT = 60_000;
     /** Same bounds Posmsg's per-waypoint text scale / height use ({@code posmsg/PosmsgEntry}). */
     public static final float MIN_LABEL_SCALE = 0.25f;
     public static final float MAX_LABEL_SCALE = 4f;
@@ -98,7 +99,8 @@ public final class Ap3Config {
     private boolean continueIntoNextSection = false;
     /** The class filter new nodes go into ({@code /ap3 add ...} / the tab); null = the class-less chain. */
     private DungeonClass editClassFilter = null;
-    private int defaultWaitMs = 1000;
+    /** STOPWATCH nodes always print to chat; this also shows the running / last time on the HUD (default OFF). */
+    private boolean stopwatchHud = false;
     private boolean uniformColor = false;
     /** The mod's own amber, so a uniform-coloured chain matches the menu. */
     public static final int DEFAULT_UNIFORM_COLOR = 0xFFFFA040;
@@ -125,12 +127,12 @@ public final class Ap3Config {
      *  where it has always sat) - the same two knobs Posmsg's waypoints got. */
     private float labelScale = 1f;
     private float labelHeightOffset = 0f;
-    /** Alignment (LINE / AXIS_LINE) is done within this many blocks of the target. */
+    /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target. */
     private double alignTolerance = 0.05;
     private int alignTimeoutTicks = 100;
     /** WALK / RUN: no progress toward the end of the travel for this many ticks and the chain gives up. */
     private int moveTimeoutTicks = 100;
-    /** LEAP_DETECTOR: a teammate who teleports to within this many blocks of you counts as having leapt to you. */
+    /** LEAP_COUNTER: a teammate who teleports to within this many blocks of you counts as having leapt to you. */
     private double leapDetectRadius = 5.0;
     private final Map<String, Integer> keybinds = new LinkedHashMap<>();
 
@@ -146,17 +148,28 @@ public final class Ap3Config {
     /** Orange theme for the GUI-ish types, meaningful colours only where they carry meaning (STOP red, RUN green). */
     public static int defaultNodeColor(Ap3Node.Type type) {
         return switch (type) {
-            case LINE -> 0xFFFFA040;
-            case AXIS_LINE -> 0xFFCC6600;
+            case ALIGN -> 0xFFFFA040;
+            case AXIS_ALIGN -> 0xFFCC6600;
             case WALK -> 0xFFFFFFFF;
             case RUN -> 0xFF55FF55;
             case LEAP -> 0xFF00FFFF;
-            case LEAP_DETECTOR -> 0xFF3B82F6;
+            case LEAP_COUNTER -> 0xFF3B82F6;
             case TERMINAL -> 0xFFA855F7;
-            case WAIT -> 0xFF9A8C80;
             case STOP -> 0xFFFF5555;
             case LOOK -> 0xFFFFFF00;
-            case BREAKER -> 0xFFFF8800;
+            case BOOM -> 0xFFFF8800;
+            case STOPWATCH -> 0xFF9A8C80;
+        };
+    }
+
+    /** The pre-rework name a type's colour was saved under (2026-09-20: LINE -> ALIGN, AXIS_LINE -> AXIS_ALIGN,
+     *  LEAP_DETECTOR -> LEAP_COUNTER); the type's own name when it was never renamed. */
+    private static String legacyColorKey(Ap3Node.Type t) {
+        return switch (t) {
+            case ALIGN -> "LINE";
+            case AXIS_ALIGN -> "AXIS_LINE";
+            case LEAP_COUNTER -> "LEAP_DETECTOR";
+            default -> t.name();
         };
     }
 
@@ -177,14 +190,17 @@ public final class Ap3Config {
                 cfg.diagonalWalk = ConfigJson.getBool(o, "diagonalWalk", cfg.diagonalWalk);
                 cfg.continueIntoNextSection = ConfigJson.getBool(o, "continueIntoNextSection", cfg.continueIntoNextSection);
                 cfg.editClassFilter = DungeonClass.byName(ConfigJson.getString(o, "editClassFilter", ""));
-                cfg.setDefaultWaitMs(ConfigJson.getInt(o, "defaultWaitMs", cfg.defaultWaitMs));
+                cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
                 JsonObject colors = ConfigJson.getObject(o, "nodeColors");
                 if (colors != null) {
                     for (Ap3Node.Type t : Ap3Node.Type.values()) {
-                        cfg.nodeColors.put(t, ConfigJson.getInt(colors, t.name(), cfg.nodeColors.get(t)));
+                        // A settings file from before the rename still has the old keys; read those as a fallback
+                        // so a colour he picked for "Line" is the colour "Align" shows up in.
+                        int fallback = ConfigJson.getInt(colors, legacyColorKey(t), cfg.nodeColors.get(t));
+                        cfg.nodeColors.put(t, ConfigJson.getInt(colors, t.name(), fallback));
                     }
                 }
                 cfg.setThickness(ConfigJson.getFloat(o, "thickness", cfg.thickness));
@@ -223,7 +239,7 @@ public final class Ap3Config {
             o.addProperty("diagonalWalk", diagonalWalk);
             o.addProperty("continueIntoNextSection", continueIntoNextSection);
             o.addProperty("editClassFilter", editClassFilter == null ? "" : editClassFilter.name());
-            o.addProperty("defaultWaitMs", defaultWaitMs);
+            o.addProperty("stopwatchHud", stopwatchHud);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("uniformColorArgb", uniformColorArgb);
             o.addProperty("activeColorArgb", activeColorArgb);
@@ -289,8 +305,8 @@ public final class Ap3Config {
     public DungeonClass getEditClassFilter() { return editClassFilter; }
     public void setEditClassFilter(DungeonClass v) { editClassFilter = v; }
 
-    public int getDefaultWaitMs() { return defaultWaitMs; }
-    public void setDefaultWaitMs(int v) { defaultWaitMs = Math.max(MIN_DEFAULT_WAIT, Math.min(MAX_DEFAULT_WAIT, v)); }
+    public boolean isStopwatchHud() { return stopwatchHud; }
+    public void setStopwatchHud(boolean v) { stopwatchHud = v; }
 
     // ------------------------------------------------------------------------------------------- colours
 
@@ -431,34 +447,34 @@ public final class Ap3Config {
     }
 
     // Typed pairs, one per command, for the UI agent (all delegate to the id map above).
-    public int getAddLineKey() { return getKeybind(KEY_ADD_LINE); }
-    public void setAddLineKey(int code) { setKeybind(KEY_ADD_LINE, code); }
-    public int getAddAxisLineKey() { return getKeybind(KEY_ADD_AXIS_LINE); }
-    public void setAddAxisLineKey(int code) { setKeybind(KEY_ADD_AXIS_LINE, code); }
+    public int getAddAlignKey() { return getKeybind(KEY_ADD_ALIGN); }
+    public void setAddAlignKey(int code) { setKeybind(KEY_ADD_ALIGN, code); }
+    public int getAddAxisAlignKey() { return getKeybind(KEY_ADD_AXIS_ALIGN); }
+    public void setAddAxisAlignKey(int code) { setKeybind(KEY_ADD_AXIS_ALIGN, code); }
     public int getAddWalkKey() { return getKeybind(KEY_ADD_WALK); }
     public void setAddWalkKey(int code) { setKeybind(KEY_ADD_WALK, code); }
     public int getAddRunKey() { return getKeybind(KEY_ADD_RUN); }
     public void setAddRunKey(int code) { setKeybind(KEY_ADD_RUN, code); }
     public int getAddLeapKey() { return getKeybind(KEY_ADD_LEAP); }
     public void setAddLeapKey(int code) { setKeybind(KEY_ADD_LEAP, code); }
-    public int getAddLeapDetectorKey() { return getKeybind(KEY_ADD_LEAP_DETECTOR); }
-    public void setAddLeapDetectorKey(int code) { setKeybind(KEY_ADD_LEAP_DETECTOR, code); }
+    public int getAddLeapCounterKey() { return getKeybind(KEY_ADD_LEAP_COUNTER); }
+    public void setAddLeapCounterKey(int code) { setKeybind(KEY_ADD_LEAP_COUNTER, code); }
     public int getAddTerminalKey() { return getKeybind(KEY_ADD_TERMINAL); }
     public void setAddTerminalKey(int code) { setKeybind(KEY_ADD_TERMINAL, code); }
-    public int getAddWaitKey() { return getKeybind(KEY_ADD_WAIT); }
-    public void setAddWaitKey(int code) { setKeybind(KEY_ADD_WAIT, code); }
     public int getAddStopKey() { return getKeybind(KEY_ADD_STOP); }
     public void setAddStopKey(int code) { setKeybind(KEY_ADD_STOP, code); }
     public int getAddLookKey() { return getKeybind(KEY_ADD_LOOK); }
     public void setAddLookKey(int code) { setKeybind(KEY_ADD_LOOK, code); }
-    public int getAddBreakerKey() { return getKeybind(KEY_ADD_BREAKER); }
-    public void setAddBreakerKey(int code) { setKeybind(KEY_ADD_BREAKER, code); }
-    public int getEditDbKey() { return getKeybind(KEY_EDIT_DB); }
-    public void setEditDbKey(int code) { setKeybind(KEY_EDIT_DB, code); }
+    public int getAddBoomKey() { return getKeybind(KEY_ADD_BOOM); }
+    public void setAddBoomKey(int code) { setKeybind(KEY_ADD_BOOM, code); }
+    public int getAddStopwatchKey() { return getKeybind(KEY_ADD_STOPWATCH); }
+    public void setAddStopwatchKey(int code) { setKeybind(KEY_ADD_STOPWATCH, code); }
     public int getListKey() { return getKeybind(KEY_LIST); }
     public void setListKey(int code) { setKeybind(KEY_LIST, code); }
-    public int getDeleteLastKey() { return getKeybind(KEY_DELETE_LAST); }
-    public void setDeleteLastKey(int code) { setKeybind(KEY_DELETE_LAST, code); }
+    public int getUndoKey() { return getKeybind(KEY_UNDO); }
+    public void setUndoKey(int code) { setKeybind(KEY_UNDO, code); }
+    public int getDeleteKey() { return getKeybind(KEY_DELETE); }
+    public void setDeleteKey(int code) { setKeybind(KEY_DELETE, code); }
     public int getReplaceLastKey() { return getKeybind(KEY_REPLACE_LAST); }
     public void setReplaceLastKey(int code) { setKeybind(KEY_REPLACE_LAST, code); }
     public int getClearKey() { return getKeybind(KEY_CLEAR); }
@@ -469,4 +485,6 @@ public final class Ap3Config {
     public void setStartKey(int code) { setKeybind(KEY_START, code); }
     public int getStopKey() { return getKeybind(KEY_STOP); }
     public void setStopKey(int code) { setKeybind(KEY_STOP, code); }
+    public int getTestModeKey() { return getKeybind(KEY_TEST_MODE); }
+    public void setTestModeKey(int code) { setKeybind(KEY_TEST_MODE, code); }
 }

@@ -48,6 +48,30 @@ public final class SplitTimersConfig {
     private boolean coreEntrySlowestChat = false;
     /** Sends that same line to PARTY chat (everyone sees it). Separate toggle, default OFF, once per run. */
     private boolean coreEntrySlowestParty = false;
+    /** Shows the same slowest-into-core result at the very bottom of the Split Timers HUD, independent of the
+     *  chat/party announce toggles above - killer560, 2026-09-20: "at the very bottom of the split timers show
+     *  the slowest person into core and their time." Default OFF like every new HUD line here. */
+    private boolean coreEntrySlowestHud = false;
+
+    // ---------------------------------------------------------------------------------------------
+    // 2026-09-20 killer560 change list: divider bar between clear/boss splits, a Boss Entry split moved into
+    // the top (clear) section, a running Boss timer, lagless times in () per split, and a bottom "Total with
+    // lag / Total without lag / Lag Lost" block - see SplitTimersFeature's class doc and SplitLagClock for the
+    // "lagless" definition. All new, all OFF by default per the usual rule - the whole tab already lives in
+    // NewTab, but individual lines still default off so nothing changes on his HUD without him flipping it.
+    /** Draws a divider line between the clear-phase rows and the boss-phase rows. */
+    private boolean clearBossDivider = false;
+    /** The "Boss Entry" row (sum of every clear segment - how long it took to reach the boss) - previously
+     *  always shown whenever there was a boss split beyond the clear ones; now an explicit toggle so it obeys
+     *  the "changed features default off" rule instead of silently staying on for existing users. */
+    private boolean bossEntryTimer = false;
+    /** A running timer from the boss's own entry dialogue to the end of the fight (or now, if still running). */
+    private boolean bossTimer = false;
+    /** Lagless time (see SplitLagClock) in "(...)" to the right of each split, Boss Entry and Boss row. */
+    private boolean laglessTimes = false;
+    private boolean totalWithLag = false;
+    private boolean totalWithoutLag = false;
+    private boolean lagLostLine = false;
 
     private SplitTimersConfig() {
     }
@@ -79,6 +103,14 @@ public final class SplitTimersConfig {
             cfg.coreEntryTimes = ConfigJson.getBool(obj, "coreEntryTimes", false);
             cfg.coreEntrySlowestChat = ConfigJson.getBool(obj, "coreEntrySlowestChat", false);
             cfg.coreEntrySlowestParty = ConfigJson.getBool(obj, "coreEntrySlowestParty", false);
+            cfg.coreEntrySlowestHud = ConfigJson.getBool(obj, "coreEntrySlowestHud", false);
+            cfg.clearBossDivider = ConfigJson.getBool(obj, "clearBossDivider", false);
+            cfg.bossEntryTimer = ConfigJson.getBool(obj, "bossEntryTimer", false);
+            cfg.bossTimer = ConfigJson.getBool(obj, "bossTimer", false);
+            cfg.laglessTimes = ConfigJson.getBool(obj, "laglessTimes", false);
+            cfg.totalWithLag = ConfigJson.getBool(obj, "totalWithLag", false);
+            cfg.totalWithoutLag = ConfigJson.getBool(obj, "totalWithoutLag", false);
+            cfg.lagLostLine = ConfigJson.getBool(obj, "lagLostLine", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new SplitTimersConfig();
@@ -100,6 +132,14 @@ public final class SplitTimersConfig {
             obj.addProperty("coreEntryTimes", coreEntryTimes);
             obj.addProperty("coreEntrySlowestChat", coreEntrySlowestChat);
             obj.addProperty("coreEntrySlowestParty", coreEntrySlowestParty);
+            obj.addProperty("coreEntrySlowestHud", coreEntrySlowestHud);
+            obj.addProperty("clearBossDivider", clearBossDivider);
+            obj.addProperty("bossEntryTimer", bossEntryTimer);
+            obj.addProperty("bossTimer", bossTimer);
+            obj.addProperty("laglessTimes", laglessTimes);
+            obj.addProperty("totalWithLag", totalWithLag);
+            obj.addProperty("totalWithoutLag", totalWithoutLag);
+            obj.addProperty("lagLostLine", lagLostLine);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -191,5 +231,69 @@ public final class SplitTimersConfig {
 
     public void setCoreEntrySlowestParty(boolean coreEntrySlowestParty) {
         this.coreEntrySlowestParty = coreEntrySlowestParty;
+    }
+
+    public boolean isCoreEntrySlowestHud() {
+        return coreEntrySlowestHud;
+    }
+
+    public void setCoreEntrySlowestHud(boolean coreEntrySlowestHud) {
+        this.coreEntrySlowestHud = coreEntrySlowestHud;
+    }
+
+    public boolean isClearBossDivider() {
+        return clearBossDivider;
+    }
+
+    public void setClearBossDivider(boolean clearBossDivider) {
+        this.clearBossDivider = clearBossDivider;
+    }
+
+    public boolean isBossEntryTimer() {
+        return bossEntryTimer;
+    }
+
+    public void setBossEntryTimer(boolean bossEntryTimer) {
+        this.bossEntryTimer = bossEntryTimer;
+    }
+
+    public boolean isBossTimer() {
+        return bossTimer;
+    }
+
+    public void setBossTimer(boolean bossTimer) {
+        this.bossTimer = bossTimer;
+    }
+
+    public boolean isLaglessTimes() {
+        return laglessTimes;
+    }
+
+    public void setLaglessTimes(boolean laglessTimes) {
+        this.laglessTimes = laglessTimes;
+    }
+
+    public boolean isTotalWithLag() {
+        return totalWithLag;
+    }
+
+    public void setTotalWithLag(boolean totalWithLag) {
+        this.totalWithLag = totalWithLag;
+    }
+
+    public boolean isTotalWithoutLag() {
+        return totalWithoutLag;
+    }
+
+    public void setTotalWithoutLag(boolean totalWithoutLag) {
+        this.totalWithoutLag = totalWithoutLag;
+    }
+
+    public boolean isLagLostLine() {
+        return lagLostLine;
+    }
+
+    public void setLagLostLine(boolean lagLostLine) {
+        this.lagLostLine = lagLostLine;
     }
 }

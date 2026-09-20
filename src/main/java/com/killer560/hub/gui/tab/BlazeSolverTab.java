@@ -38,6 +38,13 @@ public class BlazeSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Order Lines", cfg.isShowLines()));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Fill Box", cfg.isFillBox()), btn -> {
+                    cfg.setFillBox(!cfg.isFillBox());
+                    cfg.save();
+                    btn.setMessage(onOff("Fill Box", cfg.isFillBox()));
+                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
     }

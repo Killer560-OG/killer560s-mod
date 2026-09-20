@@ -2,6 +2,7 @@ package com.killer560.hub.terminals;
 
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
+import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -175,6 +176,10 @@ public final class TerminalSolverFeature {
     }
 
     private static final Map<Integer, PendingClick> pendingClicks = new LinkedHashMap<>();
+    // Crash fixed 2026-09-20 (killer560's log, 15:39:52, "Rendering screen" / NullPointerException):
+    // set once another mod's slotClicked mixin has thrown on this terminal - see #invokeSlotClicked.
+    // Both click loops stand down for the rest of the terminal rather than re-throwing on every retry.
+    private static boolean foreignClickFailed;
     // 600 not 400 (review pass): Odin/NoammAddons use 500-600ms - a lag spike past a shorter floor re-clicked
     // already-correct Panes back to wrong before the confirm arrived.
     private static final long MIN_RETRY_TIMEOUT_MS = 600;
@@ -657,7 +662,7 @@ public final class TerminalSolverFeature {
             // Hypixel's real double-open finish), so a hover can never fire into a container that is
             // about to be replaced. Stands fully down whenever Auto Terminals is actually running for
             // this type - see HoverTerminalFeature's own precedence doc for why auto wins.
-            if (now - stabilizedAtMs >= INITIAL_CLICK_SETTLE_MS) {
+            if (now - stabilizedAtMs >= INITIAL_CLICK_SETTLE_MS && !foreignClickFailed) {
                 HoverTerminalFeature.tick(screen, type, items, currentHighlights,
                         cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg));
             }
@@ -706,6 +711,7 @@ public final class TerminalSolverFeature {
     private static void resetAutoClickState() {
         nextAutoClickAllowedAtMs = 0;
         pendingClicks.clear();
+        foreignClickFailed = false;
         melodyButtonRow = null;
         melodyCurrentColumn = null;
         melodyCorrectColumn = null;
@@ -761,6 +767,13 @@ public final class TerminalSolverFeature {
         }
         if (!isAutoTypeEnabled(type, cfg)) {
             diagGate(type, "OFF (auto-click disabled for this terminal type)");
+            return;
+        }
+        if (foreignClickFailed) {
+            // See #invokeSlotClicked - the shared click path itself is broken for this terminal, so every
+            // further attempt would throw in exactly the same place. Standing down clicks LESS, never
+            // more, and never blind.
+            diagGate(type, "OFF (another mod's slotClicked mixin threw - see the ERROR above)");
             return;
         }
         diagGate(type, "ACTIVE");
@@ -830,7 +843,12 @@ public final class TerminalSolverFeature {
         } else {
             pendingClicks.put(target.slot(), new PendingClick(target.slot(), now, now, snapshot, 1));
         }
-        sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
+        if (!sendTerminalClick(screen, target.slot(), target.button(), target.clickType())) {
+            // The click never actually left - drop the pending entry just recorded for it so the retry
+            // loop does not spend #retryTimeoutMs waiting on a confirm for a click nobody made.
+            pendingClicks.remove(target.slot());
+            return;
+        }
         diagClicksSent++;
         if (diagFirstClickAtMs == 0) {
             diagFirstClickAtMs = now;
@@ -925,15 +943,17 @@ public final class TerminalSolverFeature {
      *  {@code MultiPlayerGameMode.handleContainerInput} directly keeps this on the exact same real code
      *  path a genuine click already takes (sound effects, carried-item bookkeeping included), regardless
      *  of whether Custom GUI mode happens to be on right now. */
-    static void sendTerminalClick(ContainerScreen screen, int slotIndex, int button, ContainerInput clickType) {
+    static boolean sendTerminalClick(ContainerScreen screen, int slotIndex, int button, ContainerInput clickType) {
         List<Slot> slots = screen.getMenu().slots;
         if (slotIndex < 0 || slotIndex >= slots.size()) {
             LOGGER.warn("{} click NOT sent: slot {} out of range (menu has {} slots, containerId={})",
                     DIAG_TAG, slotIndex, slots.size(), screen.getMenu().containerId);
-            return;
+            return false;
         }
         Slot slot = slots.get(slotIndex);
-        ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+        if (!invokeSlotClicked(screen, slot, button, clickType)) {
+            return false;
+        }
         if (clickType == ContainerInput.PICKUP) {
             // Same real-click carried-item flash Rubix's own manual click path already guards against
             // (see #handleCustomGuiClick's matching comment) - a real PICKUP predicts the pickup locally
@@ -941,6 +961,41 @@ public final class TerminalSolverFeature {
             screen.getMenu().setCarried(ItemStack.EMPTY);
         }
         LOGGER.info("{} Auto-clicked slot {} (button={}, type={}, containerId={})", DIAG_TAG, slotIndex, button, clickType, screen.getMenu().containerId);
+        return true;
+    }
+
+    /** Crash fixed 2026-09-20, from killer560's log (15:39:52, on the first auto-click of a "Select all the
+     *  LIGHT BLUE items!" terminal): {@code slotClicked} is deliberately the real, shared click path (see
+     *  {@link #sendTerminalClick} for why), which means it also runs every OTHER installed mod's slot-click
+     *  mixins - and one of them threw, taking the whole game down from inside this mod's own call.
+     *  <p>
+     *  Root cause, traced through the 26.1.2 jars: Skyblocker's {@code ColorTerminal#onClickSlot}
+     *  dereferences a {@code targetColor} that its own {@code isEnabled()} nulls every time the screen
+     *  opens and that only ever gets filled in again from {@code ContainerSolverManager#onExtract} - which
+     *  Skyblocker injects at the HEAD of {@code AbstractContainerScreen#extractTooltip}, the exact method
+     *  {@link com.killer560.hub.terminals.mixin.TerminalSolverSlotMixin} cancels at HEAD while Custom GUI
+     *  is showing. Whichever HEAD handler runs first wins; when this mod's does, Skyblocker's solver stays
+     *  half-initialised for the whole terminal and the first click into it NPEs. Nothing on this side can
+     *  fill in another mod's field, and a real mouse click reaches the same code, so the fix is to make the
+     *  click path non-fatal: report it, treat the click as never sent, and let the caller stand down.
+     *  @return whether the click actually reached the server. */
+    static boolean invokeSlotClicked(AbstractContainerScreen<?> screen, Slot slot, int button, ContainerInput clickType) {
+        try {
+            ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+            return true;
+        } catch (Throwable t) {
+            boolean first = !foreignClickFailed;
+            foreignClickFailed = true;
+            LOGGER.error("{} click on slot {} ABORTED: another mod's slotClicked mixin threw. Auto/Hover Terminals stand down for the rest of this terminal.",
+                    DIAG_TAG, slot.index, t);
+            if (first) {
+                ModChat.send("Terminals",
+                        ModChat.bad("A terminal click was aborted: another mod threw on the click path. "),
+                        ModChat.text("Auto Terminals is standing down for this terminal - see the log. "),
+                        ModChat.dim("If Skyblocker is installed, turn its own terminal solvers off (Dungeons > Terminals) - Custom GUI hides the screen they initialise from."));
+            }
+            return false;
+        }
     }
 
     /** Melody's real-time auto-click - NOT driven by {@link #currentHighlights}/{@link #solve} at all
@@ -1452,8 +1507,8 @@ public final class TerminalSolverFeature {
             }
             ContainerInput clickType = needsRealClick ? ContainerInput.PICKUP : ContainerInput.CLONE;
             int effectiveButton = needsRealClick ? button : 0;
-            ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, effectiveButton, clickType);
-            if (needsRealClick) {
+            boolean sent = invokeSlotClicked(screen, slot, effectiveButton, clickType);
+            if (sent && needsRealClick) {
                 // Per killer560's "whenever I click in rubix it makes my held item move... please dont
                 // make that happen, it is the only term it does that for" report (2026-09-09, round 11):
                 // a real PICKUP click predicts the pickup LOCALLY and synchronously as part of the call

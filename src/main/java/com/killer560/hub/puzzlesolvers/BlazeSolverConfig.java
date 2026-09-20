@@ -24,6 +24,7 @@ public final class BlazeSolverConfig {
 
     private boolean enabled = false;
     private boolean showLines = true;
+    private boolean fillBox = false;
 
     private BlazeSolverConfig() {
     }
@@ -46,6 +47,7 @@ public final class BlazeSolverConfig {
             BlazeSolverConfig cfg = new BlazeSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showLines = ConfigJson.getBool(obj, "showLines", true);
+            cfg.fillBox = ConfigJson.getBool(obj, "fillBox", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new BlazeSolverConfig();
@@ -58,6 +60,7 @@ public final class BlazeSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showLines", showLines);
+            obj.addProperty("fillBox", fillBox);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -77,5 +80,14 @@ public final class BlazeSolverConfig {
 
     public void setShowLines(boolean showLines) {
         this.showLines = showLines;
+    }
+
+    /** killer560, 2026-09-20: "add a fill-box option". OFF (default) keeps the existing outline look. */
+    public boolean isFillBox() {
+        return fillBox;
+    }
+
+    public void setFillBox(boolean fillBox) {
+        this.fillBox = fillBox;
     }
 }

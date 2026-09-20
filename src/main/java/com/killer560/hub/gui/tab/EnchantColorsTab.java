@@ -9,26 +9,20 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 /** Enchant Colours settings - see {@link EnchantColorsFeature} for what actually gets recoloured and where
- *  the behaviour was taken from SkyHanni. Ships OFF; the override table ships pre-filled
- *  ({@link EnchantColorsDefaults}) so turning it on is immediately useful, which is the whole point of
- *  killer560's "sensible defaults out of the box". */
+ *  the behaviour was taken from SkyHanni. Ships OFF.
+ *  <p>
+ *  2026-09-20 rewrite: killer560 wanted tier-based colours ("should follow skyhanni where the color is based
+ *  off of tier not enchant"), so the old per-enchant override list (add/edit/remove, a filterable page of
+ *  colour swatches) is gone - replaced with one picker per SkyHanni tier, which is also just five widgets
+ *  instead of a whole paginated editor. */
 public class EnchantColorsTab extends BaseTab {
-
-    private static final int ROWS_PER_PAGE = 8;
-
-    private int page = 0;
-    private String filter = "";
-    private String newName = "";
 
     public EnchantColorsTab() {
         super("Enchant Colours");
@@ -49,33 +43,85 @@ public class EnchantColorsTab extends BaseTab {
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Recolours enchantment names in item lore so the ones that"), mc.font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7matter stand out. Skyblock only."), mc.font));
             return widgets;
+        }
+
+        // The mixin config is required:false so a signature change can never stop the game booting - but
+        // that also means it could quietly do nothing, which is exactly how killer560 found this feature
+        // completely dead in-game (2026-09-20). Say so rather than let him wonder why lore never changed.
+        if (!EnchantColorsFeature.renderHookSeen()) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
+                    "§8Render hook hasn't fired yet - hover an item. If this stays, the mixin didn't apply."), mc.font));
+            y += 14;
         }
 
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
 
         widgets.add(SettingsButtonWidget.builder(
-                onOff("Only Configured Enchantments", cfg.isOnlyConfigured()), btn -> {
-                    cfg.setOnlyConfigured(!cfg.isOnlyConfigured());
+                onOff("Only Known Enchantments", cfg.isOnlyKnownEnchants()), btn -> {
+                    cfg.setOnlyKnownEnchants(!cfg.isOnlyKnownEnchants());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX, y, cfg.isOnlyConfigured() ? contentWidth : half, 18).build());
-        if (!cfg.isOnlyConfigured()) {
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Other Enchants", cfg.getDefaultColor()), btn -> {
+                }).bounds(contentX, y, cfg.isOnlyKnownEnchants() ? contentWidth : half, 18).build());
+        if (!cfg.isOnlyKnownEnchants()) {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Enchants", cfg.getUnknownColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Unlisted Enchant Colour",
-                                cfg.getDefaultColor(), EnchantColorsDefaults.UNLISTED, argb -> {
-                            cfg.setDefaultColor(argb);
+                        client.setScreen(new ColorPickerScreen(client.screen, "Unknown Enchant Colour",
+                                cfg.getUnknownColor(), EnchantColorsDefaults.UNKNOWN, argb -> {
+                            cfg.setUnknownColor(argb);
                             cfg.save();
                         }));
                     }).bounds(col2, y, half, 18).build());
         }
+        y += 26;
+
+        // ---------------- Tier colours ----------------
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Tier Colours", false), mc.font));
+        y += 16;
+
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Poor", cfg.getPoorColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Poor Enchant Colour",
+                            cfg.getPoorColor(), EnchantColorsDefaults.POOR, argb -> {
+                        cfg.setPoorColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Good", cfg.getGoodColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Good Enchant Colour",
+                            cfg.getGoodColor(), EnchantColorsDefaults.GOOD, argb -> {
+                        cfg.setGoodColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2, y, half, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Great", cfg.getGreatColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Great Enchant Colour",
+                            cfg.getGreatColor(), EnchantColorsDefaults.GREAT, argb -> {
+                        cfg.setGreatColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Perfect", cfg.getPerfectColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Perfect Enchant Colour",
+                            cfg.getPerfectColor(), EnchantColorsDefaults.PERFECT, argb -> {
+                        cfg.setPerfectColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2, y, half, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Bold Perfect", cfg.isPerfectBold()), btn -> {
+                    cfg.setPerfectBold(!cfg.isPerfectBold());
+                    cfg.save();
+                    btn.setMessage(onOff("Bold Perfect", cfg.isPerfectBold()));
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
         // ---------------- Ultimate enchants ----------------
@@ -105,127 +151,9 @@ public class EnchantColorsTab extends BaseTab {
                         btn.setMessage(onOff("Bold", cfg.isUltimateBold()));
                     }).bounds(col2, y, half, 18).build());
             y += 22;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Detected from the item's own ultimate_ enchant id, so it wins"), mc.font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7over the per-enchant colour below."), mc.font));
-            y += 16;
         }
-
-        // ---------------- Per-enchant overrides ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Per-Enchant Colours", false), mc.font));
-        y += 16;
-
-        EditBox newBox = new EditBox(mc.font, contentX, y, half, 18, Component.literal("Enchantment name"));
-        newBox.setMaxLength(48);
-        newBox.setHint(Component.literal("Enchantment name"));
-        newBox.setValue(newName);
-        newBox.setResponder(text -> newName = text);
-        widgets.add(newBox);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("§aAdd / Edit"), btn -> {
-                    String name = EnchantColorsFeature.normalize(newName);
-                    if (name.isEmpty()) {
-                        return;
-                    }
-                    Integer existing = cfg.getColor(name);
-                    Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Colour for \"" + name + "\"",
-                            existing == null ? EnchantColorsDefaults.TOP : existing,
-                            EnchantColorsDefaults.TOP, argb -> {
-                        cfg.putColor(name, argb);
-                        cfg.save();
-                        newName = "";
-                    }));
-                }).bounds(col2, y, half, 18).build());
-        y += 22;
-
-        EditBox filterBox = new EditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Filter Enchants"));
-        filterBox.setMaxLength(48);
-        filterBox.setHint(Component.literal("Filter enchants..."));
-        filterBox.setValue(filter);
-        filterBox.setResponder(text -> {
-            if (!text.equals(filter)) {
-                filter = text;
-                page = 0;
-                requestRebuild.run();
-            }
-        });
-        widgets.add(filterBox);
-        y += 22;
-
-        List<Map.Entry<String, Integer>> entries = new ArrayList<>();
-        String query = filter.trim().toLowerCase(Locale.ROOT);
-        for (Map.Entry<String, Integer> e : cfg.getColors().entrySet()) {
-            if (query.isEmpty() || e.getKey().contains(query)) {
-                entries.add(e);
-            }
-        }
-        int pages = Math.max(1, (entries.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
-        page = Math.max(0, Math.min(page, pages - 1));
-
-        for (int i = page * ROWS_PER_PAGE; i < Math.min(entries.size(), (page + 1) * ROWS_PER_PAGE); i++) {
-            Map.Entry<String, Integer> entry = entries.get(i);
-            String name = entry.getKey();
-            int argb = entry.getValue();
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label(title(name), argb), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Colour for \"" + name + "\"",
-                                argb, EnchantColorsDefaults.TOP, picked -> {
-                            cfg.putColor(name, picked);
-                            cfg.save();
-                        }));
-                    }).bounds(contentX, y, contentWidth - 26, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal("§cX"), btn -> {
-                        cfg.removeColor(name);
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX + contentWidth - 22, y, 22, 18).build());
-            y += 22;
-        }
-
-        if (entries.isEmpty()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7No enchantment colours configured."), mc.font));
-            y += 16;
-        }
-
-        int third = (contentWidth - 16) / 3;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("< Prev"), btn -> {
-                    page = Math.max(0, page - 1);
-                    requestRebuild.run();
-                }).bounds(contentX, y, third, 18).build());
-        widgets.add(SettingsButtonWidget.builder(
-                Component.literal("Page " + (page + 1) + "/" + pages), btn -> {
-                }).bounds(contentX + third + 8, y, third, 18).build());
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Next >"), btn -> {
-                    page = page + 1;
-                    requestRebuild.run();
-                }).bounds(contentX + 2 * (third + 8), y, third, 18).build());
-        y += 22;
-
-        widgets.add(SettingsButtonWidget.builder(Component.literal("§eReset Colours to Defaults"), btn -> {
-                    cfg.resetColorsToDefaults();
-                    cfg.save();
-                    page = 0;
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
-    }
-
-    /** "bane of arthropods" -&gt; "Bane Of Arthropods", purely so the list is readable; the stored key stays
-     *  normalised. */
-    private static String title(String normalized) {
-        StringBuilder out = new StringBuilder(normalized.length());
-        boolean start = true;
-        for (int i = 0; i < normalized.length(); i++) {
-            char c = normalized.charAt(i);
-            out.append(start ? Character.toUpperCase(c) : c);
-            start = c == ' ' || c == '-';
-        }
-        return out.toString();
     }
 
     private static Component onOff(String label, boolean value) {

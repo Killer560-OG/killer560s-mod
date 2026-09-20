@@ -26,7 +26,10 @@ import java.util.regex.Pattern;
  * window: 620 ticks), not guessed. Goldor's "Tick:" and Storm's pad timers REPEAT (re-arm on reaching 0)
  * exactly like Odin's, until their real stop lines. Counts SERVER ticks like Odin's {@code TickEvent.Server}
  * (2026-09-15: via {@link ServerTickClock}, one tick per non-zero ClientboundPingPacket, falling back to client
- * ticks on a server that doesn't send per-tick pings), so client lag no longer drifts Goldor's 3s tick.
+ * ticks on a server that doesn't send per-tick pings), so client lag no longer drifts Goldor's 3s tick. Every
+ * trigger is Hypixel's own boss dialogue, byte-for-byte identical on p3sim.net, so nothing here needs a
+ * p3sim-specific branch - {@link com.killer560.hub.secrets.DungeonState}'s own p3sim detection (see its class
+ * doc) already covers {@code isBossPhaseActive()}/{@code isF7OrM7()} for both servers.
  * <p>
  * Goldor "one-shot" report, re-verified 2026-09-15 against Odin main @38ddc1b TickTimers.kt: Odin's server tick does
  * {@code if (goldorTickTime == 0 && goldorStartTime <= 0 && goldorHud.enabled) goldorTickTime = 60} BEFORE the
@@ -39,6 +42,37 @@ import java.util.regex.Pattern;
  * real per-secret prediction (Hypixel doesn't expose secret-spawn timing), just a repeating 20-tick
  * cosmetic pulse, and killer560's list already has a real secret-count feature elsewhere
  * ({@code DungeonInfoFeature}).
+ * <p>
+ * <b>2026-09-20 merge with Goldor Frenzy Timer.</b> killer560 answered the long-pending duplication between
+ * this file's own repeating Goldor countdown and the separate {@code goldorfrenzy} package's "Goldor Frenzy
+ * Timer" (same 60-server-tick countdown from the same Goldor line, ported from Devonian) by asking for ONE
+ * timer here. {@link TickTimersConfig#isGoldorShowTotal()} is Devonian's one genuinely new option (replace the
+ * countdown with how long P3 has run); its other option, counting the Storm-death-to-Goldor gap, was already
+ * this file's own {@link TickTimersConfig#isGoldorStartTimer()} under a different name. The {@code goldorfrenzy}
+ * package, its tab and its own HUD element are deleted - see the implementation notes for the exact settings
+ * migration.
+ * <p>
+ * <b>2026-09-20 "1s death tick during clear".</b> killer560's own words: "have the 1s death tick during clear,
+ * with an option to turn it off after the run starts". Ported from NoammAddons' {@code floor7/TickTimers.kt}
+ * "0s Death Tick" (its {@code clear} section) - there it derives from the raw world-time packet
+ * ({@code ClientboundSetTimePacket.gameTime}), which would need a brand new packet mixin here. Since the value
+ * is purely a cosmetic 20-tick pulse with no real trigger line (same category as the "Secrets" pulse this class
+ * already deliberately omits above), it is built the same lag-proof way as every other line in this file - a
+ * repeating {@code 20 - (ServerTickClock.now() % 20)} countdown - so no new mixin or fabric.mod.json entry is
+ * needed. {@link TickTimersConfig#isDeathTickStopsAtBoss()} is the "turn it off after the run starts" option;
+ * OFF (its default) matches killer560's literal wording that the tick runs during clear AND keeps running once
+ * the boss starts unless told not to.
+ * <p>
+ * <b>Pad timer / Storm crush timer - already covered elsewhere, not duplicated here.</b> killer560 also asked
+ * for "the pad timer" and "the timer to actually step onto purple and crush" on this tab. Both already exist,
+ * individually toggleable, in {@code f7spots.CrushTimer} (owned by the {@code f7spots} package, surfaced on
+ * {@code F7SpotsTab}'s "Storm Crush Timer (P2)" section: "Pad Cycle Timer" is the exact same repeating
+ * 20-server-tick pad cycle as this file's own {@link #padTickTime} below, and "Crush Timer HUD" /
+ * "Crush Interval" is the purple-pad/crush countdown). Per the batch's "don't duplicate a timer owned by
+ * another package" rule, neither is re-implemented here - see the implementation notes for the exact
+ * file:line pointers, including the pre-existing duplication between this file's OWN {@link #padTickTime}
+ * (bundled, not individually toggleable, under {@link TickTimersConfig#isStormTimer()}) and f7spots' separate,
+ * already-individually-toggleable copy of the same cycle.
  */
 public final class TickTimersFeature {
 
@@ -57,6 +91,9 @@ public final class TickTimersFeature {
     private static boolean pyTriggered = false;
     private static int pyTickTime = -1;
     private static int stormTick = -1;
+    // ServerTickClock.now() baseline set when Goldor's line lands - Devonian's own baseline for "Show Total"
+    // (its Stages.Terminals.startTime.tick), ported in the 2026-09-20 Goldor Frenzy merge.
+    private static long goldorPhaseStartTick = 0L;
     private static boolean wasInDungeon = false;
     private static Object lastLevel = null;
     private static int diagGoldorRestarts = 0;
@@ -107,6 +144,7 @@ public final class TickTimersFeature {
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             goldorTickTime = 60;
             diagGoldorRestarts = 0;
+            goldorPhaseStartTick = ServerTickClock.now();
             diagArmed("Goldor Tick (60t, repeating until Core entrance opens)", raw);
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
@@ -222,16 +260,27 @@ public final class TickTimersFeature {
         pyTickTime = -1;
         pyTriggered = false;
         stormTick = -1;
+        goldorPhaseStartTick = 0L;
         diagGoldorRestarts = 0;
     }
 
     private static String format(int time, int max, String prefix) {
         TickTimersConfig cfg = TickTimersConfig.getInstance();
         String color = time >= max * 0.66 ? "§a" : time >= max * 0.33 ? "§6" : "§c";
-        String value = cfg.isDisplayInTicks()
+        return (cfg.isShowPrefix() ? prefix + " " : "") + color + value(time, cfg);
+    }
+
+    /** Devonian GoldorFrenzyTimer's "Show Total" - an elapsed count that only ever grows, so (like Tick
+     *  Timers' own "Storm:" counter) it stays a neutral colour instead of the countdown ramp. */
+    private static String formatElapsed(long elapsedTicks, String prefix) {
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        return (cfg.isShowPrefix() ? prefix + " " : "") + "§f" + value((int) Math.min(Integer.MAX_VALUE, elapsedTicks), cfg);
+    }
+
+    private static String value(int time, TickTimersConfig cfg) {
+        return cfg.isDisplayInTicks()
                 ? time + (cfg.isShowSymbol() ? "t" : "")
                 : String.format(Locale.US, "%.1f%s", time / 20f, cfg.isShowSymbol() ? "s" : "");
-        return (cfg.isShowPrefix() ? prefix + " " : "") + color + value;
     }
 
     public static final class TickTimersHudElement implements HudElement {
@@ -268,13 +317,23 @@ public final class TickTimersFeature {
         private List<String> activeLines() {
             TickTimersConfig cfg = TickTimersConfig.getInstance();
             List<String> lines = new ArrayList<>();
+            // killer560: "the 1s death tick during clear, with an option to turn it off after the run starts" -
+            // purely a cosmetic 20-server-tick pulse (see class doc), so it's derived on the fly from the
+            // shared clock rather than kept as its own decrementing field.
+            if (cfg.isClearDeathTick() && !(cfg.isDeathTickStopsAtBoss() && DungeonState.isBossPhaseActive())) {
+                int deathTick = 20 - (int) (ServerTickClock.now() % 20);
+                lines.add(format(deathTick, 20, "§cDeath:"));
+            }
             if (cfg.isNecronTimer() && necronTicks >= 0) {
                 lines.add(format(necronTicks, 60, "§4Necron dropping in"));
             }
             if (cfg.isGoldorTimer()) {
-                // Odin: "Start:" only when its own "Start timer" setting is on, otherwise "Tick:".
+                // Odin: "Start:" only when its own "Start timer" setting is on, otherwise "Tick:"/"Show Total".
                 if (goldorStartTime >= 0 && cfg.isGoldorStartTimer()) {
                     lines.add(format(goldorStartTime, 100, "§aStart:"));
+                } else if (goldorTickTime >= 0 && cfg.isGoldorShowTotal()) {
+                    long elapsed = Math.max(0, ServerTickClock.now() - goldorPhaseStartTick);
+                    lines.add(formatElapsed(elapsed, "§7Frenzy total"));
                 } else if (goldorTickTime >= 0) {
                     lines.add(format(goldorTickTime, 60, "§7Tick:"));
                 }

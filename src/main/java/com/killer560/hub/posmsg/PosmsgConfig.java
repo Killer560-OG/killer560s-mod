@@ -41,6 +41,8 @@ public final class PosmsgConfig {
     private static PosmsgConfig instance;
 
     private boolean enabled = true;
+    /** One-time marker for the 2026-09-20 "Recore ring off" migration below. */
+    private boolean recoreRadiusMigrated = false;
     private final List<PosmsgEntry> entries = new ArrayList<>();
 
     private PosmsgConfig() {
@@ -67,6 +69,7 @@ public final class PosmsgConfig {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(root, "enabled", true);
+                cfg.recoreRadiusMigrated = ConfigJson.getBool(root, "recoreRadiusMigrated", false);
                 JsonArray array = ConfigJson.getArray(root, "entries");
                 if (array != null) {
                     for (var el : array) {
@@ -195,6 +198,21 @@ public final class PosmsgConfig {
             }
         }
         entries.removeIf(e -> e.name == null);
+
+        // killer560, 2026-09-20: "the recore feature shouldn't show in the hud at all, only have it send
+        // the chat message." Seeding covers a fresh config, but his own already holds a Recore row from an
+        // earlier build and seedMissingPresets only ever revisits an entry's POSITION, so the ring would
+        // still be drawn for him. Guarded by a persisted flag rather than forced on every load: Show
+        // Radius stays a real per-waypoint toggle, so if he ever switches Recore's ring back on it stays
+        // on instead of being silently reset next launch.
+        if (!recoreRadiusMigrated) {
+            for (PosmsgEntry e : entries) {
+                if (e.builtin && "Recore".equals(e.name)) {
+                    e.showRadius = false;
+                }
+            }
+            recoreRadiusMigrated = true;
+        }
     }
 
     /** Adds any shipped preset that isn't in the list yet, by name, and gives an already-present preset
@@ -217,6 +235,9 @@ public final class PosmsgConfig {
                 e.message = preset.message();
                 e.builtin = true;
                 applyPresetPosition(e, preset);
+                if (preset.name().equals("Recore")) {
+                    e.showRadius = false;
+                }
                 // Keep presets at the top of the list, in shipped order, ahead of custom waypoints.
                 entries.add(Math.min(insertAt, entries.size()), e);
                 byName.put(e.name, e);
@@ -255,6 +276,7 @@ public final class PosmsgConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject root = new JsonObject();
             root.addProperty("enabled", enabled);
+            root.addProperty("recoreRadiusMigrated", recoreRadiusMigrated);
             // Still written for builds that latch on it; this build seeds by name instead (see
             // seedMissingPresets) so the flag is no longer read.
             root.addProperty("presetsSeeded", true);

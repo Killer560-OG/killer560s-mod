@@ -20,7 +20,16 @@ import java.util.function.Consumer;
  *  {@link com.killer560.hub.objecthider.ObjectHiderFeature} - the biggest FPS/visibility win available in M7 P5
  *  and F7 P3. Everything here is legit: pure client-side render suppression, no entity is ever removed from the
  *  world. Every switch defaults to OFF. The whole list scrolls (ModScreen owns scrolling), so it's laid out as
- *  one column of full-width rows under orange section headers. */
+ *  one column of full-width rows under orange section headers.
+ *  <p>
+ *  2026-09-20: added every hide QUOI 1.1.0/1.1.1 has that this pack didn't yet (killer560: "reference quoi for
+ *  what exactly to include ... dont go beyond what they have" - see {@code wave/research-pack.md} section 1),
+ *  grouped under QUOI's own section names (Render Optimiser / Name Tags / Player Display: Hide / Tweaks /
+ *  Item Animations / Chat Replacements / Splits / 1.1.1's Hide Players) so it stays obvious which switch maps
+ *  to which QUOI feature. Everything below "World" is new; nothing above it changed except the Explosion
+ *  Particles rename right above (killer560 already has this - {@code HugeExplosionParticle} - and just
+ *  couldn't find it under that name). Entity/nametag/chat hides never change what's sent to the server, same
+ *  as everything else in this pack - see each mixin's own class doc for the exact mechanism. */
 public class ObjectHiderTab extends BaseTab {
 
     public ObjectHiderTab() {
@@ -116,9 +125,100 @@ public class ObjectHiderTab extends BaseTab {
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Block Break Particles", cfg::getHideBlockBreakParticlesRaw, cfg::setHideBlockBreakParticles);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Explosion Particles", cfg::getHideExplosionParticlesRaw, cfg::setHideExplosionParticles);
+                "Explosions (Wither Impact)", cfg::getHideWitherImpactExplosionsRaw, cfg::setHideWitherImpactExplosions);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Smoke Particles", cfg::getHideSmokeParticlesRaw, cfg::setHideSmokeParticles);
+
+        header(widgets, contentX, contentWidth, y, "Render Optimiser");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Disable Text Shadow", cfg::getDisableTextShadowRaw, cfg::setDisableTextShadow);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Container Text Shadow", cfg::getContainerTextShadowRaw, cfg::setContainerTextShadow);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Disable Fog", cfg::getDisableFogRaw, cfg::setDisableFog);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Fix Crimson Isle Fog", cfg::getFixCrimsonIsleFogRaw, cfg::setFixCrimsonIsleFog);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Falling Blocks", cfg::getHideFallingBlocksRaw, cfg::setHideFallingBlocks);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Lightning", cfg::getHideLightningRaw, cfg::setHideLightning);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Recipe Book Button", cfg::getHideRecipeBookButtonRaw, cfg::setHideRecipeBookButton);
+
+        header(widgets, contentX, contentWidth, y, "Name Tags");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Cancel Vanilla Nametags", cfg::getCancelVanillaNametagsRaw, cfg::setCancelVanillaNametags);
+
+        header(widgets, contentX, contentWidth, y, "Player Display: Hide");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Health", cfg::getHideHealthBarRaw, cfg::setHideHealthBar);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Absorption", cfg::getHideAbsorptionHeartsRaw, cfg::setHideAbsorptionHearts);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Mount Health", cfg::getHideMountHealthBarRaw, cfg::setHideMountHealthBar);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Regeneration Bounce", cfg::getHideRegenBounceRaw, cfg::setHideRegenBounce);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Armour", cfg::getHideArmorBarRaw, cfg::setHideArmorBar);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hunger", cfg::getHideHungerBarRaw, cfg::setHideHungerBar);
+
+        header(widgets, contentX, contentWidth, y, "Tweaks");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Disable Item Cooldowns", cfg::getDisableItemCooldownsRaw, cfg::setDisableItemCooldowns);
+
+        header(widgets, contentX, contentWidth, y, "Item Animations");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "No Eat Animation", cfg::getNoEatAnimationRaw, cfg::setNoEatAnimation);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "No Shortbow Swing", cfg::getNoShortbowSwingRaw, cfg::setNoShortbowSwing);
+
+        header(widgets, contentX, contentWidth, y, "Chat Replacements");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Useless Messages", cfg::getHideUselessMessagesRaw, cfg::setHideUselessMessages);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Discord Warnings", cfg::getHideDiscordWarningsRaw, cfg::setHideDiscordWarnings);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Microsoft Warnings", cfg::getHideMicrosoftWarningsRaw, cfg::setHideMicrosoftWarnings);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Empty Chat Messages", cfg::getHideEmptyChatMessagesRaw, cfg::setHideEmptyChatMessages);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Actionbar", cfg::getHideActionbarRaw, cfg::setHideActionbar);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Non-Rank Invites", cfg::getHideNonRankInvitesRaw, cfg::setHideNonRankInvites);
+
+        header(widgets, contentX, contentWidth, y, "Hide Players");
+
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Players", cfg::getHidePlayersRaw, cfg::setHidePlayers);
+        if (cfg.getHidePlayersRaw()) {
+            int min = 0;
+            int max = 128;
+            widgets.add(new ThemedSliderButton(contentX + 12, y[0], contentWidth - 12, 18,
+                    hidePlayersDistanceText(cfg), (cfg.getHidePlayersDistance() - min) / (double) (max - min)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(hidePlayersDistanceText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setHidePlayersDistance((int) Math.round(min + this.value * (max - min)));
+                    cfg.save();
+                }
+            });
+            y[0] += 22;
+            toggle(widgets, contentX + 12, contentWidth - 12, y, cfg, requestRebuild,
+                    "Dungeon Only", cfg::isHidePlayersDungeonOnly, cfg::setHidePlayersDungeonOnly);
+            toggle(widgets, contentX + 12, contentWidth - 12, y, cfg, requestRebuild,
+                    "Boss Only", cfg::isHidePlayersBossOnly, cfg::setHidePlayersBossOnly);
+        }
 
         return widgets;
     }
@@ -146,5 +246,10 @@ public class ObjectHiderTab extends BaseTab {
 
     private static Component orbRadiusText(ObjectHiderConfig cfg) {
         return Component.literal("Keep Radius: " + cfg.getKeepOrbRadius() + " blocks");
+    }
+
+    private static Component hidePlayersDistanceText(ObjectHiderConfig cfg) {
+        int distance = cfg.getHidePlayersDistance();
+        return Component.literal("Distance: " + (distance <= 0 ? "No Limit" : distance + " blocks"));
     }
 }

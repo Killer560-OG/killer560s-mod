@@ -16,6 +16,27 @@ import java.nio.file.Path;
  *  feature in this mod. */
 public final class IceFillSolverConfig {
 
+    /** killer560, 2026-09-20: "ice fill's line shouldn't be blue, its hard to see - make it configurable".
+     *  Light blue read poorly against the puzzle's own ice/snow floor, so the default is a lime that reads
+     *  against ice, snow AND stone alike; the rest give a real choice instead of guessing what he'd prefer. */
+    public enum LineColor {
+        LIME(0.3f, 1.0f, 0.3f),
+        MAGENTA(1.0f, 0.3f, 1.0f),
+        ORANGE(1.0f, 0.6f, 0.1f),
+        WHITE(1.0f, 1.0f, 1.0f),
+        RED(1.0f, 0.3f, 0.3f);
+
+        public final float r;
+        public final float g;
+        public final float b;
+
+        LineColor(float r, float g, float b) {
+            this.r = r;
+            this.g = g;
+            this.b = b;
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-icefillsolver.json");
@@ -24,6 +45,7 @@ public final class IceFillSolverConfig {
 
     private boolean enabled = false;
     private boolean optimizedPath = false;
+    private LineColor lineColor = LineColor.LIME;
 
     private IceFillSolverConfig() {
     }
@@ -46,6 +68,7 @@ public final class IceFillSolverConfig {
             IceFillSolverConfig cfg = new IceFillSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.optimizedPath = ConfigJson.getBool(obj, "optimizedPath", false);
+            cfg.lineColor = ConfigJson.getEnum(obj, "lineColor", LineColor.class, LineColor.LIME);
             instance = cfg;
         } catch (Exception e) {
             instance = new IceFillSolverConfig();
@@ -58,6 +81,7 @@ public final class IceFillSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("optimizedPath", optimizedPath);
+            obj.addProperty("lineColor", lineColor.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -80,5 +104,15 @@ public final class IceFillSolverConfig {
 
     public void setOptimizedPath(boolean optimizedPath) {
         this.optimizedPath = optimizedPath;
+    }
+
+    public LineColor getLineColor() {
+        return lineColor;
+    }
+
+    /** Cycles to the next color in {@link LineColor#values()}, wrapping around. */
+    public void cycleLineColor() {
+        LineColor[] values = LineColor.values();
+        lineColor = values[(lineColor.ordinal() + 1) % values.length];
     }
 }
