@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * One node of an AP3 chain (F7/M7 Phase 3 terminal-section movement). Cheat build only. Flattened into a single
+ * One node of an AP3 chain (F7/M7 boss-fight movement, any phase). Cheat build only. Flattened into a single
  * class, like {@code autoroutes/RouteNode}, so it round-trips through the hand-editable chains file without a
  * polymorphic type registry.
  * <p>
- * Everything spatial is in <b>absolute world coordinates</b>: the P3 arena is fixed, so none of Auto Routes'
+ * Everything spatial is in <b>absolute world coordinates</b>: the boss arena is fixed, so none of Auto Routes'
  * room-relative transform applies here.
  * <p>
  * <b>Snapping</b> (killer560: "All of the nodes should naturally snap to either the center of a block, or if I'm

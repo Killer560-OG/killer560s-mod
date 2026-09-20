@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.p4platform.P4PlatformHighlightConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -41,15 +39,6 @@ public class P4PlatformHighlightTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Filled Box", cfg.isFilled()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Highlights the real 3x3 platform to mine after Goldor"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7dies, before Necron's fight starts (F7/M7 only)."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

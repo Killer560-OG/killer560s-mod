@@ -2,8 +2,12 @@ package com.killer560.hub.dungeonextras;
 
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.world.phys.Vec3;
@@ -137,8 +141,67 @@ public final class MageBeamFeature {
             if (alpha <= 0.01f) {
                 continue;
             }
+            // Width used to be handed straight to the GL line width, which a core profile clamps to 1px -
+            // killer560 (2026-09-20): "make it so the width is much more impactful". The beam body is now a
+            // real world-space quad whose thickness the slider actually controls; the thin line stays as a
+            // core so a low width still reads at range, where a 5cm quad is under a pixel wide.
+            renderBeamQuad(context, beam.min(), beam.max(), rgba[0], rgba[1], rgba[2], alpha,
+                    cfg.getMageBeamWidth() * DungeonExtrasConfig.BEAM_WIDTH_BLOCKS);
             WorldRenderUtils.renderLineStrip(context, List.of(beam.min(), beam.max()),
-                    rgba[0], rgba[1], rgba[2], alpha, cfg.getMageBeamWidth());
+                    rgba[0], rgba[1], rgba[2], alpha, 2f);
         }
+    }
+
+    /** Draws the beam as a camera-facing quad {@code widthBlocks} thick. Billboarded (widened across both the
+     *  beam axis and the line of sight) so it never thins out to nothing when viewed edge-on, and emitted with
+     *  both windings so face culling can't hide one side. */
+    private static void renderBeamQuad(LevelRenderContext context, Vec3 start, Vec3 end,
+                                       float r, float g, float b, float a, float widthBlocks) {
+        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
+        if (bufferSource == null) {
+            return;
+        }
+        Vec3 axis = end.subtract(start);
+        if (axis.lengthSqr() < 1.0E-6) {
+            return;
+        }
+        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        Vec3 toCam = start.add(end).scale(0.5).subtract(cam);
+        Vec3 side = axis.cross(toCam);
+        if (side.lengthSqr() < 1.0E-6) {
+            side = axis.cross(new Vec3(0, 1, 0));
+            if (side.lengthSqr() < 1.0E-6) {
+                side = new Vec3(1, 0, 0);
+            }
+        }
+        side = side.normalize().scale(Math.max(0.01f, widthBlocks) * 0.5);
+
+        PoseStack poseStack = context.poseStack();
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        org.joml.Matrix4f matrix = poseStack.last().pose();
+        VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.debugFilledBox());
+
+        Vec3 s0 = start.subtract(side);
+        Vec3 s1 = start.add(side);
+        Vec3 e0 = end.subtract(side);
+        Vec3 e1 = end.add(side);
+        quad(buffer, matrix, s0, e0, e1, s1, r, g, b, a);
+        quad(buffer, matrix, s1, e1, e0, s0, r, g, b, a);
+
+        poseStack.popPose();
+    }
+
+    private static void quad(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3,
+                             float r, float g, float b, float a) {
+        vertex(buffer, matrix, p0, r, g, b, a);
+        vertex(buffer, matrix, p1, r, g, b, a);
+        vertex(buffer, matrix, p2, r, g, b, a);
+        vertex(buffer, matrix, p3, r, g, b, a);
+    }
+
+    private static void vertex(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p,
+                               float r, float g, float b, float a) {
+        buffer.addVertex(matrix, (float) p.x, (float) p.y, (float) p.z).setColor(r, g, b, a);
     }
 }

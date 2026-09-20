@@ -57,6 +57,13 @@ public final class ItemProtectConfig {
         }
     }
 
+    /** Mouse buttons are stored as {@code MOUSE_CODE_BASE - button} (left -100, right -101, middle -102, ...)
+     *  so one int field keeps holding a whole bind - killer560 (2026-09-20): "make all of the keybind things
+     *  compatible with mouse buttons and middle mouse buttons". Same encoding as {@code CommandKeybindsConfig};
+     *  both are local copies until {@code KeyUtil} itself learns about mouse binds (patch in the wave notes). */
+    public static final int MOUSE_CODE_BASE = -100;
+    public static final int MAX_MOUSE_BUTTON = 7;
+
     private static ItemProtectConfig instance;
 
     // Master
@@ -75,6 +82,9 @@ public final class ItemProtectConfig {
     private int peekKey = KeyUtil.NONE;
     private boolean useItemIdFallback = false;
     private int protectedColor = 0xFF55FFFF;
+    /** killer560 (2026-09-20): "put a little lock next to them in a corner so I know they are safe" - a small
+     *  padlock drawn on every protected item's slot, not just while the peek key is held. Visual, ships OFF. */
+    private boolean protectedIconEnabled = false;
     /** Skyblock item UUIDs (or item ids, with the fallback on) added by hovering + the protect key. */
     private final Set<String> protectedKeys = new LinkedHashSet<>();
     /** Plain display-name fragments typed in the settings tab, matched case-insensitively. */
@@ -92,6 +102,28 @@ public final class ItemProtectConfig {
     private boolean blockSound = true;
 
     private ItemProtectConfig() {
+    }
+
+    public static boolean isMouseCode(int code) {
+        return code <= MOUSE_CODE_BASE && code >= MOUSE_CODE_BASE - MAX_MOUSE_BUTTON;
+    }
+
+    public static int mouseButton(int code) {
+        return MOUSE_CODE_BASE - code;
+    }
+
+    public static int codeForMouseButton(int button) {
+        return MOUSE_CODE_BASE - button;
+    }
+
+    /** Like {@link KeyUtil#sanitize}, but keeps mouse-button codes (KeyUtil only accepts keyboard codes). */
+    public static int sanitizeBind(int code) {
+        return isMouseCode(code) ? code : KeyUtil.sanitize(code);
+    }
+
+    /** True for any code this mod will actually poll or match - a keyboard code or a mouse button. */
+    public static boolean isBoundCode(int code) {
+        return isMouseCode(code) || KeyUtil.isValidKey(code);
     }
 
     public static ItemProtectConfig getInstance() {
@@ -114,7 +146,7 @@ public final class ItemProtectConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
 
             cfg.slotLockEnabled = ConfigJson.getBool(obj, "slotLockEnabled", false);
-            cfg.slotLockKey = KeyUtil.sanitize(ConfigJson.getInt(obj, "slotLockKey", KeyUtil.NONE));
+            cfg.slotLockKey = sanitizeBind(ConfigJson.getInt(obj, "slotLockKey", KeyUtil.NONE));
             cfg.lockStyle = ConfigJson.getEnum(obj, "lockStyle", LockStyle.class, LockStyle.BOTH);
             cfg.lockColor = ConfigJson.getInt(obj, "lockColor", 0xFFFF5555);
             JsonArray locked = ConfigJson.getArray(obj, "lockedSlots");
@@ -132,10 +164,11 @@ public final class ItemProtectConfig {
             }
 
             cfg.protectItemEnabled = ConfigJson.getBool(obj, "protectItemEnabled", false);
-            cfg.protectKey = KeyUtil.sanitize(ConfigJson.getInt(obj, "protectKey", KeyUtil.NONE));
-            cfg.peekKey = KeyUtil.sanitize(ConfigJson.getInt(obj, "peekKey", KeyUtil.NONE));
+            cfg.protectKey = sanitizeBind(ConfigJson.getInt(obj, "protectKey", KeyUtil.NONE));
+            cfg.peekKey = sanitizeBind(ConfigJson.getInt(obj, "peekKey", KeyUtil.NONE));
             cfg.useItemIdFallback = ConfigJson.getBool(obj, "useItemIdFallback", false);
             cfg.protectedColor = ConfigJson.getInt(obj, "protectedColor", 0xFF55FFFF);
+            cfg.protectedIconEnabled = ConfigJson.getBool(obj, "protectedIconEnabled", false);
             JsonArray keys = ConfigJson.getArray(obj, "protectedKeys");
             if (keys != null) {
                 for (JsonElement el : keys) {
@@ -197,6 +230,7 @@ public final class ItemProtectConfig {
             obj.addProperty("peekKey", peekKey);
             obj.addProperty("useItemIdFallback", useItemIdFallback);
             obj.addProperty("protectedColor", protectedColor);
+            obj.addProperty("protectedIconEnabled", protectedIconEnabled);
             JsonArray keys = new JsonArray();
             for (String key : protectedKeys) {
                 keys.add(key);
@@ -256,7 +290,7 @@ public final class ItemProtectConfig {
     }
 
     public void setSlotLockKey(int key) {
-        this.slotLockKey = KeyUtil.sanitize(key);
+        this.slotLockKey = sanitizeBind(key);
     }
 
     public LockStyle getLockStyle() {
@@ -321,7 +355,7 @@ public final class ItemProtectConfig {
     }
 
     public void setProtectKey(int key) {
-        this.protectKey = KeyUtil.sanitize(key);
+        this.protectKey = sanitizeBind(key);
     }
 
     public int getPeekKey() {
@@ -329,7 +363,16 @@ public final class ItemProtectConfig {
     }
 
     public void setPeekKey(int key) {
-        this.peekKey = KeyUtil.sanitize(key);
+        this.peekKey = sanitizeBind(key);
+    }
+
+    /** Whether a small padlock is drawn on every protected item's slot (not just while peeking). */
+    public boolean isProtectedIconEnabled() {
+        return protectedIconEnabled;
+    }
+
+    public void setProtectedIconEnabled(boolean value) {
+        this.protectedIconEnabled = value;
     }
 
     public boolean isUseItemIdFallback() {

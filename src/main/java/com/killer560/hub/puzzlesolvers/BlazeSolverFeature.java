@@ -3,7 +3,6 @@ package com.killer560.hub.puzzlesolvers;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -21,8 +20,10 @@ import java.util.regex.Pattern;
 
 /**
  * Real Hypixel dungeon "Lower Blaze"/"Higher Blaze" puzzle solver, ported from Odin's own
- * {@code BlazeSolver.kt}. Real blazes are rendered as real ArmorStands whose name text is exactly
- * {@code [LvN]  Blaze HP/MAXHP❤}; Lower Blaze must be solved by killing the HIGHEST-HP blaze first, Higher
+ * {@code BlazeSolver.kt}. Real blazes are rendered as real ArmorStands whose name text currently reads
+ * {@code [LvN] <glyph> Blaze HP/MAXHP❤} - the bit between the level tag and "Blaze" is cosmetic (a
+ * private-use font glyph Hypixel has already changed once) and is matched with a wildcard, never
+ * literally; Lower Blaze must be solved by killing the HIGHEST-HP blaze first, Higher
  * Blaze the LOWEST-HP first (both real, confirmed Hypixel mechanics, ported directly). Needs no bundled
  * data at all - purely reads real live entity names, so it carries none of the other solvers'
  * cross-mod corner/rotation risk. Re-scans every 5 ticks (matching Odin's own real re-scan interval) so
@@ -32,7 +33,12 @@ import java.util.regex.Pattern;
  */
 public final class BlazeSolverFeature {
 
-    private static final Pattern BLAZE_NAME = Pattern.compile("^\\[Lv+\\d+]  Blaze [\\d,]+/([\\d,]+)❤$");
+    // killer560, 2026-09-20: "blaze solver is broken". Hypixel dropped a private-use mob-type glyph
+    // (currently U+E07C) between the level tag and "Blaze", so the old pattern's two literal spaces
+    // matched nothing at all and the solver found zero blazes. The wildcard mirrors NoammAddons'
+    // 3bce7b36 "fix blaze solver regex" and, being `.*` rather than their `.+`, survives the glyph being
+    // changed or dropped again too. (The old `Lv+` was a typo - "L" then one-or-more "v".)
+    private static final Pattern BLAZE_NAME = Pattern.compile("^\\[Lv\\d+].*Blaze [\\d,]+/([\\d,]+)❤$");
     private static final float[][] COLORS = {
             {1.0f, 0.2f, 0.2f}, // 1st - red
             {1.0f, 0.6f, 0.1f}, // 2nd - orange
@@ -55,6 +61,8 @@ public final class BlazeSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(BlazeSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BlazeSolverFeature::onWorldRender);
     }
@@ -112,13 +120,13 @@ public final class BlazeSolverFeature {
             if (!(entity instanceof ArmorStand)) {
                 continue;
             }
-            Matcher matcher = BLAZE_NAME.matcher(entity.getName().getString());
+            String name = plainName(entity);
+            Matcher matcher = BLAZE_NAME.matcher(name);
             if (matcher.matches()) {
                 found.add(entity);
-            } else if (entity.getName().getString().contains("Blaze") && loggedUnmatchedBlazeNames.size() < 20
-                    && loggedUnmatchedBlazeNames.add(entity.getName().getString())) {
-                LOGGER.info("[BlazeSolver] ArmorStand name contains 'Blaze' but didn't match BLAZE_NAME: \"{}\"",
-                        entity.getName().getString());
+            } else if (name.contains("Blaze") && loggedUnmatchedBlazeNames.size() < 20
+                    && loggedUnmatchedBlazeNames.add(name)) {
+                LOGGER.info("[BlazeSolver] ArmorStand name contains 'Blaze' but didn't match BLAZE_NAME: \"{}\"", name);
             }
         }
         Comparator<Entity> byMaxHp = Comparator.comparingLong(BlazeSolverFeature::maxHp);
@@ -126,8 +134,16 @@ public final class BlazeSolverFeature {
         orderedBlazes = found;
     }
 
+    /** Colour codes stripped before matching, the same way {@code AutoPuzzlesFeature} reads entity names -
+     *  a nametag that picks up formatting must not stop matching the way the cosmetic glyph did. */
+    private static String plainName(Entity entity) {
+        String raw = entity.getName().getString();
+        String stripped = net.minecraft.ChatFormatting.stripFormatting(raw);
+        return stripped != null ? stripped : raw;
+    }
+
     private static long maxHp(Entity entity) {
-        Matcher matcher = BLAZE_NAME.matcher(entity.getName().getString());
+        Matcher matcher = BLAZE_NAME.matcher(plainName(entity));
         if (!matcher.matches()) {
             return 0;
         }
@@ -157,10 +173,10 @@ public final class BlazeSolverFeature {
             Entity blaze = orderedBlazes.get(i);
             float[] color = i < COLORS.length ? COLORS[i] : REST_COLOR;
             AABB box = blaze.getBoundingBox().inflate(0.5, 1.0, 0.5).move(0.0, -1.0, 0.0);
-            WorldRenderUtils.renderOutlineBox(context, box, color[0], color[1], color[2], 1f, 2f);
+            SolverEspRender.renderOutlineBox(context, box, color[0], color[1], color[2], 1f, 2f);
 
             if (cfg.isShowLines() && previousCenter != null && i <= 3) {
-                WorldRenderUtils.renderLineStrip(context, List.of(previousCenter, box.getCenter()),
+                SolverEspRender.renderLineStrip(context, List.of(previousCenter, box.getCenter()),
                         color[0], color[1], color[2], 1f, 2f);
             }
             previousCenter = box.getCenter();

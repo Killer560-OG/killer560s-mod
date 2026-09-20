@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -29,12 +27,29 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
+        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+    }
+
+    /** Lets {@code ModScreen} route the next mouse press here instead of to the widget under the cursor.
+     *  Not yet an interface method - the {@code KeyCaptureTab}/{@code ModScreen} patch is in this wave's
+     *  staging notes; it becomes an override the moment that lands. */
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    /** Mouse half of the capture (killer560: "make all of the keybind things compatible with mouse buttons
+     *  and middle mouse buttons"). Not yet an interface method - {@code ModScreen}'s routing patch is in this
+     *  wave's staging notes; until it lands this simply never gets called. */
+    public void onMouseCaptured(int button) {
+        applyCapture(AbilityKeybindsConfig.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int code) {
         AbilityKeybindsConfig cfg = AbilityKeybindsConfig.getInstance();
-        int key = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
         if (capturing == 1) {
-            cfg.setAbilityKeyCode(key);
+            cfg.setAbilityKeyCode(code);
         } else if (capturing == 2) {
-            cfg.setUltimateKeyCode(key);
+            cfg.setUltimateKeyCode(code);
         }
         capturing = 0;
         cfg.save();
@@ -46,14 +61,14 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         AbilityKeybindsConfig cfg = AbilityKeybindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ability Keybinds", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+        widgets.add(SettingsButtonWidget.builder(onOff("Ability Keybinds", cfg.isEnabledRaw()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
@@ -67,20 +82,8 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
                     capturing = 2;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Sends the exact real vanilla drop-item/drop-stack action Hypixel"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7already reads as Ability/Ultimate - only fires on your own real"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7key press, only while in a real dungeon. Esc clears a bind."),
-                Minecraft.getInstance().font));
-
+        // The three explanatory lines that used to sit here are hover tooltips now (2026-09-20 mod-wide rule).
         return widgets;
     }
 
@@ -92,7 +95,6 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
         if (capturing == index) {
             return Component.literal("Press any key...");
         }
-        String name = key == -1 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
-        return Component.literal(label + ": " + name);
+        return Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
     }
 }

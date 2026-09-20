@@ -17,15 +17,29 @@ public final class SecretWaypointsConfig {
 
     public enum Style { FILL, OUTLINE, FILL_OUTLINE }
 
+    /** killer560 (change 62): "add an option for a full block waypoint vs a hitbox only waypoint."
+     *  FULL_BLOCK is the 1x1x1 block the secret sits in (what this feature always drew); HITBOX is the real
+     *  vanilla hitbox of the thing you are actually looking for (chest shape / dropped item / bat). */
+    public enum BoxSize { FULL_BLOCK, HITBOX }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-secretwaypoints.json");
+
+    public static final int MIN_RENDER_DISTANCE = 16;
+    public static final int MAX_RENDER_DISTANCE = 256;
 
     private static SecretWaypointsConfig instance;
 
     private boolean enabled = false;
     private Style style = Style.FILL_OUTLINE;
-    private boolean mimicDetection = true;
+    /** killer560 (change 62): "draw them through walls" - that is the whole point of a preloaded waypoint,
+     *  so it ships on; the toggle exists for anyone who wants the old depth-tested boxes back. */
+    private boolean throughWalls = true;
+    private BoxSize boxSize = BoxSize.FULL_BLOCK;
+    /** Blocks. Secrets further away than this are not built and not drawn (2026-09-20 FPS pass: this
+     *  feature used to draw every secret of every identified room in the dungeon, every frame). */
+    private int renderDistance = 64;
     private int chestColor = 0xFFFFD700;
     private int itemColor = 0xFF55FF55;
     private int witherColor = 0xFF222222;
@@ -45,6 +59,7 @@ public final class SecretWaypointsConfig {
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new SecretWaypointsConfig();
+            SecretWaypointsFeature.invalidateCache();
             return;
         }
         try {
@@ -53,7 +68,9 @@ public final class SecretWaypointsConfig {
             SecretWaypointsConfig cfg = new SecretWaypointsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.FILL_OUTLINE);
-            cfg.mimicDetection = ConfigJson.getBool(obj, "mimicDetection", true);
+            cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", true);
+            cfg.boxSize = ConfigJson.getEnum(obj, "boxSize", BoxSize.class, BoxSize.FULL_BLOCK);
+            cfg.renderDistance = clampDistance(ConfigJson.getInt(obj, "renderDistance", 64));
             cfg.chestColor = ConfigJson.getInt(obj, "chestColor", cfg.chestColor);
             cfg.itemColor = ConfigJson.getInt(obj, "itemColor", cfg.itemColor);
             cfg.witherColor = ConfigJson.getInt(obj, "witherColor", cfg.witherColor);
@@ -63,6 +80,7 @@ public final class SecretWaypointsConfig {
         } catch (Exception e) {
             instance = new SecretWaypointsConfig();
         }
+        SecretWaypointsFeature.invalidateCache();
     }
 
     public void save() {
@@ -71,7 +89,9 @@ public final class SecretWaypointsConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("style", style.name());
-            obj.addProperty("mimicDetection", mimicDetection);
+            obj.addProperty("throughWalls", throughWalls);
+            obj.addProperty("boxSize", boxSize.name());
+            obj.addProperty("renderDistance", renderDistance);
             obj.addProperty("chestColor", chestColor);
             obj.addProperty("itemColor", itemColor);
             obj.addProperty("witherColor", witherColor);
@@ -80,6 +100,12 @@ public final class SecretWaypointsConfig {
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+        // Everything on this page feeds the cached waypoint snapshot; rebuild it on the next tick.
+        SecretWaypointsFeature.invalidateCache();
+    }
+
+    private static int clampDistance(int value) {
+        return Math.max(MIN_RENDER_DISTANCE, Math.min(MAX_RENDER_DISTANCE, value));
     }
 
     public boolean isEnabled() {
@@ -98,12 +124,28 @@ public final class SecretWaypointsConfig {
         this.style = style;
     }
 
-    public boolean isMimicDetection() {
-        return mimicDetection;
+    public boolean isThroughWalls() {
+        return throughWalls;
     }
 
-    public void setMimicDetection(boolean mimicDetection) {
-        this.mimicDetection = mimicDetection;
+    public void setThroughWalls(boolean throughWalls) {
+        this.throughWalls = throughWalls;
+    }
+
+    public BoxSize getBoxSize() {
+        return boxSize;
+    }
+
+    public void setBoxSize(BoxSize boxSize) {
+        this.boxSize = boxSize;
+    }
+
+    public int getRenderDistance() {
+        return renderDistance;
+    }
+
+    public void setRenderDistance(int renderDistance) {
+        this.renderDistance = clampDistance(renderDistance);
     }
 
     public int getChestColor() {

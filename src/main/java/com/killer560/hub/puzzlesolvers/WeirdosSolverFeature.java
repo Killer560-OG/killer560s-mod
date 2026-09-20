@@ -5,7 +5,6 @@ import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -79,6 +78,8 @@ public final class WeirdosSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
@@ -188,11 +189,11 @@ public final class WeirdosSolverFeature {
             return;
         }
         if (correctPos != null) {
-            WorldRenderUtils.renderOutlineBox(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 1f, 2f);
+            SolverEspRender.renderOutlineBox(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 1f, 2f);
         }
         if (cfg.isShowWrongChests()) {
             for (BlockPos pos : wrongPositions) {
-                WorldRenderUtils.renderOutlineBox(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 1f, 2f);
+                SolverEspRender.renderOutlineBox(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 1f, 2f);
             }
         }
     }

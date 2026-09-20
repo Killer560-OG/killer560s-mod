@@ -64,8 +64,18 @@ public final class AutoCorrectFeature {
         return collapseDoubledRun(lower, DICTIONARY);
     }
 
+    /** Shortest word the collapse is allowed to produce. killer560 (2026-09-20): "make it so i can type
+     *  hee that currently gets corrected to he." Every correction into a one- or two-letter word is an
+     *  intentionally stretched chat word, never a typo - "hee"/"bee"->"he"/"be", "noo"->"no", "sooo"->"so",
+     *  "tooo"->"to", "okk"->"ok" - so the whole class is refused rather than patched word by word. */
+    private static final int MIN_COLLAPSE_RESULT_LENGTH = 3;
+
     /** The collapse half of {@link #fixDoubledLetter}, against any set of valid words - shared with
-     *  command-name correction ({@link #correctCommand}) so both use exactly the same rule. */
+     *  command-name correction ({@link #correctCommand}) so both use exactly the same rule.
+     *  <p>
+     *  A run that ends the word is never collapsed (killer560's "hee" report): a stuck/repeated key
+     *  lands anywhere in a word ("wwork", "leetter"), but a doubled LAST letter is how people stretch a
+     *  word on purpose ("hee", "yess", "heyy", "okk", "lolll", "nahh"), so word-final runs are left alone. */
     private static String collapseDoubledRun(String lower, Set<String> valid) {
         String found = null;
         int i = 0;
@@ -74,9 +84,10 @@ public final class AutoCorrectFeature {
             while (i + 1 < lower.length() && lower.charAt(i + 1) == lower.charAt(i)) {
                 i++;
             }
-            if (i > runStart) {
+            boolean runEndsWord = i == lower.length() - 1;
+            if (i > runStart && !runEndsWord) {
                 String collapsed = lower.substring(0, runStart + 1) + lower.substring(i + 1);
-                if (valid.contains(collapsed)) {
+                if (collapsed.length() >= MIN_COLLAPSE_RESULT_LENGTH && valid.contains(collapsed)) {
                     if (found != null && !found.equals(collapsed)) {
                         return null;
                     }
@@ -456,7 +467,17 @@ public final class AutoCorrectFeature {
                 + "who's whole whose why will win wind wish with within without won won't wood word work "
                 + "world worse would wouldn't write wrong yard year yell yes yet you you're your yours "
                 + "yourself";
+        // Real double-letter words that were missing above, so the doubled-letter collapse can't "fix"
+        // them into something else. Found by auditing the table for this failure mode after killer560's
+        // "hee" report (2026-09-20) - "loot" -> "lot" was the other live one, which matters in Skyblock.
+        // Chat interjections ("hee", "aww", "hmm", ...) are listed as words for the same reason.
+        String doubles = "loot loots boot boots root roots moon moons soon tool tools wool spoon spoons "
+                + "sweet speed street teeth tooth wheel wheels steel cheese coffee cookie cookies dinner "
+                + "summer winner runner hammer hammers arrow arrows mirror error bottle middle rabbit "
+                + "kitten funny bunny penny hurry carry worry pretty grass glass class press dress "
+                + "cross boss bless bee bees hee hmm aww brb gg ggs ok okay yeah nah bruh";
         Set<String> dictionary = new HashSet<>(Arrays.asList(words.split("\\s+")));
+        dictionary.addAll(Arrays.asList(doubles.split("\\s+")));
 
         return dictionary;
     }

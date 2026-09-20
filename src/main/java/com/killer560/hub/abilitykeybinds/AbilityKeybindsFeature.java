@@ -1,7 +1,6 @@
 package com.killer560.hub.abilitykeybinds;
 
 import com.killer560.hub.secrets.DungeonState;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -44,25 +43,44 @@ public final class AbilityKeybindsFeature {
             return;
         }
 
-        boolean abilityDown = cfg.getAbilityKeyCode() >= 0
-                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAbilityKeyCode());
+        boolean abilityDown = isBindDown(client, cfg.getAbilityKeyCode());
         if (abilityDown && !abilityKeyWasDown) {
             useAbility(client, false);
         }
         abilityKeyWasDown = abilityDown;
 
-        boolean ultimateDown = cfg.getUltimateKeyCode() >= 0
-                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getUltimateKeyCode());
+        boolean ultimateDown = isBindDown(client, cfg.getUltimateKeyCode());
         if (ultimateDown && !ultimateKeyWasDown) {
             useAbility(client, true);
         }
         ultimateKeyWasDown = ultimateDown;
     }
 
+    /**
+     * killer560 (2026-09-20): "the ultimate keybind does the ability and the ability does the ultimate."
+     * The two real vanilla actions were the wrong way round: Hypixel reads the plain Drop action (Q) as the
+     * ULTIMATE - which is exactly what this mod's own {@code AutoUltFeature} already sends - and the
+     * drop-stack action (Ctrl+Q) as the class ABILITY. Existing saved binds are swapped once on load (see
+     * {@code AbilityKeybindsConfig}) so no physical key silently changes what it does.
+     */
     private static void useAbility(Minecraft client, boolean ultimate) {
         ServerboundPlayerActionPacket.Action action = ultimate
-                ? ServerboundPlayerActionPacket.Action.DROP_ALL_ITEMS
-                : ServerboundPlayerActionPacket.Action.DROP_ITEM;
+                ? ServerboundPlayerActionPacket.Action.DROP_ITEM
+                : ServerboundPlayerActionPacket.Action.DROP_ALL_ITEMS;
         client.player.connection.send(new ServerboundPlayerActionPacket(action, BlockPos.ZERO, Direction.DOWN));
+    }
+
+    /** Polls a keyboard code through {@code KeyUtil} or a mouse code through {@code glfwGetMouseButton}
+     *  (killer560: "make all of the keybind things compatible with mouse buttons and middle mouse buttons").
+     *  Local helper until {@code KeyUtil} itself learns about mouse binds - patch in this wave's notes. */
+    private static boolean isBindDown(Minecraft client, int code) {
+        if (code == -1 || client.getWindow() == null) {
+            return false;
+        }
+        if (AbilityKeybindsConfig.isMouseCode(code)) {
+            return org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().handle(),
+                    AbilityKeybindsConfig.mouseButton(code)) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        }
+        return com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
     }
 }

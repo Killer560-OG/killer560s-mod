@@ -13,13 +13,13 @@ import com.killer560.hub.gui.tab.HudElementsTab;
 import com.killer560.hub.gui.tab.KeyCaptureTab;
 import com.killer560.hub.gui.tab.NewTab;
 import com.killer560.hub.gui.tab.ProfilesTab;
-import com.killer560.hub.gui.tab.PuzzleSolversTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -98,8 +98,10 @@ public class ModScreen extends Screen {
             tabs.add(new HudElementsTab());
             tabs.add(new HelpersTab());
             tabs.add(new DungeonTab());
-            // Its own category rather than eleven separate rows buried in New (killer560, 2026-09-16).
-            tabs.add(new PuzzleSolversTab());
+            // Puzzle Solvers is no longer a top-level category (killer560, 2026-09-20: "Puzzle solvers
+            // also shouldn't be a tab it should be in dungeons"). The solvers themselves sit in New for
+            // this testing round and move to Dungeon once he confirms them; Auto Puzzles, the cheat half,
+            // is already in the Dungeon folder.
         }
         if (selectedTab >= tabs.size() || selectedTab < 0) {
             selectedTab = 0;
@@ -237,6 +239,20 @@ public class ModScreen extends Screen {
             return true;
         }
         return super.keyPressed(keyEvent);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // A tab waiting for a bind eats the next mouse press too, so a bind can be a mouse button
+        // (killer560, 2026-09-20). Checked before super so the click doesn't also press the widget
+        // under the cursor. Tabs that only take keys opt out via supportsMouseCapture().
+        KeyCaptureTab listening = findListeningKeyCaptureTab();
+        if (listening != null && listening.supportsMouseCapture()) {
+            listening.onMouseCaptured(event.button());
+            rebuild();
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
     }
 
     /** Checks the top-level selected tab itself (e.g. {@code HomeTab}'s HUD-edit keybind), and - since

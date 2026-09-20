@@ -7,6 +7,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.interop.InteropFeature;
+import com.killer560.hub.interop.InteropSource;
+import com.killer560.hub.interop.PartyInteropState;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.scoreboard.ScoreboardExtraData;
 import com.killer560.hub.secrets.DungeonState;
@@ -253,6 +256,8 @@ public final class ScoreCalculatorFeature {
             if (entity instanceof Zombie zombie && zombie.isBaby() && zombie.isDeadOrDying()) {
                 mimicKilled = true;
                 LOGGER.info("[ScoreCalc] Mimic killed (baby zombie id={} at {})", zombie.getId(), zombie.position());
+                // We saw it ourselves, so this is the most trustworthy version of the fact the party has.
+                PartyInteropState.offerFlag(PartyInteropState.Flag.MIMIC_KILLED, InteropSource.SELF, null);
                 return;
             }
         }
@@ -304,6 +309,13 @@ public final class ScoreCalculatorFeature {
         if (sawPuzzleHeader || completedPuzzles > 0 || failedPuzzles > 0) {
             puzzlesCompleted = completedPuzzles;
             puzzlesFailed = failedPuzzles;
+        }
+        if (matchedAny) {
+            // The tab list is server-sent and identical for everyone in the run, so these are SELF facts -
+            // no other mod and no relay is needed for them. Shared so Party Interop has one place to read.
+            PartyInteropState.offerCounter(PartyInteropState.Counter.SECRETS_FOUND, secretsFound, InteropSource.SELF, null);
+            PartyInteropState.offerCounter(PartyInteropState.Counter.CRYPTS, crypts, InteropSource.SELF, null);
+            PartyInteropState.offerCounter(PartyInteropState.Counter.DEATHS, deaths, InteropSource.SELF, null);
         }
         if (matchedAny && !tabDataSeen) {
             tabDataSeen = true;
@@ -416,6 +428,13 @@ public final class ScoreCalculatorFeature {
     // ------------------------------------------------------------------ score + alerts
 
     private static void recalculate(ScoreCalculatorConfig cfg) {
+        // A mimic killed in a room nobody from this client ever entered is the one bonus point a lone client
+        // genuinely cannot see. Party Interop supplies it when someone else's mod announced it in party chat
+        // (or when our own relay carried it); with Party Interop off, this is exactly as before.
+        if (!mimicKilled && InteropFeature.mimicKilled()) {
+            mimicKilled = true;
+            LOGGER.info("[ScoreCalc] Mimic marked killed by Party Interop");
+        }
         String floor = DungeonState.getFloor();
         int seconds = secondsElapsed >= 0 ? secondsElapsed : (int) ((System.currentTimeMillis() - runStartMs) / 1000L);
         ScoreCalculator.Inputs inputs = new ScoreCalculator.Inputs(floor, secretsPercent, secretsFound, crypts,

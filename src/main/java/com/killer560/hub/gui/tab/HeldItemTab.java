@@ -33,9 +33,7 @@ public class HeldItemTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 22;
-        widgets.add(label(contentX, y, contentWidth, "§7Resize, move and rotate your first-person held item. Visual only."));
-        y += 16;
+        y += 26;
 
         if (!cfg.isEnabled()) {
             return widgets;
@@ -64,9 +62,7 @@ public class HeldItemTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("No Hand Sway", cfg.isNoHandSway()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(label(contentX, y, contentWidth, "§7Stops the item lagging behind when you look around."));
-        y += 16;
+        y += 22;
 
         if (!cfg.isNoSwing()) {
             widgets.add(slider(contentX, y, contentWidth, "Swing Speed", "x",
@@ -86,9 +82,7 @@ public class HeldItemTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(label(contentX, y, contentWidth, "§7Off: the off hand mirrors the main hand's values."));
-        y += 16;
+        y += 22;
 
         // ---- Off hand ----
         if (cfg.isSeparateOffHand()) {

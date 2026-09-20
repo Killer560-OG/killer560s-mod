@@ -1,13 +1,14 @@
 package com.killer560.hub.p4platform;
 
+import com.killer560.hub.puzzlesolvers.SolverEspRender;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
@@ -29,6 +30,15 @@ import java.util.regex.Pattern;
  * {@code TickTimersFeature}/{@code SplitTimersFeature} already use for the exact same reason. This
  * highlight turns off again on the real "[BOSS] Necron: All this, for nothing..." line, which is QUOI's
  * own real Phase 5 (post-platform) trigger - by that point the platform's already been broken.
+ * <p>
+ * killer560, 2026-09-20: "p4 platform highlight doesn't work". Three things were wrong, none of them the
+ * coordinates (byte-verified identical to QUOI's own {@code healerBox}): the chat listener ignored the
+ * Core line while the setting was off, so enabling it mid-fight could never arm it; the whole feature
+ * hung on that one line, so a run where it never arrived (rejoin, hidden/skipped dialogue, or dropping
+ * straight onto the platform - which is exactly what this repo's own F7 log shows) drew nothing at all;
+ * and the box was drawn depth-tested exactly on the faces of the blocks it outlines, which z-fights into
+ * nothing and is fully occluded the moment you stand on the platform. The chat line still arms it, but a
+ * positional fallback now covers the rest, and the highlight stops on its own once the 3x3 is mined out.
  */
 public final class P4PlatformHighlightFeature {
 
@@ -39,13 +49,22 @@ public final class P4PlatformHighlightFeature {
 
     private static final AABB PLATFORM_BOX = new AABB(53.0, 63.0, 113.0, 56.0, 64.0, 116.0);
 
+    /** How close the player has to be to the platform for the positional fallback below to count.
+     *  The core is its own arena region, well away from any normal dungeon room's coordinates. */
+    private static final double NEAR_PLATFORM_RANGE = 32.0;
+
     private static boolean platformActive = false;
     private static boolean wasInDungeon = false;
+    private static boolean nearPlatform = false;
+    private static boolean platformBroken = false;
+    private static int worldCheckCounter = 0;
 
     private P4PlatformHighlightFeature() {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
@@ -56,9 +75,9 @@ public final class P4PlatformHighlightFeature {
     }
 
     private static void onChatMessage(Component message) {
-        if (!P4PlatformHighlightConfig.getInstance().isEnabled()) {
-            return;
-        }
+        // Deliberately NOT gated on isEnabled(): the state has to be tracked whether or not the highlight
+        // is currently switched on, otherwise turning it on after the Core line (or while SkyblockGate is
+        // still settling) leaves platformActive false for the rest of the fight.
         String plain = ChatFormatting.stripFormatting(message.getString());
         String raw = plain != null ? plain : message.getString();
         if (CORE_OPENING_REGEX.matcher(raw).matches()) {
@@ -80,6 +99,40 @@ public final class P4PlatformHighlightFeature {
             platformActive = false;
         }
         wasInDungeon = inDungeon;
+
+        // World state, sampled off the render thread: whether the 3x3 is still there, and whether the
+        // player is standing in the core at all. Both are what let the highlight show up in a run where
+        // the Core line never reached us (rejoin, dialogue-skipped/hidden chat, warp straight to the
+        // platform - the one case in this repo's own logs) instead of the feature simply never firing.
+        if (++worldCheckCounter < 5) {
+            return;
+        }
+        worldCheckCounter = 0;
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || !DungeonState.isF7OrM7()) {
+            nearPlatform = false;
+            platformBroken = false;
+            return;
+        }
+        nearPlatform = client.player.position().distanceToSqr(PLATFORM_BOX.getCenter())
+                < NEAR_PLATFORM_RANGE * NEAR_PLATFORM_RANGE;
+        BlockPos center = BlockPos.containing(PLATFORM_BOX.getCenter());
+        if (!client.level.isLoaded(center)) {
+            platformBroken = false; // not loaded - say nothing either way
+            return;
+        }
+        boolean anySolid = false;
+        for (int x = (int) PLATFORM_BOX.minX; x < (int) PLATFORM_BOX.maxX && !anySolid; x++) {
+            for (int z = (int) PLATFORM_BOX.minZ; z < (int) PLATFORM_BOX.maxZ && !anySolid; z++) {
+                anySolid = !client.level.getBlockState(new BlockPos(x, (int) PLATFORM_BOX.minY, z)).isAir();
+            }
+        }
+        platformBroken = !anySolid;
+    }
+
+    /** @return true when the highlight should be on screen. */
+    private static boolean shouldShow() {
+        return (platformActive || nearPlatform) && !platformBroken;
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-p4platform");
@@ -88,10 +141,11 @@ public final class P4PlatformHighlightFeature {
     private static void onWorldRender(LevelRenderContext context) {
         P4PlatformHighlightConfig cfg = P4PlatformHighlightConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (platformActive) {
+        if (platformActive || nearPlatform) {
             // Diagnostic (2026-09-14): state-change only, and only while the platform window is open.
             String gate = !cfg.isEnabled() ? "hidden: disabled" : !DungeonState.isF7OrM7() ? "hidden: DungeonState.isF7OrM7()=false"
-                    : client.level == null ? "hidden: no level" : "DRAWING";
+                    : client.level == null ? "hidden: no level" : platformBroken ? "hidden: platform already broken"
+                    : "DRAWING (chatLine=" + platformActive + " near=" + nearPlatform + ")";
             if (!gate.equals(diagLastRenderGate)) {
                 LOGGER.info("[P4Platform] render gate: {} -> {}", diagLastRenderGate, gate);
                 diagLastRenderGate = gate;
@@ -99,12 +153,16 @@ public final class P4PlatformHighlightFeature {
         } else {
             diagLastRenderGate = null;
         }
-        if (!cfg.isEnabled() || !platformActive || !DungeonState.isF7OrM7() || client.level == null) {
+        if (!cfg.isEnabled() || !shouldShow() || !DungeonState.isF7OrM7() || client.level == null) {
             return;
         }
+        // Through SolverEspRender, not WorldRenderUtils: this box sits exactly on the faces of the very
+        // blocks it outlines, so depth-tested it z-fights into nothing and is completely hidden the moment
+        // you stand on the platform - which is the only time you want to see it. QUOI, the mod this was
+        // ported from, ships its highlights with the "Depth check" switch off for the same reason.
         if (cfg.isFilled()) {
-            WorldRenderUtils.renderFilledBox(context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 0.35f);
+            SolverEspRender.renderFilledBox(context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 0.35f);
         }
-        WorldRenderUtils.renderOutlineBox(context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 1.0f, 2f);
+        SolverEspRender.renderOutlineBox(context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 1.0f, 2f);
     }
 }

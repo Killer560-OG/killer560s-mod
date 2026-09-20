@@ -75,6 +75,8 @@ public final class MaxorCrystalsFeature {
     private static final double PLACE_RANGE = 5.0;
     /** MaxorsCrystals.kt line 81. */
     private static final int CRYSTAL_HOTBAR_SLOT = 8;
+    /** How long the pickup-to-place stopwatch may stay armed before the entity scan gives up (see {@link #tick}). */
+    private static final long STOPWATCH_TIMEOUT_MS = 60_000L;
 
     public static final HudElement HUD = new CrystalsHud();
 
@@ -116,6 +118,7 @@ public final class MaxorCrystalsFeature {
 
     public static void reset() {
         SEEN_CRYSTALS.clear();
+        HIGHLIGHT_BOXES.clear();
         pickupTimeMs = 0L;
         tickTimer = -1;
         activeCrystals = 0;
@@ -139,6 +142,11 @@ public final class MaxorCrystalsFeature {
             Matcher pickup = PICKUP.matcher(plain);
             if (pickup.find() && pickup.group(1).equalsIgnoreCase(selfName())) {
                 pickupTimeMs = System.currentTimeMillis();
+                // Every crystal already in the world is "not new", so the per-tick scan below can start
+                // from here instead of running all game long just to keep SEEN_CRYSTALS warm
+                // (2026-09-20 FPS pass). Without this snapshot, arming the stopwatch would make the four
+                // crystals already on their pads look like fresh spawns on the very next tick.
+                snapshotVisibleCrystals();
             }
         }
         if (cfg.isSpawnTimerEnabled() && SPAWN.matcher(plain).matches()) {
@@ -156,6 +164,21 @@ public final class MaxorCrystalsFeature {
         return client.getUser() == null ? "" : client.getUser().getName();
     }
 
+    /**
+     * 2026-09-20 FPS pass: this used to walk {@code entitiesForRendering()} on <em>every</em> client tick,
+     * on every server, in every dimension, forever - with no config gate at all (the only check,
+     * {@code isPlaceTimerEnabled()}, lived inside {@link #onCrystalEntity} after the scan had already run).
+     * <p>
+     * The scan exists for exactly one purpose: to notice the crystal you have just placed, so the
+     * pickup-to-place stopwatch can stop. So it now runs only while that stopwatch is actually running -
+     * Place Timer on, your own pickup line seen, and on F7/M7 - which is a few seconds up to five times a
+     * run instead of 20 scans a second all day. {@code SEEN_CRYSTALS} is seeded by
+     * {@link #snapshotVisibleCrystals()} at pickup, so nothing already placed reads as new.
+     * <p>
+     * {@link #STOPWATCH_TIMEOUT_MS} is a backstop: without it a pickup whose placement is never seen (you
+     * died, someone else placed it, the phase gate went false) would leave the scan running for the rest of
+     * the run. The old code had no timeout at all and simply scanned forever, so this can only scan less.
+     */
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
@@ -164,10 +187,69 @@ public final class MaxorCrystalsFeature {
         if (client.player == null || client.level == null) {
             return;
         }
+        refreshHighlightBoxes(client);
+        if (pickupTimeMs == 0L) {
+            if (!SEEN_CRYSTALS.isEmpty()) {
+                SEEN_CRYSTALS.clear();
+            }
+            return;
+        }
+        if (System.currentTimeMillis() - pickupTimeMs > STOPWATCH_TIMEOUT_MS) {
+            pickupTimeMs = 0L;
+            SEEN_CRYSTALS.clear();
+            return;
+        }
+        if (!MaxorConfig.getInstance().isPlaceTimerEnabled()
+                || !com.killer560.hub.secrets.DungeonState.isF7OrM7()) {
+            return;
+        }
         // Newly visible End Crystals; see the one-tick caveat in the class doc.
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity.getType() == EntityType.END_CRYSTAL && SEEN_CRYSTALS.add(entity.getId())) {
                 onCrystalEntity(entity);
+            }
+        }
+    }
+
+    /**
+     * The crystal boxes {@link MaxorCrystalsRenderer} draws, refreshed once per client tick.
+     * <p>
+     * 2026-09-20 FPS pass: the renderer used to walk {@code entitiesForRendering()} itself on every
+     * <em>frame</em> while Highlight Crystals was on. The crystals are static entities sitting on their pads,
+     * so a one-tick-old list is visually identical and costs a third of the walks at 60 fps (and no
+     * per-frame {@code getBoundingBox()} allocations at all).
+     */
+    private static final java.util.List<net.minecraft.world.phys.AABB> HIGHLIGHT_BOXES = new java.util.ArrayList<>();
+
+    static java.util.List<net.minecraft.world.phys.AABB> highlightBoxes() {
+        return HIGHLIGHT_BOXES;
+    }
+
+    private static void refreshHighlightBoxes(Minecraft client) {
+        if (!MaxorConfig.getInstance().isHighlightEnabled() || !inP1()) {
+            if (!HIGHLIGHT_BOXES.isEmpty()) {
+                HIGHLIGHT_BOXES.clear();
+            }
+            return;
+        }
+        HIGHLIGHT_BOXES.clear();
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity.getType() == EntityType.END_CRYSTAL) {
+                HIGHLIGHT_BOXES.add(entity.getBoundingBox());
+            }
+        }
+    }
+
+    /** Marks every End Crystal currently in the world as already seen (called when the stopwatch arms). */
+    private static void snapshotVisibleCrystals() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            return;
+        }
+        SEEN_CRYSTALS.clear();
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity.getType() == EntityType.END_CRYSTAL) {
+                SEEN_CRYSTALS.add(entity.getId());
             }
         }
     }

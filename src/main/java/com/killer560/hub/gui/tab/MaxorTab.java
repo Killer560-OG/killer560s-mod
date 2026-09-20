@@ -23,6 +23,11 @@ import java.util.function.Consumer;
  */
 public class MaxorTab extends BaseTab {
 
+    /** Two-click confirm for the only destructive button on this page, same pattern as
+     *  {@code PathfindingTab}'s "Sure? Reset Island" and {@code WaypointRoutesTab}'s "Sure?" - it used to
+     *  wipe the personal best on a single click (2026-09-20 tooltip/configurability sweep). */
+    private boolean confirmResetBest = false;
+
     public MaxorTab() {
         super("Maxor's Crystals");
     }
@@ -45,10 +50,15 @@ public class MaxorTab extends BaseTab {
         widgets.add(toggle(contentX, y, colW, "Unplaced Crystal Alert", cfg::getPlaceAlertRaw, cfg::setPlaceAlert));
         widgets.add(toggle(col2X, y, colW, "Active Crystal Counter", cfg::getActiveCounterRaw, cfg::setActiveCounter));
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(Component.literal(bestText(cfg)), btn -> {
-                    cfg.setBestPlaceMs(0L);
-                    cfg.save();
-                    btn.setMessage(Component.literal(bestText(cfg)));
+        widgets.add(SettingsButtonWidget.builder(Component.literal(bestText(cfg, confirmResetBest)), btn -> {
+                    if (cfg.getBestPlaceMs() != 0L && !confirmResetBest) {
+                        confirmResetBest = true;
+                    } else {
+                        cfg.setBestPlaceMs(0L);
+                        cfg.save();
+                        confirmResetBest = false;
+                    }
+                    btn.setMessage(Component.literal(bestText(cfg, confirmResetBest)));
                 }).bounds(contentX, y, colW, 18).build());
         y += 28;
 
@@ -59,16 +69,18 @@ public class MaxorTab extends BaseTab {
                 MaxorConfig.DEFAULT_HIGHLIGHT_COLOR, cfg::setHighlightColor));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Filled Boxes", cfg::isHighlightFilled, cfg::setHighlightFilled));
-        y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Highlights the real crystal entities - no hardcoded spots."), mc.font));
 
         return widgets;
     }
 
-    private static String bestText(MaxorConfig cfg) {
+    private static String bestText(MaxorConfig cfg, boolean confirming) {
         long best = cfg.getBestPlaceMs();
-        return best == 0L ? "Reset Best Place Time: §7none"
+        if (best == 0L) {
+            return "Reset Best Place Time: §7none";
+        }
+        // Fixed wording while confirming so the hover tooltip still resolves ("sure? reset best time").
+        return confirming
+                ? "§cSure? Reset Best Time"
                 : String.format(Locale.US, "Reset Best Place Time: §e%.3fs", best / 1000.0);
     }
 

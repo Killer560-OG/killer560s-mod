@@ -2,6 +2,9 @@ package com.killer560.hub.dungeoninfo;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.interop.InteropFeature;
+import com.killer560.hub.interop.InteropSource;
+import com.killer560.hub.interop.PartyInteropState;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.util.ChatObserver;
@@ -216,6 +219,14 @@ public final class DungeonInfoFeature {
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof Zombie zombie && zombie.isBaby() && zombie.isDeadOrDying()) {
                 mimicKilledThisRun = true;
+                PartyInteropState.offerFlag(PartyInteropState.Flag.MIMIC_KILLED, InteropSource.SELF, null);
+                // With four or five dungeon mods in one party, everyone's mod announces the same mimic. If a
+                // party mate's mod already said it (Party Interop saw their line), stay quiet.
+                if (InteropFeature.alreadyAnnouncedInParty(PartyInteropState.Flag.MIMIC_KILLED)) {
+                    LOGGER.info("[DungeonInfo] Mimic killed (baby zombie id={}) - a party mate's mod already announced it, not repeating",
+                            zombie.getId());
+                    return;
+                }
                 LOGGER.info("[DungeonInfo] Mimic killed (baby zombie id={} dead at {}, floor={}) - sending party message",
                         zombie.getId(), zombie.position(), DungeonState.getFloor());
                 TranslateFeature.sendGenerated(DungeonInfoConfig.getInstance().getMimicMessage(), "pc");
@@ -241,8 +252,14 @@ public final class DungeonInfoFeature {
         }
         DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
         boolean inDungeon = DungeonState.isInDungeon();
+        if (inDungeon) {
+            // The bonus-score line itself is public server chat, so this is a SELF fact for Party Interop.
+            PartyInteropState.offerFlag(princeLine ? PartyInteropState.Flag.PRINCE_KILLED
+                    : PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
+        }
         if (princeLine) {
-            boolean send = inDungeon && cfg.isPrinceMessageEnabled() && !princeKilledThisRun;
+            boolean send = inDungeon && cfg.isPrinceMessageEnabled() && !princeKilledThisRun
+                    && !InteropFeature.alreadyAnnouncedInParty(PartyInteropState.Flag.PRINCE_KILLED);
             LOGGER.info("[DungeonInfo] Prince kill line seen (inDungeon={} enabled={} alreadySentThisRun={} -> send={}): \"{}\"",
                     inDungeon, cfg.isPrinceMessageEnabled(), princeKilledThisRun, send, plain);
             if (inDungeon) {
@@ -252,7 +269,8 @@ public final class DungeonInfoFeature {
                 TranslateFeature.sendGenerated(cfg.getPrinceMessage(), "pc");
             }
         } else {
-            boolean send = inDungeon && cfg.isBatMessageEnabled() && !batKilledThisRun;
+            boolean send = inDungeon && cfg.isBatMessageEnabled() && !batKilledThisRun
+                    && !InteropFeature.alreadyAnnouncedInParty(PartyInteropState.Flag.BAT_KILLED);
             LOGGER.info("[DungeonInfo] Bat kill line seen (inDungeon={} enabled={} alreadySentThisRun={} -> send={}): \"{}\"",
                     inDungeon, cfg.isBatMessageEnabled(), batKilledThisRun, send, plain);
             if (inDungeon) {

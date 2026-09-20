@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.TicTacToeSolverConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -39,15 +37,7 @@ public class TicTacToeSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Prediction", cfg.isShowPrediction()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Reads the map item frames and outlines the best move (green) on your turn."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Prediction outlines your likely next move (yellow). Never clicks."),
-                Minecraft.getInstance().font));
         return widgets;
     }
 

@@ -6,7 +6,6 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -76,6 +75,8 @@ public final class BeamsSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(BeamsSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BeamsSolverFeature::onWorldRender);
     }
@@ -180,13 +181,13 @@ public final class BeamsSolverFeature {
         }
         for (ActivePair pair : activePairs) {
             float[] color = COLORS[pair.colorIndex()];
-            WorldRenderUtils.renderOutlineBox(context, new AABB(pair.a()), color[0], color[1], color[2], 1f, 2f);
-            WorldRenderUtils.renderOutlineBox(context, new AABB(pair.b()), color[0], color[1], color[2], 1f, 2f);
+            SolverEspRender.renderOutlineBox(context, new AABB(pair.a()), color[0], color[1], color[2], 1f, 2f);
+            SolverEspRender.renderOutlineBox(context, new AABB(pair.b()), color[0], color[1], color[2], 1f, 2f);
             if (cfg.isShowTracer()) {
                 List<Vec3> line = List.of(
                         new Vec3(pair.a().getX() + 0.5, pair.a().getY() + 0.5, pair.a().getZ() + 0.5),
                         new Vec3(pair.b().getX() + 0.5, pair.b().getY() + 0.5, pair.b().getZ() + 0.5));
-                WorldRenderUtils.renderLineStrip(context, line, color[0], color[1], color[2], 1f, 2f);
+                SolverEspRender.renderLineStrip(context, line, color[0], color[1], color[2], 1f, 2f);
             }
         }
     }

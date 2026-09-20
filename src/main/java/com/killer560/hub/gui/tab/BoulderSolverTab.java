@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.BoulderSolverConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -40,15 +38,6 @@ public class BoulderSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show All Remaining Clicks", cfg.isShowAllClicks()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Highlights the real Boulder puzzle's solution tile(s) - never"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7clicks for you, only shows where to click."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

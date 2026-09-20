@@ -3,7 +3,6 @@ package com.killer560.hub.puzzlesolvers;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -62,6 +61,8 @@ public final class TeleportMazeSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(TeleportMazeSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TeleportMazeSolverFeature::onWorldRender);
     }
@@ -286,19 +287,19 @@ public final class TeleportMazeSolverFeature {
             AABB box = shape.isEmpty() ? new AABB(pad) : shape.bounds().move(pad);
             if (correctPortals.contains(pad)) {
                 if (correctPortals.size() == 1) {
-                    WorldRenderUtils.renderFilledBox(context, box, 0.33f, 1.0f, 0.33f, 0.5f);
+                    SolverEspRender.renderFilledBox(context, box, 0.33f, 1.0f, 0.33f, 0.5f);
                 } else {
-                    WorldRenderUtils.renderFilledBox(context, box, 1.0f, 0.67f, 0.0f, 0.5f);
+                    SolverEspRender.renderFilledBox(context, box, 1.0f, 0.67f, 0.0f, 0.5f);
                 }
             } else if (visited.contains(pad)) {
-                WorldRenderUtils.renderFilledBox(context, box, 1.0f, 0.33f, 0.33f, 0.5f);
+                SolverEspRender.renderFilledBox(context, box, 1.0f, 0.33f, 0.33f, 0.5f);
             } else {
-                WorldRenderUtils.renderFilledBox(context, box, 1.0f, 1.0f, 1.0f, 0.5f);
+                SolverEspRender.renderFilledBox(context, box, 1.0f, 1.0f, 1.0f, 0.5f);
             }
         }
         BlockPos target = best;
         if (cfg.isShowTracer() && target != null) {
-            WorldRenderUtils.renderLineStrip(context, List.of(client.player.getEyePosition(),
+            SolverEspRender.renderLineStrip(context, List.of(client.player.getEyePosition(),
                     new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)), 0.33f, 1.0f, 1.0f, 1f, 2f);
         }
     }

@@ -46,7 +46,8 @@ import java.util.regex.Pattern;
 
 /**
  * Runs one AP3 chain: the movement, alignment, waiting and advancing. CHEAT BUILD ONLY - only ever started by
- * {@link Ap3Feature} behind {@link Ap3Config#isEnabled()} and the BOSS-ONLY + P3 gate.
+ * {@link Ap3Feature} behind {@link Ap3Config#isEnabled()} and the BOSS-ONLY gate (any boss phase, one chain per
+ * {@link Ap3Area}).
  * <p>
  * <b>Movement</b> is written as the analog {@code moveVector} through {@code mixin/Ap3InputMixin} (falling back to
  * holding the key mappings when the mixin config is not loaded, exactly like {@code RouteExecutor}). A WALK / RUN
@@ -64,7 +65,8 @@ import java.util.regex.Pattern;
  * <b>Stopping</b>: the player's own movement keys (mixin path: the untouched {@code keyPresses}; fallback path: the
  * physical keys through {@code KeyMappingKeyAccessor}, since the held mappings would report our own state), their
  * mouse while the camera is being driven ({@link RouteRotation#userMovedCamera} - latched inside the per-frame step
- * before the write), any screen the active node did not ask for, world change, death, leaving P3, and the STOP
+ * before the write), any screen the active node did not ask for, world change, death, leaving the boss, a p3sim
+ * restart, and the STOP
  * command / tab button all release every key and clear the rotation controller. There is no auto-arming, so a stop
  * stays stopped.
  */
@@ -115,7 +117,7 @@ public final class Ap3Executor {
     private static Object lastLevel;
     private static boolean stoppedByUser;
     private static boolean completedNormally;
-    private static int completedSection;
+    private static Ap3Area completedArea;
     private static int cameraGraceTicks;
 
     // ---- manual click (the player's physical left button) ----
@@ -179,33 +181,29 @@ public final class Ap3Executor {
         stoppedByUser = false;
     }
 
-    /** The section of a chain that just ran to its END (0 when none) - consumed once by {@link Ap3Feature} for
-     *  "continue into next section", which must never restart the section that just finished. */
-    static int consumeCompletedSection() {
-        int s = completedNormally ? completedSection : 0;
+    /** The area of a chain that just ran to its END (null when none) - consumed once by {@link Ap3Feature} for
+     *  "continue into next section", which must never restart the area that just finished. */
+    static Ap3Area consumeCompletedArea() {
+        Ap3Area a = completedNormally ? completedArea : null;
         completedNormally = false;
-        return s;
+        return a;
     }
 
-    /** Starts the chain for the section you are standing in and the class you are playing. */
+    /** Starts the chain for the boss area you are standing in and the class you are playing. */
     public static boolean start() {
         if (!Ap3Config.getInstance().isEnabled()) {
             chatBad("AP3 is off (cheat build + Skyblock only).");
             return false;
         }
-        if (!Ap3Feature.isP3Live()) {
-            chatBad("Not in F7/M7 Phase 3 - AP3 is boss-only.");
-            return false;
-        }
-        int section = Ap3Feature.currentSectionNumber();
-        if (section == 0) {
-            chatBad("Stand in a P3 section (S1-S5) first.");
+        Ap3Area area = Ap3Feature.currentArea();
+        if (area == null) {
+            chatBad(Ap3Feature.noAreaReason());
             return false;
         }
         DungeonClass playing = Ap3Feature.selfClass();
-        Ap3Chain c = Ap3Store.getInstance().forSection(section, playing);
+        Ap3Chain c = Ap3Store.getInstance().forArea(area, playing);
         if (c == null || c.isEmpty()) {
-            chatBad("No chain for S" + section + (playing == null ? "" : " (" + playing.displayName() + " or any class)")
+            chatBad("No chain for " + area.label() + (playing == null ? "" : " (" + playing.displayName() + " or any class)")
                     + " - add nodes with /ap3 add.");
             return false;
         }
@@ -446,7 +444,7 @@ public final class Ap3Executor {
     private static void complete() {
         LOGGER.info("[AP3] Chain {} complete", chain.label());
         boolean feedback = Ap3Config.getInstance().isChatFeedback();
-        completedSection = chain.section();
+        completedArea = chain.area();
         stop(null);
         completedNormally = true;
         if (feedback) {
@@ -742,15 +740,23 @@ public final class Ap3Executor {
                 return true;
             }
             default -> {
-                LeapTarget target = switch (chain.section()) {
-                    case 1 -> LeapTarget.S1;
-                    case 2 -> LeapTarget.S2;
-                    case 3 -> LeapTarget.S3;
-                    case 4 -> LeapTarget.S4;
+                // Fast Leap's target for the chain's area. P2 has five targets (predev, green, yellow, purple, py)
+                // and S5 none, so neither has a single default - those leaps need a class or IGN.
+                LeapTarget target = switch (chain.phase()) {
+                    case P1 -> LeapTarget.P1;
+                    case P3 -> switch (chain.section()) {
+                        case 1 -> LeapTarget.S1;
+                        case 2 -> LeapTarget.S2;
+                        case 3 -> LeapTarget.S3;
+                        case 4 -> LeapTarget.S4;
+                        default -> null;
+                    };
+                    case P4 -> LeapTarget.P4;
+                    case P5 -> LeapTarget.RELIC;
                     default -> null;
                 };
                 if (target == null) {
-                    stop("Fast Leap has no S5 target - give leap #" + number(node) + " a class or IGN");
+                    stop("Fast Leap has no single " + chain.area().label() + " target - give leap #" + number(node) + " a class or IGN");
                     return false;
                 }
                 String name = cfg.getTargetName(target);

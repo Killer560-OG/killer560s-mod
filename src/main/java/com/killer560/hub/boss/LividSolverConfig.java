@@ -24,6 +24,8 @@ public final class LividSolverConfig {
 
     private boolean enabled = false;
     private boolean showTimer = true;
+    /** killer560, 2026-09-20: "add an option to draw a line to the correct livid". */
+    private boolean showLine = true;
 
     private LividSolverConfig() {
     }
@@ -46,6 +48,7 @@ public final class LividSolverConfig {
             LividSolverConfig cfg = new LividSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showTimer = ConfigJson.getBool(obj, "showTimer", true);
+            cfg.showLine = ConfigJson.getBool(obj, "showLine", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new LividSolverConfig();
@@ -58,6 +61,7 @@ public final class LividSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTimer", showTimer);
+            obj.addProperty("showLine", showLine);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -77,5 +81,13 @@ public final class LividSolverConfig {
 
     public void setShowTimer(boolean showTimer) {
         this.showTimer = showTimer;
+    }
+
+    public boolean isShowLine() {
+        return showLine;
+    }
+
+    public void setShowLine(boolean showLine) {
+        this.showLine = showLine;
     }
 }

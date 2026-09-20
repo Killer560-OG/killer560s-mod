@@ -19,6 +19,14 @@ public final class DungeonExtrasConfig {
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-dungeonextras.json");
 
     public static final int DEFAULT_BEAM_COLOR = 0xFFCC6600;
+    /** Mage beam thickness range. killer560 (2026-09-20): "make it so the width is much more impactful" -
+     *  the old 1-6 range fed a GL line width, which the driver clamps to 1px on a core profile, so the
+     *  slider did almost nothing. The beam is now a world-space billboard quad (see
+     *  {@link MageBeamFeature}) and this is its thickness in {@link #BEAM_WIDTH_BLOCKS} units. */
+    public static final float MIN_BEAM_WIDTH = 1f;
+    public static final float MAX_BEAM_WIDTH = 20f;
+    /** Blocks of real beam thickness per width unit: 1.0 -> 5cm, the default 2.0 -> 10cm, 20 -> a full block. */
+    public static final float BEAM_WIDTH_BLOCKS = 0.05f;
 
     private static DungeonExtrasConfig instance;
 
@@ -64,7 +72,7 @@ public final class DungeonExtrasConfig {
                 cfg.mageBeamHideParticles = bool(o, "mageBeamHideParticles", cfg.mageBeamHideParticles);
                 cfg.mageBeamFade = bool(o, "mageBeamFade", cfg.mageBeamFade);
                 cfg.mageBeamColor = o.has("mageBeamColor") ? o.get("mageBeamColor").getAsInt() : cfg.mageBeamColor;
-                cfg.mageBeamWidth = clamp(o.has("mageBeamWidth") ? o.get("mageBeamWidth").getAsFloat() : cfg.mageBeamWidth, 1f, 6f);
+                cfg.mageBeamWidth = clamp(o.has("mageBeamWidth") ? o.get("mageBeamWidth").getAsFloat() : cfg.mageBeamWidth, MIN_BEAM_WIDTH, MAX_BEAM_WIDTH);
                 cfg.mageBeamDurationTicks = clampInt(o.has("mageBeamDurationTicks") ? o.get("mageBeamDurationTicks").getAsInt() : cfg.mageBeamDurationTicks, 5, 100);
                 cfg.autoDialogueEnabled = bool(o, "autoDialogueEnabled", cfg.autoDialogueEnabled);
                 cfg.autoDialogueDelayTicks = clampInt(o.has("autoDialogueDelayTicks") ? o.get("autoDialogueDelayTicks").getAsInt() : cfg.autoDialogueDelayTicks, 0, 40);
@@ -128,7 +136,7 @@ public final class DungeonExtrasConfig {
     public int getMageBeamColor() { return mageBeamColor; }
     public void setMageBeamColor(int v) { mageBeamColor = v; }
     public float getMageBeamWidth() { return mageBeamWidth; }
-    public void setMageBeamWidth(float v) { mageBeamWidth = clamp(v, 1f, 6f); }
+    public void setMageBeamWidth(float v) { mageBeamWidth = clamp(v, MIN_BEAM_WIDTH, MAX_BEAM_WIDTH); }
     public int getMageBeamDurationTicks() { return mageBeamDurationTicks; }
     public void setMageBeamDurationTicks(int v) { mageBeamDurationTicks = clampInt(v, 5, 100); }
 

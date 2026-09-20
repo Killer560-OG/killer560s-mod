@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.ap3.Ap3Area;
 import com.killer560.hub.ap3.Ap3Chain;
 import com.killer560.hub.ap3.Ap3Commands;
 import com.killer560.hub.ap3.Ap3Commands.Action;
@@ -143,28 +144,21 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         int[] y = {contentY};
         int half = (contentWidth - GAP) / 2;
 
-        label(w, contentX, y, contentWidth, "§7Walks a hand-placed node chain through each F7/M7 Phase 3 section. Boss only, never in clear. Use at your own risk.");
-
         header(w, contentX, y, contentWidth, "AP3");
         toggle(w, contentX, y, "AP3", cfg::isEnabledRaw, cfg::setEnabled, requestRebuild);
         if (!cfg.isEnabledRaw()) {
             return w;
         }
         label(w, contentX, y, contentWidth, statusLine());
-        label(w, contentX, y, contentWidth, "§7Any movement key stops a running chain. Moving the mouse stops it only while a Look node is "
-                + "turning the camera - walk and run nodes leave the camera to you. A left-click satisfies "
-                + "whatever the chain is waiting on (terminal, leap, wait).");
 
         header(w, contentX, y, contentWidth, "Movement");
         // These had no control at all and were reachable only by hand-editing the JSON - including the
         // 45-degree walk killer560 specifically asked for (2026-09-16 review).
         toggle(w, contentX, y, "45° Walk Angle", cfg::isDiagonalWalk, cfg::setDiagonalWalk, null);
-        label(w, contentX, y, contentWidth, "§7Walk and run nodes travel at the diagonal input speed (about 2% faster). "
-                + "The direction you travel is unchanged, and your camera is never turned.");
+        // Label kept (it is the tooltip key and the settings key stays "continueIntoNextSection"); it now means the
+        // next AREA - P1 -> P2 -> S1.. -> P4 -> P5 - not only the next P3 section.
         toggle(w, contentX, y, "Continue Into Next Section", cfg::isContinueIntoNextSection,
                 cfg::setContinueIntoNextSection, null);
-        label(w, contentX, y, contentWidth, "§7After a chain finishes, start the next section's chain automatically. "
-                + "Never resumes a chain you stopped yourself.");
         toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
 
         buildChainSection(w, contentX, y, contentWidth, half, requestRebuild);
@@ -179,7 +173,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private void buildChainSection(List<AbstractWidget> w, int x, int[] y, int width, int half, Runnable rebuild) {
         // "Chain:" with a colon so the tooltip key stays "chain" whatever section follows (SettingTooltips cuts at ':').
-        header(w, x, y, width, "Chain: " + Ap3Commands.sectionName());
+        header(w, x, y, width, "Chain: " + Ap3Commands.areaName());
 
         List<Ap3Node> nodes;
         try {
@@ -218,10 +212,9 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += ROW + GAP;
 
         if (nodes.isEmpty()) {
-            label(w, x, y, width, "§7No chain for " + Ap3Commands.sectionName() + " yet. Stand where a node goes and use the buttons below or /ap3 add <type>.");
+            label(w, x, y, width, "§7No chain for " + Ap3Commands.areaName() + " yet. Stand where a node goes and use the buttons below or /ap3 add <type>.");
             return;
         }
-        label(w, x, y, width, "§7Nodes run top to bottom; the number on a row is the number on its world label. Edit opens a node's own page (reorder, re-place, length, wait, leap target...).");
 
         int labelW = Math.max(1, width - EDIT_W - DEL_W - GAP * 2);
         for (int i = 0; i < nodes.size(); i++) {
@@ -246,7 +239,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     /** The node-adding buttons, three per row, then the wait row (a number box + its own Add button). */
     private void buildAddSection(List<AbstractWidget> w, int x, int[] y, int width, Runnable rebuild) {
         header(w, x, y, width, "Add Node");
-        label(w, x, y, width, "§7Adds a node at your feet (walk/run remember the direction you're facing; leap uses Fast Leap's target unless given a class or IGN).");
         Action[] adders = {
                 Action.ADD_LINE, Action.ADD_AXIS_LINE, Action.ADD_WALK,
                 Action.ADD_RUN, Action.ADD_LEAP, Action.ADD_LEAP_DETECTOR,
@@ -300,8 +292,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                     rebuild.run();
                 }).bounds(x + half + GAP, y[0], half, 20).build());
         y[0] += 24;
-        label(w, x, y, width, "§7All chains live in one file: §f" + Ap3Commands.CHAINS_FILE_NAME);
-        label(w, x, y, width, "§7Edit it in Notepad or hand it to someone as-is. Paste a friend's copy in, then Reload - no restart.");
     }
 
     private void buildColourSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, int half, Runnable rebuild) {
@@ -342,7 +332,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isShowLabels()) {
             return;
         }
-        label(w, x, y, width, "§7Each node's label floats above it in the world: its number in the chain (1 = first), its type, and its modifier.");
         int colW = (width - GAP * 2) / 3;
         toggleCell(w, x, y[0], colW, "Show Node Numbers", cfg::isShowNodeNumbers, cfg::setShowNodeNumbers);
         toggleCell(w, x + colW + GAP, y[0], colW, "Show Node Type", cfg::isShowNodeType, cfg::setShowNodeType);
@@ -372,7 +361,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     /** Read-only view of the mod-wide table so a leap node's target is explainable from here; edited elsewhere. */
     private void buildOverridesSection(List<AbstractWidget> w, int x, int[] y, int width) {
         header(w, x, y, width, "Class Overrides");
-        label(w, x, y, width, "§7Leap nodes with a class modifier pick whoever this table says has that class (then the tab list). Edit it in Dungeon > Class Overrides.");
         Map<String, DungeonClass> all;
         try {
             all = ClassOverrides.all();
@@ -390,7 +378,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private void buildKeybindSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width) {
         header(w, x, y, width, "AP3 Keybinds");
-        label(w, x, y, width, "§7Click a row, press a key. Esc clears. Keys only work in-game, never while a menu or chat is open.");
         for (Action action : Action.values()) {
             w.add(SettingsButtonWidget.builder(keyText(action, cfg.getKeybind(action.id)), btn -> {
                         capturing = action;
@@ -458,8 +445,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                     rebuild.run();
                 }).bounds(x + half + GAP, y[0], half, ROW).build());
         y[0] += ROW + GAP;
-        label(w, x, y, width, "§7Move To My Position also takes your look direction; Set Look To Mine only turns the node "
-                + "(walk/run direction, line axis, look target).");
 
         buildTypeFields(w, node, x, y, width, half, rebuild);
 
@@ -492,7 +477,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         switch (node.type()) {
             case LINE, AXIS_LINE -> {
                 header(w, x, y, width, "Corridor");
-                label(w, x, y, width, "§7Length = how far along the line the node stays active. Width = the band it still corrects inside.");
                 w.add(slider(x, y[0], half, lengthText(node), Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH, node.length(), 0.1,
                         node::setLength, () -> lengthText(node), Ap3Feature::saveChains));
                 w.add(slider(x + half + GAP, y[0], half, widthText(node), Ap3Node.MIN_WIDTH, Ap3Node.MAX_WIDTH, node.width(), 0.1,
@@ -505,14 +489,12 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             }
             case WALK, RUN -> {
                 header(w, x, y, width, "Travel");
-                label(w, x, y, width, "§7How far to travel in the node's direction, without turning your camera.");
                 w.add(slider(x, y[0], width, lengthText(node), Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH, node.length(), 0.1,
                         node::setLength, () -> lengthText(node), Ap3Feature::saveChains));
                 y[0] += ROW + GAP;
             }
             case WAIT -> {
                 header(w, x, y, width, "Wait");
-                label(w, x, y, width, "§7Milliseconds to stand still (a manual left-click skips it when the chain runs).");
                 int boxW = 90;
                 w.add(new StringWidget(x, y[0] + 3, 60, 12, Component.literal("Wait ms:"), Minecraft.getInstance().font));
                 // "Node Wait ms", not "Wait ms": the Add section's box already owns that tooltip key and describes
@@ -533,7 +515,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             }
             case LEAP -> {
                 header(w, x, y, width, "Leap Target");
-                label(w, x, y, width, "§7Fast Leap target = whoever Fast Leap's P3 target for this section resolves to. Class = first alive teammate of that class (class overrides apply).");
                 w.add(SettingsButtonWidget.builder(leapModeText(node), btn -> {
                             Ap3Node.LeapMode[] all = Ap3Node.LeapMode.values();
                             node.leapMode = all[(node.leapMode().ordinal() + 1) % all.length];
@@ -568,7 +549,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             }
             case LEAP_DETECTOR -> {
                 header(w, x, y, width, "Leap Detector");
-                label(w, x, y, width, "§7How many teammates must leap to you before the chain moves on.");
                 w.add(slider(x, y[0], width, leapCountText(node), 1, Ap3Node.MAX_LEAP_COUNT, node.leapCount(), 1,
                         v -> node.setLeapCount((int) Math.round(v)), () -> leapCountText(node), Ap3Feature::saveChains));
                 y[0] += ROW + GAP;
@@ -576,8 +556,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             case BREAKER -> {
                 header(w, x, y, width, "Breaker Blocks");
                 int count = node.breakerBlocks().size();
-                label(w, x, y, width, "§7" + count + " block" + (count == 1 ? "" : "s") + " of " + Ap3Store.MAX_BREAKER_BLOCKS
-                        + ". Turn on Breaker Edit Mode, then right-click blocks to add them and shift-right-click to remove.");
+                label(w, x, y, width, "§7" + count + " block" + (count == 1 ? "" : "s") + " of " + Ap3Store.MAX_BREAKER_BLOCKS + ".");
                 w.add(SettingsButtonWidget.builder(onOff("Breaker Edit Mode", safe(Ap3Feature::isEditMode)), btn -> {
                             Action.EDIT_BREAKER.run();
                             rebuild.run();
@@ -630,21 +609,30 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     /** Which gate is closed, or what's happening - BOSS ONLY is the rule that most needs to be visible. */
     private static String statusLine() {
-        boolean inBoss = safe(Floor7Tracker::inF7Boss);
-        if (!inBoss) {
-            return "§7AP3 status: not in the F7/M7 boss. AP3 only ever runs in Phase 3 - nothing arms in clear.";
+        if (!safe(Floor7Tracker::inF7Boss)) {
+            return "§7AP3 status: not in the F7/M7 boss - nothing arms in clear.";
         }
-        if (!safe(Ap3Commands::inP3)) {
-            return "§eAP3 status: in boss, waiting for Phase 3.";
+        if (!safe(Ap3Commands::inBoss)) {
+            return "§eAP3 status: in boss, phase not known yet.";
         }
-        String section = Ap3Commands.sectionName();
+        String where;
+        try {
+            Ap3Area area = Ap3Feature.currentArea();
+            where = area != null ? area.longLabel() : Ap3Feature.currentPhase().name() + " (not inside a section)";
+        } catch (Exception e) {
+            where = "?";
+        }
+        // "(p3sim)" so it's visible the gate opened from the sim's own Maxor line / your position, not Goldor's line.
+        if (safe(Floor7Tracker::isOnP3Sim)) {
+            where += " (p3sim)";
+        }
         if (safe(Ap3Executor::isRunning)) {
-            return "§aAP3 status: Phase 3, " + section + " - chain running.";
+            return "§aAP3 status: " + where + " - chain running.";
         }
         if (safe(Ap3Feature::isEditMode)) {
-            return "§eAP3 status: Phase 3, " + section + " - breaker edit mode, right-click blocks to add, shift-right-click to remove.";
+            return "§eAP3 status: " + where + " - breaker edit mode, right-click blocks to add, shift-right-click to remove.";
         }
-        return "§aAP3 status: Phase 3, " + section + " - idle.";
+        return "§aAP3 status: " + where + " - idle.";
     }
 
     private Component keyText(Action action, int key) {

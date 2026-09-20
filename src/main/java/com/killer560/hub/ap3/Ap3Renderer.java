@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Node markers for the current section's chain: a small box per node, the corridor (centre line + width edges) of a
+ * Node markers for the current area's chain: a small box per node, the corridor (centre line + width edges) of a
  * LINE / AXIS_LINE for its length, an arrow for a WALK / RUN's travel, the chain line between consecutive nodes, the
  * active node in its own colour, 1-based labels with length / width, and in edit mode a faint highlight on every
  * block a BREAKER node will break (air = red outline, present = white fill - QUOI's DB editor).

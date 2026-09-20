@@ -2,10 +2,9 @@ package com.killer560.hub.maxor;
 
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.AABB;
+
+import java.util.List;
 
 /**
  * Optional highlight for the Energy Crystals that are really in the world during F7/M7 Phase 1.
@@ -22,18 +21,19 @@ public final class MaxorCrystalsRenderer {
     }
 
     static void render(LevelRenderContext context) {
+        // 2026-09-20 FPS pass: the crystal list comes from MaxorCrystalsFeature's client tick now. This used
+        // to walk entitiesForRendering() here, i.e. once per FRAME, whenever the highlight was on.
+        List<AABB> boxes = MaxorCrystalsFeature.highlightBoxes();
+        if (boxes.isEmpty()) {
+            return;
+        }
         MaxorConfig cfg = MaxorConfig.getInstance();
-        Minecraft client = Minecraft.getInstance();
-        if (!cfg.isHighlightEnabled() || client.level == null || client.player == null
-                || !MaxorCrystalsFeature.inP1()) {
+        if (!cfg.isHighlightEnabled()) {
             return;
         }
         float[] c = WorldRenderUtils.argbToFloats(cfg.getHighlightColor());
-        for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity.getType() != EntityType.END_CRYSTAL) {
-                continue;
-            }
-            AABB box = entity.getBoundingBox();
+        for (int i = 0; i < boxes.size(); i++) {
+            AABB box = boxes.get(i);
             WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
             if (cfg.isHighlightFilled()) {
                 WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], 0.3f);

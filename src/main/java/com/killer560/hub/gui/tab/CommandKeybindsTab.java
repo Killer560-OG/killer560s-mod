@@ -5,46 +5,56 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Command Keybinds settings - see
- *  {@link com.killer560.hub.commandkeybinds.CommandKeybindsFeature}'s class doc for the real
- *  Odin-ported menu-command shortcuts this is built on. {@code capturing}: 0 none, 1-8 one per bind. */
+/** Chat Keybinds settings - see {@link com.killer560.hub.commandkeybinds.CommandKeybindsFeature}'s class doc.
+ *  One row per bind: the key (or mouse button) and the exact line it sends. Renamed from "Command Keybinds"
+ *  on 2026-09-20 when killer560 asked to type his own command/message per bind; the old 8 fixed menu binds
+ *  are migrated into rows by {@link CommandKeybindsConfig}, so existing keys keep working. */
 public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
 
-    private int capturing = 0;
+    private CommandKeybindsConfig.Bind capturing = null;
 
     public CommandKeybindsTab() {
-        super("Command Keybinds");
+        super("Chat Keybinds");
     }
 
     @Override
     public boolean isListeningForKey() {
-        return capturing != 0;
+        return capturing != null;
     }
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        CommandKeybindsConfig cfg = CommandKeybindsConfig.getInstance();
-        int key = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
-        switch (capturing) {
-            case 1 -> cfg.setPetsKey(key);
-            case 2 -> cfg.setStorageKey(key);
-            case 3 -> cfg.setArmorKey(key);
-            case 4 -> cfg.setEquipmentKey(key);
-            case 5 -> cfg.setLoadoutsKey(key);
-            case 6 -> cfg.setStatsKey(key);
-            case 7 -> cfg.setDungeonHubKey(key);
-            case 8 -> cfg.setPotionBagKey(key);
-            default -> {
-            }
+        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+    }
+
+    /** Lets {@code ModScreen} route the next mouse press here instead of to the widget under the cursor.
+     *  Not yet an interface method - the {@code KeyCaptureTab}/{@code ModScreen} patch is in this wave's
+     *  staging notes; it becomes an override the moment that lands. */
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    /** Mouse half of the capture (killer560: "make all of the keybind things compatible with mouse buttons
+     *  and middle mouse buttons"). Not yet an interface method - {@code ModScreen}'s routing patch is in this
+     *  wave's staging notes; until it lands this simply never gets called. */
+    public void onMouseCaptured(int button) {
+        applyCapture(CommandKeybindsConfig.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int code) {
+        if (capturing == null) {
+            return;
         }
-        capturing = 0;
-        cfg.save();
+        capturing.key = code;
+        capturing = null;
+        CommandKeybindsConfig.getInstance().save();
     }
 
     @Override
@@ -52,56 +62,85 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
         CommandKeybindsConfig cfg = CommandKeybindsConfig.getInstance();
+        var font = Minecraft.getInstance().font;
+        int gap = 8;
+        int half = (contentWidth - gap) / 2;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Command Keybinds", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+        widgets.add(SettingsButtonWidget.builder(onOff("Chat Keybinds", cfg.isEnabledRaw()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
-        y = addBind(widgets, contentX, y, contentWidth, "Pets", cfg.getPetsKey(), 1);
-        y = addBind(widgets, contentX, y, contentWidth, "Storage", cfg.getStorageKey(), 2);
-        y = addBind(widgets, contentX, y, contentWidth, "Armor Wardrobe", cfg.getArmorKey(), 3);
-        y = addBind(widgets, contentX, y, contentWidth, "Equip Wardrobe", cfg.getEquipmentKey(), 4);
-        y = addBind(widgets, contentX, y, contentWidth, "Loadouts", cfg.getLoadoutsKey(), 5);
-        y = addBind(widgets, contentX, y, contentWidth, "Stats", cfg.getStatsKey(), 6);
-        y = addBind(widgets, contentX, y, contentWidth, "Dungeon Hub", cfg.getDungeonHubKey(), 7);
-        y = addBind(widgets, contentX, y, contentWidth, "Potion Bag", cfg.getPotionBagKey(), 8);
-        y += 4;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("+ Add Bind"), btn -> {
+                    cfg.addBind();
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, half, 18).build());
+        y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Each bind sends the real command exactly as if you'd typed it."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Esc clears a bind."),
-                Minecraft.getInstance().font));
+        int keyW = 90;
+        int deleteW = 50;
+        int textW = contentWidth - keyW - deleteW - gap * 2;
+        for (CommandKeybindsConfig.Bind bind : new ArrayList<>(cfg.binds())) {
+            int x = contentX;
+            widgets.add(SettingsButtonWidget.builder(keyText(bind), btn -> {
+                        capturing = bind;
+                        btn.setMessage(Component.literal("Press any key..."));
+                    }).bounds(x, y, keyW, 18).build());
+            x += keyW + gap;
+
+            EditBox textField = new EditBox(font, x, y, textW, 18, Component.literal("Command or message"));
+            textField.setMaxLength(200);
+            textField.setValue(bind.text);
+            textField.setHint(Component.literal("§8/pets  or  gg"));
+            textField.setResponder(text -> {
+                bind.text = text;
+                cfg.save();
+            });
+            widgets.add(textField);
+            x += textW + gap;
+
+            widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
+                        cfg.removeBind(bind);
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(x, y, deleteW, 18).build());
+            y += 22;
+        }
+
+        if (cfg.binds().isEmpty()) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§7No binds yet - hit \"+ Add Bind\"."), font));
+        }
 
         return widgets;
-    }
-
-    private int addBind(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, String label, int key, int index) {
-        widgets.add(SettingsButtonWidget.builder(keyText(label, key, index), btn -> {
-                    capturing = index;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        return y + 22;
     }
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
-    private Component keyText(String label, int key, int index) {
-        if (capturing == index) {
+    private Component keyText(CommandKeybindsConfig.Bind bind) {
+        if (capturing == bind) {
             return Component.literal("Press any key...");
         }
-        String name = key == -1 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
-        return Component.literal(label + ": " + name);
+        return Component.literal("Key: " + bindName(bind.key));
+    }
+
+    /** Display name for a keyboard code or a stored mouse code (see {@code CommandKeybindsConfig}). */
+    static String bindName(int code) {
+        if (code == -1) {
+            return "Not Set";
+        }
+        return CommandKeybindsConfig.isMouseCode(code)
+                ? InputConstants.Type.MOUSE.getOrCreate(CommandKeybindsConfig.mouseButton(code))
+                        .getDisplayName().getString()
+                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
     }
 }

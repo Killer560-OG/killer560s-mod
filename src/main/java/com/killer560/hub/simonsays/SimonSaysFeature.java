@@ -811,8 +811,12 @@ public final class SimonSaysFeature {
             announceKeyWasDown = false;
             return;
         }
+        // Real bug (2026-09-20 tooltip/config sweep): this fired on the raw key state anywhere at all -
+        // including with chat open and with Simon Says switched off - so typing the bound letter into
+        // chat sent "/pc Resetting Simon Says" to the party. The Restart Key next to it already got
+        // this right (see tickRestartKeybind's client.screen == null check); this one never did.
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
-        if (down && !announceKeyWasDown) {
+        if (down && !announceKeyWasDown && client.screen == null && cfg.isEnabled()) {
             LOGGER.info("[SimonSays] Manual announce via keybind.");
             if (client.player != null) {
                 client.player.connection.sendCommand("pc " + cfg.getResetMessageText());

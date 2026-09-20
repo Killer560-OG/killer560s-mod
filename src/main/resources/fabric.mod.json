@@ -74,7 +74,8 @@
     "killer560smod-chunkcache.mixins.json",
     "killer560smod-pathfinding.mixins.json",
     "killer560smod-itemprotect.mixins.json",
-    "killer560smod-objecthider.mixins.json"
+    "killer560smod-objecthider.mixins.json",
+    "killer560smod-relay.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",

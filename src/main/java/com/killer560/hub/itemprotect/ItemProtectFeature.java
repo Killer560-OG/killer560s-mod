@@ -6,6 +6,7 @@ import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -65,6 +66,11 @@ public final class ItemProtectFeature {
         }
 
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> handleKey(containerScreen, event.key()));
+        // A lock/protect bind can be a mouse button now (killer560, 2026-09-20: "make all of the keybind
+        // things compatible with mouse buttons and middle mouse buttons"), and a mouse press in a container
+        // screen never reaches allowKeyPress, so it needs its own funnel.
+        ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
+                handleKey(containerScreen, ItemProtectConfig.codeForMouseButton(event.button())));
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
                 render(containerScreen, graphics));
@@ -73,7 +79,7 @@ public final class ItemProtectFeature {
     /** @return false to swallow the key (a lock/protect toggle), true to let the screen handle it. */
     private static boolean handleKey(AbstractContainerScreen<?> screen, int key) {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
-        if (!cfg.isEnabled() || !KeyUtil.isValidKey(key)) {
+        if (!cfg.isEnabled() || !ItemProtectConfig.isBoundCode(key)) {
             return true;
         }
         long now = System.currentTimeMillis();
@@ -140,9 +146,20 @@ public final class ItemProtectFeature {
     private static boolean peeking() {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        return cfg.isProtectItemEnabled()
-                && client != null
-                && KeyUtil.isKeyDown(client.getWindow(), cfg.getPeekKey());
+        return cfg.isProtectItemEnabled() && client != null && isBindDown(client, cfg.getPeekKey());
+    }
+
+    /** Polls a keyboard code through {@link KeyUtil} or a mouse code through {@code glfwGetMouseButton}.
+     *  Local helper until {@code KeyUtil} itself learns about mouse binds - patch in this wave's notes. */
+    private static boolean isBindDown(Minecraft client, int code) {
+        if (code == KeyUtil.NONE || client.getWindow() == null) {
+            return false;
+        }
+        if (ItemProtectConfig.isMouseCode(code)) {
+            return org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().handle(),
+                    ItemProtectConfig.mouseButton(code)) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        }
+        return KeyUtil.isKeyDown(client.getWindow(), code);
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
@@ -152,7 +169,10 @@ public final class ItemProtectFeature {
         }
         boolean drawLocks = cfg.isSlotLockEnabled();
         boolean drawProtected = peeking();
-        if (!drawLocks && !drawProtected) {
+        // killer560 (2026-09-20): "put a little lock next to them in a corner so I know they are safe" - the
+        // protected-item marker used to only exist while the peek key was held.
+        boolean drawProtectedIcon = cfg.isProtectItemEnabled() && cfg.isProtectedIconEnabled();
+        if (!drawLocks && !drawProtected && !drawProtectedIcon) {
             return;
         }
 
@@ -168,10 +188,28 @@ public final class ItemProtectFeature {
                 drawLockMarker(graphics, x, y, cfg.getLockColor(), cfg.getLockStyle());
                 continue;
             }
-            if (drawProtected && ItemProtect.isProtectedItem(slot.getItem())) {
-                graphics.outline(x - 1, y - 1, 18, 18, cfg.getProtectedColor());
+            if ((drawProtected || drawProtectedIcon) && ItemProtect.isProtectedItem(slot.getItem())) {
+                if (drawProtected) {
+                    graphics.outline(x - 1, y - 1, 18, 18, cfg.getProtectedColor());
+                }
+                if (drawProtectedIcon) {
+                    drawSmallLock(graphics, x, y, cfg.getProtectedColor());
+                }
             }
         }
+    }
+
+    /** A 6x7 padlock in the slot's TOP-LEFT corner - the opposite corner to the slot-lock marker and to
+     *  vanilla's stack count, so a protected stack still shows its number. */
+    private static void drawSmallLock(GuiGraphicsExtractor graphics, int x, int y, int color) {
+        int shadow = 0xFF000000;
+        graphics.fill(x, y, x + 7, y + 8, shadow);
+        // shackle: two posts + a cap
+        graphics.fill(x + 2, y + 1, x + 3, y + 3, color);
+        graphics.fill(x + 4, y + 1, x + 5, y + 3, color);
+        graphics.fill(x + 2, y + 1, x + 5, y + 2, color);
+        // body
+        graphics.fill(x + 1, y + 3, x + 6, y + 7, color);
     }
 
     private static void drawLockMarker(GuiGraphicsExtractor graphics, int x, int y, int color,

@@ -200,7 +200,7 @@ public final class InteractiveMapFeature {
                 continue;
             }
             if (players == null) {
-                players = players(client);
+                players = playersCached(client);
             }
             Set<Integer> cells = new HashSet<>();
             for (int c : group.cells) {
@@ -233,6 +233,22 @@ public final class InteractiveMapFeature {
     /** One marker on the map: world position, heading, and how to draw it. */
     record MapPlayer(String name, double worldX, double worldZ, float yaw, boolean self, DungeonClass dungeonClass,
                      PlayerSkin skin) {
+    }
+
+    private static List<MapPlayer> cachedPlayers = List.of();
+    private static int cachedPlayersTick = Integer.MIN_VALUE;
+
+    /** Per-tick cached {@link #players}, for anything that runs per frame. {@link #players} scans the whole party
+     *  ({@code level.players()} plus a {@code getName().getString()} per member) and reads the map item's
+     *  decorations; the fps report (2026-09-20) caught the HUD map doing that on every frame. Entity positions only
+     *  move on a tick, so a per-tick snapshot is the same picture. */
+    static List<MapPlayer> playersCached(Minecraft client) {
+        int tick = LiveMapFeature.tickCount();
+        if (tick != cachedPlayersTick) {
+            cachedPlayersTick = tick;
+            cachedPlayers = players(client);
+        }
+        return cachedPlayers;
     }
 
     /** Self first, then teammates: loaded player entities are exact; the rest come from the map item's markers in

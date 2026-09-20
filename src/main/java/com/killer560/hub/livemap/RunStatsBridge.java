@@ -60,7 +60,7 @@ public final class RunStatsBridge {
     /** Self first, then teammates - names only, in the same order the live map draws them. */
     public static List<String> playerNames(Minecraft client) {
         List<String> out = new ArrayList<>();
-        for (InteractiveMapFeature.MapPlayer p : InteractiveMapFeature.players(client)) {
+        for (InteractiveMapFeature.MapPlayer p : InteractiveMapFeature.playersCached(client)) {
             out.add(p.name());
         }
         return out;
@@ -95,7 +95,7 @@ public final class RunStatsBridge {
                 continue;
             }
             if (players == null) {
-                players = InteractiveMapFeature.players(client);
+                players = InteractiveMapFeature.playersCached(client);
             }
             Set<Integer> cells = new HashSet<>();
             for (int c : group.cells) {

@@ -84,7 +84,13 @@ public final class VoiceToTextFeature {
             keyWasDown = false;
             return;
         }
-        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
+        // Real bug (2026-09-20 tooltip/config sweep): the push-to-talk key was read from the raw window
+        // state even with a screen open, so typing the bound letter into chat started recording and
+        // then sent whatever the mic heard straight to /pc or /gc. A push-to-talk press only counts
+        // with no screen open; opening one mid-recording reads as a release, so the mic closes and what
+        // was already captured is transcribed, exactly as letting go of the key would.
+        boolean down = client.screen == null
+                && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
         if (down && !keyWasDown) {
             onKeyPressed();
         } else if (!down && keyWasDown) {

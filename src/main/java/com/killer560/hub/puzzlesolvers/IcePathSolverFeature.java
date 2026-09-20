@@ -3,7 +3,6 @@ package com.killer560.hub.puzzlesolvers;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -51,6 +50,8 @@ public final class IcePathSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(IcePathSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(IcePathSolverFeature::onWorldRender);
     }
@@ -194,10 +195,10 @@ public final class IcePathSolverFeature {
         for (Vec3 p : points) {
             line.add(p.add(0.5, 1.0, 0.5));
         }
-        WorldRenderUtils.renderLineStrip(context, line, 0.33f, 1.0f, 0.33f, 1f, 3f);
+        SolverEspRender.renderLineStrip(context, line, 0.33f, 1.0f, 0.33f, 1f, 3f);
         if (IcePathSolverConfig.getInstance().isShowNextBox() && points.size() > 2) {
             Vec3 next = points.get(1);
-            WorldRenderUtils.renderOutlineBox(context, new AABB(next.x, next.y, next.z, next.x + 1, next.y + 1, next.z + 1),
+            SolverEspRender.renderOutlineBox(context, new AABB(next.x, next.y, next.z, next.x + 1, next.y + 1, next.z + 1),
                     1.0f, 0.33f, 0.33f, 1f, 2f);
         }
     }

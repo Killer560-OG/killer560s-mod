@@ -20,6 +20,16 @@ public final class AbilityKeybindsConfig {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-abilitykeybinds.json");
 
+    /** Bumped to 2 when the Ability/Ultimate packets were un-swapped (2026-09-20) - a version-1 file has its
+     *  two saved codes swapped on load so each physical key keeps doing exactly what it did before the fix. */
+    private static final int CONFIG_VERSION = 2;
+
+    /** Mouse buttons are stored as {@code MOUSE_CODE_BASE - button} (left -100, right -101, middle -102, ...).
+     *  Same encoding as {@code CommandKeybindsConfig}; both are local copies until {@code KeyUtil} itself
+     *  learns about mouse binds (patch in this wave's staging notes). */
+    public static final int MOUSE_CODE_BASE = -100;
+    public static final int MAX_MOUSE_BUTTON = 7;
+
     private static AbilityKeybindsConfig instance;
 
     private boolean enabled = false;
@@ -36,6 +46,23 @@ public final class AbilityKeybindsConfig {
         return instance;
     }
 
+    public static boolean isMouseCode(int code) {
+        return code <= MOUSE_CODE_BASE && code >= MOUSE_CODE_BASE - MAX_MOUSE_BUTTON;
+    }
+
+    public static int mouseButton(int code) {
+        return MOUSE_CODE_BASE - code;
+    }
+
+    public static int codeForMouseButton(int button) {
+        return MOUSE_CODE_BASE - button;
+    }
+
+    /** Like {@code KeyUtil.sanitize}, but keeps mouse-button codes (KeyUtil only accepts keyboard codes). */
+    public static int sanitizeBind(int code) {
+        return isMouseCode(code) ? code : com.killer560.hub.util.KeyUtil.sanitize(code);
+    }
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new AbilityKeybindsConfig();
@@ -46,8 +73,18 @@ public final class AbilityKeybindsConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             AbilityKeybindsConfig cfg = new AbilityKeybindsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.abilityKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "abilityKeyCode", -1));
-            cfg.ultimateKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "ultimateKeyCode", -1));
+            cfg.abilityKeyCode = sanitizeBind(ConfigJson.getInt(obj, "abilityKeyCode", -1));
+            cfg.ultimateKeyCode = sanitizeBind(ConfigJson.getInt(obj, "ultimateKeyCode", -1));
+            if (ConfigJson.getInt(obj, "version", 1) < CONFIG_VERSION) {
+                // killer560 (2026-09-20): "the ultimate keybind does the ability and the ability does the
+                // ultimate". The packets are fixed in AbilityKeybindsFeature; swapping the two saved codes
+                // here keeps each physical key doing the same in-game thing it did before the fix, with the
+                // labels finally telling the truth. Idempotent: re-running it on an unsaved v1 file gives the
+                // same result every launch, and the first save writes version 2.
+                int previousAbility = cfg.abilityKeyCode;
+                cfg.abilityKeyCode = cfg.ultimateKeyCode;
+                cfg.ultimateKeyCode = previousAbility;
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new AbilityKeybindsConfig();
@@ -58,6 +95,7 @@ public final class AbilityKeybindsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("version", CONFIG_VERSION);
             obj.addProperty("enabled", enabled);
             obj.addProperty("abilityKeyCode", abilityKeyCode);
             obj.addProperty("ultimateKeyCode", ultimateKeyCode);
@@ -68,6 +106,10 @@ public final class AbilityKeybindsConfig {
 
     public boolean isEnabled() {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isEnabledRaw() {
+        return enabled;
     }
 
     public void setEnabled(boolean enabled) {

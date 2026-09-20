@@ -21,10 +21,17 @@ public final class DoorKeysConfig {
 
     private static DoorKeysConfig instance;
 
+    public static final float MIN_TRACER_THICKNESS = 1f;
+    public static final float MAX_TRACER_THICKNESS = 10f;
+
     private boolean enabled = false;
     private boolean highlightWither = true;
     private boolean highlightBlood = true;
     private boolean showTracer = true;
+    /** killer560 (2026-09-20): tracer thickness setting. Visual only, both builds. */
+    private float tracerThickness = 2f;
+    /** Cheat build only: draw the key box + tracer through walls. Ships OFF. */
+    private boolean throughWalls = false;
 
     private DoorKeysConfig() {
     }
@@ -49,6 +56,9 @@ public final class DoorKeysConfig {
             cfg.highlightWither = ConfigJson.getBool(obj, "highlightWither", cfg.highlightWither);
             cfg.highlightBlood = ConfigJson.getBool(obj, "highlightBlood", cfg.highlightBlood);
             cfg.showTracer = ConfigJson.getBool(obj, "showTracer", cfg.showTracer);
+            cfg.tracerThickness = Math.max(MIN_TRACER_THICKNESS, Math.min(MAX_TRACER_THICKNESS,
+                    ConfigJson.getFloat(obj, "tracerThickness", cfg.tracerThickness)));
+            cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
             instance = cfg;
         } catch (Exception e) {
             instance = new DoorKeysConfig();
@@ -63,6 +73,8 @@ public final class DoorKeysConfig {
             obj.addProperty("highlightWither", highlightWither);
             obj.addProperty("highlightBlood", highlightBlood);
             obj.addProperty("showTracer", showTracer);
+            obj.addProperty("tracerThickness", tracerThickness);
+            obj.addProperty("throughWalls", throughWalls);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -98,5 +110,26 @@ public final class DoorKeysConfig {
 
     public void setShowTracer(boolean showTracer) {
         this.showTracer = showTracer;
+    }
+
+    public float getTracerThickness() {
+        return tracerThickness;
+    }
+
+    public void setTracerThickness(float thickness) {
+        this.tracerThickness = Math.max(MIN_TRACER_THICKNESS, Math.min(MAX_TRACER_THICKNESS, thickness));
+    }
+
+    /** Cheat-gated: the legit jar can never draw the key through walls, whatever the saved value says. */
+    public boolean isThroughWalls() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && throughWalls;
+    }
+
+    public boolean isThroughWallsRaw() {
+        return throughWalls;
+    }
+
+    public void setThroughWalls(boolean throughWalls) {
+        this.throughWalls = throughWalls;
     }
 }

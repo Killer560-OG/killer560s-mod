@@ -2,8 +2,10 @@ package com.killer560.hub.fastleap;
 
 import com.killer560.hub.secrets.DungeonState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -102,6 +104,7 @@ public final class Floor7Tracker {
     private static Listener listener;
     private static Phase phase = Phase.UNKNOWN;
     private static Stage stage = Stage.UNKNOWN;
+    private static int simRestarts;
 
     private Floor7Tracker() {
     }
@@ -150,9 +153,20 @@ public final class Floor7Tracker {
         switch (unformatted) {
             case "[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!" -> {
                 Stage.resetAll();
-                updateState(Phase.P1, null);
+                if (isOnP3Sim()) {
+                    onSimRestart("Maxor");
+                } else {
+                    updateState(Phase.P1, null);
+                }
             }
-            case "[BOSS] Storm: Pathetic Maxor, just like expected." -> updateState(Phase.P2, null);
+            case "[BOSS] Storm: Pathetic Maxor, just like expected." -> {
+                if (isOnP3Sim()) {
+                    Stage.resetAll();
+                    onSimRestart("Storm");
+                } else {
+                    updateState(Phase.P2, null);
+                }
+            }
             case "[BOSS] Goldor: Who dares trespass into my domain?" -> {
                 Stage.resetAll();
                 updateState(Phase.P3, Stage.S1);
@@ -180,6 +194,43 @@ public final class Floor7Tracker {
                 updateState(null, next);
             }
         }
+    }
+
+    /**
+     * p3sim.net prints Maxor's opening line on every spawn and restart even though the sim IS Phase 3, and most sim
+     * modes never print Goldor's line after it. Taking that line as P1 (as Hypixel's is) left the chat phase at P1 for
+     * the whole sim session, so every feature gated on "chat says P3, or nothing heard yet" (AP3, Fast Leap's P3 leaps,
+     * the section name) was inert there. killer560: "make sure AP3 works in the dungeon sim server, all of their
+     * coordinates are the exact same as main so it's useful for configging AP3." Only reached when the server address
+     * contains "p3sim" - Hypixel's handling of the same lines is untouched.
+     */
+    private static void onSimRestart(String who) {
+        simRestarts++;
+        if (getPhaseAt() == Phase.P3) {
+            // Sim spawn (100.5, 117, 40.5) is S1; a restart mid-section lands you back there too. Same S1 fallback and
+            // 1..4 cap as the completion-line inference below.
+            Stage at = getStageAt();
+            phase = Phase.P3;
+            stage = at.number >= 1 && at.number <= 4 ? at : Stage.S1;
+        } else {
+            // Line arrived before the teleport put us in the P3 band - stay undecided so the position fallbacks (here
+            // and in Ap3Feature.currentPhase) can still take over, instead of pinning P1.
+            phase = Phase.UNKNOWN;
+            stage = Stage.UNKNOWN;
+        }
+        FastLeapFeature.LOGGER.info("[FastLeap] p3sim {} line = sim (re)start -> phase={} stage={}", who, phase, stage);
+    }
+
+    /** How many p3sim (re)starts have been heard since the mod loaded - a counter, so a feature can notice one
+     *  happened (killer560: a running AP3 chain must stop on a restart, "the fight reset") without a listener. */
+    public static int simRestartCount() {
+        return simRestarts;
+    }
+
+    /** True while connected to p3sim.net (server address contains "p3sim"); same test SkyblockGate uses privately. */
+    public static boolean isOnP3Sim() {
+        ServerData server = Minecraft.getInstance().getCurrentServer();
+        return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("p3sim");
     }
 
     static void onWorldChange() {

@@ -21,6 +21,7 @@ public final class HudElementRegistry {
      *  showing up in the HUD editor and being rendered. */
     public static void unregister(String id) {
         ELEMENTS.removeIf(e -> e.id().equals(id));
+        CLAMP_MEMOS.remove(id);
     }
 
     public static List<HudElement> all() {
@@ -59,12 +60,75 @@ public final class HudElementRegistry {
         boolean saved = cfg.hasPosition(element.id());
         int[] pos = cfg.getPosition(element.id(), element.defaultX(), element.defaultY());
         try {
-            return saved ? rescueIfInvisible(element, pos) : clampIntoScreen(element, pos);
+            return saved ? rescueIfInvisible(element, pos) : memoisedClamp(element, pos);
         } catch (RuntimeException e) {
             // A window that isn't ready yet or a width()/height() that throws must never break rendering -
             // fall back to the raw position, exactly what this method returned before the clamp existed.
             return pos;
         }
+    }
+
+    /**
+     * Memo for the never-dragged (unsaved-position) clamp path.
+     * <p>
+     * 2026-09-20 FPS pass: {@code HudInGameRenderer.draw} resolves the position of all 16 in-game-drawn
+     * elements every frame, <em>before</em> any of them gets to check whether its feature is even switched
+     * on, and for an element the player has never dragged that lands in {@link #clampIntoScreen}, which
+     * calls {@code element.width()} AND {@code element.height()}. For Score Calculator those each run
+     * {@code currentLines() -> buildLines()}, and Split Timers' each run {@code p5Lines()} +
+     * {@code displayRows()} + {@code coreLines()}: two full line-list rebuilds per frame, per element,
+     * <em>while the feature is off</em>. ({@link #rescueIfInvisible} already had a cheap short-circuit for
+     * the saved-position path; this is its missing counterpart.)
+     * <p>
+     * The clamp result can only change when the raw position, the scale, the screen size or the element's
+     * own measured size changes. The first three are cheap and are compared exactly; the fourth is covered
+     * by re-measuring at most once per {@link #CLAMP_REFRESH_MS} - and not at all while the element is not
+     * relevant right now (its feature off / wrong floor), because an element that is not drawing cannot be
+     * growing either. So a switched-off element measures itself once and then costs a map lookup and four
+     * int compares per frame, and a live one re-clamps within {@link #CLAMP_REFRESH_MS} of changing size.
+     */
+    private static final class ClampMemo {
+        int rawX;
+        int rawY;
+        float scale;
+        int screenW;
+        int screenH;
+        int[] result;
+        long measuredAtMs;
+    }
+
+    private static final long CLAMP_REFRESH_MS = 250L;
+
+    private static final java.util.Map<String, ClampMemo> CLAMP_MEMOS = new java.util.HashMap<>();
+
+    private static int[] memoisedClamp(HudElement element, int[] pos) {
+        int[] screen = screenSize();
+        if (screen == null) {
+            return pos;
+        }
+        float scale = resolveScale(element);
+        ClampMemo memo = CLAMP_MEMOS.get(element.id());
+        if (memo != null && memo.rawX == pos[0] && memo.rawY == pos[1] && memo.scale == scale
+                && memo.screenW == screen[0] && memo.screenH == screen[1]
+                // Within the TTL nothing needs re-measuring; beyond it, only an element that is actually
+                // live (or being previewed in the HUD editor, where a disabled element draws demo content
+                // and so does have a size) can have changed size.
+                && (System.currentTimeMillis() - memo.measuredAtMs < CLAMP_REFRESH_MS
+                    || (!editorOpen() && !isRelevantNow(element)))) {
+            return memo.result;
+        }
+        if (memo == null) {
+            memo = new ClampMemo();
+            CLAMP_MEMOS.put(element.id(), memo);
+        }
+        memo.rawX = pos[0];
+        memo.rawY = pos[1];
+        memo.scale = scale;
+        memo.screenW = screen[0];
+        memo.screenH = screen[1];
+        memo.measuredAtMs = System.currentTimeMillis();
+        memo.result = clampIntoScreen(element, pos, screen);
+        return memo.result;
     }
 
     public static float resolveScale(HudElement element) {
@@ -77,6 +141,11 @@ public final class HudElementRegistry {
         return new int[]{
                 Math.max(1, Math.round(element.width() * scale)),
                 Math.max(1, Math.round(element.height() * scale))};
+    }
+
+    private static boolean editorOpen() {
+        Minecraft client = Minecraft.getInstance();
+        return client != null && client.screen instanceof HudEditorScreen;
     }
 
     private static int[] screenSize() {
@@ -94,6 +163,10 @@ public final class HudElementRegistry {
         if (screen == null) {
             return pos;
         }
+        return clampIntoScreen(element, pos, screen);
+    }
+
+    private static int[] clampIntoScreen(HudElement element, int[] pos, int[] screen) {
         int[] size = scaledSize(element);
         int x = Math.max(0, Math.min(pos[0], screen[0] - size[0]));
         int y = Math.max(0, Math.min(pos[1], screen[1] - size[1]));

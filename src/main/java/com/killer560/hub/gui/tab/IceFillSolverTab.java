@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.IceFillSolverConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -40,15 +38,6 @@ public class IceFillSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Alternate Path", cfg.isOptimizedPath()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Draws the real safe walking path across all 3 real Ice Fill floors"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7once each floor's ice layout is identified. Never walks for you."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

@@ -58,6 +58,25 @@ public final class DungeonLayout {
         this.currentRoom = currentRoom;
     }
 
+    /** Per-tick cached snapshot for the two map renderers (client thread only). {@link #capture()} walks all 121
+     *  cells and block-checks every wither/blood door, which the fps report (2026-09-20) caught the map doing on
+     *  every single frame; nothing it reads can change more often than a tick. The pathfinders keep calling
+     *  {@link #capture()} directly so they always start from a freshly taken snapshot. */
+    public static DungeonLayout current() {
+        int tick = LiveMapFeature.tickCount();
+        int generation = LiveMapFeature.resetGeneration();
+        if (cached == null || tick != cachedTick || generation != cachedGeneration) {
+            cached = capture();
+            cachedTick = tick;
+            cachedGeneration = generation;
+        }
+        return cached;
+    }
+
+    private static DungeonLayout cached = null;
+    private static int cachedTick = Integer.MIN_VALUE;
+    private static int cachedGeneration = Integer.MIN_VALUE;
+
     /** Must be called on the client thread. */
     public static DungeonLayout capture() {
         Minecraft client = Minecraft.getInstance();

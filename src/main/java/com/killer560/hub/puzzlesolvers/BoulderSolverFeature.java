@@ -6,7 +6,6 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -14,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -31,7 +31,7 @@ import java.util.Map;
  * patterns; each pattern maps to a fixed real solution list of {@code [renderX, renderZ, clickX, clickZ]}
  * quadruples at y=65 (bundled verbatim from Odin in {@code data/killer560smod/puzzles/boulder-solutions.json}).
  * The player must click each listed position in any order; this only ever renders a box around the next
- * (or, if configured, every remaining) solution position - it never sends any packet or click itself.
+ * (or, if configured, every remaining) BUTTON to click - it never sends any packet or click itself.
  *
  * <p>Room-relative coordinates are translated to real world coordinates via
  * {@link com.killer560.hub.roomdatabase.RoomDatabase#toRealCoord}, the same real corner/rotation transform
@@ -66,6 +66,8 @@ public final class BoulderSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(BoulderSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BoulderSolverFeature::onWorldRender);
     }
@@ -197,14 +199,34 @@ public final class BoulderSolverFeature {
         if (!BoulderSolverConfig.getInstance().isEnabled() || currentPositions.isEmpty()) {
             return;
         }
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
         boolean showAll = BoulderSolverConfig.getInstance().isShowAllClicks();
         if (showAll) {
             for (BoxPosition pos : currentPositions) {
-                WorldRenderUtils.renderOutlineBox(context, pos.render(), 0.4f, 0.9f, 1.0f, 1f, 2f);
+                renderButton(context, level, pos);
             }
         } else {
-            WorldRenderUtils.renderOutlineBox(context, currentPositions.get(0).render(), 0.4f, 0.9f, 1.0f, 1f, 2f);
+            renderButton(context, level, currentPositions.get(0));
         }
+    }
+
+    /**
+     * killer560, 2026-09-20: "highlight the button itself, not the block it sits on". Each solution
+     * quadruple's first pair is the boulder tile, the second is the block you actually right-click - the
+     * stone button, the same position {@code AutoBoulder} interacts with and the one NoammAddons' own
+     * {@code BoulderSolver} draws ({@code renderBlock(box.click, clickColor)}). We were boxing the first
+     * pair, which is the block behind/under the button. Drawing the button's own voxel shape rather than
+     * a whole cube keeps the highlight on the button; if the block isn't loaded or has no shape (or the
+     * cheat build's Full Block hitbox mixin has already widened it) it falls back to the full cube.
+     */
+    private static void renderButton(LevelRenderContext context, Level level, BoxPosition pos) {
+        BlockPos click = pos.click();
+        VoxelShape shape = level.getBlockState(click).getShape(level, click);
+        AABB box = shape.isEmpty() ? new AABB(click) : shape.bounds().move(click);
+        SolverEspRender.renderOutlineBox(context, box, 0.4f, 0.9f, 1.0f, 1f, 2f);
     }
 
     private static void reset() {

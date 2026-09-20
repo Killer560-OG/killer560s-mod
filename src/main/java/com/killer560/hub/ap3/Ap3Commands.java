@@ -2,7 +2,6 @@ package com.killer560.hub.ap3;
 
 import com.google.gson.JsonParser;
 import com.killer560.hub.dungeonclass.DungeonClass;
-import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -344,7 +343,7 @@ public final class Ap3Commands {
     }
 
     private static void help() {
-        ModChat.send(FEATURE, ModChat.text("Commands (F7/M7 Phase 3 only):"));
+        ModChat.send(FEATURE, ModChat.text("Commands (F7/M7 boss only - any phase, one chain per area P1 / P2 / S1-S5 / P4 / P5):"));
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
@@ -390,11 +389,11 @@ public final class Ap3Commands {
     private static void list() {
         List<Ap3Node> nodes = Ap3Feature.currentChainNodes();
         if (nodes.isEmpty()) {
-            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(sectionName()),
+            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(areaName()),
                     ModChat.dim(" - /ap3 add <type> while standing where the node goes."));
             return;
         }
-        ModChat.send(FEATURE, ModChat.value(sectionName()), ModChat.text(": " + nodes.size() + " node" + (nodes.size() == 1 ? "" : "s")),
+        ModChat.send(FEATURE, ModChat.value(areaName()), ModChat.text(": " + nodes.size() + " node" + (nodes.size() == 1 ? "" : "s")),
                 Ap3Executor.isRunning() ? ModChat.good(" (running)") : ModChat.text(""),
                 Ap3Feature.isEditMode() ? ModChat.good(" (editing breaker)") : ModChat.text(""));
         for (int i = 0; i < nodes.size(); i++) {
@@ -406,7 +405,7 @@ public final class Ap3Commands {
     private static void deleteLast() {
         int size = Ap3Feature.currentChainNodes().size();
         if (size == 0) {
-            ModChat.send(FEATURE, ModChat.text("No nodes to delete in "), ModChat.value(sectionName()), ModChat.text("."));
+            ModChat.send(FEATURE, ModChat.text("No nodes to delete in "), ModChat.value(areaName()), ModChat.text("."));
             return;
         }
         delete(size - 1);
@@ -429,17 +428,14 @@ public final class Ap3Commands {
             // longer exists - stop it first, with a reason it can echo.
             Ap3Executor.stop("node deleted");
         }
-        String what = describe(nodes.get(index));
-        if (!Ap3Feature.deleteNode(index)) {
-            return;
-        }
+        Ap3Feature.deleteNode(index);
     }
 
     /** The keybind half of {@code /ap3 replace}: the LAST node, position and look, like the delete key. */
     private static void replaceLast() {
         int size = Ap3Feature.currentChainNodes().size();
         if (size == 0) {
-            ModChat.send(FEATURE, ModChat.text("No nodes to re-place in "), ModChat.value(sectionName()), ModChat.text("."));
+            ModChat.send(FEATURE, ModChat.text("No nodes to re-place in "), ModChat.value(areaName()), ModChat.text("."));
             return;
         }
         Ap3Feature.replaceNode(size - 1, true, true);
@@ -568,7 +564,7 @@ public final class Ap3Commands {
     private static void clear() {
         int count = Ap3Feature.currentChainNodes().size();
         if (count == 0) {
-            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(sectionName()), ModChat.text("."));
+            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(areaName()), ModChat.text("."));
             return;
         }
         if (Ap3Executor.isRunning()) {
@@ -620,13 +616,13 @@ public final class Ap3Commands {
             ModChat.send(FEATURE, ModChat.text("Already running. "), ModChat.dim("/ap3 stop first."));
             return;
         }
-        if (!inP3()) {
-            ModChat.send(FEATURE, ModChat.bad("Not in F7/M7 Phase 3"), ModChat.text(" - AP3 only runs in the boss's terminal phase."));
+        if (!inBoss()) {
+            ModChat.send(FEATURE, ModChat.bad("Not in the F7/M7 boss"), ModChat.text(" - AP3 only runs inside the boss fight."));
             return;
         }
         int count = Ap3Feature.currentChainNodes().size();
         if (count == 0) {
-            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(sectionName()), ModChat.dim(" - nothing to start."));
+            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(areaName()), ModChat.dim(" - nothing to start."));
             return;
         }
         if (Ap3Feature.isEditMode()) {
@@ -662,26 +658,31 @@ public final class Ap3Commands {
         pendingWaitMillis = Math.max(MIN_WAIT_MS, Math.min(MAX_WAIT_MS, millis));
     }
 
-    /** True in the F7/M7 boss AND in Phase 3 - the only place AP3 ever drives. Never throws. */
-    public static boolean inP3() {
+    /**
+     * True in the F7/M7 boss fight with a known phase - the only place AP3 ever drives. Never throws. The SAME gate
+     * node placement uses ({@link Ap3Feature#isBossLive()}): this used to be chat-phase only, so on p3sim (no Goldor
+     * line) {@code /ap3 add} accepted nodes while {@code /ap3 start}, Start Chain and the status line all refused.
+     */
+    public static boolean inBoss() {
         try {
-            return Floor7Tracker.inF7Boss() && Floor7Tracker.inPhase(Floor7Tracker.Phase.P3);
+            return Ap3Feature.isBossLive();
         } catch (Exception e) {
             return false;
         }
     }
 
-    /** "S1".."S5" from the tracker's chat-driven stage, or "this section" when there isn't one yet. */
-    public static String sectionName() {
+    /** "S1".."S5" / "P1" / "P2" / "P4" / "P5" for the boss area you are standing in (the same answer {@code /ap3 add}
+     *  files a node under), or "this area" when there isn't one yet. */
+    public static String areaName() {
         try {
-            Floor7Tracker.Stage stage = Floor7Tracker.getStage();
-            if (stage != null && stage.number >= 1 && stage.number <= 5) {
-                return stage.name();
+            Ap3Area area = Ap3Feature.currentArea();
+            if (area != null) {
+                return area.label();
             }
         } catch (Exception ignored) {
             // tracker not ready - fall through
         }
-        return "this section";
+        return "this area";
     }
 
     /** "Axis Line", "Leap Detector", ... from the enum constant. */

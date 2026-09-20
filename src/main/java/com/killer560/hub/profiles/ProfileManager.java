@@ -360,6 +360,7 @@ public final class ProfileManager {
                 com.killer560.hub.puzzlesolvers.TeleportMazeSolverConfig::load,
                 com.killer560.hub.puzzlesolvers.TicTacToeSolverConfig::load,
                 com.killer560.hub.puzzlesolvers.QuizSolverConfig::load,
+                com.killer560.hub.puzzlesolvers.SolverEspConfig::load,
                 com.killer560.hub.puzzlesolvers.WaterSolverConfig::load,
                 com.killer560.hub.puzzlesolvers.WeirdosSolverConfig::load,
                 com.killer560.hub.quiver.QuiverDisplayConfig::load,

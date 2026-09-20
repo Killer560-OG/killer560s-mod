@@ -11,8 +11,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Live Map + Interactive Map settings - see {@link LiveMapFeature} and {@link InteractiveMapFeature}.
- *  Everything new ships disabled / unbound. Teleport pathing and Auto Blood Rush are cheat-build only. */
+/** Persisted Dungeon Map + Interactive Map settings - see {@link LiveMapFeature} and {@link InteractiveMapFeature}.
+ *  Everything new ships disabled / unbound.
+ *  <p>
+ *  The whole Interactive Map is cheat-build only as of 2026-09-20 - killer560: "the interactive map is the one where
+ *  I click on a room and it etherwarps me to that room. and it can also start my secret route by clicking on it
+ *  again and whatnot. That is a cheat." Teleport pathing and Auto Blood Rush, which only run from that screen, were
+ *  already cheat-gated. The HUD Dungeon Map stays legit, and on the legit jar it paints only what the vanilla dungeon
+ *  map item has revealed (see {@link MapPainter}). */
 public final class LiveMapConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -21,15 +27,37 @@ public final class LiveMapConfig {
 
     private static LiveMapConfig instance;
 
-    // ---- HUD live map ----
+    // ---- HUD dungeon map ----
     private boolean enabled = false;
     private boolean showTeammates = true;
     private boolean classRecolorTeammates = true;
-    private int cellSize = 8;
+    /** Pixels per 16-unit room. The map is 116 units square (6 rooms + 5 gaps), so the HUD map is
+     *  {@code 116 * roomPx / 16} pixels wide - see {@link MapPainter}. Replaced the old uniform "cellSize". */
+    private int roomPx = 16;
     /** 0 Off, 1 Checkmarks, 2 Secrets, 3 Room Name, 4 Room Name + Secrets - NoammAddons' Checkmark Style. */
     private int roomLabels = 1;
     private int peekKeyCode = -1;
     private float peekScale = 2.0f;
+    private boolean roomNameBelowMap = true;
+
+    // ---- shared map appearance (HUD + interactive map) ----
+    // Defaults are the real dungeon map's own colours, decoded from Hypixel's MapColor bytes by NoammAddons'
+    // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same grey.
+    private boolean colourByType = true;
+    private int colorNormal = 0xFF724318;
+    private int colorEntrance = 0xFF00FF00;
+    private int colorPuzzle = 0xFFB24CD8;
+    private int colorTrap = 0xFFD87F33;
+    private int colorMiniboss = 0xFFE5E533;
+    private int colorFairy = 0xFFF27FA5;
+    private int colorBlood = 0xFFFF0000;
+    private int colorRare = 0xFFB2B2B2;
+    private int colorUnopened = 0xFF414141;
+    private int colorWitherDoor = 0xFF101010;
+    private float darkenUnopened = 0.4f;
+    private int mapBackground = 0x99000000;
+    private int mapBorderColor = 0xFFCC6600;
+    private boolean checkmarkSprites = true;
 
     // ---- Interactive map (QUOI InteractiveMap visuals + NoammAddons icon options) ----
     private boolean interactiveMapEnabled = false;
@@ -88,10 +116,29 @@ public final class LiveMapConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.showTeammates = ConfigJson.getBool(obj, "showTeammates", true);
                 cfg.classRecolorTeammates = ConfigJson.getBool(obj, "classRecolorTeammates", true);
-                cfg.setCellSize(ConfigJson.getInt(obj, "cellSize", 8));
+                // Migration: the old uniform "cellSize" (4..16, default 8) was one grid step; a room is now two
+                // of those, so an existing config keeps roughly the map size it had.
+                cfg.setRoomPx(ConfigJson.getInt(obj, "roomPx", ConfigJson.getInt(obj, "cellSize", 8) * 2));
                 cfg.setRoomLabels(ConfigJson.getInt(obj, "roomLabels", 1));
                 cfg.peekKeyCode = ConfigJson.getInt(obj, "peekKeyCode", -1);
                 cfg.setPeekScale(ConfigJson.getFloat(obj, "peekScale", 2f));
+                cfg.roomNameBelowMap = ConfigJson.getBool(obj, "roomNameBelowMap", true);
+
+                cfg.colourByType = ConfigJson.getBool(obj, "colourByType", true);
+                cfg.colorNormal = ConfigJson.getInt(obj, "colorNormal", 0xFF724318);
+                cfg.colorEntrance = ConfigJson.getInt(obj, "colorEntrance", 0xFF00FF00);
+                cfg.colorPuzzle = ConfigJson.getInt(obj, "colorPuzzle", 0xFFB24CD8);
+                cfg.colorTrap = ConfigJson.getInt(obj, "colorTrap", 0xFFD87F33);
+                cfg.colorMiniboss = ConfigJson.getInt(obj, "colorMiniboss", 0xFFE5E533);
+                cfg.colorFairy = ConfigJson.getInt(obj, "colorFairy", 0xFFF27FA5);
+                cfg.colorBlood = ConfigJson.getInt(obj, "colorBlood", 0xFFFF0000);
+                cfg.colorRare = ConfigJson.getInt(obj, "colorRare", 0xFFB2B2B2);
+                cfg.colorUnopened = ConfigJson.getInt(obj, "colorUnopened", 0xFF414141);
+                cfg.colorWitherDoor = ConfigJson.getInt(obj, "colorWitherDoor", 0xFF101010);
+                cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", 0.4f));
+                cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", 0x99000000);
+                cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", 0xFFCC6600);
+                cfg.checkmarkSprites = ConfigJson.getBool(obj, "checkmarkSprites", true);
 
                 cfg.interactiveMapEnabled = ConfigJson.getBool(obj, "interactiveMapEnabled", false);
                 cfg.openKeyCode = ConfigJson.getInt(obj, "openKeyCode", -1);
@@ -136,10 +183,27 @@ public final class LiveMapConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTeammates", showTeammates);
             obj.addProperty("classRecolorTeammates", classRecolorTeammates);
-            obj.addProperty("cellSize", cellSize);
+            obj.addProperty("roomPx", roomPx);
             obj.addProperty("roomLabels", roomLabels);
             obj.addProperty("peekKeyCode", peekKeyCode);
             obj.addProperty("peekScale", peekScale);
+            obj.addProperty("roomNameBelowMap", roomNameBelowMap);
+
+            obj.addProperty("colourByType", colourByType);
+            obj.addProperty("colorNormal", colorNormal);
+            obj.addProperty("colorEntrance", colorEntrance);
+            obj.addProperty("colorPuzzle", colorPuzzle);
+            obj.addProperty("colorTrap", colorTrap);
+            obj.addProperty("colorMiniboss", colorMiniboss);
+            obj.addProperty("colorFairy", colorFairy);
+            obj.addProperty("colorBlood", colorBlood);
+            obj.addProperty("colorRare", colorRare);
+            obj.addProperty("colorUnopened", colorUnopened);
+            obj.addProperty("colorWitherDoor", colorWitherDoor);
+            obj.addProperty("darkenUnopened", darkenUnopened);
+            obj.addProperty("mapBackground", mapBackground);
+            obj.addProperty("mapBorderColor", mapBorderColor);
+            obj.addProperty("checkmarkSprites", checkmarkSprites);
 
             obj.addProperty("interactiveMapEnabled", interactiveMapEnabled);
             obj.addProperty("openKeyCode", openKeyCode);
@@ -217,12 +281,12 @@ public final class LiveMapConfig {
         this.classRecolorTeammates = classRecolorTeammates;
     }
 
-    public int getCellSize() {
-        return cellSize;
+    public int getRoomPx() {
+        return roomPx;
     }
 
-    public void setCellSize(int cellSize) {
-        this.cellSize = Math.max(4, Math.min(16, cellSize));
+    public void setRoomPx(int roomPx) {
+        this.roomPx = Math.max(8, Math.min(40, roomPx));
     }
 
     public static final String[] ROOM_LABEL_NAMES = {"Off", "Checkmarks", "Secrets", "Room Name", "Room Name + Secrets"};
@@ -251,10 +315,154 @@ public final class LiveMapConfig {
         this.peekScale = clamp(peekScale, 1.25f, 4f);
     }
 
+    public boolean isRoomNameBelowMap() {
+        return roomNameBelowMap;
+    }
+
+    public void setRoomNameBelowMap(boolean v) {
+        this.roomNameBelowMap = v;
+    }
+
+    // ---------------------------------------------------------------- shared map appearance
+
+    public boolean isColourByType() {
+        return colourByType;
+    }
+
+    public void setColourByType(boolean v) {
+        this.colourByType = v;
+    }
+
+    public int getColorNormal() {
+        return colorNormal;
+    }
+
+    public void setColorNormal(int v) {
+        this.colorNormal = v;
+    }
+
+    public int getColorEntrance() {
+        return colorEntrance;
+    }
+
+    public void setColorEntrance(int v) {
+        this.colorEntrance = v;
+    }
+
+    public int getColorPuzzle() {
+        return colorPuzzle;
+    }
+
+    public void setColorPuzzle(int v) {
+        this.colorPuzzle = v;
+    }
+
+    public int getColorTrap() {
+        return colorTrap;
+    }
+
+    public void setColorTrap(int v) {
+        this.colorTrap = v;
+    }
+
+    public int getColorMiniboss() {
+        return colorMiniboss;
+    }
+
+    public void setColorMiniboss(int v) {
+        this.colorMiniboss = v;
+    }
+
+    public int getColorFairy() {
+        return colorFairy;
+    }
+
+    public void setColorFairy(int v) {
+        this.colorFairy = v;
+    }
+
+    public int getColorBlood() {
+        return colorBlood;
+    }
+
+    public void setColorBlood(int v) {
+        this.colorBlood = v;
+    }
+
+    public int getColorRare() {
+        return colorRare;
+    }
+
+    public void setColorRare(int v) {
+        this.colorRare = v;
+    }
+
+    public int getColorUnopened() {
+        return colorUnopened;
+    }
+
+    public void setColorUnopened(int v) {
+        this.colorUnopened = v;
+    }
+
+    public int getColorWitherDoor() {
+        return colorWitherDoor;
+    }
+
+    public void setColorWitherDoor(int v) {
+        this.colorWitherDoor = v;
+    }
+
+    public float getDarkenUnopened() {
+        return darkenUnopened;
+    }
+
+    public void setDarkenUnopened(float v) {
+        this.darkenUnopened = clamp(v, 0f, 0.9f);
+    }
+
+    public int getMapBackground() {
+        return mapBackground;
+    }
+
+    public void setMapBackground(int v) {
+        this.mapBackground = v;
+    }
+
+    public int getMapBorderColor() {
+        return mapBorderColor;
+    }
+
+    public void setMapBorderColor(int v) {
+        this.mapBorderColor = v;
+    }
+
+    public boolean isCheckmarkSprites() {
+        return checkmarkSprites;
+    }
+
+    public void setCheckmarkSprites(boolean v) {
+        this.checkmarkSprites = v;
+    }
+
+    /** Puts every room/door colour back to the real dungeon map's own values. */
+    public void resetMapColours() {
+        colorNormal = 0xFF724318;
+        colorEntrance = 0xFF00FF00;
+        colorPuzzle = 0xFFB24CD8;
+        colorTrap = 0xFFD87F33;
+        colorMiniboss = 0xFFE5E533;
+        colorFairy = 0xFFF27FA5;
+        colorBlood = 0xFFFF0000;
+        colorRare = 0xFFB2B2B2;
+        colorUnopened = 0xFF414141;
+        colorWitherDoor = 0xFF101010;
+    }
+
     // ---------------------------------------------------------------- interactive map
 
     public boolean isInteractiveMapEnabled() {
-        return interactiveMapEnabled && gate();
+        return interactiveMapEnabled && cheatGate();
     }
 
     public boolean isInteractiveMapEnabledRaw() {

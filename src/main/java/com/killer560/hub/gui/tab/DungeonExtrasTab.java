@@ -61,7 +61,9 @@ public class DungeonExtrasTab extends BaseTab {
                             cfg.save();
                         }));
                     }).bounds(contentX, y, col2W, 18).build());
-            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, widthText(cfg), (cfg.getMageBeamWidth() - 1f) / 5f) {
+            float widthSpan = DungeonExtrasConfig.MAX_BEAM_WIDTH - DungeonExtrasConfig.MIN_BEAM_WIDTH;
+            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, widthText(cfg),
+                    (cfg.getMageBeamWidth() - DungeonExtrasConfig.MIN_BEAM_WIDTH) / widthSpan) {
                 @Override
                 protected void updateMessage() {
                     setMessage(widthText(cfg));
@@ -69,7 +71,8 @@ public class DungeonExtrasTab extends BaseTab {
 
                 @Override
                 protected void applyValue() {
-                    cfg.setMageBeamWidth(Math.round((1f + (float) this.value * 5f) * 2f) / 2f);
+                    float raw = DungeonExtrasConfig.MIN_BEAM_WIDTH + (float) this.value * widthSpan;
+                    cfg.setMageBeamWidth(Math.round(raw * 2f) / 2f);
                     cfg.save();
                 }
             });

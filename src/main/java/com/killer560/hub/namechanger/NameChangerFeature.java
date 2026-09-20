@@ -138,13 +138,13 @@ public final class NameChangerFeature {
         List<NameTable.Entry> entries = new ArrayList<>();
         // Priority order: own name, then manual mappings, then randomized others (first entry wins on duplicates).
         if (cfg.isOwnNameEnabled() && NameTable.isValidName(own) && !cfg.getOwnDisplayName().isEmpty()) {
-            entries.add(new NameTable.Entry(own, colorize(cfg.getOwnDisplayName()), false));
+            entries.add(new NameTable.Entry(own, styled(cfg.getOwnDisplayName(), cfg.getOwnColor()), false));
         }
         if (cfg.isMappingsEnabled()) {
             for (NameChangerConfig.Mapping m : cfg.mappings()) {
                 String real = m.real == null ? "" : m.real.trim();
                 if (NameTable.isValidName(real) && m.display != null && !m.display.isEmpty()) {
-                    entries.add(new NameTable.Entry(real, colorize(m.display), false));
+                    entries.add(new NameTable.Entry(real, styled(m.display, m.color), false));
                 }
             }
         }
@@ -163,6 +163,12 @@ public final class NameChangerFeature {
         builtOwnName = own;
         NameReplacer.clearCaches();
         LOGGER.debug("[NameChanger] rebuilt name table ({} entries)", table.size);
+    }
+
+    /** A display name with its picked colour applied as a legacy code prefix (see {@link NameColor}) - the
+     *  name itself may still carry {@code &} format codes, which {@link #colorize} converts as before. */
+    static String styled(String display, int argb) {
+        return NameColor.prefix(argb) + colorize(display);
     }
 
     /** Vanilla edit boxes filter out the § sign, so "&" + a format code is accepted too ("&6Cool" -> "§6Cool"). */

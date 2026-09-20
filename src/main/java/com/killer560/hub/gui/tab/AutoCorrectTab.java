@@ -1,10 +1,8 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autocorrect.AutoCorrectConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -36,20 +34,8 @@ public class AutoCorrectTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(correctCommandsText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 30;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Fixes common typos in chat before it's sent - e.g."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("\"teh\" -> \"the\", \"definately\" -> \"definitely\"."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Correct Commands fixes only the command name, e.g. /wardorbe -> /wardrobe."),
-                Minecraft.getInstance().font));
-
+        // The old three-line explanation lives in the hover tooltips now (2026-09-20 mod-wide rule).
         return widgets;
     }
 

@@ -1,13 +1,17 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.namechanger.NameChangerFeature;
+import com.killer560.hub.namechanger.NameColor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,9 +42,6 @@ public class NameChangerTab extends BaseTab {
         y += 26;
 
         if (!cfg.isEnabled()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Client-side only: changes how names look in chat, name tags, tab, scoreboard, lore."),
-                    font));
             return widgets;
         }
 
@@ -57,18 +58,22 @@ public class NameChangerTab extends BaseTab {
                 }).bounds(contentX + halfW + gap, y, halfW, 18).build());
         y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("My display name (& color codes work, e.g. &bCool = §bCool§r):"), font));
-        y += 14;
-        EditBox ownField = new EditBox(font, contentX, y, contentWidth, 18, Component.literal("My display name"));
+        int colorW = 80;
+        EditBox ownField = new EditBox(font, contentX, y, contentWidth - colorW - gap, 18,
+                Component.literal("My display name"));
         ownField.setMaxLength(64);
         ownField.setValue(cfg.getOwnDisplayName());
-        ownField.setHint(Component.literal("§8e.g. &bCoolGuy"));
+        ownField.setHint(Component.literal("§8My display name"));
         ownField.setResponder(text -> {
             cfg.setOwnDisplayName(text);
             cfg.save();
         });
         widgets.add(ownField);
+        widgets.add(colorButton(contentX + contentWidth - colorW, y, colorW, "My Name Color", cfg.getOwnColor(),
+                argb -> {
+                    cfg.setOwnColor(argb);
+                    cfg.save();
+                }));
         y += 24;
 
         if (cfg.isRandomizeOthers()) {
@@ -92,7 +97,8 @@ public class NameChangerTab extends BaseTab {
         y += 24;
 
         int deleteW = 50;
-        int fieldW = (contentWidth - deleteW - gap * 2 - 14) / 2;
+        int swatchW = 20;
+        int fieldW = (contentWidth - deleteW - swatchW - gap * 3 - 14) / 2;
         for (NameChangerConfig.Mapping m : new ArrayList<>(cfg.mappings())) {
             int x = contentX;
             EditBox realField = new EditBox(font, x, y, fieldW, 18, Component.literal("Real IGN"));
@@ -120,6 +126,12 @@ public class NameChangerTab extends BaseTab {
             widgets.add(displayField);
             x += fieldW + gap;
 
+            widgets.add(colorButton(x, y, swatchW, "Rename Color", m.color, argb -> {
+                m.color = argb;
+                cfg.save();
+            }));
+            x += swatchW + gap;
+
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
                         cfg.removeMapping(m);
                         cfg.save();
@@ -133,10 +145,31 @@ public class NameChangerTab extends BaseTab {
             y += 14;
         }
 
-        y += 6;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Visual only. Text boxes (chat input, commands) always show real names."), font));
         return widgets;
+    }
+
+    /** Colour button for a name. killer560 (2026-09-20): "instead of using color codes I select a color for
+     *  it". The picker is free-form ARGB, but a replaced name travels as a legacy-coded string, so the pick
+     *  is snapped to the nearest of Minecraft's 16 chat colours (see {@link NameColor}). */
+    private static AbstractWidget colorButton(int x, int y, int width, String title, int argb,
+                                              java.util.function.IntConsumer setter) {
+        return SettingsButtonWidget.builder(swatch(argb, width), btn -> {
+            Minecraft client = Minecraft.getInstance();
+            client.setScreen(new ColorPickerScreen(client.screen, title,
+                    argb == NameColor.NONE ? 0xFFFFFFFF : argb, 0xFFFFFFFF, picked -> {
+                setter.accept(picked);
+                btn.setMessage(swatch(picked, width));
+            }));
+        }).bounds(x, y, width, 18).build();
+    }
+
+    private static Component swatch(int argb, int width) {
+        int shown = argb == NameColor.NONE ? 0xFFFFFFFF : argb;
+        Component block = Component.literal("■").withStyle(
+                Style.EMPTY.withColor(TextColor.fromRgb(shown & 0xFFFFFF)));
+        return width >= 40
+                ? Component.literal("Color: ").append(block)
+                : Component.empty().append(block);
     }
 
     private static Component onOff(String label, boolean value) {

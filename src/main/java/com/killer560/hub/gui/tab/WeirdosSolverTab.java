@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.WeirdosSolverConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -40,15 +38,6 @@ public class WeirdosSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Ruled-Out Chests", cfg.isShowWrongChests()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Highlights the real correct Three Weirdos chest (green) once a real"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7NPC line gives it away, and ruled-out chests (red) as they're found."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

@@ -6,7 +6,6 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -97,6 +96,8 @@ public final class WaterSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(WaterSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WaterSolverFeature::onWorldRender);
     }
@@ -344,7 +345,7 @@ public final class WaterSolverFeature {
         if (cfg.isShowTracer() && !flat.isEmpty()) {
             LeverBlock first = flat.get(0).getKey();
             BlockPos firstPos = leverRealPos(first);
-            WorldRenderUtils.renderOutlineBox(context, new AABB(firstPos), 0.3f, 1.0f, 0.5f, 1f, 3f);
+            SolverEspRender.renderOutlineBox(context, new AABB(firstPos), 0.3f, 1.0f, 0.5f, 1f, 3f);
             if (flat.size() > 1) {
                 LeverBlock second = flat.get(1).getKey();
                 BlockPos secondPos = leverRealPos(second);
@@ -352,7 +353,7 @@ public final class WaterSolverFeature {
                     List<Vec3> line = List.of(
                             new Vec3(firstPos.getX() + 0.5, firstPos.getY() + 0.5, firstPos.getZ() + 0.5),
                             new Vec3(secondPos.getX() + 0.5, secondPos.getY() + 0.5, secondPos.getZ() + 0.5));
-                    WorldRenderUtils.renderLineStrip(context, line, 1.0f, 0.8f, 0.2f, 1f, 2f);
+                    SolverEspRender.renderLineStrip(context, line, 1.0f, 0.8f, 0.2f, 1f, 2f);
                 }
             }
         }

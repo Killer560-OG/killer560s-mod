@@ -47,6 +47,10 @@ public class DungeonTab extends FolderTab {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new SecretsTab());
             tabs.add(new AutoTerminalTab());
+            // Auto Puzzles came here when the Puzzle Solvers category was dissolved (killer560,
+            // 2026-09-20). It is the cheat half - the solvers only show you the answer, this plays the
+            // puzzle for you - so the legit build has no such section at all.
+            tabs.add(new AutoPuzzlesTab());
         }
         return tabs;
     }

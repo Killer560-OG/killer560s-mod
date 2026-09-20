@@ -5,7 +5,6 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -54,6 +53,8 @@ public final class IceFillSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(IceFillSolverFeature::onWorldRender);
     }
@@ -164,7 +165,7 @@ public final class IceFillSolverFeature {
         if (current == null || !"Ice Fill".equals(current.name)) {
             return;
         }
-        WorldRenderUtils.renderLineStrip(context, currentPath, 0.4f, 0.8f, 1.0f, 1f, 3f);
+        SolverEspRender.renderLineStrip(context, currentPath, 0.4f, 0.8f, 1.0f, 1f, 3f);
     }
 
     private static void reset() {

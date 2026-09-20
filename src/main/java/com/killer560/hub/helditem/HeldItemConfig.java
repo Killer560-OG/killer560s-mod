@@ -25,7 +25,9 @@ public final class HeldItemConfig {
     public static final float MAX_OFFSET = 1.0f;
     public static final float MIN_ROTATION = -180f;
     public static final float MAX_ROTATION = 180f;
-    public static final float MIN_SWING_SPEED = 0.25f;
+    // killer560 (2026-09-20): "allow swing speed down to 0.05x" - the old 0.25x floor still swung far too
+    // fast for the slow-motion look he wanted (0.05x = a 6-tick vanilla swing stretched to 120 ticks).
+    public static final float MIN_SWING_SPEED = 0.05f;
     public static final float MAX_SWING_SPEED = 4.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

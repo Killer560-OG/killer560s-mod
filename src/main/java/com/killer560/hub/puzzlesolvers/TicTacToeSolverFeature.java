@@ -3,7 +3,6 @@ package com.killer560.hub.puzzlesolvers;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -54,6 +53,8 @@ public final class TicTacToeSolverFeature {
     }
 
     public static void register() {
+        // Shared solver highlight pipelines must exist before the level renderer precompiles them.
+        SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(TicTacToeSolverFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TicTacToeSolverFeature::onWorldRender);
     }
@@ -231,11 +232,11 @@ public final class TicTacToeSolverFeature {
         }
         BlockPos best = bestMove;
         if (best != null) {
-            WorldRenderUtils.renderOutlineBox(context, new AABB(best), 0.33f, 1.0f, 0.33f, 0.9f, 3f);
+            SolverEspRender.renderOutlineBox(context, new AABB(best), 0.33f, 1.0f, 0.33f, 0.9f, 3f);
         }
         BlockPos predicted = predictedMove;
         if (predicted != null && TicTacToeSolverConfig.getInstance().isShowPrediction()) {
-            WorldRenderUtils.renderOutlineBox(context, new AABB(predicted), 1.0f, 1.0f, 0.33f, 0.9f, 2f);
+            SolverEspRender.renderOutlineBox(context, new AABB(predicted), 1.0f, 1.0f, 0.33f, 0.9f, 2f);
         }
     }
 

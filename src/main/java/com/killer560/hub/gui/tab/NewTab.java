@@ -85,6 +85,20 @@ public class NewTab extends FolderTab {
                 new LoadoutKeybindsTab(),
                 new AbilityKeybindsTab(),
                 new P4PlatformHighlightTab(),
+                // Moved out of the Puzzle Solvers folder 2026-09-20 - killer560: "move all solvers
+                // into the New category for now". Solver Highlights holds the one setting they share.
+                new SolverHighlightsTab(),
+                new BoulderSolverTab(),
+                new QuizSolverTab(),
+                new IceFillSolverTab(),
+                new IcePathSolverTab(),
+                new WeirdosSolverTab(),
+                new WaterSolverTab(),
+                new BeamsSolverTab(),
+                new BlazeSolverTab(),
+                new TicTacToeSolverTab(),
+                new TeleportMazeSolverTab(),
+                new LividSolverTab(),
                 new CommandKeybindsTab(),
                 new RevertMasterStarsTab(),
                 new InventorySearchTab(),
@@ -92,6 +106,9 @@ public class NewTab extends FolderTab {
                 new ItemProtectTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Cheat-only: clicking a room etherwarps you to it and starts a secret route (killer560,
+            // 2026-09-20: "that is a cheat"). The legit jar has no such tab at all.
+            tabs.add(new InteractiveMapTab());
             tabs.add(new FastLeapTab());
             tabs.add(new CheatUtilsTab());
             tabs.add(new SecretTriggerbotTab());

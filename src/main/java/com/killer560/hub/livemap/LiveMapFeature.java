@@ -2,10 +2,7 @@ package com.killer560.hub.livemap;
 
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.hud.HudVisibility;
-import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.hud.HudElement;
-import com.killer560.hub.leapmenu.LeapMenuConfig;
-import com.killer560.hub.leapmenu.LeapMenuFeature;
 import com.killer560.hub.puzzlesolvers.BeamsSolverConfig;
 import com.killer560.hub.puzzlesolvers.BlazeSolverConfig;
 import com.killer560.hub.puzzlesolvers.BoulderSolverConfig;
@@ -20,10 +17,8 @@ import com.killer560.hub.secretwaypoints.SecretWaypointsConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -72,6 +67,9 @@ public final class LiveMapFeature {
     static final int HALF_ROOM = 16;
     /** Bumped on every grid reset so the interactive map can drop per-run state (cleared-by, selections). */
     private static int resetGeneration = 0;
+    /** Bumped every client tick. Renderers key their per-frame caches off this (fps report 2026-09-20: the map
+     *  rebuilt the party list, the layout snapshot and every room label on every single frame). */
+    private static int tickCounter = 0;
 
     public enum Tile {
         UNKNOWN, ROOM, DOOR_NORMAL, DOOR_WITHER, DOOR_BLOOD, DOOR_ENTRANCE
@@ -251,6 +249,7 @@ public final class LiveMapFeature {
     }
 
     private static void tick() {
+        tickCounter++;
         Minecraft client = Minecraft.getInstance();
         boolean inDungeon = DungeonState.isInDungeon();
         if (client.level != lastLevel) {
@@ -930,6 +929,11 @@ public final class LiveMapFeature {
         return resetGeneration;
     }
 
+    /** Client ticks since load - the invalidation key for every per-frame render cache in this package. */
+    static int tickCount() {
+        return tickCounter;
+    }
+
     static List<RoomGroup> groupsView() {
         ensureGroups();
         return groups;
@@ -968,19 +972,6 @@ public final class LiveMapFeature {
         return group.entry == null || r < 0 ? null : new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
-    /** Map-item state of a room ({@code DungeonMapScanner.STATE_*}); with no calibrated map (p3sim) a
-     *  world-scanned room reports DISCOVERED so it isn't drawn darkened. */
-    static int roomState(RoomGroup group) {
-        if (!DungeonMapScanner.isCalibrated()) {
-            return DungeonMapScanner.STATE_DISCOVERED;
-        }
-        int state = DungeonMapScanner.stateAt(group.mainIdx);
-        if (state == DungeonMapScanner.STATE_UNDISCOVERED && grid[group.mainIdx] == Tile.ROOM) {
-            return DungeonMapScanner.STATE_DISCOVERED;
-        }
-        return state;
-    }
-
     public static final class LiveMapHudElement implements HudElement {
         @Override
         public String id() {
@@ -989,7 +980,7 @@ public final class LiveMapFeature {
 
         @Override
         public String displayName() {
-            return "Live Dungeon Map";
+            return "Dungeon Map";
         }
 
         @Override
@@ -1002,14 +993,20 @@ public final class LiveMapFeature {
             return 500;
         }
 
+        /** The map is {@link MapPainter#MAP_UNITS} units square plus a 2px margin each side, NOT an 11x11 grid of
+         *  equal cells - rooms are 16 units and gaps 4, exactly like the real dungeon map. */
+        private static int mapSize() {
+            return Math.round(MapPainter.MAP_UNITS * LiveMapConfig.getInstance().getRoomPx() / 16f) + 4;
+        }
+
         @Override
         public int width() {
-            return Math.max(GRID * LiveMapConfig.getInstance().getCellSize(), 90);
+            return mapSize();
         }
 
         @Override
         public int height() {
-            return GRID * LiveMapConfig.getInstance().getCellSize() + 12;
+            return mapSize() + (LiveMapConfig.getInstance().isRoomNameBelowMap() ? 12 : 0);
         }
 
         @Override
@@ -1025,7 +1022,6 @@ public final class LiveMapFeature {
             if (!cfg.isEnabled() || HudVisibility.hidesHud() || !DungeonState.isInDungeon()) {
                 return;
             }
-            int cell = cfg.getCellSize();
             Minecraft client = Minecraft.getInstance();
             ensureGroups();
 
@@ -1044,7 +1040,7 @@ public final class LiveMapFeature {
                 graphics.pose().scale(peek, peek);
             }
             try {
-                renderMap(graphics, x, y, cfg, cell, client);
+                renderMap(graphics, x, y, cfg, client);
             } finally {
                 if (peeking) {
                     graphics.pose().popMatrix();
@@ -1052,159 +1048,59 @@ public final class LiveMapFeature {
             }
         }
 
-        private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, int cell, Minecraft client) {
+        /** killer560, 2026-09-17: "the live map hud does not look like the real dungeon map". It used to paint all
+         *  121 cells as same-size grey squares with a 1px inset on every side, so rooms, corridors and gaps were
+         *  indistinguishable and nothing ever touched. It now shares the interactive map's painter
+         *  ({@link MapPainter}): 16-unit rooms, flush 4-unit connectors, real per-type colours and sprite
+         *  checkmarks - the same geometry and palette as the held map itself. */
+        private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client) {
+            float ppu = cfg.getRoomPx() / 16f;
+            int size = mapSize();
+            graphics.fill(x, y, x + size, y + size, cfg.getMapBackground());
+            int border = cfg.getMapBorderColor();
+            if ((border >>> 24) != 0) {
+                graphics.outline(x, y, size, size, border);
+            }
+            float ox = x + 2;
+            float oy = y + 2;
 
-            graphics.fill(x, y, x + GRID * cell, y + GRID * cell, 0x99000000);
+            // Per-tick snapshot, never per frame: capture() walks all 121 cells and block-checks every wither/blood
+            // door (fps report 2026-09-20).
+            DungeonLayout layout = DungeonLayout.current();
+            MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, -1);
 
-            for (int gx = 0; gx < GRID; gx++) {
-                for (int gz = 0; gz < GRID; gz++) {
-                    int idx = gx + gz * GRID;
-                    Tile tile = grid[idx];
-                    int gid = groupOfCell[idx];
-                    boolean mapOnly = false;
-                    if (tile == Tile.UNKNOWN) {
-                        // Not loaded in the world yet - fall back to what the dungeon map item shows.
-                        Tile mapDoor = DungeonMapScanner.doorTileAt(idx);
-                        if (gid >= 0) {
-                            tile = Tile.ROOM;
-                        } else if (mapDoor != Tile.UNKNOWN) {
-                            tile = mapDoor;
-                        } else {
-                            continue;
-                        }
-                        mapOnly = true;
-                    }
-                    int color = switch (tile) {
-                        case ROOM -> mapOnly ? 0xFF3A3A3A : 0xFF555555;
-                        case DOOR_NORMAL -> mapOnly ? 0xFF5A5A5A : 0xFF888888;
-                        case DOOR_WITHER -> 0xFF222222;
-                        case DOOR_BLOOD -> mapOnly ? 0xFF700000 : 0xFFAA0000;
-                        case DOOR_ENTRANCE -> mapOnly ? 0xFF44669F : 0xFF6699FF;
-                        default -> 0x00000000;
-                    };
-                    // Merged drawing: no 1px gap on sides shared with another cell of the same room.
-                    int left = 1;
-                    int top = 1;
-                    int right = 1;
-                    int bottom = 1;
-                    if (gid >= 0) {
-                        if (gx > 0 && groupOfCell[idx - 1] == gid) left = 0;
-                        if (gx < GRID - 1 && groupOfCell[idx + 1] == gid) right = 0;
-                        if (gz > 0 && groupOfCell[idx - GRID] == gid) top = 0;
-                        if (gz < GRID - 1 && groupOfCell[idx + GRID] == gid) bottom = 0;
-                    }
-                    int cx = x + gx * cell;
-                    int cy = y + gz * cell;
-                    graphics.fill(cx + left, cy + top, cx + cell - right, cy + cell - bottom, color);
+            int currentIdx = currentRoomIndex();
+            int currentGroup = currentIdx >= 0 ? groupOfCell[currentIdx] : -1;
+            for (int gid = 0; gid < groups.size(); gid++) {
+                RoomGroup group = groups.get(gid);
+                if (!MapPainter.isRevealed(group)) {
+                    continue; // legit build: the map item has not shown this room yet
                 }
-            }
-
-            int labelStyle = cfg.getRoomLabels();
-            if (labelStyle != 0) {
-                for (RoomGroup group : groups) {
-                    drawRoomLabel(graphics, client.font, group, x, y, cell, labelStyle);
+                int color = MapPainter.roomColor(group, cfg);
+                if (gid == currentGroup) {
+                    color = MapPainter.mix(color, cfg.getHighlightColor());
                 }
+                MapPainter.drawRoom(graphics, group, gid, color, ox, oy, ppu);
             }
 
-            if (client.player != null) {
-                int[] self = gridCellFor(client.player.position());
-                int cx = x + self[0] * cell;
-                int cy = y + self[1] * cell;
-                graphics.fill(cx, cy, cx + cell, cy + cell, 0xFFFFFF55);
-            }
+            MapPainter.drawLabels(graphics, client.font, cfg.getRoomLabels(), cfg, ox, oy, ppu);
 
-            if (cfg.isShowTeammates()) {
-                List<Player> members = LeapMenuFeature.currentPartyMembers();
-                for (Player p : members) {
-                    int[] cellPos = gridCellFor(p.position());
-                    int color = 0xFFFFFFFF;
-                    if (cfg.isClassRecolorTeammates()) {
-                        DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(p.getName().getString());
-                        if (cls != null) {
-                            color = cls.color();
-                        }
-                    }
-                    int cx = x + cellPos[0] * cell + cell / 4;
-                    int cy = y + cellPos[1] * cell + cell / 4;
-                    graphics.fill(cx, cy, cx + cell / 2, cy + cell / 2, color);
+            // Real arrow/head markers at the exact world position instead of a whole cell filled yellow. The list is
+            // cached per tick - it used to run a fresh level.players() party scan every frame.
+            for (InteractiveMapFeature.MapPlayer mp : InteractiveMapFeature.playersCached(client)) {
+                if (!mp.self() && !cfg.isShowTeammates()) {
+                    continue;
                 }
+                MapPainter.drawMarker(graphics, client.font, mp, cfg, ox, oy, ppu, ppu,
+                        cfg.isClassRecolorTeammates(), false, -1, -1);
             }
 
-            RoomEntry current = currentRoomEntry();
-            String label = current != null ? current.name : (RoomDatabase.isReady() ? "Unknown Room" : "Loading room data...");
-            graphics.text(Minecraft.getInstance().font, label, x, y + GRID * cell + 1, 0xFFFFFFFF, false);
-        }
-
-        /** One label per room, centered on the combined shape - NoammAddons' {@code MapRenderer.renderText}
-         *  (styles: Checkmarks / Secrets / Room Name / Room Name + Secrets, "Limit Room Name Size" scaling). */
-        private static void drawRoomLabel(GuiGraphicsExtractor graphics, Font font, RoomGroup group, int x, int y,
-                                          int cell, int style) {
-            int state = DungeonMapScanner.stateAt(group.mainIdx);
-            RoomEntry entry = group.entry;
-            int color = switch (state) {
-                case DungeonMapScanner.STATE_GREEN -> 0xFF55FF55;
-                case DungeonMapScanner.STATE_FAILED -> 0xFFFF0000;
-                case DungeonMapScanner.STATE_CLEARED -> 0xFFFFFFFF;
-                default -> 0xFFAAAAAA;
-            };
-            float centerX = x + (group.labelGX + 0.5f) * cell;
-            float centerY = y + (group.labelGZ + 0.5f) * cell;
-            float boxW = (group.lShape ? 3 : group.maxGX - group.minGX + 1) * cell;
-            float boxH = (group.lShape ? 1 : group.maxGZ - group.minGZ + 1) * cell;
-
-            List<String> lines = new ArrayList<>();
-            if (style == 1 || entry == null) {
-                String mark = switch (state) {
-                    case DungeonMapScanner.STATE_CLEARED, DungeonMapScanner.STATE_GREEN -> "✔";
-                    case DungeonMapScanner.STATE_FAILED -> "✖";
-                    case DungeonMapScanner.STATE_UNOPENED -> "?";
-                    default -> null;
-                };
-                if (mark == null) {
-                    return;
-                }
-                lines.add(mark);
-                boxW = cell;
-                boxH = cell;
-            } else {
-                String secrets;
-                Integer found = foundSecretsByRoom.get(entry.name);
-                int foundCount = state == DungeonMapScanner.STATE_GREEN ? entry.secrets : (found != null ? found : 0);
-                secrets = entry.secrets == 0 ? "0" : foundCount + "/" + entry.secrets;
-                if (style == 2) {
-                    lines.add(secrets);
-                } else {
-                    if ("ENTRANCE".equals(entry.type)) {
-                        return;
-                    }
-                    java.util.Collections.addAll(lines, group.nameLines);
-                    if (style == 4 && entry.secrets > 0) {
-                        lines.add(secrets);
-                    }
-                }
+            if (cfg.isRoomNameBelowMap()) {
+                RoomEntry current = currentRoomEntry();
+                String label = current != null ? current.name
+                        : (RoomDatabase.isReady() ? "Unknown Room" : "Loading room data...");
+                graphics.text(client.font, label, x, y + size + 1, 0xFFFFFFFF, false);
             }
-            if (lines.isEmpty()) {
-                return;
-            }
-            int maxLineW = 0;
-            for (String line : lines) {
-                maxLineW = Math.max(maxLineW, font.width(line));
-            }
-            int lineH = font.lineHeight;
-            float totalH = lines.size() * lineH;
-            float scale = 1f;
-            if (maxLineW > 0) {
-                scale = Math.max(0.39f, Math.min(1f, Math.min(boxW / maxLineW, boxH / totalH)));
-            }
-            graphics.pose().pushMatrix();
-            graphics.pose().translate(centerX, centerY);
-            graphics.pose().scale(scale, scale);
-            int top = Math.round(-totalH / 2f);
-            for (int i = 0; i < lines.size(); i++) {
-                String line = lines.get(i);
-                graphics.text(font, line, -font.width(line) / 2, top + i * lineH, color, true);
-            }
-            graphics.pose().popMatrix();
         }
     }
 }

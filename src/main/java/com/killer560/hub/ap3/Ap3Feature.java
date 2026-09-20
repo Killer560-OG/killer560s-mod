@@ -27,11 +27,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * AP3 - hand-placed node chains that move you through F7/M7 Phase 3 terminal sections. CHEAT BUILD ONLY, default
- * off; every entry point is behind {@link Ap3Config#isEnabled()}.
+ * AP3 - hand-placed node chains that move you through the F7/M7 boss fight, one chain per {@link Ap3Area} (P1, P2,
+ * the P3 sections S1-S5, P4, P5). CHEAT BUILD ONLY, default off; every entry point is behind
+ * {@link Ap3Config#isEnabled()}.
  * <p>
  * <b>BOSS ONLY.</b> killer560: "It should only work in the boss stages, not in regular clear." Everything here is
- * gated on {@link #isP3Live()} - {@code Floor7Tracker.inF7Boss()} plus Phase 3. Auto Routes is the opposite (clear
+ * gated on {@link #isBossLive()} - {@code Floor7Tracker.inF7Boss()} plus a known phase. Auto Routes is the opposite (clear
  * only, never boss), so the two features can never be live at the same time; that mutual exclusion is what makes
  * two separate {@code KeyboardInput#tick} mixins safe (see {@code mixin/Ap3InputMixin}).
  * <p>
@@ -56,7 +57,8 @@ public final class Ap3Feature {
     private static Object lastLevel;
     private static boolean wasLive;
     private static boolean renderFailed;
-    private static int lastSection;
+    private static Ap3Area lastArea;
+    private static int lastSimRestart;
 
     private Ap3Feature() {
     }
@@ -72,23 +74,55 @@ public final class Ap3Feature {
     // ------------------------------------------------------------------------------------------- gate
 
     /**
-     * The BOSS-ONLY + P3 gate. Chat-driven phase first ({@code Floor7Tracker.inPhase(P3)}); when no boss dialogue
-     * has been seen at all this world ({@code getPhase() == UNKNOWN} - p3sim.net can skip Goldor's line) the
-     * position-based phase is accepted instead. Never while chat says any OTHER phase.
+     * The BOSS-ONLY gate, for every phase - killer560 (2026-09-20): "For ap3 it should work in p1 and p2 and p3 and
+     * p4 and p5. Any part of boss phase it should work in." True while {@code Floor7Tracker.inF7Boss()} - the same
+     * arena test as before, never in clear, which is what keeps Auto Routes' {@code KeyboardInput#tick} mixin and
+     * ours from ever driving at once - and the boss phase is known ({@link #currentPhase()}).
      */
-    public static boolean isP3Live() {
-        if (!Floor7Tracker.inF7Boss()) {
-            return false;
-        }
-        if (Floor7Tracker.inPhase(Phase.P3)) {
-            return true;
-        }
-        return Floor7Tracker.getPhase() == Phase.UNKNOWN && Floor7Tracker.getPhaseAt() == Phase.P3;
+    public static boolean isBossLive() {
+        return currentPhase() != Phase.UNKNOWN;
     }
 
-    /** The P3 section you are standing in (1-5), position first, else the chat-tracked stage; 0 when unknown. */
+    /**
+     * The boss phase you are in: chat-driven first ({@code Floor7Tracker.getPhase()}); when no boss dialogue has been
+     * heard yet this world (a mid-run rejoin; p3sim before its Maxor line, which {@code Floor7Tracker} turns into
+     * P3 / UNKNOWN itself, server-checked) the position-based phase is used instead. UNKNOWN outside the F7/M7 boss.
+     */
+    public static Phase currentPhase() {
+        if (!Floor7Tracker.inF7Boss()) {
+            return Phase.UNKNOWN;
+        }
+        Phase chat = Floor7Tracker.getPhase();
+        return chat != Phase.UNKNOWN ? chat : Floor7Tracker.getPhaseAt();
+    }
+
+    /**
+     * The area chains are added to and run in: the phase, plus the section you stand in when that phase is P3.
+     * null when not live, or in P3 but outside every section box ({@link #noAreaReason()} says which).
+     */
+    public static Ap3Area currentArea() {
+        Phase phase = currentPhase();
+        if (phase == Phase.UNKNOWN) {
+            return null;
+        }
+        if (phase != Phase.P3) {
+            return Ap3Area.ofPhase(phase);
+        }
+        int n = currentSectionNumber();
+        return n == 0 ? null : Ap3Area.p3(n);
+    }
+
+    /** Why {@link #currentArea()} is null right now, for chat. */
+    static String noAreaReason() {
+        return currentPhase() == Phase.P3
+                ? "In P3 but not inside a section (S1-S5) - stand in one first."
+                : "Not in the F7/M7 boss - AP3 is boss-only.";
+    }
+
+    /** The P3 section you are standing in (1-5), position first, else the chat-tracked stage; 0 when unknown or
+     *  when the current phase is not P3. */
     public static int currentSectionNumber() {
-        if (!isP3Live()) {
+        if (currentPhase() != Phase.P3) {
             return 0;
         }
         Stage at = Floor7Tracker.getStageAt();
@@ -123,7 +157,7 @@ public final class Ap3Feature {
             }
             pickEditBreakerNode();
             chat(editBreakerNode == null
-                            ? ModChat.bad("No breaker node in this section")
+                            ? ModChat.bad("No breaker node in " + currentChainLabel())
                             : ModChat.text("Editing breaker "),
                     editBreakerNode == null
                             ? ModChat.dim(" - add one with /ap3 add breaker")
@@ -149,7 +183,7 @@ public final class Ap3Feature {
         if (editBreakerNode == null) {
             pickEditBreakerNode();
             if (editBreakerNode == null) {
-                chatBad("No breaker node in this section - /ap3 add breaker first.");
+                chatBad("No breaker node in " + currentChainLabel() + " - /ap3 add breaker first.");
                 return true;
             }
         }
@@ -180,27 +214,26 @@ public final class Ap3Feature {
         return true;
     }
 
-    /** The chain nodes are added to / listed from: the section you stand in + the tab's edit class filter. The
+    /** The chain nodes are added to / listed from: the area you stand in + the tab's edit class filter. The
      *  live list, or an empty list when there is no such chain yet. */
     public static List<Ap3Node> currentChainNodes() {
         Ap3Chain chain = currentChain();
         return chain == null ? Collections.emptyList() : chain.nodes();
     }
 
-    /** The chain being edited (section you stand in + edit class filter), or null when none exists yet. */
+    /** The chain being edited (area you stand in + edit class filter), or null when none exists yet. */
     public static Ap3Chain currentChain() {
-        int section = currentSectionNumber();
-        return section == 0 ? null : Ap3Store.getInstance().exact(section, Ap3Config.getInstance().getEditClassFilter());
+        Ap3Area area = currentArea();
+        return area == null ? null : Ap3Store.getInstance().exact(area, Ap3Config.getInstance().getEditClassFilter());
     }
 
-    /** Label for the tab / chat: {@code "S3"}, {@code "S3 (Mage)"}, or {@code "no section"}. */
+    /** Label for the tab / chat: {@code "S3"}, {@code "S3 (Mage)"}, {@code "P1"}, or {@code "no area"}. */
     public static String currentChainLabel() {
-        int section = currentSectionNumber();
-        if (section == 0) {
-            return "no section";
+        Ap3Area area = currentArea();
+        if (area == null) {
+            return "no area";
         }
-        DungeonClass filter = Ap3Config.getInstance().getEditClassFilter();
-        return "S" + section + (filter == null ? "" : " (" + filter.displayName() + ")");
+        return Ap3Chain.label(area, Ap3Config.getInstance().getEditClassFilter());
     }
 
     /** {@code /ap3 add <type>}: a node of {@code type} at your snapped position and current look. */
@@ -345,8 +378,8 @@ public final class Ap3Feature {
         if (player == null || client.level == null) {
             return false;
         }
-        if (!isP3Live()) {
-            chatBad("Not in F7/M7 Phase 3 - nodes are placed in the boss arena only.");
+        if (!isBossLive()) {
+            chatBad("Not in the F7/M7 boss - nodes are placed in the boss fight only.");
             return false;
         }
         if (!position && !look) {
@@ -408,8 +441,8 @@ public final class Ap3Feature {
 
     /** Removes the whole chain being edited. @return true when one existed. */
     public static boolean clearCurrentChain() {
-        if (currentSectionNumber() == 0) {
-            chatBad("Stand in a P3 section (S1-S5) first.");
+        if (currentArea() == null) {
+            chatBad(noAreaReason());
             return false;
         }
         Ap3Chain chain = currentChain();
@@ -464,13 +497,8 @@ public final class Ap3Feature {
         if (player == null || client.level == null) {
             return null;
         }
-        if (!isP3Live()) {
-            chatBad("Not in F7/M7 Phase 3 - nodes are placed in the boss arena only.");
-            return null;
-        }
-        int section = currentSectionNumber();
-        if (section == 0) {
-            chatBad("Stand in a P3 section (S1-S5) first.");
+        if (currentArea() == null) {
+            chatBad(noAreaReason());
             return null;
         }
         Vec3 pos = player.position();
@@ -488,12 +516,12 @@ public final class Ap3Feature {
     }
 
     private static boolean commitNode(Ap3Node node) {
-        int section = currentSectionNumber();
-        if (section == 0) {
+        Ap3Area area = currentArea();
+        if (area == null) {
             return false;
         }
         Ap3Store store = Ap3Store.getInstance();
-        Ap3Chain chain = store.forSectionOrCreate(section, Ap3Config.getInstance().getEditClassFilter());
+        Ap3Chain chain = store.forAreaOrCreate(area, Ap3Config.getInstance().getEditClassFilter());
         if (chain.nodes().size() >= Ap3Store.MAX_NODES) {
             chatBad(chain.label() + " already has " + Ap3Store.MAX_NODES + " nodes.");
             return false;
@@ -534,21 +562,34 @@ public final class Ap3Feature {
         if (client.player == null || client.level == null) {
             return;
         }
-        boolean live = isP3Live();
+        boolean live = isBossLive();
         if (!live) {
             if (wasLive) {
-                // Leaving P3 (P4 started, died to the lobby, disconnect...) ends everything, edit mode included -
+                // Leaving the boss (died to the lobby, disconnect, warped out...) ends everything, edit mode included -
                 // edit mode swallows every block right-click, and must not follow the player out of the arena.
-                resetForWorld("left P3");
+                resetForWorld("left the boss");
             }
             wasLive = false;
-            lastSection = 0;
+            lastArea = null;
             return;
         }
         wasLive = true;
-        int section = currentSectionNumber();
-        if (section != lastSection) {
-            lastSection = section;
+        int restarts = Floor7Tracker.simRestartCount();
+        if (restarts != lastSimRestart) {
+            // killer560: on a p3sim restart a running chain must STOP - "a restart means the fight reset, so
+            // continuing is wrong". The phase stays live (the tracker re-arms P3), so this is the only signal.
+            lastSimRestart = restarts;
+            if (Ap3Executor.isRunning()) {
+                String why = "p3sim restarted - the fight reset";
+                Ap3Executor.stop(why);
+                if (!cfg.isChatFeedback()) {
+                    chat(ModChat.bad("Stopped"), ModChat.dim(" - " + why)); // always said, even with feedback off
+                }
+            }
+        }
+        Ap3Area area = currentArea();
+        if (area == null ? lastArea != null : !area.equals(lastArea)) {
+            lastArea = area;
             if (editMode) {
                 pickEditBreakerNode();
             }
@@ -557,11 +598,11 @@ public final class Ap3Feature {
             Ap3Executor.tick(client);
             return;
         }
-        int completed = Ap3Executor.consumeCompletedSection();
-        if (completed != 0 && cfg.isContinueIntoNextSection() && !editMode && section != 0 && section != completed) {
+        Ap3Area completed = Ap3Executor.consumeCompletedArea();
+        if (completed != null && cfg.isContinueIntoNextSection() && !editMode && area != null && !area.equals(completed)) {
             // Only after a chain ran to its END - never after the player stopped one (that must stay stopped) - and
-            // only into a DIFFERENT section, so a chain that ends where it started can't restart itself.
-            Ap3Chain next = Ap3Store.getInstance().forSection(section, selfClass());
+            // only into a DIFFERENT area, so a chain that ends where it started can't restart itself.
+            Ap3Chain next = Ap3Store.getInstance().forArea(area, selfClass());
             if (next != null && !next.isEmpty()) {
                 Ap3Executor.start(next);
             }
@@ -578,15 +619,14 @@ public final class Ap3Feature {
                 return;
             }
             Ap3Executor.tickFrame();
-            if (!isP3Live()) {
+            if (!isBossLive()) {
                 return;
             }
             Ap3Chain chain = Ap3Executor.runningChain();
             if (chain == null) {
                 chain = currentChain();
                 if (chain == null) {
-                    int section = currentSectionNumber();
-                    chain = section == 0 ? null : Ap3Store.getInstance().forSection(section, selfClass());
+                    chain = Ap3Store.getInstance().forArea(currentArea(), selfClass());
                 }
             }
             if (chain == null) {
@@ -628,7 +668,7 @@ public final class Ap3Feature {
         Ap3EditInput.reset();
         editBreakerNode = null;
         renderFailed = false;
-        lastSection = 0;
+        lastArea = null;
     }
 
     /** Never let a tick/render exception take the frame down: switch the feature off (persisted) and say so. */

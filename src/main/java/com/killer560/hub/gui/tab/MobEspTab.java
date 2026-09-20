@@ -20,17 +20,21 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 /**
- * Starred mob / bat highlight settings - see {@link com.killer560.hub.mobesp.MobEspFeature}. Two sections since
- * 2026-09-16, per killer560: "make it so there is a starred mob hitbox's section for bats and starred mobs then
- * there should be a red section under it that is esp and that will show them through walls and whatnot":
+ * Starred mob / bat / wither highlight settings - see {@link com.killer560.hub.mobesp.MobEspFeature}. Sections, in
+ * order (2026-09-16 killer560: "make it so there is a starred mob hitbox's section for bats and starred mobs then
+ * there should be a red section under it that is esp"; 2026-09-20: "for mob esp make wither esp its own section ...
+ * also add a regular wither highlight that isn't esp"):
  * <ul>
- * <li><b>Starred Mob Hitboxes</b> (orange header) - the legit part: starred mobs + bats, colours, box style, line
- *     width, range. Always depth-tested / line-of-sight only.</li>
- * <li><b>ESP</b> (red header) - the cheat part: Through Walls, plus the F7/M7 Wither Bosses target. Built only
- *     on the cheat jar; the legit jar never constructs a single widget of it (killer560: "If you are on the legit
- *     version it shouldnt mention cheat things at all"), which is also why the tab itself is named
- *     "Starred Mob Hitboxes" there and only "Dungeon ESP" on the cheat build.</li>
+ * <li><b>Starred Mob Hitboxes</b> (orange) - starred mobs + bats, colours, box style, line width, and the selection
+ *     rule: Room Scoped (current dungeon room + margin) or the Range slider. Always depth-tested / line-of-sight.</li>
+ * <li><b>Wither Highlight</b> (orange) - the non-ESP F7/M7 wither highlight: Glow Hitbox or Hitbox Fill, never
+ *     through walls, never range-limited. Exists on both builds.</li>
+ * <li><b>ESP</b> (red, cheat jar only) - Through Walls for the starred mobs and bats above.</li>
+ * <li><b>Wither ESP</b> (red, cheat jar only) - the F7/M7 wither bosses through walls at any range.</li>
  * </ul>
+ * The legit jar never constructs a single widget of the red sections (killer560: "If you are on the legit version it
+ * shouldnt mention cheat things at all"), which is also why the tab itself is named "Starred Mob Hitboxes" there and
+ * only "Dungeon ESP" on the cheat build.
  */
 public class MobEspTab extends BaseTab {
 
@@ -81,20 +85,57 @@ public class MobEspTab extends BaseTab {
         }
         y += 22;
 
-        double minRange = MobEspConfig.MIN_RANGE;
-        double maxRange = MobEspConfig.MAX_RANGE;
-        widgets.add(new ThemedSliderButton(contentX, y, colW, 18, rangeText(cfg), (cfg.getRange() - minRange) / (maxRange - minRange)) {
-            @Override
-            protected void updateMessage() {
-                setMessage(rangeText(cfg));
-            }
+        widgets.add(SettingsButtonWidget.builder(onOff("Room Scoped", cfg.isRoomScoped()), btn -> {
+                    cfg.setRoomScoped(!cfg.isRoomScoped());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, colW, 18).build());
+        if (cfg.isRoomScoped()) {
+            double minMargin = MobEspConfig.MIN_ROOM_MARGIN;
+            double maxMargin = MobEspConfig.MAX_ROOM_MARGIN;
+            widgets.add(new ThemedSliderButton(col2X, y, colW, 18, roomMarginText(cfg),
+                    (cfg.getRoomMargin() - minMargin) / (maxMargin - minMargin)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(roomMarginText(cfg));
+                }
 
-            @Override
-            protected void applyValue() {
-                cfg.setRange(minRange + this.value * (maxRange - minRange));
-                cfg.save();
-            }
-        });
+                @Override
+                protected void applyValue() {
+                    cfg.setRoomMargin(minMargin + this.value * (maxMargin - minMargin));
+                    cfg.save();
+                }
+            });
+        } else {
+            double minRange = MobEspConfig.MIN_RANGE;
+            double maxRange = MobEspConfig.MAX_RANGE;
+            widgets.add(new ThemedSliderButton(col2X, y, colW, 18, rangeText(cfg), (cfg.getRange() - minRange) / (maxRange - minRange)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(rangeText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setRange(minRange + this.value * (maxRange - minRange));
+                    cfg.save();
+                }
+            });
+        }
+        y += 28;
+
+        // ---- Wither Highlight (legit, its own section since 2026-09-20) ----
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Wither Highlight", false), mc.font));
+        y += 16;
+        targetRow(widgets, contentX, col2X, y, colW, "Wither Highlight", cfg::getWitherHighlightRaw,
+                cfg::setWitherHighlight, "Wither Highlight", cfg::getWitherHighlightColor,
+                cfg::setWitherHighlightColor, MobEspConfig.DEFAULT_WITHER_COLOR);
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(witherStyleText(cfg), btn -> {
+                    cfg.cycleWitherHighlightStyle();
+                    cfg.save();
+                    btn.setMessage(witherStyleText(cfg));
+                }).bounds(contentX, y, colW, 18).build());
         y += 22;
 
         // ---- ESP (cheat jar only - not disabled, absent) ----
@@ -109,7 +150,11 @@ public class MobEspTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Through Walls", cfg.getThroughWallsRaw()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
+        y += 28;
+
+        // ---- Wither ESP (cheat jar only, its own section since 2026-09-20) ----
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Wither ESP", true), mc.font));
+        y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Wither Bosses", cfg::getWithersRaw, cfg::setWithers,
                 "Wither", cfg::getWitherColor, cfg::setWitherColor, MobEspConfig.DEFAULT_WITHER_COLOR);
         return widgets;
@@ -137,12 +182,20 @@ public class MobEspTab extends BaseTab {
         return Component.literal("Style: §b" + cfg.getStyle().label);
     }
 
+    private static Component witherStyleText(MobEspConfig cfg) {
+        return Component.literal("Wither Style: §b" + cfg.getWitherHighlightStyle().label);
+    }
+
     private static Component lineWidthText(MobEspConfig cfg) {
         return Component.literal(String.format(Locale.US, "Line Width: %.1f", cfg.getLineWidth()));
     }
 
     private static Component rangeText(MobEspConfig cfg) {
         return Component.literal(String.format(Locale.US, "Range: %.0f", cfg.getRange()));
+    }
+
+    private static Component roomMarginText(MobEspConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Room Margin: %.0f", cfg.getRoomMargin()));
     }
 
     private static Component onOff(String label, boolean value) {

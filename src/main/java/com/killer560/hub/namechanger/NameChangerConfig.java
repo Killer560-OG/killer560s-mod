@@ -32,21 +32,31 @@ public final class NameChangerConfig {
     /** Bumped on every mutation so {@link NameChangerFeature} knows to rebuild its lookup table. */
     private static volatile int version = 0;
 
-    /** One "realName=displayName" row. {@code display} may contain {@code §} color codes. */
+    /** One "realName=displayName" row. {@code display} is the plain text; {@code color} is the picked ARGB
+     *  ({@link NameColor#NONE} = leave the surrounding colour alone). {@code display} may still contain
+     *  {@code §} format codes (bold, italic) for anyone who wants them. */
     public static final class Mapping {
         public String real;
         public String display;
+        public int color;
 
         public Mapping(String real, String display) {
+            this(real, display, NameColor.NONE);
+        }
+
+        public Mapping(String real, String display, int color) {
             this.real = real == null ? "" : real;
             this.display = display == null ? "" : display;
+            this.color = color;
         }
     }
 
     private boolean enabled = false;
     private boolean ownNameEnabled = true;
-    /** What your own IGN is shown as (supports § color codes). Blank = own name is left alone. */
+    /** What your own IGN is shown as. Blank = own name is left alone. */
     private String ownDisplayName = "";
+    /** Picked colour for {@link #ownDisplayName} - see {@link NameColor}. */
+    private int ownColor = NameColor.NONE;
     private boolean mappingsEnabled = true;
     private final List<Mapping> mappings = new ArrayList<>();
     /** Gives every other player (tab list + loaded players) a stable random fake name for this session. */
@@ -74,6 +84,16 @@ public final class NameChangerConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.ownNameEnabled = ConfigJson.getBool(obj, "ownNameEnabled", true);
                 cfg.ownDisplayName = ConfigJson.getString(obj, "ownDisplayName", "");
+                if (obj.has("ownColor")) {
+                    cfg.ownColor = ConfigJson.getInt(obj, "ownColor", NameColor.NONE);
+                } else {
+                    // Pre-colour-picker config (killer560, 2026-09-20: "instead of using color codes I select
+                    // a color for it") - lift the typed &/§ colour code out of the name so his current setup
+                    // keeps looking the same with the new picker.
+                    NameColor.Migrated migrated = NameColor.migrate(cfg.ownDisplayName);
+                    cfg.ownDisplayName = migrated.text();
+                    cfg.ownColor = migrated.argb();
+                }
                 cfg.mappingsEnabled = ConfigJson.getBool(obj, "mappingsEnabled", true);
                 cfg.randomizeOthers = ConfigJson.getBool(obj, "randomizeOthers", false);
                 JsonArray arr = ConfigJson.getArray(obj, "mappings");
@@ -84,9 +104,14 @@ public final class NameChangerConfig {
                                 continue;
                             }
                             JsonObject m = el.getAsJsonObject();
-                            cfg.mappings.add(new Mapping(
-                                    ConfigJson.getString(m, "real", ""),
-                                    ConfigJson.getString(m, "display", "")));
+                            String display = ConfigJson.getString(m, "display", "");
+                            int color = ConfigJson.getInt(m, "color", NameColor.NONE);
+                            if (!m.has("color")) {
+                                NameColor.Migrated migrated = NameColor.migrate(display);
+                                display = migrated.text();
+                                color = migrated.argb();
+                            }
+                            cfg.mappings.add(new Mapping(ConfigJson.getString(m, "real", ""), display, color));
                         } catch (Exception ignored) {
                             // Skip just this malformed row.
                         }
@@ -108,6 +133,7 @@ public final class NameChangerConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("ownNameEnabled", ownNameEnabled);
             obj.addProperty("ownDisplayName", ownDisplayName);
+            obj.addProperty("ownColor", ownColor);
             obj.addProperty("mappingsEnabled", mappingsEnabled);
             obj.addProperty("randomizeOthers", randomizeOthers);
             JsonArray arr = new JsonArray();
@@ -115,6 +141,7 @@ public final class NameChangerConfig {
                 JsonObject o = new JsonObject();
                 o.addProperty("real", m.real);
                 o.addProperty("display", m.display);
+                o.addProperty("color", m.color);
                 arr.add(o);
             }
             obj.add("mappings", arr);
@@ -147,6 +174,15 @@ public final class NameChangerConfig {
 
     public void setOwnDisplayName(String ownDisplayName) {
         this.ownDisplayName = ownDisplayName == null ? "" : ownDisplayName;
+        version++;
+    }
+
+    public int getOwnColor() {
+        return ownColor;
+    }
+
+    public void setOwnColor(int argb) {
+        this.ownColor = argb;
         version++;
     }
 

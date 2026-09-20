@@ -37,12 +37,29 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
+        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+    }
+
+    /** Lets {@code ModScreen} route the next mouse press here instead of to the widget under the cursor.
+     *  Not yet an interface method - the {@code KeyCaptureTab}/{@code ModScreen} patch is in this wave's
+     *  staging notes; it becomes an override the moment that lands. */
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    /** Mouse half of the capture (killer560: "make all of the keybind things compatible with mouse buttons
+     *  and middle mouse buttons"). Not yet an interface method - {@code ModScreen}'s routing patch is in this
+     *  wave's staging notes; until it lands this simply never gets called. */
+    public void onMouseCaptured(int button) {
+        applyCapture(ItemProtectConfig.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int code) {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
-        int key = keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode;
         switch (capturing) {
-            case SLOT_LOCK -> cfg.setSlotLockKey(key);
-            case PROTECT -> cfg.setProtectKey(key);
-            case PEEK -> cfg.setPeekKey(key);
+            case SLOT_LOCK -> cfg.setSlotLockKey(code);
+            case PROTECT -> cfg.setProtectKey(code);
+            case PEEK -> cfg.setPeekKey(code);
             default -> {
                 return;
             }
@@ -66,9 +83,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         y += 26;
 
         if (!cfg.isEnabledRaw()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Blocks your own accidental drops, sells and salvages. Never acts for you."),
-                    mc.font));
             return widgets;
         }
 
@@ -114,12 +128,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(col2, y, half, 18).build());
             y += 22;
 
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Hover a slot in your own inventory and press the lock key. A locked"), mc.font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7slot can't be moved, swapped, quick-crafted or thrown at all."), mc.font));
-            y += 18;
         }
 
         // ---------------- Protect Item ----------------
@@ -159,12 +167,12 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(col2, y, half, 18).build());
             y += 22;
 
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Hover an item and press the protect key to add that exact item."), mc.font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Or type a name below - anything whose name contains it is protected."), mc.font));
-            y += 16;
+            widgets.add(SettingsButtonWidget.builder(onOff("Lock Icon", cfg.isProtectedIconEnabled()), btn -> {
+                        cfg.setProtectedIconEnabled(!cfg.isProtectedIconEnabled());
+                        cfg.save();
+                        btn.setMessage(onOff("Lock Icon", cfg.isProtectedIconEnabled()));
+                    }).bounds(contentX, y, half, 18).build());
+            y += 22;
 
             EditBox nameField = new EditBox(mc.font, contentX, y, half, 18, Component.literal("Item name"));
             nameField.setMaxLength(60);
@@ -212,9 +220,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Treats any dungeon-starred item as protected without listing it."), mc.font));
-        y += 20;
 
         // ---------------- Hotbar drops ----------------
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -241,12 +246,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(col2, y, half, 18).build());
             y += 22;
 
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Swallows the drop key while you're holding a protected or locked item."), mc.font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Confirm To Force: press drop again within 3s to drop it anyway."), mc.font));
-            y += 18;
         }
 
         // ---------------- Feedback ----------------
@@ -256,9 +255,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Block Sound", cfg.isBlockSound()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Every block is announced in chat, so nothing ever just silently fails."), mc.font));
 
         return widgets;
     }
@@ -271,9 +267,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         if (listening) {
             return Component.literal("Press any key...");
         }
-        String name = key == KeyUtil.NONE
-                ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
-        return Component.literal(label + ": " + name);
+        return Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
     }
 }

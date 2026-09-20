@@ -42,6 +42,19 @@ public final class MobEspConfig {
         }
     }
 
+    /** Wither Highlight only (killer560, 2026-09-20: "add a regular wither highlight that isn't esp. Give this one
+     *  the option for glow hitbox or hitbox fill as well"). Hitbox Fill draws the fill plus its outline, the same way
+     *  {@link Style#FILLED} does. */
+    public enum WitherStyle {
+        GLOW("Glow Hitbox"), FILLED("Hitbox Fill");
+
+        public final String label;
+
+        WitherStyle(String label) {
+            this.label = label;
+        }
+    }
+
     public static final int DEFAULT_STARRED_COLOR = 0xFFFFD700;
     public static final int DEFAULT_BAT_COLOR = 0xFF55FF55;
     public static final int DEFAULT_WITHER_COLOR = 0xFFFF0000;
@@ -49,6 +62,9 @@ public final class MobEspConfig {
     public static final float MAX_LINE_WIDTH = 10.0f;
     public static final double MIN_RANGE = 5.0;
     public static final double MAX_RANGE = 128.0;
+    public static final double MIN_ROOM_MARGIN = 0.0;
+    public static final double MAX_ROOM_MARGIN = 32.0;
+    public static final double DEFAULT_ROOM_MARGIN = 8.0;
 
     private static MobEspConfig instance;
 
@@ -56,16 +72,27 @@ public final class MobEspConfig {
     private boolean bats = false;
     /** Cheat build only (was Cheat Utils' Wither ESP) - see {@link #isWithersEnabled()}. */
     private boolean withers = false;
+    /** The non-ESP wither highlight (both builds) - never draws through walls. */
+    private boolean witherHighlight = false;
     private int starredColor = DEFAULT_STARRED_COLOR;
     private int batColor = DEFAULT_BAT_COLOR;
     private int witherColor = DEFAULT_WITHER_COLOR;
+    private int witherHighlightColor = DEFAULT_WITHER_COLOR;
+    private WitherStyle witherHighlightStyle = WitherStyle.GLOW;
     private Style style = Style.OUTLINE;
     private float lineWidth = 2.0f;
     /** Legit (false / legit jar): a target is only highlighted while there's a clear line of sight to it and boxes are
      *  depth-tested. True: no line-of-sight check, boxes drawn without depth test. Cheat build only. */
     private boolean throughWalls = false;
-    /** Starred mobs + bats only; the F7/M7 withers ignore it. */
+    /** Starred mobs + bats only; both wither targets ignore it. */
     private double range = 40.0;
+    /** killer560, 2026-09-20: "instead of being range based it should be every starred mob in the room I am currently
+     *  in. Then if a mob is slightly outside of the room it gets that as well." When true, Range is ignored for
+     *  starred mobs + bats and the live dungeon room's own world bounds (plus {@link #roomMargin}) are used instead.
+     *  Defaults off so an existing install keeps the range behaviour until he confirms this live. */
+    private boolean roomScoped = false;
+    /** How far outside the current room's bounds, in blocks, still counts as "in the room". */
+    private double roomMargin = DEFAULT_ROOM_MARGIN;
 
     private MobEspConfig() {
     }
@@ -121,6 +148,12 @@ public final class MobEspConfig {
             }
             cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 2.0f));
             cfg.setRange(ConfigJson.getDouble(obj, "range", 40.0));
+            cfg.roomScoped = ConfigJson.getBool(obj, "roomScoped", false);
+            cfg.setRoomMargin(ConfigJson.getDouble(obj, "roomMargin", DEFAULT_ROOM_MARGIN));
+
+            cfg.witherHighlight = ConfigJson.getBool(obj, "witherHighlight", false);
+            cfg.witherHighlightColor = ConfigJson.getInt(obj, "witherHighlightColor", DEFAULT_WITHER_COLOR);
+            cfg.witherHighlightStyle = ConfigJson.getEnum(obj, "witherHighlightStyle", WitherStyle.class, WitherStyle.GLOW);
 
             if (obj.has("withers")) {
                 cfg.withers = ConfigJson.getBool(obj, "withers", false);
@@ -181,13 +214,18 @@ public final class MobEspConfig {
             obj.addProperty("starredMobs", starredMobs);
             obj.addProperty("bats", bats);
             obj.addProperty("withers", withers);
+            obj.addProperty("witherHighlight", witherHighlight);
             obj.addProperty("starredColor", starredColor);
             obj.addProperty("batColor", batColor);
             obj.addProperty("witherColor", witherColor);
+            obj.addProperty("witherHighlightColor", witherHighlightColor);
+            obj.addProperty("witherHighlightStyle", witherHighlightStyle.name());
             obj.addProperty("style", style.name());
             obj.addProperty("lineWidth", lineWidth);
             obj.addProperty("throughWalls", throughWalls);
             obj.addProperty("range", range);
+            obj.addProperty("roomScoped", roomScoped);
+            obj.addProperty("roomMargin", roomMargin);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -211,8 +249,13 @@ public final class MobEspConfig {
     public boolean getWithersRaw() { return withers; }
     public void setWithers(boolean v) { withers = v; }
 
+    /** The non-ESP wither highlight - available on both builds, so no {@link #cheat()} gate. */
+    public boolean isWitherHighlightEnabled() { return witherHighlight && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean getWitherHighlightRaw() { return witherHighlight; }
+    public void setWitherHighlight(boolean v) { witherHighlight = v; }
+
     public boolean isAnyEnabled() {
-        return isStarredMobsEnabled() || isBatsEnabled() || isWithersEnabled();
+        return isStarredMobsEnabled() || isBatsEnabled() || isWithersEnabled() || isWitherHighlightEnabled();
     }
 
     // ---- Colours ----
@@ -222,12 +265,20 @@ public final class MobEspConfig {
     public void setBatColor(int v) { batColor = v; }
     public int getWitherColor() { return witherColor; }
     public void setWitherColor(int v) { witherColor = v; }
+    public int getWitherHighlightColor() { return witherHighlightColor; }
+    public void setWitherHighlightColor(int v) { witherHighlightColor = v; }
 
     // ---- Render ----
     public Style getStyle() { return style; }
     public void cycleStyle() {
         Style[] all = Style.values();
         style = all[(style.ordinal() + 1) % all.length];
+    }
+
+    public WitherStyle getWitherHighlightStyle() { return witherHighlightStyle; }
+    public void cycleWitherHighlightStyle() {
+        WitherStyle[] all = WitherStyle.values();
+        witherHighlightStyle = all[(witherHighlightStyle.ordinal() + 1) % all.length];
     }
 
     public float getLineWidth() { return lineWidth; }
@@ -243,4 +294,12 @@ public final class MobEspConfig {
 
     public double getRange() { return range; }
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v))); }
+
+    public boolean isRoomScoped() { return roomScoped; }
+    public void setRoomScoped(boolean v) { roomScoped = v; }
+
+    public double getRoomMargin() { return roomMargin; }
+    public void setRoomMargin(double v) {
+        roomMargin = Math.max(MIN_ROOM_MARGIN, Math.min(MAX_ROOM_MARGIN, Math.round(v)));
+    }
 }

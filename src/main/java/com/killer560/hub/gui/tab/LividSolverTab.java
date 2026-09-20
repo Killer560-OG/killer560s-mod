@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.boss.LividSolverConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -42,13 +40,11 @@ public class LividSolverTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Highlights the real correct Livid on Floor 5 once the wool clue"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7appears, and counts down its opening invulnerability window."),
-                Minecraft.getInstance().font));
+        widgets.add(SettingsButtonWidget.builder(onOff("Draw Line To Livid", cfg.isShowLine()), btn -> {
+                    cfg.setShowLine(!cfg.isShowLine());
+                    cfg.save();
+                    btn.setMessage(onOff("Draw Line To Livid", cfg.isShowLine()));
+                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
     }

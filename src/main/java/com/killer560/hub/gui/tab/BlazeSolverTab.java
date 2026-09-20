@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.puzzlesolvers.BlazeSolverConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -40,15 +38,6 @@ public class BlazeSolverTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Order Lines", cfg.isShowLines()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Ranks real blazes by HP (highest-first on Lower Blaze, lowest-first"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7on Higher Blaze) and highlights the next few targets. Never attacks."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }
