@@ -59,6 +59,7 @@ public class NewTab extends FolderTab {
                 new DungeonQueueTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
+                new InteropTab(),
                 new I4SensorsTab(),
                 new LiveMapTab(),
                 new SecretWaypointsTab(),

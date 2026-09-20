@@ -340,6 +340,7 @@ public final class ProfileManager {
                 com.killer560.hub.maskinvincibility.MaskInvincibilityConfig::load,
                 com.killer560.hub.mobesp.MobEspConfig::load,
                 com.killer560.hub.modchat.ModChatConfig::load,
+                com.killer560.hub.interop.InteropConfig::load,
                 com.killer560.hub.namechanger.NameChangerConfig::load,
                 com.killer560.hub.nofire.NoFireConfig::load,
                 com.killer560.hub.objecthider.ObjectHiderConfig::load,
