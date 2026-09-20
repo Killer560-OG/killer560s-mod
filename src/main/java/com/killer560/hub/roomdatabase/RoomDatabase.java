@@ -335,9 +335,11 @@ public final class RoomDatabase {
      *  further relative-space offset before converting back).
      *  <p>
      *  Rotates by {@code +rotationDegrees} because {@link #toRealCoord} rotates by {@code -rotationDegrees}
-     *  (see its note). This pair always round-tripped correctly even while both halves were inverted, which
-     *  is why Weirdos Solver - the one solver that goes real -> relative -> real off a live entity - kept
-     *  working at every rotation while the fixed-coordinate solvers did not. */
+     *  (see its note). A pure real -> relative -> real round trip came out right even while both halves
+     *  were inverted, which is why nothing screamed about this before; what was wrong at 90/270 is any
+     *  offset applied in relative space in between (Weirdos Solver's {@code relative.x += 1} chest nudge
+     *  went a quarter turn the wrong way) and, far more visibly, every FIXED relative coordinate fed
+     *  straight into {@link #toRealCoord}. */
     public static RoomEntry.Pos toRelativeCoord(BlockPos real, int clayX, int clayZ, int rotationDegrees) {
         BlockPos offset = real.offset(-clayX, 0, -clayZ);
         BlockPos unrotated = rotate(offset.getX(), offset.getY(), offset.getZ(), rotationDegrees);

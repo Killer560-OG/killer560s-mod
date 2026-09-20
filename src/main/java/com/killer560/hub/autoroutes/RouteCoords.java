@@ -53,10 +53,14 @@ public final class RouteCoords {
 
     /** Cell-preserving rotation of a continuous point (see class doc). */
     private static double[] rotate(double x, double z, int degrees) {
+        // 90 and 270 are swapped relative to the obvious reading, to match RoomDatabase.toRealCoord's
+        // negated angle (fixed 2026-09-20: it had been rotating room-relative coords the wrong way, putting
+        // every point a room-width outside the room at those two rotations). These two must agree - this
+        // file keeps its own sub-block rotation but delegates whole blocks to RoomDatabase.
         return switch (normalize(degrees)) {
-            case 90 -> new double[]{z, 1.0 - x};
+            case 90 -> new double[]{1.0 - z, x};
             case 180 -> new double[]{1.0 - x, 1.0 - z};
-            case 270 -> new double[]{1.0 - z, x};
+            case 270 -> new double[]{z, 1.0 - x};
             default -> new double[]{x, z};
         };
     }
@@ -75,7 +79,7 @@ public final class RouteCoords {
     }
 
     public static Vec3 toRelative(Frame f, double x, double y, double z) {
-        double[] r = rotate(x - f.clayX(), z - f.clayZ(), (360 - normalize(f.rotation())) % 360);
+        double[] r = rotate(x - f.clayX(), z - f.clayZ(), f.rotation());
         return new Vec3(r[0], y, r[1]);
     }
 
@@ -96,11 +100,11 @@ public final class RouteCoords {
     /** Real-world yaw equivalent of a stored relative yaw. Wrapped, because it is only ever a TARGET that the
      *  rotation controller turns into a delta - never written to the player. */
     public static float toRealYaw(Frame f, float relativeYaw) {
-        return Mth.wrapDegrees(relativeYaw - f.rotation());
+        return Mth.wrapDegrees(relativeYaw + f.rotation());
     }
 
     /** Relative yaw for storage. Wrapped: this is file data, not the player's running yaw. */
     public static float toRelativeYaw(Frame f, float realYaw) {
-        return Mth.wrapDegrees(realYaw + f.rotation());
+        return Mth.wrapDegrees(realYaw - f.rotation());
     }
 }
