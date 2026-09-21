@@ -4,13 +4,11 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.modchat.ModChatConfig;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.relay.RelayClient;
-import com.killer560.hub.relay.RelayEndpoint;
 import com.killer560.hub.relay.RelayRoom;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
@@ -45,26 +43,6 @@ public class ModChatTab extends BaseTab {
         if (!cfg.isEnabled()) {
             return widgets;
         }
-
-        // Deliberately a local, not a field: BaseTab#widgetsMatchSearch builds a whole throwaway widget list
-        // just to read the labels, and a field would leave the live "Set" button reading that discarded box.
-        final EditBox relayField = new EditBox(Minecraft.getInstance().font, contentX, y, 260, 20,
-                Component.literal("Relay address"));
-        relayField.setMaxLength(200);
-        relayField.setHint(Component.literal(RelayEndpoint.DEFAULT_BASE_URL));
-        relayField.setValue(cfg.getRelayUrlOverride());
-        widgets.add(relayField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
-                    String typed = relayField.getValue().trim();
-                    if (!typed.isEmpty() && !RelayEndpoint.isUsable(typed)) {
-                        ModOverlayMessage.show("§c[ModChat] That isn't a relay address - it must start with https://", 3000);
-                        return;
-                    }
-                    cfg.setRelayUrlOverride(typed);
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX + 266, y, 60, 20).build());
-        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(
                 Component.literal("Room: " + (cfg.isPartyRoom() ? "Party" : "Global")), btn -> {

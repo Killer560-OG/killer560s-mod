@@ -30,7 +30,11 @@ public final class ModChatConfig {
     private boolean enabled = false;
     /** Empty means "use whatever {@link RelayEndpoint#DEFAULT_BASE_URL} currently is", so a build that ships a
      *  newly deployed relay picks it up for everyone who never typed their own address. */
-    private String relayUrl = "";
+    // killer560, 2026-09-20: "they shouldnt have to set some sort of relay url for the mod chat it should
+    // already be there and their shouldnt be a way to change it." The address is baked into RelayEndpoint
+    // and there is no longer any UI for this. The field only survives so an older config that has one does
+    // not fail to parse - it is read, never written, and never used to pick the endpoint.
+    private String legacyRelayUrlIgnored = "";
     private boolean partyRoom = true;
     private boolean logToChat = false;
     private boolean presenceAlerts = false;
@@ -55,7 +59,7 @@ public final class ModChatConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ModChatConfig cfg = new ModChatConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.relayUrl = ConfigJson.getString(obj, "relayUrl", "");
+            cfg.legacyRelayUrlIgnored = ConfigJson.getString(obj, "relayUrl", "");
             cfg.partyRoom = ConfigJson.getBool(obj, "partyRoom", true);
             cfg.logToChat = ConfigJson.getBool(obj, "logToChat", false);
             cfg.presenceAlerts = ConfigJson.getBool(obj, "presenceAlerts", false);
@@ -70,7 +74,6 @@ public final class ModChatConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("relayUrl", relayUrl);
             obj.addProperty("partyRoom", partyRoom);
             obj.addProperty("logToChat", logToChat);
             obj.addProperty("presenceAlerts", presenceAlerts);
@@ -87,18 +90,9 @@ public final class ModChatConfig {
         this.enabled = enabled;
     }
 
-    /** The address actually used to connect: the player's override, else the shipped default. */
+    /** The address used to connect. There is deliberately no way to change it (killer560, 2026-09-20). */
     public String getRelayUrl() {
-        return relayUrl == null || relayUrl.isBlank() ? RelayEndpoint.DEFAULT_BASE_URL : relayUrl.trim();
-    }
-
-    /** Exactly what the player typed (blank = following the shipped default) - for the settings text box. */
-    public String getRelayUrlOverride() {
-        return relayUrl == null ? "" : relayUrl;
-    }
-
-    public void setRelayUrlOverride(String value) {
-        this.relayUrl = value == null ? "" : value.trim();
+        return RelayEndpoint.DEFAULT_BASE_URL;
     }
 
     /** Talk only to your own party (a hashed room name) rather than to everyone on the relay. */

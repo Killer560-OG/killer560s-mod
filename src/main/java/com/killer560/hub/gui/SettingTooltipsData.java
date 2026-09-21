@@ -1673,8 +1673,6 @@ final class SettingTooltipsData {
         d.put("name changer/color", "Opens the colour picker for this name. Names are drawn with Minecraft's 16 chat colours, so the pick snaps to the closest one.");
         d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides. A Leap node with a Class target leaps to whoever this table says has that class (else the tab list). On p3sim the tab list shows no classes, so an override on your OWN name is the only way a per-class chain (S3:MAGE) gets picked over the plain S3 chain.");
         d.put("mod chat/mod chat", "A private chat channel between mod users. Messages go over the mod's own relay server, not Hypixel chat, so players without the mod never see them. Send with /killer560 chat <message>.");
-        d.put("mod chat/relay address", "The relay server to connect to. Leave blank to use the address the mod ships with. Nothing is sent anywhere until this points at a real relay.");
-        d.put("mod chat/set", "Saves the relay address above and reconnects. Must start with https://.");
         d.put("mod chat/room", "Party keeps mod chat to your current party only (the relay sees a hash of the names, never the names). Global puts you in one room with every mod user who is online.");
         d.put("mod chat/log to chat", "Also prints received mod chat into your real chat log so you can scroll back to it, instead of only flashing it above the hotbar.");
         d.put("mod chat/presence alerts", "Shows a message when another mod user joins or leaves your mod chat room, and how many are there when you connect.");

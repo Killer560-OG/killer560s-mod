@@ -12,14 +12,21 @@ import java.util.Locale;
  * install that never touched the setting picks the new host up. Anyone who HAS typed a URL into the Mod Chat
  * tab keeps theirs (it is persisted in {@code killer560smod-modchat.json}).
  * <p>
- * Set to an unreachable placeholder, {@link #isUsable} returns false and the client never opens a socket at
- * all - no DNS lookups, no retry loop, no error spam. The feature simply reports "no relay URL set".
+ * If the address is ever blank or the old placeholder, {@link #isUsable} returns false and the client never
+ * opens a socket at all - no DNS lookups, no retry loop, no error spam - and the feature says so plainly.
  */
 public final class RelayEndpoint {
 
     /** The deployed Worker (killer560's own Cloudflare account, 2026-09-20). Source lives in the separate
      *  {@code killer560s-mod-relay} repo; see its README for the auth handshake and packet list. */
     public static final String DEFAULT_BASE_URL = "https://killer560s-mod-relay.killer560smod.workers.dev";
+
+    /** The address used before the Worker existed. {@link #isUsable} still rejects it, so an old config that
+     *  somehow carries it cannot send anywhere - but it must be its OWN constant: comparing against
+     *  {@link #DEFAULT_BASE_URL} meant that the moment the real address was filled in, the real address was
+     *  the thing being rejected, and Mod Chat reported "no relay address set" with a perfectly good relay
+     *  (killer560 hit this immediately, 2026-09-20). */
+    private static final String PLACEHOLDER_BASE_URL = "https://relay-url-not-set.invalid";
 
     private RelayEndpoint() {
     }
@@ -39,7 +46,7 @@ public final class RelayEndpoint {
     /** @return true only for a real http(s) URL that isn't still the not-yet-deployed placeholder. */
     public static boolean isUsable(String baseUrl) {
         String base = normalise(baseUrl);
-        if (base.isEmpty() || base.equalsIgnoreCase(DEFAULT_BASE_URL)) {
+        if (base.isEmpty() || base.equalsIgnoreCase(PLACEHOLDER_BASE_URL)) {
             return false;
         }
         String lower = base.toLowerCase(Locale.ROOT);
