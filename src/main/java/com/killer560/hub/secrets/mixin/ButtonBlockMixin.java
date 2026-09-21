@@ -29,25 +29,14 @@ public abstract class ButtonBlockMixin {
         if (!SecretsFeature.shouldExpandButtons()) {
             return;
         }
-        if (SecretsFeature.shouldUseCustomButtonSize()) {
-            // Custom Size wins over the Flat/Full Box choice while it is on.
-            AttachFace attach = state.getValue(ButtonBlock.FACE);
-            Direction dir = state.getValue(ButtonBlock.FACING);
-            boolean ew = dir.getAxis() == Direction.Axis.X;
-            int orientation = switch (attach) {
-                case FLOOR -> ew ? 1 : 0;
-                case CEILING -> ew ? 3 : 2;
-                case WALL -> switch (dir) {
-                    case NORTH -> 4;
-                    case SOUTH -> 5;
-                    case WEST -> 6;
-                    default -> 7;
-                };
-            };
-            cir.setReturnValue(SecretsFeature.customButtonShape(orientation));
+        com.killer560.hub.secrets.SecretsConfig cfg = com.killer560.hub.secrets.SecretsConfig.getInstance();
+        if (cfg.getButtonShape() == com.killer560.hub.secrets.SecretsConfig.Shape.CUSTOM) {
+            cir.setReturnValue(SecretsFeature.BUTTON_SIZER.attached(SecretsFeature.mount(state.getValue(ButtonBlock.FACE)),
+                    state.getValue(ButtonBlock.FACING), cfg.getButtonWidthPct(), cfg.getButtonHeightPct(),
+                    cfg.getButtonLengthPct()));
             return;
         }
-        if (SecretsFeature.shouldUseFullBoxButtons()) {
+        if (cfg.getButtonShape() == com.killer560.hub.secrets.SecretsConfig.Shape.FULL) {
             cir.setReturnValue(Shapes.block());
             return;
         }

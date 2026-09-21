@@ -46,9 +46,16 @@ public abstract class SkullBlockMixin implements OriginalCollisionShapeProvider 
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (SecretsFeature.shouldExpandEssence() && SecretsFeature.isWitherEssence(level, pos)) {
-            cir.setReturnValue(Shapes.block());
+        if (!SecretsFeature.shouldExpandEssence() || !SecretsFeature.isWitherEssence(level, pos)) {
+            return;
         }
+        com.killer560.hub.secrets.SecretsConfig cfg = com.killer560.hub.secrets.SecretsConfig.getInstance();
+        if (cfg.getEssenceShape() == com.killer560.hub.secrets.SecretsConfig.Shape.CUSTOM) {
+            cir.setReturnValue(SecretsFeature.SKULL_SIZER.standing(null, null,
+                    cfg.getEssenceWidthPct(), cfg.getEssenceHeightPct(), cfg.getEssenceLengthPct()));
+            return;
+        }
+        cir.setReturnValue(Shapes.block());
     }
 
     @Override

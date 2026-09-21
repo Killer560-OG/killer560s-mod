@@ -1526,10 +1526,10 @@ final class SettingTooltipsData {
         d.put("secret triggerbot/swap slot", "Cheat build only. Hotbar slot (1-9) to switch to before clicking a secret.");
         d.put("secret triggerbot/swap back", "Cheat build only. After the click, switches back to the hotbar slot you were holding before.");
         d.put("secret waypoints/style", "FILL is a solid box, OUTLINE is just the wireframe, FILL_OUTLINE is both.");
-        d.put("full block/levers", "Cheat build only. Makes levers clickable anywhere on their whole block, not just on the small handle.");
+        d.put("full block/levers", "Cheat build only. Makes levers easier to click. Lever Shape sets how big the hitbox gets.");
         d.put("full block/buttons", "Cheat build only. Makes buttons easier to click. Button Shape sets how big the hitbox gets.");
-        d.put("full block/chests", "Cheat build only. Makes chests and trapped chests clickable on their whole block.");
-        d.put("full block/wither essence", "Cheat build only. Makes Wither Essence skulls clickable on their whole block. Other skulls are left alone.");
+        d.put("full block/chests", "Cheat build only. Makes chests and trapped chests easier to click. Chest Shape sets how big the hitbox gets.");
+        d.put("full block/wither essence", "Cheat build only. Makes Wither Essence skulls easier to click. Other skulls are left alone. Essence Shape sets how big the hitbox gets.");
         d.put("full block/expands interaction hitboxes for easier clicking.", "Cheat build only. Full Block makes chosen blocks easier to click by enlarging their hitbox. Only works on hypixel.net and p3sim.net.");
         d.put("yt shorts/browser", "Whether the YT Shorts browser window is running right now. Read-only.");
         d.put("yt shorts/overlay", "Shows or hides the Shorts window without closing the browser. Same as the Show/Hide keybind, and remembered after a restart.");
@@ -1877,9 +1877,12 @@ final class SettingTooltipsData {
         d.put("supporters/refresh", "Re-checks whether this account is linked to a supporter, and reloads your current name/scale from the relay.");
         d.put("supporters/save", "Sends your name and scale to the relay. Takes effect on your own client immediately; other players see it within a few minutes.");
         d.put("supporters/clear", "Removes your custom name so your real IGN shows again. Your scale resets to 1.0 too.");
-        d.put("full block/custom button size", "Set the button hitbox size yourself with the Width, Height and Length sliders below. Overrides Button Shape while it is on.");
-        d.put("full block/width", "How wide the button's hitbox is, side to side across its face. Far left is the normal button, far right is a full block.");
-        d.put("full block/height", "How tall the button's hitbox is across its face. Far left is the normal button, far right is a full block.");
-        d.put("full block/length", "How far the button's hitbox sticks out from the wall, floor or ceiling it is on. Far left is the normal button, far right is a full block.");
+        d.put("full block/width", "How wide the hitbox is, side to side. Far left is the block's normal size, far right is a full block.");
+        d.put("full block/height", "How tall the hitbox is. Far left is the block's normal size, far right is a full block.");
+        d.put("full block/length", "How far the hitbox reaches: out from the wall, floor or ceiling for buttons, levers and wall skulls, or front to back for chests and floor skulls. Far left is normal size, far right is a full block.");
+        d.put("full block/button shape", "Flat covers the whole face the button sits on but stays thin; Full is the whole block; Custom lets you set Width, Height and Length yourself.");
+        d.put("full block/lever shape", "Full is the whole block; Custom lets you set Width, Height and Length yourself.");
+        d.put("full block/chest shape", "Full is the whole block; Custom lets you set Width, Height and Length yourself. A double chest still reaches across to its other half.");
+        d.put("full block/essence shape", "Full is the whole block; Custom lets you set Width, Height and Length yourself.");
     }
 }

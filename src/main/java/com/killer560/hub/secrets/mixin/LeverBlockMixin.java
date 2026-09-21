@@ -24,8 +24,17 @@ public abstract class LeverBlockMixin {
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (SecretsFeature.shouldExpandLevers()) {
-            cir.setReturnValue(Shapes.block());
+        if (!SecretsFeature.shouldExpandLevers()) {
+            return;
         }
+        com.killer560.hub.secrets.SecretsConfig cfg = com.killer560.hub.secrets.SecretsConfig.getInstance();
+        if (cfg.getLeverShape() == com.killer560.hub.secrets.SecretsConfig.Shape.CUSTOM) {
+            cir.setReturnValue(SecretsFeature.LEVER_SIZER.attached(
+                    SecretsFeature.mount(state.getValue(net.minecraft.world.level.block.LeverBlock.FACE)),
+                    state.getValue(net.minecraft.world.level.block.LeverBlock.FACING),
+                    cfg.getLeverWidthPct(), cfg.getLeverHeightPct(), cfg.getLeverLengthPct()));
+            return;
+        }
+        cir.setReturnValue(Shapes.block());
     }
 }

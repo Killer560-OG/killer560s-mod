@@ -44,9 +44,18 @@ public abstract class ChestBlockMixin implements OriginalCollisionShapeProvider 
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (SecretsFeature.shouldExpandChests()) {
-            cir.setReturnValue(Shapes.block());
+        if (!SecretsFeature.shouldExpandChests()) {
+            return;
         }
+        com.killer560.hub.secrets.SecretsConfig cfg = com.killer560.hub.secrets.SecretsConfig.getInstance();
+        if (cfg.getChestShape() == com.killer560.hub.secrets.SecretsConfig.Shape.CUSTOM) {
+            // A double chest's half still reaches across to its other half, like vanilla's own half shapes.
+            Direction joined = state.getValue(ChestBlock.TYPE) == ChestType.SINGLE ? null : getConnectedDirection(state);
+            cir.setReturnValue(SecretsFeature.CHEST_SIZER.standing(state.getValue(ChestBlock.FACING), joined,
+                    cfg.getChestWidthPct(), cfg.getChestHeightPct(), cfg.getChestLengthPct()));
+            return;
+        }
+        cir.setReturnValue(Shapes.block());
     }
 
     @Override

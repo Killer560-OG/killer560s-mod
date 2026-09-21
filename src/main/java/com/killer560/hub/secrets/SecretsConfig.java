@@ -31,10 +31,16 @@ public final class SecretsConfig {
     // 1:1 from quoi's own hardcoded per-face shapes). true = "Full Box" (the entire 1x1x1 cube).
     private boolean buttonsFullBox = false;
     /** Custom button hitbox (killer560, 2026-09-21): each axis 0 = vanilla button size, 100 = a full block along it. */
-    private boolean buttonsCustomSize = false;
-    private int buttonWidthPct = 0;
-    private int buttonHeightPct = 0;
-    private int buttonLengthPct = 0;
+    public enum Shape { FLAT, FULL, CUSTOM }
+    /** Buttons: Flat / Full / Custom. Levers, Chests, Essence: Full / Custom (they never had a Flat option). */
+    private Shape buttonShape = Shape.FLAT;
+    private Shape leverShape = Shape.FULL;
+    private Shape chestShape = Shape.FULL;
+    private Shape essenceShape = Shape.FULL;
+    private int buttonWidthPct = 0, buttonHeightPct = 0, buttonLengthPct = 0;
+    private int leverWidthPct = 0, leverHeightPct = 0, leverLengthPct = 0;
+    private int chestWidthPct = 0, chestHeightPct = 0, chestLengthPct = 0;
+    private int essenceWidthPct = 0, essenceHeightPct = 0, essenceLengthPct = 0;
     private boolean chestsEnabled = false;
     // Wither Essence, per killer560's own naming (2026-09-09) - a skull-family block (SkullBlock or
     // WallSkullBlock depending on placement) in real dungeon rooms.
@@ -71,10 +77,25 @@ public final class SecretsConfig {
             cfg.leversEnabled = ConfigJson.getBool(obj, "leversEnabled", false);
             cfg.buttonsEnabled = ConfigJson.getBool(obj, "buttonsEnabled", false);
             cfg.buttonsFullBox = ConfigJson.getBool(obj, "buttonsFullBox", false);
-            cfg.buttonsCustomSize = ConfigJson.getBool(obj, "buttonsCustomSize", false);
+            // Older files had buttonsFullBox (+ briefly buttonsCustomSize) instead of one shape value.
+            Shape legacyButton = ConfigJson.getBool(obj, "buttonsCustomSize", false) ? Shape.CUSTOM
+                    : cfg.buttonsFullBox ? Shape.FULL : Shape.FLAT;
+            cfg.buttonShape = shape(obj, "buttonShape", legacyButton);
+            cfg.leverShape = shape(obj, "leverShape", Shape.FULL);
+            cfg.chestShape = shape(obj, "chestShape", Shape.FULL);
+            cfg.essenceShape = shape(obj, "essenceShape", Shape.FULL);
             cfg.buttonWidthPct = clampPct(ConfigJson.getInt(obj, "buttonWidthPct", 0));
             cfg.buttonHeightPct = clampPct(ConfigJson.getInt(obj, "buttonHeightPct", 0));
             cfg.buttonLengthPct = clampPct(ConfigJson.getInt(obj, "buttonLengthPct", 0));
+            cfg.leverWidthPct = clampPct(ConfigJson.getInt(obj, "leverWidthPct", 0));
+            cfg.leverHeightPct = clampPct(ConfigJson.getInt(obj, "leverHeightPct", 0));
+            cfg.leverLengthPct = clampPct(ConfigJson.getInt(obj, "leverLengthPct", 0));
+            cfg.chestWidthPct = clampPct(ConfigJson.getInt(obj, "chestWidthPct", 0));
+            cfg.chestHeightPct = clampPct(ConfigJson.getInt(obj, "chestHeightPct", 0));
+            cfg.chestLengthPct = clampPct(ConfigJson.getInt(obj, "chestLengthPct", 0));
+            cfg.essenceWidthPct = clampPct(ConfigJson.getInt(obj, "essenceWidthPct", 0));
+            cfg.essenceHeightPct = clampPct(ConfigJson.getInt(obj, "essenceHeightPct", 0));
+            cfg.essenceLengthPct = clampPct(ConfigJson.getInt(obj, "essenceLengthPct", 0));
             cfg.chestsEnabled = ConfigJson.getBool(obj, "chestsEnabled", false);
             cfg.essenceEnabled = ConfigJson.getBool(obj, "essenceEnabled", false);
             cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", false);
@@ -93,10 +114,22 @@ public final class SecretsConfig {
             obj.addProperty("leversEnabled", leversEnabled);
             obj.addProperty("buttonsEnabled", buttonsEnabled);
             obj.addProperty("buttonsFullBox", buttonsFullBox);
-            obj.addProperty("buttonsCustomSize", buttonsCustomSize);
+            obj.addProperty("buttonShape", buttonShape.name());
+            obj.addProperty("leverShape", leverShape.name());
+            obj.addProperty("chestShape", chestShape.name());
+            obj.addProperty("essenceShape", essenceShape.name());
             obj.addProperty("buttonWidthPct", buttonWidthPct);
             obj.addProperty("buttonHeightPct", buttonHeightPct);
             obj.addProperty("buttonLengthPct", buttonLengthPct);
+            obj.addProperty("leverWidthPct", leverWidthPct);
+            obj.addProperty("leverHeightPct", leverHeightPct);
+            obj.addProperty("leverLengthPct", leverLengthPct);
+            obj.addProperty("chestWidthPct", chestWidthPct);
+            obj.addProperty("chestHeightPct", chestHeightPct);
+            obj.addProperty("chestLengthPct", chestLengthPct);
+            obj.addProperty("essenceWidthPct", essenceWidthPct);
+            obj.addProperty("essenceHeightPct", essenceHeightPct);
+            obj.addProperty("essenceLengthPct", essenceLengthPct);
             obj.addProperty("chestsEnabled", chestsEnabled);
             obj.addProperty("essenceEnabled", essenceEnabled);
             obj.addProperty("dungeonsOnly", dungeonsOnly);
@@ -142,37 +175,47 @@ public final class SecretsConfig {
         return Math.max(0, Math.min(100, v));
     }
 
-    public boolean isButtonsCustomSize() {
-        return buttonsCustomSize;
+    private static Shape shape(JsonObject obj, String key, Shape def) {
+        try {
+            return obj.has(key) ? Shape.valueOf(obj.get(key).getAsString()) : def;
+        } catch (RuntimeException e) {
+            return def;
+        }
     }
 
-    public void setButtonsCustomSize(boolean v) {
-        this.buttonsCustomSize = v;
-    }
+    public Shape getButtonShape() { return buttonShape; }
+    public void setButtonShape(Shape v) { buttonShape = v; buttonsFullBox = v == Shape.FULL; }
+    public Shape getLeverShape() { return leverShape; }
+    public void setLeverShape(Shape v) { leverShape = v == Shape.FLAT ? Shape.FULL : v; }
+    public Shape getChestShape() { return chestShape; }
+    public void setChestShape(Shape v) { chestShape = v == Shape.FLAT ? Shape.FULL : v; }
+    public Shape getEssenceShape() { return essenceShape; }
+    public void setEssenceShape(Shape v) { essenceShape = v == Shape.FLAT ? Shape.FULL : v; }
 
-    public int getButtonWidthPct() {
-        return buttonWidthPct;
-    }
-
-    public void setButtonWidthPct(int v) {
-        this.buttonWidthPct = clampPct(v);
-    }
-
-    public int getButtonHeightPct() {
-        return buttonHeightPct;
-    }
-
-    public void setButtonHeightPct(int v) {
-        this.buttonHeightPct = clampPct(v);
-    }
-
-    public int getButtonLengthPct() {
-        return buttonLengthPct;
-    }
-
-    public void setButtonLengthPct(int v) {
-        this.buttonLengthPct = clampPct(v);
-    }
+    public int getButtonWidthPct() { return buttonWidthPct; }
+    public void setButtonWidthPct(int v) { buttonWidthPct = clampPct(v); }
+    public int getButtonHeightPct() { return buttonHeightPct; }
+    public void setButtonHeightPct(int v) { buttonHeightPct = clampPct(v); }
+    public int getButtonLengthPct() { return buttonLengthPct; }
+    public void setButtonLengthPct(int v) { buttonLengthPct = clampPct(v); }
+    public int getLeverWidthPct() { return leverWidthPct; }
+    public void setLeverWidthPct(int v) { leverWidthPct = clampPct(v); }
+    public int getLeverHeightPct() { return leverHeightPct; }
+    public void setLeverHeightPct(int v) { leverHeightPct = clampPct(v); }
+    public int getLeverLengthPct() { return leverLengthPct; }
+    public void setLeverLengthPct(int v) { leverLengthPct = clampPct(v); }
+    public int getChestWidthPct() { return chestWidthPct; }
+    public void setChestWidthPct(int v) { chestWidthPct = clampPct(v); }
+    public int getChestHeightPct() { return chestHeightPct; }
+    public void setChestHeightPct(int v) { chestHeightPct = clampPct(v); }
+    public int getChestLengthPct() { return chestLengthPct; }
+    public void setChestLengthPct(int v) { chestLengthPct = clampPct(v); }
+    public int getEssenceWidthPct() { return essenceWidthPct; }
+    public void setEssenceWidthPct(int v) { essenceWidthPct = clampPct(v); }
+    public int getEssenceHeightPct() { return essenceHeightPct; }
+    public void setEssenceHeightPct(int v) { essenceHeightPct = clampPct(v); }
+    public int getEssenceLengthPct() { return essenceLengthPct; }
+    public void setEssenceLengthPct(int v) { essenceLengthPct = clampPct(v); }
 
     public boolean isButtonsFullBox() {
         return buttonsFullBox;

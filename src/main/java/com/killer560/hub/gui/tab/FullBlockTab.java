@@ -60,62 +60,28 @@ public class FullBlockTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(leversText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setLeversEnabled(!cfg.isLeversEnabled());
-                    cfg.save();
-                    btn.setMessage(leversText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 26;
-
-        widgets.add(SettingsButtonWidget.builder(buttonsText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setButtonsEnabled(!cfg.isButtonsEnabled());
-                    cfg.save();
-                    btn.setMessage(buttonsText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 24;
-
-        widgets.add(SettingsButtonWidget.builder(buttonShapeText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setButtonsFullBox(!cfg.isButtonsFullBox());
-                    cfg.save();
-                    btn.setMessage(buttonShapeText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 24;
-
-        widgets.add(SettingsButtonWidget.builder(customSizeText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setButtonsCustomSize(!cfg.isButtonsCustomSize());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
-        y += 24;
-
-        if (SecretsConfig.getInstance().isButtonsCustomSize()) {
-            SecretsConfig cfg = SecretsConfig.getInstance();
-            y = sizeSlider(widgets, contentX, y, "Width", cfg::getButtonWidthPct, cfg::setButtonWidthPct);
-            y = sizeSlider(widgets, contentX, y, "Height", cfg::getButtonHeightPct, cfg::setButtonHeightPct);
-            y = sizeSlider(widgets, contentX, y, "Length", cfg::getButtonLengthPct, cfg::setButtonLengthPct);
-        }
-        y += 2;
-
-        widgets.add(SettingsButtonWidget.builder(chestsText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setChestsEnabled(!cfg.isChestsEnabled());
-                    cfg.save();
-                    btn.setMessage(chestsText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 26;
-
-        widgets.add(SettingsButtonWidget.builder(essenceText(), btn -> {
-                    SecretsConfig cfg = SecretsConfig.getInstance();
-                    cfg.setEssenceEnabled(!cfg.isEssenceEnabled());
-                    cfg.save();
-                    btn.setMessage(essenceText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 30;
-
+        SecretsConfig cfg0 = SecretsConfig.getInstance();
+        y = blockType(widgets, contentX, y, requestRebuild, "Levers",
+                cfg0::isLeversEnabled, cfg0::setLeversEnabled, false,
+                cfg0::getLeverShape, cfg0::setLeverShape,
+                cfg0::getLeverWidthPct, cfg0::setLeverWidthPct, cfg0::getLeverHeightPct, cfg0::setLeverHeightPct,
+                cfg0::getLeverLengthPct, cfg0::setLeverLengthPct);
+        y = blockType(widgets, contentX, y, requestRebuild, "Buttons",
+                cfg0::isButtonsEnabled, cfg0::setButtonsEnabled, true,
+                cfg0::getButtonShape, cfg0::setButtonShape,
+                cfg0::getButtonWidthPct, cfg0::setButtonWidthPct, cfg0::getButtonHeightPct, cfg0::setButtonHeightPct,
+                cfg0::getButtonLengthPct, cfg0::setButtonLengthPct);
+        y = blockType(widgets, contentX, y, requestRebuild, "Chests",
+                cfg0::isChestsEnabled, cfg0::setChestsEnabled, false,
+                cfg0::getChestShape, cfg0::setChestShape,
+                cfg0::getChestWidthPct, cfg0::setChestWidthPct, cfg0::getChestHeightPct, cfg0::setChestHeightPct,
+                cfg0::getChestLengthPct, cfg0::setChestLengthPct);
+        y = blockType(widgets, contentX, y, requestRebuild, "Wither Essence",
+                cfg0::isEssenceEnabled, cfg0::setEssenceEnabled, false,
+                cfg0::getEssenceShape, cfg0::setEssenceShape,
+                cfg0::getEssenceWidthPct, cfg0::setEssenceWidthPct, cfg0::getEssenceHeightPct, cfg0::setEssenceHeightPct,
+                cfg0::getEssenceLengthPct, cfg0::setEssenceLengthPct);
+        y += 4;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("Restrict when these apply:"), Minecraft.getInstance().font));
         y += 16;
@@ -136,6 +102,69 @@ public class FullBlockTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
+    }
+
+    /** One block type: its on/off toggle, then (while on) its Shape, then (only on Custom) its three size sliders.
+     *  Buttons cycle Flat / Full / Custom; the other types never had a Flat shape, so they cycle Full / Custom. */
+    private static int blockType(List<AbstractWidget> widgets, int x, int y, Runnable requestRebuild, String name,
+                                 java.util.function.BooleanSupplier enabled, java.util.function.Consumer<Boolean> setEnabled,
+                                 boolean hasFlat,
+                                 java.util.function.Supplier<SecretsConfig.Shape> shape,
+                                 java.util.function.Consumer<SecretsConfig.Shape> setShape,
+                                 java.util.function.IntSupplier w, java.util.function.IntConsumer setW,
+                                 java.util.function.IntSupplier h, java.util.function.IntConsumer setH,
+                                 java.util.function.IntSupplier l, java.util.function.IntConsumer setL) {
+        widgets.add(SettingsButtonWidget.builder(onOff(name, enabled.getAsBoolean()), btn -> {
+                    setEnabled.accept(!enabled.getAsBoolean());
+                    SecretsConfig.getInstance().save();
+                    requestRebuild.run();
+                }).bounds(x, y, 220, 20).build());
+        y += 24;
+        if (!enabled.getAsBoolean()) {
+            return y + 2;
+        }
+        widgets.add(SettingsButtonWidget.builder(shapeText(name, shape.get()), btn -> {
+                    setShape.accept(nextShape(shape.get(), hasFlat));
+                    SecretsConfig.getInstance().save();
+                    requestRebuild.run();
+                }).bounds(x + 10, y, 210, 20).build());
+        y += 24;
+        if (shape.get() == SecretsConfig.Shape.CUSTOM) {
+            y = sizeSlider(widgets, x + 10, y, "Width", w, setW);
+            y = sizeSlider(widgets, x + 10, y, "Height", h, setH);
+            y = sizeSlider(widgets, x + 10, y, "Length", l, setL);
+        }
+        return y + 2;
+    }
+
+    private static SecretsConfig.Shape nextShape(SecretsConfig.Shape current, boolean hasFlat) {
+        return switch (current) {
+            case FLAT -> SecretsConfig.Shape.FULL;
+            case FULL -> SecretsConfig.Shape.CUSTOM;
+            case CUSTOM -> hasFlat ? SecretsConfig.Shape.FLAT : SecretsConfig.Shape.FULL;
+        };
+    }
+
+    private static Component shapeText(String name, SecretsConfig.Shape shape) {
+        String label = switch (shape) {
+            case FLAT -> "Flat";
+            case FULL -> "Full";
+            case CUSTOM -> "Custom";
+        };
+        return Component.literal(singular(name) + " Shape: \u00a7b" + label);
+    }
+
+    private static String singular(String name) {
+        return switch (name) {
+            case "Levers" -> "Lever";
+            case "Buttons" -> "Button";
+            case "Chests" -> "Chest";
+            default -> "Essence";
+        };
+    }
+
+    private static Component onOff(String name, boolean on) {
+        return Component.literal(name + ": " + (on ? "\u00a7aON" : "\u00a7cOFF"));
     }
 
     /** One Normal-to-Full slider: far left is the normal button size, far right a full block along that axis. */
@@ -162,33 +191,15 @@ public class FullBlockTab extends BaseTab {
         return Component.literal(name + ": §b" + value);
     }
 
-    private static Component customSizeText() {
-        return Component.literal("Custom Button Size: " + (SecretsConfig.getInstance().isButtonsCustomSize() ? "§aON" : "§cOFF"));
-    }
 
     private static Component masterText() {
         return Component.literal("Full Block: " + (SecretsConfig.getInstance().isMasterEnabled() ? "§aON" : "§cOFF"));
     }
 
-    private static Component leversText() {
-        return Component.literal("Levers: " + (SecretsConfig.getInstance().isLeversEnabled() ? "§aON" : "§cOFF"));
-    }
 
-    private static Component buttonsText() {
-        return Component.literal("Buttons: " + (SecretsConfig.getInstance().isButtonsEnabled() ? "§aON" : "§cOFF"));
-    }
 
-    private static Component buttonShapeText() {
-        return Component.literal("Button Shape: §b" + (SecretsConfig.getInstance().isButtonsFullBox() ? "Full Box" : "Flat"));
-    }
 
-    private static Component chestsText() {
-        return Component.literal("Chests: " + (SecretsConfig.getInstance().isChestsEnabled() ? "§aON" : "§cOFF"));
-    }
 
-    private static Component essenceText() {
-        return Component.literal("Wither Essence: " + (SecretsConfig.getInstance().isEssenceEnabled() ? "§aON" : "§cOFF"));
-    }
 
     private static Component dungeonsOnlyText() {
         return Component.literal("Dungeons Only: " + (SecretsConfig.getInstance().isDungeonsOnly() ? "§aON" : "§cOFF"));
