@@ -21,7 +21,11 @@ public final class PathfindingConfig {
     public enum AutoMode {
         WALK("Walk (minimal etherwarp)"),
         ETHERWARP("Etherwarp"),
-        FAST_ETHERWARP("Fast Etherwarp");
+        FAST_ETHERWARP("Fast Etherwarp"),
+        /** killer560, 2026-09-21: "make a 0 etherwarp mode that only uses pearls so it works without
+         *  etherwarp" - same as WALK, but the stuck-rescue throws a real Ender Pearl instead of an
+         *  Etherwarp item; see {@link com.killer560.hub.pathfinding.EnderPearlHopper}. */
+        PEARLS("Pearls Only (No Etherwarp)");
 
         public final String label;
 

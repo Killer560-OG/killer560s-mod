@@ -97,6 +97,10 @@ public class NewTab extends FolderTab {
             // Cheat-only: clicking a room etherwarps you to it and starts a secret route (killer560,
             // 2026-09-20: "that is a cheat"). The legit jar has no such tab at all.
             tabs.add(new InteractiveMapTab());
+            // Cheat-only: this is the half that actually walks him to the souls (killer560, 2026-09-20:
+            // "make auto fairy soul tab that is red with all of that logic"). Pathfinding keeps the legit
+            // tracking and display.
+            tabs.add(new AutoFairySoulsTab());
             tabs.add(new FastLeapTab());
             tabs.add(new CheatUtilsTab());
             tabs.add(new AutoGfsTab());

@@ -54,15 +54,11 @@ public final class F7SpotsConfig {
 
     public static final int DEFAULT_WALK_COLOR = 0xFFFFA040;
     public static final int DEFAULT_AIM_COLOR = 0xFF55FFFF;
-    /** Storm's purple pad, matching the mod's existing P2 pad box (QUOI {@code AutoLeap.kt} via FastLeapFeature). */
-    public static final int DEFAULT_PAD_COLOR = 0xFFAA00AA;
 
     public static final float MIN_BEAM_HEIGHT = 0f;
     public static final float MAX_BEAM_HEIGHT = 40f;
     public static final float MIN_AIM_SIZE = 0.1f;
     public static final float MAX_AIM_SIZE = 2.0f;
-    public static final float MAX_CRUSH_INTERVAL = 120f;
-    public static final float MAX_CRUSH_WARN = 15f;
 
     private static F7SpotsConfig instance;
 
@@ -74,19 +70,6 @@ public final class F7SpotsConfig {
     private float walkBeamHeight = 8f;
     private int walkColor = DEFAULT_WALK_COLOR;
     private final List<WalkWaypoint> walkWaypointList = new ArrayList<>();
-
-    // ---- crush timer (F7/M7 P2 Storm) ----
-    private boolean crushTimer = false;
-    private boolean crushTitle = false;
-    private boolean crushPadHighlight = false;
-    private boolean crushAllPads = false;
-    private int crushPadColor = DEFAULT_PAD_COLOR;
-    /** 0 = unknown/off: the HUD then only counts UP since the last crush. See {@link CrushTimer}. */
-    private float crushIntervalSeconds = 0f;
-    private boolean padCycleTimer = false;
-    private float crushWarnSeconds = 3f;
-    /** Extra chat line (substring, case-insensitive) that also restarts the countdown. Blank = built-ins only. */
-    private String crushExtraTrigger = "";
 
     // ---- aim spots ----
     private boolean aimSpots = false;
@@ -127,16 +110,6 @@ public final class F7SpotsConfig {
             cfg.walkCurrentPhaseOnly = ConfigJson.getBool(obj, "walkCurrentPhaseOnly", true);
             cfg.setWalkBeamHeight(ConfigJson.getFloat(obj, "walkBeamHeight", 8f));
             cfg.walkColor = ConfigJson.getInt(obj, "walkColor", DEFAULT_WALK_COLOR);
-
-            cfg.crushTimer = ConfigJson.getBool(obj, "crushTimer", false);
-            cfg.crushTitle = ConfigJson.getBool(obj, "crushTitle", false);
-            cfg.crushPadHighlight = ConfigJson.getBool(obj, "crushPadHighlight", false);
-            cfg.crushAllPads = ConfigJson.getBool(obj, "crushAllPads", false);
-            cfg.crushPadColor = ConfigJson.getInt(obj, "crushPadColor", DEFAULT_PAD_COLOR);
-            cfg.setCrushIntervalSeconds(ConfigJson.getFloat(obj, "crushIntervalSeconds", 0f));
-            cfg.padCycleTimer = ConfigJson.getBool(obj, "padCycleTimer", cfg.padCycleTimer);
-            cfg.setCrushWarnSeconds(ConfigJson.getFloat(obj, "crushWarnSeconds", 3f));
-            cfg.crushExtraTrigger = ConfigJson.getString(obj, "crushExtraTrigger", "");
 
             cfg.aimSpots = ConfigJson.getBool(obj, "aimSpots", false);
             cfg.aimLabels = ConfigJson.getBool(obj, "aimLabels", true);
@@ -203,16 +176,6 @@ public final class F7SpotsConfig {
             obj.addProperty("walkCurrentPhaseOnly", walkCurrentPhaseOnly);
             obj.addProperty("walkBeamHeight", walkBeamHeight);
             obj.addProperty("walkColor", walkColor);
-
-            obj.addProperty("crushTimer", crushTimer);
-            obj.addProperty("crushTitle", crushTitle);
-            obj.addProperty("crushPadHighlight", crushPadHighlight);
-            obj.addProperty("crushAllPads", crushAllPads);
-            obj.addProperty("crushPadColor", crushPadColor);
-            obj.addProperty("crushIntervalSeconds", crushIntervalSeconds);
-            obj.addProperty("padCycleTimer", padCycleTimer);
-            obj.addProperty("crushWarnSeconds", crushWarnSeconds);
-            obj.addProperty("crushExtraTrigger", crushExtraTrigger == null ? "" : crushExtraTrigger);
 
             obj.addProperty("aimSpots", aimSpots);
             obj.addProperty("aimLabels", aimLabels);
@@ -295,45 +258,6 @@ public final class F7SpotsConfig {
         walkWaypointList.remove(walkWaypointList.size() - 1);
         return true;
     }
-
-    // ---- crush timer ----
-    public boolean isCrushTimerEnabled() { return crushTimer && SkyblockGate.allows(); }
-    public boolean getCrushTimerRaw() { return crushTimer; }
-    public void setCrushTimer(boolean v) { crushTimer = v; }
-
-    public boolean isCrushTitleEnabled() { return crushTitle && SkyblockGate.allows(); }
-    public boolean getCrushTitleRaw() { return crushTitle; }
-    public void setCrushTitle(boolean v) { crushTitle = v; }
-
-    public boolean isCrushPadHighlightEnabled() { return crushPadHighlight && SkyblockGate.allows(); }
-    public boolean getCrushPadHighlightRaw() { return crushPadHighlight; }
-    public void setCrushPadHighlight(boolean v) { crushPadHighlight = v; }
-
-    public boolean isCrushAllPads() { return crushAllPads; }
-    public void setCrushAllPads(boolean v) { crushAllPads = v; }
-
-    public int getCrushPadColor() { return crushPadColor; }
-    public void setCrushPadColor(int v) { crushPadColor = v; }
-
-    /** NoammAddons' repeating 20-server-tick Storm pad cycle. */
-    public boolean isPadCycleTimer() { return SkyblockGate.allows() && padCycleTimer; }
-
-    public boolean isPadCycleTimerRaw() { return padCycleTimer; }
-
-    public void setPadCycleTimer(boolean v) { padCycleTimer = v; }
-
-    public float getCrushIntervalSeconds() { return crushIntervalSeconds; }
-    public void setCrushIntervalSeconds(float v) {
-        crushIntervalSeconds = Math.max(0f, Math.min(MAX_CRUSH_INTERVAL, Math.round(v * 2f) / 2f));
-    }
-
-    public float getCrushWarnSeconds() { return crushWarnSeconds; }
-    public void setCrushWarnSeconds(float v) {
-        crushWarnSeconds = Math.max(0f, Math.min(MAX_CRUSH_WARN, Math.round(v * 2f) / 2f));
-    }
-
-    public String getCrushExtraTrigger() { return crushExtraTrigger == null ? "" : crushExtraTrigger; }
-    public void setCrushExtraTrigger(String v) { crushExtraTrigger = v == null ? "" : v.trim(); }
 
     // ---- aim spots ----
     public boolean isAimSpotsEnabled() { return aimSpots && SkyblockGate.allows(); }

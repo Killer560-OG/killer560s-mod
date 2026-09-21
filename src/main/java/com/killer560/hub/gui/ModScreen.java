@@ -13,16 +13,23 @@ import com.killer560.hub.gui.tab.HudElementsTab;
 import com.killer560.hub.gui.tab.KeyCaptureTab;
 import com.killer560.hub.gui.tab.NewTab;
 import com.killer560.hub.gui.tab.ProfilesTab;
+import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class ModScreen extends Screen {
@@ -59,15 +66,19 @@ public class ModScreen extends Screen {
     // spilling straight past the bottom of the panel into the game world behind it: the content area
     // never had any scrolling or clipping at all - every widget just rendered wherever its fixed Y
     // coordinate said, with nothing stopping that from exceeding the panel once enough accordion
-    // sections were expanded at once. scrollOffset shifts content up by this many pixels; a widget is
-    // only actually added to the screen if it FULLY fits within the visible window after that shift
-    // (simpler and just as effective as a real scissor clip here, since nothing partially spills past
-    // the boundary either way - it just doesn't render until scrolled fully into view).
+    // sections were expanded at once. scrollOffset shifts content up by this many pixels.
+    // Originally every widget was only actually added to the screen if it FULLY fit within the visible
+    // window after that shift - simpler than a real scissor clip, and looked fine, until killer560's
+    // 2026-09-17 report (2026-09-17_14.35.42.png) that scrolling could leave "weird bottom space"
+    // whenever the remaining room wasn't enough for a whole row: that row just didn't render at all
+    // instead of showing however much of it fit. Content widgets are now wrapped in one
+    // ScrollingContentPane (below) that scissor-clips them properly instead of dropping the partial one.
     // Static for the same reason as searchQuery above - survives closing and reopening the menu, not
     // just switching tabs within one open.
     private static int scrollOffset = 0;
     private int maxScroll = 0;
     private int visibleContentHeight = 0;
+    private ScrollingContentPane contentPane;
 
     public ModScreen(Screen parent) {
         this(parent, -1);
@@ -189,6 +200,7 @@ public class ModScreen extends Screen {
             this.addRenderableWidget(new StringWidget(contentX, contentY, contentW, 12,
                     Component.literal("§7No tabs match \"" + searchQuery + "\"."), this.font));
             maxScroll = 0;
+            contentPane = null;
             return;
         }
 
@@ -208,15 +220,12 @@ public class ModScreen extends Screen {
         scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
 
         for (AbstractWidget w : contentWidgets) {
-            int newY = w.getY() - scrollOffset;
-            w.setY(newY);
-            // Only add widgets that fully fit the visible window - anything else simply doesn't
-            // render (or receive clicks) until scrolled the rest of the way into view, which is what
-            // actually stops content from spilling past the panel in the first place.
-            if (newY >= contentY && newY + w.getHeight() <= visibleBottom) {
-                this.addRenderableWidget(w);
-            }
+            w.setY(w.getY() - scrollOffset);
         }
+        // One wrapper widget instead of adding each row straight to the screen - see the ScrollingContentPane
+        // class comment for why the clip has to happen at this level rather than per-row.
+        contentPane = new ScrollingContentPane(contentX, contentY, contentW, visibleContentHeight, contentWidgets);
+        this.addRenderableWidget(contentPane);
     }
 
     @Override
@@ -323,6 +332,12 @@ public class ModScreen extends Screen {
                 break;
             }
         }
+        // Every content-area row now lives inside one ScrollingContentPane wrapper (see its class
+        // comment), so the loop above only ever finds that wrapper here - drill into its real children
+        // for the specific setting under the mouse, same hit-test the loop above already does.
+        if (hovered instanceof ScrollingContentPane pane) {
+            hovered = pane.hoveredChild(mouseX, mouseY);
+        }
         long now = System.currentTimeMillis();
         if (hovered != tooltipWidget) {
             tooltipWidget = hovered;
@@ -373,5 +388,151 @@ public class ModScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** Wraps every widget the active tab/folder builds for the scrollable content area, so the panel
+     *  can scissor-clip a row that's only half inside the visible window instead of refusing to add it
+     *  at all - killer560's report (2026-09-17, screenshot 2026-09-17_14.35.42.png) that scrolling left
+     *  "weird bottom space" whenever the remaining room wasn't enough to fit a whole row. {@code Screen}'s
+     *  own render loop has no idea where the content area's own boundary is (it just walks every
+     *  renderable in whatever order they were added), so a clip that only covers SOME of the screen's
+     *  renderables isn't something a per-widget fix could do - this one wrapper widget is the actual
+     *  scissor boundary instead, matching what the "consider the container instead of each widget"
+     *  approach in a real scrolling list amounts to.
+     *  <p>Implements {@link ContainerEventHandler} (rather than relying on {@link AbstractWidget}'s own
+     *  leaf mouseClicked/mouseDragged/keyPressed/nextFocusPath behaviour - a superclass's own concrete
+     *  method always beats a same-signature interface default, so those have to be explicitly
+     *  overridden here to opt back into the container's own default routing) so clicks, drags and
+     *  typing route down into whichever real child (button, slider, edit box) they land on - the exact
+     *  same generic routing {@code Screen} itself already uses for its own top-level children, so
+     *  existing focus/typing/dragging behaviour for every setting is unchanged.
+     *  <p>Verified against the real 26.1.2 jar (decompiled {@code AbstractWidget.extractRenderState}
+     *  bytecode) that a widget's hovered flag is only ever set when {@code GuiGraphicsExtractor
+     *  .containsPointInScissor(mouseX, mouseY)} is also true for whatever scissor rect is active at the
+     *  time - so passing the real mouse position straight through to a clipped child below needs no
+     *  extra gating: a row's hidden half can never register as hovered (or, since a click routes through
+     *  this same isMouseOver-based hit-test, as clicked) while this pane's scissor is the active one. */
+    private static final class ScrollingContentPane extends AbstractWidget implements ContainerEventHandler {
+
+        private final List<AbstractWidget> children;
+        private GuiEventListener focused;
+        private boolean dragging;
+
+        ScrollingContentPane(int x, int y, int width, int height, List<AbstractWidget> children) {
+            super(x, y, width, height, Component.empty());
+            this.children = children;
+        }
+
+        @Override
+        public List<AbstractWidget> children() {
+            return children;
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+            int top = getY();
+            int bottom = getY() + getHeight();
+            graphics.enableScissor(getX(), top, getX() + getWidth(), bottom);
+            try {
+                for (AbstractWidget child : children) {
+                    // A row with zero overlap with the visible band would just get scissored away
+                    // completely anyway - skip the extract call for it rather than pay for it.
+                    if (child.getY() + child.getHeight() <= top || child.getY() >= bottom) {
+                        continue;
+                    }
+                    child.extractRenderState(graphics, mouseX, mouseY, partialTick);
+                }
+            } finally {
+                // Must run even if a child's own render call throws, or every draw for the rest of this
+                // frame (sidebar, header, tooltip) inherits this pane's clip rect - the scissor stack
+                // has no other way to recover (see GuiGraphicsExtractor$ScissorStack, a plain push/pop
+                // deque with no reset).
+                graphics.disableScissor();
+            }
+        }
+
+        /** Hit-test used by {@code drawSettingTooltip} to find the specific setting under the mouse,
+         *  now that every content row lives inside this one wrapper instead of being a direct child of
+         *  the screen. Gated by this pane's own visible rectangle first so a row peeking only slightly
+         *  into the clipped edge can't be picked from its hidden portion. */
+        AbstractWidget hoveredChild(int mouseX, int mouseY) {
+            if (!isMouseOver(mouseX, mouseY)) {
+                return null;
+            }
+            for (AbstractWidget child : children) {
+                if (child.visible && mouseX >= child.getX() && mouseX < child.getX() + child.getWidth()
+                        && mouseY >= child.getY() && mouseY < child.getY() + child.getHeight()) {
+                    return child;
+                }
+            }
+            return null;
+        }
+
+        // AbstractWidget already implements GuiEventListener concretely with its own leaf-button
+        // semantics for every method below, which would otherwise silently shadow ContainerEventHandler's
+        // own default routing (a class's own method always wins over a same-signature interface default,
+        // regardless of implements order) - each override just opts back into the container behaviour.
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            return ContainerEventHandler.super.mouseClicked(event, doubleClick);
+        }
+
+        @Override
+        public boolean mouseReleased(MouseButtonEvent event) {
+            return ContainerEventHandler.super.mouseReleased(event);
+        }
+
+        @Override
+        public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+            return ContainerEventHandler.super.mouseDragged(event, dragX, dragY);
+        }
+
+        @Override
+        public ComponentPath nextFocusPath(FocusNavigationEvent event) {
+            return ContainerEventHandler.super.nextFocusPath(event);
+        }
+
+        @Override
+        public void setFocused(boolean value) {
+            ContainerEventHandler.super.setFocused(value);
+        }
+
+        @Override
+        public boolean isFocused() {
+            return ContainerEventHandler.super.isFocused();
+        }
+
+        @Override
+        public GuiEventListener getFocused() {
+            return focused;
+        }
+
+        @Override
+        public void setFocused(GuiEventListener guiEventListener) {
+            this.focused = guiEventListener;
+        }
+
+        @Override
+        public boolean isDragging() {
+            return dragging;
+        }
+
+        @Override
+        public void setDragging(boolean value) {
+            this.dragging = value;
+        }
+
+        @Override
+        public Collection<? extends NarratableEntry> getNarratables() {
+            // Report each real row individually instead of this wrapper as one opaque entry, so the
+            // narrator still reads out settings the same way it did before they all lived directly on
+            // the screen.
+            return children;
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {
+            // Nothing of its own to narrate - getNarratables() above hands the narrator the real rows.
+        }
     }
 }

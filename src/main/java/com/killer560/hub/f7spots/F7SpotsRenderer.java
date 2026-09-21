@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * All of F7 Spots' world rendering: walk-to waypoint boxes + beams, aim-spot crosshairs, and Storm's crush pads.
+ * All of F7 Spots' world rendering: walk-to waypoint boxes + beams and aim-spot crosshairs. (Storm's crush pad
+ * outlines moved to {@code ticktimers.CrushTimer} 2026-09-21, alongside the rest of the crush timer.)
  * Everything is depth-tested (no through-walls drawing), same as Secret Waypoints / Waypoint Routes / Thorn's
  * stun spots - these are informational markers, not an ESP.
  */
@@ -39,9 +40,6 @@ public final class F7SpotsRenderer {
         }
         if (cfg.isAimSpotsEnabled()) {
             renderAimSpots(context, cfg, client.player, camera);
-        }
-        if (cfg.isCrushPadHighlightEnabled()) {
-            CrushTimer.renderPads(context, cfg);
         }
     }
 

@@ -29,6 +29,9 @@ import java.util.List;
  * {@link #SHORTCUT_MIN_SAVING} blocks of walking, and take it.</li>
  * <li>{@code FAST_ETHERWARP} - plan a whole etherwarp chain to each soul with the Interactive Map's A* and run it,
  * falling back to the ETHERWARP behaviour for that leg when no chain exists (unloaded chunks, nothing to land on).</li>
+ * <li>{@code PEARLS} - same as WALK, but the stuck-rescue throws a real Ender Pearl ({@link EnderPearlHopper})
+ * instead of an etherwarp item, for an account with no etherwarp unlock. Never touches
+ * {@link EtherwarpHopper}.</li>
  * </ul>
  * Stops instantly on player movement, mouse movement, a click, a screen, damage, a world change, or when nothing has
  * improved for a few seconds and no etherwarp rescue is possible.
@@ -44,7 +47,7 @@ public final class AutoSoulRunner {
     private static final int MAX_ATTEMPTS_PER_SOUL = 3;
 
     private enum State {
-        IDLE, WALKING, ETHER, COLLECTING
+        IDLE, WALKING, ETHER, PEARL, COLLECTING
     }
 
     private static State state = State.IDLE;
@@ -55,6 +58,11 @@ public final class AutoSoulRunner {
     private static int shortcutCooldown;
     private static boolean chainTriedForSoul;
     private static boolean warnedNoItem;
+    /** How many souls this run gave up on as unreachable (skipped, not found) - see {@link #tick} on
+     *  {@code soul == null}: killer560, 2026-09-21, "it said it couldn't find fairy souls that needed to be
+     *  found" - reporting a plain "Done" when some souls were actually abandoned as unreachable is its own
+     *  false-completion bug, separate from the found-log one; this makes the two outcomes say different things. */
+    private static int skippedThisRun;
 
     private AutoSoulRunner() {
     }
@@ -81,6 +89,7 @@ public final class AutoSoulRunner {
         chainTriedForSoul = false;
         soulIndexMarker = -1;
         warnedNoItem = false;
+        skippedThisRun = 0;
         AutoWalker.startSession();
         if (!FairySoulsFeature.isGuiding()) {
             FairySoulsFeature.start(cfg.getSoulMode());
@@ -103,6 +112,7 @@ public final class AutoSoulRunner {
         state = State.IDLE;
         AutoWalker.endSession(reason);
         EtherwarpHopper.cancel();
+        EnderPearlHopper.cancel();
         if (announce) {
             ModChat.send(CHAT, ModChat.bad("Stopped"), reason == null ? ModChat.text(".") : ModChat.dim(" - " + reason));
         }
@@ -114,6 +124,7 @@ public final class AutoSoulRunner {
             active = false;
             state = State.IDLE;
             EtherwarpHopper.cancel();
+            EnderPearlHopper.cancel();
             ModChat.send(CHAT, ModChat.bad("Stopped"), ModChat.dim(" - " + reason
                     + " (press the resume key or run /k560path souls auto)"));
         }
@@ -149,7 +160,14 @@ public final class AutoSoulRunner {
         if (soul == null) {
             AutoWalker.setWalking(false);
             stop(null, false);
-            ModChat.send(CHAT, ModChat.good("Done - every known soul on this island is collected."));
+            if (skippedThisRun > 0) {
+                // Not the same as "done": these are still logged as unfound and will be re-queued next run.
+                ModChat.send(CHAT, ModChat.text("Stopped - "), ModChat.value(String.valueOf(skippedThisRun)),
+                        ModChat.text(" soul" + (skippedThisRun == 1 ? "" : "s") + " could not be reached "),
+                        ModChat.dim("(still logged as unfound - everything else on this island is collected)."));
+            } else {
+                ModChat.send(CHAT, ModChat.good("Done - every known soul on this island is collected."));
+            }
             return;
         }
         if (soul.index != soulIndexMarker) {
@@ -164,6 +182,7 @@ public final class AutoSoulRunner {
 
         switch (state) {
             case ETHER -> tickEther(client, player, soulCentre);
+            case PEARL -> tickPearl(client, player);
             case COLLECTING -> tickCollect(client, player, soul, soulCentre, distance);
             default -> tickTravel(client, player, cfg, soul, soulCentre, distance);
         }
@@ -183,17 +202,22 @@ public final class AutoSoulRunner {
         state = State.WALKING;
         AutoWalker.setWalking(true);
 
-        boolean hasItem = EtherwarpHopper.hotbarItem() != null;
-        if (!hasItem && !warnedNoItem && cfg.getAutoMode() != PathfindingConfig.AutoMode.WALK) {
+        boolean pearlMode = cfg.getAutoMode() == PathfindingConfig.AutoMode.PEARLS;
+        boolean hasItem = pearlMode ? EnderPearlHopper.hasPearl() : EtherwarpHopper.hotbarItem() != null;
+        if (!hasItem && !warnedNoItem && (pearlMode || cfg.getAutoMode() != PathfindingConfig.AutoMode.WALK)) {
             warnedNoItem = true;
-            EtherwarpHopper.warnNoItem();
+            if (pearlMode) {
+                EnderPearlHopper.warnNoItem();
+            } else {
+                EtherwarpHopper.warnNoItem();
+            }
         }
-        if (!hasItem || EtherwarpHopper.isBusy()) {
+        if (!hasItem || (pearlMode ? EnderPearlHopper.isBusy() : EtherwarpHopper.isBusy())) {
             handleStuckWithoutEther(cfg);
             return;
         }
 
-        if (cfg.getAutoMode() == PathfindingConfig.AutoMode.FAST_ETHERWARP && !chainTriedForSoul && player.onGround()) {
+        if (!pearlMode && cfg.getAutoMode() == PathfindingConfig.AutoMode.FAST_ETHERWARP && !chainTriedForSoul && player.onGround()) {
             chainTriedForSoul = true;
             BlockPos goal = chainGoal(player, soulCentre);
             if (goal != null) {
@@ -207,18 +231,20 @@ public final class AutoSoulRunner {
 
         if (AutoWalker.isStuck()) {
             AutoWalker.clearStuck();
-            if (!rescueHop(player, soulCentre)) {
+            boolean rescued = pearlMode ? rescuePearl(soulCentre) : rescueHop(player, soulCentre);
+            if (!rescued) {
                 attempts++;
                 if (attempts >= MAX_ATTEMPTS_PER_SOUL) {
                     ModChat.send(CHAT, ModChat.bad("Could not reach a soul"), ModChat.dim(" - skipping it."));
+                    skippedThisRun++;
                     FairySoulsFeature.skipCurrent();
                 }
             }
             return;
         }
 
-        boolean wantShortcuts = cfg.getAutoMode() == PathfindingConfig.AutoMode.ETHERWARP
-                || cfg.getAutoMode() == PathfindingConfig.AutoMode.FAST_ETHERWARP;
+        boolean wantShortcuts = !pearlMode && (cfg.getAutoMode() == PathfindingConfig.AutoMode.ETHERWARP
+                || cfg.getAutoMode() == PathfindingConfig.AutoMode.FAST_ETHERWARP);
         if (wantShortcuts && player.onGround() && --shortcutCooldown <= 0) {
             shortcutCooldown = 10;
             if (tryShortcut(player)) {
@@ -237,6 +263,7 @@ public final class AutoSoulRunner {
         attempts++;
         if (attempts >= MAX_ATTEMPTS_PER_SOUL) {
             ModChat.send(CHAT, ModChat.bad("Stuck on the way to a soul"), ModChat.dim(" - skipping it."));
+            skippedThisRun++;
             FairySoulsFeature.skipCurrent();
         }
     }
@@ -261,6 +288,24 @@ public final class AutoSoulRunner {
         NavigationManager.recalculate(true);
     }
 
+    /** PEARLS mode's equivalent of {@link #tickEther}: waits on {@link EnderPearlHopper} (ticked globally from
+     *  {@link PathfindingFeature}) to either land the thrown pearl or time out. */
+    private static void tickPearl(Minecraft client, LocalPlayer player) {
+        AutoWalker.setWalking(false);
+        if (EnderPearlHopper.isBusy()) {
+            if (++waitTicks > HOP_TIMEOUT_TICKS) {
+                EnderPearlHopper.cancel();
+                state = State.IDLE;
+                waitTicks = 0;
+            }
+            return;
+        }
+        AutoWalker.rebaseCamera();
+        state = State.IDLE;
+        waitTicks = 0;
+        NavigationManager.recalculate(true);
+    }
+
     private static void tickCollect(Minecraft client, LocalPlayer player, IslandGraph.Node soul, Vec3 soulCentre,
                                     double distance) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
@@ -277,6 +322,7 @@ public final class AutoSoulRunner {
             if (++waitTicks > COLLECT_TIMEOUT_TICKS) {
                 waitTicks = 0;
                 ModChat.send(CHAT, ModChat.bad("No Fairy Soul entity here"), ModChat.dim(" - skipping it."));
+                skippedThisRun++;
                 FairySoulsFeature.skipCurrent();
             }
             return;
@@ -294,6 +340,7 @@ public final class AutoSoulRunner {
             attempts++;
             if (attempts >= MAX_ATTEMPTS_PER_SOUL) {
                 ModChat.send(CHAT, ModChat.bad("Clicking a soul did nothing"), ModChat.dim(" - skipping it."));
+                skippedThisRun++;
                 FairySoulsFeature.skipCurrent();
             }
         }
@@ -379,6 +426,16 @@ public final class AutoSoulRunner {
             return true;
         }
         return false;
+    }
+
+    /** PEARLS mode's last resort: throw one Ender Pearl as close to the soul as possible - no etherwarp item
+     *  is ever touched here, see {@link EnderPearlHopper}. */
+    private static boolean rescuePearl(Vec3 soulCentre) {
+        AutoWalker.setWalking(false);
+        waitTicks = 0;
+        boolean started = EnderPearlHopper.hop(soulCentre, () -> state = State.IDLE);
+        state = started ? State.PEARL : State.WALKING;
+        return started;
     }
 
     /** The soul itself: Hypixel renders it as a small armour stand wearing a head, right next to the graph node. */

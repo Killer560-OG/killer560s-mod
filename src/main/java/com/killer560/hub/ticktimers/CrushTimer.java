@@ -1,4 +1,4 @@
-package com.killer560.hub.f7spots;
+package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.WorldRenderUtils;
@@ -12,7 +12,27 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Storm's crush timer (F7/M7 <b>Phase 2</b>) and the purple-pad highlight.
+ * Storm's crush timer (F7/M7 <b>Phase 2</b>): the purple-pad "step on it and crush" countdown/title, and the pad
+ * outline render. The 20-tick pad-cycle counter itself ("Pad:") is NOT here - see the class doc below.
+ *
+ * <h2>2026-09-21 moved here from {@code f7spots.CrushTimer}</h2>
+ * killer560, asked directly: "the pad timer and the purple-pad 'step on it and crush' timer currently live on
+ * the F7 Spots tab... Move them to Tick Timers. One home per timer. F7 Spots keeps its waypoints; every countdown
+ * lives on Tick Timers." F7 Spots keeps its walk waypoints, beams, labels and Last Breath aim spots; only this
+ * class (and the "Storm Crush Timer (P2)" section that showed it) moved. Settings carried over from
+ * {@code killer560smod-f7spots.json} - see {@link TickTimersConfig#migrateFromF7SpotsCrush()}.
+ * <p>
+ * <b>Duplication resolved by the move.</b> {@link TickTimersFeature} already ran its OWN repeating 20-server-tick
+ * {@code padTickTime} (the "Storm" bundle's "Pad:" line) off the exact same two Storm P2 start/death chat lines
+ * this class used to key its own separate {@code padTicks}/{@code padCycleRunning} cycle on - same trigger, same
+ * 20-tick length, just implemented twice (already flagged as a known overlap in {@code TickTimersFeature}'s class
+ * doc before this move, and confirmed here: the two P2 start/end lines below are byte-for-byte the same ones
+ * {@code TickTimersFeature}'s {@code STORM_START_REGEX}/{@code STORM_END_REGEX} already matched). Per "there must
+ * be ONE timer afterwards, not two", the duplicate copy is deleted: this class no longer tracks the pad cycle at
+ * all. {@link TickTimersFeature#padTickTime} is now the ONE pad-cycle counter, split out from the "Storm" bundle
+ * into its own {@link TickTimersConfig#isPadCycleTimer()} toggle so his old F7 Spots "Pad Cycle Timer" preference
+ * still means something specific (just the pad line) after the merge, instead of dragging Lightning/PY/the Storm
+ * counter along with it.
  *
  * <h2>What the mechanic actually is (checked, not assumed)</h2>
  * "Crush" is a <b>Storm (P2)</b> mechanic, not a Wither King / P5 one - the Wither King phase has no pads at all
@@ -44,14 +64,6 @@ public final class CrushTimer {
     /** QUOI AutoLeap's {@code STORM_CRUSH_MESSAGES} / NoammAddons F7Titles' "Storm Crushed!" pair. */
     private static final Set<String> CRUSH_LINES = Set.of("[BOSS] Storm: Oof", "[BOSS] Storm: Ouch, that hurt!");
 
-    // NoammAddons' "Storm Pad Timer" (features/impl/floor7/TickTimers.kt, local copy): padTickTime = 20 on P2's
-    // start line, then decremented every SERVER tick and reset to 20 whenever it hits 0, i.e. a repeating 20-tick
-    // (1s) pad cycle that runs for as long as Storm is up and is cleared on his death line. killer560 confirmed
-    // (2026-09-15) this is the reference for the purple-pad countdown.
-    private static final String P2_START_LINE = "[BOSS] Storm: Pathetic Maxor, just like expected.";
-    private static final String P2_END_LINE = "[BOSS] Storm: I should have known that I stood no chance.";
-    private static final int PAD_CYCLE_TICKS = 20;
-
     // FastLeapFeature's P2 pad boxes (QUOI AutoLeap.kt).
     private static final AABB PURPLE_PAD = new AABB(95.0, 165.0, 86.0, 123.0, 172.0, 103.0);
     private static final AABB GREEN_PAD = new AABB(24.0, 170.0, 4.0, 41.0, 172.0, 21.0);
@@ -61,50 +73,20 @@ public final class CrushTimer {
     private static long lastTriggerMs = 0L;
     private static int crushCount = 0;
     private static boolean readyTitleShown = true;
-    private static int padTicks = -1;
-    private static boolean padCycleRunning = false;
-    private static boolean tickSubscribed = false;
 
     private CrushTimer() {
     }
 
     static void reset() {
-        padTicks = -1;
-        padCycleRunning = false;
         p2StartMs = 0L;
         lastTriggerMs = 0L;
         crushCount = 0;
         readyTitleShown = true;
     }
 
-    /** Subscribed to the shared server-tick clock so the pad cycle counts real server ticks, like NoammAddons. */
-    static void ensureTickSubscribed() {
-        if (tickSubscribed) {
-            return;
-        }
-        tickSubscribed = true;
-        com.killer560.hub.witherdragons.ServerTickClock.register();
-        com.killer560.hub.witherdragons.ServerTickClock.subscribe(CrushTimer::onServerTick);
-    }
-
-    private static void onServerTick() {
-        if (!padCycleRunning || padTicks < 0) {
-            return;
-        }
-        padTicks--;
-        if (padTicks <= 0) {
-            padTicks = PAD_CYCLE_TICKS;
-        }
-    }
-
-    /** Ticks remaining in the current 20-tick pad cycle, or -1 when the cycle isn't running. */
-    static int padTicksLeft() {
-        return padCycleRunning ? padTicks : -1;
-    }
-
     static void tick(Minecraft client) {
-        F7SpotsConfig cfg = F7SpotsConfig.getInstance();
-        if (!F7SpotsFeature.inF7Boss() || F7SpotsRenderer.currentPhase() != Floor7Tracker.Phase.P2) {
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        if (!Floor7Tracker.inF7Boss() || currentPhase() != Floor7Tracker.Phase.P2) {
             p2StartMs = 0L;
             return;
         }
@@ -124,17 +106,9 @@ public final class CrushTimer {
     }
 
     static void onChat(String unformatted) {
-        F7SpotsConfig cfg = F7SpotsConfig.getInstance();
-        if (!F7SpotsFeature.inF7Boss()) {
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        if (!Floor7Tracker.inF7Boss()) {
             return;
-        }
-        if (P2_START_LINE.equals(unformatted)) {
-            padTicks = PAD_CYCLE_TICKS;
-            padCycleRunning = true;
-            ensureTickSubscribed();
-        } else if (P2_END_LINE.equals(unformatted)) {
-            padCycleRunning = false;
-            padTicks = -1;
         }
         boolean crushed = CRUSH_LINES.contains(unformatted);
         String extra = cfg.getCrushExtraTrigger();
@@ -166,22 +140,15 @@ public final class CrushTimer {
         return interval - (System.currentTimeMillis() - lastTriggerMs) / 1000.0;
     }
 
-    /** @return the HUD line, or null when there is nothing to show. */
+    /** @return the Crush interval/count HUD line, or null when there is nothing to show. The pad-cycle "Pad:"
+     *  line is separate now - see {@link TickTimersFeature.TickTimersHudElement}. */
     static String hudText() {
-        F7SpotsConfig cfg = F7SpotsConfig.getInstance();
-        if (!F7SpotsFeature.inF7Boss() || F7SpotsRenderer.currentPhase() != Floor7Tracker.Phase.P2) {
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        if (!Floor7Tracker.inF7Boss() || currentPhase() != Floor7Tracker.Phase.P2) {
             return null;
         }
         float interval = cfg.getCrushIntervalSeconds();
         String count = " §8(" + crushCount + ")";
-        if (cfg.isPadCycleTimer() && padCycleRunning && padTicks >= 0) {
-            // NoammAddons' pad cycle: a repeating 20-server-tick window while Storm is up.
-            String padColor = padTicks <= 5 ? "§a" : "§b";
-            String pad = "§6Pad: " + padColor + padTicks + "t";
-            if (interval <= 0f) {
-                return pad + count;
-            }
-        }
         if (interval > 0f && lastTriggerMs != 0L) {
             double left = remainingSeconds(interval);
             if (left <= 0.0) {
@@ -199,10 +166,11 @@ public final class CrushTimer {
     }
 
     /** Outlines the pads while you're in P2 (purple only unless "Show All Pads" is on). */
-    static void renderPads(LevelRenderContext context, F7SpotsConfig cfg) {
-        if (F7SpotsRenderer.currentPhase() != Floor7Tracker.Phase.P2) {
+    static void renderPads(LevelRenderContext context) {
+        if (currentPhase() != Floor7Tracker.Phase.P2) {
             return;
         }
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
         float[] c = WorldRenderUtils.argbToFloats(cfg.getCrushPadColor());
         WorldRenderUtils.renderOutlineBox(context, PURPLE_PAD, c[0], c[1], c[2], 1f, 2f);
         if (!cfg.isCrushAllPads()) {
@@ -211,5 +179,12 @@ public final class CrushTimer {
         for (AABB pad : List.of(GREEN_PAD, YELLOW_PAD)) {
             WorldRenderUtils.renderOutlineBox(context, pad, c[0], c[1], c[2], 0.7f, 2f);
         }
+    }
+
+    /** Chat-driven phase first ({@link Floor7Tracker#getPhase()}), falling back to the y-level phase - same
+     *  order {@code F7SpotsRenderer.currentPhase()} used before this class moved out of that package. */
+    private static Floor7Tracker.Phase currentPhase() {
+        Floor7Tracker.Phase phase = Floor7Tracker.getPhase();
+        return phase == Floor7Tracker.Phase.UNKNOWN ? Floor7Tracker.getPhaseAt() : phase;
     }
 }

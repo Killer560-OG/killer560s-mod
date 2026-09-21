@@ -12,7 +12,6 @@ import com.killer560.hub.pathfinding.IslandDetector;
 import com.killer560.hub.pathfinding.NavigationManager;
 import com.killer560.hub.pathfinding.PathfindingConfig;
 import com.killer560.hub.pathfinding.ProfileTracker;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -22,10 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Pathfinding + Fairy Souls settings - see {@link com.killer560.hub.pathfinding.PathfindingFeature}. */
-public class PathfindingTab extends BaseTab implements KeyCaptureTab {
+/** Pathfinding + Fairy Souls settings - see {@link com.killer560.hub.pathfinding.PathfindingFeature}. The
+ *  cheat-only "Auto Fairy Souls" walking/clicking logic lives in {@link AutoFairySoulsTab} (split out
+ *  2026-09-21, see its own javadoc); this tab only ever shows or tracks, never moves the player. */
+public class PathfindingTab extends BaseTab {
 
-    private boolean capturingResumeKey = false;
     private boolean confirmResetIsland = false;
     private boolean confirmResetProfile = false;
 
@@ -244,74 +244,6 @@ public class PathfindingTab extends BaseTab implements KeyCaptureTab {
             y += 26;
         }
 
-        // ---------------------------------------------------------------- cheat build
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return widgets;
-        }
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - Auto Walking", true), client.font));
-        y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Walk Path", cfg.isAutoWalkRaw()), btn -> {
-                    cfg.setAutoWalk(!cfg.isAutoWalkRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Fairy Souls", cfg.isAutoSoulsRaw()), btn -> {
-                    cfg.setAutoSouls(!cfg.isAutoSoulsRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
-        widgets.add(SettingsButtonWidget.builder(autoModeText(cfg), btn -> {
-                    PathfindingConfig.AutoMode[] values = PathfindingConfig.AutoMode.values();
-                    cfg.setAutoMode(values[(cfg.getAutoMode().ordinal() + 1) % values.length]);
-                    cfg.save();
-                    btn.setMessage(autoModeText(cfg));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Click Souls", cfg.isAutoCollect()), btn -> {
-                    cfg.setAutoCollect(!cfg.isAutoCollect());
-                    cfg.save();
-                    btn.setMessage(onOff("Auto Click Souls", cfg.isAutoCollect()));
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Sprint", cfg.isAutoSprint()), btn -> {
-                    cfg.setAutoSprint(!cfg.isAutoSprint());
-                    cfg.save();
-                    btn.setMessage(onOff("Sprint", cfg.isAutoSprint()));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
-        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, rotationText(cfg),
-                (cfg.getRotationSpeed() - 3.0) / 32.0) {
-            @Override
-            protected void updateMessage() {
-                setMessage(rotationText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setRotationSpeed((float) (3.0 + this.value * 32.0));
-                cfg.save();
-            }
-        });
-        widgets.add(SettingsButtonWidget.builder(capturingResumeKey
-                        ? Component.literal("Press any key...") : resumeKeyText(cfg), btn -> {
-                    capturingResumeKey = true;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
-        widgets.add(SettingsButtonWidget.builder(Component.literal(AutoSoulRunner.isActive()
-                        ? "§cStop Auto Fairy Souls" : "Start Auto Fairy Souls"), btn -> {
-                    if (AutoSoulRunner.isActive()) {
-                        AutoSoulRunner.stop("stopped in settings", true);
-                    } else {
-                        AutoSoulRunner.start();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Stops on any key press, click, mouse move, screen, damage or world change."),
-                client.font));
         return widgets;
     }
 
@@ -331,41 +263,11 @@ public class PathfindingTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(String.format(Locale.US, "Text Scale: §6%.2fx", cfg.getTextScale()));
     }
 
-    private static Component rotationText(PathfindingConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Turn Speed: §6%.0f°/t", cfg.getRotationSpeed()));
-    }
-
     private static Component modeText(PathfindingConfig cfg) {
         return Component.literal("Guide: §6" + cfg.getSoulMode().label);
     }
 
-    private static Component autoModeText(PathfindingConfig cfg) {
-        return Component.literal("Auto Mode: §6" + cfg.getAutoMode().label);
-    }
-
-    private static Component resumeKeyText(PathfindingConfig cfg) {
-        int code = cfg.getResumeKeyCode();
-        String name = code < 0 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
-        return Component.literal("Start/Stop Key: §6" + name);
-    }
-
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
-    @Override
-    public boolean isListeningForKey() {
-        return capturingResumeKey;
-    }
-
-    @Override
-    public void onKeyCaptured(int keyCode) {
-        if (!capturingResumeKey) {
-            return;
-        }
-        PathfindingConfig cfg = PathfindingConfig.getInstance();
-        cfg.setResumeKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
-        cfg.save();
-        capturingResumeKey = false;
     }
 }

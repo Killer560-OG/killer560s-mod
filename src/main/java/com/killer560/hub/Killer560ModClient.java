@@ -105,7 +105,6 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
         com.killer560.hub.ragaxe.RagAxeFeature.register();
         com.killer560.hub.ragaxe.RagAxeFeature.hudElements().forEach(HudElementRegistry::register);
-        HudElementRegistry.register(com.killer560.hub.f7spots.F7SpotsFeature.HUD);
         com.killer560.hub.scorecalc.ScoreCalculatorFeature.register();
         com.killer560.hub.witherdragons.WitherDragonsFeature.register();
         com.killer560.hub.chunkcache.ChunkCacheManager.register();
@@ -159,6 +158,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // Auto Leap Out replaced by the QUOI AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
         com.killer560.hub.fastleap.FastLeapFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.register();
+        com.killer560.hub.bloodcamp.BloodCampFeature.hudElements().forEach(HudElementRegistry::register);
         com.killer560.hub.puzzlesolvers.BoulderSolverFeature.register();
         com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
         com.killer560.hub.puzzlesolvers.IceFillSolverFeature.register();

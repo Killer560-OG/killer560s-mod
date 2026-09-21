@@ -292,18 +292,29 @@ public final class SpiritBearTracker {
 
     // ---- HUD text ----
 
-    /** Odin's HUD states, same colours: "§d17/25", "§e3.40s", "§aAlive!" (+ "§7Killed" once a seen bear is gone). */
+    /** HUD states: "§d17/25", "§e~4s", "§eSpawning...", "§aAlive!" (+ "§7Killed" once a seen bear is gone).
+     * <p>
+     * killer560 asked for "a spirit bear spawn timer": {@link #BEAR_SPAWN_TICKS} is the last block's own countdown,
+     * not an announced time - Odin/NoammAddons/NoFrills say 68 ticks, CaribouStonks says "68-70", and this tracker
+     * counts client ticks (drifts under lag, see class doc). Showing "§e3.40s" (Odin's own format) would claim a
+     * precision the signal doesn't have, so this rounds up to whole seconds with a "~" instead. For the same reason
+     * "Alive!" now waits for {@link #bearAliveNow} - the real entity-spawn signal - rather than firing the instant
+     * the guessed countdown hits zero; "Spawning..." covers the gap if the guess was a little early. */
     static String stateText() {
         if (timer < 0) {
             return "§d" + kills + "/" + maxKills();
         }
         if (timer > 0) {
-            return String.format(Locale.US, "§e%.2fs", timer / 20.0);
+            int seconds = (timer + 19) / 20; // ceiling: never shows "~0s" while still counting down
+            return "§e~" + seconds + "s";
         }
-        if (bearSeenAlive && !bearAliveNow) {
+        if (bearAliveNow) {
+            return "§aAlive!";
+        }
+        if (bearSeenAlive) {
             return "§7Killed";
         }
-        return "§aAlive!";
+        return "§eSpawning...";
     }
 
     /** Current cycle's overkill while the ring is full, otherwise the last finished cycle's (or 0). */

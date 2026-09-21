@@ -20,7 +20,16 @@ import java.nio.file.Path;
  *  is folded in as {@link #goldorShowTotal}; its "Pre-Goldor" option is the same thing this file already calls
  *  {@link #goldorStartTimer} (just a different name/tick count for the same real gap), so it is migrated
  *  directly onto that field. {@link #migrateFromGoldorFrenzy} runs once (guarded by {@link #goldorFrenzyMigrated})
- *  so nothing killer560 had set on the old tab is lost; see that method for exactly what is and isn't copied. */
+ *  so nothing killer560 had set on the old tab is lost; see that method for exactly what is and isn't copied.
+ *  <p>
+ *  killer560, 2026-09-21: "Move [the pad timer and the purple-pad crush timer] to Tick Timers. One home per
+ *  timer." Both used to live on the F7 Spots tab ({@code f7spots.CrushTimer}, now {@link CrushTimer} in this
+ *  package). {@link #padCycleTimer}/{@link #crushTimer}/{@link #crushTitle}/{@link #crushPadHighlight}/
+ *  {@link #crushAllPads}/{@link #crushPadColor}/{@link #crushIntervalSeconds}/{@link #crushWarnSeconds}/
+ *  {@link #crushExtraTrigger} are the migrated settings; {@link #migrateFromF7SpotsCrush} runs once (guarded by
+ *  {@link #f7spotsCrushMigrated}) so nothing he had set on the old tab is lost - see that method for exactly
+ *  what is and isn't copied, including why {@link #padCycleTimer} is a brand new, independently-toggleable
+ *  field instead of staying folded into {@link #stormTimer}. */
 public final class TickTimersConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ticktimers");
@@ -29,6 +38,14 @@ public final class TickTimersConfig {
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ticktimers.json");
     private static final Path OLD_GOLDOR_FRENZY_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-goldorfrenzy.json");
+    private static final Path OLD_F7SPOTS_PATH =
+            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-f7spots.json");
+
+    /** Storm's purple pad, matching the mod's existing P2 pad box (QUOI {@code AutoLeap.kt} via FastLeapFeature) -
+     *  same default F7 Spots' {@code CrushTimer} shipped before the 2026-09-21 move. */
+    public static final int DEFAULT_PAD_COLOR = 0xFFAA00AA;
+    public static final float MAX_CRUSH_INTERVAL = 120f;
+    public static final float MAX_CRUSH_WARN = 15f;
 
     private static TickTimersConfig instance;
 
@@ -54,6 +71,24 @@ public final class TickTimersConfig {
     private boolean deathTickStopsAtBoss = false;
     // One-off migration guard - see migrateFromGoldorFrenzy().
     private boolean goldorFrenzyMigrated = false;
+
+    // ---- crush timer (F7/M7 P2 Storm), moved from f7spots.F7SpotsConfig 2026-09-21 ----
+    // NoammAddons' "Storm Pad Timer" - the repeating 20-server-tick pad cycle. Defaults true: before this move
+    // TickTimersFeature's OWN padTickTime counted whenever isStormTimer() was true (default true), so a fresh
+    // install must keep showing it rather than silently losing it just because it's now its own toggle.
+    private boolean padCycleTimer = true;
+    private boolean crushTimer = false;
+    private boolean crushTitle = false;
+    private boolean crushPadHighlight = false;
+    private boolean crushAllPads = false;
+    private int crushPadColor = DEFAULT_PAD_COLOR;
+    /** 0 = unknown/off: the HUD then only counts UP since the last crush. See {@link CrushTimer}. */
+    private float crushIntervalSeconds = 0f;
+    private float crushWarnSeconds = 3f;
+    /** Extra chat line (substring, case-insensitive) that also restarts the countdown. Blank = built-ins only. */
+    private String crushExtraTrigger = "";
+    // One-off migration guard - see migrateFromF7SpotsCrush().
+    private boolean f7spotsCrushMigrated = false;
 
     private TickTimersConfig() {
     }
@@ -87,6 +122,16 @@ public final class TickTimersConfig {
                 parsed.clearDeathTick = getBool(obj, "clearDeathTick", false);
                 parsed.deathTickStopsAtBoss = getBool(obj, "deathTickStopsAtBoss", false);
                 parsed.goldorFrenzyMigrated = getBool(obj, "goldorFrenzyMigrated", false);
+                parsed.padCycleTimer = getBool(obj, "padCycleTimer", true);
+                parsed.crushTimer = getBool(obj, "crushTimer", false);
+                parsed.crushTitle = getBool(obj, "crushTitle", false);
+                parsed.crushPadHighlight = getBool(obj, "crushPadHighlight", false);
+                parsed.crushAllPads = getBool(obj, "crushAllPads", false);
+                parsed.crushPadColor = ConfigJson.getInt(obj, "crushPadColor", DEFAULT_PAD_COLOR);
+                parsed.setCrushIntervalSeconds(ConfigJson.getFloat(obj, "crushIntervalSeconds", 0f));
+                parsed.setCrushWarnSeconds(ConfigJson.getFloat(obj, "crushWarnSeconds", 3f));
+                parsed.crushExtraTrigger = ConfigJson.getString(obj, "crushExtraTrigger", "");
+                parsed.f7spotsCrushMigrated = getBool(obj, "f7spotsCrushMigrated", false);
             } catch (Exception e) {
                 parsed = new TickTimersConfig();
             }
@@ -98,6 +143,13 @@ public final class TickTimersConfig {
             if (migrated) {
                 // Write straight away, so this really is a ONE-off - otherwise it would re-run every launch
                 // until the user happens to touch this tab (killer560's rag axe migration does the same).
+                cfg.save();
+            }
+        }
+        if (!cfg.f7spotsCrushMigrated) {
+            boolean migrated = cfg.migrateFromF7SpotsCrush();
+            cfg.f7spotsCrushMigrated = true;
+            if (migrated) {
                 cfg.save();
             }
         }
@@ -143,6 +195,46 @@ public final class TickTimersConfig {
         return true;
     }
 
+    /** One-off: pulls the old F7 Spots tab's crush-timer settings into this file (killer560, 2026-09-21:
+     *  "Move [the pad timer and the purple-pad crush timer] to Tick Timers"), then the caller marks
+     *  {@link #f7spotsCrushMigrated} so this never runs again. The old {@code killer560smod-f7spots.json} file
+     *  is left on disk, unread from here on - its walk-waypoint and aim-spot settings still live there and are
+     *  still read by {@code F7SpotsConfig} itself, only the crush-timer keys below are now dead weight in it.
+     *  <p>
+     *  What's copied and why:
+     *  <ul>
+     *  <li>{@code crushTimer}/{@code crushTitle}/{@code crushPadHighlight}/{@code crushAllPads}/
+     *      {@code crushPadColor}/{@code crushIntervalSeconds}/{@code crushWarnSeconds}/{@code crushExtraTrigger}
+     *      copied DIRECTLY - brand new fields here, nothing pre-existing to preserve, same as Goldor Frenzy's
+     *      {@code showTotal}.
+     *  <li>{@code padCycleTimer} -&gt; {@link #padCycleTimer} OR'd in (never turned off, only on): this file
+     *      already ran the exact same 20-tick pad cycle bundled under {@link #stormTimer} (default true), so a
+     *      killer560 who never touched the old F7 Spots toggle (it defaulted OFF there) must still see the pad
+     *      line he already had. One case this can't perfectly preserve, flagged for him: if he'd turned OFF the
+     *      "Storm" bundle here specifically to silence the pad line (its only OFF switch before this move), the
+     *      new independent Pad Cycle Timer toggle still starts ON and he'll need to flip it off once.
+     *  </ul>
+     *  @return true if the old file existed and was read (the caller then persists the result immediately). */
+    private boolean migrateFromF7SpotsCrush() {
+        JsonObject o = read(OLD_F7SPOTS_PATH);
+        if (o == null) {
+            return false;
+        }
+        crushTimer = ConfigJson.getBool(o, "crushTimer", crushTimer);
+        crushTitle = ConfigJson.getBool(o, "crushTitle", crushTitle);
+        crushPadHighlight = ConfigJson.getBool(o, "crushPadHighlight", crushPadHighlight);
+        crushAllPads = ConfigJson.getBool(o, "crushAllPads", crushAllPads);
+        crushPadColor = ConfigJson.getInt(o, "crushPadColor", crushPadColor);
+        setCrushIntervalSeconds(ConfigJson.getFloat(o, "crushIntervalSeconds", crushIntervalSeconds));
+        setCrushWarnSeconds(ConfigJson.getFloat(o, "crushWarnSeconds", crushWarnSeconds));
+        crushExtraTrigger = ConfigJson.getString(o, "crushExtraTrigger", crushExtraTrigger);
+        boolean oldPadCycle = ConfigJson.getBool(o, "padCycleTimer", false);
+        padCycleTimer = padCycleTimer || oldPadCycle;
+        LOGGER.info("[TickTimers] Migrated F7 Spots crush-timer settings (crushTimer={}, crushTitle={}, "
+                        + "padCycleTimer={})", crushTimer, crushTitle, padCycleTimer);
+        return true;
+    }
+
     private static JsonObject read(Path path) {
         try {
             if (!Files.exists(path)) {
@@ -175,6 +267,16 @@ public final class TickTimersConfig {
             obj.addProperty("clearDeathTick", clearDeathTick);
             obj.addProperty("deathTickStopsAtBoss", deathTickStopsAtBoss);
             obj.addProperty("goldorFrenzyMigrated", goldorFrenzyMigrated);
+            obj.addProperty("padCycleTimer", padCycleTimer);
+            obj.addProperty("crushTimer", crushTimer);
+            obj.addProperty("crushTitle", crushTitle);
+            obj.addProperty("crushPadHighlight", crushPadHighlight);
+            obj.addProperty("crushAllPads", crushAllPads);
+            obj.addProperty("crushPadColor", crushPadColor);
+            obj.addProperty("crushIntervalSeconds", crushIntervalSeconds);
+            obj.addProperty("crushWarnSeconds", crushWarnSeconds);
+            obj.addProperty("crushExtraTrigger", crushExtraTrigger == null ? "" : crushExtraTrigger);
+            obj.addProperty("f7spotsCrushMigrated", f7spotsCrushMigrated);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -266,5 +368,80 @@ public final class TickTimersConfig {
 
     public void setDeathTickStopsAtBoss(boolean deathTickStopsAtBoss) {
         this.deathTickStopsAtBoss = deathTickStopsAtBoss;
+    }
+
+    // ---- crush timer (F7/M7 P2 Storm) ----
+    /** NoammAddons' repeating 20-server-tick Storm pad cycle - split out of {@link #stormTimer} 2026-09-21 so
+     *  it means the same specific thing his old F7 Spots toggle did. */
+    public boolean isPadCycleTimer() {
+        return padCycleTimer;
+    }
+
+    public void setPadCycleTimer(boolean padCycleTimer) {
+        this.padCycleTimer = padCycleTimer;
+    }
+
+    public boolean isCrushTimerEnabled() {
+        return crushTimer;
+    }
+
+    public void setCrushTimer(boolean crushTimer) {
+        this.crushTimer = crushTimer;
+    }
+
+    public boolean isCrushTitleEnabled() {
+        return crushTitle;
+    }
+
+    public void setCrushTitle(boolean crushTitle) {
+        this.crushTitle = crushTitle;
+    }
+
+    public boolean isCrushPadHighlightEnabled() {
+        return crushPadHighlight;
+    }
+
+    public void setCrushPadHighlight(boolean crushPadHighlight) {
+        this.crushPadHighlight = crushPadHighlight;
+    }
+
+    public boolean isCrushAllPads() {
+        return crushAllPads;
+    }
+
+    public void setCrushAllPads(boolean crushAllPads) {
+        this.crushAllPads = crushAllPads;
+    }
+
+    public int getCrushPadColor() {
+        return crushPadColor;
+    }
+
+    public void setCrushPadColor(int crushPadColor) {
+        this.crushPadColor = crushPadColor;
+    }
+
+    public float getCrushIntervalSeconds() {
+        return crushIntervalSeconds;
+    }
+
+    public void setCrushIntervalSeconds(float v) {
+        crushIntervalSeconds = Math.max(0f, Math.min(MAX_CRUSH_INTERVAL, Math.round(v * 2f) / 2f));
+    }
+
+    public float getCrushWarnSeconds() {
+        return crushWarnSeconds;
+    }
+
+    public void setCrushWarnSeconds(float v) {
+        crushWarnSeconds = Math.max(0f, Math.min(MAX_CRUSH_WARN, Math.round(v * 2f) / 2f));
+    }
+
+    public String getCrushExtraTrigger() {
+        return crushExtraTrigger == null ? "" : crushExtraTrigger;
+    }
+
+    public void setCrushExtraTrigger(String v) {
+        crushExtraTrigger = v == null ? "" : v.trim();
     }
 }

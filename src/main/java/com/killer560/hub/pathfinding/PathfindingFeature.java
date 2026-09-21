@@ -83,6 +83,7 @@ public final class PathfindingFeature {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             AutoSoulRunner.tick(client);
             AutoWalker.tick(client);
+            EnderPearlHopper.tick(client);
             pollResumeKey(client, cfg);
         }
     }

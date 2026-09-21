@@ -17,7 +17,6 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.witherdragons.P5State;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.HitResult;
@@ -30,13 +29,17 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * F7 Spots settings - walk-to waypoints, Storm's crush timer and Last Breath aim spots
- * (see {@link F7SpotsFeature}). Everything defaults OFF and both coordinate lists start empty; the
- * "Add ... Here" buttons and {@code killer560smod-f7spots.json} are how they get filled.
+ * F7 Spots settings - walk-to waypoints and Last Breath aim spots (see {@link F7SpotsFeature}). Everything
+ * defaults OFF and both coordinate lists start empty; the "Add ... Here" buttons and
+ * {@code killer560smod-f7spots.json} are how they get filled.
  * <p>
  * The "New waypoint"/"New aim spot" dropdowns only decide what the NEXT added entry is tagged with - they are
  * screen-local, not saved settings. "Auto" tags it with wherever you're standing right now (current floor/phase,
  * your class).
+ * <p>
+ * <b>2026-09-21:</b> Storm's crush timer (HUD, title, purple pad highlight, pad cycle) moved to the Tick Timers
+ * tab - killer560: "Move them to Tick Timers. One home per timer. F7 Spots keeps its waypoints; every countdown
+ * lives on Tick Timers." See {@code ticktimers.CrushTimer} / {@code TickTimersTab}.
  */
 public class F7SpotsTab extends BaseTab {
 
@@ -110,58 +113,6 @@ public class F7SpotsTab extends BaseTab {
                     }
                     requestRebuild.run();
                 }).bounds(col2X, y, colW, 18).build());
-        y += 28;
-
-        // ---- Crush timer ----
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Storm Crush Timer (P2)", false), mc.font));
-        y += 16;
-        widgets.add(toggle(contentX, y, colW, "Crush Timer HUD", cfg::getCrushTimerRaw, cfg::setCrushTimer));
-        widgets.add(toggle(col2X, y, colW, "Crush Title", cfg::getCrushTitleRaw, cfg::setCrushTitle));
-        y += 22;
-        widgets.add(toggle(contentX, y, colW, "Pad Cycle Timer", cfg::isPadCycleTimerRaw, cfg::setPadCycleTimer));
-        y += 22;
-        widgets.add(toggle(contentX, y, colW, "Purple Pad Highlight", cfg::getCrushPadHighlightRaw, cfg::setCrushPadHighlight));
-        widgets.add(colorButton(col2X, y, colW, "Pad Color", cfg.getCrushPadColor(), F7SpotsConfig.DEFAULT_PAD_COLOR,
-                argb -> cfg.setCrushPadColor(argb)));
-        y += 22;
-        widgets.add(toggle(contentX, y, colW, "Show All Pads", cfg::isCrushAllPads, cfg::setCrushAllPads));
-        widgets.add(new ThemedSliderButton(col2X, y, colW, 18, intervalText(cfg),
-                cfg.getCrushIntervalSeconds() / F7SpotsConfig.MAX_CRUSH_INTERVAL) {
-            @Override
-            protected void updateMessage() {
-                setMessage(intervalText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setCrushIntervalSeconds((float) (this.value * F7SpotsConfig.MAX_CRUSH_INTERVAL));
-                cfg.save();
-            }
-        });
-        y += 22;
-        widgets.add(new ThemedSliderButton(contentX, y, colW, 18, warnText(cfg),
-                cfg.getCrushWarnSeconds() / F7SpotsConfig.MAX_CRUSH_WARN) {
-            @Override
-            protected void updateMessage() {
-                setMessage(warnText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setCrushWarnSeconds((float) (this.value * F7SpotsConfig.MAX_CRUSH_WARN));
-                cfg.save();
-            }
-        });
-        widgets.add(new StringWidget(col2X, y + 4, colW, 12, Component.literal("§7Crush Trigger Text (optional)"), mc.font));
-        y += 22;
-        EditBox trigger = new EditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Crush Trigger Text"));
-        trigger.setMaxLength(120);
-        trigger.setValue(cfg.getCrushExtraTrigger());
-        trigger.setResponder(text -> {
-            cfg.setCrushExtraTrigger(text);
-            cfg.save();
-        });
-        widgets.add(trigger);
         y += 28;
 
         // ---- Aim spots ----
@@ -283,16 +234,6 @@ public class F7SpotsTab extends BaseTab {
         float h = cfg.getWalkBeamHeight();
         return Component.literal(h <= 0f ? "Waypoint Beam: §cOFF"
                 : String.format(Locale.US, "Waypoint Beam: %.1f", h));
-    }
-
-    private static Component intervalText(F7SpotsConfig cfg) {
-        float v = cfg.getCrushIntervalSeconds();
-        return Component.literal(v <= 0f ? "Crush Interval: §7Count Up"
-                : String.format(Locale.US, "Crush Interval: %.1fs", v));
-    }
-
-    private static Component warnText(F7SpotsConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Crush Warning: %.1fs", cfg.getCrushWarnSeconds()));
     }
 
     private static Component sizeText(F7SpotsConfig cfg) {

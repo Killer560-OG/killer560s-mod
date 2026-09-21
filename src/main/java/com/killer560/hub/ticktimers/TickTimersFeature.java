@@ -4,8 +4,10 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.SkyblockGate;
 import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -63,16 +65,16 @@ import java.util.regex.Pattern;
  * OFF (its default) matches killer560's literal wording that the tick runs during clear AND keeps running once
  * the boss starts unless told not to.
  * <p>
- * <b>Pad timer / Storm crush timer - already covered elsewhere, not duplicated here.</b> killer560 also asked
- * for "the pad timer" and "the timer to actually step onto purple and crush" on this tab. Both already exist,
- * individually toggleable, in {@code f7spots.CrushTimer} (owned by the {@code f7spots} package, surfaced on
- * {@code F7SpotsTab}'s "Storm Crush Timer (P2)" section: "Pad Cycle Timer" is the exact same repeating
- * 20-server-tick pad cycle as this file's own {@link #padTickTime} below, and "Crush Timer HUD" /
- * "Crush Interval" is the purple-pad/crush countdown). Per the batch's "don't duplicate a timer owned by
- * another package" rule, neither is re-implemented here - see the implementation notes for the exact
- * file:line pointers, including the pre-existing duplication between this file's OWN {@link #padTickTime}
- * (bundled, not individually toggleable, under {@link TickTimersConfig#isStormTimer()}) and f7spots' separate,
- * already-individually-toggleable copy of the same cycle.
+ * <b>2026-09-21 "one home per timer": Pad timer / Storm crush timer moved in from F7 Spots.</b> killer560, asked
+ * directly: "Move them to Tick Timers. One home per timer. F7 Spots keeps its waypoints; every countdown lives
+ * on Tick Timers." {@code f7spots.CrushTimer} (its purple-pad crush countdown/title and pad-outline render) is
+ * now {@link CrushTimer} in this package. Its own separate 20-server-tick pad-cycle counter was the EXACT same
+ * cycle this file already ran as {@link #padTickTime} (same two Storm P2 start/death trigger lines, same 20
+ * ticks) - a pre-existing overlap this class doc used to flag before the move. That duplicate is gone: the
+ * moved {@link CrushTimer} no longer tracks a pad cycle of its own, and {@link #padTickTime} below is the ONE
+ * counter left, now gated by its own {@link TickTimersConfig#isPadCycleTimer()} toggle (split out of
+ * {@link TickTimersConfig#isStormTimer()} so his old F7 Spots "Pad Cycle Timer" preference still means the pad
+ * line specifically - see {@link TickTimersConfig#migrateFromF7SpotsCrush()}).
  */
 public final class TickTimersFeature {
 
@@ -126,6 +128,15 @@ public final class TickTimersFeature {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
         ServerTickClock.register();
         ServerTickClock.subscribe(TickTimersFeature::serverTick);
+        // CrushTimer's pad outline render (moved in from f7spots 2026-09-21) - same AFTER_TRANSLUCENT_FEATURES
+        // hook + SkyblockGate check F7SpotsRenderer used to gate it with.
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
+            if (!SkyblockGate.allows() || !TickTimersConfig.getInstance().isEnabled()
+                    || !TickTimersConfig.getInstance().isCrushPadHighlightEnabled()) {
+                return;
+            }
+            CrushTimer.renderPads(context);
+        });
     }
 
     private static void onChatMessage(Component message) {
@@ -165,6 +176,9 @@ public final class TickTimersFeature {
             pyTickTime = 95;
             diagArmed("PY (95t)", raw);
         }
+        // CrushTimer (moved in from f7spots 2026-09-21): its own trigger lines ("Oof" / "Ouch, that hurt!" /
+        // the optional extra trigger text) don't overlap any pattern above, so it always gets a look.
+        CrushTimer.onChat(raw);
     }
 
     private static void tick() {
@@ -190,6 +204,13 @@ public final class TickTimersFeature {
                     diagCounting ? "ACTIVE" : "PAUSED", TickTimersConfig.getInstance().isEnabled(),
                     DungeonState.isBossPhaseActive(), inDungeon, DungeonState.getFloor());
             diagWasCounting = diagCounting;
+        }
+
+        // CrushTimer's interval countdown/title (moved in from f7spots 2026-09-21) - client tick, same as
+        // F7SpotsFeature used to drive it, gated by the master switch since it now shares this tab.
+        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        if (cfg.isEnabled() && (cfg.isCrushTimerEnabled() || cfg.isCrushTitleEnabled())) {
+            CrushTimer.tick(Minecraft.getInstance());
         }
     }
 
@@ -226,7 +247,9 @@ public final class TickTimersFeature {
         if (goldorTickTime >= 0) {
             goldorTickTime--;
         }
-        if (padTickTime == 0 && cfg.isStormTimer()) {
+        // 2026-09-21: gate split from isStormTimer() to its own isPadCycleTimer() toggle when the pad timer's
+        // f7spots duplicate was merged in here - see the class doc and TickTimersConfig's migration doc.
+        if (padTickTime == 0 && cfg.isPadCycleTimer()) {
             padTickTime = 20;
         }
         if (padTickTime >= 0) {
@@ -260,6 +283,7 @@ public final class TickTimersFeature {
         pyTickTime = -1;
         pyTriggered = false;
         stormTick = -1;
+        CrushTimer.reset();
         goldorPhaseStartTick = 0L;
         diagGoldorRestarts = 0;
     }
@@ -338,10 +362,12 @@ public final class TickTimersFeature {
                     lines.add(format(goldorTickTime, 60, "§7Tick:"));
                 }
             }
+            // Split from isStormTimer() 2026-09-21 when the f7spots pad-cycle duplicate was merged in - see
+            // the class doc. Its own toggle now, so it isn't dragged along with Lightning/PY/the Storm counter.
+            if (cfg.isPadCycleTimer() && padTickTime >= 0) {
+                lines.add(format(padTickTime, 20, "§bPad:"));
+            }
             if (cfg.isStormTimer()) {
-                if (padTickTime >= 0) {
-                    lines.add(format(padTickTime, 20, "§bPad:"));
-                }
                 if (lightningTickTime >= 0) {
                     lines.add(format(lightningTickTime, 560, "§bLightning:"));
                 }
@@ -350,6 +376,14 @@ public final class TickTimersFeature {
                 }
                 if (stormTick >= 0) {
                     lines.add(format(stormTick, 620, "§bStorm:"));
+                }
+            }
+            // CrushTimer's interval/count-up line (moved in from f7spots 2026-09-21) - its own toggle, same as
+            // it had on the F7 Spots tab.
+            if (cfg.isCrushTimerEnabled()) {
+                String crushLine = CrushTimer.hudText();
+                if (crushLine != null) {
+                    lines.add(crushLine);
                 }
             }
             return lines;

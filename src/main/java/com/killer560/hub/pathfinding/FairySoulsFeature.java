@@ -131,6 +131,18 @@ public final class FairySoulsFeature {
                     : "Still downloading the " + island + " graph - try again in a moment."));
             return;
         }
+        if (graph.withTag(IslandGraph.TAG_FAIRY_SOUL).isEmpty()) {
+            // killer560, 2026-09-21: "it says they have all been claimed" / "it said it couldn't find fairy
+            // souls that needed to be found" - a graph with zero fairy_soul nodes (Dungeon Hub has none at
+            // all; a not-yet-updated community graph can be missing them for an island that does have real
+            // souls) used to fall straight into the "already logged as found" message below, which is a lie -
+            // there was never anything here for the found-log to track, so say that instead of implying his
+            // tracking is complete when it was never consulted at all.
+            ModChat.send(CHAT, ModChat.bad(IslandDetector.islandName().isEmpty() ? "This island" : IslandDetector.islandName()),
+                    ModChat.bad(" has no Fairy Souls to find "),
+                    ModChat.dim("(or the SkyHanni graph doesn't have them mapped yet)."));
+            return;
+        }
         List<IslandGraph.Node> missing = unfound(graph);
         if (missing.isEmpty()) {
             ModChat.send(CHAT, ModChat.text("Every Fairy Soul on "), ModChat.value(IslandDetector.islandName()),
@@ -235,6 +247,10 @@ public final class FairySoulsFeature {
             case WALK -> 400.0;
             case ETHERWARP -> 8.0;
             case FAST_ETHERWARP -> 0.0;
+            // A thrown pearl has real range/precision limits (see EnderPearlHopper) so route order should
+            // still mostly prefer walking, same spirit as WALK, but a well-aimed pearl beats a very long
+            // detour - priced between WALK's near-never and ETHERWARP's readily-warps.
+            case PEARLS -> 60.0;
         };
         return (from, to, graphDistance) -> {
             double dx = to.x - from.x;
