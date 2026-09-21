@@ -277,6 +277,14 @@ public final class AutoWalker {
         lastAppliedPitch = player.getXRot();
     }
 
+    /** Aims at an explicit yaw/pitch (a solved projectile angle, e.g. {@link EnderPearlHopper#solve}) rather than a
+     *  straight look-at point - a thrown pearl's arc needs a pitch that does NOT point at the target. */
+    public static void lookAtAngle(float yaw, float pitch) {
+        targetYaw = yaw;
+        targetPitch = pitch;
+        aiming = true;
+    }
+
     /** Aims at a point without walking (used before an etherwarp / when clicking a soul). */
     public static void lookAt(Vec3 point) {
         LocalPlayer player = Minecraft.getInstance().player;
