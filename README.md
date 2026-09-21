@@ -187,6 +187,10 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - [Fabric API](https://modrinth.com/mod/fabric-api)
 - Java `25`+
 
+## Latest dev build
+
+Every push to `main` is built automatically and published as the **Latest Dev Build** pre-release on the [Releases page](https://github.com/Killer560-OG/killer560s-mod/releases/tag/dev-latest) - download the `-legit.jar` or `-cheat.jar` from there to get the newest commit without building it yourself. It is replaced on every push and is not an official release.
+
 ## Installing
 
 1. Install Fabric Loader for `26.1.2`.

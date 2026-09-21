@@ -1,0 +1,64 @@
+# Builds both jars on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
+# replaced each time, so the newest commit is always one click away without building from source.
+# Real versioned releases (v1.0.0, v1.1.0, ...) are never touched.
+name: Dev Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build legit jar
+        run: ./gradlew build --no-daemon
+
+      - name: Build cheat jar
+        run: ./gradlew build -PcheatBuild=true --no-daemon
+
+      - name: Collect jars
+        run: |
+          mkdir dist
+          cp build/libs/*-legit.jar build/libs/*-cheat.jar dist/
+          ls -la dist
+
+      - name: Publish Latest Dev Build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          SUBJECT=$(git log -1 --pretty=%s)
+          gh release delete dev-latest --yes --cleanup-tag || true
+          cat > notes.md <<EOF
+          **Automatic build of the newest commit** - not an official release, and most of it is still being tested.
+
+          Commit: \`${SHORT}\` - ${SUBJECT}
+
+          - \`*-legit.jar\` - what almost everyone wants.
+          - \`*-cheat.jar\` - adds the automation features. Against Hypixel's rules; your risk.
+
+          Install steps are in the Discord's how-to-install channel. Stable versions are the numbered releases.
+          EOF
+          gh release create dev-latest dist/*.jar \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Latest Dev Build (${SHORT})" \
+            --notes-file notes.md
