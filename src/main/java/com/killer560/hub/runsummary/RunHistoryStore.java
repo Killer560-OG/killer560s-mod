@@ -134,7 +134,8 @@ public final class RunHistoryStore {
                 record.splits(), record.devices(), record.secretsFound(), record.totalSecrets(), record.crypts(),
                 record.deaths(), record.puzzlesFailed(), record.puzzleCount(), record.estimatedScore(),
                 record.estimatedRank(), record.hypixelScore(), record.hypixelRank(), record.dungeonClass(),
-                record.partySize(), record.chestProfit(), record.chestCount(), beatTime, beatScore);
+                record.partySize(), record.chestProfit(), record.chestCount(), beatTime, beatScore,
+                record.party(), record.map());
         RUNS.add(0, stored);
         trim();
         LOGGER.info("[RunSummary] Stored run: {} in {} score {} ({}){}", stored.floorLabel(),

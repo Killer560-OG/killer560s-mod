@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 
 /** Auto Ult (F7/M7 boss, Healer/Tank) - see {@code com.killer560.hub.cheatutils.CheatUtils}. Cheat build
  *  only; split out of the old "Cheat Utils" tab 2026-09-20 per killer560: "Make auto ult its own category
- *  as well" - shares {@link CheatUtilsConfig} with {@link CheatUtilsTab}, {@link AutoGfsTab} and
+ *  as well" - shares {@link CheatUtilsConfig} with {@code CheatUtilsTab} (deleted 2026-09-21), {@link AutoGfsTab} and
  *  {@link AutoChocolateFactoryTab}; the config file itself was not split. */
 public class AutoUltTab extends BaseTab {
 

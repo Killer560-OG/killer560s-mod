@@ -18,7 +18,12 @@ import java.util.function.DoubleConsumer;
 import java.util.function.Supplier;
 
 /** Lever Aura settings - see {@link LeverAuraFeature} (F7/M7 P3 Section 2 Lights device + section levers).
- *  Cheat build only; collapses to its master toggle while OFF (CheatUtilsTab pattern). */
+ *  Cheat build only; collapses to its master toggle while OFF (CheatUtilsTab pattern). Moved from a
+ *  top-level {@code NewTab} entry into the "Secrets" folder 2026-09-21 (see {@link SecretsTab}) per
+ *  killer560's menu-structure request - no behaviour change, just a different accordion home. The
+ *  top-of-tab explanatory paragraph and the two per-toggle explanatory lines were dropped the same day
+ *  (mod-wide in-panel-paragraph cleanup): the master toggle's own tooltip already covers the paragraph,
+ *  and "pre-flick lights before s2"/"finish lights when s2 opens" already had matching tooltip entries. */
 public class LeverAuraTab extends BaseTab {
 
     private static final int BTN_W = 220;
@@ -27,7 +32,7 @@ public class LeverAuraTab extends BaseTab {
         super("Lever Aura");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to {@link SecretsTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;
@@ -43,8 +48,6 @@ public class LeverAuraTab extends BaseTab {
         int half = (contentWidth - 8) / 2;
         int[] y = {contentY};
 
-        label(w, contentX, y, contentWidth, "§7F7/M7 P3 Section 2: Lights device + section levers. Use at your own risk.");
-
         header(w, contentX, y, contentWidth, "Lever Aura");
         toggle(w, contentX, y, "Lever Aura", cfg::isEnabledRaw, cfg::setEnabled, requestRebuild);
         if (!cfg.isEnabledRaw()) {
@@ -53,9 +56,7 @@ public class LeverAuraTab extends BaseTab {
 
         header(w, contentX, y, contentWidth, "Lights Device");
         toggle(w, contentX, y, "Pre-Flick Lights Before S2", cfg::isLightsPreFlickRaw, cfg::setLightsPreFlick, null);
-        label(w, contentX, y, contentWidth, "§7Flicks each unlit corner + middle lever once while S2 isn't open.");
         toggle(w, contentX, y, "Finish Lights When S2 Opens", cfg::isLightsFinishRaw, cfg::setLightsFinish, null);
-        label(w, contentX, y, contentWidth, "§7After S1: flicks the lever that completes it, else one lever to activate.");
 
         header(w, contentX, y, contentWidth, "Section Levers");
         toggle(w, contentX, y, "S2 Section Levers", cfg::isSectionLeversRaw, cfg::setSectionLevers, requestRebuild);
@@ -90,11 +91,6 @@ public class LeverAuraTab extends BaseTab {
 
     private static int denorm(double v, int min, int max) {
         return (int) Math.round(min + v * (max - min));
-    }
-
-    private static void label(List<AbstractWidget> w, int x, int[] y, int width, String text) {
-        w.add(new StringWidget(x, y[0], width, 12, Component.literal(text), Minecraft.getInstance().font));
-        y[0] += 16;
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {

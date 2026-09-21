@@ -56,7 +56,11 @@ public record RunRecord(
         int chestCount,
         /** Set by {@link RunHistoryStore} when this run beat the stored personal best for its floor. */
         boolean bestTime,
-        boolean bestScore) {
+        boolean bestScore,
+        /** Who was in the party, keyed on UUID - see {@link PartyMember}. Empty when nothing was readable. */
+        List<PartyMember> party,
+        /** The dungeon map as it looked, or null when nothing ever scanned it (see {@link MapSnapshot}). */
+        MapSnapshot map) {
 
     public static final int UNKNOWN_INT = -1;
     public static final long UNKNOWN_PROFIT = Long.MIN_VALUE;
@@ -73,9 +77,75 @@ public record RunRecord(
     public record Device(String player, String kind, int index, int total, String phase, long msIntoPhase) {
     }
 
+    /**
+     * One party member of a logged run, for the {@code /log} run log.
+     * <p>
+     * <b>Keyed on {@link #uuid}, never on the IGN</b> - killer560's standing rule, so a name change never
+     * loses history. {@link #name} is only what they were called at the time; the run log resolves the
+     * CURRENT name from the UUID when that player is online and falls back to this one otherwise.
+     * {@code -1} in any count means "not tracked" (Run Stats was off, or the API never answered).
+     */
+    public record PartyMember(String uuid, String name, String dungeonClass, int classLevel,
+                              int soloRooms, int stackedRooms, int secrets, int deaths) {
+
+        /** "{@code 4}" when nobody stacked with them, otherwise "{@code 4-7}" - same shape Run Stats prints. */
+        public String roomsLabel() {
+            if (soloRooms < 0) {
+                return "-";
+            }
+            return stackedRooms <= 0 ? String.valueOf(soloRooms) : soloRooms + "-" + (soloRooms + stackedRooms);
+        }
+    }
+
+    /** One room of a {@link MapSnapshot}: its name and its room-database type ("puzzle", "trap", ...). */
+    public record MapRoom(String name, String type) {
+    }
+
+    /**
+     * The dungeon map as it stood at the end of the run - killer560, 2026-09-20: "This should log the map
+     * that was shown".
+     * <p>
+     * An 11x11 grid, the same one {@code livemap/DungeonLayout} works in: {@link #roomOfCell} holds a room
+     * index (or -1) per cell and {@link #doorOfCell} the door type, with bit 8 set when the door was still
+     * locked. Room scanning only runs while some consumer of it is enabled (Live Map, Secret Waypoints, a
+     * puzzle solver...), so a run done with all of those off has no map and this is null.
+     */
+    public record MapSnapshot(int[] roomOfCell, int[] doorOfCell, List<MapRoom> rooms) {
+
+        public static final int GRID = 11;
+        public static final int LOCKED_BIT = 8;
+
+        public MapSnapshot {
+            roomOfCell = roomOfCell == null ? new int[GRID * GRID] : roomOfCell.clone();
+            doorOfCell = doorOfCell == null ? new int[GRID * GRID] : doorOfCell.clone();
+            rooms = rooms == null ? List.of() : List.copyOf(rooms);
+        }
+
+        public boolean isEmpty() {
+            return rooms.isEmpty();
+        }
+
+        public int roomAt(int cell) {
+            return cell >= 0 && cell < roomOfCell.length ? roomOfCell[cell] : -1;
+        }
+
+        public int doorAt(int cell) {
+            return cell >= 0 && cell < doorOfCell.length ? doorOfCell[cell] & ~LOCKED_BIT : 0;
+        }
+
+        public boolean lockedAt(int cell) {
+            return cell >= 0 && cell < doorOfCell.length && (doorOfCell[cell] & LOCKED_BIT) != 0;
+        }
+
+        public MapRoom room(int id) {
+            return id >= 0 && id < rooms.size() ? rooms.get(id) : null;
+        }
+    }
+
     public RunRecord {
         splits = splits == null ? List.of() : List.copyOf(splits);
         devices = devices == null ? List.of() : List.copyOf(devices);
+        party = party == null ? List.of() : List.copyOf(party);
     }
 
     /** "F7" / "M7 (Master)" style label for lists. */
@@ -180,7 +250,73 @@ public record RunRecord(
         }
         o.addProperty("bestTime", bestTime);
         o.addProperty("bestScore", bestScore);
+        if (!party.isEmpty()) {
+            JsonArray partyArray = new JsonArray();
+            for (PartyMember p : party) {
+                JsonObject e = new JsonObject();
+                if (p.uuid() != null) {
+                    e.addProperty("uuid", p.uuid());
+                }
+                e.addProperty("name", p.name());
+                if (p.dungeonClass() != null) {
+                    e.addProperty("class", p.dungeonClass());
+                }
+                e.addProperty("classLevel", p.classLevel());
+                e.addProperty("soloRooms", p.soloRooms());
+                e.addProperty("stackedRooms", p.stackedRooms());
+                e.addProperty("secrets", p.secrets());
+                e.addProperty("deaths", p.deaths());
+                partyArray.add(e);
+            }
+            o.add("party", partyArray);
+        }
+        if (map != null && !map.isEmpty()) {
+            JsonObject m = new JsonObject();
+            // Comma-joined rather than 121-element JSON arrays: the history file is pretty-printed, and two
+            // arrays per run would be 250 lines of single digits each.
+            m.addProperty("roomCells", joinInts(map.roomOfCell()));
+            m.addProperty("doorCells", joinInts(map.doorOfCell()));
+            JsonArray roomArray = new JsonArray();
+            for (MapRoom r : map.rooms()) {
+                JsonObject e = new JsonObject();
+                e.addProperty("name", r.name() == null ? "Unknown" : r.name());
+                if (r.type() != null) {
+                    e.addProperty("type", r.type());
+                }
+                roomArray.add(e);
+            }
+            m.add("rooms", roomArray);
+            o.add("map", m);
+        }
         return o;
+    }
+
+    private static String joinInts(int[] values) {
+        StringBuilder sb = new StringBuilder(values.length * 3);
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(values[i]);
+        }
+        return sb.toString();
+    }
+
+    private static int[] splitInts(String text, int expected) {
+        int[] out = new int[expected];
+        java.util.Arrays.fill(out, -1);
+        if (text == null || text.isBlank()) {
+            return out;
+        }
+        String[] parts = text.split(",");
+        for (int i = 0; i < expected && i < parts.length; i++) {
+            try {
+                out[i] = Integer.parseInt(parts[i].trim());
+            } catch (NumberFormatException ignored) {
+                out[i] = -1;
+            }
+        }
+        return out;
     }
 
     /** Never throws: a malformed field falls back to "unknown" for that field only (the same per-key rule
@@ -219,6 +355,44 @@ public record RunRecord(
                 }
             }
         }
+        List<PartyMember> party = new ArrayList<>();
+        JsonArray partyArray = ConfigJson.getArray(o, "party");
+        if (partyArray != null) {
+            for (JsonElement e : partyArray) {
+                if (e != null && e.isJsonObject()) {
+                    JsonObject p = e.getAsJsonObject();
+                    party.add(new PartyMember(
+                            ConfigJson.getString(p, "uuid", null),
+                            ConfigJson.getString(p, "name", "?"),
+                            ConfigJson.getString(p, "class", null),
+                            ConfigJson.getInt(p, "classLevel", UNKNOWN_INT),
+                            ConfigJson.getInt(p, "soloRooms", UNKNOWN_INT),
+                            ConfigJson.getInt(p, "stackedRooms", UNKNOWN_INT),
+                            ConfigJson.getInt(p, "secrets", UNKNOWN_INT),
+                            ConfigJson.getInt(p, "deaths", UNKNOWN_INT)));
+                }
+            }
+        }
+        MapSnapshot map = null;
+        JsonObject mapObject = ConfigJson.getObject(o, "map");
+        if (mapObject != null) {
+            List<MapRoom> rooms = new ArrayList<>();
+            JsonArray roomArray = ConfigJson.getArray(mapObject, "rooms");
+            if (roomArray != null) {
+                for (JsonElement e : roomArray) {
+                    if (e != null && e.isJsonObject()) {
+                        JsonObject r = e.getAsJsonObject();
+                        rooms.add(new MapRoom(ConfigJson.getString(r, "name", "Unknown"),
+                                ConfigJson.getString(r, "type", null)));
+                    }
+                }
+            }
+            if (!rooms.isEmpty()) {
+                int cells = MapSnapshot.GRID * MapSnapshot.GRID;
+                map = new MapSnapshot(splitInts(ConfigJson.getString(mapObject, "roomCells", null), cells),
+                        splitInts(ConfigJson.getString(mapObject, "doorCells", null), cells), rooms);
+            }
+        }
         return new RunRecord(
                 ConfigJson.getLong(o, "startedAtMs", 0L),
                 ConfigJson.getLong(o, "endedAtMs", 0L),
@@ -244,6 +418,8 @@ public record RunRecord(
                 o.has("chestProfit") ? ConfigJson.getLong(o, "chestProfit", 0L) : UNKNOWN_PROFIT,
                 ConfigJson.getInt(o, "chestCount", 0),
                 ConfigJson.getBool(o, "bestTime", false),
-                ConfigJson.getBool(o, "bestScore", false));
+                ConfigJson.getBool(o, "bestScore", false),
+                party,
+                map);
     }
 }

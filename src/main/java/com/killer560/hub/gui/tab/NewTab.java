@@ -35,7 +35,6 @@ public class NewTab extends FolderTab {
                 new DungeonInfoTab(),
                 new MobEspTab(),
                 new TeammatesTab(),
-                new EtherwarpTab(),
                 new TickTimersTab(),
                 new LagDisplayTab(),
                 new AbilityCooldownTab(),
@@ -45,6 +44,9 @@ public class NewTab extends FolderTab {
                 new WitherDragonsTab(),
                 new TerminalTimersTab(),
                 new DungeonAlertsTab(),
+                new TerracottaTimerTab(),
+                new SpringBootsTab(),
+                new ClassColorsTab(),
                 new RagAxeTab(),
                 new NameChangerTab(),
                 new CroesusTab(),
@@ -60,7 +62,6 @@ public class NewTab extends FolderTab {
                 new InteropTab(),
                 new I4SensorsTab(),
                 new LiveMapTab(),
-                new SecretWaypointsTab(),
                 new AutoCloseChestTab(),
                 new BloodCampTab(),
                 new ThornTab(),
@@ -79,6 +80,7 @@ public class NewTab extends FolderTab {
                 new ChatCommandsTab(),
                 new PartyCommandsTab(),
                 new DoorKeysTab(),
+                new WitherDoorsTab(),
                 new TrajectoriesTab(),
                 new LoadoutKeybindsTab(),
                 new AbilityKeybindsTab(),
@@ -102,15 +104,12 @@ public class NewTab extends FolderTab {
             // tracking and display.
             tabs.add(new AutoFairySoulsTab());
             tabs.add(new FastLeapTab());
-            tabs.add(new CheatUtilsTab());
             tabs.add(new AutoGfsTab());
             tabs.add(new AutoUltTab());
             tabs.add(new AutoChocolateFactoryTab());
-            tabs.add(new SecretTriggerbotTab());
             tabs.add(new DoorHelpersTab());
             tabs.add(new DungeonBreakerTab());
             tabs.add(new DioriteGlassTab());
-            tabs.add(new LeverAuraTab());
             tabs.add(new TerminalAuraTab());
             tabs.add(new TerminalTriggerbotTab());
             tabs.add(new AutoRoutesTab());

@@ -7,9 +7,11 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -55,13 +57,23 @@ public final class ChestProfitFeature {
     private static final int HIGHLIGHT_BEST_FILL = 0x7000FF00;
     private static final int HIGHLIGHT_BEST_BORDER = 0xFF00FF00;
     private static final int HIGHLIGHT_SECOND_FILL = 0x40FFA040;
+    private static final int HIGHLIGHT_SECOND_BORDER = 0xFFFFA040;
+    /** Run heads in the Croesus menu: green = nothing claimed from that run yet, red = something already was. */
+    private static final int RUN_UNCLAIMED_FILL = 0x5000FF00;
+    private static final int RUN_UNCLAIMED_BORDER = 0xFF00FF00;
+    private static final int RUN_CLAIMED_FILL = 0x50FF5555;
 
-    private enum Kind { NONE, RUN_VIEW, CHEST }
+    private enum Kind { NONE, CROESUS_MENU, RUN_VIEW, CHEST }
 
     private record PendingClaim(ChestValue value, String floor, int containerId, long clickedAtMs, String source) {
     }
 
     private static Kind kind = Kind.NONE;
+    /** Per run-head slot in the Croesus menu: 0 = not a run, 1 = nothing claimed yet, 2 = already claimed.
+     *  Built once per tick (not per frame) - the fps pass found lore scans in render paths. */
+    private static byte[] runHeadState = new byte[0];
+    private static int unclaimedRuns = 0;
+    private static int claimedRuns = 0;
     private static List<ChestValue> runViewChests = List.of();
     private static ChestValue chestScreenValue = null;
     private static String runViewFloor = null;
@@ -82,6 +94,7 @@ public final class ChestProfitFeature {
             kind = Kind.NONE;
             runViewChests = List.of();
             chestScreenValue = null;
+            runHeadState = new byte[0];
         });
         ChatObserver.subscribe(message -> {
             if (pending == null) {
@@ -230,8 +243,26 @@ public final class ChestProfitFeature {
                 LOGGER.error("[ChestProfit] Render failed", e);
             }
         });
+        // killer560, 2026-09-20: "it will keep going until i press any key while it is going or it finishes."
+        // ESC and the inventory key are let through as well as stopping, so the menu still closes the way it
+        // normally would; everything else is swallowed, since a stray number key inside a Hypixel menu is a
+        // real hotbar-swap packet.
+        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
+            try {
+                if (!AutoCroesusFeature.stopOnKeyPress()) {
+                    return true;
+                }
+                return event.key() == InputConstants.KEY_ESCAPE;
+            } catch (Exception e) {
+                LOGGER.error("[Croesus] Key hook failed", e);
+                return true;
+            }
+        });
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
             try {
+                if (AutoCroesusFeature.tryClickStartButton(event.x(), event.y())) {
+                    return false;
+                }
                 if (!active()) {
                     return true;
                 }
@@ -264,6 +295,13 @@ public final class ChestProfitFeature {
             return;
         }
         String title = titleOf(screen);
+        if (DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
+            readRunHeads(screen);
+            runViewChests = List.of();
+            chestScreenValue = null;
+            setKind(Kind.CROESUS_MENU, title);
+            return;
+        }
         if (DungeonChestValuer.RUN_VIEW_TITLE.matcher(title).matches()) {
             runViewChests = valueRunView(screen);
             runViewFloor = floorFromRunViewTitle(title);
@@ -285,6 +323,41 @@ public final class ChestProfitFeature {
         runViewChests = List.of();
         chestScreenValue = null;
         setKind(Kind.NONE, "");
+    }
+
+    /**
+     * killer560, 2026-09-20: "add a highlight for opened chests vs unopened chests by run as well. So before
+     * I even open a run it tells me if i have a claimed chest there yet or not."
+     * <p>
+     * The head's own lore is the only thing the client is told: {@code "No chests opened yet!"} is present on
+     * a completely untouched run and gone the moment anything in it is claimed (quoi AutoCroesus.kt reads the
+     * same line). So this is a two-state answer - untouched vs. something claimed - and cannot tell a run with
+     * one chest left from a fully emptied one.
+     */
+    private static void readRunHeads(AbstractContainerScreen<?> screen) {
+        List<ItemStack> stacks = containerStacks(screen);
+        byte[] state = new byte[stacks.size()];
+        int unclaimed = 0;
+        int claimed = 0;
+        for (int slot : DungeonChestValuer.RUN_HEAD_SLOTS) {
+            if (slot >= stacks.size()) {
+                break;
+            }
+            ItemStack head = stacks.get(slot);
+            if (head.isEmpty() || floorFromCroesusHead(head) == null) {
+                continue;
+            }
+            if (DungeonChestValuer.cleanLore(head).contains(DungeonChestValuer.RUN_UNOPENED_LORE)) {
+                state[slot] = 1;
+                unclaimed++;
+            } else {
+                state[slot] = 2;
+                claimed++;
+            }
+        }
+        runHeadState = state;
+        unclaimedRuns = unclaimed;
+        claimedRuns = claimed;
     }
 
     private static void setKind(Kind newKind, String title) {
@@ -367,12 +440,44 @@ public final class ChestProfitFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
-        if (!CroesusConfig.getInstance().isChestProfitEnabled() || Minecraft.getInstance().screen != screen) {
+        if (Minecraft.getInstance().screen != screen) {
+            return;
+        }
+        // Drawn from the container screen's own pass, so it sits over the menu rather than under its
+        // darkened background - see AutoCroesusFeature.renderStartButton.
+        AutoCroesusFeature.renderStartButton(graphics);
+        if (!CroesusConfig.getInstance().isChestProfitEnabled()) {
             return;
         }
         String title = titleOf(screen);
         ContainerPos pos = positions(screen);
         List<Line> lines = new ArrayList<>();
+        if (kind == Kind.CROESUS_MENU && DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
+            if (!CroesusConfig.getInstance().isHighlightRuns()) {
+                return;
+            }
+            for (int slot = 0; slot < runHeadState.length && slot < screen.getMenu().slots.size(); slot++) {
+                if (runHeadState[slot] == 0) {
+                    continue;
+                }
+                Slot s = screen.getMenu().slots.get(slot);
+                int x = pos.left() + s.x;
+                int y = pos.top() + s.y;
+                if (runHeadState[slot] == 1) {
+                    graphics.fill(x, y, x + 16, y + 16, RUN_UNCLAIMED_FILL);
+                    graphics.outline(x - 1, y - 1, 18, 18, RUN_UNCLAIMED_BORDER);
+                } else {
+                    graphics.fill(x, y, x + 16, y + 16, RUN_CLAIMED_FILL);
+                }
+            }
+            lines.add(new Line("Croesus", 0xFF000000 | ModChat.ORANGE, null, 0));
+            lines.add(new Line("Unclaimed runs", 0xFF000000 | ModChat.TEXT, String.valueOf(unclaimedRuns),
+                    0xFF000000 | (unclaimedRuns > 0 ? ModChat.GOOD : ModChat.DIM)));
+            lines.add(new Line("Already claimed", 0xFF000000 | ModChat.TEXT, String.valueOf(claimedRuns),
+                    0xFF000000 | ModChat.DIM));
+            drawPanel(screen, graphics, pos, lines);
+            return;
+        }
         if (kind == Kind.RUN_VIEW && DungeonChestValuer.RUN_VIEW_TITLE.matcher(title).matches()) {
             lines.add(new Line("Chest Profit" + (runViewFloor != null ? " - " + runViewFloor : ""), 0xFF000000 | ModChat.ORANGE, null, 0));
             if (!DungeonChestValuer.pricesReady()) {
@@ -391,10 +496,19 @@ public final class ChestProfitFeature {
                     second = c;
                 }
             }
+            // killer560, 2026-09-20: "highlight ... the second best if it makes profit assuming i use a
+            // dungeon chest key on it". A chest whose lore already lists "Dungeon Chest Key" has that key
+            // priced into its own profit; one that doesn't has the key subtracted here.
+            boolean keyHighlight = CroesusConfig.getInstance().isHighlightSecondWithKey();
+            long secondWithKey = second == null ? 0L : DungeonChestValuer.profitWithKey(second);
+            boolean secondPaysForKey = second != null && secondWithKey > 0;
             for (ChestValue c : chests) {
                 String label = c.type().display + (c.opened() ? " (opened)" : "") + (c.unpricedCount() > 0 ? " *" : "");
                 int labelColor = c.opened() ? 0xFF000000 | ModChat.DIM : c.type().color;
                 lines.add(new Line(label, labelColor, signed(c.profit()), c.opened() ? 0xFF000000 | ModChat.DIM : profitColor(c.profit())));
+            }
+            if (keyHighlight && second != null && !second.requiresKey()) {
+                lines.add(new Line("2nd w/ key", 0xFF000000 | ModChat.TEXT, signed(secondWithKey), profitColor(secondWithKey)));
             }
             if (CroesusConfig.getInstance().isHighlightBest()) {
                 for (ChestValue c : chests) {
@@ -407,7 +521,10 @@ public final class ChestProfitFeature {
                     if (c == best) {
                         graphics.fill(x, y, x + 16, y + 16, HIGHLIGHT_BEST_FILL);
                         graphics.outline(x - 1, y - 1, 18, 18, HIGHLIGHT_BEST_BORDER);
-                    } else if (c == second && c.profit() > 0) {
+                    } else if (c == second && keyHighlight && secondPaysForKey) {
+                        graphics.fill(x, y, x + 16, y + 16, HIGHLIGHT_SECOND_FILL);
+                        graphics.outline(x - 1, y - 1, 18, 18, HIGHLIGHT_SECOND_BORDER);
+                    } else if (c == second && !keyHighlight && c.profit() > 0) {
                         graphics.fill(x, y, x + 16, y + 16, HIGHLIGHT_SECOND_FILL);
                     }
                 }

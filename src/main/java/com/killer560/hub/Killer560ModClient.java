@@ -100,6 +100,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.p3nav.P3NavFeature.register();
         com.killer560.hub.blessings.BlessingsFeature.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
+        com.killer560.hub.runsummary.RunLogCommands.register();
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
@@ -150,6 +151,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.namechanger.NameChangerFeature.register();
         com.killer560.hub.croesus.ChestProfitFeature.register();
         com.killer560.hub.croesus.AutoCroesusFeature.register();
+        com.killer560.hub.croesus.CroesusCommands.register();
         com.killer560.hub.hud.HudInGameRenderer.register();
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
@@ -200,6 +202,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.chatcommands.ChatCommandsFeature.register();
         com.killer560.hub.partycommands.PartyCommandsFeature.register();
         com.killer560.hub.doorkeys.DoorKeysFeature.register();
+        com.killer560.hub.witherdoors.WitherDoorsFeature.register();
         com.killer560.hub.trajectories.TrajectoriesFeature.register();
         com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature.register();
         com.killer560.hub.abilitykeybinds.AbilityKeybindsFeature.register();

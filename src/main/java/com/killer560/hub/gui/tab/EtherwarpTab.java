@@ -15,7 +15,11 @@ import java.util.Locale;
 
 /** Etherwarp/secret-spot waypoint settings - see {@link EtherwarpFeature}'s class doc for why these are
  *  per-run only (never saved to disk, never sent anywhere). Use "/killer560 ew add &lt;name&gt;" in-game
- *  while looking at the spot you want to remember; this tab just shows/manages what's been added. */
+ *  while looking at the spot you want to remember; this tab just shows/manages what's been added. Moved
+ *  from a top-level {@code NewTab} entry into the "Secrets" folder 2026-09-21 (see {@link SecretsTab}) per
+ *  killer560's menu-structure request - no behaviour change, just a different accordion home. The two
+ *  in-panel instructional lines were dropped the same day (mod-wide in-panel-paragraph cleanup): the
+ *  master toggle's "show hud list" tooltip already covers both. */
 public class EtherwarpTab extends BaseTab {
 
     public EtherwarpTab() {
@@ -34,15 +38,6 @@ public class EtherwarpTab extends BaseTab {
                     btn.setMessage(masterText());
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Use \"/killer560 ew add <name>\" in-game while looking at a spot."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Cleared automatically when a new dungeon run starts."),
-                Minecraft.getInstance().font));
-        y += 20;
 
         List<EtherwarpWaypoint> waypoints = EtherwarpFeature.waypoints();
         if (waypoints.isEmpty()) {

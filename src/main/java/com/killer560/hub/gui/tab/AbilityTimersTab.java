@@ -2,21 +2,26 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.abilitytimers.AbilityTimerEntry;
 import com.killer560.hub.abilitytimers.AbilityTimersConfig;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Ability/cooldown timer settings - killer560's "tick timers from Odin/noamm" and "mask invulnerability
  *  cooldown timers" requests, one generic list-of-named-timers system (see {@link AbilityTimerEntry}'s
  *  own doc for why). Each timer: a name, a duration, a color, and a keybind that starts/restarts its
- *  countdown - press it the moment you use the real ability. */
+ *  countdown - press it the moment you use the real ability. Everything non-essential lives in this
+ *  tab's hover tooltips rather than as in-panel text (killer560, 2026-09-20 sweep: "any questions I have
+ *  that are not absolutely essential to know before turning something on should come from hovering it"). */
 public class AbilityTimersTab extends BaseTab implements KeyCaptureTab {
 
     private String capturingId = null;
@@ -86,24 +91,46 @@ public class AbilityTimersTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col3, y, 108, 18).build());
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Duration: " + (e.durationMs / 1000) + "s"), btn -> {
-                    int next = e.durationMs + 5000;
-                    e.durationMs = next > 300_000 ? 5000 : next;
-                    AbilityTimersConfig.getInstance().save();
-                    btn.setMessage(Component.literal("Duration: " + (e.durationMs / 1000) + "s"));
-                }).bounds(col1, y, 100, 18).build());
+        widgets.add(durationSlider(col1, y, col2 + 100 - col1, e));
+
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", e.color()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Timer Color", e.color(),
+                            0xFFCC6600, argb -> {
+                                e.colorHex = String.format("%06X", argb & 0xFFFFFF);
+                                AbilityTimersConfig.getInstance().save();
+                            }));
+                }).bounds(col3, y, 108, 18).build());
+        y += 20;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Test Start"), btn ->
                     e.start(System.currentTimeMillis())
-                ).bounds(col2, y, 100, 18).build());
+                ).bounds(col1, y, 100, 18).build());
         y += 20;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Press the bound key the instant you actually use this ability."),
-                Minecraft.getInstance().font));
-        y += 16;
-
         return y;
+    }
+
+    /** Drag-to-set duration (2026-09-20 tab sweep fix: the old "+5s per click, wraps at 300s" button took
+     *  48 clicks to dial in a 4-minute timer). Snaps to whole seconds. */
+    private static ThemedSliderButton durationSlider(int x, int y, int w, AbilityTimerEntry e) {
+        int min = AbilityTimerEntry.MIN_DURATION_MS;
+        int max = AbilityTimerEntry.MAX_DURATION_MS;
+        double normalized = (e.durationMs - min) / (double) (max - min);
+        Supplier<Component> text = () -> Component.literal("Duration: " + (e.durationMs / 1000) + "s");
+        return new ThemedSliderButton(x, y, w, 18, text.get(), Math.max(0.0, Math.min(1.0, normalized))) {
+            @Override
+            protected void updateMessage() {
+                setMessage(text.get());
+            }
+
+            @Override
+            protected void applyValue() {
+                double rawMs = min + this.value * (max - min);
+                e.durationMs = (int) (Math.round(rawMs / 1000.0) * 1000);
+                AbilityTimersConfig.getInstance().save();
+            }
+        };
     }
 
     private static Component onOff(boolean value) {

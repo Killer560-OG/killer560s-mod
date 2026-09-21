@@ -37,7 +37,11 @@ public class DungeonTab extends FolderTab {
                 // testing: "put every puzzle solver back under one tab called Puzzle Solvers inside the
                 // dungeon tab... separate from Auto Puzzles, but all solvers in one tab". Ships on both
                 // builds - only Auto Puzzles below is cheat-only.
-                new PuzzleSolversTab()
+                new PuzzleSolversTab(),
+                // One home for everything secret-related (killer560, 2026-09-20): sound, waypoints,
+                // etherwarp waypoints, and the cheat-only Secret Aura/Triggerbot/Lever Aura/Full Block,
+                // which the folder gates internally so none of them exist in the legit jar.
+                new SecretsTab()
         ));
         // Leap Menu, Fast Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, Etherwarp
         // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers, Mask
@@ -50,7 +54,6 @@ public class DungeonTab extends FolderTab {
         // here, joining Auto Terminals; the legit build has neither tab at all, not just a
         // disabled-looking one (matching SecretsConfig#isMasterEnabled's own gate underneath).
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            tabs.add(new SecretsTab());
             tabs.add(new AutoTerminalTab());
             // Auto Puzzles came here when the Puzzle Solvers category was first dissolved (killer560,
             // 2026-09-20), and stayed here - deliberately separate from the Puzzle Solvers folder above -

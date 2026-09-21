@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.croesus.AutoCroesusFeature;
 import com.killer560.hub.croesus.CroesusConfig;
 import com.killer560.hub.croesus.CroesusProfitLog;
+import com.killer560.hub.croesus.CroesusTrackerScreen;
 import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -13,10 +14,14 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-/** Chest Profit overlay, Croesus Profit Logger totals, and (cheat build only) Auto Croesus settings -
- *  see {@link com.killer560.hub.croesus.ChestProfitFeature}, {@link CroesusProfitLog}, {@link AutoCroesusFeature}. */
+/** Chest Profit overlay, Croesus Profit Logger and (cheat build only) Auto Croesus settings - see
+ *  {@link com.killer560.hub.croesus.ChestProfitFeature}, {@link CroesusProfitLog}, {@link AutoCroesusFeature}.
+ *  <p>
+ *  The session / all-time totals used to be painted into this panel; killer560 (2026-09-20) asked for them to
+ *  move out: "Remove the session and all time text inside the mod menu, instead i should type /croesus profit
+ *  session or all to see it". They now live in {@code /croesus} ({@link CroesusTrackerScreen}) together with
+ *  the item log and the big-drop list, and the button below just opens it. */
 public class CroesusTab extends BaseTab {
 
     private static final int GAP = 8;
@@ -39,10 +44,6 @@ public class CroesusTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 22;
-        widgets.add(label(contentX, y, contentWidth, "§7Value, cost and profit next to any dungeon reward chest; best chest"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7highlighted green in the Croesus run view. Prices: RNG Meter's Bazaar/AH feed."));
-        y += 16;
         if (cfg.isChestProfitEnabled()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Include Essence", cfg.isIncludeEssence()), btn -> {
                         cfg.setIncludeEssence(!cfg.isIncludeEssence());
@@ -54,6 +55,17 @@ public class CroesusTab extends BaseTab {
                         cfg.save();
                         btn.setMessage(onOff("Highlight Best", cfg.isHighlightBest()));
                     }).bounds(contentX + half + GAP, y, half, 18).build());
+            y += 20;
+            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Runs", cfg.isHighlightRuns()), btn -> {
+                        cfg.setHighlightRuns(!cfg.isHighlightRuns());
+                        cfg.save();
+                        btn.setMessage(onOff("Highlight Runs", cfg.isHighlightRuns()));
+                    }).bounds(contentX, y, half, 18).build());
+            widgets.add(SettingsButtonWidget.builder(onOff("Second Best With Key", cfg.isHighlightSecondWithKey()), btn -> {
+                        cfg.setHighlightSecondWithKey(!cfg.isHighlightSecondWithKey());
+                        cfg.save();
+                        btn.setMessage(onOff("Second Best With Key", cfg.isHighlightSecondWithKey()));
+                    }).bounds(contentX + half + GAP, y, half, 18).build());
             y += 26;
         }
 
@@ -64,23 +76,20 @@ public class CroesusTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 22;
-        widgets.add(label(contentX, y, contentWidth, "§7Logs every claimed chest to config/killer560smod-croesus-log.json."));
-        y += 16;
         if (cfg.isLoggerEnabled()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Chat Summary", cfg.isLoggerChatSummary()), btn -> {
                         cfg.setLoggerChatSummary(!cfg.isLoggerChatSummary());
                         cfg.save();
                         btn.setMessage(onOff("Chat Summary", cfg.isLoggerChatSummary()));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Reset totals"), btn -> {
-                        CroesusProfitLog.resetTotals();
-                        requestRebuild.run();
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Open Profit Tracker"), btn -> {
+                        Minecraft client = Minecraft.getInstance();
+                        client.setScreenAndShow(new CroesusTrackerScreen(client.screen, CroesusTrackerScreen.View.TOTALS));
                     }).bounds(contentX + half + GAP, y, half, 18).build());
-            y += 24;
-            y = totalsSection(widgets, contentX, y, contentWidth, "Session", CroesusProfitLog.session());
-            y = totalsSection(widgets, contentX, y, contentWidth, "All-time", CroesusProfitLog.allTime());
-            widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount() + " claims in the log file."));
-            y += 16;
+            y += 20;
+            widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount()
+                    + " claims logged §8- §7/croesus"));
+            y += 18;
         }
 
         // ---- Auto Croesus (cheat build only) ----
@@ -89,9 +98,9 @@ public class CroesusTab extends BaseTab {
             // to be red and make sure it is only on the cheat version"). The gating was already right - it
             // is behind CHEAT_FEATURES_ENABLED here and in CroesusConfig.isAutoCroesusEnabled - but nothing
             // on screen said so, so it read like an ordinary setting.
-            widgets.add(new net.minecraft.client.gui.components.StringWidget(contentX, y, contentWidth, 12,
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     com.killer560.hub.gui.SectionHeaders.header("Auto Croesus", true),
-                    net.minecraft.client.Minecraft.getInstance().font));
+                    Minecraft.getInstance().font));
             y += 14;
             widgets.add(SettingsButtonWidget.builder(onOff("Auto Croesus", cfg.getAutoCroesusEnabledRaw()), btn -> {
                         cfg.setAutoCroesusEnabled(!cfg.getAutoCroesusEnabledRaw());
@@ -150,6 +159,59 @@ public class CroesusTab extends BaseTab {
                     }
                 });
                 y += 24;
+
+                widgets.add(SettingsButtonWidget.builder(onOff("Use Chest Keys", cfg.isAutoUseChestKeys()), btn -> {
+                            cfg.setAutoUseChestKeys(!cfg.isAutoUseChestKeys());
+                            cfg.save();
+                            requestRebuild.run();
+                        }).bounds(contentX, y, half, 18).build());
+                widgets.add(SettingsButtonWidget.builder(onOff("Use Kismets", cfg.isAutoUseKismets()), btn -> {
+                            cfg.setAutoUseKismets(!cfg.isAutoUseKismets());
+                            cfg.save();
+                            requestRebuild.run();
+                        }).bounds(contentX + half + GAP, y, half, 18).build());
+                y += 22;
+                if (cfg.isAutoUseChestKeys()) {
+                    widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, keyProfitText(),
+                            cfg.getAutoKeyMinProfitK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {
+                        @Override
+                        protected void updateMessage() {
+                            setMessage(keyProfitText());
+                        }
+
+                        @Override
+                        protected void applyValue() {
+                            int k = (int) Math.round(this.value * CroesusConfig.MAX_MIN_PROFIT_K / 50.0) * 50;
+                            CroesusConfig c = CroesusConfig.getInstance();
+                            c.setAutoKeyMinProfitK(k);
+                            c.save();
+                        }
+                    });
+                    y += 24;
+                }
+                if (cfg.isAutoUseKismets()) {
+                    widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, rerollBelowText(),
+                            cfg.getAutoRerollBelowK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {
+                        @Override
+                        protected void updateMessage() {
+                            setMessage(rerollBelowText());
+                        }
+
+                        @Override
+                        protected void applyValue() {
+                            int k = (int) Math.round(this.value * CroesusConfig.MAX_MIN_PROFIT_K / 50.0) * 50;
+                            CroesusConfig c = CroesusConfig.getInstance();
+                            c.setAutoRerollBelowK(k);
+                            c.save();
+                        }
+                    });
+                    y += 24;
+                }
+                // Live status only - the button that actually starts it is drawn over the Croesus menu itself.
+                widgets.add(label(contentX, y, contentWidth, AutoCroesusFeature.isRunning()
+                        ? "§aRunning §7- any key stops it"
+                        : "§7Idle §8- §7starts from the §6Start Croesus §7button over the menu"));
+                y += 14;
                 if (AutoCroesusFeature.isRunning()) {
                     widgets.add(SettingsButtonWidget.builder(Component.literal("§cStop Auto Croesus"), btn -> {
                                 AutoCroesusFeature.requestStop();
@@ -161,23 +223,18 @@ public class CroesusTab extends BaseTab {
         return widgets;
     }
 
-    private static int totalsSection(List<AbstractWidget> widgets, int x, int y, int width, String heading,
-                                     Map<String, CroesusProfitLog.Totals> totals) {
-        widgets.add(label(x, y, width, "§6" + heading + (totals.isEmpty() ? " §7- nothing claimed yet" : "")));
-        y += 12;
-        for (Map.Entry<String, CroesusProfitLog.Totals> e : totals.entrySet()) {
-            CroesusProfitLog.Totals t = e.getValue();
-            String profit = (t.profit >= 0 ? "§a+" : "§c") + DungeonChestValuer.formatCoins(t.profit);
-            widgets.add(label(x + 6, y, width - 6, "§f" + e.getKey() + "§7: " + t.chests + " chests, cost §6"
-                    + DungeonChestValuer.formatCoins(t.cost) + "§7, value §6" + DungeonChestValuer.formatCoins(t.value)
-                    + "§7, profit " + profit));
-            y += 11;
-        }
-        return y + 5;
-    }
-
     private static Component minProfitText() {
         return Component.literal("Min Profit: " + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getAutoMinProfitK() * 1000L));
+    }
+
+    private static Component keyProfitText() {
+        return Component.literal("Chest Key Min Profit: "
+                + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getAutoKeyMinProfitK() * 1000L));
+    }
+
+    private static Component rerollBelowText() {
+        return Component.literal("Reroll Below: "
+                + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getAutoRerollBelowK() * 1000L));
     }
 
     private static Component minDelayText() {

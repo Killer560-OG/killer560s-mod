@@ -309,6 +309,7 @@ public final class ProfileManager {
                 com.killer560.hub.croesus.CroesusConfig::load,
                 com.killer560.hub.diorite.DioriteGlassConfig::load,
                 com.killer560.hub.doorkeys.DoorKeysConfig::load,
+                com.killer560.hub.witherdoors.WitherDoorsConfig::load,
                 com.killer560.hub.dungeonalerts.DungeonAlertsConfig::load,
                 com.killer560.hub.dungeonbreaker.DungeonBreakerConfig::load,
                 com.killer560.hub.dungeonextras.DungeonExtrasConfig::load,

@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 
 /** Auto Chocolate Factory (in its GUI) - see {@code com.killer560.hub.cheatutils.CheatUtils}. Cheat build
  *  only; split out of the old "Cheat Utils" tab 2026-09-20 per killer560: "same with auto chocolate
- *  factory" - shares {@link CheatUtilsConfig} with {@link CheatUtilsTab}, {@link AutoGfsTab} and
+ *  factory" - shares {@link CheatUtilsConfig} with {@code CheatUtilsTab} (deleted 2026-09-21), {@link AutoGfsTab} and
  *  {@link AutoUltTab}; the config file itself was not split. */
 public class AutoChocolateFactoryTab extends BaseTab {
 

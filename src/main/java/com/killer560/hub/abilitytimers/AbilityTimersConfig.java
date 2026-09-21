@@ -68,7 +68,7 @@ public final class AbilityTimersConfig {
                             AbilityTimerEntry e = new AbilityTimerEntry();
                             e.id = getString(obj, "id", e.id);
                             e.name = getString(obj, "name", e.name);
-                            e.durationMs = ConfigJson.getInt(obj, "durationMs", e.durationMs);
+                            e.durationMs = clampDuration(ConfigJson.getInt(obj, "durationMs", e.durationMs));
                             e.keyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "keyCode", -1));
                             e.colorHex = getString(obj, "colorHex", e.colorHex);
                             e.enabled = ConfigJson.getBool(obj, "enabled", true);
@@ -99,6 +99,10 @@ public final class AbilityTimersConfig {
     private static String getString(JsonObject obj, String key, String fallback) {
         String v = ConfigJson.getString(obj, key, fallback);
         return v == null ? fallback : v;
+    }
+
+    private static int clampDuration(int ms) {
+        return Math.max(AbilityTimerEntry.MIN_DURATION_MS, Math.min(AbilityTimerEntry.MAX_DURATION_MS, ms));
     }
 
     public void save() {

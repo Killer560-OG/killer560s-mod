@@ -213,7 +213,12 @@ public final class ActionGate {
         if (minSpacingTicks <= 0) {
             return 0L;
         }
-        return (minSpacingTicks * 50L + ThreadLocalRandom.current().nextLong(0L, 51L)) * 1_000_000L;
+        // Jitter is 0-20ms, not 0-50ms. A full tick of jitter on top of a one-tick floor averages 75ms,
+        // which silently caps every automation at ~13 clicks/second - and killer560 had just asked Arrow
+        // Align for 15-17 cps (59-67ms), a rate the gate would then have made unreachable while looking
+        // like the feature's own settings were being honoured. 0-20ms still breaks up the metronome (no two
+        // gaps alike) while leaving his configured rates achievable. The gate only ever delays.
+        return (minSpacingTicks * 50L + ThreadLocalRandom.current().nextLong(0L, 21L)) * 1_000_000L;
     }
 
     // ---- per-tick observation ----

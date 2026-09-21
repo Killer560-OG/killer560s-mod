@@ -3,6 +3,8 @@ package com.killer560.hub.playerstats;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -22,6 +24,12 @@ import java.util.regex.Pattern;
  * and always returns it unchanged - unlike Odin's own version (which can also hide parts of the real
  * action bar), this deliberately never rewrites what Hypixel actually shows, only adds its own separate
  * HUD line, to avoid any risk of a regex mistake eating real text the player needs to see.
+ * <p>
+ * Renamed "Player Stats" -&gt; "Stat Bars" (killer560, 2026-09-21) and given the ability to hide the
+ * vanilla hearts/hunger/armour/air bars it sits alongside - see {@link #registerVanillaSuppression()},
+ * ported from Skyblocker's mixin-free {@code fancybars.FancyStatusBars}. Only display strings changed;
+ * every persistence key ({@code id()} below, the config file name, every {@code PlayerStatsConfig} JSON
+ * key) is untouched so existing HUD positions and settings survive the rename.
  */
 public final class PlayerStatsFeature {
 
@@ -46,6 +54,44 @@ public final class PlayerStatsFeature {
 
     public static void register() {
         ClientReceiveMessageEvents.MODIFY_GAME.register(PlayerStatsFeature::onModifyGameMessage);
+        registerVanillaSuppression();
+    }
+
+    /**
+     * Hides the vanilla HUD bars our own Stat Bars line replaces - ported from Skyblocker's
+     * {@code fancybars.FancyStatusBars#init()}, ONE difference from that mixin-free approach: Skyblocker
+     * hides the whole bar block at once, ours is per-bar so hearts/hunger/armour/air can each be toggled
+     * independently (killer560, 2026-09-21). Uses Fabric's own HUD-element API - the exact same import
+     * already proven at {@code hud.HudInGameRenderer.java:3} - and deliberately {@code replaceElement}
+     * rather than {@code removeElement}: the replacement function re-runs every frame, so a toggle (or
+     * walking into/out of The Rift) takes effect immediately with no re-registration and no way to get
+     * stuck permanently hidden.
+     */
+    public static void registerVanillaSuppression() {
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement noOp = (graphics, deltaTracker) -> {
+        };
+        HudElementRegistry.replaceElement(VanillaHudElements.HEALTH_BAR, orig ->
+                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHearts() && !heartsForcedByRift()
+                        ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.FOOD_BAR, orig ->
+                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHunger() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.ARMOR_BAR, orig ->
+                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaArmour() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.AIR_BAR, orig ->
+                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaAir() ? noOp : orig);
+    }
+
+    private static boolean suppressing() {
+        return PlayerStatsConfig.getInstance().isEnabled();
+    }
+
+    /** True while the vanilla heart bar should stay visible despite {@code hideVanillaHearts} - killer560:
+     *  "Add a toggle to unhide hearts in the rift", where hearts show a different (real HP) meaning. Reads
+     *  {@code IslandDetector.graphIsland()} directly rather than adding a helper there - that field is
+     *  ticked unconditionally 4x/sec by {@code PathfindingFeature} regardless of which features are on. */
+    private static boolean heartsForcedByRift() {
+        return PlayerStatsConfig.getInstance().isShowHeartsInRift()
+                && "THE_RIFT".equals(com.killer560.hub.pathfinding.IslandDetector.graphIsland());
     }
 
     private static Component onModifyGameMessage(Component message, boolean overlay) {
@@ -97,7 +143,9 @@ public final class PlayerStatsFeature {
 
         @Override
         public String displayName() {
-            return "Player Stats";
+            // HUD editor label only - the persisted id() below stays "player_stats" so saved HUD
+            // positions/scales survive the "Player Stats" -> "Stat Bars" rename (killer560, 2026-09-21).
+            return "Stat Bars";
         }
 
         @Override

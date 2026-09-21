@@ -29,12 +29,22 @@ public final class CroesusConfig {
     private boolean chestProfitEnabled = false;
     private boolean includeEssence = true;
     private boolean highlightBest = true;
+    /** Colour the run heads in the Croesus menu by whether anything has been claimed from them yet. */
+    private boolean highlightRuns = false;
+    /** Also highlight the second-best chest when it still profits after paying for a Dungeon Chest Key. */
+    private boolean highlightSecondWithKey = false;
     private boolean loggerEnabled = false;
     private boolean loggerChatSummary = true;
     private boolean autoCroesusEnabled = false;
     private int autoMinProfitK = 0;
     private int autoMinDelayMs = 350;
     private int autoMaxDelayMs = 700;
+    /** Spend a Dungeon Chest Key on a further chest in the same run when it clears {@link #autoKeyMinProfitK}. */
+    private boolean autoUseChestKeys = false;
+    private int autoKeyMinProfitK = 1_000;
+    /** Spend a Kismet Feather on a Bedrock chest whose profit is below {@link #autoRerollBelowK}. */
+    private boolean autoUseKismets = false;
+    private int autoRerollBelowK = 1_000;
 
     private CroesusConfig() {
     }
@@ -57,12 +67,18 @@ public final class CroesusConfig {
             cfg.chestProfitEnabled = ConfigJson.getBool(obj, "chestProfitEnabled", cfg.chestProfitEnabled);
             cfg.includeEssence = ConfigJson.getBool(obj, "includeEssence", cfg.includeEssence);
             cfg.highlightBest = ConfigJson.getBool(obj, "highlightBest", cfg.highlightBest);
+            cfg.highlightRuns = ConfigJson.getBool(obj, "highlightRuns", cfg.highlightRuns);
+            cfg.highlightSecondWithKey = ConfigJson.getBool(obj, "highlightSecondWithKey", cfg.highlightSecondWithKey);
             cfg.loggerEnabled = ConfigJson.getBool(obj, "loggerEnabled", cfg.loggerEnabled);
             cfg.loggerChatSummary = ConfigJson.getBool(obj, "loggerChatSummary", cfg.loggerChatSummary);
             cfg.autoCroesusEnabled = ConfigJson.getBool(obj, "autoCroesusEnabled", cfg.autoCroesusEnabled);
             cfg.autoMinProfitK = clamp(ConfigJson.getInt(obj, "autoMinProfitK", cfg.autoMinProfitK), 0, MAX_MIN_PROFIT_K);
             cfg.autoMinDelayMs = clamp(ConfigJson.getInt(obj, "autoMinDelayMs", cfg.autoMinDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
             cfg.autoMaxDelayMs = clamp(ConfigJson.getInt(obj, "autoMaxDelayMs", cfg.autoMaxDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
+            cfg.autoUseChestKeys = ConfigJson.getBool(obj, "autoUseChestKeys", cfg.autoUseChestKeys);
+            cfg.autoKeyMinProfitK = clamp(ConfigJson.getInt(obj, "autoKeyMinProfitK", cfg.autoKeyMinProfitK), 0, MAX_MIN_PROFIT_K);
+            cfg.autoUseKismets = ConfigJson.getBool(obj, "autoUseKismets", cfg.autoUseKismets);
+            cfg.autoRerollBelowK = clamp(ConfigJson.getInt(obj, "autoRerollBelowK", cfg.autoRerollBelowK), 0, MAX_MIN_PROFIT_K);
             // Same min <= max invariant the setters enforce (a hand-edit could otherwise load min > max).
             if (cfg.autoMaxDelayMs < cfg.autoMinDelayMs) {
                 cfg.autoMaxDelayMs = cfg.autoMinDelayMs;
@@ -80,12 +96,18 @@ public final class CroesusConfig {
             obj.addProperty("chestProfitEnabled", chestProfitEnabled);
             obj.addProperty("includeEssence", includeEssence);
             obj.addProperty("highlightBest", highlightBest);
+            obj.addProperty("highlightRuns", highlightRuns);
+            obj.addProperty("highlightSecondWithKey", highlightSecondWithKey);
             obj.addProperty("loggerEnabled", loggerEnabled);
             obj.addProperty("loggerChatSummary", loggerChatSummary);
             obj.addProperty("autoCroesusEnabled", autoCroesusEnabled);
             obj.addProperty("autoMinProfitK", autoMinProfitK);
             obj.addProperty("autoMinDelayMs", autoMinDelayMs);
             obj.addProperty("autoMaxDelayMs", autoMaxDelayMs);
+            obj.addProperty("autoUseChestKeys", autoUseChestKeys);
+            obj.addProperty("autoKeyMinProfitK", autoKeyMinProfitK);
+            obj.addProperty("autoUseKismets", autoUseKismets);
+            obj.addProperty("autoRerollBelowK", autoRerollBelowK);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -117,6 +139,22 @@ public final class CroesusConfig {
 
     public void setHighlightBest(boolean v) {
         this.highlightBest = v;
+    }
+
+    public boolean isHighlightRuns() {
+        return highlightRuns;
+    }
+
+    public void setHighlightRuns(boolean v) {
+        this.highlightRuns = v;
+    }
+
+    public boolean isHighlightSecondWithKey() {
+        return highlightSecondWithKey;
+    }
+
+    public void setHighlightSecondWithKey(boolean v) {
+        this.highlightSecondWithKey = v;
     }
 
     public boolean isLoggerEnabled() {
@@ -177,5 +215,37 @@ public final class CroesusConfig {
         if (autoMinDelayMs > autoMaxDelayMs) {
             autoMinDelayMs = autoMaxDelayMs;
         }
+    }
+
+    public boolean isAutoUseChestKeys() {
+        return autoUseChestKeys;
+    }
+
+    public void setAutoUseChestKeys(boolean v) {
+        this.autoUseChestKeys = v;
+    }
+
+    public int getAutoKeyMinProfitK() {
+        return autoKeyMinProfitK;
+    }
+
+    public void setAutoKeyMinProfitK(int v) {
+        this.autoKeyMinProfitK = clamp(v, 0, MAX_MIN_PROFIT_K);
+    }
+
+    public boolean isAutoUseKismets() {
+        return autoUseKismets;
+    }
+
+    public void setAutoUseKismets(boolean v) {
+        this.autoUseKismets = v;
+    }
+
+    public int getAutoRerollBelowK() {
+        return autoRerollBelowK;
+    }
+
+    public void setAutoRerollBelowK(int v) {
+        this.autoRerollBelowK = clamp(v, 0, MAX_MIN_PROFIT_K);
     }
 }

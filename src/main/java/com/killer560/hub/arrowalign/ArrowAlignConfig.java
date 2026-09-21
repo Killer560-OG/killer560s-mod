@@ -24,6 +24,22 @@ public final class ArrowAlignConfig {
     public static final double MIN_AURA_RANGE = 2.0;
     public static final double MAX_AURA_RANGE = 6.0;
 
+    /** Box tint for a frame that still needs clicks. Alpha 0x59 is the 0.35 the solver always drew at. */
+    public static final int DEFAULT_HIGHLIGHT_COLOR = 0x59FFAA00;
+
+    // killer560, 2026-09-21: "Make the triggerbot default to whatever the delay equivalent for 15cps is. For the
+    // aura make it so it does the same 15 equivalent with the low side being 15 and high side being 17 ... Still
+    // render it in ms of delay but just for someone's first build to have it all right." The stored unit does not
+    // change - these are still milliseconds - only the out-of-the-box values do, so a saved config keeps its own
+    // numbers. Note the inversion: MORE clicks per second is a SHORTER delay, so 17 cps is the MIN ms and 15 cps
+    // the MAX ms. Rounded to the nearest whole millisecond (1000/15 = 66.67 -> 67, 1000/17 = 58.82 -> 59).
+    /** 15 cps. */
+    public static final int DEFAULT_TRIGGER_BOT_DELAY_MS = 67;
+    /** 17 cps - the fast end of the band, hence the smaller delay. */
+    public static final int DEFAULT_AURA_MIN_DELAY_MS = 59;
+    /** 15 cps - the slow end of the band, hence the larger delay. */
+    public static final int DEFAULT_AURA_MAX_DELAY_MS = 67;
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-arrowalign.json");
@@ -33,6 +49,7 @@ public final class ArrowAlignConfig {
     // Legit
     private boolean solverEnabled = false;
     private boolean highlightFrames = false;
+    private int highlightColor = DEFAULT_HIGHLIGHT_COLOR;
     private float numberScale = 1.0f;
     private boolean preventMisclicksEnabled = false;
     // Sneak lets a blocked click through (Odin/NoammAddons "sneak to disable"). On by default so Prevent Misclicks
@@ -42,10 +59,10 @@ public final class ArrowAlignConfig {
 
     // Cheat build
     private boolean triggerBotEnabled = false;
-    private int triggerBotDelayMs = 200;
+    private int triggerBotDelayMs = DEFAULT_TRIGGER_BOT_DELAY_MS;
     private boolean auraEnabled = false;
-    private int auraMinDelayMs = 150;
-    private int auraMaxDelayMs = 200;
+    private int auraMinDelayMs = DEFAULT_AURA_MIN_DELAY_MS;
+    private int auraMaxDelayMs = DEFAULT_AURA_MAX_DELAY_MS;
     private double auraRange = 5.0;
 
     private ArrowAlignConfig() {
@@ -69,15 +86,18 @@ public final class ArrowAlignConfig {
             ArrowAlignConfig cfg = new ArrowAlignConfig();
             cfg.solverEnabled = ConfigJson.getBool(obj, "solverEnabled", false);
             cfg.highlightFrames = ConfigJson.getBool(obj, "highlightFrames", false);
+            cfg.highlightColor = ConfigJson.getInt(obj, "highlightColor", DEFAULT_HIGHLIGHT_COLOR);
             cfg.setNumberScale(ConfigJson.getFloat(obj, "numberScale", 1.0f));
             cfg.preventMisclicksEnabled = ConfigJson.getBool(obj, "preventMisclicksEnabled", false);
             cfg.crouchOverride = ConfigJson.getBool(obj, "crouchOverride", true);
             cfg.solveTimeEnabled = ConfigJson.getBool(obj, "solveTimeEnabled", false);
             cfg.triggerBotEnabled = ConfigJson.getBool(obj, "triggerBotEnabled", false);
-            cfg.setTriggerBotDelayMs(ConfigJson.getInt(obj, "triggerBotDelayMs", 200));
+            // Key names and units are unchanged (still milliseconds), so a config saved before the cps-derived
+            // defaults landed keeps the exact delays killer560 already had - only a MISSING key gets the new value.
+            cfg.setTriggerBotDelayMs(ConfigJson.getInt(obj, "triggerBotDelayMs", DEFAULT_TRIGGER_BOT_DELAY_MS));
             cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
-            cfg.setAuraMinDelayMs(ConfigJson.getInt(obj, "auraMinDelayMs", 150));
-            cfg.setAuraMaxDelayMs(ConfigJson.getInt(obj, "auraMaxDelayMs", 200));
+            cfg.setAuraMinDelayMs(ConfigJson.getInt(obj, "auraMinDelayMs", DEFAULT_AURA_MIN_DELAY_MS));
+            cfg.setAuraMaxDelayMs(ConfigJson.getInt(obj, "auraMaxDelayMs", DEFAULT_AURA_MAX_DELAY_MS));
             cfg.setAuraRange(ConfigJson.getDouble(obj, "auraRange", 5.0));
             instance = cfg;
         } catch (Exception e) {
@@ -91,6 +111,7 @@ public final class ArrowAlignConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("solverEnabled", solverEnabled);
             obj.addProperty("highlightFrames", highlightFrames);
+            obj.addProperty("highlightColor", highlightColor);
             obj.addProperty("numberScale", numberScale);
             obj.addProperty("preventMisclicksEnabled", preventMisclicksEnabled);
             obj.addProperty("crouchOverride", crouchOverride);
@@ -126,6 +147,15 @@ public final class ArrowAlignConfig {
 
     public void setHighlightFrames(boolean highlightFrames) {
         this.highlightFrames = highlightFrames;
+    }
+
+    /** ARGB of the box drawn on a frame that still needs clicks - the alpha channel is the box opacity. */
+    public int getHighlightColor() {
+        return highlightColor;
+    }
+
+    public void setHighlightColor(int argb) {
+        this.highlightColor = argb;
     }
 
     public float getNumberScale() {

@@ -2,6 +2,8 @@ package com.killer560.hub.runsummary;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.leapmenu.PartyTracker;
+import com.killer560.hub.runstats.PlayerRunStats;
+import com.killer560.hub.runstats.RunStatsTracker;
 import com.killer560.hub.scorecalc.ScoreCalculator;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import com.killer560.hub.secrets.DungeonState;
@@ -76,6 +78,9 @@ public final class RunSummaryFeature {
     private static final Pattern TAB_DEATHS = Pattern.compile("^\\s*(?:Team )?Deaths: \\(?(\\d+)\\)?\\s*$");
     private static final Pattern TAB_PUZZLE_COUNT = Pattern.compile("^\\s*Puzzles: \\((\\d+)\\)\\s*$");
     private static final Pattern TAB_PUZZLE = Pattern.compile("^\\s*(\\w+(?: \\w+)*|\\?\\?\\?): \\[([✖✔✦])] ?(?:\\((\\w+)\\))?\\s*$");
+    /** Same dungeon party row {@code leapmenu/PartyTracker} reads: "[lvl] Name (Class Lvl)". */
+    private static final Pattern TAB_PARTY =
+            Pattern.compile("^\\[\\d+] (?:\\[[^]]+] )*([A-Za-z0-9_]{1,16}) .*\\((\\w+)(?: (\\w+))?\\)$");
 
     /** Ticks after the end-of-run line before the record is assembled - long enough for Hypixel's own
      *  score block (which prints AFTER "> EXTRA STATS <") to arrive. */
@@ -104,6 +109,11 @@ public final class RunSummaryFeature {
     private static int puzzlesFailed = RunRecord.UNKNOWN_INT;
     private static String dungeonClass = null;
     private static int partySize = RunRecord.UNKNOWN_INT;
+    /** Last map worth keeping, re-taken once a second while the dungeon is being scanned (see pollMap). */
+    private static RunRecord.MapSnapshot mapSnapshot = null;
+    /** Class level per lower-case IGN, straight off the dungeon tab list. */
+    private static final java.util.Map<String, Integer> CLASS_LEVELS = new java.util.LinkedHashMap<>();
+    private static final java.util.Map<String, String> TAB_NAMES = new java.util.LinkedHashMap<>();
 
     private static int finishDelayTicks = -1;
     private static int pollCounter = 0;
@@ -159,6 +169,49 @@ public final class RunSummaryFeature {
             pollCounter = 0;
             readTabList(client);
             readParty();
+            pollMap();
+        }
+    }
+
+    /**
+     * killer560, 2026-09-20: the run log "should log the map that was shown". Taken once a second from
+     * {@code livemap/DungeonLayout} (a per-tick cached snapshot, so this is a read, not a re-scan) and kept
+     * as the last non-empty one, because by the time the record is assembled the boss room has replaced the
+     * map and a warp may already have wiped the grid.
+     * <p>
+     * Room scanning itself only runs while something consumes it (Live Map, Secret Waypoints, a puzzle
+     * solver), so with all of those off there is simply no map to log and the record stores none.
+     */
+    private static void pollMap() {
+        if (!DungeonState.isInDungeon()) {
+            return;
+        }
+        try {
+            com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+            int roomCount = layout.roomCount();
+            if (roomCount <= 0) {
+                return;
+            }
+            int cells = RunRecord.MapSnapshot.GRID * RunRecord.MapSnapshot.GRID;
+            int[] rooms = new int[cells];
+            int[] doors = new int[cells];
+            for (int i = 0; i < cells; i++) {
+                rooms[i] = layout.roomOfCell(i);
+                int type = layout.doorType(i);
+                doors[i] = type == 0 ? 0 : type | (layout.isLocked(i) ? RunRecord.MapSnapshot.LOCKED_BIT : 0);
+            }
+            List<RunRecord.MapRoom> roomList = new ArrayList<>(roomCount);
+            for (int id = 0; id < roomCount; id++) {
+                com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(id);
+                roomList.add(new RunRecord.MapRoom(layout.name(id), entry == null ? null : entry.type));
+            }
+            RunRecord.MapSnapshot snapshot = new RunRecord.MapSnapshot(rooms, doors, roomList);
+            // Keep the richest map seen: a late warp can reset the grid to a handful of rooms.
+            if (mapSnapshot == null || roomList.size() >= mapSnapshot.rooms().size()) {
+                mapSnapshot = snapshot;
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[RunSummary] Map snapshot failed", e);
         }
     }
 
@@ -217,11 +270,118 @@ public final class RunSummaryFeature {
                 if ("✖".equals(m.group(2))) {
                     failed++;
                 }
+            } else if ((m = TAB_PARTY.matcher(plain.trim())).matches()) {
+                // "DEAD"/"EMPTY" rows carry no class level - keep whatever was read before, like PartyTracker.
+                String key = m.group(1).toLowerCase(Locale.US);
+                TAB_NAMES.putIfAbsent(key, m.group(1));
+                Integer level = romanOrNumber(m.group(3));
+                if (level != null) {
+                    CLASS_LEVELS.put(key, level);
+                }
             }
         }
         if (sawPuzzleHeader || sawPuzzleRow) {
             puzzlesFailed = failed;
         }
+    }
+
+    /**
+     * The party as the run log stores it: one row per member, <b>keyed on UUID, not the IGN</b> (killer560's
+     * standing rule - a name change must never lose history), with the per-player numbers from
+     * {@code runstats/RunStatsTracker} merged in by name.
+     * <p>
+     * The UUID comes from the real tab-list entry for that IGN, which Hypixel keeps alongside the dungeon
+     * display rows; a member whose entry can't be found is stored with a null UUID and shows their recorded
+     * name forever, which is the honest answer rather than a made-up id.
+     */
+    private static List<RunRecord.PartyMember> buildPartyRows(Minecraft client) {
+        java.util.Map<String, PlayerRunStats> stats = new java.util.LinkedHashMap<>();
+        try {
+            for (PlayerRunStats row : RunStatsTracker.buildRows(client)) {
+                stats.put(row.name().toLowerCase(Locale.US), row);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[RunSummary] Run Stats rows unavailable", e);
+        }
+        // Case-insensitive dedupe: the tab list, Run Stats and PartyTracker can each spell the same IGN
+        // slightly differently, and one row per player is the whole point.
+        java.util.Map<String, String> names = new java.util.LinkedHashMap<>();
+        for (java.util.Map.Entry<String, String> e : TAB_NAMES.entrySet()) {
+            names.putIfAbsent(e.getKey(), e.getValue());
+        }
+        for (PlayerRunStats row : stats.values()) {
+            names.putIfAbsent(row.name().toLowerCase(Locale.US), row.name());
+        }
+        if (client.player != null) {
+            String self = client.player.getGameProfile().name();
+            names.putIfAbsent(self.toLowerCase(Locale.US), self);
+        }
+        for (String teammate : PartyTracker.teammates()) {
+            names.putIfAbsent(teammate.toLowerCase(Locale.US), teammate);
+        }
+        List<RunRecord.PartyMember> out = new ArrayList<>();
+        for (String name : names.values()) {
+            String key = name.toLowerCase(Locale.US);
+            PlayerRunStats row = stats.get(key);
+            DungeonClass cls = PartyTracker.classOf(name);
+            Integer level = CLASS_LEVELS.get(key);
+            out.add(new RunRecord.PartyMember(
+                    uuidOf(client, name),
+                    name,
+                    cls != null ? cls.displayName() : (row != null && row.dungeonClass() != null
+                            ? row.dungeonClass().displayName() : null),
+                    level == null ? RunRecord.UNKNOWN_INT : level,
+                    row != null ? row.soloRooms() : RunRecord.UNKNOWN_INT,
+                    row != null ? row.stackedRooms() : RunRecord.UNKNOWN_INT,
+                    row != null ? row.secrets() : RunRecord.UNKNOWN_INT,
+                    row != null ? row.deaths().size() : RunRecord.UNKNOWN_INT));
+        }
+        return out;
+    }
+
+    /** The real account UUID behind an IGN, from the tab list. Hypixel's filler/NPC entries use non-v4
+     *  UUIDs, so those are rejected the same way {@code profileviewer/ProfileViewerFeature} rejects them. */
+    private static String uuidOf(Minecraft client, String name) {
+        if (client.getConnection() == null) {
+            return null;
+        }
+        for (PlayerInfo info : client.getConnection().getOnlinePlayers()) {
+            java.util.UUID id = info.getProfile().id();
+            if (id != null && id.version() == 4 && name.equalsIgnoreCase(info.getProfile().name())) {
+                return id.toString();
+            }
+        }
+        return null;
+    }
+
+    /** The CURRENT IGN for a stored party member: looked up by UUID so a rename still resolves, falling back
+     *  to the name the run was logged with. Used by the {@code /log} run log. */
+    public static String currentIgn(RunRecord.PartyMember member) {
+        if (member == null) {
+            return "?";
+        }
+        if (member.uuid() != null) {
+            try {
+                Minecraft client = Minecraft.getInstance();
+                if (client.getConnection() != null) {
+                    java.util.UUID id = java.util.UUID.fromString(member.uuid());
+                    PlayerInfo info = client.getConnection().getPlayerInfo(id);
+                    if (info != null && info.getProfile().name() != null && !info.getProfile().name().isBlank()) {
+                        return info.getProfile().name();
+                    }
+                }
+            } catch (Exception ignored) {
+                // Fall through to the recorded name.
+            }
+        }
+        return member.name();
+    }
+
+    private static Integer romanOrNumber(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        return com.killer560.hub.croesus.DungeonChestValuer.roman(text.trim());
     }
 
     private static void readParty() {
@@ -342,6 +502,9 @@ public final class RunSummaryFeature {
         puzzlesFailed = RunRecord.UNKNOWN_INT;
         dungeonClass = null;
         partySize = RunRecord.UNKNOWN_INT;
+        mapSnapshot = null;
+        CLASS_LEVELS.clear();
+        TAB_NAMES.clear();
         finishDelayTicks = -1;
         pollCounter = 0;
         lastDevicePlain = null;
@@ -386,7 +549,9 @@ public final class RunSummaryFeature {
                 RunRecord.UNKNOWN_PROFIT,
                 0,
                 false,
-                false);
+                false,
+                buildPartyRows(Minecraft.getInstance()),
+                mapSnapshot);
         RunHistoryStore.BestFlags flags = RunHistoryStore.add(record);
         announce(RunHistoryStore.latest(), flags);
         resetRun();

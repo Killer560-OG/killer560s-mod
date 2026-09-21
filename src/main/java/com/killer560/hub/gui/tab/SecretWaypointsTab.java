@@ -11,7 +11,9 @@ import java.util.List;
 
 /** Secret Waypoints settings - see
  *  {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature}'s class doc for the real room
- *  database this is built on (same one Live Map uses). */
+ *  database this is built on (same one Live Map uses). Moved from a top-level {@code NewTab} entry into
+ *  the "Secrets" folder 2026-09-21 (see {@link SecretsTab}) per killer560's menu-structure request - no
+ *  behaviour change, just a different accordion home. */
 public class SecretWaypointsTab extends BaseTab {
 
     public SecretWaypointsTab() {

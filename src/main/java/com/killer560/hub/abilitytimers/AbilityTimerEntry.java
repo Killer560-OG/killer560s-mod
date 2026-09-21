@@ -10,6 +10,11 @@ import java.util.UUID;
  *  {@link AbilityTimersConfig}), so it's correct for whatever the real number turns out to be. */
 public final class AbilityTimerEntry {
 
+    /** Duration slider range (ms). Was a "+5s, wraps at 300s" button - 48 clicks to dial in a 4-minute
+     *  timer (2026-09-20 tab sweep) - now a drag-to-set slider, so the range is just its min/max. */
+    public static final int MIN_DURATION_MS = 5_000;
+    public static final int MAX_DURATION_MS = 300_000;
+
     public String id = UUID.randomUUID().toString();
     public String name = "Timer";
     public int durationMs = 60_000;

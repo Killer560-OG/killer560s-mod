@@ -1,6 +1,8 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.arrowalign.ArrowAlignConfig;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -43,7 +45,7 @@ public class ArrowAlignTab extends BaseTab {
             widgets.add(SettingsButtonWidget.builder(onOff("Highlight Frames", cfg.isHighlightFrames()), btn -> {
                         cfg.setHighlightFrames(!cfg.isHighlightFrames());
                         cfg.save();
-                        btn.setMessage(onOff("Highlight Frames", cfg.isHighlightFrames()));
+                        requestRebuild.run();
                     }).bounds(col2aX, y, col2W, 18).build());
 
             float minScale = ArrowAlignConfig.MIN_NUMBER_SCALE;
@@ -62,6 +64,19 @@ public class ArrowAlignTab extends BaseTab {
                 }
             });
             y += 22;
+
+            if (cfg.isHighlightFrames()) {
+                widgets.add(SettingsButtonWidget.builder(
+                        ColorSwatch.label("Highlight Color", cfg.getHighlightColor()), btn -> {
+                            Minecraft client = Minecraft.getInstance();
+                            client.setScreen(new ColorPickerScreen(client.screen, "Highlight Color",
+                                    cfg.getHighlightColor(), ArrowAlignConfig.DEFAULT_HIGHLIGHT_COLOR, argb -> {
+                                cfg.setHighlightColor(argb);
+                                cfg.save();
+                            }));
+                        }).bounds(contentX, y, contentWidth, 18).build());
+                y += 22;
+            }
         }
         y += 6;
 

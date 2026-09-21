@@ -18,6 +18,24 @@ import java.util.Map;
  *  mod. */
 public final class SlotBindsConfig {
 
+    /** How bound-slot borders/link lines are drawn in the real inventory screen (killer560, 2026-09-21:
+     *  "do not have the hud popup, instead show a border around each spot and a line for where it goes.
+     *  Make a toggle to only show this on hover or always."). */
+    public enum OverlayMode {
+        ALWAYS("Always"),
+        ON_HOVER("On Hover");
+
+        public final String label;
+
+        OverlayMode(String label) {
+            this.label = label;
+        }
+
+        public OverlayMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-slotbinds.json");
@@ -27,6 +45,10 @@ public final class SlotBindsConfig {
     private boolean enabled = false;
     private int bindKey = -1;
     private final Map<Integer, Integer> binds = new LinkedHashMap<>();
+    private OverlayMode overlayMode = OverlayMode.ALWAYS;
+    // Amber, matching this mod's own GUI theme colour (SectionHeaders.LEGIT_COLOR) rather than inventing
+    // a new default palette for a marker most people will never need to change.
+    private int overlayColor = 0xFFFFAA00;
 
     private SlotBindsConfig() {
     }
@@ -49,6 +71,8 @@ public final class SlotBindsConfig {
             SlotBindsConfig cfg = new SlotBindsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.bindKey = ConfigJson.getInt(obj, "bindKey", -1);
+            cfg.overlayMode = ConfigJson.getEnum(obj, "overlayMode", OverlayMode.class, OverlayMode.ALWAYS);
+            cfg.overlayColor = ConfigJson.getInt(obj, "overlayColor", 0xFFFFAA00);
             JsonObject binds = ConfigJson.getObject(obj, "binds");
             if (binds != null) {
                 for (String key : binds.keySet()) {
@@ -71,6 +95,8 @@ public final class SlotBindsConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("bindKey", bindKey);
+            obj.addProperty("overlayMode", overlayMode.name());
+            obj.addProperty("overlayColor", overlayColor);
             JsonObject bindsObj = new JsonObject();
             for (Map.Entry<Integer, Integer> entry : binds.entrySet()) {
                 bindsObj.addProperty(String.valueOf(entry.getKey()), entry.getValue());
@@ -99,6 +125,22 @@ public final class SlotBindsConfig {
 
     public Map<Integer, Integer> getBinds() {
         return binds;
+    }
+
+    public OverlayMode getOverlayMode() {
+        return overlayMode;
+    }
+
+    public void setOverlayMode(OverlayMode mode) {
+        this.overlayMode = mode == null ? OverlayMode.ALWAYS : mode;
+    }
+
+    public int getOverlayColor() {
+        return overlayColor;
+    }
+
+    public void setOverlayColor(int argb) {
+        this.overlayColor = argb;
     }
 
     /** Real semantics ported from Odin: a bind links two slots symmetrically for swap purposes - either

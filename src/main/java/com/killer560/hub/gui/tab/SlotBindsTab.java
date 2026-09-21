@@ -1,5 +1,7 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.slotbinds.SlotBindsConfig;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -16,7 +18,8 @@ import java.util.Set;
 
 /** Slot Binds settings - see {@link com.killer560.hub.slotbinds.SlotBindsFeature}'s class doc for the
  *  real Odin-ported swap mechanic this is built on. Set the bind key here, then in your real inventory
- *  screen hover a slot and press it, hover a second slot and press it again to link them. */
+ *  screen hover a slot and press it, hover a second slot and press it again to link them. Bound slots
+ *  then get a border and a connecting line drawn in the inventory itself - see "Show Binds" below. */
 public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
 
     private boolean listening = false;
@@ -60,18 +63,22 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7In your real inventory (E), hover a slot and press that key,"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7hover a second slot and press it again to link them. One of"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7the two must be a hotbar slot. Shift-click either to swap."),
-                Minecraft.getInstance().font));
-        y += 20;
+        int half = (contentWidth - 8) / 2;
+        int col2 = contentX + half + 8;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label), btn -> {
+                    cfg.setOverlayMode(cfg.getOverlayMode().next());
+                    cfg.save();
+                    btn.setMessage(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label));
+                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Border Color", cfg.getOverlayColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new ColorPickerScreen(client.screen, "Slot Bind Border Color",
+                            cfg.getOverlayColor(), 0xFFFFAA00, argb -> {
+                        cfg.setOverlayColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2, y, half, 18).build());
+        y += 26;
 
         Set<Integer> shown = new LinkedHashSet<>();
         for (Map.Entry<Integer, Integer> entry : cfg.getBinds().entrySet()) {

@@ -443,6 +443,7 @@ public final class ArrowAlignFeature {
             return;
         }
         boolean highlight = cfg.isHighlightFrames();
+        float[] highlightRgba = highlight ? WorldRenderUtils.argbToFloats(cfg.getHighlightColor()) : null;
         for (int i = 0; i < 25; i++) {
             ItemFrame frame = frames[i];
             if (frame == null) {
@@ -450,10 +451,14 @@ public final class ArrowAlignFeature {
             }
             int needed = clicksNeeded(i);
             AABB box = frame.getBoundingBox();
-            if (highlight) {
-                int argb = needed == 0 ? COLOR_GREEN : colorFor(needed);
-                float[] rgba = WorldRenderUtils.argbToFloats(argb);
-                WorldRenderUtils.renderFilledBox(context, box.inflate(0.01), rgba[0], rgba[1], rgba[2], needed == 0 ? 0.2f : 0.35f);
+            // killer560, 2026-09-21: "have the highlight frames only highlight ones that aren't complete and make
+            // that color of highlight customizable." A finished frame draws nothing at all now (it used to keep a
+            // faint green box), so what is left to click is the only thing lit up. "Complete" counts clicks already
+            // in flight, the same value the number uses, so box and number disappear on the same click rather than
+            // the box lingering until the server's entity-data update lands.
+            if (highlight && needed > 0) {
+                WorldRenderUtils.renderFilledBox(context, box.inflate(0.01),
+                        highlightRgba[0], highlightRgba[1], highlightRgba[2], highlightRgba[3]);
             }
             if (needed > 0) {
                 renderNumber(context, box.maxX + 0.02, (box.minY + box.maxY) / 2.0, (box.minZ + box.maxZ) / 2.0,

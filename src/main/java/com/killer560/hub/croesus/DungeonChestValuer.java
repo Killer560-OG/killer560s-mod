@@ -84,8 +84,10 @@ public final class DungeonChestValuer {
         }
     }
 
+    /** @param requiresKey the chest's own lore listed "Dungeon Chest Key", i.e. a key is spent opening it and
+     *                     that key's Bazaar price is already inside {@link #cost}. */
     public record ChestValue(ChestType type, int slot, long cost, List<PricedItem> items, long value, long profit,
-                             boolean opened, int unpricedCount) {
+                             boolean opened, int unpricedCount, boolean requiresKey) {
     }
 
     public static final Pattern CROESUS_MENU_TITLE = Pattern.compile("^(?:\\(\\d+/\\d+\\) )?Croesus$");
@@ -100,6 +102,24 @@ public final class DungeonChestValuer {
     private static final Pattern FORMATTING = Pattern.compile("§.");
 
     public static final int CLAIM_BUTTON_SLOT = 31;
+    /** The Kismet "Reroll Chest" button in an open chest screen - quoi AutoCroesus.kt reads {@code slots[50]}. */
+    public static final int REROLL_BUTTON_SLOT = 50;
+    /** The "Go Back" arrow in an open chest screen - quoi clicks 49 after a reroll it can't use. */
+    public static final int CHEST_BACK_SLOT = 49;
+    /** The Croesus run head lore line that marks a run with nothing claimed yet (quoi AutoCroesus.kt). */
+    public static final String RUN_UNOPENED_LORE = "No chests opened yet!";
+    /** Where the Croesus menu puts its run heads (quoi AutoCroesus.kt) - shared by Auto Croesus and the
+     *  claimed/unclaimed highlight so the two can never disagree about which slots are runs. */
+    public static final int[] RUN_HEAD_SLOTS = {
+            10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
+            28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43
+    };
+    public static final String DUNGEON_CHEST_KEY_ID = "DUNGEON_CHEST_KEY";
+    private static final String REROLL_BUTTON_NAME = "Reroll Chest";
+    /** Reroll button lore when you are carrying no Kismet Feather (quoi AutoCroesus.kt). */
+    private static final String REROLL_NEEDS_KISMET = "Bring a Kismet Feather";
+    /** Reroll button lore once this run's one reroll has been spent (quoi AutoCroesus.kt). */
+    private static final String REROLL_ALREADY_USED = "You already rerolled a chest";
 
     /** Display name -> id where the name doesn't map mechanically - merged from Odin Croesus.kt's
      *  itemReplacements and quoi AutoCroesusParser.kt's itemReplacements. */
@@ -164,6 +184,7 @@ public final class DungeonChestValuer {
         List<PricedItem> items = new ArrayList<>();
         long cost = 0;
         boolean opened = false;
+        boolean requiresKey = false;
         boolean inContents = false;
         for (String line : lore) {
             if (line.equals("Already opened!") || line.equals("Can't open another chest!")) {
@@ -193,13 +214,37 @@ public final class DungeonChestValuer {
             }
             if (line.equals("Dungeon Chest Key")) {
                 // quoi AutoCroesusParser.kt: a key requirement adds the key's own price to the cost.
-                Long key = price("Dungeon Chest Key", "DUNGEON_CHEST_KEY");
+                requiresKey = true;
+                Long key = dungeonChestKeyPrice();
                 if (key != null) {
                     cost += key;
                 }
             }
         }
-        return build(type, slot, cost, items, opened);
+        return build(type, slot, cost, items, opened, requiresKey);
+    }
+
+    /** Bazaar price of one Dungeon Chest Key, or null while prices haven't loaded. */
+    public static Long dungeonChestKeyPrice() {
+        return price("Dungeon Chest Key", DUNGEON_CHEST_KEY_ID);
+    }
+
+    /**
+     * What a chest is worth once a Dungeon Chest Key is paid for it - killer560, 2026-09-20: "highlight the
+     * best chest, and the second best if it makes profit assuming i use a dungeon chest key on it".
+     * <p>
+     * A chest whose own lore already says "Dungeon Chest Key" has the key inside {@link ChestValue#cost()}
+     * already (see {@link #fromLore}), so subtracting it again would charge for two keys.
+     */
+    public static long profitWithKey(ChestValue chest) {
+        if (chest == null) {
+            return 0L;
+        }
+        if (chest.requiresKey()) {
+            return chest.profit();
+        }
+        Long key = dungeonChestKeyPrice();
+        return key == null ? chest.profit() : chest.profit() - key;
     }
 
     /** Values an opened chest screen: real reward stacks in slots 0-40 (Odin), cost/opened state from the
@@ -222,7 +267,32 @@ public final class DungeonChestValuer {
         if (items.isEmpty()) {
             items = fromButton.items();
         }
-        return build(type, -1, fromButton.cost(), items, fromButton.opened());
+        return build(type, -1, fromButton.cost(), items, fromButton.opened(), fromButton.requiresKey());
+    }
+
+    /** Whether slot 50 of an open chest screen is the real Kismet "Reroll Chest" button. */
+    public static boolean isRerollButton(ItemStack button) {
+        return button != null && !button.isEmpty()
+                && strip(button.getHoverName().getString()).trim().equals(REROLL_BUTTON_NAME);
+    }
+
+    /** True when the reroll button says you aren't carrying a Kismet Feather (quoi AutoCroesus.kt). */
+    public static boolean rerollNeedsKismet(ItemStack button) {
+        return loreContains(button, REROLL_NEEDS_KISMET);
+    }
+
+    /** True when this run's single reroll has already been spent (quoi AutoCroesus.kt). */
+    public static boolean rerollAlreadyUsed(ItemStack button) {
+        return loreContains(button, REROLL_ALREADY_USED);
+    }
+
+    private static boolean loreContains(ItemStack stack, String needle) {
+        for (String line : cleanLore(stack)) {
+            if (line.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether the slot-31 button currently looks like a real, still-claimable chest ("Cost" in lore,
@@ -232,7 +302,8 @@ public final class DungeonChestValuer {
         return lore.contains("Cost") && !lore.contains("Already opened!") && !lore.contains("Can't open another chest!");
     }
 
-    private static ChestValue build(ChestType type, int slot, long cost, List<PricedItem> items, boolean opened) {
+    private static ChestValue build(ChestType type, int slot, long cost, List<PricedItem> items, boolean opened,
+                                    boolean requiresKey) {
         long value = 0;
         int unpriced = 0;
         for (PricedItem item : items) {
@@ -241,7 +312,7 @@ public final class DungeonChestValuer {
                 unpriced++;
             }
         }
-        return new ChestValue(type, slot, cost, List.copyOf(items), value, value - cost, opened, unpriced);
+        return new ChestValue(type, slot, cost, List.copyOf(items), value, value - cost, opened, unpriced, requiresKey);
     }
 
     private static PricedItem priceStack(ItemStack stack) {

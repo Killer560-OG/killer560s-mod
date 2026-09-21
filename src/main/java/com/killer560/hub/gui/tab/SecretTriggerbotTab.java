@@ -9,14 +9,16 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** "Secret Triggerbot" settings (cheat build only) - see {@link com.killer560.hub.secrettrigger.SecretTriggerbotFeature}. */
+/** "Secret Triggerbot" settings (cheat build only) - see {@link com.killer560.hub.secrettrigger.SecretTriggerbotFeature}.
+ *  Moved from a top-level {@code NewTab} entry into the "Secrets" folder 2026-09-21 (see {@link SecretsTab})
+ *  per killer560's menu-structure request - no behaviour change, just a different accordion home. */
 public class SecretTriggerbotTab extends BaseTab {
 
     public SecretTriggerbotTab() {
         super("Secret Triggerbot");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to {@link SecretsTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;

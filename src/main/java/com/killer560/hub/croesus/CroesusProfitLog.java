@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -139,6 +140,11 @@ public final class CroesusProfitLog {
             items.add(it);
         }
         entry.add("items", items);
+        // killer560, 2026-09-20: "you can log things like the run number as well for bigger drops like master
+        // stars, handle, mask". The run number is just this claim's 1-based position in the log; it is written
+        // out so a hand-trimmed file keeps the numbers it already showed, and derived from the index when a
+        // pre-2026-09-21 entry has none.
+        entry.addProperty("run", entries.size() + 1);
         entry.addProperty("cost", chest.cost());
         entry.addProperty("value", chest.value());
         entry.addProperty("profit", chest.profit());
@@ -180,6 +186,156 @@ public final class CroesusProfitLog {
             load();
         }
         return entries.size();
+    }
+
+    // ---- claim history / item log ------------------------------------------------------------------
+    // killer560, 2026-09-20: "make sure it separates things by floors and keeps a running log of all items.
+    // I should be able to open a menu that shows how many of each item from how many floors". Everything
+    // below is DERIVED from the entries already in killer560smod-croesus-log.json - no second store, no new
+    // file format, so an existing log gets the item menu retroactively.
+
+    /** One reward line of one claim. */
+    public record LoggedItem(String name, String id, int amount, long total) {
+    }
+
+    /** One claimed chest, as the log file recorded it. */
+    public record Claim(int run, long timestampMs, String floor, String chest, String source, long cost, long value,
+                        long profit, List<LoggedItem> items) {
+        public Claim {
+            items = items == null ? List.of() : List.copyOf(items);
+        }
+    }
+
+    /** One Skyblock item across the whole log: how many, from how many chests, split by floor. */
+    public record ItemTotals(String id, String name, int amount, int chests, long value,
+                             Map<String, Integer> byFloor, List<Integer> notableRuns) {
+        public ItemTotals {
+            byFloor = byFloor == null ? Map.of() : Map.copyOf(byFloor);
+            notableRuns = notableRuns == null ? List.of() : List.copyOf(notableRuns);
+        }
+    }
+
+    /** Ids that always get their run number recorded, however the Bazaar happens to be priced that day.
+     *  killer560 named "master stars, handle, mask, or anything you deem to be rare". */
+    private static final java.util.Set<String> NOTABLE_IDS = java.util.Set.of(
+            "FIRST_MASTER_STAR", "SECOND_MASTER_STAR", "THIRD_MASTER_STAR", "FOURTH_MASTER_STAR", "FIFTH_MASTER_STAR",
+            "NECRON_HANDLE", "DARK_CLAYMORE", "SHADOW_FURY", "GIANTS_SWORD", "PRECURSOR_EYE", "WITHER_BLOOD",
+            "NECRON_DYE", "DYE_NECRON", "DYE_LIVID", "IMPLOSION_SCROLL", "SHADOW_WARP_SCROLL", "WITHER_SHIELD_SCROLL",
+            "BONZO_MASK", "SPIRIT_MASK", "STARRED_BONZO_MASK", "STARRED_SPIRIT_MASK", "THIRD_EYE_MASK",
+            "LIVID_DAGGER", "WARPED_STONE", "AOTE_STONE", "SPIRIT_DECOY", "NECROMANCER_BROOCH", "MASTER_SKULL_TIER_7",
+            "SHARD_APEX_DRAGON", "PET_GOLDEN_DRAGON");
+    /** Anything worth this much in one claim counts as a big drop even if it isn't on the list above. */
+    private static final long NOTABLE_VALUE = 10_000_000L;
+
+    public static boolean isNotable(String id, long total) {
+        return (id != null && NOTABLE_IDS.contains(id)) || total >= NOTABLE_VALUE;
+    }
+
+    /** Every claim in the log, oldest first. */
+    public static synchronized List<Claim> claims() {
+        if (!loaded) {
+            load();
+        }
+        List<Claim> out = new java.util.ArrayList<>(entries.size());
+        for (int i = 0; i < entries.size(); i++) {
+            JsonElement element = entries.get(i);
+            if (element == null || !element.isJsonObject()) {
+                continue;
+            }
+            JsonObject o = element.getAsJsonObject();
+            List<LoggedItem> items = new java.util.ArrayList<>();
+            if (o.has("items") && o.get("items").isJsonArray()) {
+                for (JsonElement ie : o.getAsJsonArray("items")) {
+                    if (ie == null || !ie.isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject it = ie.getAsJsonObject();
+                    if (excluded(it)) {
+                        continue; // essence when "Include Essence" was off - it was never counted as value
+                    }
+                    items.add(new LoggedItem(str(it, "name", "?"), str(it, "id", ""),
+                            (int) num(it, "amount", 1), num(it, "total", 0)));
+                }
+            }
+            long ts = 0L;
+            try {
+                ts = Instant.parse(str(o, "timestamp", "")).toEpochMilli();
+            } catch (Exception ignored) {
+            }
+            out.add(new Claim((int) num(o, "run", i + 1), ts, str(o, "floor", "Unknown"), str(o, "chest", "?"),
+                    str(o, "source", "?"), num(o, "cost", 0), num(o, "value", 0), num(o, "profit", 0), items));
+        }
+        return out;
+    }
+
+    /** Every item ever claimed, most valuable first, with per-floor counts and the run numbers of big drops. */
+    public static List<ItemTotals> itemIndex() {
+        Map<String, String> names = new LinkedHashMap<>();
+        Map<String, int[]> counts = new LinkedHashMap<>();
+        Map<String, Long> values = new LinkedHashMap<>();
+        Map<String, Map<String, Integer>> floors = new LinkedHashMap<>();
+        Map<String, List<Integer>> notable = new LinkedHashMap<>();
+        for (Claim claim : claims()) {
+            for (LoggedItem item : claim.items()) {
+                String key = item.id() == null || item.id().isBlank() ? item.name() : item.id();
+                names.putIfAbsent(key, item.name());
+                int[] c = counts.computeIfAbsent(key, k -> new int[2]);
+                c[0] += Math.max(1, item.amount());
+                c[1]++;
+                values.merge(key, item.total(), Long::sum);
+                floors.computeIfAbsent(key, k -> new TreeMap<>())
+                        .merge(claim.floor(), Math.max(1, item.amount()), Integer::sum);
+                if (isNotable(item.id(), item.total())) {
+                    notable.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(claim.run());
+                }
+            }
+        }
+        List<ItemTotals> out = new java.util.ArrayList<>(counts.size());
+        for (Map.Entry<String, int[]> e : counts.entrySet()) {
+            String key = e.getKey();
+            out.add(new ItemTotals(key, names.getOrDefault(key, key), e.getValue()[0], e.getValue()[1],
+                    values.getOrDefault(key, 0L), floors.get(key), notable.get(key)));
+        }
+        out.sort((a, b) -> Long.compare(b.value(), a.value()));
+        return out;
+    }
+
+    /** Every big drop in the log, newest first - the "run number for master stars / handle / mask" view. */
+    public static List<Object[]> notableDrops() {
+        List<Object[]> out = new java.util.ArrayList<>();
+        for (Claim claim : claims()) {
+            for (LoggedItem item : claim.items()) {
+                if (isNotable(item.id(), item.total())) {
+                    out.add(new Object[]{claim.run(), claim.floor(), item.name(), item.total(), claim.timestampMs()});
+                }
+            }
+        }
+        java.util.Collections.reverse(out);
+        return out;
+    }
+
+    private static String str(JsonObject o, String key, String def) {
+        try {
+            return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : def;
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private static long num(JsonObject o, String key, long def) {
+        try {
+            return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsLong() : def;
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private static boolean excluded(JsonObject o) {
+        try {
+            return o.has("excluded") && o.get("excluded").getAsBoolean();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static Map<String, Totals> copy(Map<String, Totals> src) {
