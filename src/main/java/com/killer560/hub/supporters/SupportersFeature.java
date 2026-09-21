@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 /**
  * killer560's item 8.5: "mod-wide custom IGNs for supporters" - a Discord-staff-only display name (+ player
@@ -51,6 +52,11 @@ public final class SupportersFeature {
     private static volatile Map<UUID, Resolved> byUuid = Map.of();
     private static volatile int lastAppliedVersion = -1;
 
+    /** The same callback {@link #register} hands {@link SupportersFetcher#start}, kept so {@link #refreshNow}
+     *  can reuse the identical fetch-then-apply-then-persist path instead of duplicating it. */
+    private static final BiConsumer<Integer, List<SupporterEntry>> ON_FETCHED =
+            (version, entries) -> apply(version, entries, true);
+
     private SupportersFeature() {
     }
 
@@ -61,7 +67,16 @@ public final class SupportersFeature {
             apply(cached.version(), cached.entries(), false);
         }
         SupportersChatRewriter.register();
-        SupportersFetcher.start((version, entries) -> apply(version, entries, true));
+        SupportersFetcher.start(ON_FETCHED);
+    }
+
+    /** Forces an immediate re-fetch of {@code GET /supporters} instead of waiting for the next scheduled
+     *  poll (up to 5 minutes) - called by {@code SupportersTab}'s "My Supporter Name" editor right after a
+     *  successful save/clear, per SUPPORTERS-CONTRACT-V2.md's self-service section: the relay "bumps the
+     *  public list version" immediately, so re-fetching now (rather than waiting) is enough to show the
+     *  change on this client's own nametag/tab list/chat straight away. */
+    public static void refreshNow() {
+        SupportersFetcher.fetchNow(ON_FETCHED);
     }
 
     private static void apply(int version, List<SupporterEntry> entries, boolean persist) {
@@ -161,7 +176,7 @@ public final class SupportersFeature {
     /** {@code &} + a vanilla colour/format code -> {@code §} + that code (same convention Name Changer's own
      *  colour input uses) - a supporter's stored name travels as plain text with {@code &} codes
      *  ({@code SUPPORTERS-CONTRACT.md}), never raw {@code §}. */
-    static String colorize(String s) {
+    public static String colorize(String s) {
         if (s.indexOf('&') < 0) {
             return s;
         }

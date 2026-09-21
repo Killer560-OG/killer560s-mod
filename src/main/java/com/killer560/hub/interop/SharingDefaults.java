@@ -25,11 +25,34 @@ public final class SharingDefaults {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interop");
     static final String MARKER_FILE = "killer560smod-sharing-defaults-v1.json";
     private static final Path MARKER = FabricLoader.getInstance().getConfigDir().resolve(MARKER_FILE);
+    /** Second one-time step: Mod Chat on by default (killer560, 2026-09-21, after v1 had already run). */
+    static final String MARKER_FILE_V2 = "killer560smod-sharing-defaults-v2.json";
+    private static final Path MARKER_V2 = FabricLoader.getInstance().getConfigDir().resolve(MARKER_FILE_V2);
 
     private SharingDefaults() {
     }
 
     public static void applyOnce() {
+        applyV1();
+        applyV2();
+    }
+
+    private static void applyV2() {
+        if (Files.exists(MARKER_V2)) {
+            return;
+        }
+        try {
+            com.killer560.hub.modchat.ModChatConfig chat = com.killer560.hub.modchat.ModChatConfig.getInstance();
+            chat.setEnabled(true);
+            chat.save();
+            Files.writeString(MARKER_V2, "{\"applied\":\"2026-09-21\"}", StandardCharsets.UTF_8);
+            LOGGER.info("[Interop] Mod Chat switched on once (new default)");
+        } catch (Exception e) {
+            LOGGER.warn("[Interop] Could not apply Mod Chat default: {}", e.toString());
+        }
+    }
+
+    private static void applyV1() {
         if (Files.exists(MARKER)) {
             return;
         }

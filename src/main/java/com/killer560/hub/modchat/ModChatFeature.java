@@ -59,7 +59,11 @@ public final class ModChatFeature {
                 && (com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled()
                     || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress());
         boolean on = (chatOn || dataOn) && client.getConnection() != null && client.player != null;
-        RelayRoom.Mode mode = chatOn ? cfg.getRoomMode() : RelayRoom.Mode.PARTY;
+        // Party dungeon data only travels in a party room. In a dungeon the lobby IS the party (the instance only holds
+        // your team), so while sharing is on, a dungeon always uses the party room even if Mod Chat is set to Lobby -
+        // otherwise choosing Lobby would silently stop data sharing. Mod Chat keeps its chosen mode everywhere else.
+        boolean dataNeedsParty = dataOn && com.killer560.hub.secrets.DungeonState.isInDungeon();
+        RelayRoom.Mode mode = (!chatOn || dataNeedsParty) ? RelayRoom.Mode.PARTY : cfg.getRoomMode();
         // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
         // never sends /locraw at all.
         HypixelLocation.tick(client, on && mode == RelayRoom.Mode.LOBBY);

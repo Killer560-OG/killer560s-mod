@@ -53,6 +53,7 @@ public final class ProfileManager {
             "killer560smod-supporters-cache.json",
             // One-time "sharing defaults switched on" marker - not a setting.
             "killer560smod-sharing-defaults-v1.json",
+            "killer560smod-sharing-defaults-v2.json",
             // Croesus Profit Logger's claim history + totals - real run data, not a setting.
             "killer560smod-croesus-log.json",
             // Experimentation Table profit tracker's session log + totals - also real run data.

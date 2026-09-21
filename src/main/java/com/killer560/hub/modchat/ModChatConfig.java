@@ -35,7 +35,7 @@ public final class ModChatConfig {
 
     private static ModChatConfig instance;
 
-    private boolean enabled = false;
+    private boolean enabled = true;
     /** Empty means "use whatever {@link RelayEndpoint#DEFAULT_BASE_URL} currently is", so a build that ships a
      *  newly deployed relay picks it up for everyone who never typed their own address. */
     // killer560, 2026-09-20: "they shouldnt have to set some sort of relay url for the mod chat it should
@@ -66,7 +66,7 @@ public final class ModChatConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ModChatConfig cfg = new ModChatConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             cfg.legacyRelayUrlIgnored = ConfigJson.getString(obj, "relayUrl", "");
             // Pre-2026-09-20 configs only ever had "partyRoom"; see the class doc for the migration mapping.
             RelayRoom.Mode legacyMode =

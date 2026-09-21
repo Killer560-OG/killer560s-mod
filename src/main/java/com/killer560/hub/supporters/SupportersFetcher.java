@@ -59,6 +59,15 @@ final class SupportersFetcher {
         EXECUTOR.execute(() -> runAndReschedule(onFetched));
     }
 
+    /** One-off fetch outside the normal 5-minute cadence - used by {@link SupportersFeature#refreshNow()} so
+     *  a player's own self-service save/clear (SUPPORTERS-CONTRACT-V2.md) shows up on this client right away
+     *  instead of waiting for the next scheduled poll. Does not touch the schedule {@link #start} already set
+     *  up - {@code runAndReschedule}'s own next {@code EXECUTOR.schedule} call is untouched, so this can only
+     *  ever add one extra fetch, never duplicate or drop the recurring one. */
+    static void fetchNow(BiConsumer<Integer, List<SupporterEntry>> onFetched) {
+        EXECUTOR.execute(() -> fetchOnce(onFetched));
+    }
+
     /** Every 5 minutes after a good fetch, but after 30 seconds when one fails, so a startup hiccup does not leave
      *  everyone without names for five minutes. */
     private static void runAndReschedule(BiConsumer<Integer, List<SupporterEntry>> onFetched) {

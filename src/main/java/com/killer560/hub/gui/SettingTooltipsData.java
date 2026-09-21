@@ -1864,7 +1864,7 @@ final class SettingTooltipsData {
         d.put("yt shorts/zoom", "Sets the page's zoom level at launch (Chromium's device-scale-factor) - takes effect on the next Launch/Relaunch, not live.");
         d.put("yt shorts/comments scroll guard", "YouTube Shorts only: while a comments panel looks open, Next/Previous's fallback key press is skipped so it can't pull the feed away while you're reading or typing comments. The on-page next/previous button still works normally.");
         d.put("yt shorts/sign in to youtube", "Opens a normal browser window (own address bar) on the same profile the overlay uses, for the currently selected Site, so you can log into your real account by hand. The mod never sees or stores your password.");
-        d.put("supporters/custom cosmetics", "Shows supporters' custom colored names and player scale, set by staff on Discord. Off shows everyone's real IGN and normal scale.");
+        d.put("supporters/custom cosmetics", "Shows other supporters' custom names and scale on their nametag, tab list and chat. Turn off to always see everyone's real IGN.");
         d.put("party interop/share dungeon data with party", "Sends the mimic/prince/bat/blood flags, run counters, room secrets, discovered rooms and doors, and M7 dragon events this client works out on its own to the rest of your party over the mod's relay. Needs Mod Chat and Use Mod Relay both on to do anything.");
         d.put("party interop/cross-mod bridge", "Talks to Devonian, NoammAddons and Odin's own party servers so their users and ours share dungeon data both ways. Never connects for a mod you have installed yourself.");
         d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party. Signs in with your Minecraft session the normal Mojang way.");
@@ -1874,5 +1874,8 @@ final class SettingTooltipsData {
         d.put("team melody/team melody hud", "Shows each teammate's Floor 7/M7 Melody terminal progress live during Phase 3 - name, current row, and a small progress bar. Fed by Odin users, our own relay's users, and this mod's own read-only terminal reader.");
         d.put("team melody/share my progress", "Lets your own live Melody terminal progress reach teammates - over our own relay, and to Odin's socket if the Cross-Mod Bridge's Odin toggle is on and connected. Never sent anywhere unless this is on.");
         d.put("team melody/scale", "Resizes the Team Melody HUD - the same value as scrolling on it in the HUD editor.");
+        d.put("supporters/refresh", "Re-checks whether this account is linked to a supporter, and reloads your current name/scale from the relay.");
+        d.put("supporters/save", "Sends your name and scale to the relay. Takes effect on your own client immediately; other players see it within a few minutes.");
+        d.put("supporters/clear", "Removes your custom name so your real IGN shows again. Your scale resets to 1.0 too.");
     }
 }
