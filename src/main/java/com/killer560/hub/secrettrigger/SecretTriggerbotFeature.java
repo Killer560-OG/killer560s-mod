@@ -163,6 +163,11 @@ public final class SecretTriggerbotFeature {
             }
         }
 
+        // Shared one-interaction-per-tick gate, above every state change below: a refused tick must leave
+        // pendingPos/lastClickMs/clicked untouched so the same target is simply clicked a tick or two later.
+        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_TRIGGER)) {
+            return;
+        }
         BlockPos pos = pendingPos;
         pendingPos = null;
         BlockState state = client.level.getBlockState(pos);

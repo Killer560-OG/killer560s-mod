@@ -1,5 +1,6 @@
 package com.killer560.hub.autopuzzles;
 
+import com.killer560.hub.util.ActionGate;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -110,8 +111,14 @@ public final class AutoPuzzleUtil {
                 Math.cos(-yaw * 0.017453292f - 3.1415927f) * f2);
     }
 
-    /** Right-click the held item with the given rotation on the use packet only (see class doc). */
-    public static void useItemRotated(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch) {
+    /** Right-click the held item with the given rotation on the use packet only (see class doc).
+     *  Passes through {@link ActionGate}; callers MUST treat false as "nothing was sent this tick" and must not
+     *  advance any cooldown / stage / one-shot state on it.
+     *  @return false if the gate held this tick back (nothing sent) */
+    public static boolean useItemRotated(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch) {
+        if (!ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD)) {
+            return false;
+        }
         float realYaw = player.getYRot();
         float realPitch = player.getXRot();
         float yaw = realYaw + Mth.wrapDegrees(targetYaw - realYaw);
@@ -124,6 +131,7 @@ public final class AutoPuzzleUtil {
             player.setYRot(realYaw);
             player.setXRot(realPitch);
         }
+        return true;
     }
 
     /** Visible camera rotation (QUOI {@code player.rotate(dir)}), unwrapped per this mod's rule. */
@@ -388,8 +396,20 @@ public final class AutoPuzzleUtil {
 
     // ------------------------------------------------------------------ block interact
 
+    /** Claims this client tick's single automated interaction for the puzzle autos.
+     *  <p>
+     *  Every {@link #interactBlock} caller must pass this FIRST, as its very last check before it touches its own
+     *  attempt counter / one-shot / cooldown state, so a denied tick costs the feature nothing. The gate is not
+     *  inside {@code interactBlock} itself because its {@code false} already means "this block has no shape", which
+     *  callers treat as a permanent failure (burn the attempt, stop the room) - the opposite of "retry next tick".
+     *  @return true at most once per client tick, mod-wide */
+    public static boolean gateWorldClick() {
+        return ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD);
+    }
+
     /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s (QUOI {@code BlockPos.getHitResult()}):
      *  {@code useItemOn} with the eye-to-shape-centre ray clipped against the real shape, then a main-hand swing.
+     *  Callers must have claimed the tick with {@link #gateWorldClick()} first.
      *  @return false (nothing sent) if the block has no shape */
     public static boolean interactBlock(Minecraft client, BlockPos pos) {
         BlockState state = client.level.getBlockState(pos);

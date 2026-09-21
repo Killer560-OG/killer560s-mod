@@ -149,7 +149,9 @@ final class AutoBlaze {
         Vec3 eye = player.getEyePosition();
         Vec3 finalTarget = eye.add(AutoPuzzleUtil.look(hitDir[0], hitDir[1]).scale(10.0));
         float[] dir = AutoPuzzleUtil.direction(eye, finalTarget);
-        AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1]);
+        if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
+        }
         LOGGER.info("[AutoPuzzles] Blaze: shot at blaze id={} ({} left) yaw={} pitch={} term={}", blaze.getId(),
                 blazes.size(), dir[0], dir[1], terminator);
         lastShotTime = now;

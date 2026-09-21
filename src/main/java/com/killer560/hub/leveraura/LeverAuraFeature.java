@@ -3,6 +3,7 @@ package com.killer560.hub.leveraura;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -313,6 +314,12 @@ public final class LeverAuraFeature {
         requiredDwell.keySet().retainAll(inRangeNow);
 
         if (target == null || now < nextClickAllowedMs) {
+            return;
+        }
+        // killer560 (2026-09-20): "make sure that stuff like breaker aura, and flicking levers aren't gonna go off in
+        // the same packet". Last check before anything is mutated - a refusal must cost nothing, the same lever is
+        // simply re-picked next tick. Target selection above is already nearest-first, one lever per tick.
+        if (!ActionGate.tryAct(ActionGate.Actor.LEVER_AURA)) {
             return;
         }
         if (ACTIVATION_REASON.equals(reason)) {

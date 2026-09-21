@@ -283,6 +283,13 @@ public final class BloodCampFeature {
         }
 
         Vec3 auraTarget = null;
+        // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
+        // other on the next tick". This loop used to attack EVERY due mob in the same pass, so a wave that expired
+        // together produced a burst of attack packets on one tick. Pick the most-due one here and send it below.
+        ArmorStand triggerTarget = null;
+        BloodMobState triggerData = null;
+        double triggerRemaining = 0.0;
+        double bestRemaining = Double.MAX_VALUE;
         for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
             ArmorStand entity = entry.getKey();
             BloodMobState data = entry.getValue();
@@ -295,16 +302,27 @@ public final class BloodCampFeature {
                 auraTarget = data.endVector;
             }
 
-            if (cfg.isTriggerBotEnabled() && !data.triggerBotClicked) {
+            // client.screen: a world actor must never swing while a menu is open. The ActionGate below enforces
+            // this mod-wide, but this feature had no screen check of its own at all before today.
+            if (cfg.isTriggerBotEnabled() && !data.triggerBotClicked && client.screen == null) {
                 double clickAtTicks = cfg.getManualTickOffset() - autoLagOffsetTicks(cfg, client);
-                if (remainingTicks <= clickAtTicks && isLookingAt(client, entity)) {
-                    client.gameMode.attack(client.player, entity);
-                    client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
-                    data.triggerBotClicked = true;
-                    LOGGER.info("[BloodCamp] Trigger Bot clicked a blood mob (remaining {} ticks at click time).",
-                            String.format(Locale.US, "%.1f", remainingTicks));
+                if (remainingTicks <= clickAtTicks && remainingTicks < bestRemaining && isLookingAt(client, entity)) {
+                    triggerTarget = entity;
+                    triggerData = data;
+                    triggerRemaining = remainingTicks;
+                    bestRemaining = remainingTicks;
                 }
             }
+        }
+        // Mod-wide one-interaction-per-tick gate, after the target is chosen and before anything is marked: a
+        // denial leaves triggerBotClicked false so the same mob is simply hit on the next tick it allows.
+        if (triggerTarget != null
+                && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
+            client.gameMode.attack(client.player, triggerTarget);
+            client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+            triggerData.triggerBotClicked = true;
+            LOGGER.info("[BloodCamp] Trigger Bot clicked a blood mob (remaining {} ticks at click time).",
+                    String.format(Locale.US, "%.1f", triggerRemaining));
         }
 
         if ((cfg.isAuraEnabled() && auraTarget != null) != lastLoggedAuraActive) {

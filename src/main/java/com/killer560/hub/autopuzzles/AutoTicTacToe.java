@@ -68,6 +68,9 @@ final class AutoTicTacToe {
         if (attempts >= MAX_ATTEMPTS) {
             return;
         }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - no attempt is burnt and the 500ms gap is untouched
+        }
         attempts++;
         lastClickMs = now;
         if (!AutoPuzzleUtil.interactBlock(client, best)) {

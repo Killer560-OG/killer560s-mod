@@ -3,6 +3,7 @@ package com.killer560.hub.terminalaura;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.fastleap.LeapManager;
+import com.killer560.hub.util.ActionGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
@@ -96,6 +97,12 @@ public final class TerminalAuraFeature {
             Vec3 hit = box.clip(eyes, center).orElse(null);
             if (hit == null) {
                 continue;
+            }
+            // Mod-wide one-interaction-per-tick gate. Checked here, after the target is chosen but before
+            // anything is sent or lastClickMs moves, so a denied tick costs nothing and we simply try the
+            // same stand again next tick.
+            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
+                return;
             }
             client.gameMode.interact(player, stand, new EntityHitResult(stand, hit), InteractionHand.MAIN_HAND);
             player.swing(InteractionHand.MAIN_HAND);

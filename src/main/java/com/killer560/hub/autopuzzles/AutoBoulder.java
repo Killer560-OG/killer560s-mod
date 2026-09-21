@@ -83,6 +83,9 @@ final class AutoBoulder {
             }
             return;
         }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - nothing sent, so nothing here may advance
+        }
         lastClickedPos = next;
         lastClickMs = now;
         if (!AutoPuzzleUtil.interactBlock(client, next)) {

@@ -1,6 +1,7 @@
 package com.killer560.hub.terminals;
 
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
+import com.killer560.hub.util.ActionGate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
@@ -143,6 +144,13 @@ public final class HoverTerminalFeature {
             return;
         }
 
+        // Mod-wide one-interaction-per-tick gate. This runs per RENDER FRAME, so at high FPS the dwell can
+        // come due on several frames inside one client tick; the gate is checked before the click is
+        // registered and before the dwell is re-armed, so a denied frame changes nothing and the same hover
+        // simply clicks on a later tick.
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
+            return;
+        }
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         TerminalSolverFeature.registerHoverClick(slot, snapshot, now);
         TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
@@ -166,6 +174,11 @@ public final class HoverTerminalFeature {
             return;
         }
         if (slot == lastMelodyClickedSlot && now - lastMelodyClickAtMs < MELODY_SAME_ROW_GUARD_MS) {
+            return;
+        }
+        // Gate before the same-row guard fields move - a denied frame must not consume this row's one
+        // allowed click, or the indicator would move past the match while the guard says "already clicked".
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
             return;
         }
         lastMelodyClickedSlot = slot;

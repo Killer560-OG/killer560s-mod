@@ -2,6 +2,7 @@ package com.killer560.hub.terminals;
 
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -703,6 +704,12 @@ public final class TerminalSolverFeature {
         ItemStack carried = screen.getMenu().getCarried();
         boolean holdingNow = carried != null && !carried.isEmpty();
         if (holdingNow && !wasHoldingCarriedItem && client.player != null && client.gameMode != null) {
+            // Mod-wide one-interaction-per-tick gate. Returning WITHOUT updating wasHoldingCarriedItem is
+            // the point: the carried item is still there next frame, so the clear is simply re-attempted
+            // until the gate lets it through rather than being marked as done and never sent.
+            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
+                return;
+            }
             client.gameMode.handleContainerInput(screen.getMenu().containerId, -999, 0, ContainerInput.PICKUP, client.player);
         }
         wasHoldingCarriedItem = holdingNow;
@@ -826,6 +833,14 @@ public final class TerminalSolverFeature {
                         DIAG_TAG, type, pendingClicks.keySet(), now - diagAwaitStartMs, oldestSentAgo, retryTimeout,
                         nextAutoClickAllowedAtMs > 0 ? now - nextAutoClickAllowedAtMs : -1, diagLastRolledDelayMs);
             }
+            return;
+        }
+        // Mod-wide one-interaction-per-tick gate. tickAutoClick runs per RENDER FRAME (see refreshState), so
+        // without this a 200+ FPS client could send several clicks inside one client tick once the rolled
+        // delay is short. Checked after the target is picked but before ANY state moves - the rolled delay
+        // (nextAutoClickAllowedAtMs), the pendingClicks entry and every diag counter below - so a denied
+        // frame costs nothing and the identical target is simply re-picked next frame.
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
             return;
         }
         long diagAwaitedMs = diagReleaseAwait(now, retryOf != null ? "retry timeout" : "slot " + target.slot() + " became clickable");
@@ -1097,6 +1112,11 @@ public final class TerminalSolverFeature {
             }
             return;
         }
+        // Mod-wide one-interaction-per-tick gate, before the same-row guard fields move. A denied frame must
+        // not arm the 250ms guard, or the live match would be swallowed for a click that never happened.
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
+            return;
+        }
         long diagSincePrev = lastMelodyClickAtMs > 0 ? now - lastMelodyClickAtMs : -1;
         int diagQueuedBefore = scheduledMelodyClicks.size();
         lastMelodyClickedRow = buttonRow;
@@ -1162,11 +1182,22 @@ public final class TerminalSolverFeature {
         }
         long now = System.currentTimeMillis();
         while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
-            ScheduledMelodyClick due = scheduledMelodyClicks.pollFirst();
+            ScheduledMelodyClick due = scheduledMelodyClicks.peekFirst();
             if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= MELODY_CLAY_SLOTS.size()) {
+                // Not an interaction, just housekeeping - drop it without asking the gate for a slot.
+                scheduledMelodyClicks.pollFirst();
                 LOGGER.info("{} MELODY lookahead click for row {} DROPPED (currentType={})", DIAG_TAG, due.row(), currentType);
                 continue;
             }
+            // Mod-wide one-interaction-per-tick gate. This drain used to send EVERY click whose scheduled
+            // time had passed in a single pass - the one place in this class that could put several
+            // interactions in one tick by design. The entry is only removed from the queue once the gate has
+            // accepted it, so a denial leaves the whole burst queued and it resumes on a later tick; and
+            // after a successful send we break, so this fires at most one click per call.
+            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
+                break;
+            }
+            scheduledMelodyClicks.pollFirst();
             long diagSincePrev = lastMelodyClickAtMs > 0 ? now - lastMelodyClickAtMs : -1;
             lastMelodyClickedRow = due.row();
             lastMelodyClickAtMs = now;
@@ -1176,6 +1207,7 @@ public final class TerminalSolverFeature {
             LOGGER.info("{} MELODY CLICK #{} LOOKAHEAD row {} (slot {}) fired {}ms after its scheduled time, sincePrevMelodyClick={}ms, stillQueued={}",
                     DIAG_TAG, diagClicksSent, due.row(), MELODY_CLAY_SLOTS.get(due.row()), now - due.fireAtMs(), diagSincePrev,
                     scheduledMelodyClicks.size());
+            break; // one interaction per call - anything else still due fires on a later tick
         }
     }
 

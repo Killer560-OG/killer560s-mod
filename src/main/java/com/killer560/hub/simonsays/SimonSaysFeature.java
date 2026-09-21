@@ -3,6 +3,7 @@ package com.killer560.hub.simonsays;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -1506,8 +1507,10 @@ public final class SimonSaysFeature {
             if (!tickRotateClick(client, START_BUTTON, null)) {
                 return;
             }
-        } else {
-            sendNoRotateInteract(client, START_BUTTON);
+        } else if (!sendNoRotateInteract(client, START_BUTTON)) {
+            // ActionGate held this tick back and NOTHING was sent - booking the click below would burn one of
+            // the Auto Start burst's clicks (and set autoStartClickedThisPhase) for a packet that never left.
+            return;
         }
         // Diagnostic-only (2026-09-14): real fire time of this click (the frame it actually fired in, for
         // rotate) - so the burst's real click spacing is visible, not just the tick it got consumed on.
@@ -1796,8 +1799,11 @@ public final class SimonSaysFeature {
                 return;
             }
             if (!cfg.isAutoSolveRotate()) {
-                fireInstantClick(client, nextButton);
-                bookAutoSolveClick(cfg, nextButton, now);
+                // Booking a click the gate refused would advance the sequence past a button that was never
+                // pressed, which fails the device outright - so only book it once it has actually gone out.
+                if (fireInstantClick(client, nextButton)) {
+                    bookAutoSolveClick(cfg, nextButton, now);
+                }
                 return;
             }
             // "Rotate" mode (see tickRotateClick's own doc comment): starts/continues the humanized turn
@@ -1848,7 +1854,11 @@ public final class SimonSaysFeature {
         if (target == null || now - triggerAimSinceMs < cfg.getTriggerBotDelayMs()) {
             return;
         }
-        sendNoRotateInteract(client, target);
+        if (!sendNoRotateInteract(client, target)) {
+            // ActionGate held this frame back - leave triggerAimTarget/triggerAimSinceMs alone so the same
+            // aimed button fires on the next frame the gate allows instead of being silently dropped.
+            return;
+        }
         lastTriggerBotTarget = target;
         triggerAimTarget = null;
         LOGGER.info("[SimonSays] Trigger Bot click sent after {}ms on target (delay {}ms, round {}, total clicks {} so far this attempt).",
@@ -2065,9 +2075,10 @@ public final class SimonSaysFeature {
                 autoApproachOverheadEmaMs, windowLeftMs, modeSuffix);
     }
 
-    /** No Rotate mode's instant click - booked by the caller via bookAutoSolveClick in the same tick. */
-    private static void fireInstantClick(Minecraft client, BlockPos pos) {
-        sendNoRotateInteract(client, pos);
+    /** No Rotate mode's instant click - booked by the caller via bookAutoSolveClick in the same tick.
+     *  @return false if {@link ActionGate} held this tick back (nothing sent); the caller must NOT book it. */
+    private static boolean fireInstantClick(Minecraft client, BlockPos pos) {
+        return sendNoRotateInteract(client, pos);
     }
 
     /** Rotate Mode's tick-side half - called once per tick while a click is due. Ownership split
@@ -2497,7 +2508,12 @@ public final class SimonSaysFeature {
                 && client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
             // Real aim confirmed - the actual click still always lands on the button's true center
             // (killer560's own standing rule), same real click-sender every other mode already uses.
-            sendNoRotateInteract(client, buttonPos);
+            if (!sendNoRotateInteract(client, buttonPos)) {
+                // ActionGate held this frame back. Every field below (rotateClickFiredFor in particular, which
+                // the next tick consumes as a real click) must stay exactly where it is: the aim is already
+                // confirmed, so the very next allowed frame fires it.
+                return;
+            }
             rotateClickFiredFor = buttonPos;
             rotateClickFiredAtMs = System.currentTimeMillis();
             // Diagnostic-only (2026-09-14) - once per real fire, covers both Auto Solve grid clicks and
@@ -2756,10 +2772,21 @@ public final class SimonSaysFeature {
      *  killer560 asked for ("just like QUOI"), which sends the interact packet directly via a synthetic
      *  {@link BlockHitResult} instead of first turning the camera to aim. Real automation - callers must
      *  already be behind a {@code BuildVariant.CHEAT_FEATURES_ENABLED} check. Also Rotate Mode's own
-     *  final click-fire step (see {@link #tickRotateClick}) once its own real aim is confirmed. */
-    private static void sendNoRotateInteract(Minecraft client, BlockPos pos) {
+     *  final click-fire step (see {@link #tickRotateClick}) once its own real aim is confirmed.
+     *  <p>
+     *  Single chokepoint for every Simon Says click, so it is also where {@link ActionGate} is asked for this
+     *  client tick's one automated interaction. Two of the four callers are driven from RENDER FRAME events
+     *  (Trigger Bot and Rotate Mode's fire step), which at high framerates could previously send several clicks
+     *  inside one client tick; the gate now makes that impossible. Every caller MUST treat false as "nothing was
+     *  sent" and leave its own cooldown / target / schedule state exactly where it was, so the click simply
+     *  happens on a later tick.
+     *  @return false if the gate held this tick back (nothing sent) */
+    private static boolean sendNoRotateInteract(Minecraft client, BlockPos pos) {
         if (client.player == null || client.gameMode == null) {
-            return;
+            return false;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.SIMON_SAYS)) {
+            return false;
         }
         Vec3 hitVec = Vec3.atCenterOf(pos);
         BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.EAST, pos, false);
@@ -2773,6 +2800,7 @@ public final class SimonSaysFeature {
         }
         client.player.swing(InteractionHand.MAIN_HAND);
         diagNoteGridClickFired(pos, System.currentTimeMillis());
+        return true;
     }
 
     /** Diagnostic-only (2026-09-14) - remembers a synthetic GRID click's fire time so onButtonPressed can

@@ -323,10 +323,17 @@ public final class ArrowAlignFeature {
     /** Real interact on a frame through the same path a vanilla right-click takes
      *  ({@code gameMode.interact(player, entity, hitResult, hand)} - sends the interact packet with the hit location
      *  relative to the entity). Callers must already be behind a cheat-gated config getter. */
-    private static void sendClick(Minecraft client, int index, long now) {
+    private static boolean sendClick(Minecraft client, int index, long now) {
         ItemFrame frame = frames[index];
         if (frame == null || frame.isRemoved() || client.player == null || client.gameMode == null) {
-            return;
+            return false;
+        }
+        // Mod-wide one-interaction-per-tick gate (killer560, 2026-09-20: "make sure every type of aura has some
+        // sort of coordination"). Trigger Bot and Aura are both allowed to run on the same tick above, so this is
+        // also what stops THIS feature putting two interact packets in one tick. A denial must leave the caller's
+        // delay/target bookkeeping untouched so the same frame is simply clicked a tick later.
+        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ARROW_ALIGN)) {
+            return false;
         }
         AABB box = frame.getBoundingBox();
         // Centre of the east (+X, player-facing) face - where a real crosshair ray lands on the frame.
@@ -339,6 +346,7 @@ public final class ArrowAlignFeature {
         }
         client.player.swing(InteractionHand.MAIN_HAND);
         noteClick(index, now);
+        return true;
     }
 
     // ------------------------------------------------------------------
@@ -383,7 +391,9 @@ public final class ArrowAlignFeature {
         if (now - triggerAimSinceMs < delay || now - lastTriggerClickMs < delay) {
             return;
         }
-        sendClick(client, index, now);
+        if (!sendClick(client, index, now)) {
+            return; // gate held this tick back - nothing sent, so the aim timer and delay stay where they are
+        }
         lastTriggerClickMs = now;
     }
 
@@ -408,7 +418,9 @@ public final class ArrowAlignFeature {
             lastAuraIndex = -1;
             return;
         }
-        sendClick(client, target, now);
+        if (!sendClick(client, target, now)) {
+            return; // gate held this tick back - the rolled delay must not be re-rolled for a click never sent
+        }
         lastAuraIndex = target;
         int min = cfg.getAuraMinDelayMs();
         int max = Math.max(min, cfg.getAuraMaxDelayMs());

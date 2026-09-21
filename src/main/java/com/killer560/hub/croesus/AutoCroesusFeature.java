@@ -2,6 +2,7 @@ package com.killer560.hub.croesus;
 
 import com.killer560.hub.croesus.DungeonChestValuer.ChestType;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestValue;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -205,18 +206,26 @@ public final class AutoCroesusFeature {
                         continue;
                     }
                     String floor = ChestProfitFeature.floorFromCroesusHead(head);
+                    if (!click(client, screen, slot)) {
+                        // Gate denied: nothing remembered, no currentRunKey, no state change - this exact
+                        // run head is found again next tick and opened then.
+                        return;
+                    }
                     ChestProfitFeature.rememberRunFloor(floor);
                     currentRunKey = key;
-                    click(client, screen, slot);
                     LOGGER.info("[Croesus] Opening run {} (page {}, slot {})", floor, page, slot);
                     setState(State.WAIT_RUN_VIEW, now);
                     return;
                 }
                 ItemStack next = stacks.size() > NEXT_PAGE_SLOT ? stacks.get(NEXT_PAGE_SLOT) : ItemStack.EMPTY;
                 if (next.is(Items.ARROW)) {
+                    if (!click(client, screen, NEXT_PAGE_SLOT)) {
+                        // Gate denied: lastPageClickedFrom stays -1, so the page-transition watchdog isn't
+                        // armed for a click that never went out. Retried next tick.
+                        return;
+                    }
                     lastPageClickedFrom = page;
                     lastPageClickAtMs = now;
-                    click(client, screen, NEXT_PAGE_SLOT);
                     LOGGER.info("[Croesus] No unopened runs on page {} - next page", page);
                     nextActionAtMs = now + randomDelay();
                     return;
@@ -252,11 +261,20 @@ public final class AutoCroesusFeature {
                 ChestValue best = chests.stream().filter(c -> !c.opened()).findFirst().orElse(null);
                 long minProfit = CroesusConfig.getInstance().getAutoMinProfitK() * 1000L;
                 if (best != null && best.profit() >= minProfit) {
+                    if (!click(client, screen, best.slot())) {
+                        // Gate denied: targetType stays as it was and the state machine doesn't advance, so
+                        // WAIT_CHEST can't start waiting for a chest nobody asked for. Retried next tick.
+                        return;
+                    }
                     targetType = best.type();
                     LOGGER.info("[Croesus] Claiming {} chest in {} (profit {}, min {}, unpriced items {})",
                             best.type().display, ChestProfitFeature.currentRunViewFloor(), best.profit(), minProfit, best.unpricedCount());
-                    click(client, screen, best.slot());
                     setState(State.WAIT_CHEST, now);
+                    return;
+                }
+                // The skip bookkeeping and its chat line only happen once the "go back" click has actually
+                // gone out - a gate denial here must not count the run as skipped or spam a second message.
+                if (!goBack(client, screen, now)) {
                     return;
                 }
                 if (currentRunKey != null) {
@@ -267,7 +285,6 @@ public final class AutoCroesusFeature {
                         ChestProfitFeature.currentRunViewFloor(), best == null ? "n/a" : best.profit(), minProfit);
                 ModChat.send("Auto Croesus", ModChat.text("Skipped "), ModChat.value(String.valueOf(ChestProfitFeature.currentRunViewFloor())),
                         ModChat.dim(" (best " + (best == null ? "n/a" : DungeonChestValuer.formatCoins(best.profit())) + ")"));
-                goBack(client, screen, now);
             }
             case WAIT_CHEST -> {
                 if (chestTitle != null && chestTitle == targetType) {
@@ -299,8 +316,13 @@ public final class AutoCroesusFeature {
                     stop("chest profit re-check " + DungeonChestValuer.formatCoins(value.profit()) + " is below the minimum", true);
                     return;
                 }
-                ChestProfitFeature.onClaimClick(screen, "auto");
-                click(client, screen, DungeonChestValuer.CLAIM_BUTTON_SLOT);
+                // onClaimClick has to run immediately before the packet leaves, so it is handed to click() as
+                // the beforeSend hook rather than being called here - a gate denial must not leave a pending
+                // claim registered for a click that was never sent.
+                if (!click(client, screen, DungeonChestValuer.CLAIM_BUTTON_SLOT,
+                        () -> ChestProfitFeature.onClaimClick(screen, "auto"))) {
+                    return;
+                }
                 claimed++;
                 claimedProfit += value.profit();
                 if (currentRunKey != null) {
@@ -324,6 +346,12 @@ public final class AutoCroesusFeature {
                     if (entity == null || !entity.isAlive() || client.player == null || client.gameMode == null
                             || client.player.distanceToSqr(entity) > 36.0) {
                         stop("can't re-open Croesus (not in range) - open it again to continue", false);
+                        return;
+                    }
+                    // The one WORLD interaction in this otherwise all-GUI flow, so it takes the tick through
+                    // CROESUS_NPC rather than CROESUS (which is a SCREEN actor and would be refused here, with
+                    // no screen open). A denial leaves reopenSent false and retries on the next tick.
+                    if (!ActionGate.tryAct(ActionGate.Actor.CROESUS_NPC)) {
                         return;
                     }
                     client.gameMode.interact(client.player, entity, new EntityHitResult(entity), InteractionHand.MAIN_HAND);
@@ -374,6 +402,8 @@ public final class AutoCroesusFeature {
         // Menu stayed open after the claim (run view, or the chest screen now "Already opened!"): walk back
         // one screen at a time - at most one back click per container instance.
         if ((inRunView || chestDone) && containerId != lastBackContainerId) {
+            // A false return means the gate denied this tick and nothing advanced, so this same branch is
+            // reached again next tick and retries - hence no special handling here.
             goBack(client, screen, now);
             return;
         }
@@ -382,22 +412,30 @@ public final class AutoCroesusFeature {
         }
     }
 
-    private static void goBack(Minecraft client, AbstractContainerScreen<?> screen, long now) {
-        lastBackContainerId = screen.getMenu().containerId;
+    /** @return whether the "go back" actually happened. False means the {@link ActionGate} denied the click
+     *  this tick and NOTHING moved - {@code lastBackContainerId} in particular, so the caller's
+     *  "at most one back click per container instance" check still lets this be retried next tick. */
+    private static boolean goBack(Minecraft client, AbstractContainerScreen<?> screen, long now) {
         List<ItemStack> stacks = ChestProfitFeature.containerStacks(screen);
         for (int i = 0; i < stacks.size(); i++) {
             ItemStack stack = stacks.get(i);
             if (stack.is(Items.ARROW) && DungeonChestValuer.strip(stack.getHoverName().getString()).contains("Back")) {
-                click(client, screen, i);
+                if (!click(client, screen, i)) {
+                    return false;
+                }
+                lastBackContainerId = screen.getMenu().containerId;
                 setState(State.WAIT_BACK_TO_MENU, now);
-                return;
+                return true;
             }
         }
         // No "Go Back" arrow found - close instead and re-open the NPC (quoi's own fallback after a claim).
+        // Not gated: closing a container is not an interaction.
+        lastBackContainerId = screen.getMenu().containerId;
         if (client.player != null) {
             client.player.closeContainer();
         }
         setState(State.WAIT_BACK_TO_MENU, now);
+        return true;
     }
 
     private static void start(long now) {
@@ -471,11 +509,30 @@ public final class AutoCroesusFeature {
         return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
     }
 
-    private static void click(Minecraft client, AbstractContainerScreen<?> screen, int slot) {
+    private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slot) {
+        return click(client, screen, slot, null);
+    }
+
+    /** The one place this feature talks to the server, so it is also the one place the mod-wide
+     *  {@link ActionGate} is consulted. Every caller must treat {@code false} as "nothing happened this
+     *  tick": no state change, no counter, no {@code setState} - the same check simply runs again next tick.
+     *
+     *  @param beforeSend bookkeeping that has to be in place before the packet leaves (see
+     *                    {@link ChestProfitFeature#onClaimClick}); only run once the gate has accepted, so a
+     *                    denied tick can't register a claim for a click that was never sent.
+     *  @return whether the click was actually sent. */
+    private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slot, Runnable beforeSend) {
         if (client.player == null || client.gameMode == null) {
-            return;
+            return false;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.CROESUS, screen)) {
+            return false;
+        }
+        if (beforeSend != null) {
+            beforeSend.run();
         }
         clicks++;
         client.gameMode.handleContainerInput(screen.getMenu().containerId, slot, 0, ContainerInput.CLONE, client.player);
+        return true;
     }
 }

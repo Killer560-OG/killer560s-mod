@@ -99,7 +99,11 @@ final class AutoReposition {
                     cancel(client);
                     return;
                 }
-                AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1]);
+                if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+                    return; // gate held this tick back - stay in USE and warp on a later tick
+                }
+                // Our own warp - waive the gate's teleport stand-down so the arrival step isn't held off too.
+                com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
                 wait = ARRIVE_TIMEOUT_TICKS;
                 stage = Stage.AWAIT_ARRIVE;
             }

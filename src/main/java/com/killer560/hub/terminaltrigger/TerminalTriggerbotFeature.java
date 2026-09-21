@@ -3,6 +3,7 @@ package com.killer560.hub.terminaltrigger;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.terminalaura.TerminalStands;
+import com.killer560.hub.util.ActionGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -96,6 +97,12 @@ public final class TerminalTriggerbotFeature {
             return;
         }
         if (now < triggerAtMs) {
+            return;
+        }
+        // Mod-wide one-interaction-per-tick gate, checked after the delay has elapsed but before anything is
+        // sent and before `clicked`/lastClickMs move: a denied tick leaves pendingEntityId armed and the
+        // trigger simply fires on the next tick the gate lets it through.
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
             return;
         }
         client.gameMode.interact(player, hit.stand(), new EntityHitResult(hit.stand(), hit.point()),

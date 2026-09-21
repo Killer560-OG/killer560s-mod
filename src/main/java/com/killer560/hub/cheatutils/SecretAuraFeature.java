@@ -192,6 +192,11 @@ public final class SecretAuraFeature {
         if (bestPos == null || now - lastClickMs < cfg.getAuraCooldownMs()) {
             return;
         }
+        // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
+        // tick costs nothing - the same (nearest) secret is simply re-picked next tick.
+        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_AURA)) {
+            return;
+        }
         long key = bestPos.asLong();
         Attempt prev = attempts.get(key);
         int count = prev == null ? 1 : prev.count() + 1;

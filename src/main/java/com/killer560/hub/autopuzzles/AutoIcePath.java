@@ -101,7 +101,9 @@ final class AutoIcePath {
         if (dir == null || !AutoPuzzleUtil.isShortbow(player.getMainHandItem())) {
             return;
         }
-        AutoPuzzleUtil.useItemRotated(client, player, dir[0], 90f);
+        if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], 90f)) {
+            return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
+        }
         LOGGER.info("[AutoPuzzles] IcePath: shot silverfish at {} towards {} (yaw={})", currSpot, nextSpot, dir[0]);
         lastShotTime = now;
         waitingForUpdate = true;

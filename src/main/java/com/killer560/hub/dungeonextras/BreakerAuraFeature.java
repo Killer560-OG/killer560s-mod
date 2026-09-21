@@ -2,6 +2,8 @@ package com.killer560.hub.dungeonextras;
 
 import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ActionGate;
+import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -11,6 +13,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -70,7 +73,27 @@ public final class BreakerAuraFeature {
     private static String lastSkipReason = null;
     private static boolean wasActive = false;
 
+    // ---- Auto Swap (killer560, 2026-09-20: "an option to make it swap to the breaker or not swap to the breaker
+    // automatically ... If it swaps automatically it should whenever the blocks are in range swap to the breaker and
+    // then break them"). A slot change and a block break on the same tick is not a thing a hand does, so the swap
+    // arms a configurable delay and the first break only goes out once that delay has run down.
+    private static int swappedFromSlot = -1;
+    private static int swapArmedTicks = 0;
+    private static int idleSinceSwapTicks = 0;
+    private static boolean warnedNoBreakerInHotbar = false;
+
     private BreakerAuraFeature() {
+    }
+
+    private static void resetState() {
+        RECENT.clear();
+        lastSkipReason = null;
+        spentSinceLore = 0;
+        lastLoreCharges = -1;
+        swappedFromSlot = -1;
+        swapArmedTicks = 0;
+        idleSinceSwapTicks = 0;
+        warnedNoBreakerInHotbar = false;
     }
 
     private static void skip(String reason) {
@@ -87,19 +110,24 @@ public final class BreakerAuraFeature {
         if (active != wasActive) {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
-            RECENT.clear();
-            lastSkipReason = null;
-            spentSinceLore = 0;
-            lastLoreCharges = -1;
+            if (!active) {
+                restoreSlot(client, "turned off");
+            }
+            resetState();
         }
         if (!active) {
             return;
         }
-        if (cooldownTicks > 0) {
-            cooldownTicks--;
+        // killer560 (2026-09-20): "It needs an edit mode where when I am in the edit mode, the breaker aura will not
+        // work." Placing route nodes means right-clicking blocks you are standing next to, which is exactly what the
+        // aura wants to chew through. Auto Routes owns the only real edit mode in the mod; AP3 has none (see notes).
+        if (cfg.isBreakerAuraRespectEditMode() && isRouteEditModeActive()) {
+            restoreSlot(client, "edit mode");
+            skip("Auto Routes edit mode is active");
             return;
         }
         if (client.screen != null) {
+            // Redundant with ActionGate's WORLD rule, but cheaper and it keeps the swap-back from firing mid-menu.
             skip("screen open");
             return;
         }
@@ -109,15 +137,35 @@ public final class BreakerAuraFeature {
         }
         LocalPlayer player = client.player;
         ClientLevel level = client.level;
-        ItemStack held = player.getMainHandItem();
-        int charges = getBreakerCharges(held);
+
+        int breakerSlot = findBreakerHotbarSlot(player);
+        int selected = player.getInventory().getSelectedSlot();
+        boolean autoSwap = cfg.isBreakerAuraAutoSwap();
+        if (autoSwap && breakerSlot < 0) {
+            // "If the breaker is not in the hotbar at all, do nothing and say so once - never rummage the inventory."
+            if (!warnedNoBreakerInHotbar) {
+                warnedNoBreakerInHotbar = true;
+                ModChat.send("Breaker Aura", ModChat.text("Auto Swap is on but there is no "),
+                        ModChat.value("Dungeon Breaker"), ModChat.text(" in your hotbar - leaving your hand alone."));
+            }
+            // The breaker running out of charges mid-run lands here, so this is also where the hand has to go
+            // back - otherwise Auto Swap leaves you holding a spent breaker for the rest of the floor.
+            restoreSlot(client, "no Dungeon Breaker with charges left in the hotbar");
+            skip("auto swap on, no Dungeon Breaker in the hotbar");
+            return;
+        }
+        // Without Auto Swap the breaker has to already be in the main hand, exactly as before.
+        ItemStack source = autoSwap && breakerSlot >= 0 ? player.getInventory().getItem(breakerSlot) : player.getMainHandItem();
+        int charges = getBreakerCharges(source);
         if (charges != lastLoreCharges) {
             lastLoreCharges = charges;
             spentSinceLore = 0;
         }
         int available = charges - spentSinceLore;
         if (available <= 0) {
-            skip(charges <= 0 ? "no Dungeon Breaker charges in main hand" : "local charges spent, waiting for lore update");
+            skip(charges <= 0
+                    ? (autoSwap ? "no Dungeon Breaker charges in the hotbar" : "no Dungeon Breaker charges in main hand")
+                    : "local charges spent, waiting for lore update");
             return;
         }
 
@@ -127,31 +175,111 @@ public final class BreakerAuraFeature {
         List<BlockPos> targets = collectPathTargets(player, level, cfg.getBreakerAuraReach(), now);
         if (targets.isEmpty()) {
             skip("no valid blocks in path");
+            if (autoSwap && swappedFromSlot >= 0 && cfg.isBreakerAuraSwapBack()
+                    && ++idleSinceSwapTicks >= cfg.getBreakerAuraSwapBackIdleTicks()) {
+                restoreSlot(client, "nothing left in the path");
+            }
             return;
         }
         lastSkipReason = null;
-        int limit = Math.min(available, cfg.getBreakerAuraBlocksPerCycle());
-        int broken = 0;
+        idleSinceSwapTicks = 0;
+
+        if (autoSwap && selected != breakerSlot) {
+            if (swapArmedTicks <= 0) {
+                if (swappedFromSlot < 0) {
+                    swappedFromSlot = selected;
+                }
+                player.getInventory().setSelectedSlot(breakerSlot);
+                player.connection.send(new ServerboundSetCarriedItemPacket(breakerSlot));
+                swapArmedTicks = cfg.getBreakerAuraSwapDelayTicks();
+                LOGGER.info("[DungeonExtras] Breaker Aura swapped {} -> {} for the breaker, first break in {} ticks.",
+                        selected, breakerSlot, swapArmedTicks);
+            }
+            return;
+        }
+        if (swapArmedTicks > 0) {
+            // Settling window after a slot change; the break goes out once the server has plausibly seen the swap.
+            swapArmedTicks--;
+            return;
+        }
+        if (cooldownTicks > 0) {
+            cooldownTicks--;
+            return;
+        }
+
+        // killer560: "if I have two levers in my range at once or two chests have it only pick one and then the other
+        // on the next tick". One block per cycle, nearest to the eye first - the old loop broke up to five in a
+        // single tick, which is the classic aura signature.
+        Vec3 eye = player.getEyePosition();
+        BlockPos chosen = null;
+        BlockHitResult chosenHit = null;
+        double bestSq = Double.MAX_VALUE;
         for (BlockPos pos : targets) {
-            if (broken >= limit) {
-                break;
+            double distSq = Vec3.atCenterOf(pos).distanceToSqr(eye);
+            if (distSq >= bestSq) {
+                continue;
             }
             BlockHitResult hit = hitResult(player, level, pos);
             if (hit == null) {
                 continue;
             }
-            Block block = level.getBlockState(pos).getBlock();
-            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing());
-            RECENT.put(pos, now);
-            spentSinceLore++;
-            broken++;
-            LOGGER.info("[DungeonExtras] Breaker Aura sent START_DESTROY_BLOCK at {} ({}), charges {} -> {} (local).",
-                    pos, block, charges, charges - spentSinceLore);
+            chosen = pos;
+            chosenHit = hit;
+            bestSq = distSq;
         }
-        if (broken > 0) {
-            player.swing(InteractionHand.MAIN_HAND);
-            cooldownTicks = cfg.getBreakerAuraCooldownTicks();
+        if (chosen == null) {
+            skip("no reachable face on any block in the path");
+            return;
         }
+        // Last thing before any state changes: nothing below may run if the gate refuses the tick.
+        if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
+            return;
+        }
+        Block block = level.getBlockState(chosen).getBlock();
+        breakBlock(invoker, level, chosen, chosenHit.getDirection(), cfg.isBreakerAuraZeroPing());
+        RECENT.put(chosen, now);
+        spentSinceLore++;
+        player.swing(InteractionHand.MAIN_HAND);
+        cooldownTicks = cfg.getBreakerAuraCooldownTicks();
+        LOGGER.info("[DungeonExtras] Breaker Aura sent START_DESTROY_BLOCK at {} ({}), charges {} -> {} (local).",
+                chosen, block, charges, charges - spentSinceLore);
+    }
+
+    /** True while Auto Routes is in its block-placing edit mode. AP3 has no edit mode to ask about (see notes). */
+    private static boolean isRouteEditModeActive() {
+        try {
+            return com.killer560.hub.autoroutes.AutoRoutesFeature.isEditMode();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** Puts the hand back where Auto Swap found it. No-op unless we are the ones who moved it. */
+    private static void restoreSlot(Minecraft client, String why) {
+        int back = swappedFromSlot;
+        swappedFromSlot = -1;
+        swapArmedTicks = 0;
+        idleSinceSwapTicks = 0;
+        LocalPlayer player = client.player;
+        if (back < 0 || back > 8 || player == null || player.connection == null) {
+            return;
+        }
+        if (player.getInventory().getSelectedSlot() == back) {
+            return;
+        }
+        player.getInventory().setSelectedSlot(back);
+        player.connection.send(new ServerboundSetCarriedItemPacket(back));
+        LOGGER.info("[DungeonExtras] Breaker Aura swapped back to slot {} ({}).", back, why);
+    }
+
+    /** First hotbar slot holding a DUNGEONBREAKER with charges left, or -1. Hotbar only - never the inventory. */
+    private static int findBreakerHotbarSlot(LocalPlayer player) {
+        for (int i = 0; i < 9; i++) {
+            if (getBreakerCharges(player.getInventory().getItem(i)) > 0) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static void breakBlock(MultiPlayerGameModeInvoker invoker, ClientLevel level, BlockPos pos,

@@ -245,6 +245,9 @@ public final class AutoPuzzlesFeature {
             }
             return;
         }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - the question is not marked acted, we just click on a later tick
+        }
         quizActed = true; // once per question, even if the click itself can't be built
         if (!interactBlockNoRotate(client, answer)) {
             LOGGER.warn("[AutoPuzzles] Quiz: no clickable shape at {} (state={}) - not clicking this question",
@@ -351,6 +354,9 @@ public final class AutoPuzzlesFeature {
             }
             return;
         }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - the room is not marked acted, we just open on a later tick
+        }
         weirdosActedPos = chest;
         if (!interactBlockNoRotate(client, chest)) {
             LOGGER.warn("[AutoPuzzles] Weirdos: no clickable shape at {} (state={}) - not opening this room", chest, state);
@@ -364,26 +370,34 @@ public final class AutoPuzzlesFeature {
         if (clickedNpcIds.size() >= 3 || now - lastNpcClickMs < NPC_CLICK_GAP_MS) {
             return;
         }
+        // One NPC per tick, nearest first (the entity iteration order is not stable enough to be a rule on its own,
+        // and the remaining stands are simply talked to on later ticks).
+        Entity best = null;
+        double bestDistSq = Double.MAX_VALUE;
         for (Entity entity : client.level.entitiesForRendering()) {
             if (!(entity instanceof ArmorStand) || clickedNpcIds.contains(entity.getId())) {
                 continue;
             }
             double distSq = entity.distanceToSqr(client.player);
-            if (distSq > NPC_SCAN_RADIUS_SQ || distSq > NPC_REACH_SQ) {
+            if (distSq > NPC_SCAN_RADIUS_SQ || distSq > NPC_REACH_SQ || distSq >= bestDistSq) {
                 continue;
             }
             String stripped = ChatFormatting.stripFormatting(entity.getName().getString());
             if (stripped == null || !stripped.contains("CLICK")) {
                 continue;
             }
-            client.gameMode.interact(client.player, entity, new EntityHitResult(entity), InteractionHand.MAIN_HAND);
-            client.player.swing(InteractionHand.MAIN_HAND);
-            clickedNpcIds.add(entity.getId());
-            lastNpcClickMs = now;
-            LOGGER.info("[AutoPuzzles] Weirdos: talked to NPC stand id={} at {} ({}/3)",
-                    entity.getId(), entity.blockPosition(), clickedNpcIds.size());
-            return;
+            best = entity;
+            bestDistSq = distSq;
         }
+        if (best == null || !AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - nothing clicked, so the NPC stays unmarked and the gap untouched
+        }
+        client.gameMode.interact(client.player, best, new EntityHitResult(best), InteractionHand.MAIN_HAND);
+        client.player.swing(InteractionHand.MAIN_HAND);
+        clickedNpcIds.add(best.getId());
+        lastNpcClickMs = now;
+        LOGGER.info("[AutoPuzzles] Weirdos: talked to NPC stand id={} at {} ({}/3)",
+                best.getId(), best.blockPosition(), clickedNpcIds.size());
     }
 
     private static void resetWeirdos() {

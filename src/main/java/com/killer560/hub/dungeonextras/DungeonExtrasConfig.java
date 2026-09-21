@@ -49,9 +49,21 @@ public final class DungeonExtrasConfig {
     // Breaker Aura (cheat)
     private boolean breakerAuraEnabled = false;
     private double breakerAuraReach = 4.5;
+    /** Kept so old configs still load. killer560 (2026-09-20) asked every aura to take one target per tick, so
+     *  Breaker Aura now always breaks exactly one block per cycle and this value is no longer read. */
     private int breakerAuraBlocksPerCycle = 1;
     private int breakerAuraCooldownTicks = 6;
     private boolean breakerAuraZeroPing = false;
+    /** killer560: "when I am in the edit mode, the breaker aura will not work ... toggle that in the actual setting." */
+    private boolean breakerAuraRespectEditMode = true;
+    private boolean breakerAuraAutoSwap = false;
+    private int breakerAuraSwapDelayTicks = 4;
+    private boolean breakerAuraSwapBack = true;
+    private int breakerAuraSwapBackIdleTicks = 20;
+
+    // Shared automation gate (global; lives here because this config is already in ProfileManager.reloadAllConfigs).
+    private boolean actionGateEnabled = true;
+    private int actionGateMinSpacingTicks = 2;
 
     private DungeonExtrasConfig() {
     }
@@ -83,11 +95,25 @@ public final class DungeonExtrasConfig {
                 cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 5);
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 1, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
+                cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
+                cfg.breakerAuraAutoSwap = bool(o, "breakerAuraAutoSwap", cfg.breakerAuraAutoSwap);
+                cfg.breakerAuraSwapDelayTicks = clampInt(o.has("breakerAuraSwapDelayTicks") ? o.get("breakerAuraSwapDelayTicks").getAsInt() : cfg.breakerAuraSwapDelayTicks, 1, 20);
+                cfg.breakerAuraSwapBack = bool(o, "breakerAuraSwapBack", cfg.breakerAuraSwapBack);
+                cfg.breakerAuraSwapBackIdleTicks = clampInt(o.has("breakerAuraSwapBackIdleTicks") ? o.get("breakerAuraSwapBackIdleTicks").getAsInt() : cfg.breakerAuraSwapBackIdleTicks, 5, 100);
+                cfg.actionGateEnabled = bool(o, "actionGateEnabled", cfg.actionGateEnabled);
+                cfg.actionGateMinSpacingTicks = clampInt(o.has("actionGateMinSpacingTicks") ? o.get("actionGateMinSpacingTicks").getAsInt() : cfg.actionGateMinSpacingTicks, 0, 10);
             } catch (Exception e) {
                 cfg = new DungeonExtrasConfig();
             }
         }
         instance = cfg;
+        cfg.pushActionGate();
+    }
+
+    /** The gate itself holds no file of its own, so every load/save republishes the two settings to it. */
+    private void pushActionGate() {
+        com.killer560.hub.util.ActionGate.setEnabled(actionGateEnabled);
+        com.killer560.hub.util.ActionGate.setMinSpacingTicks(actionGateMinSpacingTicks);
     }
 
     public void save() {
@@ -109,9 +135,17 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
             o.addProperty("breakerAuraCooldownTicks", breakerAuraCooldownTicks);
             o.addProperty("breakerAuraZeroPing", breakerAuraZeroPing);
+            o.addProperty("breakerAuraRespectEditMode", breakerAuraRespectEditMode);
+            o.addProperty("breakerAuraAutoSwap", breakerAuraAutoSwap);
+            o.addProperty("breakerAuraSwapDelayTicks", breakerAuraSwapDelayTicks);
+            o.addProperty("breakerAuraSwapBack", breakerAuraSwapBack);
+            o.addProperty("breakerAuraSwapBackIdleTicks", breakerAuraSwapBackIdleTicks);
+            o.addProperty("actionGateEnabled", actionGateEnabled);
+            o.addProperty("actionGateMinSpacingTicks", actionGateMinSpacingTicks);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+        pushActionGate();
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {
@@ -164,4 +198,23 @@ public final class DungeonExtrasConfig {
     public boolean isBreakerAuraZeroPing() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraZeroPing; }
     public boolean isBreakerAuraZeroPingRaw() { return breakerAuraZeroPing; }
     public void setBreakerAuraZeroPing(boolean v) { breakerAuraZeroPing = v; }
+    public boolean isBreakerAuraRespectEditMode() { return breakerAuraRespectEditMode; }
+    public void setBreakerAuraRespectEditMode(boolean v) { breakerAuraRespectEditMode = v; }
+    public boolean isBreakerAuraAutoSwap() { return breakerAuraAutoSwap; }
+    public void setBreakerAuraAutoSwap(boolean v) { breakerAuraAutoSwap = v; }
+    public int getBreakerAuraSwapDelayTicks() { return breakerAuraSwapDelayTicks; }
+    public void setBreakerAuraSwapDelayTicks(int v) { breakerAuraSwapDelayTicks = clampInt(v, 1, 20); }
+    public boolean isBreakerAuraSwapBack() { return breakerAuraSwapBack; }
+    public void setBreakerAuraSwapBack(boolean v) { breakerAuraSwapBack = v; }
+    public int getBreakerAuraSwapBackIdleTicks() { return breakerAuraSwapBackIdleTicks; }
+    public void setBreakerAuraSwapBackIdleTicks(int v) { breakerAuraSwapBackIdleTicks = clampInt(v, 5, 100); }
+
+    // ---- Shared automation gate (both builds; it only ever delays, never acts) ----
+    public boolean isActionGateEnabled() { return actionGateEnabled; }
+    public void setActionGateEnabled(boolean v) { actionGateEnabled = v; com.killer560.hub.util.ActionGate.setEnabled(v); }
+    public int getActionGateMinSpacingTicks() { return actionGateMinSpacingTicks; }
+    public void setActionGateMinSpacingTicks(int v) {
+        actionGateMinSpacingTicks = clampInt(v, 0, 10);
+        com.killer560.hub.util.ActionGate.setMinSpacingTicks(actionGateMinSpacingTicks);
+    }
 }

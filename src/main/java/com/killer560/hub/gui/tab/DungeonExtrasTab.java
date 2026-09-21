@@ -172,20 +172,7 @@ public class DungeonExtrasTab extends BaseTab {
                     }).bounds(col2bX, y, col2W, 18).build());
             y += 20;
 
-            widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, perCycleText(cfg),
-                    (cfg.getBreakerAuraBlocksPerCycle() - 1) / 4.0) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(perCycleText(cfg));
-                }
-
-                @Override
-                protected void applyValue() {
-                    cfg.setBreakerAuraBlocksPerCycle((int) Math.round(1 + this.value * 4));
-                    cfg.save();
-                }
-            });
-            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, cooldownText(cfg),
+            widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, cooldownText(cfg),
                     (cfg.getBreakerAuraCooldownTicks() - 1) / 19.0) {
                 @Override
                 protected void updateMessage() {
@@ -195,6 +182,86 @@ public class DungeonExtrasTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setBreakerAuraCooldownTicks((int) Math.round(1 + this.value * 19));
+                    cfg.save();
+                }
+            });
+            widgets.add(SettingsButtonWidget.builder(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()), btn -> {
+                        cfg.setBreakerAuraRespectEditMode(!cfg.isBreakerAuraRespectEditMode());
+                        cfg.save();
+                        btn.setMessage(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()));
+                    }).bounds(col2bX, y, col2W, 18).build());
+            y += 20;
+
+            widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isBreakerAuraAutoSwap()), btn -> {
+                        cfg.setBreakerAuraAutoSwap(!cfg.isBreakerAuraAutoSwap());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 20;
+
+            if (cfg.isBreakerAuraAutoSwap()) {
+                widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, swapDelayText(cfg),
+                        (cfg.getBreakerAuraSwapDelayTicks() - 1) / 19.0) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(swapDelayText(cfg));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        cfg.setBreakerAuraSwapDelayTicks((int) Math.round(1 + this.value * 19));
+                        cfg.save();
+                    }
+                });
+                widgets.add(SettingsButtonWidget.builder(onOff("Swap Back", cfg.isBreakerAuraSwapBack()), btn -> {
+                            cfg.setBreakerAuraSwapBack(!cfg.isBreakerAuraSwapBack());
+                            cfg.save();
+                            requestRebuild.run();
+                        }).bounds(col2bX, y, col2W, 18).build());
+                y += 20;
+
+                if (cfg.isBreakerAuraSwapBack()) {
+                    widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, swapBackText(cfg),
+                            (cfg.getBreakerAuraSwapBackIdleTicks() - 5) / 95.0) {
+                        @Override
+                        protected void updateMessage() {
+                            setMessage(swapBackText(cfg));
+                        }
+
+                        @Override
+                        protected void applyValue() {
+                            cfg.setBreakerAuraSwapBackIdleTicks((int) Math.round(5 + this.value * 95));
+                            cfg.save();
+                        }
+                    });
+                    y += 20;
+                }
+            }
+            y += 6;
+        }
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Cheat Build - Action Gate (all auras)", true), mc.font));
+        y += 16;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Action Gate", cfg.isActionGateEnabled()), btn -> {
+                    cfg.setActionGateEnabled(!cfg.isActionGateEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
+        if (cfg.isActionGateEnabled()) {
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, gateSpacingText(cfg),
+                    cfg.getActionGateMinSpacingTicks() / 10.0) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(gateSpacingText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setActionGateMinSpacingTicks((int) Math.round(this.value * 10));
                     cfg.save();
                 }
             });
@@ -219,8 +286,17 @@ public class DungeonExtrasTab extends BaseTab {
         return Component.literal(String.format(Locale.US, "Reach: %.1f", cfg.getBreakerAuraReach()));
     }
 
-    private static Component perCycleText(DungeonExtrasConfig cfg) {
-        return Component.literal("Blocks/Cycle: " + cfg.getBreakerAuraBlocksPerCycle());
+    private static Component swapDelayText(DungeonExtrasConfig cfg) {
+        return Component.literal("Swap Delay: " + cfg.getBreakerAuraSwapDelayTicks() + " ticks");
+    }
+
+    private static Component swapBackText(DungeonExtrasConfig cfg) {
+        return Component.literal("Swap Back After: " + cfg.getBreakerAuraSwapBackIdleTicks() + " idle ticks");
+    }
+
+    private static Component gateSpacingText(DungeonExtrasConfig cfg) {
+        int t = cfg.getActionGateMinSpacingTicks();
+        return Component.literal("Min Spacing: " + t + " tick" + (t == 1 ? "" : "s") + " (" + (t * 50) + " ms)");
     }
 
     private static Component cooldownText(DungeonExtrasConfig cfg) {

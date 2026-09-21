@@ -183,7 +183,9 @@ public final class AutoBeams {
         if (dir == null) {
             dir = AutoPuzzleUtil.direction(player.getEyePosition(), lanternVec);
         }
-        AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1]);
+        if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
+        }
         LOGGER.info("[AutoPuzzles] Beams: shot lantern {} (stage {}) yaw={} pitch={}", lantern, pair.stage, dir[0], dir[1]);
         lastShotTime = now;
         waitingForUpdate = true;

@@ -131,6 +131,9 @@ final class AutoWater {
             }
             return;
         }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - the lever stays due and nothing is marked clicked/stopped
+        }
         lastWaitLog = null;
         int countedBefore = WaterSolverFeature.getCountedClicks();
         lastClickTick = tick;

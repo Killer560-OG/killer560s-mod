@@ -133,15 +133,24 @@ final class AutoIceFill {
         if (lastIndex >= path.size() - 1) {
             return;
         }
-        if (++ticks == cfg.getIceFillDelayTicks()) {
+        // ticks is only advanced on a tick we did NOT warp on: >= (not ==) so that a tick the gate holds back simply
+        // leaves the warp due, and the very next allowed tick takes it. The unblocked cadence is unchanged.
+        if (ticks + 1 >= cfg.getIceFillDelayTicks()) {
             Vec3 current = path.get(lastIndex);
             Vec3 next = path.get(lastIndex + 1);
             Vec3 from = new Vec3(current.x, current.y - 0.1 + player.getEyeHeight(), current.z);
             float[] dir = AutoPuzzleUtil.direction(from, next);
-            AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1]);
+            if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+                return; // gate held this tick back - nothing warped, so lastIndex / ticks must not move
+            }
+            // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the
+            // 6-tick teleport window would override the 2-tick Delay setting on every single step of the path.
+            com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
             LOGGER.info("[AutoPuzzles] IceFill: teleport {} -> {} ({}/{})", current, next, lastIndex + 1, path.size() - 1);
             lastIndex++;
             ticks = 0;
+        } else {
+            ticks++;
         }
     }
 
