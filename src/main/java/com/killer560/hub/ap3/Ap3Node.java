@@ -145,6 +145,9 @@ public final class Ap3Node {
 
     public static final double DEFAULT_LENGTH = 1.0;
     public static final double DEFAULT_WIDTH = 1.0;
+    /** ALIGN / AXIS_ALIGN start at half a block each way - killer560 (2026-09-21): "by default our nodes should be
+     *  .5 .5 of a block". Only the placement default: a saved size is kept exactly. */
+    public static final double DEFAULT_ALIGN_SIZE = 0.5;
     public static final double MIN_LENGTH = 0.5;
     public static final double MAX_LENGTH = 64.0;
     public static final double MIN_WIDTH = 0.5;
@@ -152,8 +155,6 @@ public final class Ap3Node {
     /** Matches {@code Ap3Commands.MAX_WAIT_MS}, which is what the command and the tooltip promise. */
     public static final int MAX_WAIT_MS = 120_000;
     public static final int MAX_LEAP_COUNT = 4;
-    /** Half-width of the rendered marker box. */
-    public static final double MARKER_HALF = 0.25;
     /** A node counts as reached while your feet are within this much of its floor (stairs, a small ledge). */
     public static final double BOX_Y_TOLERANCE = 1.5;
     private static final double BOX_EPS = 0.02;
@@ -198,9 +199,21 @@ public final class Ap3Node {
         this.z = z;
         this.yaw = yaw;
         this.pitch = pitch;
-        // killer560 (2026-09-20 in-game test): "The align shouldnt default to this 3x3. It should only be the small
-        // inner box." Every node - aligns included - now defaults to the 1x1 block it sits on; an align still pulls
-        // you in from ALIGN_REACH once the chain reaches it, so a small box does not mean it is easy to miss.
+        // killer560 (2026-09-20): "The align shouldnt default to this 3x3. It should only be the small inner box."
+        // and (2026-09-21) "by default our nodes should be .5 .5 of a block" - an align starts at 0.5 x 0.5, every
+        // other type at the 1x1 block it sits on. An align still pulls you in from ALIGN_REACH once it fires.
+        this.width = defaultWidth();
+        this.length = defaultLength();
+    }
+
+    /** The trigger width a freshly placed node of this type gets. */
+    public double defaultWidth() {
+        return type != null && type.isAlign() ? DEFAULT_ALIGN_SIZE : DEFAULT_WIDTH;
+    }
+
+    /** The trigger length a freshly placed node of this type gets. */
+    public double defaultLength() {
+        return type != null && type.isAlign() ? DEFAULT_ALIGN_SIZE : DEFAULT_LENGTH;
     }
 
     // ---- snapping -------------------------------------------------------------------------------------------
@@ -308,9 +321,10 @@ public final class Ap3Node {
         return (p.x - x) * d.x + (p.z - z) * d.z;
     }
 
-    /** True for the plain 1x1 box every node starts with. */
+    /** True while the box is still the size this node's type is placed with (0.5x0.5 align, 1x1 otherwise) - only
+     *  decides whether chat / labels print the size; every box is drawn and tested at its exact size. */
     public boolean hasDefaultBox() {
-        return width == DEFAULT_WIDTH && length == DEFAULT_LENGTH;
+        return width == defaultWidth() && length == defaultLength();
     }
 
     /** Whether the trigger box lies square to the world axes (every align box does; a walk box only when it was
@@ -363,11 +377,6 @@ public final class Ap3Node {
         return Math.sqrt(dx * dx + dz * dz);
     }
 
-    /** The marker box drawn for the node. */
-    public AABB boundingBox(double height) {
-        return new AABB(x - MARKER_HALF, y, z - MARKER_HALF, x + MARKER_HALF, y + Math.max(0.1, height), z + MARKER_HALF);
-    }
-
     /** Unit world vector of the AXIS_ALIGN wall side, or null when none was recorded. */
     public Vec3 wallVector() {
         return wallDir == null ? null : new Vec3(wallDir.getStepX(), 0.0, wallDir.getStepZ());
@@ -401,7 +410,7 @@ public final class Ap3Node {
             default -> {
             }
         }
-        if (length != DEFAULT_LENGTH || width != DEFAULT_WIDTH) {
+        if (!hasDefaultBox()) {
             sb.append(String.format(Locale.US, " box %sx%s", fmt(width), fmt(length)));
         }
         if (waitAfterMs > 0) {

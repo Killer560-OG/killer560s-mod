@@ -84,11 +84,16 @@ import java.util.UUID;
  * queue is cleared, and nothing moves again until a node at the destination fires. AP3 only ever OBSERVES Fast
  * Leap's leap; it never cancels, delays or re-triggers it.
  * <p>
- * <b>Your hands win.</b> A physical movement key ends everything AP3 is doing (mixin path: the untouched
- * {@code keyPresses}; fallback path: the physical keys through {@code KeyMappingKeyAccessor}). A node you walk
- * into while holding a key does not fire under your hands: it fires the moment you let go while still inside the
- * box, once, and not again until you leave and come back - so walking onto a node with W held and releasing is the
- * natural hand-over, and tapping a key on a node you already fired does not fire it again.
+ * <b>Your hands win - except for an align.</b> A physical movement key ends everything AP3 is doing (mixin path:
+ * the untouched {@code keyPresses}; fallback path: the physical keys through {@code KeyMappingKeyAccessor}). A node
+ * you walk into while holding a key does not fire under your hands: it fires the moment you let go while still
+ * inside the box, once, and not again until you leave and come back - so walking onto a node with W held and
+ * releasing is the natural hand-over, and tapping a key on a node you already fired does not fire it again. An
+ * ALIGN / AXIS_ALIGN is the exception - killer560 (2026-09-21): "if I am holding a movement key and run into them
+ * then it should make me stop holding my key and align me." Entering one fires it at once, hands or no hands, and
+ * while it is queued or being performed {@link #isInputOverridden()} has the input mixin replace his keys with
+ * AP3's own input (the physical keys are never touched), so they count as released; the moment the align completes
+ * (or a stop / leap / teleport ends it) his keys are his again and, if still held, move him on the next tick.
  * <p>
  * <b>Interactions go through {@link ActionGate}</b> as {@link ActionGate.Actor#ROUTE}: the boom's hotbar swap and
  * its destroy tap, and the leap request. AP3 already fires at most one node per tick and performs one node at a
@@ -532,6 +537,24 @@ public final class Ap3Executor {
         return driving || wantSneak;
     }
 
+    /**
+     * From the input mixin: an align owns the input right now, so his held movement keys are replaced by AP3's
+     * own input instead of counting as a takeover (see the class doc). True from the tick an ALIGN / AXIS_ALIGN
+     * is triggered - queued behind a higher-priority node or already active, gate wait included - until it
+     * finishes or is ended by a stop / leap / teleport (both clear the active node and the queue).
+     */
+    public static boolean isInputOverridden() {
+        if (activeNode != null && activeNode.type.isAlign()) {
+            return true;
+        }
+        for (Ap3Node q : queue) {
+            if (q.type.isAlign()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The {@code Input} record the mixin installs: the 8-way keys nearest the analog direction, so the
      *  {@code ServerboundPlayerInputPacket} the server sees is the plausible one for the way we move. */
     public static Input drivenInput() {
@@ -748,7 +771,8 @@ public final class Ap3Executor {
     /**
      * The edge detector: entering a node's box (from outside) triggers it; staying inside does nothing; leaving
      * re-arms it. A box entered with a movement key held is remembered in {@link #unfired} and triggers the tick
-     * you let go while still inside - once. The player's keys are read physically so this is right on both the
+     * you let go while still inside - once - EXCEPT an align, which fires on entry regardless and takes the keys
+     * over ({@link #isInputOverridden()}). The player's keys are read physically so this is right on both the
      * mixin path (where the key mappings are untouched) and the fallback path (where AP3 holds the mappings).
      */
     private static void scanBoxes(Minecraft client, LocalPlayer player) {
@@ -767,7 +791,7 @@ public final class Ap3Executor {
                     // starts on the entry edge, whether the node fires now, waits its turn, or waits for his hands.
                     alignEntered.put(node, new long[]{tickCounter, System.currentTimeMillis()});
                 }
-                if (handsOn) {
+                if (handsOn && !node.type.isAlign()) {
                     unfired.add(node);
                 } else {
                     trigger(node);

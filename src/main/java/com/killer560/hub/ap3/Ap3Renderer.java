@@ -138,7 +138,7 @@ public final class Ap3Renderer {
             default -> {
             }
         }
-        if (node.width != Ap3Node.DEFAULT_WIDTH || node.length != Ap3Node.DEFAULT_LENGTH) {
+        if (!node.hasDefaultBox()) {
             append(sb, Ap3Node.fmt(node.width) + "x" + Ap3Node.fmt(node.length));
         }
         if (node.precise && node.type.isAlign()) {
@@ -161,17 +161,18 @@ public final class Ap3Renderer {
     }
 
     /**
-     * The node's ONE box. A default 1x1 node keeps the small marker it always had. A node with a set box size
-     * ({@code w2 l2}) draws the marker AT THE TRIGGER SIZE instead of a marker plus a faint outer rectangle -
-     * killer560 (2026-09-21): "don't show that faint outer line, instead expand that regular square to be that
-     * outer size". Fixed in world space: laid out on {@link Ap3Node#boxYaw()} (the block grid for an align, the
-     * recorded yaw for a walk), never on the player's position or facing. An axis-aligned box is a real AABB (so
-     * the active node's fill still works); a turned walk box is drawn as its two rings plus uprights.
+     * The node's ONE box, always at the EXACT trigger size, centred on the node. killer560 (2026-09-21): "if I go to
+     * 1 1 then nothing changes visually ... If I go bigger than 1 1 it does though" - a default-size node used to
+     * draw a fixed 0.5-wide marker whatever its real box was, so 0.5x0.5 and 1x1 looked the same; now what is drawn
+     * is what {@link Ap3Node#contains} tests. Fixed in world space: laid out on {@link Ap3Node#boxYaw()} (the block
+     * grid for an align, the recorded yaw for a walk), never on the player's position or facing. An axis-aligned box
+     * is a real AABB (so the active node's fill still works); a turned walk box is drawn as its two rings plus
+     * uprights.
      */
     private static void renderNodeBox(LevelRenderContext ctx, Ap3Node node, boolean active, double height,
                                       float[] c, float alpha, float thickness) {
-        if (node.hasDefaultBox() || node.isTriggerBoxAxisAligned()) {
-            AABB box = node.hasDefaultBox() ? node.boundingBox(height) : node.triggerBox(height);
+        if (node.isTriggerBoxAxisAligned()) {
+            AABB box = node.triggerBox(height);
             if (active) {
                 WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
             }

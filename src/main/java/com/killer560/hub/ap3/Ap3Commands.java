@@ -876,7 +876,7 @@ public final class Ap3Commands {
             default -> {
             }
         }
-        if (node.width() != Ap3Node.DEFAULT_WIDTH || node.length() != Ap3Node.DEFAULT_LENGTH) {
+        if (!node.hasDefaultBox()) {
             sb.append(" box ").append(Ap3Node.fmt(node.width())).append('x').append(Ap3Node.fmt(node.length()));
         }
         if (node.precise() && node.type().isAlign()) {

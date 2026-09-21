@@ -19,8 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * speed ({@code Ap3Executor#writeMove}: 1/0.98 for the real W+A speed, 1/d for the plain-W speed).
  * <p>
  * The physical keys are never touched, so the {@code keyPresses} read at the top are the player's own - that is how
- * "the player pressed WASD/space, stop immediately" is detected. Without this mixin (config not registered) the
- * executor falls back to holding the key mappings, 8-way only.
+ * "the player pressed WASD/space, stop immediately" is detected. The one exception is an align that owns the input
+ * ({@link Ap3Executor#isInputOverridden()}): his held keys are then REPLACED by AP3's record (all-off while the
+ * align settles) instead of stopping it - killer560 (2026-09-21): "it should make me stop holding my key and align
+ * me". Without this mixin (config not registered) the executor falls back to holding the key mappings, 8-way only,
+ * and cannot override held keys.
  * <p>
  * <b>Why a second mixin on the same method is safe:</b> {@code autoroutes/mixin/AutoRoutesInputMixin} injects here
  * too, but Auto Routes only ever runs in dungeon CLEAR (never boss) and AP3 only ever runs in the F7/M7 BOSS
@@ -40,13 +43,16 @@ public abstract class Ap3InputMixin extends ClientInput {
             return;
         }
         Input keys = this.keyPresses;
-        if (keys.forward() || keys.backward() || keys.left() || keys.right() || keys.jump()) {
+        boolean overridden = Ap3Executor.isInputOverridden();
+        if (!overridden && (keys.forward() || keys.backward() || keys.left() || keys.right() || keys.jump())) {
             Ap3Executor.onUserMovementInput();
             return;
         }
-        if (!Ap3Executor.isDriving()) {
+        if (!overridden && !Ap3Executor.isDriving()) {
             return;
         }
+        // Overridden but not driving (the align settling on its point): the record is all-off, so held keys move
+        // nothing - the sprint key included, the record carries AP3's own sprint flag.
         this.keyPresses = Ap3Executor.drivenInput();
         this.moveVector = new Vec2(Ap3Executor.moveVectorX(), Ap3Executor.moveVectorY());
     }
