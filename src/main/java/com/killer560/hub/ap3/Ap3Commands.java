@@ -391,8 +391,8 @@ public final class Ap3Commands {
             ModChat.send(FEATURE, ModChat.bad("Not available in this build."));
             return false;
         }
-        if (!com.killer560.hub.util.SkyblockGate.allows()) {
-            ModChat.send(FEATURE, ModChat.bad("Mods are paused outside Skyblock / p3sim."));
+        if (!com.killer560.hub.util.SkyblockGate.allows() && !Ap3Feature.isForceDungeon()) {
+            ModChat.send(FEATURE, ModChat.bad("Mods are paused outside Skyblock / p3sim (Force Dungeon in the AP3 tab lets AP3 test anywhere)."));
             return false;
         }
         if (!Ap3Config.getInstance().isEnabledRaw()) {

@@ -124,6 +124,21 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX + half + GAP, y[0], half, 20).build());
         y[0] += 24;
 
+        // killer560 (2026-09-21): "add a force dungeon tab to the ap3 so I can config outside of dungeons to test if
+        // I want to." Session only (Ap3Feature, not the config): off on every launch and world change.
+        boolean forced = safe(Ap3Feature::isForceDungeon);
+        w.add(SettingsButtonWidget.builder(onOff("Force Dungeon", forced), btn -> {
+                    Ap3Feature.setForceDungeon(!Ap3Feature.isForceDungeon());
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], half, 20).build());
+        if (forced) {
+            w.add(SettingsButtonWidget.builder(forcedAreaText(), btn -> {
+                        Ap3Feature.cycleForcedArea();
+                        btn.setMessage(forcedAreaText());
+                    }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
+        }
+        y[0] += 24;
+
         label(w, contentX, y, contentWidth, statusLine());
         // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
         // Test Mode is the dry-run toggle. (These lived in the removed chain section; they are not chain-specific.)
@@ -283,7 +298,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     /** Which gate is closed, or what's happening - BOSS ONLY is the rule that most needs to be visible. */
     private static String statusLine() {
-        if (!safe(Floor7Tracker::inF7Boss)) {
+        if (!safe(Floor7Tracker::inF7Boss) && !safe(Ap3Feature::isForceDungeon)) {
             return "§7AP3 status: not in the F7/M7 boss - nothing arms in clear.";
         }
         if (!safe(Ap3Commands::inBoss)) {
@@ -300,6 +315,9 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (safe(Floor7Tracker::isOnP3Sim)) {
             where += " (p3sim)";
         }
+        if (safe(Ap3Feature::isForcedOnly)) {
+            where += " §d(FORCED)§a";
+        }
         String test = safe(Ap3Executor::isTestMode) ? " §e[test mode]" : "";
         if (safe(Ap3Executor::isRunning)) {
             int queued = 0;
@@ -315,6 +333,16 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         } catch (Exception ignored) {
         }
         return "§aAP3 status: " + where + " - " + armed + " node(s) armed, walk into any to fire it." + test;
+    }
+
+    private static Component forcedAreaText() {
+        String area;
+        try {
+            area = Ap3Feature.forcedArea().label();
+        } catch (Exception e) {
+            area = "?";
+        }
+        return Component.literal("Forced Area: §d" + area);
     }
 
     private Component keyText(Action action, int key) {

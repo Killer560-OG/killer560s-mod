@@ -296,10 +296,11 @@ public final class Ap3Config {
 
     // ------------------------------------------------------------------------------------------- master
 
-    /** The legit jar can never report true here, even from a copied cheat-build config file. */
+    /** The legit jar can never report true here, even from a copied cheat-build config file. Force Dungeon
+     *  ({@link Ap3Feature#isForceDungeon()}, session only) opens AP3's own Skyblock / p3sim gate - and only AP3's. */
     public boolean isEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
-                && com.killer560.hub.util.SkyblockGate.allows();
+                && (com.killer560.hub.util.SkyblockGate.allows() || Ap3Feature.isForceDungeon());
     }
 
     public boolean isEnabledRaw() { return enabled; }

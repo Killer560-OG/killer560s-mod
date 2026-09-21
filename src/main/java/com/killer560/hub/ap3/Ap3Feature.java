@@ -67,6 +67,21 @@ public final class Ap3Feature {
     private static final Pattern SELF_LEAP = Pattern.compile("^You have teleported to \\w{1,16}!$");
 
     private static Object lastLevel;
+    /**
+     * Force Dungeon - killer560 (2026-09-21): "add a force dungeon tab to the ap3 so I can config outside of
+     * dungeons to test if I want to." SESSION ONLY, never saved: it is cleared on every world change and starts off
+     * on every launch, so it can never be left on going into a real run. While on, AP3's own gates read as "in the
+     * F7/M7 boss" wherever he is; the real arena still resolves phase / section from position and chat when he IS
+     * there, otherwise {@link #forcedArea} is the area. Nothing mod-wide changes ({@code SkyblockGate} is untouched
+     * for every other feature); the executor, rotation, input and ActionGate rules are exactly as in a real boss.
+     */
+    private static boolean forceDungeon;
+    /** The area Force Dungeon stands in when position / chat give none (the hub, singleplayer...). */
+    private static Ap3Area forcedArea = Ap3Area.p3(1);
+    /** The cycle order of the Forced Area button: P1, P2, S1-S5, P4, P5. */
+    private static final List<Ap3Area> FORCED_AREAS = List.of(
+            Ap3Area.ofPhase(Phase.P1), Ap3Area.ofPhase(Phase.P2), Ap3Area.p3(1), Ap3Area.p3(2), Ap3Area.p3(3),
+            Ap3Area.p3(4), Ap3Area.p3(5), Ap3Area.ofPhase(Phase.P4), Ap3Area.ofPhase(Phase.P5));
     private static boolean wasLive;
     private static boolean renderFailed;
     private static Ap3Area lastArea;
@@ -89,6 +104,9 @@ public final class Ap3Feature {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "ap3_stopwatch"),
                 (graphics, deltaTracker) -> drawStopwatchHud(graphics));
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
+                Identifier.fromNamespaceAndPath("killer560smod", "ap3_force_dungeon"),
+                (graphics, deltaTracker) -> drawForceDungeonReminder(graphics));
         LOGGER.info("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
@@ -104,17 +122,51 @@ public final class Ap3Feature {
         return currentPhase() != Phase.UNKNOWN;
     }
 
+    // ---- Force Dungeon (session only) ----
+
+    public static boolean isForceDungeon() {
+        return forceDungeon;
+    }
+
+    /** Turning it OFF outside a real boss is "leaving the boss": the next tick stands everything down. */
+    public static void setForceDungeon(boolean on) {
+        if (forceDungeon != on) {
+            forceDungeon = on;
+            LOGGER.info("[AP3] Force Dungeon {}", on ? "ON (session only)" : "off");
+        }
+    }
+
+    public static Ap3Area forcedArea() {
+        return forcedArea;
+    }
+
+    /** Next area in P1, P2, S1-S5, P4, P5 order. */
+    public static void cycleForcedArea() {
+        int i = FORCED_AREAS.indexOf(forcedArea);
+        forcedArea = FORCED_AREAS.get((i + 1) % FORCED_AREAS.size());
+    }
+
+    /** True while Force Dungeon is what makes AP3 live - he is NOT in a real F7/M7 boss. */
+    public static boolean isForcedOnly() {
+        return forceDungeon && !Floor7Tracker.inF7Boss();
+    }
+
     /**
      * The boss phase you are in: chat-driven first ({@code Floor7Tracker.getPhase()}); when no boss dialogue has been
      * heard yet this world (a mid-run rejoin; p3sim before its Maxor line, which {@code Floor7Tracker} turns into
-     * P3 / UNKNOWN itself, server-checked) the position-based phase is used instead. UNKNOWN outside the F7/M7 boss.
+     * P3 / UNKNOWN itself, server-checked) the position-based phase is used instead. UNKNOWN outside the F7/M7 boss -
+     * unless Force Dungeon is on, when the forced area's phase stands in for whatever position / chat cannot give.
      */
     public static Phase currentPhase() {
-        if (!Floor7Tracker.inF7Boss()) {
-            return Phase.UNKNOWN;
+        Phase real = Phase.UNKNOWN;
+        if (Floor7Tracker.inF7Boss()) {
+            Phase chat = Floor7Tracker.getPhase();
+            real = chat != Phase.UNKNOWN ? chat : Floor7Tracker.getPhaseAt();
         }
-        Phase chat = Floor7Tracker.getPhase();
-        return chat != Phase.UNKNOWN ? chat : Floor7Tracker.getPhaseAt();
+        if (real == Phase.UNKNOWN && forceDungeon) {
+            return forcedArea.phase();
+        }
+        return real;
     }
 
     /**
@@ -137,11 +189,12 @@ public final class Ap3Feature {
     static String noAreaReason() {
         return currentPhase() == Phase.P3
                 ? "In P3 but not inside a section (S1-S5) - stand in one first."
-                : "Not in the F7/M7 boss - AP3 is boss-only.";
+                : "Not in the F7/M7 boss - AP3 is boss-only (or turn on Force Dungeon in the tab to test anywhere).";
     }
 
-    /** The P3 section you are standing in (1-5), position first, else the chat-tracked stage; 0 when unknown or
-     *  when the current phase is not P3. */
+    /** The P3 section you are standing in (1-5), position first, else the chat-tracked stage, else - with Force
+     *  Dungeon on and the forced area a P3 section - that section; 0 when unknown or when the current phase is not
+     *  P3. */
     public static int currentSectionNumber() {
         if (currentPhase() != Phase.P3) {
             return 0;
@@ -149,6 +202,9 @@ public final class Ap3Feature {
         Stage at = Floor7Tracker.getStageAt();
         if (at == Stage.UNKNOWN) {
             at = Floor7Tracker.getStage();
+        }
+        if (at == Stage.UNKNOWN && forceDungeon && forcedArea.isP3()) {
+            return forcedArea.section();
         }
         return at.number;
     }
@@ -596,6 +652,9 @@ public final class Ap3Feature {
             lastLevel = client.level;
             resetForWorld("world change");
             Ap3Executor.resetStopwatch();
+            // Force Dungeon never survives a world change (nor a restart - it is not saved): a test switch that was
+            // left on cannot follow him into a real run.
+            setForceDungeon(false);
         }
         if (!cfg.isEnabled()) {
             if (Ap3Executor.isRunning() || Ap3Executor.isArmed()) {
@@ -816,6 +875,23 @@ public final class Ap3Feature {
             }
         } catch (RuntimeException e) {
             // never take the HUD frame down over a stopwatch
+        }
+    }
+
+    /** The on-screen reminder while Force Dungeon is on - fixed top-centre, not a HUD-editor element, drawn even
+     *  with the mod menu open, so it cannot be moved out of sight or forgotten. */
+    private static void drawForceDungeonReminder(GuiGraphicsExtractor graphics) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (!forceDungeon || client.player == null || client.options.hideGui) {
+                return;
+            }
+            var font = client.font;
+            String text = "AP3 FORCE DUNGEON - " + (isForcedOnly() ? forcedArea.longLabel() + " (forced)" : "real boss");
+            int x = client.getWindow().getGuiScaledWidth() / 2;
+            graphics.centeredText(font, text, x, 4, 0xFF000000 | ModChat.BAD);
+        } catch (RuntimeException e) {
+            // never take the HUD frame down over a reminder
         }
     }
 
