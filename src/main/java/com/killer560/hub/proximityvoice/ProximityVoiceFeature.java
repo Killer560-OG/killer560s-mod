@@ -45,11 +45,15 @@ import java.util.regex.Pattern;
  * "hole-punches" through most home routers - this works for most people, but not universally (some
  * routers/NATs, particularly "symmetric" ones, cannot be hole-punched this way without a relay server,
  * which this mod has no way to provide for free).
- * <li><b>Discovering peers' addresses:</b> reuses the exact same tagged-chat trick
- * {@code PosmsgFeature}/{@code ModChatFeature} already use - broadcasts your own public IP:port as a
- * tagged chat line, over Party Chat or plain chat depending on {@link ProximityVoiceConfig#getTalkScope()}
- * (see {@link #broadcastOwnAddress}). Same real limitation as Mod Chat: this is visible as an odd chat
- * line to non-mod party/lobby members, not hidden.
+ * <li><b>Discovering peers' addresses: DISABLED (2026-09-20).</b> It used to broadcast this client's own
+ * IP:port as a tagged chat line every five seconds, so a home IP address reached every party member and
+ * Hypixel's chat log, and the mod auto-sent a chat line continuously. killer560: "I do not want it
+ * shipping out anyone's personal info." No address leaves the client now, so no peers are found and the
+ * feature announces that rather than looking broken. Note the deeper point: peer-to-peer voice ALWAYS
+ * reveals your address to whoever you speak with, so the fix is not a better way to swap addresses - it is
+ * to stop being peer-to-peer. Simple Voice Chat relays audio through the Minecraft server (impossible on
+ * Hypixel), and the client-side ones that do work on Hypixel (Badlion, LabyMod, Feather) relay it through
+ * their own voice servers. This mod now has its own relay, which is where the audio should go.
  * <li><b>Audio codec: none - raw 16kHz mono 16-bit PCM.</b> A real compressor (Opus) would use a
  * fraction of the bandwidth, but adds a second native-library dependency this session already took one
  * real risk on with Vosk; raw PCM needs no native code, no extra ~20MB dependency, and no additional
@@ -149,11 +153,14 @@ public final class ProximityVoiceFeature {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        if (now - lastBroadcastAtMs > 5000) {
-            lastBroadcastAtMs = now;
-            broadcastOwnAddress();
-        }
+        // Peer discovery is OFF (killer560, 2026-09-20: "I do not want it shipping out anyone's personal
+        // info"). It worked by typing this client's IP and port into party chat every five seconds, so
+        // every party member - and Hypixel's own chat logs - got a home IP address, and the mod was
+        // auto-sending a chat line every 5s, which is its own way to get muted. Peer-to-peer cannot avoid
+        // handing your address to whoever you talk to, so the fix is to stop relaying audio peer-to-peer at
+        // all and route it through the mod's own server, the way Simple Voice Chat and the Badlion/LabyMod
+        // style clients do. Until that lands the feature finds nobody, on purpose, and says so.
+        announceDiscoveryDisabledOnce();
 
         Minecraft client = Minecraft.getInstance();
         if (cfg.isPushToTalk() && cfg.getPushToTalkKeyCode() != KeyUtil.NONE) {
@@ -526,26 +533,16 @@ public final class ProximityVoiceFeature {
      * instance to the players physically in that same instance (see the class doc), so this never reaches
      * further than "the lobby" even though it isn't Party Chat.
      */
-    private static void broadcastOwnAddress() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || socket == null) {
+    private static boolean discoveryNoticeShown;
+
+    /** Tells him once per session why nobody is being found, instead of looking silently broken. */
+    private static void announceDiscoveryDisabledOnce() {
+        if (discoveryNoticeShown) {
             return;
         }
-        // Best-effort: uses the socket's own local address if STUN hasn't resolved a public one yet -
-        // works for LAN/same-network testing even before/without STUN succeeding.
-        String ip = socket.getLocalAddress() != null && !socket.getLocalAddress().isAnyLocalAddress()
-                ? socket.getLocalAddress().getHostAddress() : null;
-        if (ip == null) {
-            return;
-        }
-        String payload = String.format(Locale.US, "%s%s|%s|%d", TAG, localSessionId, ip, socket.getLocalPort());
-        // DELIBERATELY party chat only. The 2026-09-20 scope rework briefly sent this over PLAIN chat for
-        // Lobby scope, which would have published killer560's (and every user's) IP address to every
-        // stranger in the lobby and into Hypixel's chat logs - an invitation to be DDoSed, for a
-        // convenience feature. Lobby-scope voice therefore needs a discovery path that is not public chat;
-        // the mod's own relay already carries scoped, authenticated `data` packets and is the right home
-        // for it. Until that lands, Lobby scope simply finds nobody rather than leaking an address.
-        client.player.connection.sendCommand("pc " + payload);
+        discoveryNoticeShown = true;
+        ModOverlayMessage.show("§e[ProxVoice] Voice is on hold: finding other players used to put your IP "
+                + "address in party chat. It is being moved onto the mod's own server.", 6000);
     }
 
     private static void onChatMessage(Component message) {
