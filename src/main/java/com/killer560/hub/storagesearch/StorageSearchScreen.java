@@ -30,6 +30,8 @@ public class StorageSearchScreen extends Screen {
     private EditBox searchBox;
     private SettingsButtonWidget loreButton;
     private SettingsButtonWidget invButton;
+    private SettingsButtonWidget sortButton;
+    private SettingsButtonWidget sourceButton;
 
     private int panelX, panelY, panelW, panelH;
     private int listX, listY, listW, listH;
@@ -59,12 +61,32 @@ public class StorageSearchScreen extends Screen {
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
 
         String current = searchBox != null ? searchBox.getValue() : initialQuery;
-        searchBox = new EditBox(this.font, panelX + 6, panelY + 36, panelW - 12, 18, Component.literal("Search"));
+        // Sort/source sit on the search row rather than the header strip - four buttons crammed next to the
+        // title stopped fitting once killer560 asked for sorting (2026-09-21).
+        int sortW = 96;
+        int sourceW = 84;
+        int boxW = Math.max(80, panelW - 12 - sortW - sourceW - 8);
+        searchBox = new EditBox(this.font, panelX + 6, panelY + 36, boxW, 18, Component.literal("Search"));
         searchBox.setMaxLength(100);
         searchBox.setHint(Component.literal("Name, Skyblock id" + (cfg.isSearchLore() ? " or lore" : "") + "..."));
         searchBox.setValue(current);
         searchBox.setResponder(text -> refilter());
         addRenderableWidget(searchBox);
+
+        sortButton = SettingsButtonWidget.builder(sortText(cfg), btn -> {
+            cfg.setSortMode(cfg.getSortMode().next());
+            cfg.save();
+            btn.setMessage(sortText(cfg));
+            refilter();
+        }).bounds(panelX + 6 + boxW + 4, panelY + 36, sortW, 18).build();
+        sourceButton = SettingsButtonWidget.builder(sourceText(cfg), btn -> {
+            cfg.setSourceFilter(cfg.getSourceFilter().next());
+            cfg.save();
+            btn.setMessage(sourceText(cfg));
+            refilter();
+        }).bounds(panelX + 6 + boxW + 8 + sortW, panelY + 36, sourceW, 18).build();
+        addRenderableWidget(sortButton);
+        addRenderableWidget(sourceButton);
 
         int bw = 62;
         invButton = SettingsButtonWidget.builder(onOff("Inv", cfg.isIncludeInventory()), btn -> {
@@ -110,7 +132,7 @@ public class StorageSearchScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         StorageSearchIndex.Entry hit = entryAt(event.x(), event.y());
         if (hit != null && event.button() == 0) {
-            StorageSearchFeature.onResultClicked(hit);
+            StorageSearchFeature.onResultClicked(hit, results);
             return true;
         }
         return super.mouseClicked(event, doubleClick);
@@ -119,7 +141,7 @@ public class StorageSearchScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if ((event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) && !results.isEmpty()) {
-            StorageSearchFeature.onResultClicked(results.get(0));
+            StorageSearchFeature.onResultClicked(results.get(0), results);
             return true;
         }
         return super.keyPressed(event);
@@ -157,11 +179,17 @@ public class StorageSearchScreen extends Screen {
                 oldest = s;
             }
         }
-        String summary = results.size() + " result" + (results.size() == 1 ? "" : "s") + "  ·  " + cached + " storage"
-                + (cached == 1 ? "" : "s") + " cached";
-        graphics.text(this.font, summary, panelX + 8, panelY + 59, 0xFF000000 | ModChat.LIGHT_ORANGE, false);
-        if (unopened > 0) {
-            String warn = unopened + " never opened";
+        StringBuilder summary = new StringBuilder();
+        summary.append(results.size()).append(" result").append(results.size() == 1 ? "" : "s")
+                .append("  ·  ").append(cached).append(" storage").append(cached == 1 ? "" : "s").append(" cached");
+        if (StorageSearchConfig.getInstance().isSearchChests()) {
+            summary.append("  ·  ").append(index.knownChests()).append(" chest")
+                    .append(index.knownChests() == 1 ? "" : "s");
+        }
+        graphics.text(this.font, summary.toString(), panelX + 8, panelY + 59, 0xFF000000 | ModChat.LIGHT_ORANGE, false);
+        int neverOpened = unopened + index.unopenedChests();
+        if (neverOpened > 0) {
+            String warn = neverOpened + " never opened";
             graphics.text(this.font, warn, panelX + panelW - 8 - this.font.width(warn), panelY + 59, 0xFF000000 | ModChat.BAD, false);
         }
 
@@ -199,8 +227,13 @@ public class StorageSearchScreen extends Screen {
             graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
         }
 
-        // Footer: stalest cached storage.
-        if (oldest != null) {
+        // Footer: the chunk-cache warning first (it changes what island-chest search can even see), else the
+        // stalest cached storage.
+        if (StorageSearchConfig.getInstance().isSearchChests() && !index.chunkCacheActive()) {
+            String footer = "Chunk Cache is off - chests only count while their chunk is loaded.";
+            graphics.text(this.font, this.font.plainSubstrByWidth(footer, panelW - 16), panelX + 8, panelY + panelH - 13,
+                    0xFF000000 | ModChat.BAD, false);
+        } else if (oldest != null) {
             String footer = "Oldest cache: " + oldest.label() + " · " + ageText(oldest.updatedMs(), oldest.updatedIsUpperBound());
             graphics.text(this.font, this.font.plainSubstrByWidth(footer, panelW - 16), panelX + 8, panelY + panelH - 13,
                     ageColor(oldest.updatedMs()), false);
@@ -275,6 +308,14 @@ public class StorageSearchScreen extends Screen {
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    private static Component sortText(StorageSearchConfig cfg) {
+        return Component.literal("Sort: §6" + cfg.getSortMode().label());
+    }
+
+    private static Component sourceText(StorageSearchConfig cfg) {
+        return Component.literal("Show: §6" + cfg.getSourceFilter().label());
     }
 
     @Override

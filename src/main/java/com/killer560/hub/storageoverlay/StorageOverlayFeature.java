@@ -63,7 +63,57 @@ public final class StorageOverlayFeature {
      *  one bucket per account rather than accidentally shared across profiles based on a bad parse. */
     private static final Pattern PROFILE_LINE = Pattern.compile("(?i)profile:\\s*(\\S+)");
 
+    /** Opens Storage Item Search. Handed over by {@code StorageSearchFeature} at startup rather than called
+     *  directly, so this feature keeps working (just without the button) if that one is ever removed - killer560
+     *  (2026-09-21): "have a gui button for it in the storage overlay". */
+    private static Runnable searchOpener = null;
+
+    /** The one storage the grid is currently narrowed to, or null for "show them all" - killer560 (2026-09-21):
+     *  "if i search for an item and it is in one backpack then only show that backpack on the menu. Add a back
+     *  button to the left that if i press it will take me back to being able to see all backpacks." */
+    private static String focusKey = null;
+
+    /** The cached slot Storage Item Search asked to point at, and how long for. */
+    private static String highlightKey = null;
+    private static int highlightIndex = -1;
+    private static long highlightUntil = 0L;
+    /** Set alongside the highlight so the next render scrolls the grid to it exactly once. */
+    private static String pendingScrollKey = null;
+
     private StorageOverlayFeature() {
+    }
+
+    public static void setSearchOpener(Runnable opener) {
+        searchOpener = opener;
+    }
+
+    /**
+     * Points the grid at one cached slot and scrolls to it - killer560 (2026-09-21): "when it opens my storage
+     * overlay, have it properly scroll to the right height of the item for the custom gui, and still have it
+     * highlight the item like it does in my inventory. It doesn't right now."
+     * <p>
+     * Why it didn't: with this overlay on, every real slot of the open page is hidden and redrawn here, so Storage
+     * Search's outline (drawn at the real slot's vanilla position) landed on an invisible slot somewhere else
+     * entirely. It used to detect that and print "look for slot N" to chat instead. The grid has to draw the
+     * outline itself, which is what this does.
+     */
+    public static void highlightItem(String key, int contentIndex, long durationMs) {
+        if (key == null || contentIndex < 0) {
+            return;
+        }
+        highlightKey = key;
+        highlightIndex = contentIndex;
+        highlightUntil = System.currentTimeMillis() + durationMs;
+        pendingScrollKey = key;
+    }
+
+    /** Narrows the grid to one storage (null clears it). */
+    public static void setFocus(String key) {
+        focusKey = key;
+    }
+
+    public static String getFocus() {
+        return focusKey;
     }
 
     public static void register() {
@@ -366,11 +416,27 @@ public final class StorageOverlayFeature {
                 // being stuck showing whatever onScreenOpen captured first.
                 captureIfChanged(activeMenu, activeKey);
             }
+            HudElement element = HudElementRegistry.byId(ELEMENT_ID);
+            if (element == null) {
+                return;
+            }
+            lastPos = HudElementRegistry.resolvePosition(element);
+            // Per killer560's "add a scale bar... rescale everything" request (2026-09-08): one
+            // explicit setting-tab control for the whole feature's scale, grid and Inventory panel
+            // alike (see renderInventoryPanel), instead of the grid's own separate HUD-editor
+            // scroll-to-resize.
+            lastScale = StorageOverlayConfig.getInstance().getScale();
+
             String prefix = accountProfilePrefix();
             List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
             if (keys.isEmpty()) {
-                lastPos = null;
                 lastPanelBounds.clear();
+                lastLabelBounds.clear();
+                // No grid to click, but the side buttons still are - zero the viewport so the panel hit-test in
+                // handleClick/handleScroll can't claim a stale rectangle.
+                lastViewportWidthPx = 0;
+                lastViewportHeightPx = 0;
+                drawSideButtons(graphics, mouseX, mouseY);
                 return;
             }
             // Ender Chest pages before Backpacks, then numerically within each - matches the natural
@@ -388,17 +454,19 @@ public final class StorageOverlayFeature {
             for (String key : keys) {
                 ordered.put(key, StorageOverlayCache.getInstance().get(key));
             }
-
-            HudElement element = HudElementRegistry.byId(ELEMENT_ID);
-            if (element == null) {
-                return;
+            // Search narrowed the grid to one storage - everything below (layout, scroll, hit-testing) then works
+            // on that single entry, so nothing else has to know about focus mode.
+            if (focusKey != null) {
+                if (ordered.containsKey(focusKey)) {
+                    List<ItemStack> only = ordered.get(focusKey);
+                    ordered = new LinkedHashMap<>();
+                    ordered.put(focusKey, only);
+                } else {
+                    // The focused storage isn't in this account/profile's cache any more - don't strand him on an
+                    // empty grid with no way back except the button.
+                    focusKey = null;
+                }
             }
-            lastPos = HudElementRegistry.resolvePosition(element);
-            // Per killer560's "add a scale bar... rescale everything" request (2026-09-08): one
-            // explicit setting-tab control for the whole feature's scale, grid and Inventory panel
-            // alike (see renderInventoryPanel), instead of the grid's own separate HUD-editor
-            // scroll-to-resize.
-            lastScale = StorageOverlayConfig.getInstance().getScale();
 
             List<PanelLayout> layout = layoutPanels(ordered);
             int contentHeight = 0;
@@ -414,6 +482,7 @@ public final class StorageOverlayFeature {
             int viewportHeightPx = Math.max(SLOT_SIZE + PADDING, viewportBottomPx - lastPos[1]);
             int viewportHeightLocal = Math.max(1, (int) (viewportHeightPx / lastScale));
             lastMaxScroll = Math.max(0, contentHeight - viewportHeightLocal);
+            applyPendingScroll(layout, viewportHeightLocal);
             scrollOffset = Math.max(0, Math.min(scrollOffset, lastMaxScroll));
             lastViewportWidthPx = (int) (viewportWidthLocal * lastScale);
             lastViewportHeightPx = viewportHeightPx;
@@ -488,6 +557,7 @@ public final class StorageOverlayFeature {
             if (lastMaxScroll > 0) {
                 drawScrollBar(graphics, viewportWidthLocal, viewportHeightLocal, contentHeight);
             }
+            drawSideButtons(graphics, mouseX, mouseY);
             // Real bug found and fixed (2026-09-08), per killer560's report that the item being moved
             // "doesn't show on my cursor" - vanilla's own extractCarriedItem already runs earlier in
             // this same render pass (drawing whatever's currently held following the mouse), but this
@@ -523,6 +593,83 @@ public final class StorageOverlayFeature {
         float pct = lastMaxScroll > 0 ? scrollOffset / lastMaxScroll : 0f;
         int knobY = barY + (int) (pct * (barH - knobH));
         graphics.fill(barX, knobY, barX + barW, knobY + knobH, 0xCCFFFFFF);
+    }
+
+    /** Scrolls the grid so the slot Storage Item Search asked for is roughly centred in the viewport, once, on the
+     *  first frame after {@link #highlightItem}. Runs after the layout pass (which is what knows where that panel
+     *  ended up) and before the normal clamp. */
+    private static void applyPendingScroll(List<PanelLayout> layout, int viewportHeightLocal) {
+        if (pendingScrollKey == null) {
+            return;
+        }
+        var font = Minecraft.getInstance().font;
+        for (PanelLayout p : layout) {
+            if (!p.key().equals(pendingScrollKey)) {
+                continue;
+            }
+            int labelHeight = font.lineHeight + 4;
+            int rowIndex = p.contents() == null || highlightIndex < 0 ? 0 : highlightIndex / 9;
+            int rowY = p.y() + labelHeight + rowIndex * SLOT_SIZE;
+            scrollOffset = Math.max(0f, Math.min(lastMaxScroll, rowY - viewportHeightLocal / 2f + SLOT_SIZE / 2f));
+            break;
+        }
+        // Cleared either way: a key that isn't in the grid is never going to appear on a later frame, and leaving
+        // it set would fight killer560's own scrolling every frame.
+        pendingScrollKey = null;
+    }
+
+    /** The Back / Search buttons down the left of the grid, in real screen coordinates (outside the grid's own
+     *  translate/scale/scroll transform, same approach as {@link #drawScrollBar}) - per killer560's "add a back
+     *  button to the left" and "have a gui button for it in the storage overlay" (2026-09-21). */
+    private static void drawSideButtons(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        lastBackButton = null;
+        lastSearchButton = null;
+        if (lastPos == null) {
+            return;
+        }
+        int w = 58;
+        int h = 16;
+        int x = Math.max(2, lastPos[0] - w - 6);
+        int y = lastPos[1];
+        if (focusKey != null) {
+            drawSideButton(graphics, x, y, w, h, "< Back", mouseX, mouseY);
+            lastBackButton = new int[]{x, y, w, h};
+            y += h + 4;
+        }
+        if (searchOpener != null) {
+            drawSideButton(graphics, x, y, w, h, "Search", mouseX, mouseY);
+            lastSearchButton = new int[]{x, y, w, h};
+        }
+    }
+
+    private static void drawSideButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String label,
+                                        int mouseX, int mouseY) {
+        StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
+        var font = Minecraft.getInstance().font;
+        boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+        int bg = cfg.isDarkMode() ? (hovered ? 0xE0262626 : 0xCC101010) : (hovered ? 0xE0FFFFFF : 0xCCE8E8E8);
+        int border = hovered ? 0xFFCC6600 : (cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA);
+        int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
+        graphics.fill(x, y, x + w, y + h, bg);
+        graphics.outline(x, y, w, h, border);
+        graphics.text(font, label, x + (w - font.width(label)) / 2, y + (h - font.lineHeight) / 2 + 1, textColor);
+    }
+
+    private static boolean handleSideButtonClick(double mouseX, double mouseY) {
+        if (lastBackButton != null && inside(lastBackButton, mouseX, mouseY)) {
+            focusKey = null;
+            scrollOffset = 0f;
+            return true;
+        }
+        if (lastSearchButton != null && searchOpener != null && inside(lastSearchButton, mouseX, mouseY)) {
+            searchOpener.run();
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean inside(int[] rect, double x, double y) {
+        return x >= rect[0] && x < rect[0] + rect[2] && y >= rect[1] && y < rect[1] + rect[3];
     }
 
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin}'s
@@ -725,6 +872,9 @@ public final class StorageOverlayFeature {
     private static int lastViewportWidthPx = 0;
     private static int lastViewportHeightPx = 0;
     private static final Map<String, int[]> lastPanelBounds = new LinkedHashMap<>();
+    /** Screen rects of the left-hand Back / Search buttons from the most recent render, or null when not drawn. */
+    private static int[] lastBackButton = null;
+    private static int[] lastSearchButton = null;
     /** Just the clickable LABEL strip of each panel from the most recent render (a subset of that
      *  panel's full {@link #lastPanelBounds} rect - the whole thing for a not-yet-opened placeholder,
      *  since there's no separate item area to protect there) - what a double-click is hit-tested
@@ -999,6 +1149,19 @@ public final class StorageOverlayFeature {
                     hoveredStack = stack;
                 }
             }
+
+            // The Storage Item Search hit, drawn in the grid's own coordinates - the real slot this stands for is
+            // hidden, so nothing else can outline it (see highlightItem).
+            if (key.equals(highlightKey) && highlightIndex >= 0 && highlightIndex < contents.size()
+                    && System.currentTimeMillis() < highlightUntil) {
+                int hx = panelX + (highlightIndex % 9) * SLOT_SIZE + 2;
+                int hy = gridY + (highlightIndex / 9) * SLOT_SIZE;
+                // Same gentle pulse Storage Search draws over a real vanilla slot, so both look like one feature.
+                int alpha = 0x40 + (int) (0x40 * (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 180.0)));
+                graphics.fill(hx + 1, hy + 1, hx + 17, hy + 17, (alpha << 24) | 0xFF8C1A);
+                graphics.outline(hx, hy, SLOT_SIZE, SLOT_SIZE, 0xFFFF8C1A);
+                graphics.outline(hx - 1, hy - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, 0xFFFF8C1A);
+            }
         }
 
         if (hoveredStack != null) {
@@ -1041,6 +1204,11 @@ public final class StorageOverlayFeature {
      *  killer560 could actually see and click. */
     public static boolean handleClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY,
                                        String activeKey, int button, boolean shiftDown) {
+        // The left-hand buttons live OUTSIDE the grid's viewport, so they have to be tested before the viewport
+        // rejection below (and before the empty-grid guard - Search is still useful with nothing cached).
+        if (handleSideButtonClick(mouseX, mouseY)) {
+            return true;
+        }
         if (lastPos == null || lastPanelBounds.isEmpty()) {
             return false;
         }

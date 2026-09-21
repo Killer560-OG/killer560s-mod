@@ -1386,48 +1386,113 @@ public final class ExperimentsFeature {
         return info == null ? -1 : info.getLatency();
     }
 
+    /** How long a decided-but-not-yet-fired click keeps retrying against {@link ActionGate} before it
+     *  gives up on it - see {@link #gateGatedClick}'s doc for why giving up silently is not an option.
+     *  Long enough to ride out the gate's worst realistic stand-down window ({@code WORLD_SETTLE_TICKS}
+     *  = 20 ticks = 1000ms at 20 ticks/sec) with margin, short enough that a genuinely dead screen
+     *  doesn't spend the whole round retrying into nothing. */
+    private static final long GATE_RETRY_BUDGET_MS = 1_200L;
+    /** Retry cadence while waiting on the gate - one tick, the same floor the gate itself enforces. */
+    private static final long GATE_RETRY_STEP_MS = 50L;
+
     private static void scheduleClick(int containerId, int slot, long now, ExperimentsConfig cfg) {
         // Real gap found (2026-09-21): ActionGate.Actor.EXPERIMENTS has existed since the gate was
         // written ("Auto Quiz / Weirdos / experiment solvers clicking in their GUI") but nothing in this
         // file ever called ActionGate.tryAct - every click here went straight to clickSlot with none of
         // the gate's one-per-tick/settle/focus protection every other automated actor in the mod gets.
-        // Captured here (decide time) rather than read fresh inside the lambda below, since the whole
+        // Captured here (decide time) rather than read fresh inside gateGatedClick, since the whole
         // point is to catch the screen having changed OUT from under a click that hasn't fired yet.
         Screen ownScreen = Minecraft.getInstance().screen;
-        // The real click only happens once this jittered action actually fires, which can be well
-        // after `now` - Superpairs' confirm-timeout clock needs to start from that real send time, not
-        // the moment this click was decided (see ExperimentSolver#superpairsClickSent). Harmless no-op
-        // for Chronomatron/Ultrasequencer/navigation/claim clicks, which never arm that gate at all.
-        scheduleAction(() -> {
-            // Real bug this closes: firePendingActions runs "regardless of what screen is open" (see its
-            // own doc), so a click decided against one open menu could still fire after that menu closed
-            // or was replaced by a new one - clickSlot's containerId would then be stale, and the server
-            // silently drops a container-click packet whose id doesn't match its current menu, with
-            // nothing on this end ever finding out the click never landed. ActionGate's SCREEN check
-            // (same screen instance, still a container screen, still focused) catches exactly that before
-            // clickSlot ever runs, instead of clickSlot unconditionally reporting success.
+        scheduleAction(gateGatedClick(containerId, slot, ownScreen, now + GATE_RETRY_BUDGET_MS), now, cfg);
+    }
+
+    /** Real bug found (2026-09-21) diagnosing killer560's "sometimes the autoetable misses some of the
+     *  enchants": every one of {@code ExperimentSolver}'s {@code decide*} methods commits to a click the
+     *  instant it decides on one, before that click has actually been sent - {@code
+     *  chronomatronClickIndex++} (ExperimentSolver.java:573) advances past a slot right there, and
+     *  Superpairs' {@code decideSuperpairsClick} refuses to decide anything else at all while {@code
+     *  superpairsAwaitingConfirmSlot} stays set (ExperimentSolver.java:768). Both assume the deferred
+     *  click this method schedules always eventually fires. The first ActionGate wiring here didn't
+     *  honour that: it treated a denied gate check as "log a warning and drop it," which for
+     *  Chronomatron silently skips a click in the exact repeated-sequence Hypixel is validating - an
+     *  instant round fail that looks identical to "it didn't recognize the enchant" - and for Superpairs
+     *  leaves {@code superpairsAwaitingConfirmSlot} stuck forever, since its own confirm-timeout clock
+     *  (ExperimentSolver.java:657) only starts once {@link ExperimentSolver#superpairsClickSent} is
+     *  actually called, which a dropped click never does. ActionGate's own doc says it "only ever
+     *  delays" an action and "never invents" one - dropping the click outright breaks that contract from
+     *  this side, not the gate's. Fix: retry the SAME click against the gate every tick for up to
+     *  {@link #GATE_RETRY_BUDGET_MS} as long as its screen is still the focused one (a real screen change
+     *  is the one case a stale click genuinely must not fire - see the containerId comment below), and
+     *  only past that budget fall back to feeding {@link ExperimentSolver#superpairsClickSent} anyway so
+     *  Superpairs' already-working confirm-timeout recovery reclaims the slot instead of hanging - the
+     *  same recovery path a click Hypixel itself silently drops already goes through. This is a distinct
+     *  bug from, and was found alongside, the enchant-lore-name pricing fix in
+     *  ExperimentsProfitTracker#enchantIdToken - that one only ever affected the coin estimate shown for
+     *  a handful of renamed enchants (Gravity/Drain/Woodsplitter/...), never whether they got clicked. */
+    private static Runnable gateGatedClick(int containerId, int slot, Screen ownScreen, long giveUpAtMs) {
+        return () -> {
+            long sentAtMs = System.currentTimeMillis();
+            // The real click only happens once this jittered action actually fires, which can be well
+            // after it was decided - Superpairs' confirm-timeout clock needs to start from that real
+            // send time, not the moment this click was decided (see ExperimentSolver#superpairsClickSent).
+            // Harmless no-op for Chronomatron/Ultrasequencer/navigation/claim clicks, which never arm
+            // that gate at all.
             if (!ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen)) {
-                LOGGER.warn("Experiments click on slot {} skipped - ActionGate denied it (screen changed "
-                        + "before the jittered click fired, or another automation took the tick)", slot);
+                if (Minecraft.getInstance().screen == ownScreen && sentAtMs < giveUpAtMs) {
+                    // Denied for a transient reason (spacing, a world aura mid cross-class cooldown, a
+                    // settle window) and still aimed at the right menu - the gate only ever delays, so
+                    // retry the SAME click rather than treating a denial as "never happened".
+                    pendingActions.add(new PendingAction(
+                            gateGatedClick(containerId, slot, ownScreen, giveUpAtMs), sentAtMs + GATE_RETRY_STEP_MS));
+                    return;
+                }
+                // Either the screen this click was aimed at is gone - firePendingActions runs
+                // "regardless of what screen is open" (see its own doc), so the menu this was aimed at
+                // can close or get replaced before the retry budget above even runs out, and
+                // clickSlot's containerId would then be stale, with the server silently dropping a
+                // container-click packet whose id doesn't match its current menu - or the gate stayed
+                // saturated for the whole retry budget. Either way this click is never going to fire;
+                // see this method's doc for why superpairsClickSent still gets called below.
+                LOGGER.warn("Experiments click on slot {} abandoned - ActionGate never freed up within {}ms "
+                        + "of it being decided (or its screen closed first)", slot, GATE_RETRY_BUDGET_MS);
+                SOLVER.superpairsClickSent(slot, sentAtMs);
                 return;
             }
             clickSlot(containerId, slot);
-            SOLVER.superpairsClickSent(slot, System.currentTimeMillis());
-        }, now, cfg);
+            SOLVER.superpairsClickSent(slot, sentAtMs);
+        };
     }
 
     /** Fires any scheduled actions whose jittered time has arrived - checked every tick regardless of
      *  what screen (if any) is currently open, since a jittered action can outlive the screen change
-     *  that queued it. */
+     *  that queued it.
+     *  <p>
+     *  Real bug found (2026-09-21) while fixing {@link #gateGatedClick}: that method's retry path calls
+     *  {@code pendingActions.add(...)} from inside the very Runnable this method invokes. Running actions
+     *  directly off the live {@code Iterator} the way this used to (remove, then immediately
+     *  {@code pending.action().run()} while still mid-iteration) throws {@link
+     *  java.util.ConcurrentModificationException} the moment a retried action re-adds itself - silently
+     *  dropping every action still left in this pass along with it, since the exception unwinds straight
+     *  out of this method. Collecting the due actions first and only running them after the iterator is
+     *  done removing (and therefore done being iterated) sidesteps that entirely. */
     private static void firePendingActions(long now) {
         if (pendingActions.isEmpty()) {
             return;
         }
+        List<PendingAction> due = null;
         Iterator<PendingAction> it = pendingActions.iterator();
         while (it.hasNext()) {
             PendingAction pending = it.next();
             if (now >= pending.fireAtMs()) {
                 it.remove();
+                if (due == null) {
+                    due = new ArrayList<>();
+                }
+                due.add(pending);
+            }
+        }
+        if (due != null) {
+            for (PendingAction pending : due) {
                 pending.action().run();
             }
         }

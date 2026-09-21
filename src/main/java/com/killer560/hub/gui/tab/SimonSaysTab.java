@@ -18,9 +18,12 @@ import java.util.List;
 /** Simon Says solver + automation settings - see {@link com.killer560.hub.simonsays.SimonSaysFeature}'s
  *  class doc for the real device layout/detection logic this is built on (ported from Odin/QUOI/
  *  NoammAddons, confirmed against this exact Minecraft version). Auto-solve/trigger-bot/auto-start rows
- *  only appear on the cheat build, behind the same red "Cheat Build - Automation" divider every other
- *  automation-heavy tab in this mod uses (see MaskInvincibilityTab) - killer560's own explicit request
- *  (2026-09-14) to keep the actually bannable stuff visually separated from the rest. Column widths are
+ *  only appear on the cheat build. Re-laid-out (2026-09-21, killer560's own explicit request) into one
+ *  red divider per feature - Trigger Bot, then Auto Start, then Auto Solve, in that order - instead of
+ *  one shared "Cheat Build - Automation" divider over all three; Auto Restart SS/Restart Key now nest
+ *  under Auto Solve's own divider and only draw while it, respectively Auto Restart itself, is on. Same
+ *  red-header convention every other cheat-only section in this mod uses (see SectionHeaders, and
+ *  MaskInvincibilityTab/ObjectHiderTab for the header+toggle pattern this copies). Column widths are
  *  computed from the real {@code contentWidth} passed in rather than a hardcoded guess - a hardcoded
  *  108px column is what clipped "Announce Progress: ON" / "Announce Key: Not Set" in a real screenshot
  *  killer560 sent, since the real panel is noticeably wider than that. */
@@ -177,24 +180,22 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
-        // Killer560's own explicit request (2026-09-14): keep the actually bannable automation visually
-        // separated from the settings above it - same red divider MaskInvincibilityTab already uses for
-        // exactly this reason.
+        // Re-laid-out into one category per feature (2026-09-21, killer560's own request): "There should be
+        // one red title for triggerbot with only triggerbot in it. Then the next should be for autoss. Also
+        // put the auto start in its own category right below the triggerbot." Order below is Trigger Bot ->
+        // Auto Start -> Auto Solve; each is cheat-only so each gets its own red divider (SectionHeaders,
+        // cheatOnly=true), same convention MaskInvincibilityTab/ObjectHiderTab use for cheat-only content.
+
+        // --- Trigger Bot ---
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - Automation", true), Minecraft.getInstance().font));
+                SectionHeaders.header("Trigger Bot", true), Minecraft.getInstance().font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.isTriggerBotEnabled()), btn -> {
                     cfg.setTriggerBotEnabled(!cfg.isTriggerBotEnabled());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(col2aX, y, col2W, 18).build());
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Solve", cfg.isAutoSolveEnabled()), btn -> {
-                    cfg.setAutoSolveEnabled(!cfg.isAutoSolveEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
         if (cfg.isTriggerBotEnabled()) {
@@ -214,6 +215,76 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
             });
             y += 22;
         }
+
+        // --- Auto Start (its own category, directly below Trigger Bot per killer560's request above) ---
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Auto Start", true), Minecraft.getInstance().font));
+        y += 16;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
+                    cfg.setAutoStartEnabled(!cfg.isAutoStartEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+
+        if (cfg.isAutoStartEnabled()) {
+            double clicksNorm = cfg.getAutoStartClicks() / 20.0;
+            widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18,
+                    Component.literal("Clicks: " + cfg.getAutoStartClicks()), clicksNorm) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal("Clicks: " + cfg.getAutoStartClicks()));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setAutoStartClicks((int) Math.round(this.value * 20));
+                    cfg.save();
+                }
+            });
+
+            // Range is 1-20, not 0-20 (killer560's own call - 0 ticks isn't a real delay option).
+            double delayNorm = (cfg.getAutoStartClickDelayTicks() - 1) / 19.0;
+            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
+                    Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t (" + cfg.getAutoStartClickDelayTicks() * 50 + "ms)"), delayNorm) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t (" + cfg.getAutoStartClickDelayTicks() * 50 + "ms)"));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setAutoStartClickDelayTicks(1 + (int) Math.round(this.value * 19));
+                    cfg.save();
+                }
+            });
+            // No separate Auto Start "Click Mode" button anymore (2026-09-14, killer560's own call) - it follows
+            // Auto Solve's Mode: Rotate = look only, No Rotate = aura. See SimonSaysFeature#tickAutoStart.
+            //
+            // UNRESOLVED CONFLICT (2026-09-21, killer560): "If i have autoss off but AutoStart on then it
+            // should not be the aura mode." Today, with Auto Solve off, SimonSaysFeature#rotateActive is
+            // always false regardless of this Mode setting, so Auto Start always clicks aura-style and the
+            // camera is never touched - see rotateActive's own doc comment there, which is itself killer560's
+            // own explicit fix request from 2026-09-14: "when auto solve is off it shouldnt mess with my
+            // crosshair at all. Right now it pulls it towards the middle of the obsidian." Read literally these
+            // two requests conflict (Auto Start rotating the camera with Auto Solve off is exactly what the
+            // 09-14 request had fixed). Not resolving this here - layout only, per the implementation brief;
+            // see the staging notes (impl-simonsaystab.md) for both quotes and the two possible readings.
+            y += 22;
+        }
+
+        // --- Auto Solve ("autoss") ---
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Auto Solve", true), Minecraft.getInstance().font));
+        y += 16;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Auto Solve", cfg.isAutoSolveEnabled()), btn -> {
+                    cfg.setAutoSolveEnabled(!cfg.isAutoSolveEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
 
         if (cfg.isAutoSolveEnabled()) {
             widgets.add(SettingsButtonWidget.builder(rotateText(cfg), btn -> {
@@ -289,67 +360,31 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                 });
                 y += 22;
             }
+
+            // Auto Restart SS + Restart Key (2026-09-14, killer560's own request) - independent of Auto Start
+            // being on; they use Auto Start's Clicks/Delay and the same aura vs look-only rule. Nested under
+            // Auto Solve and gated on it (2026-09-21, killer560's own request: "put auto restart ss as a
+            // feature that only appears under auto solve. Same with the restart key that should only show if
+            // auto restart is on.") - this changes only where/when the ROW draws; the underlying autoRestart
+            // trigger (SS-failure detection + the manual Restart Key press) still fires independently of Auto
+            // Start's own on/off state, same as before this change.
+            widgets.add(SettingsButtonWidget.builder(onOff("Auto Restart SS", cfg.getAutoRestartRaw()), btn -> {
+                        cfg.setAutoRestartEnabled(!cfg.getAutoRestartRaw());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(col2aX, y, col2W, 18).build());
+
+            if (cfg.getAutoRestartRaw()) {
+                Component restartKeyLabel = capturingRestartKey ? Component.literal("Press any key...") : restartKeyText(cfg);
+                widgets.add(SettingsButtonWidget.builder(restartKeyLabel, btn -> {
+                            capturingRestartKey = true;
+                            capturingAnnounceKey = false;
+                            btn.setMessage(Component.literal("Press any key..."));
+                        }).bounds(col2bX, y, col2W, 18).build());
+            }
+            y += 22;
         }
 
-        // Auto Restart SS + Restart Key (2026-09-14, killer560's own request) - independent of Auto Start being on;
-        // they use Auto Start's Clicks/Delay and the same aura vs look-only rule.
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Restart SS", cfg.getAutoRestartRaw()), btn -> {
-                    cfg.setAutoRestartEnabled(!cfg.getAutoRestartRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Auto Restart SS", cfg.getAutoRestartRaw()));
-                }).bounds(col2aX, y, col2W, 18).build());
-
-        Component restartKeyLabel = capturingRestartKey ? Component.literal("Press any key...") : restartKeyText(cfg);
-        widgets.add(SettingsButtonWidget.builder(restartKeyLabel, btn -> {
-                    capturingRestartKey = true;
-                    capturingAnnounceKey = false;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 22;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Start", cfg.isAutoStartEnabled()), btn -> {
-                    cfg.setAutoStartEnabled(!cfg.isAutoStartEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-
-        if (!cfg.isAutoStartEnabled()) {
-            return widgets;
-        }
-
-        double clicksNorm = cfg.getAutoStartClicks() / 20.0;
-        widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18,
-                Component.literal("Clicks: " + cfg.getAutoStartClicks()), clicksNorm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal("Clicks: " + cfg.getAutoStartClicks()));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setAutoStartClicks((int) Math.round(this.value * 20));
-                cfg.save();
-            }
-        });
-
-        // Range is 1-20, not 0-20 (killer560's own call - 0 ticks isn't a real delay option).
-        double delayNorm = (cfg.getAutoStartClickDelayTicks() - 1) / 19.0;
-        widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
-                Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t (" + cfg.getAutoStartClickDelayTicks() * 50 + "ms)"), delayNorm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t (" + cfg.getAutoStartClickDelayTicks() * 50 + "ms)"));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setAutoStartClickDelayTicks(1 + (int) Math.round(this.value * 19));
-                cfg.save();
-            }
-        });
-        // No separate Auto Start "Click Mode" button anymore (2026-09-14, killer560's own call) - it follows
-        // Auto Solve's Mode: Rotate = look only, No Rotate = aura. See SimonSaysFeature#tickAutoStart.
         return widgets;
     }
 

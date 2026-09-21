@@ -1,7 +1,11 @@
 package com.killer560.hub.etherwarp;
 
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -45,6 +49,38 @@ public final class EtherwarpFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(EtherwarpFeature::onWorldRender);
+    }
+
+    /**
+     * Draws a box on the block each waypoint marks.
+     * <p>
+     * killer560, 2026-09-20: "it shows a little hud on the left with distance, instead it should highlight
+     * the block I was looking at." A distance readout makes you convert a number into a place; a box on the
+     * block just tells you. The HUD list is still available as a setting for anyone who wants both, but it
+     * is no longer the only way to find a spot you marked.
+     */
+    private static void onWorldRender(LevelRenderContext context) {
+        EtherwarpWaypointsConfig cfg = EtherwarpWaypointsConfig.getInstance();
+        if (!cfg.isHighlightBlocks() || waypoints.isEmpty()) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !DungeonState.isInDungeon()) {
+            return;
+        }
+        float[] rgb = cfg.highlightRgb();
+        Vec3 eye = client.player.getEyePosition();
+        double maxSq = cfg.getHighlightDistance() * cfg.getHighlightDistance();
+        for (EtherwarpWaypoint w : waypoints) {
+            // Cull by distance rather than drawing every bookmark every frame - the same lesson the secret
+            // waypoints renderer learned the hard way when it was one of the real FPS culprits.
+            if (eye.distanceToSqr(w.x + 0.5, w.y + 0.5, w.z + 0.5) > maxSq) {
+                continue;
+            }
+            AABB box = new AABB(w.x, w.y, w.z, w.x + 1, w.y + 1, w.z + 1);
+            WorldRenderUtils.renderOutlineBox(context, box, rgb[0], rgb[1], rgb[2], 1f, 2f);
+        }
     }
 
     private static void tick() {

@@ -617,9 +617,9 @@ final class SettingTooltipsData {
         d.put("restore on launch", "When the game starts, moves this window back into the last slot you picked (same monitor and layout). Skipped if that monitor isn't connected.");
         d.put("mask invincibility", "HUD timers for Spirit Mask, Bonzo's Mask and Phoenix pet invincibility and cooldowns, started when their proc message appears in chat.");
         d.put("spirit", "Shows the Spirit Mask timer on the HUD (3s invincible, 30s cooldown).");
-        d.put("bonzo", "Shows the Bonzo's Mask timer on the HUD (3s invincible, fixed 180s cooldown estimate).");
+        d.put("bonzo", "Shows the Bonzo's Mask timer on the HUD (3s invincible). Bonzo's real cooldown varies slightly and is normally read from the item's own tooltip - this uses a fixed 180s estimate instead.");
         d.put("phoenix", "Shows the Phoenix pet timer on the HUD (4s invincible, 60s cooldown).");
-        d.put("auto swap", "Cheat build only, Skyblock only. When Spirit or Bonzo procs, equips the other mask from your hotbar if it is off cooldown.");
+        d.put("auto swap", "Cheat build only, Skyblock only. When a mask or Phoenix pops, swaps you onto the next one in the order Spirit, Phoenix, Bonzo: runs /stats and clicks the mask in your inventory, or throws your rod so Hypixel's Autopet rule summons Phoenix. One attempt per pop, never retried.");
         d.put("mod chat", "Lets you send tagged messages with /killer560 chat <message>; other mod users see them as a highlighted overlay. Non-mod users still see the raw line.");
         d.put("channel", "Which Hypixel chat Mod Chat messages go through: PARTY or GUILD. Everyone in that party or guild sees them.");
         d.put("voice to text", "Hold the Push-to-Talk key, speak, then release. Your speech is turned into text on your own PC and sent to party or guild chat. English only. The first use downloads a ~40MB speech model. Not yet tested with a real microphone.");
@@ -629,7 +629,7 @@ final class SettingTooltipsData {
         d.put("auto i4", "Cheat build only. F7/M7 P3, 4th device (i4): while you stand on the device holding your bow, aims at and shoots each target as it lights up. Re-shoots a target that is still lit 1s later, and stops once your device completes.");
         d.put("auto swap to bow", "Cheat build only. While on the i4 device, swaps your hotbar to the selected weapon. Waits briefly after swaps made by you or other features.");
         d.put("cps", "Cheat build only. Click rate range for Auto i4; each attempt picks a rate in this range and every click varies by about 2 CPS.");
-        d.put("auto mask", "Cheat build only, needs Auto i4. While you're on the i4 device, equips Bonzo's Mask, Spirit Mask or the Phoenix pet (through /stats or /pets) about 8.7s and 12.2s after Storm dies. Uses the first item in Order that hasn't popped and isn't on cooldown.");
+        d.put("auto mask", "Cheat build only, needs Auto i4. On the i4 device, about 8.7s and 12.2s after Storm dies, puts your next death item on: Phoenix first (by throwing your rod), then the mask picked in Order. Uses the same one /stats swap Mask Invincibility does, so the two can never both send it.");
         d.put("show teammates", "Draws a dot on the map for each party member's current room.");
         d.put("recolor by class", "Colors teammate dots by the class assigned to them in the Leap Menu; OFF (or no class assigned) draws them white.");
         d.put("cell size", "Size of each map grid cell in pixels (4-16, each click adds 2 and wraps). Larger cells make the whole map bigger.");
@@ -1432,7 +1432,7 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/predictions", "Cheat build only, Terminator only. After each shot, also fires at the likely next target so the arrow is already in the air when it lights.");
         d.put("sharp shooter (i4)/cps", "Cheat build only. Auto i4 shooting speed range, 1-15 clicks per second (default 4-6). Each attempt picks a rate in this range, and each shot varies by up to 2 CPS. Going too fast makes the Terminator's own cooldown swallow shots.");
         d.put("sharp shooter (i4)/shot accuracy", "Cheat build only. Chance (0-100%, default 100) that each Auto i4 shot is aimed correctly. A miss aims about a block high or low, and the target is shot again.");
-        d.put("sharp shooter (i4)/order", "Cheat build only, shown with Auto Mask. Priority Auto Mask uses: it picks the first item that hasn't popped and isn't on cooldown. Click to cycle through the 6 orders.");
+        d.put("sharp shooter (i4)/order", "Which mask Auto Mask falls back to once Phoenix has been tried. Phoenix is always first.");
         d.put("sharp shooter (i4)/auto", "Cheat build only. Leaps to the i4 target as soon as your own 'completed a device!' message appears while you're at the i4 spot. Works even if the general Fast Leap is off.");
         d.put("sharp shooter (i4)/fast leap", "Cheat build only. Left-clicking a leap item (Spirit Leap/Infinileap) while at the i4 spot goes straight to the i4 target instead of opening the leap menu. Refuses while the device is still running.");
         d.put("sharp shooter (i4)/target", "Who the i4 leap goes to: a Class (first alive teammate of it), a typed Player, or Melody (whoever last posted Melody progress like 2/4 or 50% in party chat).");
@@ -1547,7 +1547,7 @@ final class SettingTooltipsData {
         d.put("simon says/delay", "Cheat build only. Time between Auto Start clicks on the start button, 1-20 ticks (1 tick = 50 ms). 3 ticks is the tested value for skipping rounds.");
         d.put("simon says/clicks", "Cheat build only. How many times (0-20) Auto Start and restarts click the Simon Says start button. 0 turns clicking off. 3 is the tested value for skipping rounds.");
         d.put("slot binds/remove", "Deletes this slot bind pair. The items are not moved.");
-        d.put("storage overlay/scale", "Size of the storage grid and the moved inventory panel, 50-200%. The grid stays centered at the top and the inventory panel stays at the bottom.");
+        d.put("storage overlay/scale", "Resizes the whole overlay - grid and inventory panel together. The grid stays pinned near the top, the inventory at the bottom.");
         d.put("storage search/open key", "Key that opens Storage Search while you're in-game with no menu open. Click, then press a key; Escape unbinds it. /k560search works too.");
         d.put("teammate highlight/style", "Outline Box draws only the edges. Filled Box also fills the box with a faint tint so the player stays visible. Click to cycle.");
         d.put("teammate highlight/line width", "Thickness of the box outline, 1-10.");
@@ -1737,5 +1737,37 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door color", "Cheat build only. Color of the locked Blood door while you don't have the Blood Key.");
         d.put("wither doors/blood door (key) color", "Cheat build only. Color the Blood door switches to once the Blood Key has been picked up.");
         d.put("wither doors/through walls", "Cheat build only. Draws the highlighted door box(es) through walls instead of only when you can actually see them.");
+        d.put("mask invincibility/item icons", "Draws each item's real texture next to its timer, taken from your own inventory when it is there.");
+        d.put("mask invincibility/hide mask names", "Shows only the icon and the time, dropping the \"Spirit Mask:\" label. Needs Item Icons on.");
+        d.put("mask invincibility/announce in chat", "Prints a client-side line only you can see when a mask or the Phoenix pet pops.");
+        d.put("mask invincibility/announce to party", "Types the pop into party chat with /pc so your team sees it. Off by default - this really does send a message.");
+        d.put("mask invincibility/swap step delay", "Pause between each step of an automated swap: send /stats, wait for the menu, click the mask, close it. Higher is safer on a laggy server.");
+        d.put("mask invincibility/phoenix rod", "Part of the name of the rod to throw for Phoenix, matched anywhere in a hotbar item's name. Relies on your own Hypixel Autopet rule that summons Phoenix when you hold it.");
+        d.put("mask invincibility/return to slot", "Switches back to whatever you were holding once the rod has been thrown.");
+        d.put("mask invincibility/phoenix route", "How an automated swap puts Phoenix out: Rod / Autopet throws your rod and relies on a Hypixel Autopet rule to summon it (no command sent), /pets menu opens /pets and clicks Phoenix directly. Falls back to /pets on its own if no rod is found in your hotbar.");
+        d.put("phoenix rod", "Part of the name of the rod to throw for Phoenix, matched anywhere in a hotbar item's name. Only used by the Rod / Autopet route - relies on your own Hypixel Autopet rule that summons Phoenix when you hold it. If no matching rod is found, the swap falls back to the /pets menu instead of doing nothing.");
+        d.put("storage search/storage search", "Searches every storage, chest and menu this mod has cached, not just the container that's open. Opens with /search, its own binds, or the Search button in the Storage Overlay.");
+        d.put("storage search/open bind 1", "Click, then press the key or mouse button that opens the search. Hold Ctrl/Shift/Alt first for a combination like Ctrl+F. Escape cancels.");
+        d.put("storage search/open bind 2", "A second way to open the search. Click, then press a key or mouse button; hold Ctrl/Shift/Alt first for a combination.");
+        d.put("storage search/open bind 3", "A third way to open the search. Click, then press a key or mouse button; hold Ctrl/Shift/Alt first for a combination.");
+        d.put("storage search/open bind 4", "A fourth way to open the search. Click, then press a key or mouse button; hold Ctrl/Shift/Alt first for a combination.");
+        d.put("storage search/open bind 5", "A fifth way to open the search. Click, then press a key or mouse button; hold Ctrl/Shift/Alt first for a combination.");
+        d.put("storage search/+ add open bind", "Adds another key or mouse button that opens the search. Up to five.");
+        d.put("storage search/open search", "Opens the search screen right now, without closing the settings.");
+        d.put("storage search/search lore", "Also matches the text in an item's lore, not just its name and Skyblock id. Slower to type against on huge caches.");
+        d.put("storage search/include inventory", "Includes what you're carrying right now - hotbar, inventory, armour and offhand - alongside the cached storages.");
+        d.put("storage search/open on click", "Clicking a result sends the real /enderchest or /backpack command and outlines the slot when it opens. Off means results only print to chat.");
+        d.put("storage search/focus one storage", "If every hit is in one backpack or page, the Storage Overlay grid shows only that one. The Back button on its left brings the rest back.");
+        d.put("storage search/search wardrobe & pets", "Also searches your wardrobe, equipment and pets menus. Each one has to be opened once so its contents can be cached.");
+        d.put("storage search/clear menu cache", "Forgets the cached wardrobe, equipment and pets pages. They come back the next time you open those menus.");
+        d.put("storage search/search island chests", "Also searches island chests you've opened. A chest only counts once you've opened it - the server never sends a closed chest's contents.");
+        d.put("storage search/clear chest cache", "Forgets every remembered island chest and clears any chest currently highlighted in the world.");
+        d.put("storage search/chest esp", "Draws a box round the chest in the world when you click a chest result, so you can walk to it.");
+        d.put("storage search/esp through walls", "Shows the chest box through terrain. Off means it's hidden behind blocks, which usually defeats the point.");
+        d.put("storage search/chest scan", "How far out to look for chests, in chunks. Bigger means more chests found and a slower scan; the scan only runs when you open the search.");
+        d.put("storage search/esp time", "How long a clicked chest stays boxed in the world before the highlight disappears.");
+        d.put("storage overlay/storage overlay enabled", "Draws every known Ender Chest page and backpack in a grid beside the real menu, and moves your inventory to the bottom. Opening a page logs it.");
+        d.put("storage overlay/overlay theme", "Dark or light panels for the grid and the relocated inventory.");
+        d.put("storage overlay/columns", "How many storage panels sit side by side. Fewer columns means a taller, scrollable grid.");
     }
 }

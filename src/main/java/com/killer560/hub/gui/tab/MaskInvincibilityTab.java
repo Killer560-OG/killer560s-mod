@@ -2,9 +2,11 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -13,7 +15,8 @@ import java.util.List;
 
 /** Mask/pet invincibility timer settings - see
  *  {@link com.killer560.hub.maskinvincibility.MaskInvincibilityFeature}'s class doc for the real
- *  Odin-ported proc detection this is built on. */
+ *  Odin-ported proc detection this is built on, and {@link com.killer560.hub.maskinvincibility.MaskSwapper}
+ *  for the cheat-build auto-swap. */
 public class MaskInvincibilityTab extends BaseTab {
 
     public MaskInvincibilityTab() {
@@ -59,21 +62,33 @@ public class MaskInvincibilityTab extends BaseTab {
                 }).bounds(col3, y, 108, 18).build());
         y += 22;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("Item Icons", cfg.isShowItemIcons()), btn -> {
+                    cfg.setShowItemIcons(!cfg.isShowItemIcons());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(col1, y, 100, 18).build());
+
+        if (cfg.isShowItemIcons()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Hide Mask Names", cfg.isHideMaskNames()), btn -> {
+                        cfg.setHideMaskNames(!cfg.isHideMaskNames());
+                        cfg.save();
+                        btn.setMessage(onOff("Hide Mask Names", cfg.isHideMaskNames()));
+                    }).bounds(col2, y, 208, 18).build());
+        }
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Announce In Chat", cfg.isAnnounceInChat()), btn -> {
                     cfg.setAnnounceInChat(!cfg.isAnnounceInChat());
                     cfg.save();
                     btn.setMessage(onOff("Announce In Chat", cfg.isAnnounceInChat()));
-                }).bounds(col1, y, 220, 18).build());
-        y += 24;
+                }).bounds(col1, y, 208, 18).build());
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Bonzo's real cooldown varies slightly and is normally read from"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7the item's own tooltip - this uses a fixed 180s estimate instead."),
-                Minecraft.getInstance().font));
-        y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("Announce To Party", cfg.isAnnounceToParty()), btn -> {
+                    cfg.setAnnounceToParty(!cfg.isAnnounceToParty());
+                    cfg.save();
+                    btn.setMessage(onOff("Announce To Party", cfg.isAnnounceToParty()));
+                }).bounds(contentX + 216, y, 108, 18).build());
+        y += 24;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return widgets;
@@ -86,19 +101,70 @@ public class MaskInvincibilityTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isAutoSwapEnabled()), btn -> {
                     cfg.setAutoSwapEnabled(!cfg.isAutoSwapEnabled());
                     cfg.save();
-                    btn.setMessage(onOff("Auto Swap", cfg.isAutoSwapEnabled()));
+                    requestRebuild.run();
                 }).bounds(col1, y, 100, 18).build());
-        y += 20;
+        y += 22;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7When Spirit/Bonzo procs, right-clicks the other one if it's in your"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7hotbar and off cooldown - real vanilla equip-swap, works mid-fight."),
-                Minecraft.getInstance().font));
+        if (!cfg.isAutoSwapEnabled()) {
+            return widgets;
+        }
+
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, stepDelayLabel(cfg),
+                (cfg.getSwapStepDelayMs() - MaskInvincibilityConfig.MIN_STEP_DELAY_MS)
+                        / (double) (MaskInvincibilityConfig.MAX_STEP_DELAY_MS
+                        - MaskInvincibilityConfig.MIN_STEP_DELAY_MS)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(stepDelayLabel(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                int range = MaskInvincibilityConfig.MAX_STEP_DELAY_MS - MaskInvincibilityConfig.MIN_STEP_DELAY_MS;
+                cfg.setSwapStepDelayMs((int) (Math.round(
+                        (MaskInvincibilityConfig.MIN_STEP_DELAY_MS + this.value * range) / 25.0) * 25));
+                cfg.save();
+            }
+        });
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(phoenixRouteLabel(cfg), btn -> {
+                    cfg.setPhoenixRoute(cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD
+                            ? MaskInvincibilityConfig.PhoenixRoute.PETS : MaskInvincibilityConfig.PhoenixRoute.ROD);
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, 220, 18).build());
+        y += 22;
+
+        if (cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD) {
+            EditBox rod = new EditBox(Minecraft.getInstance().font, contentX, y, 208, 18,
+                    Component.literal("Phoenix Rod"));
+            rod.setMaxLength(64);
+            rod.setHint(Component.literal("Rod name (part of it is enough)"));
+            rod.setValue(cfg.getPhoenixRodName());
+            rod.setResponder(text -> {
+                cfg.setPhoenixRodName(text);
+                cfg.save();
+            });
+            widgets.add(rod);
+
+            widgets.add(SettingsButtonWidget.builder(onOff("Return To Slot", cfg.isRodReturnToPreviousSlot()), btn -> {
+                        cfg.setRodReturnToPreviousSlot(!cfg.isRodReturnToPreviousSlot());
+                        cfg.save();
+                        btn.setMessage(onOff("Return To Slot", cfg.isRodReturnToPreviousSlot()));
+                    }).bounds(contentX + 216, y, 108, 18).build());
+        }
 
         return widgets;
+    }
+
+    private static Component stepDelayLabel(MaskInvincibilityConfig cfg) {
+        return Component.literal("Swap Step Delay: " + cfg.getSwapStepDelayMs() + "ms");
+    }
+
+    private static Component phoenixRouteLabel(MaskInvincibilityConfig cfg) {
+        return Component.literal("Phoenix Route: §b"
+                + (cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD ? "Rod / Autopet" : "/pets menu"));
     }
 
     private static Component onOff(String label, boolean value) {

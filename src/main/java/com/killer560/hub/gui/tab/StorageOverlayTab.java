@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -89,14 +87,6 @@ public class StorageOverlayTab extends BaseTab {
                 this.value = (snapped - StorageOverlayConfig.MIN_COLUMNS) / (double) columnRange;
             }
         });
-        y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Opening an Ender Chest page or Backpack logs it and shows every "
-                        + "known one in a grid alongside the menu. Drag it in Edit HUD Positions to "
-                        + "move. Double-click a storage's title in the grid to rename it right there."),
-                Minecraft.getInstance().font));
-
         return widgets;
     }
 

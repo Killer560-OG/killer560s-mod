@@ -52,14 +52,28 @@ public final class I4SensorsConfig {
         }
     }
 
-    /** All 6 orderings, in the order the tab's Order button cycles through them. */
+    /**
+     * The orderings the tab's Order button cycles through. killer560 (2026-09-21): "the mask swap also will
+     * always prioritize the phoenix first then going to the other mask" - so Phoenix is fixed at the front and
+     * the only choice left is which mask follows it. {@link I4AutoMask#swapOrder} re-pins Phoenix anyway, so a
+     * hand-edited config cannot demote it.
+     */
     public static final List<List<DeathItem>> ORDERS = List.of(
+            List.of(DeathItem.PHOENIX, DeathItem.SPIRIT, DeathItem.BONZO),
+            List.of(DeathItem.PHOENIX, DeathItem.BONZO, DeathItem.SPIRIT));
+
+    /** The 6-entry table this setting used before Phoenix was pinned first, kept only so an existing saved
+     *  {@code maskOrderIndex} keeps his Spirit-vs-Bonzo preference instead of silently resetting. */
+    private static final List<List<DeathItem>> LEGACY_ORDERS = List.of(
             List.of(DeathItem.BONZO, DeathItem.SPIRIT, DeathItem.PHOENIX),
             List.of(DeathItem.BONZO, DeathItem.PHOENIX, DeathItem.SPIRIT),
             List.of(DeathItem.SPIRIT, DeathItem.BONZO, DeathItem.PHOENIX),
             List.of(DeathItem.SPIRIT, DeathItem.PHOENIX, DeathItem.BONZO),
             List.of(DeathItem.PHOENIX, DeathItem.BONZO, DeathItem.SPIRIT),
             List.of(DeathItem.PHOENIX, DeathItem.SPIRIT, DeathItem.BONZO));
+
+    /** Bumped whenever {@link #ORDERS} changes shape, so {@code maskOrderIndex} is read against the right table. */
+    private static final int MASK_ORDER_VERSION = 2;
 
     private static I4SensorsConfig instance;
 
@@ -132,13 +146,24 @@ public final class I4SensorsConfig {
             }
             cfg.autoSwapToBow = obj.has("autoSwapToBow") && obj.get("autoSwapToBow").getAsBoolean();
             cfg.autoMask = obj.has("autoMask") && obj.get("autoMask").getAsBoolean();
-            cfg.setMaskOrderIndex(obj.has("maskOrderIndex") ? obj.get("maskOrderIndex").getAsInt() : 0);
+            cfg.setMaskOrderIndex(readMaskOrderIndex(obj));
             cfg.setShotAccuracyPercent(obj.has("shotAccuracyPercent") ? obj.get("shotAccuracyPercent").getAsInt() : 100);
             cfg.setCpsRange(obj.has("cpsMin") ? obj.get("cpsMin").getAsInt() : 4, obj.has("cpsMax") ? obj.get("cpsMax").getAsInt() : 6);
             instance = cfg;
         } catch (Exception e) {
             instance = new I4SensorsConfig();
         }
+    }
+
+    /** Reads {@code maskOrderIndex} against whichever {@link #ORDERS} table it was written for. */
+    private static int readMaskOrderIndex(JsonObject obj) {
+        int saved = obj.has("maskOrderIndex") ? obj.get("maskOrderIndex").getAsInt() : 0;
+        int version = obj.has("maskOrderVersion") ? obj.get("maskOrderVersion").getAsInt() : 1;
+        if (version >= MASK_ORDER_VERSION) {
+            return saved;
+        }
+        List<DeathItem> old = LEGACY_ORDERS.get(Math.floorMod(saved, LEGACY_ORDERS.size()));
+        return old.indexOf(DeathItem.SPIRIT) < old.indexOf(DeathItem.BONZO) ? 0 : 1;
     }
 
     public void save() {
@@ -156,6 +181,7 @@ public final class I4SensorsConfig {
             obj.addProperty("autoSwapToBow", autoSwapToBow);
             obj.addProperty("autoMask", autoMask);
             obj.addProperty("maskOrderIndex", maskOrderIndex);
+            obj.addProperty("maskOrderVersion", MASK_ORDER_VERSION);
             obj.addProperty("shotAccuracyPercent", shotAccuracyPercent);
             obj.addProperty("cpsMin", cpsMin);
             obj.addProperty("cpsMax", cpsMax);
