@@ -1645,11 +1645,11 @@ final class SettingTooltipsData {
         d.put("mod chat/room", "Party keeps mod chat to your current party only (the relay sees a hash of the names, never the names). Global puts you in one room with every mod user who is online.");
         d.put("mod chat/log to chat", "Also prints received mod chat into your real chat log so you can scroll back to it, instead of only flashing it above the hotbar.");
         d.put("mod chat/presence alerts", "Shows a message when another mod user joins or leaves your mod chat room, and how many are there when you connect.");
-        d.put("party interop/party interop", "Collects what the whole party knows about the run - what this client can work out itself, what other dungeon mods announce in party chat, and what our own relay carries. Off by default.");
+        d.put("party interop/party interop", "Collects what the whole party knows about the run - what this client can work out itself, what other dungeon mods announce in party chat, and what our own relay carries. On by default; turn it off to stop sharing and receiving.");
         d.put("party interop/work it out myself", "Derives facts from what Hypixel already sends every client: the action bar's room secret count, terminal and device lines, blood door and Watcher lines. Needs nobody else to install anything.");
         d.put("party interop/read party chat", "Recognises the announcements other dungeon mods make in party chat, like Odin's \"Mimic Killed!\". Helps whenever a party mate runs one of those mods; you do not need them yourself.");
         d.put("party interop/use mod relay", "Accepts dungeon facts from other players running this mod over our own relay. This is the only way to learn a teammate's live per-room secret count.");
-        d.put("party interop/local mod bridge", "Reads NoammAddons' and Odin's own dungeon state out of this Minecraft. Does nothing unless you have those mods installed here, so it is off by default. Read-only - it never writes to them and never contacts their servers.");
+        d.put("party interop/local mod bridge", "Reads NoammAddons' and Odin's own dungeon state out of this Minecraft. Does nothing unless you have those mods installed here. On by default. Read-only - it never writes to them and never contacts their servers.");
         d.put("party interop/log pickups", "Prints each fact into chat as it is picked up, with where it came from. For working out why something did or did not register.");
         d.put("superboom colour", "Marker colour for Superboom nodes - the ones that left-click a block with a Superboom TNT.");
         d.put("auto routes/thickness", "Line thickness of the Auto Routes node markers and path line, 1 to 8. Same range as QUOI.");

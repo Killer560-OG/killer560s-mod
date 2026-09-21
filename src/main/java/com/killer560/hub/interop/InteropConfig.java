@@ -27,10 +27,10 @@ public final class InteropConfig {
 
     private static InteropConfig instance;
 
-    private boolean enabled = false;
+    private boolean enabled = true;
     private boolean selfDerivation = true;
     private boolean chatParsing = true;
-    private boolean localBridge = false;
+    private boolean localBridge = true;
     private boolean relayData = true;
     private boolean logPickups = false;
 
@@ -53,10 +53,10 @@ public final class InteropConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             InteropConfig cfg = new InteropConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             cfg.selfDerivation = ConfigJson.getBool(obj, "selfDerivation", true);
             cfg.chatParsing = ConfigJson.getBool(obj, "chatParsing", true);
-            cfg.localBridge = ConfigJson.getBool(obj, "localBridge", false);
+            cfg.localBridge = ConfigJson.getBool(obj, "localBridge", true);
             cfg.relayData = ConfigJson.getBool(obj, "relayData", true);
             cfg.logPickups = ConfigJson.getBool(obj, "logPickups", false);
             instance = cfg;

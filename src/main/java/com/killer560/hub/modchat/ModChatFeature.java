@@ -51,8 +51,15 @@ public final class ModChatFeature {
         }
         tickCounter = 0;
         ModChatConfig cfg = ModChatConfig.getInstance();
-        boolean on = cfg.isEnabled() && client.getConnection() != null && client.player != null;
-        RelayRoom.Mode mode = cfg.getRoomMode();
+        // The relay also carries party dungeon data (hub/partydata, Team Melody), which is ON by default and must
+        // not depend on Mod Chat being on. Without Mod Chat, data always uses the party room - never a lobby room.
+        boolean chatOn = cfg.isEnabled();
+        boolean dataOn = com.killer560.hub.interop.InteropConfig.getInstance().isEnabled()
+                && com.killer560.hub.interop.InteropConfig.getInstance().isRelayData()
+                && (com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled()
+                    || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress());
+        boolean on = (chatOn || dataOn) && client.getConnection() != null && client.player != null;
+        RelayRoom.Mode mode = chatOn ? cfg.getRoomMode() : RelayRoom.Mode.PARTY;
         // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
         // never sends /locraw at all.
         HypixelLocation.tick(client, on && mode == RelayRoom.Mode.LOBBY);

@@ -47,9 +47,9 @@ public final class PartyDataConfig {
     }
 
     public static void load() {
-        boolean dependenciesOn = InteropConfig.getInstance().isEnabledRaw()
-                && InteropConfig.getInstance().isRelayData()
-                && ModChatConfig.getInstance().isEnabled();
+        // killer560 (2026-09-21): every information-sharing/receiving setting is ON by default; players can turn it
+        // off. The relay now connects for data even when Mod Chat is off (see ModChatFeature.onTick).
+        boolean dependenciesOn = true;
         if (!Files.exists(CONFIG_PATH)) {
             PartyDataConfig cfg = new PartyDataConfig();
             cfg.shareEnabled = dependenciesOn;

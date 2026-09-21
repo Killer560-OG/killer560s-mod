@@ -24,10 +24,10 @@ public final class BridgeConfig {
 
     private static BridgeConfig instance;
 
-    private boolean enabled = false;
-    private boolean devonian = false;
-    private boolean noamm = false;
-    private boolean odin = false;
+    private boolean enabled = true;
+    private boolean devonian = true;
+    private boolean noamm = true;
+    private boolean odin = true;
 
     private BridgeConfig() {
     }
@@ -48,10 +48,10 @@ public final class BridgeConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             BridgeConfig cfg = new BridgeConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.devonian = ConfigJson.getBool(obj, "devonian", false);
-            cfg.noamm = ConfigJson.getBool(obj, "noammAddons", false);
-            cfg.odin = ConfigJson.getBool(obj, "odin", false);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.devonian = ConfigJson.getBool(obj, "devonian", true);
+            cfg.noamm = ConfigJson.getBool(obj, "noammAddons", true);
+            cfg.odin = ConfigJson.getBool(obj, "odin", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new BridgeConfig();

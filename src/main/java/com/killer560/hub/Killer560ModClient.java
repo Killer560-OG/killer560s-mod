@@ -161,6 +161,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.partydata.PartyDataFeature.register();
         com.killer560.hub.bridge.BridgeFeature.register();
         com.killer560.hub.melody.MelodyTrackerFeature.register();
+        com.killer560.hub.interop.SharingDefaults.applyOnce();
         // Auto Leap Out replaced by the QUOI AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
         com.killer560.hub.fastleap.FastLeapFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.register();
