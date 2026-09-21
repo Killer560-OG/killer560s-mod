@@ -139,14 +139,23 @@ public final class AutoGfsFeature {
         // rules, and our own 3s spacing already dwarfs a single tick), but worth wiring up now that every
         // other automated action goes through this gate. A denial here just retries next tick; it can never
         // shrink the >=3s spacing above, only occasionally push a send back by a tick or two.
+        // Second gap found (2026-09-21, gate audit): the re-verify below used to run AFTER the gate had
+        // already been claimed, so an item that no longer needed a refill burnt this tick's single mod-wide
+        // interaction slot and sent nothing - every other aura/solver stood down for a command that never
+        // went out. Worse, the queue entry was polled BEFORE the gate answered, so a denial silently threw
+        // the queued refill away (the same shape as the Experimentation Table bug). Now: peek, re-verify,
+        // drop a stale entry without asking the gate at all, and only claim the tick once there is really
+        // something to send - a denial leaves the entry queued for the next tick.
+        RefillItem item = pending.peek();
+        int amount = needed(client, cfg, item); // re-verify before the gate is asked for anything
+        if (amount <= 0) {
+            pending.poll(); // nothing left to pull for this one - not an action, so no gate slot spent
+            return;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.AUTO_GFS)) {
             return;
         }
-        RefillItem item = pending.poll();
-        int amount = needed(client, cfg, item); // re-verify right before sending
-        if (amount <= 0) {
-            return;
-        }
+        pending.poll();
         lastCommandMs = now;
         String command = "gfs " + item.sackName + " " + amount;
         client.player.connection.sendCommand(command);

@@ -101,25 +101,45 @@ public final class ChocolateFactoryFeature {
                     cfg.getCfMinDelayMs(), cfg.getCfMaxDelayMs(), cfg.getCfUpgradeDelayMs());
         }
 
+        // Real gap found (2026-09-21, gate audit): ActionGate.Actor.CHOCOLATE_FACTORY was declared for this
+        // feature the day the gate landed, but nothing here ever called tryAct - so this was the one place
+        // in the mod that could still put TWO container-click packets on the same client tick BY DESIGN: the
+        // action timer and the upgrade timer are independent, and whenever both came due in the same tick a
+        // cookie click and a purchase went out together. Both branches now claim the tick through the gate,
+        // and neither re-rolls its own timer unless the click actually left (a denied tick must not push the
+        // next cookie a full delay away for a packet that was never sent).
         if (now >= nextActionMs) {
-            nextActionMs = now + cfg.rollCfDelayMs();
+            int straySlot = cfg.isCfClaimStrays() ? findStraySlot(client, menu) : -1;
+            Boolean sent = null; // null = nothing was due to click at all
             if (cfg.isCfAutoTimeTower() && shouldActivateTimeTower(menu.getSlot(39).getItem())) {
-                click(client, menu, 39, 1, ContainerInput.PICKUP);
-                CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory activated Time Tower");
-            } else if (cfg.isCfClaimStrays() && clickStray(client, menu)) {
-                // logged inside
+                sent = click(client, screen, menu, 39, 1, ContainerInput.PICKUP);
+                if (sent) {
+                    CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory activated Time Tower");
+                }
+            } else if (straySlot >= 0) {
+                sent = click(client, screen, menu, straySlot, 0, ContainerInput.PICKUP);
+                if (sent) {
+                    CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory claimed stray '{}' (slot {})",
+                            CheatUtils.plainName(menu.getSlot(straySlot).getItem()), straySlot);
+                }
             } else if (cfg.isCfClickCookie()) {
-                click(client, menu, 13, 1, ContainerInput.PICKUP);
-                clicksThisSession++;
+                sent = click(client, screen, menu, 13, 1, ContainerInput.PICKUP);
+                if (sent) {
+                    clicksThisSession++;
+                }
+            }
+            if (sent == null || sent) {
+                nextActionMs = now + cfg.rollCfDelayMs();
             }
         }
 
         if (cfg.isCfAutoUpgrade() && now >= nextUpgradeMs) {
-            nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
             long chocolate = parseDigits(CheatUtils.plainName(menu.getSlot(13).getItem()));
             Candidate best = findBestUpgrade(menu);
-            if (best != null && chocolate >= best.cost()) {
-                click(client, menu, best.slot(), 2, ContainerInput.CLONE);
+            if (best == null || chocolate < best.cost()) {
+                nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
+            } else if (click(client, screen, menu, best.slot(), 2, ContainerInput.CLONE)) {
+                nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
                 upgradesThisSession++;
                 CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory bought slot {} '{}' cost={} (chocolate={}, cost/cps={})",
                         best.slot(), CheatUtils.plainName(menu.getSlot(best.slot()).getItem()), best.cost(), chocolate,
@@ -128,11 +148,20 @@ public final class ChocolateFactoryFeature {
         }
     }
 
-    private static void click(Minecraft client, AbstractContainerMenu menu, int slot, int button, ContainerInput input) {
+    /** @return false when {@link com.killer560.hub.util.ActionGate} held this tick back - nothing was sent,
+     *  so the caller must leave its own timers and counters exactly where they were. */
+    private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, AbstractContainerMenu menu,
+                                 int slot, int button, ContainerInput input) {
+        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.CHOCOLATE_FACTORY, screen)) {
+            return false;
+        }
         client.gameMode.handleContainerInput(menu.containerId, slot, button, input, client.player);
+        return true;
     }
 
-    private static boolean clickStray(Minecraft client, AbstractContainerMenu menu) {
+    /** The stray to claim, or -1. Split out from the click so the gate can be asked only once something is
+     *  actually there to click. */
+    private static int findStraySlot(Minecraft client, AbstractContainerMenu menu) {
         for (Slot slot : menu.slots) {
             // Review fix (2026-09-15): factory slots only - never PICKUP an item out of the player's own
             // inventory just because its name happens to contain "Golden Rabbit".
@@ -141,12 +170,10 @@ public final class ChocolateFactoryFeature {
             }
             String name = CheatUtils.plainName(slot.getItem());
             if (name.contains("CLICK ME!") || name.contains("Golden Rabbit")) {
-                click(client, menu, slot.index, 0, ContainerInput.PICKUP);
-                CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory claimed stray '{}' (slot {})", name, slot.index);
-                return true;
+                return slot.index;
             }
         }
-        return false;
+        return -1;
     }
 
     private static void endSession(String why) {

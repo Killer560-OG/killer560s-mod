@@ -83,6 +83,13 @@ public final class ActionGate {
      * Order rationale: things that lose the run if they are late come first (route execution, ultimates, terminals,
      * the boss levers), then puzzle/phase work, then the convenience auras, then the "no one dies if this is a tick
      * late" shop/farm automation.
+     * <p>
+     * <b>A constant declared here is not a promise that anything calls it.</b> That is exactly how the
+     * Experimentation Table shipped unprotected - {@code EXPERIMENTS} existed from day one and no code in that
+     * package ever called {@link #tryAct}, so every click there went out ungated while the enum made it look
+     * covered. The 2026-09-21 audit wired up {@code DOOR_OPENER}, {@code AUTO_ULT} and {@code CHOCOLATE_FACTORY},
+     * which had the same problem. Still NOT wired, deliberately, and marked below: {@link #I4} and
+     * {@link #PUZZLE_SCREEN}. If you add a constant, wire it in the same change.
      */
     public enum Actor {
         /** AP3 / Auto Routes / auto-clear executors. Reserved - see the notes; not wired up yet. */
@@ -99,13 +106,20 @@ public final class ActionGate {
         SIMON_SAYS(Kind.WORLD),
         /** Auto Puzzles / the boulder + water solvers clicking in the world. */
         PUZZLE_WORLD(Kind.WORLD),
-        /** Auto Puzzles clicking inside a puzzle GUI. */
+        /** Auto Puzzles clicking inside a puzzle GUI. NOT WIRED (2026-09-21 audit): no puzzle auto in this mod
+         *  clicks inside a GUI yet - every one of them is a world interact through {@code PUZZLE_WORLD}. Kept
+         *  because the slot is reserved, not because anything is covered by it. */
         PUZZLE_SCREEN(Kind.SCREEN),
         /** Goldor / Storm arrow-align triggerbot. */
         ARROW_ALIGN(Kind.WORLD),
         /** Blood camp triggerbot. */
         BLOOD_CAMP(Kind.WORLD),
-        /** i4 sensor automation. */
+        /** i4 sensor automation. <b>NOT WIRED</b> (2026-09-21 audit, left for killer560 to call): {@code
+         *  AutoI4Feature} fires the bow through {@code gameMode.useItem} on its own CPS clock with no gate
+         *  check at all, so an i4 shot can still share a tick with a world aura. Wiring it is not free - the
+         *  gate's one-tick floor plus jitter caps any actor at roughly 14-20 clicks/second, and i4's configured
+         *  CPS can be set above that, so the gate would quietly slow the device down. Needs a live decision
+         *  before it is turned on. */
         I4(Kind.WORLD),
         /** Mask Invincibility's death-item swap: the /stats command, the click in its menu, and the rod cast.
          *  Three actors because they are three different kinds of action and the gate's rules differ per kind. */

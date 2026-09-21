@@ -3,6 +3,7 @@ package com.killer560.hub.cheatutils;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -39,10 +40,17 @@ public final class AutoUltFeature {
     private static final Set<DungeonClass> ULT_CLASSES = EnumSet.of(DungeonClass.HEALER, DungeonClass.TANK);
     private static final Pattern TABLIST = Pattern.compile("^\\[(\\d+)] (?:\\[\\w+] )*(\\w+) .*?\\((\\w+)(?: (\\w+))*\\)$");
 
+    /** Ticks a decided-but-not-yet-sent ult keeps asking {@link ActionGate} before it is given up on - two
+     *  seconds, comfortably past the gate's longest stand-down ({@code WORLD_SETTLE_TICKS} = 20 ticks) while
+     *  still short enough that the ult is never fired into a fight it no longer belongs to. */
+    private static final int ULT_GATE_BUDGET_TICKS = 40;
+
     private static final Set<String> firedThisWorld = new HashSet<>();
     private static Object lastLevel = null;
     private static DungeonClass tabClass = null;
     private static int classScanCooldown = 0;
+    private static String pendingUltTrigger = null;
+    private static int pendingUltTicksLeft = 0;
 
     private AutoUltFeature() {
     }
@@ -52,10 +60,12 @@ public final class AutoUltFeature {
             lastLevel = client.level;
             firedThisWorld.clear();
             tabClass = null;
+            pendingUltTrigger = null;
         }
         if (!CheatUtilsConfig.getInstance().isAutoUltEnabled() || !DungeonState.isInDungeon()) {
             return;
         }
+        firePendingUlt(client);
         if (--classScanCooldown <= 0) {
             classScanCooldown = 40;
             DungeonClass found = scanTabClass(client);
@@ -96,10 +106,43 @@ public final class AutoUltFeature {
         if (!firedThisWorld.add(trigger)) {
             return;
         }
-        client.player.connection.send(new ServerboundPlayerActionPacket(
-                ServerboundPlayerActionPacket.Action.DROP_ITEM, BlockPos.ZERO, Direction.DOWN));
-        CheatUtils.LOGGER.info("[CheatUtils] AutoUlt used Ultimate on '{}' as {}", trigger, clazz);
-        ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Used Ultimate "), ModChat.dim("(" + trigger + ")"));
+        // Real gap found (2026-09-21, gate audit): ActionGate.Actor.AUTO_ULT was declared for this feature
+        // ("Losing the tick loses the ult, so it sits near the top") but nothing here ever called tryAct -
+        // the drop packet went straight out, so the ult could ride along with a Breaker Aura break or a
+        // lever flick on the same tick, and it fired with a container screen open. It cannot simply ask the
+        // gate HERE and give up on a refusal: this is a one-shot chat line, so a denial would silently eat
+        // the ult - the exact failure the Experimentation Table audit was written about. So the ult is
+        // handed to the tick loop instead, which re-asks every tick until the gate lets it through and only
+        // reports a loss if it never does.
+        CheatUtils.LOGGER.info("[CheatUtils] AutoUlt '{}' armed as {} - waiting on the action gate.", trigger, clazz);
+        pendingUltTrigger = trigger;
+        pendingUltTicksLeft = ULT_GATE_BUDGET_TICKS;
+    }
+
+    /** Sends the queued ult on the first tick {@link ActionGate} allows it - see {@link #onChat}. */
+    private static void firePendingUlt(Minecraft client) {
+        if (pendingUltTrigger == null) {
+            return;
+        }
+        if (client.player == null) {
+            return;
+        }
+        if (ActionGate.tryAct(ActionGate.Actor.AUTO_ULT)) {
+            String what = pendingUltTrigger;
+            pendingUltTrigger = null;
+            client.player.connection.send(new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.DROP_ITEM, BlockPos.ZERO, Direction.DOWN));
+            CheatUtils.LOGGER.info("[CheatUtils] AutoUlt used Ultimate on '{}'", what);
+            ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Used Ultimate "), ModChat.dim("(" + what + ")"));
+            return;
+        }
+        if (--pendingUltTicksLeft <= 0) {
+            CheatUtils.LOGGER.warn("[CheatUtils] AutoUlt gave up on '{}' - ActionGate never freed up within {} ticks "
+                    + "(a container screen open the whole time will do it)", pendingUltTrigger, ULT_GATE_BUDGET_TICKS);
+            ModChat.send(CheatUtils.CHAT_TAG, ModChat.bad("Couldn't use your Ultimate"),
+                    ModChat.dim(" (" + pendingUltTrigger + ") - nothing was sent."));
+            pendingUltTrigger = null;
+        }
     }
 
     private static DungeonClass effectiveClass(CheatUtilsConfig cfg) {

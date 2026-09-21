@@ -57,6 +57,16 @@ public final class AutoDoorOpenerFeature {
         if (doorPos == null) {
             return;
         }
+        // Real gap found (2026-09-21, gate audit): the comment at the top of this method has said since the
+        // gate landed that "screen rules live in ActionGate now", and ActionGate.Actor.DOOR_OPENER was
+        // declared for this feature - but nothing here ever called tryAct. So the old "In Menus" check was
+        // deleted and NOTHING replaced it: this happily right-clicked a door with a container screen open
+        // (the exact server-visible tell the gate exists to stop), and it could share a tick with Breaker
+        // Aura / Secret Aura / a lever flick. Claimed here, as the last check before lastClick moves, so a
+        // denied tick costs nothing - the same door is simply clicked on the next tick the gate allows.
+        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.DOOR_OPENER)) {
+            return;
+        }
         boolean sent = interactBlock(client, doorPos);
         if (cfg.isAutoDoorSwing()) {
             client.player.swing(InteractionHand.MAIN_HAND);
