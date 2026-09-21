@@ -272,16 +272,80 @@ public final class Ap3Node {
         return new Vec3(Math.cos(r), 0.0, Math.sin(r));
     }
 
-    /** Signed lateral offset of {@code p} from the node's centre line (positive = to the node's left). */
+    /**
+     * The yaw the TRIGGER BOX is laid out along. A WALK / RUN / LOOK / BOOM box follows the node's own yaw (the box
+     * is "along the way you walk"). An ALIGN / AXIS_ALIGN snaps you onto a block centre, so its box is locked to
+     * the block grid instead: the nearest cardinal of the placement yaw. killer560 (2026-09-21): the align's box
+     * "rotates ... if I'm not centered" - it was turned to whatever angle he happened to be looking at when he
+     * placed it, while the marker inside it is always square to the world, so unless he was looking dead along an
+     * axis the two disagreed. Old nodes need no migration: the snap is applied when the yaw is read.
+     */
+    public float boxYaw() {
+        return type.isAlign() ? Math.round(Mth.wrapDegrees(yaw) / 90f) * 90f : yaw;
+    }
+
+    /** {@link #dir()} for the trigger box - see {@link #boxYaw()}. */
+    public Vec3 boxDir() {
+        double r = Math.toRadians(boxYaw());
+        return new Vec3(-Math.sin(r), 0.0, Math.cos(r));
+    }
+
+    /** {@link #left()} for the trigger box - see {@link #boxYaw()}. */
+    public Vec3 boxLeft() {
+        double r = Math.toRadians(boxYaw());
+        return new Vec3(Math.cos(r), 0.0, Math.sin(r));
+    }
+
+    /** Signed lateral offset of {@code p} from the trigger box's centre line (positive = to the box's left). */
     public double lateralOffset(Vec3 p) {
-        Vec3 l = left();
+        Vec3 l = boxLeft();
         return (p.x - x) * l.x + (p.z - z) * l.z;
     }
 
-    /** Signed distance of {@code p} along the node's direction from its centre (positive = ahead). */
+    /** Signed distance of {@code p} along the trigger box's direction from its centre (positive = ahead). */
     public double alongOffset(Vec3 p) {
-        Vec3 d = dir();
+        Vec3 d = boxDir();
         return (p.x - x) * d.x + (p.z - z) * d.z;
+    }
+
+    /** True for the plain 1x1 box every node starts with. */
+    public boolean hasDefaultBox() {
+        return width == DEFAULT_WIDTH && length == DEFAULT_LENGTH;
+    }
+
+    /** Whether the trigger box lies square to the world axes (every align box does; a walk box only when it was
+     *  placed looking exactly along an axis). */
+    public boolean isTriggerBoxAxisAligned() {
+        Vec3 d = boxDir();
+        return Math.abs(d.x) < 1e-6 || Math.abs(d.z) < 1e-6;
+    }
+
+    /** The trigger box's four floor corners at {@code y}, in world space, in ring order (a, b, c, d). */
+    public Vec3[] triggerCorners(double y) {
+        Vec3 d = boxDir();
+        Vec3 l = boxLeft();
+        double hl = length / 2.0;
+        double hw = width / 2.0;
+        return new Vec3[]{
+                new Vec3(x + d.x * hl + l.x * hw, y, z + d.z * hl + l.z * hw),
+                new Vec3(x + d.x * hl - l.x * hw, y, z + d.z * hl - l.z * hw),
+                new Vec3(x - d.x * hl - l.x * hw, y, z - d.z * hl - l.z * hw),
+                new Vec3(x - d.x * hl + l.x * hw, y, z - d.z * hl + l.z * hw)
+        };
+    }
+
+    /** The trigger box as a world AABB of the given height. Exact when {@link #isTriggerBoxAxisAligned()}; for a
+     *  turned box it is the enclosing box, so callers draw those from {@link #triggerCorners} instead. */
+    public AABB triggerBox(double height) {
+        Vec3[] c = triggerCorners(y);
+        double minX = c[0].x, maxX = c[0].x, minZ = c[0].z, maxZ = c[0].z;
+        for (int i = 1; i < c.length; i++) {
+            minX = Math.min(minX, c[i].x);
+            maxX = Math.max(maxX, c[i].x);
+            minZ = Math.min(minZ, c[i].z);
+            maxZ = Math.max(maxZ, c[i].z);
+        }
+        return new AABB(minX, y, minZ, maxX, y + Math.max(0.1, height), maxZ);
     }
 
     /** Whether feet position {@code p} is inside this node's trigger box. */

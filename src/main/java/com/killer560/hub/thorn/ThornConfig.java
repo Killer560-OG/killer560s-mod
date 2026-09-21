@@ -64,6 +64,9 @@ public final class ThornConfig {
     private boolean bearHud = false;
     private boolean showOverkill = false;
     private boolean overkillChat = false;
+    /** killer560: "For overkill chat make an option to send it to party chat as well." Off by default -
+     *  unlike Overkill Chat (client-side only), this is a real message in Party Chat everyone can see. */
+    private boolean overkillToParty = false;
 
     // ---- ESP ----
     private boolean bearEsp = false;
@@ -118,6 +121,7 @@ public final class ThornConfig {
             cfg.bearHud = ConfigJson.getBool(obj, "bearHud", false);
             cfg.showOverkill = ConfigJson.getBool(obj, "showOverkill", false);
             cfg.overkillChat = ConfigJson.getBool(obj, "overkillChat", false);
+            cfg.overkillToParty = ConfigJson.getBool(obj, "overkillToParty", false);
             cfg.bearEsp = ConfigJson.getBool(obj, "bearEsp", false);
             cfg.thornEsp = ConfigJson.getBool(obj, "thornEsp", false);
             cfg.thornColor = ConfigJson.getInt(obj, "thornColor", DEFAULT_THORN_COLOR);
@@ -162,6 +166,7 @@ public final class ThornConfig {
             obj.addProperty("bearHud", bearHud);
             obj.addProperty("showOverkill", showOverkill);
             obj.addProperty("overkillChat", overkillChat);
+            obj.addProperty("overkillToParty", overkillToParty);
             obj.addProperty("bearEsp", bearEsp);
             obj.addProperty("thornEsp", thornEsp);
             obj.addProperty("thornColor", thornColor);
@@ -208,6 +213,10 @@ public final class ThornConfig {
     public boolean isOverkillChatEnabled() { return overkillChat && SkyblockGate.allows(); }
     public boolean getOverkillChatRaw() { return overkillChat; }
     public void setOverkillChat(boolean v) { overkillChat = v; }
+
+    public boolean isOverkillToPartyEnabled() { return overkillToParty && SkyblockGate.allows(); }
+    public boolean getOverkillToPartyRaw() { return overkillToParty; }
+    public void setOverkillToParty(boolean v) { overkillToParty = v; }
 
     // ---- ESP targets ----
     public boolean isBearEspEnabled() { return bearEsp && SkyblockGate.allows(); }

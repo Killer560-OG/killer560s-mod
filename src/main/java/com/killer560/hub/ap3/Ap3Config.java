@@ -95,6 +95,16 @@ public final class Ap3Config {
      * diagonal gets (1.00) - see {@code Ap3Executor#writeMove} for what that actually is in 26.1.2.
      */
     private boolean diagonalWalk = false;
+    /**
+     * killer560 (2026-09-21): "serverside I am always looking in the proper angle for 45 degree strafing, but
+     * client side I am not. So essentially a freecam style." While a Walk / Run hold drives you, the yaw the SERVER
+     * receives is the 45-degree strafe angle for the walk direction (W+A / W+D from that yaw) and your camera stays
+     * wherever you point it. Default OFF - new, untested live. See {@code Ap3Executor#tickStrafe}.
+     */
+    private boolean serverStrafeAngle = false;
+    /** DEV BUILDS ONLY ({@code BuildVariant.DEV_TOOLS}): time every align from box entry to fully aligned and say
+     *  so in chat. Default ON because that is what he asked for; never shipped in a {@code -Prelease=true} jar. */
+    private boolean alignTimerDev = true;
     /** After a chain COMPLETES (never after a user stop), start the chain of the section you are now in. */
     private boolean continueIntoNextSection = false;
     /** The class filter new nodes go into ({@code /ap3 add ...} / the tab); null = the class-less chain. */
@@ -188,6 +198,8 @@ public final class Ap3Config {
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
                 cfg.diagonalWalk = ConfigJson.getBool(o, "diagonalWalk", cfg.diagonalWalk);
+                cfg.serverStrafeAngle = ConfigJson.getBool(o, "serverStrafeAngle", cfg.serverStrafeAngle);
+                cfg.alignTimerDev = ConfigJson.getBool(o, "alignTimerDev", cfg.alignTimerDev);
                 cfg.continueIntoNextSection = ConfigJson.getBool(o, "continueIntoNextSection", cfg.continueIntoNextSection);
                 cfg.editClassFilter = DungeonClass.byName(ConfigJson.getString(o, "editClassFilter", ""));
                 cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
@@ -237,6 +249,8 @@ public final class Ap3Config {
             o.addProperty("enabled", enabled);
             o.addProperty("chatFeedback", chatFeedback);
             o.addProperty("diagonalWalk", diagonalWalk);
+            o.addProperty("serverStrafeAngle", serverStrafeAngle);
+            o.addProperty("alignTimerDev", alignTimerDev);
             o.addProperty("continueIntoNextSection", continueIntoNextSection);
             o.addProperty("editClassFilter", editClassFilter == null ? "" : editClassFilter.name());
             o.addProperty("stopwatchHud", stopwatchHud);
@@ -297,6 +311,16 @@ public final class Ap3Config {
             + "AP3 writes the analog input itself, so ON gives every Walk/Run node that 1.00 in its exact "
             + "recorded direction without turning your camera; OFF gives the plain-W 0.98. Does nothing on the "
             + "no-mixin fallback path.";
+
+    /** See the field doc. Only ever acted on inside {@link #isEnabled()}'s gate (the executor is never ticked
+     *  otherwise), so no extra cheat-build check is needed here. */
+    public boolean isServerStrafeAngle() { return serverStrafeAngle; }
+    public void setServerStrafeAngle(boolean v) { serverStrafeAngle = v; }
+
+    /** The legit-vs-cheat gate does not matter here; the DEV_TOOLS gate does - a release jar can never time. */
+    public boolean isAlignTimerDev() { return com.killer560.hub.BuildVariant.DEV_TOOLS && alignTimerDev; }
+    public boolean isAlignTimerDevRaw() { return alignTimerDev; }
+    public void setAlignTimerDev(boolean v) { alignTimerDev = v; }
 
     public boolean isContinueIntoNextSection() { return continueIntoNextSection; }
     public void setContinueIntoNextSection(boolean v) { continueIntoNextSection = v; }

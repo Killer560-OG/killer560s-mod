@@ -53,10 +53,14 @@ final class MapPainter {
 
     // ------------------------------------------------------------------------------- what the map item has revealed
 
-    /** p3sim.net has no dungeon map item at all, so the strict rule above would leave the map permanently blank
-     *  there. It is a practice site, not Hypixel, so the world scan still drives the map on it - same carve-out
-     *  {@code SkyblockGate.isP3Sim} already makes for the Skyblock gate. */
-    private static boolean onP3Sim() {
+    /** p3sim.net has no dungeon map item at all, so the strict reveal-only rule above would leave the map
+     *  permanently blank there. It is a practice site, not Hypixel, so the world scan still drives what
+     *  {@link #cellRevealed}/{@link #visibleState} allow onto the Interactive Map and the pathfinders that
+     *  read through it - same carve-out {@code SkyblockGate.isP3Sim} already makes for the Skyblock gate.
+     *  Package-visible (not {@code private}) so {@link LiveMapFeature.LiveMapHudElement} can reuse this same
+     *  server-IP test for its own, separate p3sim rule (killer560: hide the Dungeon Map HUD on p3sim, same
+     *  as a boss room) instead of a second copy of the check. */
+    static boolean onP3Sim() {
         net.minecraft.client.multiplayer.ServerData server = net.minecraft.client.Minecraft.getInstance().getCurrentServer();
         return server != null && server.ip != null
                 && server.ip.toLowerCase(Locale.ROOT).contains("p3sim");

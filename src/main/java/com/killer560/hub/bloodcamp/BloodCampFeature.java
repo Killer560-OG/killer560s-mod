@@ -31,8 +31,10 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -129,6 +131,9 @@ public final class BloodCampFeature {
     private static Object lastLevel = null;
     private static int watcherScanCounter = 0;
     private static int triggerIdleTicks = 0;
+    /** Reused every frame by the Spawn Line render (see {@link #onWorldRender}) so drawing it never
+     *  allocates a new List - only its two elements are overwritten, never the List itself. */
+    private static final List<Vec3> SPAWN_LINE_POINTS = new ArrayList<>(List.of(Vec3.ZERO, Vec3.ZERO));
 
     private BloodCampFeature() {
     }
@@ -608,7 +613,21 @@ public final class BloodCampFeature {
             int color = remainingTicks <= 0 ? 0xFF55FF55 : 0xFFFF55FF;
             float[] rgba = WorldRenderUtils.argbToFloats(color);
             WorldRenderUtils.renderOutlineBox(context, box, rgba[0], rgba[1], rgba[2], 1f, 2f);
-            renderTimerText(context, end.x, end.y + 2.3, end.z, remainingTicks / 20.0);
+            // killer560: "it is from the wall spot to where it is going to spawn." Only while still in
+            // flight - the same "gap since the last move packet" signal onMoveEntity uses to know a trip
+            // ended (RESETTLE_GAP_TICKS); once settled, or once the entity is removed (bloodMobs simply
+            // drops it - see onRemoveEntities), the line stops being drawn on the very next frame. Same
+            // colour as the box, through the same depth-tested line type it already uses, so it reads
+            // through walls exactly when the box does - no separate "through walls" setting needed.
+            if (cfg.isSpawnLine() && client.level.getGameTime() - data.lastMoveTick < RESETTLE_GAP_TICKS) {
+                SPAWN_LINE_POINTS.set(0, data.startVec);
+                SPAWN_LINE_POINTS.set(1, end);
+                WorldRenderUtils.renderLineStrip(context, SPAWN_LINE_POINTS, rgba[0], rgba[1], rgba[2], 1f,
+                        cfg.getSpawnLineWidth());
+            }
+            // Box's own vertical middle ((minY + maxY) / 2 = end.y + 1.5), not a fixed offset above it -
+            // killer560: "the timer on each box should be bigger and in the middle of the drawn box."
+            renderTimerText(context, end.x, end.y + 1.5, end.z, remainingTicks / 20.0);
         }
     }
 
@@ -622,7 +641,9 @@ public final class BloodCampFeature {
         var mainCamera = client.gameRenderer.getMainCamera();
         Vec3 cam = mainCamera.position();
         String text = String.format(Locale.US, "%.1fs", seconds);
-        float scale = 0.02f;
+        // killer560: "the timer on each box should be bigger" - Timer Text Scale (default 2x) on top of
+        // the base 0.02f every other world-space label in this mod uses.
+        float scale = 0.02f * BloodCampConfig.getInstance().getTimerTextScale();
 
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
@@ -636,7 +657,9 @@ public final class BloodCampFeature {
 
         float width = font.width(text);
         int background = (int) (0.4f * 255f) << 24;
-        // -lineHeight/2 so the timer is vertically centered on its anchor instead of hanging below it.
+        // -width/2 and -lineHeight/2 centre the text on its anchor point both ways; the anchor itself is
+        // now the box's own world-space middle (see the call site), so this is centred on the box - "and
+        // in the middle of the drawn box" - regardless of scale.
         font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
                 bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 

@@ -5,7 +5,8 @@
 	"package": "com.killer560.hub.ap3.mixin",
 	"client": [
 		"Ap3InputMixin",
-		"Ap3RotationSendMixin"
+		"Ap3RotationSendMixin",
+		"Ap3StrafeImpulseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

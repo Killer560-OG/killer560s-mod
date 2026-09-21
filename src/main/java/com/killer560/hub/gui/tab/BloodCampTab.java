@@ -73,6 +73,51 @@ public class BloodCampTab extends BaseTab {
             y += 22;
         }
 
+        if (cfg.getShowOverlayRaw()) {
+            float minScale = BloodCampConfig.MIN_TIMER_TEXT_SCALE;
+            float maxScale = BloodCampConfig.MAX_TIMER_TEXT_SCALE;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, timerScaleText(cfg),
+                    (cfg.getTimerTextScale() - minScale) / (maxScale - minScale)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(timerScaleText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setTimerTextScale(minScale + (float) this.value * (maxScale - minScale));
+                    cfg.save();
+                }
+            });
+            y += 22;
+
+            widgets.add(SettingsButtonWidget.builder(onOff("Spawn Line", cfg.getSpawnLineRaw()), btn -> {
+                        cfg.setSpawnLine(!cfg.getSpawnLineRaw());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+
+            if (cfg.getSpawnLineRaw()) {
+                float minW = BloodCampConfig.MIN_SPAWN_LINE_WIDTH;
+                float maxW = BloodCampConfig.MAX_SPAWN_LINE_WIDTH;
+                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, spawnLineWidthText(cfg),
+                        (cfg.getSpawnLineWidth() - minW) / (maxW - minW)) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(spawnLineWidthText(cfg));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        cfg.setSpawnLineWidth(minW + (float) this.value * (maxW - minW));
+                        cfg.save();
+                    }
+                });
+                y += 22;
+            }
+        }
+
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return widgets;
         }
@@ -123,5 +168,13 @@ public class BloodCampTab extends BaseTab {
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    private static Component timerScaleText(BloodCampConfig cfg) {
+        return Component.literal(String.format(java.util.Locale.US, "Timer Text Scale: %.1fx", cfg.getTimerTextScale()));
+    }
+
+    private static Component spawnLineWidthText(BloodCampConfig cfg) {
+        return Component.literal(String.format(java.util.Locale.US, "Spawn Line Width: %.1f", cfg.getSpawnLineWidth()));
     }
 }

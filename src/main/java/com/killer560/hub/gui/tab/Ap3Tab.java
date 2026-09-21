@@ -154,6 +154,9 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // These had no control at all and were reachable only by hand-editing the JSON - including the
         // 45-degree walk killer560 specifically asked for (2026-09-16 review).
         toggle(w, contentX, y, "45° Walk Angle", cfg::isDiagonalWalk, cfg::setDiagonalWalk, null);
+        // killer560 (2026-09-21): "serverside I am always looking in the proper angle for 45 degree strafing, but
+        // client side I am not" - the server-side yaw lock for held walks. Default OFF until he has run it live.
+        toggle(w, contentX, y, "Server Strafe Angle", cfg::isServerStrafeAngle, cfg::setServerStrafeAngle, null);
         // Label kept (it is the tooltip key and the settings key stays "continueIntoNextSection"); it now means the
         // next AREA - P1 -> P2 -> S1.. -> P4 -> P5 - not only the next P3 section.
         toggle(w, contentX, y, "Continue Into Next Section", cfg::isContinueIntoNextSection,
@@ -166,6 +169,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         header(w, contentX, y, contentWidth, "Stopwatch");
         toggle(w, contentX, y, "Stopwatch HUD", cfg::isStopwatchHud, cfg::setStopwatchHud, null);
+        if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
+            // Compiled out of official releases (build.gradle -Prelease=true): this whole block does not exist there.
+            header(w, contentX, y, contentWidth, "Dev Tools");
+            toggle(w, contentX, y, "Align Timer (dev)", cfg::isAlignTimerDevRaw, cfg::setAlignTimerDev, null);
+        }
         buildOverridesSection(w, contentX, y, contentWidth);
         buildKeybindSection(w, cfg, contentX, y, contentWidth);
         return w;

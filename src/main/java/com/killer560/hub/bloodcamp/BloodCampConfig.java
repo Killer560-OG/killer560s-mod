@@ -29,6 +29,15 @@ public final class BloodCampConfig {
      *  is 150 ms = 3 ticks). */
     public static final int DEFAULT_KILL_POPUP_LEAD_TICKS = 3;
     public static final int MAX_KILL_POPUP_LEAD_TICKS = 20;
+    /** killer560: "the timer on each box should be bigger". Default is 2x the base 0.02f every world-space
+     *  label in this mod uses - "noticeably bigger", not just a nudge. */
+    public static final float DEFAULT_TIMER_TEXT_SCALE = 2.0f;
+    public static final float MIN_TIMER_TEXT_SCALE = 1.0f;
+    public static final float MAX_TIMER_TEXT_SCALE = 4.0f;
+    /** Same line-width range Thorn ESP's own line-width setting uses. */
+    public static final float DEFAULT_SPAWN_LINE_WIDTH = 2.0f;
+    public static final float MIN_SPAWN_LINE_WIDTH = 1.0f;
+    public static final float MAX_SPAWN_LINE_WIDTH = 10.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -44,6 +53,12 @@ public final class BloodCampConfig {
     private int manualTickOffset = 0;
     private boolean killPopup = false;
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
+    private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
+    /** killer560: "it is from the wall spot to where it is going to spawn." Default ON - Blood Camp itself
+     *  (and its overlay) is already the opt-in step; this is a sub-option of an overlay he has to turn on
+     *  first, not a standalone new feature. */
+    private boolean spawnLine = true;
+    private float spawnLineWidth = DEFAULT_SPAWN_LINE_WIDTH;
 
     private BloodCampConfig() {
     }
@@ -72,6 +87,9 @@ public final class BloodCampConfig {
             cfg.setManualTickOffset(ConfigJson.getInt(obj, "manualTickOffset", 0));
             cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
+            cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
+            cfg.spawnLine = ConfigJson.getBool(obj, "spawnLine", true);
+            cfg.setSpawnLineWidth(ConfigJson.getFloat(obj, "spawnLineWidth", DEFAULT_SPAWN_LINE_WIDTH));
             instance = cfg;
         } catch (Exception e) {
             instance = new BloodCampConfig();
@@ -90,6 +108,9 @@ public final class BloodCampConfig {
             obj.addProperty("manualTickOffset", manualTickOffset);
             obj.addProperty("killPopup", killPopup);
             obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
+            obj.addProperty("timerTextScale", timerTextScale);
+            obj.addProperty("spawnLine", spawnLine);
+            obj.addProperty("spawnLineWidth", spawnLineWidth);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -188,5 +209,41 @@ public final class BloodCampConfig {
 
     public void setManualTickOffset(int manualTickOffset) {
         this.manualTickOffset = Math.max(-20, Math.min(20, manualTickOffset));
+    }
+
+    /** Text scale for the world-space countdown drawn on each blood mob's box (killer560: "the timer on
+     *  each box should be bigger"). Multiplies the base 0.02f every world-space label in this mod uses. */
+    public float getTimerTextScale() {
+        return timerTextScale;
+    }
+
+    public void setTimerTextScale(float timerTextScale) {
+        this.timerTextScale = Math.max(MIN_TIMER_TEXT_SCALE, Math.min(MAX_TIMER_TEXT_SCALE, timerTextScale));
+    }
+
+    /**
+     * killer560: "it is from the wall spot to where it is going to spawn." Draws a line from the mob's
+     * first-seen wall spot ({@code BloodMobState#startVec}) to its predicted landing spot
+     * ({@code BloodMobState#endVector}) while it is still in flight. Legit: reads packets already parsed
+     * for the box/countdown, draws nothing new server-side.
+     */
+    public boolean isSpawnLine() {
+        return spawnLine;
+    }
+
+    public boolean getSpawnLineRaw() {
+        return spawnLine;
+    }
+
+    public void setSpawnLine(boolean spawnLine) {
+        this.spawnLine = spawnLine;
+    }
+
+    public float getSpawnLineWidth() {
+        return spawnLineWidth;
+    }
+
+    public void setSpawnLineWidth(float spawnLineWidth) {
+        this.spawnLineWidth = Math.max(MIN_SPAWN_LINE_WIDTH, Math.min(MAX_SPAWN_LINE_WIDTH, spawnLineWidth));
     }
 }

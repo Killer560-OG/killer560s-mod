@@ -1,6 +1,8 @@
 package com.killer560.hub.thorn;
 
+import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.SkyblockGate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -260,15 +262,34 @@ public final class SpiritBearTracker {
     private static void finishCycle(Minecraft client) {
         LOGGER.info("[Thorn] Bear cycle {} finished - overkill {}", bearCycle, overkill);
         lastOverkill = overkill;
-        if (ThornConfig.getInstance().isOverkillChatEnabled() && client.player != null) {
+        ThornConfig cfg = ThornConfig.getInstance();
+        if (cfg.isOverkillChatEnabled() && client.player != null) {
             ModChat.send("Thorn", ModChat.text("Spirit Bear #" + bearCycle + " overkill: "),
                     ModChat.value(String.valueOf(overkill)));
+        }
+        if (cfg.isOverkillToPartyEnabled() && client.player != null) {
+            sendOverkillToParty(bearCycle, overkill);
         }
         overkill = 0;
         bearCycle++;
         bearSeenAlive = false;
         pendingLights.clear();
         pendingDeaths.clear();
+    }
+
+    /**
+     * killer560: "For overkill chat make an option to send it to party chat as well." One short, plain line
+     * per bear cycle - the same {@code /pc <text>} path {@code blessings.BlessingTracker#sendPartyMessage} /
+     * {@code posmsg.PosmsgFeature#dispatch} already use for a legit, once-per-event party announcement, so
+     * Translate/Auto Correct/Chat Emotes can't rewrite it mid-run. Never sent solo: {@link PartyTracker#teammates()}
+     * empty means Hypixel has no party to route "/pc" to (same "no party" check {@code bridge}'s adapters use).
+     */
+    private static void sendOverkillToParty(int cycle, int overkillCount) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !SkyblockGate.allows() || PartyTracker.teammates().isEmpty()) {
+            return;
+        }
+        client.player.connection.sendCommand("pc Spirit Bear #" + cycle + " overkill: " + overkillCount);
     }
 
     private static void expire(ArrayDeque<Long> queue) {
@@ -292,21 +313,24 @@ public final class SpiritBearTracker {
 
     // ---- HUD text ----
 
-    /** HUD states: "§d17/25", "§e~4s", "§eSpawning...", "§aAlive!" (+ "§7Killed" once a seen bear is gone).
+    /** HUD states: "§d17/25", "§e3.40s", "§eSpawning...", "§aAlive!" (+ "§7Killed" once a seen bear is gone).
      * <p>
-     * killer560 asked for "a spirit bear spawn timer": {@link #BEAR_SPAWN_TICKS} is the last block's own countdown,
-     * not an announced time - Odin/NoammAddons/NoFrills say 68 ticks, CaribouStonks says "68-70", and this tracker
-     * counts client ticks (drifts under lag, see class doc). Showing "§e3.40s" (Odin's own format) would claim a
-     * precision the signal doesn't have, so this rounds up to whole seconds with a "~" instead. For the same reason
-     * "Alive!" now waits for {@link #bearAliveNow} - the real entity-spawn signal - rather than firing the instant
-     * the guessed countdown hits zero; "Spawning..." covers the gap if the guess was a little early. */
+     * killer560 (2026-09-21 follow-up): "For spirit bear timer make it count down in .05 seconds as well
+     * (ticks but in seconds)." {@link #timer} already IS the tick count (see the "spawning in Nt" log
+     * above), and one server tick is 0.05s, so this just multiplies by 0.05 and prints two decimals - no
+     * separate rounding step to fall out of sync with it. This replaces the earlier "~Ns" ceiling-rounded
+     * display, which existed specifically to avoid claiming this precision; killer560 has now explicitly
+     * asked for it instead, so the "~" is gone and the number is exact per the tracked tick. The same
+     * client-tick-drifts-under-lag caveat as the rest of this tracker (see class doc) still applies to the
+     * SOURCE tick count, not to this formatting. "Alive!" still waits for {@link #bearAliveNow} - the real
+     * entity-spawn signal - rather than firing the instant this countdown hits zero; "Spawning..." covers
+     * the gap if the guess was a little early. */
     static String stateText() {
         if (timer < 0) {
             return "§d" + kills + "/" + maxKills();
         }
         if (timer > 0) {
-            int seconds = (timer + 19) / 20; // ceiling: never shows "~0s" while still counting down
-            return "§e~" + seconds + "s";
+            return "§e" + String.format(Locale.US, "%.2f", timer * 0.05) + "s";
         }
         if (bearAliveNow) {
             return "§aAlive!";

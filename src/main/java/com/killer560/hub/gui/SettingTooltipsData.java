@@ -1886,5 +1886,12 @@ final class SettingTooltipsData {
         d.put("full block/lever shape", "Full is the whole block; Custom lets you set Width, Height and Length yourself.");
         d.put("full block/chest shape", "Full is the whole block; Custom lets you set Width, Height and Length yourself. A double chest still reaches across to its other half.");
         d.put("full block/essence shape", "Full is the whole block; Custom lets you set Width, Height and Length yourself.");
+        d.put("thorn (f4)/overkill to party", "Also sends each Spirit Bear's overkill count to real Party Chat (/pc) that everyone in the party can see, once per bear cycle. Off by default - Overkill Chat alone only prints the count to you.");
+        d.put("thorn (f4)/spirit bear hud", "Shows Spirit Bear progress in F4/M4: kills out of 25 (F4) or 30 (M4), then a tick-precise spawn countdown in hundredths of a second (one server tick = 0.05s, e.g. 3.40s, 3.35s...), then Spawning.../Alive!/Killed. Movable in the HUD editor.");
+        d.put("blood camp/timer text scale", "Size of the countdown text drawn in the middle of each blood mob's box, 1x-4x. Default 2x.");
+        d.put("blood camp/spawn line", "Draws a line from the wall spot where the Watcher first placed or threw the mob to its predicted landing spot, in the mob's own box colour. Only shown while the mob is still travelling - gone once it settles or dies. On by default.");
+        d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
+        d.put("ap3/server strafe angle", "While a Walk or Run node drives you, the server is told you are facing the 45-degree strafe angle for that direction (W+A or W+D from there) while your own camera stays wherever you point it. Keeps the sprint and the 45-degree speed even when you turn around. The server-side yaw turns there and back in small steps, never a snap.");
+        d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took from the moment you entered its box until you were fully aligned. Never present in an official release.");
     }
 }

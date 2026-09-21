@@ -250,7 +250,15 @@ public final class InteractiveMapFeature {
     }
 
     /** Self first, then teammates: loaded player entities are exact; the rest come from the map item's markers in
-     *  Hypixel's order (QUOI/NoammAddons assign non-self decorations to living teammates in tab order). */
+     *  Hypixel's order (QUOI/NoammAddons assign non-self decorations to living teammates in tab order).
+     *  killer560: "on the map it still shows heads for mobs/things besides teammates which it shouldn't." -
+     *  {@link LeapMenuFeature#currentPartyMembers()} returns every {@code Player}-typed entity in the level
+     *  except yourself, with no check at all; several dungeon mobs (and, on p3sim, other real people sharing
+     *  the world) are also {@code Player}-typed entities, so the old "names.isEmpty() -> trust every one of
+     *  them" bootstrap drew markers for them too whenever {@link PartyTracker#teammates()} had nothing yet
+     *  (always, on p3sim - see {@link #isTeammate} below). Entities are now filtered through the same
+     *  teammate test {@code teammates.TeammatesFeature.isTeammate} already uses (that feature is verified
+     *  live), before anything is added to {@code entities}/{@code names}. */
     static List<MapPlayer> players(Minecraft client) {
         List<MapPlayer> out = new ArrayList<>();
         if (client.player == null || client.level == null) {
@@ -260,11 +268,14 @@ public final class InteractiveMapFeature {
         out.add(new MapPlayer(selfName, client.player.getX(), client.player.getZ(), client.player.getYRot(), true,
                 PartyTracker.selfClass()));
 
+        List<String> party = PartyTracker.teammates();
         Map<String, Player> entities = new HashMap<>();
         for (Player p : LeapMenuFeature.currentPartyMembers()) {
-            entities.put(p.getGameProfile().name().toLowerCase(Locale.US), p);
+            if (isTeammate(p, party)) {
+                entities.put(p.getGameProfile().name().toLowerCase(Locale.US), p);
+            }
         }
-        Set<String> names = new LinkedHashSet<>(PartyTracker.teammates());
+        Set<String> names = new LinkedHashSet<>(party);
         if (names.isEmpty()) {
             for (Player p : entities.values()) {
                 names.add(p.getGameProfile().name());
@@ -292,5 +303,29 @@ public final class InteractiveMapFeature {
             }
         }
         return out;
+    }
+
+    /** Same rule as {@code teammates.TeammatesFeature.isTeammate} (that class is not mine to import from - it's
+     *  {@code private} there too, so this is a deliberate mirror, not a copy-paste accident): a real (v4-UUID)
+     *  player the party tracker can vouch for. Rejects disguised-mob {@code Player} entities outright (a
+     *  non-v4 UUID), which is exactly what let mobs onto the map before - {@link PartyTracker#teammates()}
+     *  only ever lists real IGNs, so a mob could only get in via the raw {@code level.players()} scan. */
+    private static boolean isTeammate(Player player, List<String> party) {
+        if (player.getUUID().version() != 4) {
+            return false;
+        }
+        String name = player.getGameProfile().name();
+        for (String member : party) {
+            if (member.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        if (PartyTracker.classOf(name) != null) {
+            return true;
+        }
+        // Nothing known at all (p3sim.net's tab list has no class entries and there is no party) - in a real
+        // dungeon the only other real players present are your party, so fall back to "every real player",
+        // same reasoning teammates.TeammatesFeature uses for its own p3sim fallback.
+        return party.isEmpty();
     }
 }

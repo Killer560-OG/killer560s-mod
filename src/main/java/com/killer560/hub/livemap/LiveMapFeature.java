@@ -1013,7 +1013,8 @@ public final class LiveMapFeature {
 
         @Override
         public boolean isRelevantNow() {
-            return LiveMapConfig.getInstance().isEnabled() && DungeonState.isInDungeon();
+            return LiveMapConfig.getInstance().isEnabled() && DungeonState.isInDungeon() && !isInBoss()
+                    && !MapPainter.onP3Sim();
         }
 
         @Override
@@ -1021,7 +1022,13 @@ public final class LiveMapFeature {
             LiveMapConfig cfg = LiveMapConfig.getInstance();
             // Chat never hides the map any more (killer560: "dont make it hide the gui if i open chat") - it used to
             // stay only for the interactive map's "Open From HUD Click"; that click path still works the same.
-            if (!cfg.isEnabled() || HudVisibility.hidesHud() || !DungeonState.isInDungeon()) {
+            // killer560: "if you detect I am on the p3sim then make it hide the dungeon map just like it does in
+            // boss rooms of dungeons" - isInBoss() is the one boss flag this whole package already gates room
+            // matching/solvers on; p3sim now shares that same gate (via MapPainter.onP3Sim(), not a second IP
+            // check) instead of a parallel hide rule. Interactive Map / teleport pathing / Auto Blood Rush are
+            // untouched - those still work on p3sim off the world scan, same as before this change.
+            if (!cfg.isEnabled() || HudVisibility.hidesHud() || !DungeonState.isInDungeon() || isInBoss()
+                    || MapPainter.onP3Sim()) {
                 return;
             }
             Minecraft client = Minecraft.getInstance();

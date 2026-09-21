@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Node markers for the current area's chain: a small box per node, its trigger box on the ground (width x length,
- * turned to the node's yaw), an arrow for a WALK / RUN's travel direction, the wall side of an AXIS_ALIGN, a short
+ * Node markers for the current area's chain: one box per node (the small marker for a 1x1 node, the full trigger
+ * box width x length for a sized one - see {@link #renderNodeBox}), an arrow for a WALK / RUN's travel direction, the wall side of an AXIS_ALIGN, a short
  * ray for a LOOK / BOOM, the chain line between consecutive nodes, the active node in its own colour, and 1-based
  * labels. Nodes stacked on the same spot get their labels lifted one step each (killer560: "Nodes stacked in the
  * same spot must draw their labels at different heights so they can be told apart").
@@ -61,12 +61,7 @@ public final class Ap3Renderer {
             if (alpha <= 0.01f) {
                 alpha = 1f;
             }
-            AABB box = node.boundingBox(height);
-            if (active) {
-                WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
-            }
-            WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
-            renderTriggerBox(ctx, node, c, alpha, thickness);
+            renderNodeBox(ctx, node, active, height, c, alpha, thickness);
             switch (node.type) {
                 case WALK, RUN -> renderArrow(ctx, node, c, alpha, thickness);
                 case AXIS_ALIGN -> renderWallSide(ctx, node, c, alpha, thickness);
@@ -165,23 +160,32 @@ public final class Ap3Renderer {
         sb.append(part);
     }
 
-    /** The trigger box on the ground: the rectangle width x length turned to the node's yaw. Skipped for the
-     *  default 1x1 (the marker already shows the block) so a plain chain stays uncluttered. */
-    private static void renderTriggerBox(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
-        if (node.width == Ap3Node.DEFAULT_WIDTH && node.length == Ap3Node.DEFAULT_LENGTH) {
+    /**
+     * The node's ONE box. A default 1x1 node keeps the small marker it always had. A node with a set box size
+     * ({@code w2 l2}) draws the marker AT THE TRIGGER SIZE instead of a marker plus a faint outer rectangle -
+     * killer560 (2026-09-21): "don't show that faint outer line, instead expand that regular square to be that
+     * outer size". Fixed in world space: laid out on {@link Ap3Node#boxYaw()} (the block grid for an align, the
+     * recorded yaw for a walk), never on the player's position or facing. An axis-aligned box is a real AABB (so
+     * the active node's fill still works); a turned walk box is drawn as its two rings plus uprights.
+     */
+    private static void renderNodeBox(LevelRenderContext ctx, Ap3Node node, boolean active, double height,
+                                      float[] c, float alpha, float thickness) {
+        if (node.hasDefaultBox() || node.isTriggerBoxAxisAligned()) {
+            AABB box = node.hasDefaultBox() ? node.boundingBox(height) : node.triggerBox(height);
+            if (active) {
+                WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
+            }
+            WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
             return;
         }
-        Vec3 d = node.dir();
-        Vec3 l = node.left();
-        double y = node.y + GROUND_OFFSET;
-        double hl = node.length / 2.0;
-        double hw = node.width / 2.0;
-        Vec3 centre = new Vec3(node.x, y, node.z);
-        Vec3 a = centre.add(d.x * hl + l.x * hw, 0, d.z * hl + l.z * hw);
-        Vec3 b = centre.add(d.x * hl - l.x * hw, 0, d.z * hl - l.z * hw);
-        Vec3 cc = centre.add(-d.x * hl - l.x * hw, 0, -d.z * hl - l.z * hw);
-        Vec3 dd = centre.add(-d.x * hl + l.x * hw, 0, -d.z * hl + l.z * hw);
-        WorldRenderUtils.renderLineStrip(ctx, List.of(a, b, cc, dd, a), c[0], c[1], c[2], alpha * 0.55f, Math.max(0.5f, thickness / 2f));
+        double top = Math.max(0.1, height);
+        Vec3[] floor = node.triggerCorners(node.y + GROUND_OFFSET);
+        Vec3[] ceil = node.triggerCorners(node.y + top);
+        WorldRenderUtils.renderLineStrip(ctx, List.of(floor[0], floor[1], floor[2], floor[3], floor[0]), c[0], c[1], c[2], alpha, thickness);
+        WorldRenderUtils.renderLineStrip(ctx, List.of(ceil[0], ceil[1], ceil[2], ceil[3], ceil[0]), c[0], c[1], c[2], alpha, thickness);
+        for (int i = 0; i < 4; i++) {
+            WorldRenderUtils.renderLineStrip(ctx, List.of(floor[i], ceil[i]), c[0], c[1], c[2], alpha, thickness);
+        }
     }
 
     /** Travel direction of a WALK / RUN (the walk is held until a STOP / align, so no length is drawn). */

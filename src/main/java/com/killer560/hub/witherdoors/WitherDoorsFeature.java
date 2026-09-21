@@ -69,9 +69,17 @@ public final class WitherDoorsFeature {
     /** Half-width of the highlighted opening, and half-thickness of the wall it sits in - the real door
      *  frame's exact footprint was not confirmed against a live client, so this is an approximation sized
      *  like a normal dungeon corridor opening (same category of approximation as the aim point
-     *  {@code doorhelpers.LookAtDoorFeature.aimPoint} already uses for this same anchor). See staging notes. */
+     *  {@code doorhelpers.LookAtDoorFeature.aimPoint} already uses for this same anchor). See staging notes.
+     *  <p>
+     *  killer560: "there is a 3 thick layer of door, and it only highlights the middle most portion not the
+     *  outermost as a whole box. It needs to be pushed back and brought forward one." A wither/blood door
+     *  is 3 blocks thick along the axis you walk through it (its anchor block at y=69 is the middle of
+     *  those 3), but the box only ever spanned {@code +-0.55} either side of that anchor - just the middle
+     *  layer. {@code HALF_THIN} now reaches one full block past the anchor in both directions
+     *  ({@code 0.55 + 1.0}), covering all 3 layers, while {@link #HALF_OPEN} (the door's width) and
+     *  {@link #DOOR_Y_MIN}/{@link #DOOR_Y_MAX} (its height) are untouched, per the request. */
     private static final double HALF_OPEN = 1.5;
-    private static final double HALF_THIN = 0.55;
+    private static final double HALF_THIN = 1.55;
     private static final double DOOR_Y_MIN = 69.0;
     private static final double DOOR_Y_MAX = 73.0;
 

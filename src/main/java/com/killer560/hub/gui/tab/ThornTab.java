@@ -47,6 +47,7 @@ public class ThornTab extends BaseTab {
         widgets.add(toggle(col2X, y, colW, "Show Overkill", cfg::getShowOverkillRaw, cfg::setShowOverkill));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Overkill Chat", cfg::getOverkillChatRaw, cfg::setOverkillChat));
+        widgets.add(toggle(col2X, y, colW, "Overkill To Party", cfg::getOverkillToPartyRaw, cfg::setOverkillToParty));
         y += 28;
 
         // ---- Thorn Highlights (depth-tested unless the cheat-only Through Walls is on) ----

@@ -105,6 +105,15 @@ import java.util.UUID;
  * rule); nothing in this class ever calls {@code setYRot}. The camera step is bounded to one per rendered frame
  * and the node to a real-time timeout - see {@link #tickFrame()} and {@link #tickLook}.
  * <p>
+ * <b>Server Strafe Angle</b> ({@link Ap3Config#isServerStrafeAngle()}, default off) - killer560 (2026-09-21):
+ * "serverside I am always looking in the proper angle for 45 degree strafing, but client side I am not ...
+ * essentially a freecam style." While a held walk drives, a separate running {@link #serverYaw} is what the server
+ * receives instead of the camera yaw ({@code mixin/Ap3RotationSendMixin} swaps it in around {@code sendPosition}
+ * only); it starts from the live yaw and moves to the walk direction +-45 degrees in bounded per-tick steps, the
+ * key record the server sees is W+A / W+D against THAT yaw, and the sprint is kept alive whatever the camera does
+ * ({@code mixin/Ap3StrafeImpulseMixin}). The camera, the movement frame and third-person rendering never see it.
+ * When the walk ends it glides back onto the camera yaw the same way - see {@link #tickStrafe}.
+ * <p>
  * <b>Modifiers</b> on any node: {@code wait:<ms>} holds the NEXT queued node that long after this one
  * ({@link #waitUntilMs}); {@code close} makes the node perform only on a manual left click or once a GUI that was
  * open has closed ({@link Step#GATE}). ANY wait - a waiting node (LEAP, LEAP_COUNTER, TERMINAL), a close gate, a
@@ -166,6 +175,36 @@ public final class Ap3Executor {
     private static final String[] BOOM_IDS = {"INFINITE_SUPERBOOM_TNT", "SUPERBOOM_TNT"};
     private static final int GLFW_FIRST_KEY = GLFW.GLFW_KEY_SPACE;
     private static final int GLFW_LAST_KEY = GLFW.GLFW_KEY_LAST;
+    /** Server Strafe Angle: the server-side yaw sits this far off the walk direction (W+A / W+D strafing). */
+    private static final float STRAFE_ANGLE = 45f;
+    /** The server-side yaw never moves more than this in one tick - a fast flick, still a hand's flick. */
+    private static final float STRAFE_MAX_STEP = 40f;
+    /** Within this of its target the server-side yaw takes the (sub-half-degree) remainder and is done. */
+    private static final float STRAFE_DONE = 0.5f;
+
+    // ---- server strafe angle (a running value; the mixin sends it in place of the camera yaw) ----
+    /** True while {@link #serverYaw} is what goes to the server (driving, or gliding back onto the camera yaw). */
+    private static boolean strafeLock;
+    /** The walk ended: gliding the server-side yaw back onto the camera yaw before letting go. */
+    private static boolean strafeReturning;
+    /** The running server-side yaw. Seeded from the player's own live yaw, only ever moved by wrapped deltas. */
+    private static float serverYaw;
+    /** +1 = server yaw is the walk direction + 45 (the server sees W+A), -1 = -45 (W+D). Picked once per hold. */
+    private static int strafeSide;
+    /** Per-tick fraction of the remaining turn, rolled per lock so no two turns decay identically. */
+    private static float strafeSmoothing = 0.55f;
+    /** The hold this lock's side was picked for (identity) - a new WALK node re-picks. */
+    private static Vec3 strafeHold;
+    private static boolean rotationMixinApplied;
+    private static boolean sprintMixinApplied;
+    /** The world unit direction the last {@link #writeMove} drove along (for re-deriving the key record). */
+    private static double driveX;
+    private static double driveZ;
+
+    // ---- dev-only align timer (BuildVariant.DEV_TOOLS) ----
+    /** Align nodes whose box was entered and not yet completed: {tick, wall-clock ms} at entry (identity). */
+    private static final Map<Ap3Node, long[]> alignEntered = new IdentityHashMap<>();
+    private static long tickCounter;
 
     /** GATE = waiting for the close modifier; the rest are the per-type phases. */
     private enum Step { GATE, PREP, SWAP, DO, CONFIRM }
@@ -317,6 +356,9 @@ public final class Ap3Executor {
         lastPositions.clear();
         counted.clear();
         boomBefore.clear();
+        alignEntered.clear();
+        // The strafe lock is NOT dropped here: with the hold gone, tickStrafe glides the server-side yaw back onto
+        // the camera yaw over the next ticks (never a snap). Only a teleport lets go at once - see onLeapHappened.
         if (wasBusy) {
             LOGGER.info("[AP3] Stopped: {}", reason);
             if (reason != null && Ap3Config.getInstance().isChatFeedback()) {
@@ -395,6 +437,38 @@ public final class Ap3Executor {
 
     public static void onMixinApplied() {
         mixinApplied = true;
+    }
+
+    /** {@code mixin/Ap3RotationSendMixin} reports in on every {@code sendPosition} - the strafe lock is refused
+     *  until it has, so a W+A key record can never go out against a yaw the server never receives. */
+    public static void onRotationMixinApplied() {
+        rotationMixinApplied = true;
+    }
+
+    /** {@code mixin/Ap3StrafeImpulseMixin} reports in. Without it the lock still works; the client just cannot
+     *  sprint while the camera points away from the walk (the server then sees a slower, still coherent, strafe). */
+    public static void onSprintMixinApplied() {
+        sprintMixinApplied = true;
+    }
+
+    /**
+     * From {@code mixin/Ap3RotationSendMixin}: the yaw to put in this tick's movement packet in place of the camera
+     * yaw, or NaN when the camera yaw goes out as normal. A running value (Rotation 360 rule): seeded from the
+     * player's own live yaw and only ever moved by bounded wrapped deltas, never wrapped itself.
+     */
+    public static float strafeServerYaw() {
+        return strafeLock ? serverYaw : Float.NaN;
+    }
+
+    /** From {@code mixin/Ap3StrafeImpulseMixin}: the lock is driving a held walk right now (not gliding back). */
+    public static boolean isStrafeDriving() {
+        return strafeLockedForHold() && driving;
+    }
+
+    /** The lock is on for the current hold (not gliding back). Read inside {@link #writeMove}, i.e. BEFORE this
+     *  tick's {@code driving} is set, which is why it does not look at that flag. */
+    private static boolean strafeLockedForHold() {
+        return strafeLock && !strafeReturning && holdDir != null;
     }
 
     /** From the input mixin: the player pressed a movement key themselves. Ends whatever AP3 is doing - the player
@@ -480,6 +554,9 @@ public final class Ap3Executor {
      */
     static void onLeapHappened(String why) {
         RouteRotation.rebase(); // the teleport's own camera change is not the player's mouse
+        // The server just set our rotation itself (a teleport carries one), so the running server-side yaw is
+        // stale: let go now rather than glide a value the server no longer holds back onto the camera.
+        releaseStrafeNow();
         boolean ownLeapConfirming = activeNode != null && activeNode.type == Ap3Node.Type.LEAP && step == Step.CONFIRM;
         if (!ownLeapConfirming) {
             stop(why);
@@ -520,6 +597,7 @@ public final class Ap3Executor {
      * true on the tick the area changed.
      */
     static void tick(Minecraft client, Ap3Chain current, boolean arrival) {
+        tickCounter++;
         LocalPlayer player = client.player;
         if (player == null || client.level == null) {
             disarm("world change");
@@ -637,6 +715,11 @@ public final class Ap3Executor {
             boolean was = inside.contains(node);
             if (in && !was) {
                 inside.add(node);
+                if (node.type.isAlign() && Ap3Config.getInstance().isAlignTimerDev()) {
+                    // Dev timer: "from the moment I enter an align to the moment it is fully aligned" - the clock
+                    // starts on the entry edge, whether the node fires now, waits its turn, or waits for his hands.
+                    alignEntered.put(node, new long[]{tickCounter, System.currentTimeMillis()});
+                }
                 if (handsOn) {
                     unfired.add(node);
                 } else {
@@ -850,8 +933,24 @@ public final class Ap3Executor {
         double px = ex - vel.x * stopF;
         double pz = ez - vel.z * stopF;
         if (settleAligned(client, player, node, err, px, pz)) {
+            reportAlignTimer(node);
             finishNode();
         }
+    }
+
+    /** Dev builds only: how long this align took from box entry to fully aligned, in chat and the log. */
+    private static void reportAlignTimer(Ap3Node node) {
+        long[] entered = alignEntered.remove(node);
+        if (entered == null || !Ap3Config.getInstance().isAlignTimerDev()) {
+            return;
+        }
+        long ticks = tickCounter - entered[0];
+        double seconds = (System.currentTimeMillis() - entered[1]) / 1000.0;
+        String text = String.format(Locale.US, "%s #%d took %.2fs (%d ticks)", node.type.label(), number(node), seconds, ticks);
+        LOGGER.info("[AP3 dev] {}", text);
+        ModChat.send("AP3 dev", ModChat.text(node.type.label() + " "), ModChat.value("#" + number(node)),
+                ModChat.text(" took "), ModChat.value(String.format(Locale.US, "%.2fs", seconds)),
+                ModChat.dim(String.format(Locale.US, " (%d ticks)", ticks)));
     }
 
     /**
@@ -903,6 +1002,7 @@ public final class Ap3Executor {
         if (touching && Math.abs(perpErr) <= EXACT_EPS && Math.abs(perpVel) < SETTLE_SPEED) {
             clearMovement();
             if (++settleTicks >= SETTLE_TICKS) {
+                reportAlignTimer(node);
                 finishNode();
             }
             return;
@@ -1454,6 +1554,8 @@ public final class Ap3Executor {
         double ux = wx / h;
         double uz = wz / h;
         double mag = Math.min(1.0, h);
+        // The analog vector is ALWAYS camera-relative: LivingEntity.travel turns it back into the world through the
+        // live yaw, so this is what makes the movement go the recorded way whatever the camera does.
         double yr = Math.toRadians(player.getYRot());
         double fx = -Math.sin(yr);
         double fz = Math.cos(yr);
@@ -1465,16 +1567,33 @@ public final class Ap3Executor {
         double ay = Math.abs(fwd);
         double ratio = ay > ax ? (ay == 0 ? 0 : ax / ay) : (ax == 0 ? 0 : ay / ax);
         double unitSquare = Math.sqrt(1.0 + ratio * ratio);
-        double scale = Ap3Config.getInstance().isDiagonalWalk() ? 1.0 / VANILLA_INPUT_SCALE : 1.0 / unitSquare;
+        boolean locked = strafeLockedForHold();
+        // With the server-side yaw locked to the strafe angle the server sees a W+A / W+D record, so the speed has
+        // to be the one a real W+A gets (1.00) - the lock implies the 45-degree speed whatever the toggle says.
+        double scale = Ap3Config.getInstance().isDiagonalWalk() || locked ? 1.0 / VANILLA_INPUT_SCALE : 1.0 / unitSquare;
         scale *= mag;
         moveX = (float) (lft * scale);
         moveY = (float) (fwd * scale);
+        driveX = ux;
+        driveZ = uz;
+        // The key record the SERVER sees is relative to the yaw the server receives: the camera yaw normally, the
+        // strafe yaw while locked (W+A / W+D). Vanilla can only sprint with a forward component, so an unlocked
+        // walk whose direction is behind the camera walks; a locked one sprints (Ap3StrafeImpulseMixin).
+        boolean sprintOk = sprint && !player.isInWater() && (locked ? sprintMixinApplied || fwd > 0.05 : fwd > 0.05);
+        writeKeys(locked ? serverYaw : player.getYRot(), sprintOk);
+        driving = true;
+    }
+
+    /** The 8-way key record for the current drive direction against {@code yaw} (what the server is told). */
+    private static void writeKeys(float yaw, boolean sprint) {
+        double yr = Math.toRadians(yaw);
+        double fwd = driveX * -Math.sin(yr) + driveZ * Math.cos(yr);
+        double lft = driveX * Math.cos(yr) + driveZ * Math.sin(yr);
         wantForward = fwd > KEY_THRESHOLD;
         wantBackward = fwd < -KEY_THRESHOLD;
         wantLeft = lft > KEY_THRESHOLD;
         wantRight = lft < -KEY_THRESHOLD;
-        wantSprint = sprint && fwd > 0.05 && !player.isInWater();
-        driving = true;
+        wantSprint = sprint;
     }
 
     private static void clearMovement() {
@@ -1482,6 +1601,94 @@ public final class Ap3Executor {
         moveX = 0f;
         moveY = 0f;
         wantForward = wantBackward = wantLeft = wantRight = wantSneak = wantSprint = false;
+    }
+
+    // ------------------------------------------------------------------------------------------- server strafe angle
+
+    /**
+     * Every client tick, AFTER the executor has decided this tick's movement ({@link Ap3Feature} calls it last,
+     * whether or not the executor itself ran - a glide has to finish even after AP3 is turned off or the boss is
+     * left). Three states:
+     * <ol>
+     * <li>a held walk is driving and the setting is on: lock (seed {@link #serverYaw} from the live yaw, pick the
+     *     side - +45 (W+A) or -45 (W+D) - that is the shorter turn from where the server-side yaw is now), then step
+     *     the server-side yaw toward walk direction +- 45 by a bounded wrapped delta;</li>
+     * <li>the hold ended (any other node, a stop, his hands): glide the server-side yaw back onto the live camera
+     *     yaw the same way, chasing it if he keeps turning, and let go once within {@value #STRAFE_DONE} degrees;</li>
+     * <li>no lock: nothing - the camera yaw goes out untouched.</li>
+     * </ol>
+     * Both mixins must have reported in (the sendPosition swap is what makes the key record coherent); the
+     * no-mixin fallback path never locks. Rotation 360 rule: the only assignment to {@link #serverYaw} that is not
+     * {@code serverYaw += delta} is the seed from {@code player.getYRot()}, itself the running value.
+     */
+    static void tickStrafe(Minecraft client) {
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null) {
+            releaseStrafeNow();
+            return;
+        }
+        boolean wanted = holdDir != null && driving && mixinApplied && rotationMixinApplied
+                && Ap3Config.getInstance().isServerStrafeAngle();
+        if (wanted) {
+            if (!strafeLock || strafeReturning) {
+                if (!strafeLock) {
+                    serverYaw = player.getYRot();
+                    strafeSmoothing = 0.5f + (float) (Math.random() * 0.2);
+                }
+                strafeLock = true;
+                strafeReturning = false;
+                strafeHold = null;
+                lookHeld = false; // a walk's explicit yaw supersedes a finished LOOK's client-only hold
+                LOGGER.info("[AP3] Server strafe angle: locking from yaw {}", String.format(Locale.US, "%.1f", serverYaw));
+            }
+            float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+            if (strafeHold != holdDir) {
+                strafeHold = holdDir;
+                float toA = Math.abs(Mth.wrapDegrees(walkYaw + STRAFE_ANGLE - serverYaw));
+                float toD = Math.abs(Mth.wrapDegrees(walkYaw - STRAFE_ANGLE - serverYaw));
+                strafeSide = toA <= toD ? 1 : -1;
+            }
+            stepServerYaw(walkYaw + strafeSide * STRAFE_ANGLE);
+            // The key record has to agree with the yaw that goes out with it, so re-derive it against the stepped
+            // value (writeMove ran before this step, against last tick's).
+            writeKeys(serverYaw, wantSprint);
+            return;
+        }
+        if (!strafeLock) {
+            return;
+        }
+        if (!strafeReturning) {
+            strafeReturning = true;
+            strafeHold = null;
+            LOGGER.info("[AP3] Server strafe angle: returning to the camera yaw");
+        }
+        float cameraYaw = player.getYRot();
+        stepServerYaw(cameraYaw);
+        if (Math.abs(Mth.wrapDegrees(cameraYaw - serverYaw)) <= STRAFE_DONE) {
+            // Within half a degree of the camera: the next packet carries the camera yaw itself, a step no bigger
+            // than that. Not a snap - and not an assignment of a wrapped value to anything.
+            releaseStrafeNow();
+        }
+    }
+
+    /** One bounded step of the running server-side yaw toward {@code target} (the target is DATA; only its wrapped
+     *  delta from the running value is ever used). */
+    private static void stepServerYaw(float target) {
+        float delta = Mth.wrapDegrees(target - serverYaw);
+        float step = Math.abs(delta) <= STRAFE_DONE ? delta
+                : Mth.clamp(delta * strafeSmoothing, -STRAFE_MAX_STEP, STRAFE_MAX_STEP);
+        serverYaw += step;
+    }
+
+    /** Drops the lock at once: the next packet carries the live camera yaw. Only for the moments the server has
+     *  just set our rotation itself (a teleport) or there is no player to speak of. */
+    private static void releaseStrafeNow() {
+        if (strafeLock) {
+            LOGGER.info("[AP3] Server strafe angle: released");
+        }
+        strafeLock = false;
+        strafeReturning = false;
+        strafeHold = null;
     }
 
     /** Without the input mixin (config not loaded) hold the key mappings instead, the way AutoWalker does. Only the

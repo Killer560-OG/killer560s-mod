@@ -64,11 +64,17 @@ processResources {
 // hand-edits their config.json to set it true - the getter itself refuses to report true unless this
 // build was compiled with -PcheatBuild=true.
 def cheatBuild = (findProperty('cheatBuild') ?: 'false').toBoolean()
+// Dev-only tooling (e.g. AP3's align timer) is compiled in by default - killer560's local builds and the CI dev
+// build keep it - and compiled OUT of official releases, which are built with -Prelease=true. A release jar can
+// never show dev tooling, whatever the config file says: the constant is false at compile time.
+def releaseBuild = (findProperty('release') ?: 'false').toBoolean()
+def devTools = !releaseBuild
 def buildVariantDir = layout.buildDirectory.dir("generated/sources/buildVariant/java/main")
 
 tasks.register("generateBuildVariant") {
 	def outputDir = buildVariantDir
 	inputs.property "cheatBuild", cheatBuild
+	inputs.property "devTools", devTools
 	outputs.dir(outputDir)
 	doLast {
 		def pkgDir = new File(outputDir.get().asFile, "com/killer560/hub")
@@ -78,6 +84,8 @@ tasks.register("generateBuildVariant") {
 /** Generated at build time (see build.gradle's generateBuildVariant task) - do not edit by hand. */
 public final class BuildVariant {
     public static final boolean CHEAT_FEATURES_ENABLED = ${cheatBuild};
+    /** Dev-only tooling (timers, probes). True for local / CI dev builds, false when built with -Prelease=true. */
+    public static final boolean DEV_TOOLS = ${devTools};
     private BuildVariant() {}
 }
 """
