@@ -39,8 +39,8 @@ public final class AbilityCooldownConfig {
      *  ({@code ItemAbilityCooldown.sound()}: {@code if (ping < 400.milliseconds) activate()}). */
     public static final int MIN_CLICK_WINDOW_MS = 100;
     public static final int MAX_CLICK_WINDOW_MS = 1000;
-    public static final int MIN_MAGE_LEVEL = 0;
-    public static final int MAX_MAGE_LEVEL = 50;
+    /** Same range {@code RagAxeConfig.mageCooldownReductionPercent} uses. */
+    public static final float MAX_MAGE_REDUCTION_PERCENT = 90f;
 
     private static AbilityCooldownConfig instance;
 
@@ -59,10 +59,13 @@ public final class AbilityCooldownConfig {
     private boolean actionBarDetection = true;
     private int clickWindowMs = 400;
 
-    // --- mage cooldown reduction (SkyHanni's formula, see AbilityCooldownState#multiplier) ---
+    // --- mage cooldown reduction ---
+    // killer560, 2026-09-21: "implement auto mage reduction detection and class detection" - class detection
+    // is free from PartyTracker.selfClass() (see AbilityCooldownState#multiplier), same as RagAxeConfig. The
+    // reduction's SIZE stays a setting because Hypixel never sends the real class-level-scaled number; 25 is
+    // the commonly quoted base, same default RagAxeConfig uses.
     private boolean mageReduction = false;
-    private boolean mageUniqueClass = true;
-    private int mageClassLevel = 50;
+    private float mageCooldownReductionPercent = 25f;
 
     private final Map<ItemAbility, Boolean> abilityEnabled = new EnumMap<>(ItemAbility.class);
 
@@ -95,8 +98,19 @@ public final class AbilityCooldownConfig {
                 cfg.actionBarDetection = ConfigJson.getBool(root, "actionBarDetection", cfg.actionBarDetection);
                 cfg.clickWindowMs = clampClickWindow(ConfigJson.getInt(root, "clickWindowMs", cfg.clickWindowMs));
                 cfg.mageReduction = ConfigJson.getBool(root, "mageReduction", cfg.mageReduction);
-                cfg.mageUniqueClass = ConfigJson.getBool(root, "mageUniqueClass", cfg.mageUniqueClass);
-                cfg.mageClassLevel = clampMageLevel(ConfigJson.getInt(root, "mageClassLevel", cfg.mageClassLevel));
+                // Migration (2026-09-21): "mageUniqueClass"/"mageClassLevel" used to feed SkyHanni's formula
+                // (50% unique / 25% otherwise, minus 1% per 2 levels) - now replaced by one flat percentage.
+                // A file saved before this change has no "mageCooldownReductionPercent" key yet, so recompute
+                // what it used to work out to and seed the new setting with that, instead of silently
+                // resetting anyone who already had this on to the 25% default.
+                float legacyDefault = cfg.mageCooldownReductionPercent;
+                if (root.has("mageUniqueClass") || root.has("mageClassLevel")) {
+                    boolean legacyUnique = ConfigJson.getBool(root, "mageUniqueClass", true);
+                    int legacyLevel = Math.max(0, Math.min(50, ConfigJson.getInt(root, "mageClassLevel", 50)));
+                    legacyDefault = Math.max(0f, (legacyUnique ? 50f : 25f) - (float) Math.floor(legacyLevel / 2.0));
+                }
+                cfg.mageCooldownReductionPercent = clampMageReductionPercent(
+                        ConfigJson.getFloat(root, "mageCooldownReductionPercent", legacyDefault));
                 JsonObject abilities = ConfigJson.getObject(root, "abilities");
                 if (abilities != null) {
                     for (ItemAbility a : ItemAbility.values()) {
@@ -123,8 +137,8 @@ public final class AbilityCooldownConfig {
         return Math.max(MIN_CLICK_WINDOW_MS, Math.min(MAX_CLICK_WINDOW_MS, v));
     }
 
-    private static int clampMageLevel(int v) {
-        return Math.max(MIN_MAGE_LEVEL, Math.min(MAX_MAGE_LEVEL, v));
+    private static float clampMageReductionPercent(float v) {
+        return Float.isFinite(v) ? Math.max(0f, Math.min(MAX_MAGE_REDUCTION_PERCENT, v)) : 0f;
     }
 
     public void save() {
@@ -141,8 +155,7 @@ public final class AbilityCooldownConfig {
             root.addProperty("actionBarDetection", actionBarDetection);
             root.addProperty("clickWindowMs", clickWindowMs);
             root.addProperty("mageReduction", mageReduction);
-            root.addProperty("mageUniqueClass", mageUniqueClass);
-            root.addProperty("mageClassLevel", mageClassLevel);
+            root.addProperty("mageCooldownReductionPercent", mageCooldownReductionPercent);
             JsonObject abilities = new JsonObject();
             for (ItemAbility a : ItemAbility.values()) {
                 abilities.addProperty(a.configKey(), isAbilityEnabled(a));
@@ -241,20 +254,12 @@ public final class AbilityCooldownConfig {
         mageReduction = v;
     }
 
-    public boolean isMageUniqueClass() {
-        return mageUniqueClass;
+    public float getMageCooldownReductionPercent() {
+        return mageCooldownReductionPercent;
     }
 
-    public void setMageUniqueClass(boolean v) {
-        mageUniqueClass = v;
-    }
-
-    public int getMageClassLevel() {
-        return mageClassLevel;
-    }
-
-    public void setMageClassLevel(int v) {
-        mageClassLevel = clampMageLevel(v);
+    public void setMageCooldownReductionPercent(float v) {
+        mageCooldownReductionPercent = clampMageReductionPercent(v);
     }
 
     public boolean isAbilityEnabled(ItemAbility ability) {

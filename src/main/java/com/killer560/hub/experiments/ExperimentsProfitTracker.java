@@ -555,7 +555,7 @@ public final class ExperimentsProfitTracker {
         if (roman.matches()) {
             int level = romanToInt(roman.group(2));
             if (level > 0) {
-                String base = toIdToken(roman.group(1));
+                String base = enchantIdToken(roman.group(1));
                 String candidate = "ENCHANTMENT_" + base + "_" + level;
                 if (prices.hasBazaarProduct(candidate)) {
                     return candidate;
@@ -580,6 +580,48 @@ public final class ExperimentsProfitTracker {
 
     private static String toIdToken(String name) {
         return name.toUpperCase(Locale.US).replace("'", "").replaceAll("[^A-Z0-9]+", "_").replaceAll("^_+|_+$", "");
+    }
+
+    /** Real bug found (2026-09-21) from killer560's "sometimes the autoetable misses some of the
+     *  enchants": for a handful of enchants Hypixel's lore prints under a DIFFERENT name than the
+     *  enchant's own internal id, {@code toIdToken} alone builds the wrong bazaar product id from the
+     *  printed name - e.g. "Gravity VI" (the id is really {@code dragon_hunter}) built
+     *  "ENCHANTMENT_GRAVITY_6", which is never a real product, so {@link #priceOf} always came back null
+     *  for that one specific enchant while every other book on the same board priced fine. That made the
+     *  session summary look like it "didn't recognize" Gravity/Drain/Woodsplitter/Pyroclasm books as
+     *  enchants at all, next to correctly-priced books of every other kind - the exact same root cause
+     *  (a name GUESSED from the id instead of matched against Hypixel's real one) already found and
+     *  fixed for tooltip colouring in {@code EnchantColorsFeature#ID_TO_LORE_NAME} (id -&gt; printed name).
+     *  This is that table's inverse (printed name -&gt; id), rebuilt here rather than reused because
+     *  {@code ID_TO_LORE_NAME} is package-private to {@code enchantcolors} and out of scope for this file
+     *  to touch - same source list (SkyHanni's repo constants), so the two stay in sync by construction,
+     *  not by import. */
+    private static final Map<String, String> ENCHANT_LORE_NAME_TO_ID = buildEnchantLoreNameToId();
+
+    private static Map<String, String> buildEnchantLoreNameToId() {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("counter-strike", "COUNTER_STRIKE");
+        m.put("dragon tracer", "AIMING");
+        m.put("drain", "SYPHON");
+        m.put("gravity", "DRAGON_HUNTER");
+        m.put("hardened vitality", "HARDENED_MANA");
+        m.put("prismatic", "PRISTINE");
+        m.put("pyroclasm", "MAGMARIZER");
+        m.put("strong vitality", "STRONG_MANA");
+        m.put("triple-strike", "TRIPLE_STRIKE");
+        m.put("turbo-cacti", "TURBO_CACTUS");
+        m.put("turbo-cocoa", "TURBO_COCO");
+        m.put("vampiric vitality", "MANA_VAMPIRE");
+        m.put("vivacious vitality", "FEROCIOUS_MANA");
+        m.put("woodsplitter", "ARCANE");
+        return m;
+    }
+
+    /** Like {@link #toIdToken} but checks the real id-alias table first, for enchants whose printed
+     *  name doesn't match their internal id (see {@link #ENCHANT_LORE_NAME_TO_ID}'s doc). */
+    private static String enchantIdToken(String loreName) {
+        String alias = ENCHANT_LORE_NAME_TO_ID.get(loreName.trim().toLowerCase(Locale.US));
+        return alias != null ? alias : toIdToken(loreName);
     }
 
     private static int romanToInt(String roman) {

@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,9 +59,10 @@ import java.util.regex.Pattern;
  *   <li>SkyHanni's {@code recentlyHeld} (anything held in the last few seconds) is simplified to "the item
  *       in your main hand right now", used only to disambiguate sounds two different items share
  *       (Voodoo Doll vs. Wilted, Weird vs. Weirder Tuba, the flares, Totem of Corruption).</li>
- *   <li>Mage cooldown reduction is OFF by default and, when on, uses a class level you set yourself -
- *       nothing in this codebase reads your dungeon class LEVEL from the tab list yet
- *       ({@code PartyTracker.selfClass()} gives the class, not the level).</li>
+ *   <li>Mage cooldown reduction is OFF by default. "Am I a Mage" is auto-detected
+ *       ({@code PartyTracker.selfClass()}); the SIZE of the reduction is a flat percentage setting (25%
+ *       default) rather than SkyHanni's unique-class/level formula, because nothing in this codebase reads
+ *       your dungeon class LEVEL yet - the same simplification {@code RagAxeConfig} already made.</li>
  * </ul>
  */
 public final class AbilityCooldownState {
@@ -166,23 +167,23 @@ public final class AbilityCooldownState {
     // ------------------------------------------------------------------ mage cooldown reduction
 
     /**
-     * SkyHanni {@code ItemAbility.getMageCooldownReduction()}: in a dungeon, as a Mage, the base reduction is
-     * 50% when you are the only one of your class ("unique class") and 25% otherwise, minus a further 1% for
-     * every second class level. {@code WAND_OF_ATONEMENT} and {@code RAGNAROCK_AXE} are excluded by SkyHanni
-     * because they are effects over time rather than real cooldowns.
+     * killer560, 2026-09-21: "implement auto mage reduction detection and class detection" - same pattern
+     * {@code RagAxeConfig#effectiveCooldownSeconds} already uses. SkyHanni's real formula (50% as the only
+     * Mage in the party, 25% otherwise, minus 1% per two class levels) needed a class LEVEL this mod has no
+     * way to read, so that formula and its two manual toggles ("Unique Class" / "Mage Class Level") are gone.
+     * "Am I a Mage" is now free from {@link PartyTracker#selfClass()}; the SIZE of the cut stays a setting
+     * ({@link AbilityCooldownConfig#getMageCooldownReductionPercent()}, 25% default) because Hypixel never
+     * tells the client the real number. {@code WAND_OF_ATONEMENT} and {@code RAGNAROCK_AXE} are still excluded
+     * ({@link ItemAbility#ignoresMageReduction()}) - SkyHanni treats them as effects over time, not cooldowns.
      */
     private static double multiplier(ItemAbility ability) {
         AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
         if (!cfg.isMageReduction() || ability.ignoresMageReduction()) {
             return 1.0;
         }
-        DungeonClass self = PartyTracker.selfClass();
-        if (self != DungeonClass.MAGE) {
-            return 1.0;
-        }
-        double m = 1.0 - (cfg.isMageUniqueClass() ? 0.5 : 0.25);
-        m -= 0.01 * Math.floor(cfg.getMageClassLevel() / 2.0);
-        return Math.max(0.0, m);
+        return PartyTracker.selfClass() == DungeonClass.MAGE
+                ? 1.0 - cfg.getMageCooldownReductionPercent() / 100.0
+                : 1.0;
     }
 
     // ------------------------------------------------------------------ action bar
@@ -252,26 +253,17 @@ public final class AbilityCooldownState {
 
         switch (path) {
             case "entity.zombie_villager.cure" -> {
-                // Wither shield / impact, and Tactical Insertion's second phase.
+                // Wither impact (all three scrolls), and Tactical Insertion's second phase. killer560,
+                // 2026-09-21: "remove shadow warp, wither shield and implosion from that list" - the three
+                // individual scrolls are no longer timed on their own, only the full combo.
                 if (eq(pitch, 0.6984127f) && eq(volume, 1f)) {
-                    Set<ItemAbility> scrolls = abilityScrolls(held);
-                    if (scrolls.size() == 3) {
+                    if (hasAllWitherComboScrolls(held)) {
                         sound(ItemAbility.WITHER_IMPACT);
-                    } else {
-                        for (ItemAbility scroll : scrolls) {
-                            sound(scroll);
-                        }
                     }
                 } else if (eq(pitch, 1.8888888f) && eq(volume, 0.7f)) {
                     // SkyHanni: TACTICAL_INSERTION.activate(null, 17_000) - the 17 s left after the 3 s placed
                     // phase. Not gated on the click window: it is the server answering your own insertion.
                     activate(ItemAbility.TACTICAL_INSERTION, 17_000L);
-                }
-            }
-            case "block.lava.extinguish" -> {
-                if (eq(pitch, 0.4920635f) && eq(volume, 1f)
-                        && abilityScrolls(held).contains(ItemAbility.SHADOW_WARP_SCROLL)) {
-                    sound(ItemAbility.SHADOW_WARP_SCROLL);
                 }
             }
             case "block.lava.pop" -> {
@@ -321,10 +313,6 @@ public final class AbilityCooldownState {
                 }
             }
             case "entity.generic.explode" -> {
-                if (eq(pitch, 1f) && eq(volume, 1f)
-                        && abilityScrolls(held).contains(ItemAbility.IMPLOSION_SCROLL)) {
-                    sound(ItemAbility.IMPLOSION_SCROLL);
-                }
                 if (eq(pitch, 4.047619f) && eq(volume, 0.2f)) {
                     sound(ItemAbility.GOLEM_SWORD);
                 }
@@ -436,29 +424,28 @@ public final class AbilityCooldownState {
         return tag.getStringOr("id", null);
     }
 
-    /** The ability scrolls applied to an item, as {@link ItemAbility} constants. Devonian reads exactly this
-     *  list in {@code misc/WitherShieldTimer.kt} ({@code data.getList("ability_scroll")}). */
-    private static Set<ItemAbility> abilityScrolls(ItemStack stack) {
-        Set<ItemAbility> out = EnumSet.noneOf(ItemAbility.class);
+    /** The three scroll ids Wither Impact needs on one item. Kept as raw Skyblock ids, not {@link ItemAbility}
+     *  constants - killer560, 2026-09-21, dropped the three scrolls as individually-timed abilities, but
+     *  Wither Impact (all three at once) still needs to recognise them on the item. Devonian reads exactly
+     *  this list in {@code misc/WitherShieldTimer.kt} ({@code data.getList("ability_scroll")}). */
+    private static final Set<String> WITHER_COMBO_SCROLL_IDS =
+            Set.of("WITHER_SHIELD_SCROLL", "SHADOW_WARP_SCROLL", "IMPLOSION_SCROLL");
+
+    /** @return true if {@code stack} carries all three Wither Impact combo scrolls. */
+    private static boolean hasAllWitherComboScrolls(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
-            return out;
+            return false;
         }
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null) {
-            return out;
+            return false;
         }
         ListTag scrolls = data.copyTag().getListOrEmpty("ability_scroll");
+        Set<String> found = new HashSet<>();
         for (int i = 0; i < scrolls.size(); i++) {
-            String name = scrolls.getStringOr(i, "");
-            if (ItemAbility.WITHER_SHIELD_SCROLL.name().equals(name)) {
-                out.add(ItemAbility.WITHER_SHIELD_SCROLL);
-            } else if (ItemAbility.SHADOW_WARP_SCROLL.name().equals(name)) {
-                out.add(ItemAbility.SHADOW_WARP_SCROLL);
-            } else if (ItemAbility.IMPLOSION_SCROLL.name().equals(name)) {
-                out.add(ItemAbility.IMPLOSION_SCROLL);
-            }
+            found.add(scrolls.getStringOr(i, ""));
         }
-        return out;
+        return found.containsAll(WITHER_COMBO_SCROLL_IDS);
     }
 
     /** Copied from {@code ragaxe/RagAxeState#isWolfDeath} - 26.1.2 has one death sound per wolf variant. */

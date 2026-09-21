@@ -16,8 +16,8 @@ import java.util.Locale;
  * <p>Cross-checked against Devonian (local Kotlin source, a local Devonian checkout):
  * <ul>
  *   <li>{@code features/misc/WitherShieldTimer.kt} uses {@code cooldown = if (scrolls.size == 3) 100 else 200}
- *       server ticks, i.e. 5 s with all three scrolls (Wither Impact) and 10 s for the shield alone -
- *       exactly SkyHanni's {@code WITHER_IMPACT(5)} / {@code WITHER_SHIELD_SCROLL(10)}.</li>
+ *       server ticks, i.e. 5 s with all three scrolls (Wither Impact) - exactly SkyHanni's
+ *       {@code WITHER_IMPACT(5)}.</li>
  *   <li>{@code features/misc/TacticalInsertionTimer.kt} shows a 60-tick (3 s) phase off the
  *       {@code item.flintandsteel.use} sound at pitch {@code 0.74603176} - the same sound, pitch and 3 s
  *       first phase SkyHanni uses for {@code TACTICAL_INSERTION}.</li>
@@ -38,18 +38,20 @@ import java.util.Locale;
  * <p><b>Not added because no reference mod has a real number for them:</b> Bonzo's Staff, Jerry-chine Gun
  * and Spirit Sceptre have no cooldown in SkyHanni's table (they are mana-cost-only abilities). Nothing here
  * guesses one.
+ *
+ * <p><b>Removed 2026-09-21</b> (killer560: "remove shadow warp, wither shield and implosion from that
+ * list"): {@code WITHER_SHIELD_SCROLL}, {@code SHADOW_WARP_SCROLL} and {@code IMPLOSION_SCROLL} used to be
+ * separate toggleable entries here (SkyHanni: {@code WITHER_SHIELD_SCROLL(10, ignoreMageCooldownReduction =
+ * true)}, {@code SHADOW_WARP_SCROLL(10)}, {@code IMPLOSION_SCROLL(10)}). {@link #WITHER_IMPACT} - the combo
+ * of all three scrolls on one item - is the only ability of the three still timed; see
+ * {@code AbilityCooldownState#hasAllWitherComboScrolls}. A saved per-ability toggle for one of the three
+ * removed ids just stops being read (see {@code AbilityCooldownConfig#load}) - it never throws.
  */
 public enum ItemAbility {
 
     // --- ability scrolls / Hyperion-class (dungeon) -------------------------------------------------
     /** All three scrolls on one item. SkyHanni: {@code WITHER_IMPACT(5, ignoreMageCooldownReduction = true)}. */
     WITHER_IMPACT("Wither Impact", 5, true, true),
-    /** SkyHanni: {@code WITHER_SHIELD_SCROLL(10, ignoreMageCooldownReduction = true)}. */
-    WITHER_SHIELD_SCROLL("Wither Shield", 10, true, true),
-    /** SkyHanni: {@code SHADOW_WARP_SCROLL(10)}. */
-    SHADOW_WARP_SCROLL("Shadow Warp", 10, true, false),
-    /** SkyHanni: {@code IMPLOSION_SCROLL(10)}. */
-    IMPLOSION_SCROLL("Implosion", 10, true, false),
 
     // --- other dungeon-relevant items ---------------------------------------------------------------
     /** SkyHanni: {@code GYROKINETIC_WAND_LEFT(30, "GYROKINETIC_WAND")}. */

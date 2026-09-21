@@ -4,6 +4,7 @@ import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -11,6 +12,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -1385,11 +1387,30 @@ public final class ExperimentsFeature {
     }
 
     private static void scheduleClick(int containerId, int slot, long now, ExperimentsConfig cfg) {
+        // Real gap found (2026-09-21): ActionGate.Actor.EXPERIMENTS has existed since the gate was
+        // written ("Auto Quiz / Weirdos / experiment solvers clicking in their GUI") but nothing in this
+        // file ever called ActionGate.tryAct - every click here went straight to clickSlot with none of
+        // the gate's one-per-tick/settle/focus protection every other automated actor in the mod gets.
+        // Captured here (decide time) rather than read fresh inside the lambda below, since the whole
+        // point is to catch the screen having changed OUT from under a click that hasn't fired yet.
+        Screen ownScreen = Minecraft.getInstance().screen;
         // The real click only happens once this jittered action actually fires, which can be well
         // after `now` - Superpairs' confirm-timeout clock needs to start from that real send time, not
         // the moment this click was decided (see ExperimentSolver#superpairsClickSent). Harmless no-op
         // for Chronomatron/Ultrasequencer/navigation/claim clicks, which never arm that gate at all.
         scheduleAction(() -> {
+            // Real bug this closes: firePendingActions runs "regardless of what screen is open" (see its
+            // own doc), so a click decided against one open menu could still fire after that menu closed
+            // or was replaced by a new one - clickSlot's containerId would then be stale, and the server
+            // silently drops a container-click packet whose id doesn't match its current menu, with
+            // nothing on this end ever finding out the click never landed. ActionGate's SCREEN check
+            // (same screen instance, still a container screen, still focused) catches exactly that before
+            // clickSlot ever runs, instead of clickSlot unconditionally reporting success.
+            if (!ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen)) {
+                LOGGER.warn("Experiments click on slot {} skipped - ActionGate denied it (screen changed "
+                        + "before the jittered click fired, or another automation took the tick)", slot);
+                return;
+            }
             clickSlot(containerId, slot);
             SOLVER.superpairsClickSent(slot, System.currentTimeMillis());
         }, now, cfg);

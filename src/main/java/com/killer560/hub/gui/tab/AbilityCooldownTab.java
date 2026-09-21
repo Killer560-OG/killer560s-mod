@@ -12,13 +12,16 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** Automatic Ability Cooldowns settings - see
  *  {@link com.killer560.hub.abilitycooldown.AbilityCooldownFeature} and
  *  {@link ItemAbility} for every cooldown value and where it was ported from. Master ships OFF; every
- *  change saves immediately. Informational only, so no cheat-only (red) headers here. */
+ *  change saves immediately. Informational only, so no cheat-only (red) headers here.
+ *  <p>Explanatory text lives in tooltips (hover), not on the panel - see {@code SettingTooltipsData}'s
+ *  {@code "ability cooldowns"} keys. Only dynamic/status lines are drawn directly. */
 public class AbilityCooldownTab extends BaseTab {
 
     public AbilityCooldownTab() {
@@ -43,10 +46,6 @@ public class AbilityCooldownTab extends BaseTab {
         y[0] += 24;
 
         if (!cfg.isEnabledRaw()) {
-            note(w, contentX, y, contentWidth,
-                    "Detects the ability you used and counts down its real cooldown.");
-            note(w, contentX, y, contentWidth,
-                    "Ability Timers (manual, key-started) stays separate and can run alongside.");
             return w;
         }
 
@@ -74,7 +73,6 @@ public class AbilityCooldownTab extends BaseTab {
             }
         });
         y[0] += 24;
-        note(w, contentX, y, contentWidth, "Move the list in the HUD editor (element: Ability Cooldowns).");
 
         header(w, contentX, y, contentWidth, "Detection");
         toggle(w, contentX, y[0], half, "Sound Detection", cfg::isSoundDetection, cfg::setSoundDetection, cfg);
@@ -99,39 +97,24 @@ public class AbilityCooldownTab extends BaseTab {
             }
         });
         y[0] += 24;
-        note(w, contentX, y, contentWidth,
-                "A heard ability sound only starts YOUR timer if you clicked inside this window,");
-        note(w, contentX, y, contentWidth,
-                "so a teammate's Hyperion next to you can't start your countdown. Raise it if you lag.");
 
         header(w, contentX, y, contentWidth, "Mage Cooldown Reduction");
+        // killer560, 2026-09-21: "am I a Mage" is now auto-detected (AbilityCooldownState#multiplier,
+        // PartyTracker.selfClass()) - the old "Unique Class" / "Mage Class Level" toggles are gone. Only the
+        // SIZE of the cut stays a setting, same shape as RagAxeTab's "Mage Cut" button.
         toggle(w, contentX, y[0], half, "Mage Reduction", cfg::isMageReduction, cfg::setMageReduction, cfg);
-        toggle(w, colB, y[0], half, "Unique Class", cfg::isMageUniqueClass, cfg::setMageUniqueClass, cfg);
-        y[0] += 22;
-        w.add(new ThemedSliderButton(contentX, y[0], contentWidth, 18, mageLevelLabel(cfg),
-                cfg.getMageClassLevel() / (double) AbilityCooldownConfig.MAX_MAGE_LEVEL) {
-            @Override
-            protected void updateMessage() {
-                setMessage(mageLevelLabel(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setMageClassLevel((int) Math.round(this.value * AbilityCooldownConfig.MAX_MAGE_LEVEL));
-                cfg.save();
-            }
-        });
+        if (cfg.isMageReduction()) {
+            w.add(SettingsButtonWidget.builder(mageCutLabel(cfg), btn -> {
+                        float next = cfg.getMageCooldownReductionPercent() + 5f;
+                        cfg.setMageCooldownReductionPercent(
+                                next > AbilityCooldownConfig.MAX_MAGE_REDUCTION_PERCENT ? 0f : next);
+                        cfg.save();
+                        btn.setMessage(mageCutLabel(cfg));
+                    }).bounds(colB, y[0], half, 18).build());
+        }
         y[0] += 24;
-        note(w, contentX, y, contentWidth,
-                "Off by default. Nothing reads your class LEVEL from tab yet, so you set it here;");
-        note(w, contentX, y, contentWidth,
-                "50% base as the only Mage in the party, 25% otherwise, minus 1% per 2 levels.");
 
         header(w, contentX, y, contentWidth, "Abilities");
-        note(w, contentX, y, contentWidth,
-                "Cooldowns ported from SkyHanni's ability table - none of them are guesses.");
-        note(w, contentX, y, contentWidth,
-                "Ragnarock Axe is under Rag Axe; Spirit/Bonzo/Phoenix are under Mask Invincibility.");
         boolean left = true;
         for (ItemAbility ability : ItemAbility.values()) {
             if (cfg.isDungeonOnly() && !ability.isDungeon()) {
@@ -159,19 +142,15 @@ public class AbilityCooldownTab extends BaseTab {
         return Component.literal("Click Window: " + cfg.getClickWindowMs() + "ms");
     }
 
-    private static Component mageLevelLabel(AbilityCooldownConfig cfg) {
-        return Component.literal("Mage Class Level: " + cfg.getMageClassLevel());
+    private static Component mageCutLabel(AbilityCooldownConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Mage Cut: §6%.0f%%",
+                cfg.getMageCooldownReductionPercent()));
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
         w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
         y[0] += 14;
-    }
-
-    private static void note(List<AbstractWidget> w, int x, int[] y, int width, String text) {
-        w.add(new StringWidget(x, y[0], width, 12, Component.literal("§7" + text), Minecraft.getInstance().font));
-        y[0] += 12;
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label,
