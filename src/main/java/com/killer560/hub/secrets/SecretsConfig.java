@@ -30,6 +30,11 @@ public final class SecretsConfig {
     // false = "Flat" (quoi's real "Expanded" mode - a wider but still thin, face-hugging shape, ported
     // 1:1 from quoi's own hardcoded per-face shapes). true = "Full Box" (the entire 1x1x1 cube).
     private boolean buttonsFullBox = false;
+    /** Custom button hitbox (killer560, 2026-09-21): each axis 0 = vanilla button size, 100 = a full block along it. */
+    private boolean buttonsCustomSize = false;
+    private int buttonWidthPct = 0;
+    private int buttonHeightPct = 0;
+    private int buttonLengthPct = 0;
     private boolean chestsEnabled = false;
     // Wither Essence, per killer560's own naming (2026-09-09) - a skull-family block (SkullBlock or
     // WallSkullBlock depending on placement) in real dungeon rooms.
@@ -66,6 +71,10 @@ public final class SecretsConfig {
             cfg.leversEnabled = ConfigJson.getBool(obj, "leversEnabled", false);
             cfg.buttonsEnabled = ConfigJson.getBool(obj, "buttonsEnabled", false);
             cfg.buttonsFullBox = ConfigJson.getBool(obj, "buttonsFullBox", false);
+            cfg.buttonsCustomSize = ConfigJson.getBool(obj, "buttonsCustomSize", false);
+            cfg.buttonWidthPct = clampPct(ConfigJson.getInt(obj, "buttonWidthPct", 0));
+            cfg.buttonHeightPct = clampPct(ConfigJson.getInt(obj, "buttonHeightPct", 0));
+            cfg.buttonLengthPct = clampPct(ConfigJson.getInt(obj, "buttonLengthPct", 0));
             cfg.chestsEnabled = ConfigJson.getBool(obj, "chestsEnabled", false);
             cfg.essenceEnabled = ConfigJson.getBool(obj, "essenceEnabled", false);
             cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", false);
@@ -84,6 +93,10 @@ public final class SecretsConfig {
             obj.addProperty("leversEnabled", leversEnabled);
             obj.addProperty("buttonsEnabled", buttonsEnabled);
             obj.addProperty("buttonsFullBox", buttonsFullBox);
+            obj.addProperty("buttonsCustomSize", buttonsCustomSize);
+            obj.addProperty("buttonWidthPct", buttonWidthPct);
+            obj.addProperty("buttonHeightPct", buttonHeightPct);
+            obj.addProperty("buttonLengthPct", buttonLengthPct);
             obj.addProperty("chestsEnabled", chestsEnabled);
             obj.addProperty("essenceEnabled", essenceEnabled);
             obj.addProperty("dungeonsOnly", dungeonsOnly);
@@ -123,6 +136,42 @@ public final class SecretsConfig {
 
     public void setButtonsEnabled(boolean buttonsEnabled) {
         this.buttonsEnabled = buttonsEnabled;
+    }
+
+    private static int clampPct(int v) {
+        return Math.max(0, Math.min(100, v));
+    }
+
+    public boolean isButtonsCustomSize() {
+        return buttonsCustomSize;
+    }
+
+    public void setButtonsCustomSize(boolean v) {
+        this.buttonsCustomSize = v;
+    }
+
+    public int getButtonWidthPct() {
+        return buttonWidthPct;
+    }
+
+    public void setButtonWidthPct(int v) {
+        this.buttonWidthPct = clampPct(v);
+    }
+
+    public int getButtonHeightPct() {
+        return buttonHeightPct;
+    }
+
+    public void setButtonHeightPct(int v) {
+        this.buttonHeightPct = clampPct(v);
+    }
+
+    public int getButtonLengthPct() {
+        return buttonLengthPct;
+    }
+
+    public void setButtonLengthPct(int v) {
+        this.buttonLengthPct = clampPct(v);
     }
 
     public boolean isButtonsFullBox() {

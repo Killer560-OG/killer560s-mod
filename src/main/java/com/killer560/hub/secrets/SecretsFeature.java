@@ -177,4 +177,61 @@ public final class SecretsFeature {
     public static final VoxelShape BUTTON_SOUTH_SHAPE = Shapes.box(0.0, 0.0, 0.0, 1.0, 1.0, 0.125);
     public static final VoxelShape BUTTON_WEST_SHAPE = Shapes.box(0.875, 0.0, 0.0, 1.0, 1.0, 1.0);
     public static final VoxelShape BUTTON_EAST_SHAPE = Shapes.box(0.0, 0.0, 0.0, 0.125, 1.0, 1.0);
+
+    // ------------------------------------------------------------------ custom button size
+    // killer560 (2026-09-21): a "Custom Size" toggle with Width / Height / Length sliders, each running from the
+    // normal button size (0) to a full block along that axis (100). Axes are relative to the button itself:
+    // Width = side to side across its face, Height = up/down across its face, Length = how far it sticks out from
+    // what it is attached to. Starts from vanilla's own button box (6 x 4 pixels, 2 deep) and grows each axis
+    // symmetrically across the face, and outward from the attached surface for Length.
+
+    private static final double BASE_WIDTH = 6.0 / 16.0;
+    private static final double BASE_HEIGHT = 4.0 / 16.0;
+    private static final double BASE_LENGTH = 2.0 / 16.0;
+
+    /** 0 floor N/S, 1 floor E/W, 2 ceiling N/S, 3 ceiling E/W, 4 wall N, 5 wall S, 6 wall W, 7 wall E. */
+    private static final VoxelShape[] CUSTOM_BUTTON_CACHE = new VoxelShape[8];
+    private static int customButtonCacheKey = -1;
+
+    public static boolean shouldUseCustomButtonSize() {
+        return SecretsConfig.getInstance().isButtonsCustomSize();
+    }
+
+    /** @param orientation one of the 8 slots documented on {@link #CUSTOM_BUTTON_CACHE}. */
+    public static VoxelShape customButtonShape(int orientation) {
+        SecretsConfig cfg = SecretsConfig.getInstance();
+        int key = cfg.getButtonWidthPct() | (cfg.getButtonHeightPct() << 8) | (cfg.getButtonLengthPct() << 16);
+        if (key != customButtonCacheKey) {
+            java.util.Arrays.fill(CUSTOM_BUTTON_CACHE, null);
+            customButtonCacheKey = key;
+        }
+        VoxelShape cached = CUSTOM_BUTTON_CACHE[orientation];
+        if (cached != null) {
+            return cached;
+        }
+        double w = lerpToFull(BASE_WIDTH, cfg.getButtonWidthPct());
+        double h = lerpToFull(BASE_HEIGHT, cfg.getButtonHeightPct());
+        double l = lerpToFull(BASE_LENGTH, cfg.getButtonLengthPct());
+        double w0 = 0.5 - w / 2, w1 = 0.5 + w / 2;
+        double h0 = 0.5 - h / 2, h1 = 0.5 + h / 2;
+        VoxelShape shape = switch (orientation) {
+            // Floor/ceiling: the face lies flat, so Width and Height are both horizontal. Vanilla lines the long
+            // (width) side up with the facing axis's perpendicular: facing N/S -> width along X.
+            case 0 -> Shapes.box(w0, 0.0, h0, w1, l, h1);
+            case 1 -> Shapes.box(h0, 0.0, w0, h1, l, w1);
+            case 2 -> Shapes.box(w0, 1.0 - l, h0, w1, 1.0, h1);
+            case 3 -> Shapes.box(h0, 1.0 - l, w0, h1, 1.0, w1);
+            // Wall: Height is vertical, Width runs along the wall, Length comes out of the wall toward FACING.
+            case 4 -> Shapes.box(w0, h0, 1.0 - l, w1, h1, 1.0);   // facing north, on the south side
+            case 5 -> Shapes.box(w0, h0, 0.0, w1, h1, l);         // facing south, on the north side
+            case 6 -> Shapes.box(1.0 - l, h0, w0, 1.0, h1, w1);   // facing west, on the east side
+            default -> Shapes.box(0.0, h0, w0, l, h1, w1);        // facing east, on the west side
+        };
+        CUSTOM_BUTTON_CACHE[orientation] = shape;
+        return shape;
+    }
+
+    private static double lerpToFull(double base, int pct) {
+        return base + (1.0 - base) * (Math.max(0, Math.min(100, pct)) / 100.0);
+    }
 }

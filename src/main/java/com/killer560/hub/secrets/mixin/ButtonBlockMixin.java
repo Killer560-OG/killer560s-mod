@@ -29,6 +29,24 @@ public abstract class ButtonBlockMixin {
         if (!SecretsFeature.shouldExpandButtons()) {
             return;
         }
+        if (SecretsFeature.shouldUseCustomButtonSize()) {
+            // Custom Size wins over the Flat/Full Box choice while it is on.
+            AttachFace attach = state.getValue(ButtonBlock.FACE);
+            Direction dir = state.getValue(ButtonBlock.FACING);
+            boolean ew = dir.getAxis() == Direction.Axis.X;
+            int orientation = switch (attach) {
+                case FLOOR -> ew ? 1 : 0;
+                case CEILING -> ew ? 3 : 2;
+                case WALL -> switch (dir) {
+                    case NORTH -> 4;
+                    case SOUTH -> 5;
+                    case WEST -> 6;
+                    default -> 7;
+                };
+            };
+            cir.setReturnValue(SecretsFeature.customButtonShape(orientation));
+            return;
+        }
         if (SecretsFeature.shouldUseFullBoxButtons()) {
             cir.setReturnValue(Shapes.block());
             return;

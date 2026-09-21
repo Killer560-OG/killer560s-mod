@@ -1877,5 +1877,9 @@ final class SettingTooltipsData {
         d.put("supporters/refresh", "Re-checks whether this account is linked to a supporter, and reloads your current name/scale from the relay.");
         d.put("supporters/save", "Sends your name and scale to the relay. Takes effect on your own client immediately; other players see it within a few minutes.");
         d.put("supporters/clear", "Removes your custom name so your real IGN shows again. Your scale resets to 1.0 too.");
+        d.put("full block/custom button size", "Set the button hitbox size yourself with the Width, Height and Length sliders below. Overrides Button Shape while it is on.");
+        d.put("full block/width", "How wide the button's hitbox is, side to side across its face. Far left is the normal button, far right is a full block.");
+        d.put("full block/height", "How tall the button's hitbox is across its face. Far left is the normal button, far right is a full block.");
+        d.put("full block/length", "How far the button's hitbox sticks out from the wall, floor or ceiling it is on. Far left is the normal button, far right is a full block.");
     }
 }

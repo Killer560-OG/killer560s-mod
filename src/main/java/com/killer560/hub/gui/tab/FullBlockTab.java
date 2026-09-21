@@ -82,7 +82,23 @@ public class FullBlockTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(buttonShapeText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 26;
+        y += 24;
+
+        widgets.add(SettingsButtonWidget.builder(customSizeText(), btn -> {
+                    SecretsConfig cfg = SecretsConfig.getInstance();
+                    cfg.setButtonsCustomSize(!cfg.isButtonsCustomSize());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        if (SecretsConfig.getInstance().isButtonsCustomSize()) {
+            SecretsConfig cfg = SecretsConfig.getInstance();
+            y = sizeSlider(widgets, contentX, y, "Width", cfg::getButtonWidthPct, cfg::setButtonWidthPct);
+            y = sizeSlider(widgets, contentX, y, "Height", cfg::getButtonHeightPct, cfg::setButtonHeightPct);
+            y = sizeSlider(widgets, contentX, y, "Length", cfg::getButtonLengthPct, cfg::setButtonLengthPct);
+        }
+        y += 2;
 
         widgets.add(SettingsButtonWidget.builder(chestsText(), btn -> {
                     SecretsConfig cfg = SecretsConfig.getInstance();
@@ -120,6 +136,34 @@ public class FullBlockTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
 
         return widgets;
+    }
+
+    /** One Normal-to-Full slider: far left is the normal button size, far right a full block along that axis. */
+    private static int sizeSlider(List<AbstractWidget> widgets, int x, int y, String name,
+                                  java.util.function.IntSupplier get, java.util.function.IntConsumer set) {
+        widgets.add(new com.killer560.hub.gui.ThemedSliderButton(x, y, 220, 18, sizeLabel(name, get.getAsInt()),
+                get.getAsInt() / 100.0) {
+            @Override
+            protected void updateMessage() {
+                setMessage(sizeLabel(name, (int) Math.round(this.value * 100.0)));
+            }
+
+            @Override
+            protected void applyValue() {
+                set.accept((int) Math.round(this.value * 100.0));
+                SecretsConfig.getInstance().save();
+            }
+        });
+        return y + 22;
+    }
+
+    private static Component sizeLabel(String name, int pct) {
+        String value = pct <= 0 ? "Normal" : pct >= 100 ? "Full" : pct + "%";
+        return Component.literal(name + ": §b" + value);
+    }
+
+    private static Component customSizeText() {
+        return Component.literal("Custom Button Size: " + (SecretsConfig.getInstance().isButtonsCustomSize() ? "§aON" : "§cOFF"));
     }
 
     private static Component masterText() {
