@@ -580,7 +580,7 @@ public final class Ap3Feature {
             LOGGER.error("[AP3] Tick error - disabling AP3", e);
             disableAfterError("tick error (see log)");
         } finally {
-            // Always last, and always - a Server Strafe Angle glide back onto the camera yaw has to finish even
+            // Always last, and always - the server-side yaw's glide back onto the camera yaw has to finish even
             // after AP3 was turned off, the boss was left, or the tick above threw.
             try {
                 Ap3Executor.tickStrafe(client);

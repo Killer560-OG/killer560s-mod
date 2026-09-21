@@ -105,14 +105,18 @@ import java.util.UUID;
  * rule); nothing in this class ever calls {@code setYRot}. The camera step is bounded to one per rendered frame
  * and the node to a real-time timeout - see {@link #tickFrame()} and {@link #tickLook}.
  * <p>
- * <b>Server Strafe Angle</b> ({@link Ap3Config#isServerStrafeAngle()}, default off) - killer560 (2026-09-21):
- * "serverside I am always looking in the proper angle for 45 degree strafing, but client side I am not ...
- * essentially a freecam style." While a held walk drives, a separate running {@link #serverYaw} is what the server
- * receives instead of the camera yaw ({@code mixin/Ap3RotationSendMixin} swaps it in around {@code sendPosition}
- * only); it starts from the live yaw and moves to the walk direction +-45 degrees in bounded per-tick steps, the
- * key record the server sees is W+A / W+D against THAT yaw, and the sprint is kept alive whatever the camera does
- * ({@code mixin/Ap3StrafeImpulseMixin}). The camera, the movement frame and third-person rendering never see it.
- * When the walk ends it glides back onto the camera yaw the same way - see {@link #tickStrafe}.
+ * <b>The server-side yaw is locked to the walk</b> - killer560 (2026-09-21): "serverside I am always looking in the
+ * proper angle for 45 degree strafing, but client side I am not ... essentially a freecam style." Whenever a held
+ * walk drives, a separate running {@link #serverYaw} is what the server receives instead of the camera yaw
+ * ({@code mixin/Ap3RotationSendMixin} swaps it in around {@code sendPosition} only); it starts from the live yaw and
+ * moves in bounded per-tick steps to the walk direction +-45 degrees with the "45 Degree Strafe" toggle on (the key
+ * record the server sees is then W+A / W+D against THAT yaw - "always pressing w and some other movement key ... so I
+ * can effectively be sprinting"), or to the walk direction exactly with it off (W only). The sprint is kept alive
+ * whatever the camera does ({@code mixin/Ap3StrafeImpulseMixin}). The camera and the movement frame never see it;
+ * the THIRD-PERSON model of the local player does ({@code mixin/Ap3ThirdPersonMixin}, {@link #thirdPersonModelYaw}):
+ * "If I go into f5 it still looks like my head is facing the way my actual crosshair is pointed when it should be at
+ * whatever angle is most optimal." When the walk ends both glide back onto the camera the same way - see
+ * {@link #tickStrafe}.
  * <p>
  * <b>Modifiers</b> on any node: {@code wait:<ms>} holds the NEXT queued node that long after this one
  * ({@link #waitUntilMs}); {@code close} makes the node perform only on a manual left click or once a GUI that was
@@ -175,20 +179,28 @@ public final class Ap3Executor {
     private static final String[] BOOM_IDS = {"INFINITE_SUPERBOOM_TNT", "SUPERBOOM_TNT"};
     private static final int GLFW_FIRST_KEY = GLFW.GLFW_KEY_SPACE;
     private static final int GLFW_LAST_KEY = GLFW.GLFW_KEY_LAST;
-    /** Server Strafe Angle: the server-side yaw sits this far off the walk direction (W+A / W+D strafing). */
+    /** 45 Degree Strafe: the server-side yaw sits this far off the walk direction (W+A / W+D strafing). */
     private static final float STRAFE_ANGLE = 45f;
     /** The server-side yaw never moves more than this in one tick - a fast flick, still a hand's flick. */
     private static final float STRAFE_MAX_STEP = 40f;
     /** Within this of its target the server-side yaw takes the (sub-half-degree) remainder and is done. */
     private static final float STRAFE_DONE = 0.5f;
 
-    // ---- server strafe angle (a running value; the mixin sends it in place of the camera yaw) ----
+    // ---- server-side yaw lock (a running value; the mixin sends it in place of the camera yaw) ----
     /** True while {@link #serverYaw} is what goes to the server (driving, or gliding back onto the camera yaw). */
     private static boolean strafeLock;
     /** The walk ended: gliding the server-side yaw back onto the camera yaw before letting go. */
     private static boolean strafeReturning;
     /** The running server-side yaw. Seeded from the player's own live yaw, only ever moved by wrapped deltas. */
     private static float serverYaw;
+    /** {@link #serverYaw} as it was before this tick's step - the render interpolation's other end. */
+    private static float serverYawO;
+    // ---- the local player's third-person model (F5), drawn at the server-side yaw while it is locked ----
+    /** The yaw the model was last drawn at; after the lock lets go it glides from here onto vanilla's body yaw. */
+    private static float modelYaw;
+    /** True from the first locked frame until the after-glide has met vanilla's body yaw. */
+    private static boolean modelOwned;
+    private static long modelLastNanos;
     /** +1 = server yaw is the walk direction + 45 (the server sees W+A), -1 = -45 (W+D). Picked once per hold. */
     private static int strafeSide;
     /** Per-tick fraction of the remaining turn, rolled per lock so no two turns decay identically. */
@@ -392,8 +404,8 @@ public final class Ap3Executor {
     /**
      * Arms {@code nodes} (the area you just entered, or the freshly reloaded file). {@code seedFromPosition} = the
      * boxes you are standing in right now count as already entered, so nothing fires until you step out and back
-     * in - the rule after every placement / edit / reload ("adding a node at your feet must not drive you") and,
-     * unless Continue Into Next Section is on, on arriving in a new area by a leap or teleport.
+     * in - the rule after every placement / edit / reload only ("adding a node at your feet must not drive you").
+     * Arriving in a new area - walking, leaping or teleported - never seeds: a box you arrive in fires at once.
      */
     private static void arm(Ap3Chain nodes, boolean seedFromPosition, LocalPlayer player) {
         chain = nodes;
@@ -463,6 +475,41 @@ public final class Ap3Executor {
     /** From {@code mixin/Ap3StrafeImpulseMixin}: the lock is driving a held walk right now (not gliding back). */
     public static boolean isStrafeDriving() {
         return strafeLockedForHold() && driving;
+    }
+
+    /**
+     * From {@code mixin/Ap3ThirdPersonMixin}, once per frame the local player's model is drawn (F5): the yaw to
+     * draw the body AND head at, or NaN to leave vanilla's. While the lock holds it is {@link #serverYaw}
+     * interpolated across the tick, so his own third-person view shows what the server (and everyone else) is
+     * told; once the lock lets go the model glides from where it was drawn last onto vanilla's body yaw with the
+     * same fraction-per-tick / degrees-per-tick bounds the server-side yaw uses ({@link #stepServerYaw}), scaled to
+     * the real time between frames - no pop. Render-only: nothing here is written to the player or sent anywhere.
+     */
+    public static float thirdPersonModelYaw(float vanillaBodyYaw, float partialTick) {
+        long now = System.nanoTime();
+        if (strafeLock) {
+            modelYaw = serverYawO + Mth.wrapDegrees(serverYaw - serverYawO) * Mth.clamp(partialTick, 0f, 1f);
+            modelOwned = true;
+            modelLastNanos = now;
+            return modelYaw;
+        }
+        if (!modelOwned) {
+            return Float.NaN;
+        }
+        float delta = Mth.wrapDegrees(vanillaBodyYaw - modelYaw);
+        if (Math.abs(delta) <= STRAFE_DONE) {
+            modelOwned = false;
+            return Float.NaN;
+        }
+        // Frames are not ticks: the per-tick glide (fraction s, at most STRAFE_MAX_STEP) sampled at dt ticks is
+        // 1 - (1 - s)^dt of the remainder, capped at STRAFE_MAX_STEP * dt. dt is capped at one tick so a model that
+        // was not drawn for a while (first person) does not take one big step when it next is.
+        float dtTicks = Mth.clamp((now - modelLastNanos) / 50_000_000f, 0f, 1f);
+        modelLastNanos = now;
+        float fraction = 1f - (float) Math.pow(1.0 - strafeSmoothing, dtTicks);
+        float cap = STRAFE_MAX_STEP * dtTicks;
+        modelYaw += Mth.clamp(delta * fraction, -cap, cap);
+        return modelYaw;
     }
 
     /** The lock is on for the current hold (not gliding back). Read inside {@link #writeMove}, i.e. BEFORE this
@@ -610,11 +657,11 @@ public final class Ap3Executor {
         if (current != chain) {
             // A new area, or the file was reloaded (new objects). The held walk and the node being performed carry
             // on - a walk from S1's last node has to survive the gap into S2 - but whatever was queued was for the
-            // old area. WALKING into a new area: the boxes you are in fire, that is hitting a node. LANDING in one
-            // by a leap / teleport: with Continue Into Next Section ON they fire at once; OFF, you must step out
-            // and back in first. A reload is neither: nothing you stand in fires until you re-enter.
-            boolean seed = !arrival || (jumped && !Ap3Config.getInstance().isContinueIntoNextSection());
-            arm(current, seed, player);
+            // old area. Arriving in a new area, whether you walked, leapt or were teleported into it: the boxes you
+            // are in fire at once - killer560 (2026-09-21): "it should always continue the second you hit a node no
+            // matter what section you are supposed to be in" (the old Continue Into Next Section toggle is gone).
+            // A reload is different: nothing you stand in fires until you re-enter.
+            arm(current, !arrival, player);
         }
         if (lastSelfPos != null && jumped) {
             onLeapHappened("you leapt");
@@ -1537,13 +1584,16 @@ public final class Ap3Executor {
      * min(0.98 * 1.414, 1) = 1.00 - the ~2%. Since this class writes the vector itself, the length it writes decides
      * which of those the player gets, for ANY travel direction and with the camera left alone:
      * <ul>
-     * <li>Diagonal walk ON: length 1/0.98, so the mapping lands on 1.00 - exactly the real W+A speed.</li>
+     * <li>45 Degree Strafe ON: length 1/0.98, so the mapping lands on 1.00 - exactly the real W+A speed the server
+     * expects from the W+A / W+D record it is sent.</li>
      * <li>OFF: length 1/d for this direction's own unit-square distance d, so the mapping lands on 0.98 - exactly
-     * the plain-W speed, even when the direction happens to be off-axis relative to the camera.</li>
+     * the plain-W speed the server expects from the W record, even when the direction happens to be off-axis
+     * relative to the camera.</li>
      * </ul>
-     * The 8-way {@code Input} record the server sees is the nearest real key combination for the direction.
-     * Sprinting can only start with a forward component ({@code ClientInput.hasForwardImpulse}: {@code y > 1e-5}),
-     * so a RUN whose direction is behind the camera walks - vanilla cannot sprint backwards either.
+     * The 8-way {@code Input} record the server sees is the nearest real key combination for the direction against
+     * the yaw the server receives (see {@link #writeKeys}). Sprinting can only start with a forward component
+     * ({@code ClientInput.hasForwardImpulse}: {@code y > 1e-5}); while the server-side yaw is locked the
+     * {@code Ap3StrafeImpulseMixin} supplies that, so a walk sprints whatever the camera does.
      */
     private static void writeMove(LocalPlayer player, double wx, double wz, boolean sprint) {
         double h = Math.sqrt(wx * wx + wz * wz);
@@ -1568,9 +1618,10 @@ public final class Ap3Executor {
         double ratio = ay > ax ? (ay == 0 ? 0 : ax / ay) : (ax == 0 ? 0 : ay / ax);
         double unitSquare = Math.sqrt(1.0 + ratio * ratio);
         boolean locked = strafeLockedForHold();
-        // With the server-side yaw locked to the strafe angle the server sees a W+A / W+D record, so the speed has
-        // to be the one a real W+A gets (1.00) - the lock implies the 45-degree speed whatever the toggle says.
-        double scale = Ap3Config.getInstance().isDiagonalWalk() || locked ? 1.0 / VANILLA_INPUT_SCALE : 1.0 / unitSquare;
+        // The speed has to be the one the key record the server sees would really get: 45 Degree Strafe ON = the
+        // server sees W+A / W+D at the strafe yaw, so the real diagonal speed (1.00); OFF = it sees W at the walk
+        // yaw, so the plain-W speed (0.98).
+        double scale = Ap3Config.getInstance().isStrafe45() ? 1.0 / VANILLA_INPUT_SCALE : 1.0 / unitSquare;
         scale *= mag;
         moveX = (float) (lft * scale);
         moveY = (float) (fwd * scale);
@@ -1603,16 +1654,17 @@ public final class Ap3Executor {
         wantForward = wantBackward = wantLeft = wantRight = wantSneak = wantSprint = false;
     }
 
-    // ------------------------------------------------------------------------------------------- server strafe angle
+    // ------------------------------------------------------------------------------------------- server-side yaw lock
 
     /**
      * Every client tick, AFTER the executor has decided this tick's movement ({@link Ap3Feature} calls it last,
      * whether or not the executor itself ran - a glide has to finish even after AP3 is turned off or the boss is
      * left). Three states:
      * <ol>
-     * <li>a held walk is driving and the setting is on: lock (seed {@link #serverYaw} from the live yaw, pick the
-     *     side - +45 (W+A) or -45 (W+D) - that is the shorter turn from where the server-side yaw is now), then step
-     *     the server-side yaw toward walk direction +- 45 by a bounded wrapped delta;</li>
+     * <li>a held walk is driving: lock (seed {@link #serverYaw} from the live yaw and, with 45 Degree Strafe on,
+     *     pick the side - +45 (W+A) or -45 (W+D) - that is the shorter turn from where the server-side yaw is now),
+     *     then step the server-side yaw toward the walk direction +-45 (toggle on) or the walk direction itself
+     *     (toggle off) by a bounded wrapped delta, and re-derive the key record against it;</li>
      * <li>the hold ended (any other node, a stop, his hands): glide the server-side yaw back onto the live camera
      *     yaw the same way, chasing it if he keeps turning, and let go once within {@value #STRAFE_DONE} degrees;</li>
      * <li>no lock: nothing - the camera yaw goes out untouched.</li>
@@ -1627,8 +1679,8 @@ public final class Ap3Executor {
             releaseStrafeNow();
             return;
         }
-        boolean wanted = holdDir != null && driving && mixinApplied && rotationMixinApplied
-                && Ap3Config.getInstance().isServerStrafeAngle();
+        boolean wanted = holdDir != null && driving && mixinApplied && rotationMixinApplied;
+        boolean strafe45 = Ap3Config.getInstance().isStrafe45();
         if (wanted) {
             if (!strafeLock || strafeReturning) {
                 if (!strafeLock) {
@@ -1639,8 +1691,10 @@ public final class Ap3Executor {
                 strafeReturning = false;
                 strafeHold = null;
                 lookHeld = false; // a walk's explicit yaw supersedes a finished LOOK's client-only hold
-                LOGGER.info("[AP3] Server strafe angle: locking from yaw {}", String.format(Locale.US, "%.1f", serverYaw));
+                LOGGER.info("[AP3] Server-side yaw: locking from yaw {} ({})",
+                        String.format(Locale.US, "%.1f", serverYaw), strafe45 ? "45 degree strafe" : "straight");
             }
+            serverYawO = serverYaw;
             float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
             if (strafeHold != holdDir) {
                 strafeHold = holdDir;
@@ -1648,7 +1702,9 @@ public final class Ap3Executor {
                 float toD = Math.abs(Mth.wrapDegrees(walkYaw - STRAFE_ANGLE - serverYaw));
                 strafeSide = toA <= toD ? 1 : -1;
             }
-            stepServerYaw(walkYaw + strafeSide * STRAFE_ANGLE);
+            // ON: the strafe angle, so the record derived below is W plus A or D once there ("always pressing w and
+            // some other movement key"). OFF: the walk direction itself, so the record is W alone.
+            stepServerYaw(walkYaw + (strafe45 ? strafeSide * STRAFE_ANGLE : 0f));
             // The key record has to agree with the yaw that goes out with it, so re-derive it against the stepped
             // value (writeMove ran before this step, against last tick's).
             writeKeys(serverYaw, wantSprint);
@@ -1660,8 +1716,9 @@ public final class Ap3Executor {
         if (!strafeReturning) {
             strafeReturning = true;
             strafeHold = null;
-            LOGGER.info("[AP3] Server strafe angle: returning to the camera yaw");
+            LOGGER.info("[AP3] Server-side yaw: returning to the camera yaw");
         }
+        serverYawO = serverYaw;
         float cameraYaw = player.getYRot();
         stepServerYaw(cameraYaw);
         if (Math.abs(Mth.wrapDegrees(cameraYaw - serverYaw)) <= STRAFE_DONE) {
@@ -1684,7 +1741,7 @@ public final class Ap3Executor {
      *  just set our rotation itself (a teleport) or there is no player to speak of. */
     private static void releaseStrafeNow() {
         if (strafeLock) {
-            LOGGER.info("[AP3] Server strafe angle: released");
+            LOGGER.info("[AP3] Server-side yaw: released");
         }
         strafeLock = false;
         strafeReturning = false;

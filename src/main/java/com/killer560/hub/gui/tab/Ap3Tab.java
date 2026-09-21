@@ -1,16 +1,14 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.ap3.Ap3Area;
-import com.killer560.hub.ap3.Ap3Chain;
 import com.killer560.hub.ap3.Ap3Commands;
 import com.killer560.hub.ap3.Ap3Commands.Action;
 import com.killer560.hub.ap3.Ap3Config;
+import com.killer560.hub.ap3.Ap3ConfigScreen;
 import com.killer560.hub.ap3.Ap3Executor;
 import com.killer560.hub.ap3.Ap3Feature;
 import com.killer560.hub.ap3.Ap3Node;
 import com.killer560.hub.ap3.Ap3Store;
-import com.killer560.hub.dungeonclass.ClassOverrides;
-import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -22,7 +20,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -31,7 +28,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
@@ -41,44 +37,28 @@ import java.util.function.Supplier;
  * AP3 settings - automated F7/M7 boss-fight movement. Cheat build only ({@link NewTab}'s cheat block), red headers,
  * collapses to the master toggle while OFF (AutoRoutesTab / LeverAuraTab pattern: an unused feature costs one line).
  * <p>
- * Two views, same tab - the Fast Leap pattern killer560 asked for by name ("on the left half it is the title...,
- * on the right half is an edit button. If you press the edit button then it opens all the settings for that
- * specific" one), applied to nodes after his 2026-09-16 request to "make it easier to edit them":
- * <ul>
- *     <li>the LIST - master toggle; the boss-only status line; the nodes for the area you are in with one row per
- *     node (number, type, modifiers, position, Edit, Delete); Stop / Test Mode (no Start - every node is armed and
- *     fires when you walk into it, in any order); Undo / List / Clear; Open
- *     Folder + Reload for the one shareable chains file; colours; the world-label settings; the stopwatch HUD; the
- *     class-override table read-only; one keybind row per command. Nodes are ADDED with {@code /ap3 add} or the
- *     keybinds only - killer560 (2026-09-20): "Do not list the add node section in the settings tab";</li>
- *     <li>the EDITOR - "&lt; Back", then ONE node's own page: move up / down, re-place at your position / look,
- *     the trigger box, the modifiers every node has (wait after, close gate), the fields its type uses (precise,
- *     leap target, leap count), its colour override, and Delete.</li>
- * </ul>
- * Which view is showing is plain tab state ({@link #editingNode}) plus {@code requestRebuild}, not a separate
- * {@code Screen}, so the mod menu's search, scrolling and tab chrome keep working. The node is held by identity:
- * moving it up or down keeps the page open on it, and the page closes itself the moment the node is no longer in
- * the chain being edited (deleted, cleared, reloaded, or you walked into another area).
+ * Top to bottom (killer560's 2026-09-21 order): the master toggle; right under it "Choose AP3 Config" (which chains
+ * file is in use - {@link Ap3ConfigScreen} lists the folder and creates new ones) with Open Folder + Reload beside
+ * it; the boss-only status line with Stop / Test Mode (Stop "must work at any time"); Movement - exactly "45 Degree
+ * Strafe" and "Chat Feedback"; the world-label settings; the stopwatch HUD; then the two collapsible sections,
+ * Colors and Keybinds ({@link CollapsibleSection}, closed by default, remembered across restarts).
  * <p>
- * Every button that changes a chain or the executor goes through {@link Action#run()} or one of
- * {@link Ap3Commands}' public edit entry points - the same path as the chat command - so the GUI can't do
- * anything a command can't, and both print the same single line. Node numbers are 1-based everywhere here
- * ({@link Ap3Chain#numberOf}); the number on a row IS the number {@code /ap3 delete <n>} / {@code /ap3 move <n>}
- * want.
+ * Nodes are ADDED, edited and removed with {@code /ap3 ...} or the keybinds only - killer560 (2026-09-20): "Do not
+ * list the add node section in the settings tab"; (2026-09-21): "Remove the chain s4 section entirely" - the per-area
+ * chain list with its node rows and edit page is gone with it. Every button that reaches the executor goes through
+ * {@link Action#run()} - the same path as the chat command - so the GUI can't do anything a command can't.
  */
 public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static final int BTN_W = 220;
     private static final int ROW = 18;
     private static final int GAP = 6;
-    private static final int BACK_W = 76;
-    private static final int EDIT_W = 44;
-    private static final int DEL_W = 56;
 
     /** Which keybind row is waiting for a key, or null. */
     private Action capturing;
-    /** null = showing the list; otherwise the node whose edit page is open (held by identity, see the class doc). */
-    private Ap3Node editingNode;
+    /** Set only while {@link #matchesSearch} builds: both collapsible sections are laid out open so search can see
+     *  every setting in them without forcing them open on screen. */
+    private boolean scanningForSearch;
 
     public Ap3Tab() {
         super("AP3");
@@ -120,26 +100,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             return w;
         }
         Ap3Config cfg = Ap3Config.getInstance();
-        if (!cfg.isEnabledRaw()) {
-            // master switch went off (here or anywhere else) - a node's page would be dead controls
-            editingNode = null;
-        }
-        if (editingNode != null) {
-            Ap3Chain chain = safeChain();
-            if (chain == null || !chain.contains(editingNode)) {
-                // deleted / cleared / reloaded / different area - the page has nothing to edit any more
-                editingNode = null;
-            } else {
-                return buildEditor(chain, editingNode, contentX, contentY, contentWidth, requestRebuild);
-            }
-        }
-        return buildList(cfg, contentX, contentY, contentWidth, requestRebuild);
-    }
-
-    // ---------------------------------------------------------------- list view
-
-    private List<AbstractWidget> buildList(Ap3Config cfg, int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
-        List<AbstractWidget> w = new ArrayList<>();
         int[] y = {contentY};
         int half = (contentWidth - GAP) / 2;
 
@@ -148,24 +108,41 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isEnabledRaw()) {
             return w;
         }
+
+        // killer560 (2026-09-21): "Change chains file to be called something like choose ap3 config and move it
+        // right below the main toggle ... keep the reload button and the open folder button."
+        w.add(SettingsButtonWidget.builder(Component.literal("Choose AP3 Config: §6" + cfg.getChainsFile()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new Ap3ConfigScreen(client.screen));
+                }).bounds(contentX, y[0], BTN_W, 20).build());
+        y[0] += 24;
+        w.add(SettingsButtonWidget.builder(Component.literal("Open AP3 Folder"), btn -> openFolder())
+                .bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.builder(Component.literal("Reload AP3 Chains"), btn -> {
+                    Action.RELOAD.run();
+                    requestRebuild.run();
+                }).bounds(contentX + half + GAP, y[0], half, 20).build());
+        y[0] += 24;
+
         label(w, contentX, y, contentWidth, statusLine());
+        // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
+        // Test Mode is the dry-run toggle. (These lived in the removed chain section; they are not chain-specific.)
+        w.add(SettingsButtonWidget.builder(Component.literal("§cStop AP3"), btn -> {
+                    Action.STOP.run();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
+                    Action.TEST_MODE.run();
+                    requestRebuild.run();
+                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
+        y[0] += 24;
 
         header(w, contentX, y, contentWidth, "Movement");
-        // These had no control at all and were reachable only by hand-editing the JSON - including the
-        // 45-degree walk killer560 specifically asked for (2026-09-16 review).
-        toggle(w, contentX, y, "45° Walk Angle", cfg::isDiagonalWalk, cfg::setDiagonalWalk, null);
-        // killer560 (2026-09-21): "serverside I am always looking in the proper angle for 45 degree strafing, but
-        // client side I am not" - the server-side yaw lock for held walks. Default OFF until he has run it live.
-        toggle(w, contentX, y, "Server Strafe Angle", cfg::isServerStrafeAngle, cfg::setServerStrafeAngle, null);
-        // Label kept (it is the tooltip key and the settings key stays "continueIntoNextSection"); it now means the
-        // next AREA - P1 -> P2 -> S1.. -> P4 -> P5 - not only the next P3 section.
-        toggle(w, contentX, y, "Continue Into Next Section", cfg::isContinueIntoNextSection,
-                cfg::setContinueIntoNextSection, null);
+        // killer560 (2026-09-21): "there should only be a 45 degree strafe toggle, and a chat feedback." The old
+        // 45-degree Walk Angle and Server Strafe Angle are one toggle now (Ap3Config#isStrafe45).
+        toggle(w, contentX, y, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45, null);
         toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
 
-        buildChainSection(w, contentX, y, contentWidth, half, requestRebuild);
-        buildFileSection(w, contentX, y, contentWidth, half, requestRebuild);
-        buildColourSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         header(w, contentX, y, contentWidth, "Stopwatch");
         toggle(w, contentX, y, "Stopwatch HUD", cfg::isStopwatchHud, cfg::setStopwatchHud, null);
@@ -174,112 +151,41 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             header(w, contentX, y, contentWidth, "Dev Tools");
             toggle(w, contentX, y, "Align Timer (dev)", cfg::isAlignTimerDevRaw, cfg::setAlignTimerDev, null);
         }
-        buildOverridesSection(w, contentX, y, contentWidth);
-        buildKeybindSection(w, cfg, contentX, y, contentWidth);
+        // killer560 (2026-09-21): colours "right above the keybinds section and also make that collapsible".
+        buildColorSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
+        buildKeybindSection(w, cfg, contentX, y, contentWidth, requestRebuild);
         return w;
     }
 
-    private void buildChainSection(List<AbstractWidget> w, int x, int[] y, int width, int half, Runnable rebuild) {
-        // "Chain:" with a colon so the tooltip key stays "chain" whatever area follows (SettingTooltips cuts at ':').
-        header(w, x, y, width, "Chain: " + Ap3Commands.areaName());
-
-        List<Ap3Node> nodes;
-        try {
-            nodes = new ArrayList<>(Ap3Feature.currentChainNodes());
-        } catch (Exception e) {
-            nodes = List.of();
-        }
-
-        // No Start button - every node is armed and fires when you walk into it, in any order (killer560,
-        // 2026-09-20: "/ap3 start should not exist. If i ever walk into a node it should always fire"). Stop stays as
-        // the panic button; Test Mode is the dry-run toggle.
-        // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
-        w.add(SettingsButtonWidget.builder(Component.literal("§cStop AP3"), btn -> {
-                    Action.STOP.run();
-                    rebuild.run();
-                }).bounds(x, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
-                    Action.TEST_MODE.run();
-                    rebuild.run();
-                }).bounds(x + half + GAP, y[0], Math.max(1, width - half - GAP), 20).build());
-        y[0] += 24;
-
-        int colW = (width - GAP * 2) / 3;
-        int lastW = Math.max(1, width - (colW + GAP) * 2);
-        SettingsButtonWidget undo = SettingsButtonWidget.builder(Component.literal("Undo Last Node"), btn -> {
-                    Action.UNDO.run();
-                    rebuild.run();
-                }).bounds(x, y[0], colW, ROW).build();
-        undo.active = !nodes.isEmpty();
-        w.add(undo);
-        w.add(SettingsButtonWidget.builder(Component.literal("List Chain In Chat"), btn -> Action.LIST.run())
-                .bounds(x + colW + GAP, y[0], colW, ROW).build());
-        SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("§cClear Chain"), btn -> {
-                    Action.CLEAR.run();
-                    rebuild.run();
-                }).bounds(x + (colW + GAP) * 2, y[0], lastW, ROW).build();
-        clear.active = !nodes.isEmpty();
-        w.add(clear);
-        y[0] += ROW + GAP;
-
-        if (nodes.isEmpty()) {
-            label(w, x, y, width, "§7No chain for " + Ap3Commands.areaName() + " yet. Stand where a node goes and /ap3 add <type> (or a keybind).");
+    private void buildColorSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, int half, Runnable rebuild) {
+        boolean open = scanningForSearch || cfg.isColorsSectionOpen();
+        y[0] = CollapsibleSection.header(w, x, y[0], width, "AP3 Colors", true, open, () -> {
+            cfg.setColorsSectionOpen(!cfg.isColorsSectionOpen());
+            cfg.save();
+            rebuild.run();
+        });
+        if (!open) {
             return;
         }
-
-        int labelW = Math.max(1, width - EDIT_W - DEL_W - GAP * 2);
-        for (int i = 0; i < nodes.size(); i++) {
-            final int index = i;
-            final Ap3Node node = nodes.get(i);
-            // Same formatter as /ap3 list - the number on this row IS the number "/ap3 delete <n>" wants.
-            String text = "§8" + Ap3Commands.describeNumbered(i, node).replaceFirst(" ", " §f");
-            w.add(new StringWidget(x, y[0] + 3, labelW, 12, Component.literal(text), Minecraft.getInstance().font));
-            w.add(SettingsButtonWidget.builder(Component.literal("Edit"), btn -> {
-                        editingNode = node;
-                        rebuild.run();
-                    }).bounds(x + labelW + GAP, y[0], EDIT_W, ROW).build());
-            w.add(SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
-                        Ap3Commands.delete(index);
-                        rebuild.run();
-                    }).bounds(x + labelW + GAP + EDIT_W + GAP, y[0], DEL_W, ROW).build());
-            y[0] += ROW + 2;
-        }
-        y[0] += GAP;
-    }
-
-    /** Same pair as Auto Routes: the folder holds the one JSON file all chains live in, share it as-is. */
-    private void buildFileSection(List<AbstractWidget> w, int x, int[] y, int width, int half, Runnable rebuild) {
-        header(w, x, y, width, "Chains File");
-        w.add(SettingsButtonWidget.builder(Component.literal("Open AP3 Folder"), btn -> openFolder())
-                .bounds(x, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.builder(Component.literal("Reload AP3 Chains"), btn -> {
-                    Action.RELOAD.run();
-                    rebuild.run();
-                }).bounds(x + half + GAP, y[0], half, 20).build());
-        y[0] += 24;
-    }
-
-    private void buildColourSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, int half, Runnable rebuild) {
-        header(w, x, y, width, "AP3 Colours");
-        toggle(w, x, y, "Uniform Node Colour", cfg::isUniformColor, cfg::setUniformColor, rebuild);
+        toggle(w, x, y, "Uniform Node Color", cfg::isUniformColor, cfg::setUniformColor, rebuild);
         if (cfg.isUniformColor()) {
-            colorButton(w, x, y[0], half, "Chain Colour", cfg.getUniformColorArgb(),
+            colorButton(w, x, y[0], half, "Chain Color", cfg.getUniformColorArgb(),
                     Ap3Config.DEFAULT_UNIFORM_COLOR, cfg::setUniformColorArgb, null);
-            colorButton(w, x + half + GAP, y[0], half, "Current Node Colour", cfg.getActiveColorArgb(), 0xFFFFFFFF,
+            colorButton(w, x + half + GAP, y[0], half, "Current Node Color", cfg.getActiveColorArgb(), 0xFFFFFFFF,
                     cfg::setActiveColorArgb, null);
             y[0] += 24;
             return;
         }
-        colorButton(w, x, y[0], half, "Current Node Colour", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb, null);
+        colorButton(w, x, y[0], half, "Current Node Color", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb, null);
         y[0] += 24;
         Ap3Node.Type[] types = Ap3Node.Type.values();
         for (int i = 0; i < types.length; i += 2) {
             Ap3Node.Type a = types[i];
-            colorButton(w, x, y[0], half, "AP3 " + Ap3Commands.typeName(a) + " Colour", cfg.getNodeColorArgb(a), defaultColor(a),
+            colorButton(w, x, y[0], half, "AP3 " + Ap3Commands.typeName(a) + " Color", cfg.getNodeColorArgb(a), defaultColor(a),
                     argb -> cfg.setNodeColorArgb(a, argb), null);
             if (i + 1 < types.length) {
                 Ap3Node.Type b = types[i + 1];
-                colorButton(w, x + half + GAP, y[0], half, "AP3 " + Ap3Commands.typeName(b) + " Colour", cfg.getNodeColorArgb(b), defaultColor(b),
+                colorButton(w, x + half + GAP, y[0], half, "AP3 " + Ap3Commands.typeName(b) + " Color", cfg.getNodeColorArgb(b), defaultColor(b),
                         argb -> cfg.setNodeColorArgb(b, argb), null);
             }
             y[0] += 24;
@@ -305,13 +211,13 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += ROW + GAP;
 
         // "toggleable for color": the node's own colour (so the number matches its box) or one fixed colour.
-        w.add(SettingsButtonWidget.builder(labelColourModeText(cfg), btn -> {
+        w.add(SettingsButtonWidget.builder(labelColorModeText(cfg), btn -> {
                     cfg.setLabelUseNodeColor(!cfg.isLabelUseNodeColor());
                     cfg.save();
                     rebuild.run();
                 }).bounds(x, y[0], half, 20).build());
         if (!cfg.isLabelUseNodeColor()) {
-            colorButton(w, x + half + GAP, y[0], half, "Fixed Label Colour", cfg.getLabelColorArgb(),
+            colorButton(w, x + half + GAP, y[0], half, "Fixed Label Color", cfg.getLabelColorArgb(),
                     Ap3Config.DEFAULT_LABEL_COLOR, cfg::setLabelColorArgb, null);
         }
         y[0] += 24;
@@ -323,26 +229,16 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += ROW + GAP;
     }
 
-    /** Read-only view of the mod-wide table so a leap node's target is explainable from here; edited elsewhere. */
-    private void buildOverridesSection(List<AbstractWidget> w, int x, int[] y, int width) {
-        header(w, x, y, width, "Class Overrides");
-        Map<String, DungeonClass> all;
-        try {
-            all = ClassOverrides.all();
-        } catch (Exception e) {
-            all = Map.of();
-        }
-        if (all == null || all.isEmpty()) {
-            label(w, x, y, width, "§7No overrides set - every player is the class the tab list shows.");
+    private void buildKeybindSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, Runnable rebuild) {
+        boolean open = scanningForSearch || cfg.isKeybindsSectionOpen();
+        y[0] = CollapsibleSection.header(w, x, y[0], width, "AP3 Keybinds", true, open, () -> {
+            cfg.setKeybindsSectionOpen(!cfg.isKeybindsSectionOpen());
+            cfg.save();
+            rebuild.run();
+        });
+        if (!open) {
             return;
         }
-        for (Map.Entry<String, DungeonClass> e : all.entrySet()) {
-            label(w, x, y, width, "  " + ClassOverridesTab.describeOverride(e.getKey(), e.getValue()));
-        }
-    }
-
-    private void buildKeybindSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width) {
-        header(w, x, y, width, "AP3 Keybinds");
         for (Action action : Action.values()) {
             w.add(SettingsButtonWidget.builder(keyText(action, cfg.getKeybind(action.id)), btn -> {
                         capturing = action;
@@ -353,190 +249,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += GAP;
     }
 
-    // ---------------------------------------------------------------- one node's edit page
-
-    /**
-     * ONE node's own page. {@code chain} may be null only for the search scan (a node that is in no chain); every
-     * real build passes the chain the node was found in. Nothing here is hidden behind another switch: a field the
-     * node's type uses is always reachable from its page.
-     */
-    private List<AbstractWidget> buildEditor(Ap3Chain chain, Ap3Node node, int contentX, int contentY, int contentWidth,
-                                             Runnable rebuild) {
-        List<AbstractWidget> w = new ArrayList<>();
-        int[] y = {contentY};
-        int x = contentX;
-        int width = contentWidth;
-        int half = (width - GAP) / 2;
-        int number = chain == null ? 0 : chain.numberOf(node);
-        int index = number - 1;
-        int size = chain == null ? 0 : chain.nodes().size();
-        Ap3Config cfg = Ap3Config.getInstance();
-
-        w.add(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> {
-                    editingNode = null;
-                    rebuild.run();
-                }).bounds(x, y[0], Math.min(BACK_W, Math.max(1, width)), ROW).build());
-        y[0] += ROW + GAP + 2;
-
-        // "Edit Node" stays the header (and tooltip key); the number + type go on their own line.
-        header(w, x, y, width, "Edit Node");
-        label(w, x, y, width, "§6#" + (number > 0 ? number : "?") + " " + node.type().label()
-                + " §7of " + size + " in " + (chain == null ? "no chain" : chain.label()));
-        label(w, x, y, width, String.format(Locale.US, "§7At §f%.2f, %.1f, %.2f §7facing §f%.0f°§7 / §f%.0f°",
-                node.x(), node.y(), node.z(), node.yaw(), node.pitch()));
-
-        // Order in the chain - the node object keeps its identity across a move, so this page stays open on it.
-        SettingsButtonWidget up = SettingsButtonWidget.builder(Component.literal("Move Up"), btn -> {
-                    Ap3Commands.move(index, index - 1);
-                    rebuild.run();
-                }).bounds(x, y[0], half, ROW).build();
-        up.active = index > 0;
-        w.add(up);
-        SettingsButtonWidget down = SettingsButtonWidget.builder(Component.literal("Move Down"), btn -> {
-                    Ap3Commands.move(index, index + 1);
-                    rebuild.run();
-                }).bounds(x + half + GAP, y[0], half, ROW).build();
-        down.active = index >= 0 && index < size - 1;
-        w.add(down);
-        y[0] += ROW + 2;
-
-        // Re-placing keeps the node's number and every modifier - the alternative was delete + add + re-type.
-        w.add(SettingsButtonWidget.builder(Component.literal("Move To My Position"), btn -> {
-                    Ap3Commands.replace(index, true, true);
-                    rebuild.run();
-                }).bounds(x, y[0], half, ROW).build());
-        w.add(SettingsButtonWidget.builder(Component.literal("Set Look To Mine"), btn -> {
-                    Ap3Commands.replace(index, false, true);
-                    rebuild.run();
-                }).bounds(x + half + GAP, y[0], half, ROW).build());
-        y[0] += ROW + GAP;
-
-        // Every node: its trigger box and the two general modifiers.
-        header(w, x, y, width, "Trigger Box");
-        w.add(slider(x, y[0], half, widthText(node), Ap3Node.MIN_WIDTH, Ap3Node.MAX_WIDTH, node.width(), 0.5,
-                node::setWidth, () -> widthText(node), Ap3Feature::saveChains));
-        w.add(slider(x + half + GAP, y[0], half, lengthText(node), Ap3Node.MIN_LENGTH, Ap3Node.MAX_LENGTH, node.length(), 0.5,
-                node::setLength, () -> lengthText(node), Ap3Feature::saveChains));
-        y[0] += ROW + GAP;
-
-        header(w, x, y, width, "Node Modifiers");
-        int boxW = 90;
-        w.add(new StringWidget(x, y[0] + 3, 70, 12, Component.literal("Wait After ms:"), Minecraft.getInstance().font));
-        EditBox ms = new EditBox(Minecraft.getInstance().font, x + 70 + GAP, y[0], boxW, ROW, Component.literal("Wait After ms"));
-        ms.setMaxLength(6);
-        ms.setHint(Component.literal("§80"));
-        ms.setValue(node.waitAfterMs() > 0 ? Integer.toString(node.waitAfterMs()) : "");
-        ms.setResponder(text -> {
-            Integer parsed = text == null || text.isBlank() ? Integer.valueOf(0) : parseInt(text);
-            if (parsed != null && parsed >= 0 && parsed <= Ap3Commands.MAX_WAIT_MS) {
-                node.setWaitAfterMs(parsed);
-                Ap3Feature.saveChains();
-            }
-        });
-        w.add(ms);
-        int closeX = x + 70 + GAP + boxW + GAP;
-        w.add(SettingsButtonWidget.builder(onOff("Close Gate", node.closeGate()), btn -> {
-                    node.closeGate = !node.closeGate();
-                    Ap3Feature.saveChains();
-                    btn.setMessage(onOff("Close Gate", node.closeGate()));
-                }).bounds(closeX, y[0], Math.max(1, x + width - closeX), ROW).build());
-        y[0] += ROW + GAP;
-
-        buildTypeFields(w, node, x, y, width, half, rebuild);
-
-        // Per-node colour override (the chains file's "colour" field), previously reachable only by hand.
-        header(w, x, y, width, "Node Colour");
-        Integer override = node.colour();
-        colorButton(w, x, y[0], half, "Node Colour", override != null ? override : cfg.colorFor(node),
-                cfg.getNodeColorArgb(node.type()), argb -> node.colour = argb, Ap3Feature::saveChains);
-        SettingsButtonWidget useType = SettingsButtonWidget.builder(Component.literal("Use Type Colour"), btn -> {
-                    node.colour = null;
-                    Ap3Feature.saveChains();
-                    rebuild.run();
-                }).bounds(x + half + GAP, y[0], half, 20).build();
-        useType.active = override != null;
-        w.add(useType);
-        y[0] += 24;
-
-        y[0] += GAP;
-        w.add(SettingsButtonWidget.builder(Component.literal("§cDelete Node"), btn -> {
-                    Ap3Commands.delete(index);
-                    editingNode = null;
-                    rebuild.run();
-                }).bounds(x, y[0], BTN_W, 20).build());
-        y[0] += 24;
-        return w;
-    }
-
-    /** The fields this node's type actually uses - every one saves through {@link Ap3Feature#saveChains()}. */
-    private void buildTypeFields(List<AbstractWidget> w, Ap3Node node, int x, int[] y, int width, int half, Runnable rebuild) {
-        switch (node.type()) {
-            case ALIGN, AXIS_ALIGN -> {
-                header(w, x, y, width, "Align");
-                w.add(SettingsButtonWidget.builder(onOff("Precise Coordinates", node.precise()), btn -> {
-                            node.precise = !node.precise();
-                            Ap3Feature.saveChains();
-                            btn.setMessage(onOff("Precise Coordinates", node.precise()));
-                        }).bounds(x, y[0], half, ROW).build());
-                y[0] += ROW + GAP;
-                if (node.type() == Ap3Node.Type.AXIS_ALIGN) {
-                    label(w, x, y, width, "§7Wall side: §f" + (node.wallDir() == null ? "none recorded" : node.wallDir().getName())
-                            + " §7(re-read from the wall you touch when the node is moved).");
-                }
-            }
-            case LEAP -> {
-                header(w, x, y, width, "Leap Target");
-                w.add(SettingsButtonWidget.builder(leapModeText(node), btn -> {
-                            Ap3Node.LeapMode[] all = Ap3Node.LeapMode.values();
-                            node.leapMode = all[(node.leapMode().ordinal() + 1) % all.length];
-                            if (node.leapMode == Ap3Node.LeapMode.CLASS && node.leapClass == null) {
-                                node.leapClass = DungeonClass.values()[0];
-                            }
-                            Ap3Feature.saveChains();
-                            rebuild.run();
-                        }).bounds(x, y[0], half, ROW).build());
-                if (node.leapMode() == Ap3Node.LeapMode.CLASS) {
-                    w.add(SettingsButtonWidget.builder(leapClassText(node), btn -> {
-                                DungeonClass[] all = DungeonClass.values();
-                                DungeonClass c = node.leapClass();
-                                // CLASS mode always needs a class, so this cycles through the classes only - never to "none".
-                                node.leapClass = c == null ? all[0] : all[(c.ordinal() + 1) % all.length];
-                                Ap3Feature.saveChains();
-                                btn.setMessage(leapClassText(node));
-                            }).bounds(x + half + GAP, y[0], half, ROW).build());
-                } else if (node.leapMode() == Ap3Node.LeapMode.IGN) {
-                    EditBox ign = new EditBox(Minecraft.getInstance().font, x + half + GAP, y[0], half, ROW, Component.literal("Leap IGN"));
-                    ign.setMaxLength(Ap3Store.MAX_IGN);
-                    ign.setHint(Component.literal("§8IGN"));
-                    ign.setValue(node.leapIgn() == null ? "" : node.leapIgn());
-                    ign.setResponder(text -> {
-                        String t = text == null ? "" : text.trim();
-                        node.leapIgn = t.isEmpty() ? null : t;
-                        Ap3Feature.saveChains();
-                    });
-                    w.add(ign);
-                }
-                y[0] += ROW + GAP;
-            }
-            case LEAP_COUNTER -> {
-                header(w, x, y, width, "Leap Counter");
-                w.add(slider(x, y[0], width, leapCountText(node), 1, Ap3Node.MAX_LEAP_COUNT, node.leapCount(), 1,
-                        v -> node.setLeapCount((int) Math.round(v)), () -> leapCountText(node), Ap3Feature::saveChains));
-                y[0] += ROW + GAP;
-            }
-            default -> {
-                // WALK / RUN / TERMINAL / STOP / LOOK / BOOM / STOPWATCH carry nothing beyond position, look and the
-                // modifiers above, which the controls above cover.
-            }
-        }
-    }
-
     // ---------------------------------------------------------------- search
 
-    /** Search has to see every node type's edit page, not just the view that happens to be open (the FastLeapTab
-     *  rule) - otherwise "leap target" or "move up" would only be found while such a page was already open. Scans
-     *  the list view plus an edit page for a throwaway node of each type. Only ever run from the search field's
-     *  responder, never per frame. */
+    /** Search has to see the settings inside a collapsed section (Colors, Keybinds) without opening it on screen
+     *  (ModScreen's rule: a match never force-expands a section), so the scan builds with both laid out open.
+     *  Only ever run from the search field's responder, never per frame. */
     @Override
     public boolean matchesSearch(String query) {
         if (query.isBlank() || nameMatches(query)) {
@@ -545,10 +262,12 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return false;
         }
-        List<AbstractWidget> scan = new ArrayList<>(buildList(Ap3Config.getInstance(), 0, 0, 200, () -> {}));
-        for (Ap3Node.Type type : Ap3Node.Type.values()) {
-            Ap3Node probe = new Ap3Node(type, 0, 0, 0, 0f, 0f);
-            scan.addAll(buildEditor(null, probe, 0, 0, 200, () -> {}));
+        List<AbstractWidget> scan;
+        scanningForSearch = true;
+        try {
+            scan = buildWidgets(0, 0, 200, () -> {});
+        } finally {
+            scanningForSearch = false;
         }
         String q = query.toLowerCase(Locale.US);
         for (AbstractWidget widget : scan) {
@@ -606,8 +325,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         return Component.literal(action.label + " Key: " + name + " §8" + action.command);
     }
 
-    private static Component labelColourModeText(Ap3Config cfg) {
-        return Component.literal("Label Colour: §6" + (cfg.isLabelUseNodeColor() ? "Node's Colour" : "Fixed"));
+    private static Component labelColorModeText(Ap3Config cfg) {
+        return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
     }
 
     private static Component labelScaleText(Ap3Config cfg) {
@@ -618,31 +337,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         return Component.literal(String.format(Locale.US, "Label Height: %.2f", cfg.getLabelHeightOffset()));
     }
 
-    private static Component lengthText(Ap3Node node) {
-        return Component.literal(String.format(Locale.US, "Box Length: %.1f", node.length()));
-    }
-
-    private static Component widthText(Ap3Node node) {
-        return Component.literal(String.format(Locale.US, "Box Width: %.1f", node.width()));
-    }
-
-    private static Component leapCountText(Ap3Node node) {
-        return Component.literal("Leap Count: " + node.leapCount());
-    }
-
-    private static Component leapModeText(Ap3Node node) {
-        String mode = switch (node.leapMode()) {
-            case CLASS -> "Class";
-            case IGN -> "IGN";
-            default -> "Fast Leap target";
-        };
-        return Component.literal("Leap Target: §6" + mode);
-    }
-
-    private static Component leapClassText(Ap3Node node) {
-        return Component.literal("Leap Class: §6" + (node.leapClass() == null ? "?" : node.leapClass().displayName()));
-    }
-
     /** Delegates to the config rather than keeping a second copy - the duplicate table had drifted from
      *  the real defaults for 10 of the 11 node types, so "reset" set a colour that was never the default
      *  (2026-09-16 review). */
@@ -650,25 +344,10 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         return Ap3Config.defaultNodeColor(type);
     }
 
-    private static Integer parseInt(String text) {
-        if (text == null) {
-            return null;
-        }
-        String t = text.trim();
-        if (t.isEmpty() || !t.chars().allMatch(Character::isDigit)) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(t);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
     private static void openFolder() {
         try {
             // A fresh install has no folder yet - openPath on a missing directory does nothing at all, silently.
-            Path dir = Ap3Store.getInstance().directory();
+            Path dir = Ap3Store.directory();
             Files.createDirectories(dir);
             net.minecraft.util.Util.getPlatform().openPath(dir);
         } catch (Exception ignored) {
@@ -680,15 +359,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             return Boolean.TRUE.equals(query.get());
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    /** The chain being edited, or null - never throws (the tracker may not be ready outside a dungeon). */
-    private static Ap3Chain safeChain() {
-        try {
-            return Ap3Feature.currentChain();
-        } catch (Exception e) {
-            return null;
         }
     }
 
@@ -734,8 +404,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 
-    /** Colour picker button. {@code save} is what persists the picked value - the settings file for a config
-     *  colour, {@link Ap3Feature#saveChains()} for a node's own override; null = the settings file. */
+    /** Colour picker button. {@code save} is what persists the picked value; null = the settings file. */
     private static void colorButton(List<AbstractWidget> w, int x, int y, int width, String label, int argb, int defaultArgb,
                                     IntConsumer apply, Runnable save) {
         w.add(SettingsButtonWidget.builder(ColorSwatch.label(label, argb), btn -> {
@@ -752,8 +421,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     /** One themed slider over {@code [min, max]} snapped to {@code step}, calling {@code save} on every change -
-     *  the same helper PosmsgTab uses, with the save step passed in because node fields and settings persist to
-     *  different files. */
+     *  the same helper PosmsgTab uses. */
     private static ThemedSliderButton slider(int x, int y, int w, Component label, double min, double max, double current,
                                              double step, DoubleConsumer apply, Supplier<Component> text, Runnable save) {
         double span = max - min;

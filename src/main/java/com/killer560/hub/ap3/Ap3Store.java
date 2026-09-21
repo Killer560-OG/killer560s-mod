@@ -23,12 +23,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
- * All AP3 chains, in ONE shareable file: {@code config/killer560smod-ap3.json} - the same rule as Auto Routes
- * (killer560: "I am fine with it being a json file as long as it is easy to edit in notepad and share really easily.
- * I should only have to share one file."). Settings live in their own file ({@link Ap3Config}), so this one is
- * nothing but chains.
+ * All AP3 chains, in ONE shareable file - the same rule as Auto Routes (killer560: "I am fine with it being a json
+ * file as long as it is easy to edit in notepad and share really easily. I should only have to share one file.").
+ * Settings live in their own file ({@link Ap3Config}), so this one is nothing but chains.
+ * <p>
+ * <b>Which file</b> (killer560, 2026-09-21: "I should be able to click into it and select any of the ap3's in my
+ * folder, and create new ones"): every chains file lives in {@code config/killer560smod-ap3/} and exactly one of them
+ * is in use at a time - {@link Ap3Config#getChainsFile()}, {@code default.json} until he picks another. The old
+ * single file {@code config/killer560smod-ap3.json} is copied into the folder as {@code default.json} the first time
+ * the folder has no such file, and left where it was. {@link #listConfigNames()}, {@link #select} and
+ * {@link #createConfig} are what the "Choose AP3 Config" screen drives.
  * <p>
  * Layout, chosen so a person can find a section, nudge a node and {@code /ap3 reload}:
  * <pre>
@@ -58,8 +65,18 @@ public final class Ap3Store {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final String FILE_NAME = "killer560smod-ap3.json";
-    private static final String BROKEN_NAME = "killer560smod-ap3.broken.json";
+    /** The folder every chains file lives in, inside the config dir. */
+    private static final String FOLDER_NAME = "killer560smod-ap3";
+    /** Where the one file used to be (config dir root); migrated into the folder, never written again. */
+    private static final String LEGACY_FILE_NAME = "killer560smod-ap3.json";
+    /** The chains file in use until one is chosen. */
+    public static final String DEFAULT_CONFIG_NAME = "default.json";
+    private static final String JSON = ".json";
+    /** A file that failed to parse is copied aside as {@code <name>.broken.json}; those never show in the chooser. */
+    private static final String BROKEN_SUFFIX = ".broken.json";
+    /** Letters, digits, space, dash, underscore, dot - a name Windows, Discord and Notepad all agree on. */
+    private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9 _\\-.]+");
+    public static final int MAX_CONFIG_NAME = 40;
     private static final int FORMAT_VERSION = 2;
 
     // Proportionate caps for a friend's file, not a network input.
@@ -89,9 +106,9 @@ public final class Ap3Store {
         return instance;
     }
 
-    /** Folder containing the chains file (for the tab's "Open Folder" button); created if missing. */
+    /** The folder every chains file lives in (the tab's "Open Folder" button); created if missing. */
     public static Path directory() {
-        Path dir = FabricLoader.getInstance().getConfigDir();
+        Path dir = FabricLoader.getInstance().getConfigDir().resolve(FOLDER_NAME);
         try {
             Files.createDirectories(dir);
         } catch (Exception ignored) {
@@ -99,8 +116,9 @@ public final class Ap3Store {
         return dir;
     }
 
+    /** The chains file in use: {@link Ap3Config#getChainsFile()} inside {@link #directory()}. */
     public static Path file() {
-        return directory().resolve(FILE_NAME);
+        return directory().resolve(Ap3Config.getInstance().getChainsFile());
     }
 
     /** {@code /ap3 reload}: re-read the file, replacing what is in memory. Stops a running chain first rather than
@@ -113,9 +131,156 @@ public final class Ap3Store {
         Ap3Feature.onChainsReloaded();
     }
 
+    // ------------------------------------------------------------------------------------------- choosing a file
+
+    /** Every chains file in the folder by name ({@code *.json}, the broken backups left out), sorted, and always
+     *  including the one in use even when it is not on disk yet (it is written on the first save). */
+    public static List<String> listConfigNames() {
+        List<String> out = new ArrayList<>();
+        try (var stream = Files.list(directory())) {
+            stream.forEach(p -> {
+                String name = p.getFileName().toString();
+                if (Files.isRegularFile(p) && name.toLowerCase(Locale.ROOT).endsWith(JSON)
+                        && !name.toLowerCase(Locale.ROOT).endsWith(BROKEN_SUFFIX)
+                        && validateConfigName(name) == null) {
+                    out.add(name);
+                }
+            });
+        } catch (Exception e) {
+            LOGGER.warn("[AP3] Could not list {}", directory(), e);
+        }
+        String active = Ap3Config.getInstance().getChainsFile();
+        if (out.stream().noneMatch(n -> n.equalsIgnoreCase(active))) {
+            out.add(active);
+        }
+        out.sort(String.CASE_INSENSITIVE_ORDER);
+        return out;
+    }
+
+    /** Trims, strips control characters and adds {@code .json} when it is missing; null for nothing at all. */
+    public static String normalizeConfigName(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.strip().replaceAll("[\\p{Cntrl}]", "");
+        if (t.isEmpty()) {
+            return null;
+        }
+        if (!t.toLowerCase(Locale.ROOT).endsWith(JSON)) {
+            t = t + JSON;
+        }
+        return t;
+    }
+
+    /**
+     * Why {@code name} (already {@link #normalizeConfigName normalized}) cannot be a chains file name, or null when
+     * it can: a plain file name only - no separators, no "..", no leading dot, safe characters, a sane length. This
+     * is the only rule between a typed name and a path under the config folder.
+     */
+    public static String validateConfigName(String name) {
+        if (name == null || name.isBlank()) {
+            return "Type a name first.";
+        }
+        String stem = name.substring(0, name.length() - JSON.length());
+        if (stem.isBlank()) {
+            return "Type a name first.";
+        }
+        if (stem.length() > MAX_CONFIG_NAME) {
+            return "Keep it under " + MAX_CONFIG_NAME + " characters.";
+        }
+        if (name.contains("/") || name.contains("\\") || name.contains("..") || stem.startsWith(".")
+                || !SAFE_NAME.matcher(name).matches()) {
+            return "Letters, digits, spaces, - _ and . only.";
+        }
+        if (name.toLowerCase(Locale.ROOT).endsWith(BROKEN_SUFFIX)) {
+            return "That name is reserved for backups.";
+        }
+        return null;
+    }
+
+    /**
+     * Creates an EMPTY chains file called {@code rawName} and switches to it. Refuses (with the reason) a bad name or
+     * one that already exists - case-insensitively, since the folder is on a Windows disk. @return the error, or
+     * null on success.
+     */
+    public static String createConfig(String rawName) {
+        String name = normalizeConfigName(rawName);
+        String error = validateConfigName(name);
+        if (error != null) {
+            return error;
+        }
+        for (String existing : listConfigNames()) {
+            if (existing.equalsIgnoreCase(name)) {
+                return "A config called " + existing + " already exists.";
+            }
+        }
+        Path file = directory().resolve(name);
+        if (Files.exists(file)) {
+            return "A file called " + name + " already exists.";
+        }
+        try {
+            Files.writeString(file, GSON.toJson(emptyRoot()), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            LOGGER.warn("[AP3] Could not create {}", file, e);
+            return "Could not write the file (see the log).";
+        }
+        LOGGER.info("[AP3] Created chains file {}", name);
+        select(name);
+        return null;
+    }
+
+    /** Switches to the chains file {@code name} (a name from {@link #listConfigNames()}): persisted, then loaded
+     *  exactly as {@code /ap3 reload} would. A running chain is stopped first. */
+    public static void select(String name) {
+        String clean = normalizeConfigName(name);
+        if (clean == null || validateConfigName(clean) != null) {
+            return;
+        }
+        Ap3Config cfg = Ap3Config.getInstance();
+        if (clean.equalsIgnoreCase(cfg.getChainsFile())) {
+            return;
+        }
+        if (Ap3Executor.isRunning()) {
+            Ap3Executor.stop("chains file changed");
+        }
+        cfg.setChainsFile(clean);
+        cfg.save();
+        LOGGER.info("[AP3] Chains file: {}", clean);
+        load();
+        Ap3Feature.onChainsReloaded();
+    }
+
+    /** The skeleton every chains file starts from - what a fresh install would write on its first save. */
+    private static JsonObject emptyRoot() {
+        JsonObject root = new JsonObject();
+        root.addProperty("version", FORMAT_VERSION);
+        root.addProperty("note", "AP3 - one chain per boss area (P1, P2, P3 sections S1-S5, P4, P5), optionally per class, absolute coordinates. "
+                + "Node types: ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH. "
+                + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / close. Edit, then /ap3 reload.");
+        root.add("chains", new JsonObject());
+        return root;
+    }
+
+    /** The pre-folder file, copied in as {@code default.json} once so nothing he recorded is lost by the move. The
+     *  original stays put (it is his to delete) and is never read again once the copy exists. */
+    private static void migrateLegacyFile() {
+        try {
+            Path target = directory().resolve(DEFAULT_CONFIG_NAME);
+            Path legacy = FabricLoader.getInstance().getConfigDir().resolve(LEGACY_FILE_NAME);
+            if (!Files.exists(target) && Files.isRegularFile(legacy)) {
+                Files.copy(legacy, target);
+                LOGGER.info("[AP3] Copied the old {} into {}/{}", LEGACY_FILE_NAME, FOLDER_NAME, DEFAULT_CONFIG_NAME);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[AP3] Could not migrate the old chains file", e);
+        }
+    }
+
     public static void load() {
+        migrateLegacyFile();
         Ap3Store store = new Ap3Store();
         Path file = file();
+        String fileName = file.getFileName().toString();
         if (Files.exists(file)) {
             try {
                 JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -124,7 +289,7 @@ public final class Ap3Store {
                 if (chainsObj != null) {
                     for (String key : chainsObj.keySet()) {
                         if (store.chains.size() >= MAX_CHAINS) {
-                            LOGGER.warn("[AP3] More than {} chains in {} - the rest were ignored", MAX_CHAINS, FILE_NAME);
+                            LOGGER.warn("[AP3] More than {} chains in {} - the rest were ignored", MAX_CHAINS, fileName);
                             break;
                         }
                         JsonObject chainObj = ConfigJson.getObject(chainsObj, key);
@@ -141,18 +306,18 @@ public final class Ap3Store {
                         }
                     }
                 }
-                LOGGER.info("[AP3] Loaded {} chain(s) from {} (file version {})", store.chains.size(), FILE_NAME, version);
+                LOGGER.info("[AP3] Loaded {} chain(s) from {} (file version {})", store.chains.size(), fileName, version);
                 for (String note : store.migrationNotes) {
                     LOGGER.warn("[AP3] Migration: {}", note);
                 }
             } catch (Exception e) {
                 store.parseFailed = true;
                 store.chains.clear();
-                LOGGER.warn("[AP3] Failed to parse {} - backing it up, nothing will be saved over it", FILE_NAME, e);
+                LOGGER.warn("[AP3] Failed to parse {} - backing it up, nothing will be saved over it", fileName, e);
                 try {
                     // One backup per broken file, not one per reload: /ap3 reload and every profile switch come
                     // back through here, and the original is already safe after the first copy.
-                    Path backup = file.resolveSibling(BROKEN_NAME);
+                    Path backup = file.resolveSibling(brokenName(fileName));
                     if (!Files.exists(backup)) {
                         Files.copy(file, backup);
                     }
@@ -167,18 +332,15 @@ public final class Ap3Store {
     /** Writes every chain. Refuses while the file on disk failed to parse and nothing has been changed since, so a
      *  half-downloaded file from a friend can't be replaced by an empty one behind the user's back. */
     public void save() {
+        Path file = file();
+        String fileName = file.getFileName().toString();
         if (parseFailed) {
-            LOGGER.warn("[AP3] Not saving {}: the file on disk could not be parsed (see {})", FILE_NAME, BROKEN_NAME);
+            LOGGER.warn("[AP3] Not saving {}: the file on disk could not be parsed (see {})", fileName, brokenName(fileName));
             return;
         }
         try {
-            Path file = file();
             Files.createDirectories(file.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("version", FORMAT_VERSION);
-            root.addProperty("note", "AP3 - one chain per boss area (P1, P2, P3 sections S1-S5, P4, P5), optionally per class, absolute coordinates. "
-                    + "Node types: ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH. "
-                    + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / close. Edit, then /ap3 reload.");
+            JsonObject root = emptyRoot();
             JsonObject chainsObj = new JsonObject();
             for (Ap3Chain chain : chains.values()) {
                 chainsObj.add(chain.key(), writeChain(chain));
@@ -186,8 +348,15 @@ public final class Ap3Store {
             root.add("chains", chainsObj);
             Files.writeString(file, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            LOGGER.warn("[AP3] Failed to save {}", FILE_NAME, e);
+            LOGGER.warn("[AP3] Failed to save {}", fileName, e);
         }
+    }
+
+    /** {@code default.json} -> {@code default.broken.json}. */
+    private static String brokenName(String fileName) {
+        String stem = fileName.toLowerCase(Locale.ROOT).endsWith(JSON)
+                ? fileName.substring(0, fileName.length() - JSON.length()) : fileName;
+        return stem + BROKEN_SUFFIX;
     }
 
     // ------------------------------------------------------------------------------------------- access

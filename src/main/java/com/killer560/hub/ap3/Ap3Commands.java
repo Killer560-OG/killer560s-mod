@@ -59,9 +59,6 @@ public final class Ap3Commands {
     /** Chat prefix - "[AP3]" in the mod's orange. */
     public static final String FEATURE = "AP3";
 
-    /** Name of the single shareable chains file inside {@code Ap3Store.getInstance().directory()}. Must match the store. */
-    public static final String CHAINS_FILE_NAME = "killer560smod-ap3.json";
-
     /** {@code wait:<ms>} bounds. Two minutes is longer than any boss section lasts. */
     public static final int MIN_WAIT_MS = 1;
     public static final int MAX_WAIT_MS = 120_000;
@@ -813,9 +810,10 @@ public final class Ap3Commands {
 
     // ---- shared helpers (also used by the tab) ----
 
-    /** The one chains file - {@code Ap3Store.getInstance().directory()} is the folder the "Open Folder" button opens. */
+    /** The chains file in use ("Choose AP3 Config") - {@code Ap3Store.directory()} is the folder the "Open Folder"
+     *  button opens, and every file in it is one he can switch to. */
     public static Path chainsFile() {
-        return Ap3Store.getInstance().directory().resolve(CHAINS_FILE_NAME);
+        return Ap3Store.file();
     }
 
     /**

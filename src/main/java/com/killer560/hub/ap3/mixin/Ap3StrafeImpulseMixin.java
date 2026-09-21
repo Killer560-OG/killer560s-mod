@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Server Strafe Angle's sprint half. While a held walk drives with the server-side yaw locked to the 45-degree
- * strafe angle ({@link Ap3Executor#isStrafeDriving()}), the analog input the executor writes is CAMERA-relative
+ * The sprint half of the held-walk yaw lock. While a held walk drives with the server-side yaw locked to the walk
+ * (its 45-degree strafe angle, or the walk direction itself - {@link Ap3Executor#isStrafeDriving()}), the analog input the executor writes is CAMERA-relative
  * (that is what makes the movement itself go the recorded way), so when the camera points away from the walk the
  * forward component is zero or negative and vanilla would refuse to start - or would stop - sprinting. javap on the
  * 26.1.2 jar: {@code LocalPlayer.canStartSprinting} and {@code shouldStopRunSprinting} both key on

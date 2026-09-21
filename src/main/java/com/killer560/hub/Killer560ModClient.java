@@ -191,6 +191,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.inventoryhud.InventoryHudFeature.register();
         HudElementRegistry.register(com.killer560.hub.inventoryhud.InventoryHudFeature.InventoryHudElement.INSTANCE);
         HudElementRegistry.register(com.killer560.hub.realtime.RealTimeFeature.RealTimeHudElement.INSTANCE);
+        HudElementRegistry.register(com.killer560.hub.position.PositionFeature.PositionHudElement.INSTANCE);
         com.killer560.hub.scoreboard.CustomScoreboardFeature.register();
         com.killer560.hub.profileviewer.ProfileViewerFeature.register();
         com.killer560.hub.arrowalign.ArrowAlignFeature.register();

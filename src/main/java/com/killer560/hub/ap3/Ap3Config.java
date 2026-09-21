@@ -20,8 +20,9 @@ import java.util.Map;
 
 /**
  * Persisted AP3 settings ({@code killer560smod-ap3-settings.json}). Cheat build only; ships disabled. Kept SEPARATE
- * from the chains file ({@link Ap3Store}) so sharing your chains never hands over your keybinds and colours, and
- * someone else's chains file never overwrites your settings.
+ * from the chains files ({@link Ap3Store}) so sharing your chains never hands over your keybinds and colours, and
+ * someone else's chains file never overwrites your settings. Which chains file is in use IS a setting
+ * ({@link #getChainsFile()}), so it survives a restart.
  * <p>
  * Same split as {@code autoroutes/AutoRoutesConfig}: every getter that can make the feature act is gated on
  * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and {@link com.killer560.hub.util.SkyblockGate},
@@ -90,25 +91,26 @@ public final class Ap3Config {
     private boolean enabled = false;
     private boolean chatFeedback = true;
     /**
-     * killer560: "it should have an option of whether to have it walking always be at the 45 degree angle that gets
-     * the approximately 2% speed boost". OFF = the speed a plain W press gets (0.98), ON = the speed a real W+A
-     * diagonal gets (1.00) - see {@code Ap3Executor#writeMove} for what that actually is in 26.1.2.
+     * killer560 (2026-09-21): "there should only be a 45 degree strafe toggle" - the old "45 degree Walk Angle"
+     * (the 1.00 W+A speed) and "Server Strafe Angle" (the server-side yaw at the strafe angle) rolled into one.
+     * A held walk ALWAYS locks the yaw the server receives to the walk now; this decides what that yaw is: ON =
+     * walk direction +-45 with W and A/D held (a real sprinting diagonal strafe, 1.00 speed), OFF = the walk
+     * direction exactly with W only (0.98). See {@code Ap3Executor#tickStrafe} / {@code #writeMove}. Loaded from
+     * the two old keys when the new one is absent: either old one on = this one on.
      */
-    private boolean diagonalWalk = false;
-    /**
-     * killer560 (2026-09-21): "serverside I am always looking in the proper angle for 45 degree strafing, but
-     * client side I am not. So essentially a freecam style." While a Walk / Run hold drives you, the yaw the SERVER
-     * receives is the 45-degree strafe angle for the walk direction (W+A / W+D from that yaw) and your camera stays
-     * wherever you point it. Default OFF - new, untested live. See {@code Ap3Executor#tickStrafe}.
-     */
-    private boolean serverStrafeAngle = false;
+    private boolean strafe45 = false;
     /** DEV BUILDS ONLY ({@code BuildVariant.DEV_TOOLS}): time every align from box entry to fully aligned and say
      *  so in chat. Default ON because that is what he asked for; never shipped in a {@code -Prelease=true} jar. */
     private boolean alignTimerDev = true;
-    /** After a chain COMPLETES (never after a user stop), start the chain of the section you are now in. */
-    private boolean continueIntoNextSection = false;
     /** The class filter new nodes go into ({@code /ap3 add ...} / the tab); null = the class-less chain. */
     private DungeonClass editClassFilter = null;
+    /** The chains file in use, by file name inside {@link Ap3Store#directory()} - "Choose AP3 Config" (killer560,
+     *  2026-09-21: "select any of the ap3's in my folder, and create new ones"). Always a plain {@code *.json} name
+     *  that {@link Ap3Store#validateConfigName} accepts; anything else in the file falls back to the default. */
+    private String chainsFile = Ap3Store.DEFAULT_CONFIG_NAME;
+    /** The two collapsible sections on the tab (Colors, Keybinds) - closed by default, remembered across restarts. */
+    private boolean colorsSectionOpen = false;
+    private boolean keybindsSectionOpen = false;
     /** STOPWATCH nodes always print to chat; this also shows the running / last time on the HUD (default OFF). */
     private boolean stopwatchHud = false;
     private boolean uniformColor = false;
@@ -197,11 +199,16 @@ public final class Ap3Config {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
-                cfg.diagonalWalk = ConfigJson.getBool(o, "diagonalWalk", cfg.diagonalWalk);
-                cfg.serverStrafeAngle = ConfigJson.getBool(o, "serverStrafeAngle", cfg.serverStrafeAngle);
+                // Migration (2026-09-21): a file from before the merge has "diagonalWalk" / "serverStrafeAngle"
+                // and no "strafe45" - either of those on means the merged toggle is on.
+                boolean legacyStrafe = ConfigJson.getBool(o, "diagonalWalk", false)
+                        || ConfigJson.getBool(o, "serverStrafeAngle", false);
+                cfg.strafe45 = ConfigJson.getBool(o, "strafe45", legacyStrafe);
                 cfg.alignTimerDev = ConfigJson.getBool(o, "alignTimerDev", cfg.alignTimerDev);
-                cfg.continueIntoNextSection = ConfigJson.getBool(o, "continueIntoNextSection", cfg.continueIntoNextSection);
                 cfg.editClassFilter = DungeonClass.byName(ConfigJson.getString(o, "editClassFilter", ""));
+                cfg.setChainsFile(ConfigJson.getString(o, "chainsFile", cfg.chainsFile));
+                cfg.colorsSectionOpen = ConfigJson.getBool(o, "colorsSectionOpen", cfg.colorsSectionOpen);
+                cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
@@ -248,11 +255,12 @@ public final class Ap3Config {
             JsonObject o = new JsonObject();
             o.addProperty("enabled", enabled);
             o.addProperty("chatFeedback", chatFeedback);
-            o.addProperty("diagonalWalk", diagonalWalk);
-            o.addProperty("serverStrafeAngle", serverStrafeAngle);
+            o.addProperty("strafe45", strafe45);
             o.addProperty("alignTimerDev", alignTimerDev);
-            o.addProperty("continueIntoNextSection", continueIntoNextSection);
             o.addProperty("editClassFilter", editClassFilter == null ? "" : editClassFilter.name());
+            o.addProperty("chainsFile", chainsFile);
+            o.addProperty("colorsSectionOpen", colorsSectionOpen);
+            o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
             o.addProperty("stopwatchHud", stopwatchHud);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("uniformColorArgb", uniformColorArgb);
@@ -300,34 +308,35 @@ public final class Ap3Config {
     public boolean isChatFeedback() { return chatFeedback; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }
 
-    /** See the field doc. Tooltip text for the tab lives in {@link #DIAGONAL_WALK_TOOLTIP}. */
-    public boolean isDiagonalWalk() { return diagonalWalk; }
-    public void setDiagonalWalk(boolean v) { diagonalWalk = v; }
-
-    /** What the toggle really does in 26.1.2 - read from the game's own movement code, not assumed. */
-    public static final String DIAGONAL_WALK_TOOLTIP =
-            "Walk/Run at the speed a real W+A diagonal gets. In 26.1.2 a plain W press moves at 0.98 and a W+A "
-            + "press at 1.00 (LocalPlayer.modifyInput -> modifyInputSpeedForSquareMovement), about 2% faster. "
-            + "AP3 writes the analog input itself, so ON gives every Walk/Run node that 1.00 in its exact "
-            + "recorded direction without turning your camera; OFF gives the plain-W 0.98. Does nothing on the "
-            + "no-mixin fallback path.";
-
     /** See the field doc. Only ever acted on inside {@link #isEnabled()}'s gate (the executor is never ticked
      *  otherwise), so no extra cheat-build check is needed here. */
-    public boolean isServerStrafeAngle() { return serverStrafeAngle; }
-    public void setServerStrafeAngle(boolean v) { serverStrafeAngle = v; }
+    public boolean isStrafe45() { return strafe45; }
+    public void setStrafe45(boolean v) { strafe45 = v; }
 
     /** The legit-vs-cheat gate does not matter here; the DEV_TOOLS gate does - a release jar can never time. */
     public boolean isAlignTimerDev() { return com.killer560.hub.BuildVariant.DEV_TOOLS && alignTimerDev; }
     public boolean isAlignTimerDevRaw() { return alignTimerDev; }
     public void setAlignTimerDev(boolean v) { alignTimerDev = v; }
 
-    public boolean isContinueIntoNextSection() { return continueIntoNextSection; }
-    public void setContinueIntoNextSection(boolean v) { continueIntoNextSection = v; }
-
     /** null = the class-less chain. */
     public DungeonClass getEditClassFilter() { return editClassFilter; }
     public void setEditClassFilter(DungeonClass v) { editClassFilter = v; }
+
+    /** File name (inside {@link Ap3Store#directory()}) of the chains file in use - never a path. */
+    public String getChainsFile() { return chainsFile; }
+
+    /** Rejects anything {@link Ap3Store#validateConfigName} would (path separators, "..", odd characters) rather
+     *  than let a hand-edited settings file point the store outside its folder. */
+    public void setChainsFile(String name) {
+        String clean = Ap3Store.normalizeConfigName(name);
+        chainsFile = clean != null && Ap3Store.validateConfigName(clean) == null ? clean : Ap3Store.DEFAULT_CONFIG_NAME;
+    }
+
+    public boolean isColorsSectionOpen() { return colorsSectionOpen; }
+    public void setColorsSectionOpen(boolean v) { colorsSectionOpen = v; }
+
+    public boolean isKeybindsSectionOpen() { return keybindsSectionOpen; }
+    public void setKeybindsSectionOpen(boolean v) { keybindsSectionOpen = v; }
 
     public boolean isStopwatchHud() { return stopwatchHud; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }

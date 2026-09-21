@@ -59,6 +59,13 @@ public final class CheatUtils {
         AutoUltFeature.onChat(plain);
     }
 
+    /** Connected to p3sim.net (the boss-practice server). Shared by features that hide on it, e.g. the dungeon map
+     *  and the Score HUD (killer560, 2026-09-21). */
+    public static boolean isOnP3Sim() {
+        ServerData server = Minecraft.getInstance().getCurrentServer();
+        return server != null && server.ip != null && server.ip.toLowerCase(java.util.Locale.ROOT).contains("p3sim");
+    }
+
     /** hypixel.net or p3sim.net (same server gate SecretsFeature uses privately). */
     public static boolean isOnDungeonServer(Minecraft client) {
         if (client == null) {

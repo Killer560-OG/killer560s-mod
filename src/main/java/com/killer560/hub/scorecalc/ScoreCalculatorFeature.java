@@ -794,7 +794,9 @@ public final class ScoreCalculatorFeature {
 
         @Override
         public boolean isRelevantNow() {
-            return ScoreCalculatorConfig.getInstance().isEnabled() && DungeonState.isInDungeon();
+            // Hidden on p3sim (killer560, 2026-09-21): it is a boss-practice server with no real run to score.
+            return ScoreCalculatorConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                    && !com.killer560.hub.cheatutils.CheatUtils.isOnP3Sim();
         }
 
         @Override
@@ -805,7 +807,7 @@ public final class ScoreCalculatorFeature {
             if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
-            if (!editor && !DungeonState.isInDungeon()) {
+            if (!editor && (!DungeonState.isInDungeon() || com.killer560.hub.cheatutils.CheatUtils.isOnP3Sim())) {
                 return;
             }
             Font font = client.font;

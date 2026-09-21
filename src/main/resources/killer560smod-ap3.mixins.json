@@ -6,7 +6,8 @@
 	"client": [
 		"Ap3InputMixin",
 		"Ap3RotationSendMixin",
-		"Ap3StrafeImpulseMixin"
+		"Ap3StrafeImpulseMixin",
+		"Ap3ThirdPersonMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

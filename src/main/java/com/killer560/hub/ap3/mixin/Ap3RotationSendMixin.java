@@ -17,9 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * the duration of that one call and putting it back on return, so the camera, the movement frame and third-person
  * rendering never see anything but the live values:
  * <ul>
- * <li><b>Server Strafe Angle</b> ({@link Ap3Executor#strafeServerYaw()} not NaN): the yaw sent is AP3's running
- *     server-side yaw - the 45-degree strafe angle for the held walk - instead of the camera yaw. Pitch goes out as
- *     the camera's. Checked first: a walk's explicit yaw supersedes a LOOK's hold.</li>
+ * <li><b>The held-walk yaw lock</b> ({@link Ap3Executor#strafeServerYaw()} not NaN): the yaw sent is AP3's running
+ *     server-side yaw - the walk direction, or its 45-degree strafe angle with "45 Degree Strafe" on - instead of
+ *     the camera yaw. Pitch goes out as the camera's. Checked first: a walk's explicit yaw supersedes a LOOK's
+ *     hold.</li>
  * <li><b>LOOK</b> ({@link Ap3Executor#isRotationSendSuppressed()}): "a client-side rotation change only. Turns the
  *     camera without sending rotation to the server." The live rotation is swapped for the last SENT one so the
  *     comparison sees no change and no rotation packet is built.</li>

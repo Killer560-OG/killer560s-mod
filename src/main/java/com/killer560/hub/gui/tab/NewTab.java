@@ -46,6 +46,7 @@ public class NewTab extends FolderTab {
                 new TeammatesTab(),
                 new TickTimersTab(),
                 new LagDisplayTab(),
+                new PositionTab(),
                 new AbilityCooldownTab(),
                 new SplitTimersTab(),
                 new RunSummaryTab(),
