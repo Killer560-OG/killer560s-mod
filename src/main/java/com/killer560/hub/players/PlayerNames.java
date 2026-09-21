@@ -85,7 +85,8 @@ public final class PlayerNames {
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
-            .executor(EXECUTOR)
+            // No .executor(EXECUTOR): lookups call send() ON that single thread, so giving the client the same thread for
+            // its own connection work meant every lookup timed out (same bug found in SupportersFetcher, 2026-09-21).
             .build();
     private static final AtomicLong LAST_REQUEST_AT = new AtomicLong();
     private static final AtomicBoolean SAVE_SCHEDULED = new AtomicBoolean(false);

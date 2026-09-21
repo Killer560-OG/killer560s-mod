@@ -7,6 +7,7 @@ import com.killer560.hub.shorts.ShortsFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -144,11 +145,61 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         }
         y += 6;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Sign in to YouTube"), btn -> {
-                    ShortsFeature.signInToYouTube();
+        // ---- 2026-09-21 expansion (killer560 item 8.8: "YT Shorts expansion") ----
+        widgets.add(label(contentX, y, contentWidth, "§6Site §7(the profile stays signed into all of them at once)"));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(siteText(cfg), btn -> {
+                    cfg.setSite(cfg.getSite().next());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+
+        if (cfg.getSite() == ShortsConfig.Site.CUSTOM) {
+            EditBox urlField = new EditBox(Minecraft.getInstance().font, col2aX, y, col2W, 18, Component.literal("URL"));
+            urlField.setMaxLength(512);
+            urlField.setValue(cfg.getCustomUrl());
+            widgets.add(urlField);
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Set URL"), btn -> {
+                        cfg.setCustomUrl(urlField.getValue());
+                        cfg.save();
+                    }).bounds(col2bX, y, col2W, 18).build());
+            y += 20;
+        }
+
+        widgets.add(SettingsButtonWidget.builder(placementText(cfg), btn -> {
+                    cfg.setPlacementMode(cfg.getPlacementMode().next());
+                    cfg.save();
+                    btn.setMessage(placementText(cfg));
+                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal(ShortsFeature.isEditMode() ? "Edit Window: §aON" : "Edit Window: §7OFF"), btn -> {
+                    ShortsFeature.toggleEditMode();
+                    btn.setMessage(Component.literal(ShortsFeature.isEditMode() ? "Edit Window: §aON" : "Edit Window: §7OFF"));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 20;
+
+        widgets.add(slider(col2aX, y, col2W, cfg::getZoomPercent, cfg::setZoomPercent,
+                ShortsConfig.MIN_ZOOM_PERCENT, ShortsConfig.MAX_ZOOM_PERCENT, v -> "Zoom: " + v + "% §7(next launch)", cfg));
+        widgets.add(SettingsButtonWidget.builder(onOff("Comments Scroll Guard", cfg.isCommentsScrollGuard()), btn -> {
+                    cfg.setCommentsScrollGuard(!cfg.isCommentsScrollGuard());
+                    cfg.save();
+                    btn.setMessage(onOff("Comments Scroll Guard", cfg.isCommentsScrollGuard()));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 26;
+
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Sign in to " + cfg.getSite().label), btn -> {
+                    ShortsFeature.signInToCurrentSite();
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
+    }
+
+    private static Component siteText(ShortsConfig cfg) {
+        return Component.literal("Site: §6" + cfg.getSite().label);
+    }
+
+    private static Component placementText(ShortsConfig cfg) {
+        return Component.literal("Placement: §6" + cfg.getPlacementMode().label);
     }
 
     private static ThemedSliderButton slider(int x, int y, int w, IntSupplier getter, IntConsumer setter, int min, int max,

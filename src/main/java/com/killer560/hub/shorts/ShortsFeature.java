@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,6 +89,14 @@ public final class ShortsFeature {
     private static boolean pausedByHide;
     private static int driftLogs;
     private static final boolean[] keyWasDown = new boolean[5];
+
+    // ---- 2026-09-21 expansion: Edit Window + DVD placement (client thread only, same as the fields above) ----
+    private static boolean editMode;
+    private static boolean dvdInitialized;
+    private static float dvdX, dvdY, dvdVx, dvdVy;
+    private static int dvdW, dvdH;
+    private static long dvdLastUpdateMs;
+    private static final float DVD_SPEED_PX_PER_SEC = 85f;
 
     private static Boolean supported;
     private static String unsupportedReason = "";
@@ -317,8 +326,9 @@ public final class ShortsFeature {
             BrowserLauncher.markProfileExitedCleanly(profile, LOGGER);
             BrowserLauncher.deleteDevToolsPortFile(profile);
 
+            ShortsConfig launchCfg = ShortsConfig.getInstance();
             List<String> cmd = BrowserLauncher.buildCommand(exe, profile, geom[0], geom[1], geom[2], geom[3],
-                    ShortsConfig.getInstance().getTheme());
+                    launchCfg.getTheme(), launchCfg.getZoomPercent(), resolveUrl(launchCfg));
             LOGGER.info("[Shorts] Launching browser: {}", String.join(" ", cmd));
             process = new ProcessBuilder(cmd)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
@@ -706,9 +716,16 @@ public final class ShortsFeature {
         lastRegion = null;
         appliedOpacity = -1;
         pausedByHide = false;
+        editMode = false;
+        dvdInitialized = false;
     }
 
     private static void updatePlacement(Minecraft client, ShortsConfig cfg, Win32.User32 u, long h) {
+        if (editMode) {
+            // Fully hands-off while he's dragging/resizing it himself - real OS window chrome does the work,
+            // and fighting it with our own SetWindowPos every tick would just make it fight back.
+            return;
+        }
         long mc = mcHwnd;
         int[] mcRect = null;
         if (u.IsWindow(mc) && !u.IsIconic(mc)) {
@@ -729,7 +746,8 @@ public final class ShortsFeature {
         boolean wantShown = hideReason == null;
 
         if (wantShown) {
-            int[] content = computeContentRect(cfg, mcRect);
+            int[] content = cfg.getPlacementMode() == ShortsConfig.PlacementMode.DVD
+                    ? advanceDvdRect(cfg, mcRect) : computeContentRect(cfg, mcRect);
             int[] in = insets;
             int[] win = {content[0] - in[0], content[1] - in[1], content[2] + in[0] + in[2], content[3] + in[1] + in[3]};
             if (!Arrays.equals(win, lastWindowRect)) {
@@ -836,8 +854,16 @@ public final class ShortsFeature {
         }
     }
 
-    /** @return {x, y, w, h} of the 9:16 video area in screen pixels for a Minecraft client rect {x, y, w, h}. */
+    /** @return {x, y, w, h} of the video area in screen pixels for a Minecraft client rect {x, y, w, h},
+     *  per the configured {@link ShortsConfig.PlacementMode}. ANCHORED is the original, sole behaviour. */
     static int[] computeContentRect(ShortsConfig cfg, int[] mcRect) {
+        return cfg.getPlacementMode() == ShortsConfig.PlacementMode.CUSTOM
+                ? customRect(cfg, mcRect) : anchoredRect(cfg, mcRect);
+    }
+
+    /** Width/height only (the 9:16 sizing math), shared by ANCHORED and DVD placement - DVD bounces the
+     *  window around, but its size still follows the same Size/Margin sliders. */
+    private static int[] sizeFor(ShortsConfig cfg, int[] mcRect) {
         int margin = cfg.getMargin();
         int availW = Math.max(9, mcRect[2] - 2 * margin);
         int availH = Math.max(16, mcRect[3] - 2 * margin);
@@ -847,6 +873,13 @@ public final class ShortsFeature {
             width = availW;
             height = (int) Math.round(width * 16 / 9.0);
         }
+        return new int[]{width, height};
+    }
+
+    private static int[] anchoredRect(ShortsConfig cfg, int[] mcRect) {
+        int[] wh = sizeFor(cfg, mcRect);
+        int width = wh[0], height = wh[1];
+        int margin = cfg.getMargin();
         ShortsConfig.Anchor a = cfg.getAnchor();
         boolean left = a == ShortsConfig.Anchor.LEFT_CENTER || a == ShortsConfig.Anchor.LEFT_TOP || a == ShortsConfig.Anchor.LEFT_BOTTOM;
         int x = left ? mcRect[0] + margin : mcRect[0] + mcRect[2] - margin - width;
@@ -856,6 +889,153 @@ public final class ShortsFeature {
             default -> mcRect[1] + (mcRect[3] - height) / 2;
         };
         return new int[]{x, y, width, height};
+    }
+
+    /** PlacementMode.CUSTOM: the free rect {@link #toggleEditMode} saved, relative to Minecraft's own
+     *  client-area top-left (so it still follows the game window if that moves, same as ANCHORED does). */
+    private static int[] customRect(ShortsConfig cfg, int[] mcRect) {
+        return new int[]{mcRect[0] + cfg.getCustomX(), mcRect[1] + cfg.getCustomY(), cfg.getCustomW(), cfg.getCustomH()};
+    }
+
+    /**
+     * PlacementMode.DVD (2026-09-21 expansion, killer560 item 8.8's "DVD compatibility"). Chosen reading:
+     * the hub/dvd feature bounces gifs/text drawn INSIDE Minecraft's own GUI - it has no concept of an
+     * external OS window at all, so "compatible" can't mean literally interoperating with it in code
+     * without either (a) teaching hub/dvd about a foreign HWND, or (b) giving the Shorts window the same
+     * bounce behaviour itself. (b) is the one that's actually buildable from here without touching
+     * hub/dvd (out of scope for this package) or fighting a second system for ownership of the same
+     * screen space: it reuses the exact same reflect-off-the-edges physics as {@code DvdFeature}, applied
+     * to the real window via the same {@code SetWindowPos} call {@link #updatePlacement} already makes
+     * every tick for ANCHORED placement. Bounces within Minecraft's own client area, at the Size/Margin
+     * sliders' size - Anchor is ignored in this mode (there's no anchor to bounce around).
+     */
+    private static int[] advanceDvdRect(ShortsConfig cfg, int[] mcRect) {
+        int[] wh = sizeFor(cfg, mcRect);
+        int w = wh[0], h = wh[1];
+        long now = System.currentTimeMillis();
+        if (!dvdInitialized || dvdW != w || dvdH != h) {
+            // (Re)seed on first use and whenever the configured size changes, so a resized box can't end up
+            // parked out of bounds - same trigger DvdFeature itself doesn't need (its boxes don't resize
+            // live), but this one's size tracks a slider so it has to handle it.
+            dvdW = w;
+            dvdH = h;
+            dvdX = Math.min(Math.max(0, dvdX), Math.max(0, mcRect[2] - w));
+            dvdY = Math.min(Math.max(0, dvdY), Math.max(0, mcRect[3] - h));
+            if (!dvdInitialized) {
+                // Start from wherever ANCHORED placement would have put it (clamped into bounds) rather than
+                // a random spot, so switching Placement to DVD Bounce doesn't visibly teleport the window
+                // before it starts moving.
+                int[] anchored = anchoredRect(cfg, mcRect);
+                dvdX = Math.min(Math.max(0, anchored[0] - mcRect[0]), Math.max(0, mcRect[2] - w));
+                dvdY = Math.min(Math.max(0, anchored[1] - mcRect[1]), Math.max(0, mcRect[3] - h));
+                double angle = ThreadLocalRandom.current().nextDouble(0, Math.PI * 2);
+                dvdVx = (float) Math.cos(angle);
+                dvdVy = (float) Math.sin(angle);
+            }
+            dvdInitialized = true;
+            dvdLastUpdateMs = now;
+        }
+        float dt = Math.min(0.25f, (now - dvdLastUpdateMs) / 1000f);
+        dvdLastUpdateMs = now;
+        float mag = (float) Math.sqrt(dvdVx * dvdVx + dvdVy * dvdVy);
+        if (mag > 0.0001f) {
+            dvdVx = dvdVx / mag * DVD_SPEED_PX_PER_SEC;
+            dvdVy = dvdVy / mag * DVD_SPEED_PX_PER_SEC;
+        }
+        float maxX = Math.max(0, mcRect[2] - w);
+        float maxY = Math.max(0, mcRect[3] - h);
+        float newX = dvdX + dvdVx * dt;
+        float newY = dvdY + dvdVy * dt;
+        if (newX < 0) {
+            newX = 0;
+            dvdVx = -dvdVx;
+        } else if (newX > maxX) {
+            newX = maxX;
+            dvdVx = -dvdVx;
+        }
+        if (newY < 0) {
+            newY = 0;
+            dvdVy = -dvdVy;
+        } else if (newY > maxY) {
+            newY = maxY;
+            dvdVy = -dvdVy;
+        }
+        dvdX = newX;
+        dvdY = newY;
+        return new int[]{mcRect[0] + Math.round(dvdX), mcRect[1] + Math.round(dvdY), w, h};
+    }
+
+    // ------------------------------------------------------------------------------------------------
+    // Edit Window (2026-09-21 expansion, killer560 item 8.8: "its own edit window (drag to resize,
+    // scroll to zoom, drag to move)")
+    // ------------------------------------------------------------------------------------------------
+
+    /**
+     * Drag-to-move and drag-to-resize are genuinely deliverable: this just gives the already-real Chrome
+     * window back its normal title bar and resize border (the same {@code WS_*} styles {@link #attach}
+     * strips for the pinned overlay look) so Windows itself handles the drag - no mod code moves the
+     * window while editing. Turning it back off reads the window's final rect and saves it as
+     * {@link ShortsConfig.PlacementMode#CUSTOM}, then re-strips the frame and re-crops it.
+     * <p>
+     * "Scroll to zoom" is NOT something this can add as a live gesture - Chrome's own Ctrl+scroll (or
+     * Ctrl+=/-) already zooms a real window like this one once it can take input (which happens the
+     * moment it's clicked, e.g. to start dragging it), so nothing further is needed for that to work; the
+     * mod's own contribution is the separate Zoom slider in the tab (a launch-time
+     * {@code --force-device-scale-factor}, see {@link BrowserLauncher#buildCommand}), which is NOT live -
+     * it needs Relaunch Browser to take effect, and plain mouse-wheel-without-Ctrl over the window just
+     * does whatever the page under the cursor normally does with a wheel event (page scroll on most sites).
+     */
+    public static void toggleEditMode() {
+        if (!isSupported()) {
+            ModChat.send(CHAT, ModChat.bad(unsupportedReason));
+            return;
+        }
+        long h = attachedHwnd;
+        if (h == 0) {
+            ModChat.send(CHAT, ModChat.text("Launch the browser first."));
+            return;
+        }
+        Win32.User32 u = Win32.user32();
+        editMode = !editMode;
+        if (editMode) {
+            long style = u.GetWindowLongPtrW(h, Win32.GWL_STYLE);
+            u.SetWindowLongPtrW(h, Win32.GWL_STYLE, style | Win32.EDIT_FRAME_STYLES);
+            u.SetWindowRgn(h, 0, true); // drop the title-bar crop - a real caption is showing now, nothing to hide
+            u.SetWindowPos(h, 0, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOZORDER
+                    | Win32.SWP_NOACTIVATE | Win32.SWP_NOOWNERZORDER | Win32.SWP_FRAMECHANGED);
+            LOGGER.info("[Shorts] Edit Window on: real title bar/border restored, auto-placement paused.");
+            ModChat.send(CHAT, ModChat.text("Edit Window: drag the title bar to move it, drag an edge/corner to "
+                    + "resize it. Turn Edit Window off again to lock the new position/size in."));
+        } else {
+            int[] wr = Win32.windowRect(h);
+            long mc = mcHwnd;
+            int[] mcRect = mc != 0 && u.IsWindow(mc) ? Win32.clientRectOnScreen(mc) : null;
+            if (wr != null && mcRect != null && mcRect[2] > 0 && mcRect[3] > 0) {
+                ShortsConfig cfg = ShortsConfig.getInstance();
+                cfg.setPlacementMode(ShortsConfig.PlacementMode.CUSTOM);
+                cfg.setCustomX(wr[0] - mcRect[0]);
+                cfg.setCustomY(wr[1] - mcRect[1]);
+                cfg.setCustomW(wr[2]);
+                cfg.setCustomH(wr[3]);
+                cfg.save();
+                ModChat.send(CHAT, ModChat.good("Position saved (Placement: Custom)."));
+            } else {
+                ModChat.send(CHAT, ModChat.bad("Couldn't read the window's new position - not saved."));
+            }
+            long style = u.GetWindowLongPtrW(h, Win32.GWL_STYLE);
+            u.SetWindowLongPtrW(h, Win32.GWL_STYLE, style & ~Win32.FRAME_STYLES);
+            u.SetWindowPos(h, 0, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOZORDER
+                    | Win32.SWP_NOACTIVATE | Win32.SWP_NOOWNERZORDER | Win32.SWP_FRAMECHANGED);
+            lastWindowRect = null;
+            lastRegion = null;
+            appliedOpacity = -1;
+            LOGGER.info("[Shorts] Edit Window off: frame re-stripped, auto-placement resumed.");
+            scheduleInsetMeasure(300);
+        }
+    }
+
+    public static boolean isEditMode() {
+        return editMode;
     }
 
     // ------------------------------------------------------------------------------------------------
@@ -981,25 +1161,49 @@ public final class ShortsFeature {
     }
 
     // ------------------------------------------------------------------------------------------------
-    // Sign-in (2026-09-20, killer560: "please implement the login through my mod by having me click a button
-    // that says sign in to youtube shorts or sign into tictoc or reels once you finish implementing those")
+    // Site selection (2026-09-21 expansion, killer560 item 8.8: "TikTok, Reels, any site... normal
+    // videos, Twitch")
     // ------------------------------------------------------------------------------------------------
 
-    private static final String YOUTUBE_SIGNIN_URL =
-            "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/shorts";
+    /** @return the app-mode launch URL for the currently configured site, falling back to YouTube Shorts
+     *  if CUSTOM has no usable URL typed in yet. */
+    private static String resolveUrl(ShortsConfig cfg) {
+        if (cfg.getSite() == ShortsConfig.Site.CUSTOM) {
+            String u = BrowserLauncher.normalizeUrl(cfg.getCustomUrl());
+            if (u != null) {
+                return u;
+            }
+            LOGGER.warn("[Shorts] Custom URL is blank - falling back to YouTube Shorts.");
+        }
+        return cfg.getSite() == ShortsConfig.Site.CUSTOM ? ShortsConfig.Site.YOUTUBE_SHORTS.defaultUrl : cfg.getSite().defaultUrl;
+    }
+
+    // ------------------------------------------------------------------------------------------------
+    // Sign-in (2026-09-20, killer560: "please implement the login through my mod by having me click a button
+    // that says sign in to youtube shorts or sign into tictoc or reels once you finish implementing those" -
+    // 2026-09-21: TikTok/Reels/Twitch/custom all now exist, so this follows whatever site is selected)
+    // ------------------------------------------------------------------------------------------------
 
     /**
-     * Opens a real, decorated Google sign-in page in an ordinary browser window on the Shorts profile, for
+     * Opens a real, decorated sign-in/site page in an ordinary browser window on the Shorts profile, for
      * killer560 to log into by hand. The mod never sees, asks for, or stores a password - it only starts a
-     * normal browser process pointed at a normal URL; everything past that is between him and Google, same as
-     * if he'd typed the address himself. See {@link BrowserLauncher#buildSignInCommand} for why this can't
-     * collide with an overlay that's already running.
-     * <p>
-     * TikTok/Reels don't exist yet - adding one later is just another URL constant through
-     * {@link #openSignInWindow}, not a new mechanism.
+     * normal browser process pointed at a normal URL; everything past that is between him and the site, same
+     * as if he'd typed the address himself. See {@link BrowserLauncher#buildSignInCommand} for why this can't
+     * collide with an overlay that's already running, and {@link ShortsConfig.Site} for why the same profile
+     * being used for every site is exactly what keeps him signed into all of them at once.
      */
+    public static void signInToCurrentSite() {
+        ShortsConfig cfg = ShortsConfig.getInstance();
+        ShortsConfig.Site site = cfg.getSite();
+        // CUSTOM has no known login page - the closest real thing is just opening the site itself, decorated,
+        // so he can find and use its own sign-in link himself.
+        String url = site == ShortsConfig.Site.CUSTOM ? resolveUrl(cfg) : site.signInUrl;
+        openSignInWindow(url, site.label);
+    }
+
+    /** Kept for anything still calling the pre-expansion name; now just YouTube Shorts specifically. */
     public static void signInToYouTube() {
-        openSignInWindow(YOUTUBE_SIGNIN_URL, "YouTube");
+        openSignInWindow(ShortsConfig.Site.YOUTUBE_SHORTS.signInUrl, ShortsConfig.Site.YOUTUBE_SHORTS.label);
     }
 
     private static void openSignInWindow(String url, String platform) {
@@ -1044,12 +1248,50 @@ public final class ShortsFeature {
         LOGGER.info("[Shorts] Overlay toggled {}.", cfg.isHidden() ? "off" : "on");
     }
 
+    /**
+     * Best-effort "is a Shorts comments panel open" check (2026-09-21 expansion, killer560 item 8.8:
+     * "a comments panel that captures scrolling"), YouTube-only - see the long note above {@link #next()}.
+     */
+    private static final String COMMENTS_OPEN_JS =
+            "(()=>{const p=document.querySelector("
+                    + "'ytd-engagement-panel-section-list-renderer[visibility=\"ENGAGEMENT_PANEL_VISIBILITY_EXPANDED\"]');"
+                    + "return !!(p&&p.offsetParent)})()";
+
+    /**
+     * Whether Next/Previous's key fallback should be skipped right now because a comments panel looks open.
+     * Honest scope note (killer560 item 8.8's "comments panel that captures scrolling"): a normal mouse
+     * scroll never reaches the browser at all while Minecraft has the mouse captured for gameplay (it's raw
+     * input straight to the game, not routed by Windows to whatever's visually under the cursor) - that's
+     * exactly why this feature drives Next/Previous with keybinds -> a single simulated ArrowDown/Up key,
+     * never a scroll event, so there has never been a "scroll advances the video" behaviour for this mod to
+     * redirect. When the mouse ISN'T captured (a menu's open, or the window's unfocused), physical scroll
+     * over the browser goes straight to the page and already scrolls whatever's under the cursor - including
+     * a comments panel's own scrollable container - as ordinary site behaviour, outside the mod entirely.
+     * The one real thing achievable from here: don't let a Next/Previous KEYBIND press yank the feed out
+     * from under him while he's reading/typing in comments. Best-effort and YouTube-Shorts-specific (the
+     * engagement-panel selector above); not attempted for TikTok/Reels/Twitch, whose comment UIs are
+     * different and unverified without a live run - see the tab's tooltip and the staging notes.
+     */
+    private static boolean commentsOpenGuardBlocks(CdpClient c) {
+        if (!ShortsConfig.getInstance().isCommentsScrollGuard()) {
+            return false;
+        }
+        try {
+            return "true".equals(str(c.evaluate(COMMENTS_OPEN_JS)));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public static void next() {
         command("next", c -> {
             String r = str(c.evaluate("(()=>{const b=document.querySelector('#navigation-button-down button');"
                     + "if(b&&!b.disabled){b.click();return 'button'}return 'none'})()"));
             if ("button".equals(r)) {
                 return "clicked next button";
+            }
+            if (commentsOpenGuardBlocks(c)) {
+                return "skipped (comments panel open)";
             }
             c.pressKey("ArrowDown", "ArrowDown", 40, null);
             return "ArrowDown key";
@@ -1062,6 +1304,9 @@ public final class ShortsFeature {
                     + "if(b&&!b.disabled){b.click();return 'button'}return 'none'})()"));
             if ("button".equals(r)) {
                 return "clicked previous button";
+            }
+            if (commentsOpenGuardBlocks(c)) {
+                return "skipped (comments panel open)";
             }
             c.pressKey("ArrowUp", "ArrowUp", 38, null);
             return "ArrowUp key";

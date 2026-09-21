@@ -40,6 +40,7 @@ public class NewTab extends FolderTab {
                 new BestFriendsTab(),
                 new FriendsListTab(),
                 new PetWheelTab(),
+                new SupportersTab(),
                 new MobEspTab(),
                 new TeammatesTab(),
                 new TickTimersTab(),
@@ -99,6 +100,8 @@ public class NewTab extends FolderTab {
                 new RevertMasterStarsTab(),
                 new InventorySearchTab(),
                 new ItemBrowserTab(),
+                new AuctionHouseTab(),
+                new BazaarTab(),
                 new ItemProtectTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

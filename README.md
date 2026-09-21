@@ -28,7 +28,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
-- YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System theme option. **Untested** - see the New tab
+- YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System theme option. Also plays normal YouTube, TikTok, Instagram Reels, Twitch or any URL; an edit mode to drag-move and resize the window; a zoom setting; a DVD-style bouncing placement; and a YouTube comments guard so next/previous does not fire while comments are open. **Untested** - see the New tab
 
 **Helpers**
 - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
@@ -99,6 +99,10 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Pet Wheel — a radial keybind menu of the pets you choose; picking one summons it through /pets (hold-and-release or press-then-click, adjustable slice count and scale, page flipping)
 - Best Friends — /bestfriends: time partied and dungeon runs done with each player, kept forever, in a searchable, sortable menu
 - Friends List — our own friends list with notes; /fl can open it instead of Hypixel's, and /flcustom and /flhypixel always reach either one
+- Auction House Browser — /killer560 ah or a keybind: searchable, filterable list of live BIN auctions (rarity, pet level, ultimate enchant, price, ending soonest) from a background-cached scan with a refresh button; clicking one opens Hypixel's own auction page. Optional /ah override, with /hypixelah always reaching Hypixel's
+- Bazaar Browser — /killer560 bz or a keybind: buy/sell prices, spread and volume for every product; clicking one opens Hypixel's own Bazaar page
+- Listing Helper — on Hypixel's Create BIN Auction menu, shows the lowest BIN among similar listings with a similarity percentage and copies lowest-minus-one-coin to your clipboard. Never clicks or types into Hypixel's menu
+- Supporter Names — supporters' custom names show on nametags, the tab list and chat, with their model scale, for everyone running the mod (matched by UUID, set by staff on Discord). Your own Name Changer name still wins on your screen; "Custom Cosmetics" turns it all off; names go through a slur filter
 - Command Shortcuts — /f0-/f7, /m1-/m7, /basic /hot /burning /fiery /infernal and /kuudra <tier>, each individually toggleable
 - Trail — a square dropped behind you each tick, orange on the ground and blue in the air, with adjustable length, size, opacity and fade
 - Inventory Theme — re-skins chest and inventory menus in the mod's orange theme, with opacity and accent colour settings

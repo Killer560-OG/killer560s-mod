@@ -64,6 +64,66 @@ public final class ShortsConfig {
         }
     }
 
+    /** Which site/app the companion window opens (2026-09-21 expansion, killer560 item 8.8: "YT Shorts
+     *  expansion: TikTok, Reels, any site... normal videos, Twitch"). Every preset is just a different
+     *  {@code --app=} URL on the SAME persistent profile {@link BrowserLauncher} already uses - Chromium
+     *  keeps cookies per-origin within one profile, so being signed into YouTube there doesn't affect (or
+     *  get affected by) also being signed into TikTok/Instagram/Twitch in the same window on other days.
+     *  {@code signInUrl} is only a real, normal login page for that site - see
+     *  {@link ShortsFeature#openSignInWindow}, which never touches credentials itself. CUSTOM has no fixed
+     *  URL; it uses {@link #customUrl} instead (killer560's "any site"). */
+    public enum Site {
+        YOUTUBE_SHORTS("YouTube Shorts", BrowserLauncher.SHORTS_URL,
+                "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/shorts"),
+        YOUTUBE("YouTube (normal videos)", "https://www.youtube.com",
+                "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com"),
+        TIKTOK("TikTok", "https://www.tiktok.com/foryou", "https://www.tiktok.com/login"),
+        INSTAGRAM_REELS("Instagram Reels", "https://www.instagram.com/reels/", "https://www.instagram.com/accounts/login/"),
+        TWITCH("Twitch", "https://www.twitch.tv/", "https://www.twitch.tv/login"),
+        CUSTOM("Custom URL", null, null);
+
+        public final String label;
+        /** App-mode launch URL, or null for CUSTOM (see {@link #customUrl}). */
+        public final String defaultUrl;
+        /** A real login page for this site, or null for CUSTOM (its own URL is used as the "sign in" target). */
+        public final String signInUrl;
+
+        Site(String label, String defaultUrl, String signInUrl) {
+            this.label = label;
+            this.defaultUrl = defaultUrl;
+            this.signInUrl = signInUrl;
+        }
+
+        public Site next() {
+            Site[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
+
+    /** How the window is positioned (2026-09-21 expansion). ANCHORED is the original, sole behaviour -
+     *  Anchor/Size/Margin below. CUSTOM is a free rect set once by turning Edit Window off (see
+     *  {@link ShortsFeature#toggleEditMode}). DVD bounces the window around Minecraft's client area like
+     *  the mod's own DVD screensaver feature - see {@link ShortsFeature} for why this reading of "DVD
+     *  compatibility" was chosen over the alternative (the DVD boxes treating the Shorts window as a wall). */
+    public enum PlacementMode {
+        ANCHORED("Anchored"), CUSTOM("Custom"), DVD("DVD Bounce");
+
+        public final String label;
+
+        PlacementMode(String label) {
+            this.label = label;
+        }
+
+        public PlacementMode next() {
+            PlacementMode[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
+
+    public static final int MIN_ZOOM_PERCENT = 50;
+    public static final int MAX_ZOOM_PERCENT = 200;
+    public static final int MIN_CUSTOM_SIZE = 120;
+
     private static ShortsConfig instance;
 
     private boolean enabled = false;
@@ -83,6 +143,27 @@ public final class ShortsConfig {
     private int previousKey = -1;
     private int playPauseKey = -1;
     private int muteKey = -1;
+
+    // ---- 2026-09-21 expansion (killer560 item 8.8) - every field below defaults to the pre-expansion
+    // behaviour (YouTube Shorts, anchored placement, 100% zoom, guard off) so an existing config keeps
+    // working exactly as before until killer560 changes one of these himself. ----
+    private Site site = Site.YOUTUBE_SHORTS;
+    /** Only used when {@link #site} is {@link Site#CUSTOM}; stored exactly as typed. */
+    private String customUrl = "";
+    private PlacementMode placementMode = PlacementMode.ANCHORED;
+    /** CUSTOM placement rect, screen pixels relative to Minecraft's client-area top-left. Set by
+     *  {@link ShortsFeature#toggleEditMode} when Edit Window is turned back off. */
+    private int customX = 0;
+    private int customY = 0;
+    private int customW = 340;
+    private int customH = 605;
+    /** Chromium {@code --force-device-scale-factor} at launch (100 = unchanged). Applies on next
+     *  launch/relaunch, not live - see {@link ShortsFeature} / the Zoom tooltip for why. */
+    private int zoomPercent = 100;
+    /** When on, Next/Previous skip their ArrowDown/Up key fallback while a YouTube Shorts comments panel
+     *  looks open, so a keybind press doesn't yank the feed out from under him mid-scroll-through-comments.
+     *  Best-effort/YouTube-only - see {@link ShortsFeature}. */
+    private boolean commentsScrollGuard = false;
 
     private ShortsConfig() {
     }
@@ -114,6 +195,15 @@ public final class ShortsConfig {
                 cfg.previousKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "previousKey", -1));
                 cfg.playPauseKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "playPauseKey", -1));
                 cfg.muteKey = com.killer560.hub.util.KeyUtil.sanitize(intOr(o, "muteKey", -1));
+                cfg.site = ConfigJson.getEnum(o, "site", Site.class, Site.YOUTUBE_SHORTS);
+                cfg.customUrl = o.has("customUrl") && o.get("customUrl").isJsonPrimitive() ? o.get("customUrl").getAsString() : "";
+                cfg.placementMode = ConfigJson.getEnum(o, "placementMode", PlacementMode.class, PlacementMode.ANCHORED);
+                cfg.customX = intOr(o, "customX", 0);
+                cfg.customY = intOr(o, "customY", 0);
+                cfg.customW = Math.max(MIN_CUSTOM_SIZE, intOr(o, "customW", 340));
+                cfg.customH = Math.max(MIN_CUSTOM_SIZE, intOr(o, "customH", 605));
+                cfg.zoomPercent = clamp(intOr(o, "zoomPercent", 100), MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT);
+                cfg.commentsScrollGuard = ConfigJson.getBool(o, "commentsScrollGuard", false);
             } catch (Exception e) {
                 cfg = new ShortsConfig();
             }
@@ -140,6 +230,15 @@ public final class ShortsConfig {
             o.addProperty("previousKey", previousKey);
             o.addProperty("playPauseKey", playPauseKey);
             o.addProperty("muteKey", muteKey);
+            o.addProperty("site", site.name());
+            o.addProperty("customUrl", customUrl);
+            o.addProperty("placementMode", placementMode.name());
+            o.addProperty("customX", customX);
+            o.addProperty("customY", customY);
+            o.addProperty("customW", customW);
+            o.addProperty("customH", customH);
+            o.addProperty("zoomPercent", zoomPercent);
+            o.addProperty("commentsScrollGuard", commentsScrollGuard);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -271,5 +370,77 @@ public final class ShortsConfig {
 
     public void setMuteKey(int muteKey) {
         this.muteKey = muteKey;
+    }
+
+    public Site getSite() {
+        return site;
+    }
+
+    public void setSite(Site site) {
+        this.site = site == null ? Site.YOUTUBE_SHORTS : site;
+    }
+
+    public String getCustomUrl() {
+        return customUrl;
+    }
+
+    public void setCustomUrl(String customUrl) {
+        this.customUrl = customUrl == null ? "" : customUrl.strip();
+    }
+
+    public PlacementMode getPlacementMode() {
+        return placementMode;
+    }
+
+    public void setPlacementMode(PlacementMode placementMode) {
+        this.placementMode = placementMode == null ? PlacementMode.ANCHORED : placementMode;
+    }
+
+    public int getCustomX() {
+        return customX;
+    }
+
+    public void setCustomX(int customX) {
+        this.customX = customX;
+    }
+
+    public int getCustomY() {
+        return customY;
+    }
+
+    public void setCustomY(int customY) {
+        this.customY = customY;
+    }
+
+    public int getCustomW() {
+        return customW;
+    }
+
+    public void setCustomW(int customW) {
+        this.customW = Math.max(MIN_CUSTOM_SIZE, customW);
+    }
+
+    public int getCustomH() {
+        return customH;
+    }
+
+    public void setCustomH(int customH) {
+        this.customH = Math.max(MIN_CUSTOM_SIZE, customH);
+    }
+
+    public int getZoomPercent() {
+        return zoomPercent;
+    }
+
+    public void setZoomPercent(int zoomPercent) {
+        this.zoomPercent = clamp(zoomPercent, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT);
+    }
+
+    public boolean isCommentsScrollGuard() {
+        return commentsScrollGuard;
+    }
+
+    public void setCommentsScrollGuard(boolean commentsScrollGuard) {
+        this.commentsScrollGuard = commentsScrollGuard;
     }
 }

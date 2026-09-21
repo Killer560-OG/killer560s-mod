@@ -1,0 +1,14 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.supporters.mixin",
+	"client": [
+		"SupportersNameTagMixin",
+		"SupportersTabListMixin",
+		"SupportersScaleMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

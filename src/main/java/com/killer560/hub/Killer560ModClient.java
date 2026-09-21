@@ -236,6 +236,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.social.BestFriendsCommands.register();
         com.killer560.hub.social.FriendsListCommands.register();
         com.killer560.hub.petwheel.PetWheelFeature.register();
+        com.killer560.hub.auction.AuctionHouseFeature.register();
+        com.killer560.hub.auction.BazaarFeature.register();
+        com.killer560.hub.auction.ListingHelperFeature.register();
+        com.killer560.hub.supporters.SupportersFeature.register();
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
 
@@ -328,7 +332,18 @@ public class Killer560ModClient implements ClientModInitializer {
                         // whole command tree is already nested 4+ levels deep and another sub-tree
                         // inlined by hand risks exactly the kind of mismatched-paren mistake that's easy
                         // to make and hard to spot in a wall of closing parens.
-                        .then(buildProfileCommand())));
+                        .then(buildProfileCommand())
+                        // "/killer560 ah" and "/killer560 bz" - item 8.1 (Auction House and Bazaar browsers).
+                        .then(ClientCommands.literal("ah")
+                                .executes(context -> {
+                                    com.killer560.hub.auction.AuctionHouseFeature.openOrExplain();
+                                    return 1;
+                                }))
+                        .then(ClientCommands.literal("bz")
+                                .executes(context -> {
+                                    com.killer560.hub.auction.BazaarFeature.openOrExplain();
+                                    return 1;
+                                }))));
 
         // Posmsg: killer560's request (2026-09-13) for a chat-relayed waypoint system, syntax exactly
         // as he specified it - "/Posmsg add" then the message, then the center coordinate, then the

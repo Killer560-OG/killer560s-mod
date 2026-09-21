@@ -1851,5 +1851,19 @@ final class SettingTooltipsData {
         d.put("pet wheel/slices", "How many pets show on the wheel at once (4-12). More pets than this page through with the scroll wheel.");
         d.put("pet wheel/scale", "How big the wheel draws on screen.");
         d.put("pet wheel/edit pets", "Choose which of your scanned pets appear on the wheel, and in what order. Open /pets at least once with Pet Wheel turned on so it has pets to show here.");
+        d.put("auction house/auction house browser", "Turns on the custom Auction House browser (/killer560 ah, /killer560ah, or a keybind). Off by default - real Hypixel /ah is completely untouched unless you also turn on the /ah Override below.");
+        d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");
+        d.put("auction house/ah override", "When on, typing /ah opens this browser instead of Hypixel's own menu. Hypixel's real /ah is always still reachable with /hypixelah regardless of this setting.");
+        d.put("auction house/listing helper", "While you're on Hypixel's own Create BIN Auction menu, shows the lowest current BIN among similar listings plus a rough estimated value, and a button to copy lowest-minus-one-coin to your clipboard. Never clicks or types into Hypixel's menu for you.");
+        d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser (/killer560bz or a keybind). Off by default.");
+        d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz.");
+        d.put("yt shorts/site", "Which site opens in the companion window. All of them share one profile, so signing into YouTube, TikTok, Instagram or Twitch here doesn't affect being signed into the others.");
+        d.put("yt shorts/set url", "Any site's normal URL (a scheme is added automatically if you leave it off). Used only when Site is set to Custom URL.");
+        d.put("yt shorts/placement", "Anchored uses the Position/Size/Margin settings below. Custom is whatever rect Edit Window last saved. DVD Bounce makes the window itself bounce around Minecraft's screen like the mod's DVD feature.");
+        d.put("yt shorts/edit window", "Gives the window back a real title bar and border so you can drag it to move and drag an edge/corner to resize, like any normal window. Turn it off again to lock the new position/size in as Custom placement. Chrome's own Ctrl+scroll zoom already works once you've clicked the window; the Zoom slider below is a separate, launch-time zoom.");
+        d.put("yt shorts/zoom", "Sets the page's zoom level at launch (Chromium's device-scale-factor) - takes effect on the next Launch/Relaunch, not live.");
+        d.put("yt shorts/comments scroll guard", "YouTube Shorts only: while a comments panel looks open, Next/Previous's fallback key press is skipped so it can't pull the feed away while you're reading or typing comments. The on-page next/previous button still works normally.");
+        d.put("yt shorts/sign in to youtube", "Opens a normal browser window (own address bar) on the same profile the overlay uses, for the currently selected Site, so you can log into your real account by hand. The mod never sees or stores your password.");
+        d.put("supporters/custom cosmetics", "Shows supporters' custom colored names and player scale, set by staff on Discord. Off shows everyone's real IGN and normal scale.");
     }
 }

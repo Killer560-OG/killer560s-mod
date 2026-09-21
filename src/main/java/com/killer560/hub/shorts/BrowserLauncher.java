@@ -105,10 +105,25 @@ final class BrowserLauncher {
         return null;
     }
 
-    static List<String> buildCommand(Path exe, Path profile, int x, int y, int w, int h, ShortsConfig.Theme theme) {
+    /** @return {@code raw} with a scheme prepended if it looks like a bare host/URL typed without one
+     *  (killer560's "any site" custom URL field), or null if it's blank. Never touches anything that
+     *  already has a scheme, so an explicit {@code http://} still works. */
+    static String normalizeUrl(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String v = raw.trim();
+        if (v.isEmpty()) {
+            return null;
+        }
+        return v.matches("(?i)^[a-z][a-z0-9+.-]*://.*") ? v : "https://" + v;
+    }
+
+    static List<String> buildCommand(Path exe, Path profile, int x, int y, int w, int h, ShortsConfig.Theme theme,
+                                      int zoomPercent, String url) {
         List<String> cmd = new ArrayList<>();
         cmd.add(exe.toString());
-        cmd.add("--app=" + SHORTS_URL);
+        cmd.add("--app=" + url);
         // Dark/light mode (2026-09-16, killer560). The switch sets the browser's native theme before the first
         // paint, so YouTube (in its default "Device theme" appearance) loads already dark/light instead of
         // flashing the Windows theme first. --force-dark-mode is a long-standing Chromium switch; the light
@@ -136,6 +151,17 @@ final class BrowserLauncher {
         // Edge-only (Chrome ignores unknown switches): don't relaunch through the compat layer, which would
         // change the browser process id out from under us.
         cmd.add("--edge-skip-compat-layer-relaunch");
+        // "Zoom" (2026-09-21 expansion, killer560 item 8.8: "scroll to zoom"). There is no CDP command that
+        // live-changes Chromium's own page zoom the way Ctrl+scroll/Ctrl+= does in a real window, so this is
+        // the one part of that ask the mod can actually deliver: a device-scale-factor set at launch, which
+        // scales the whole rendered page (bigger text/thumbnails). It only takes effect on
+        // launch/relaunch, not live - see the Zoom slider's tooltip. Real Ctrl+scroll zoom already works on
+        // its own with no code needed here: once the window is clicked (e.g. in Edit Window mode) it's a
+        // completely normal Chrome window and Chrome's own accelerator handles it.
+        if (zoomPercent != 100) {
+            double factor = Math.max(0.5, Math.min(2.0, zoomPercent / 100.0));
+            cmd.add("--force-device-scale-factor=" + factor);
+        }
         return cmd;
     }
 

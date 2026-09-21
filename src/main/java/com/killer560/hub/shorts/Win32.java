@@ -25,6 +25,10 @@ final class Win32 {
     static final long WS_MINIMIZEBOX = 0x00020000L;
     static final long WS_MAXIMIZEBOX = 0x00010000L;
     static final long FRAME_STYLES = WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    /** Restored while "Edit Window" is active (2026-09-21 expansion): a real title bar to drag-move by and a
+     *  real thick frame to drag-resize by, both genuine OS window chrome - no minimize/maximize box, since
+     *  the window isn't meant to be used like a normal app window outside that mode. */
+    static final long EDIT_FRAME_STYLES = WS_CAPTION | WS_THICKFRAME | WS_SYSMENU;
 
     static final long WS_EX_TOOLWINDOW = 0x00000080L;
     static final long WS_EX_APPWINDOW = 0x00040000L;

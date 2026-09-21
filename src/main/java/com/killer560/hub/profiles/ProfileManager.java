@@ -49,6 +49,8 @@ public final class ProfileManager {
             "killer560smod-storageoverlay-cache.json",
             // UUID <-> name lookup cache shared by Class Overrides, Leap Order and the social features - not a setting.
             "killer560smod-playernames.json",
+            // Supporter-names list fetched from the relay - a network cache, not a setting.
+            "killer560smod-supporters-cache.json",
             // Croesus Profit Logger's claim history + totals - real run data, not a setting.
             "killer560smod-croesus-log.json",
             // Experimentation Table profit tracker's session log + totals - also real run data.
@@ -291,6 +293,8 @@ public final class ProfileManager {
                 com.killer560.hub.social.BestFriendsConfig::load,
                 com.killer560.hub.social.FriendsListConfig::load,
                 com.killer560.hub.petwheel.PetWheelConfig::load,
+                com.killer560.hub.auction.AuctionConfig::load,
+                com.killer560.hub.supporters.SupportersConfig::load,
                 com.killer560.hub.commandshortcuts.CommandShortcutsConfig::load,
                 com.killer560.hub.autojoinskyblock.AutoJoinSkyblockConfig::load,
                 com.killer560.hub.automeow.AutoMeowConfig::load,
