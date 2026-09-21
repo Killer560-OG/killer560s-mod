@@ -41,8 +41,8 @@ import java.util.Set;
  * Blood Camp - killer560's request: "use noamm's blood mob tracer thing it already has, then add a
  * triggerbot option so if i am looking at the right hitbox as the timer expires then it will left click
  * on the mob." Real mechanic and every constant below ported directly from Noamm's own confirmed,
- * compiling {@code BloodCamp.kt} (cloned reference, 2026-09-14) - the real F7 boss-fight "Blood Camp"
- * mechanic: a real {@code Zombie} wearing a real specific player-head skin is the Watcher, and real
+ * compiling {@code BloodCamp.kt} (cloned reference, 2026-09-14) - the Blood Room "Blood Camp" mechanic,
+ * present on every floor and skipped once the boss fight starts: a real {@code Zombie} wearing a real specific player-head skin is the Watcher, and real
  * {@code ArmorStand} entities wearing one of a real fixed set of player-head skins are the blood mobs,
  * both identified by their head skull's real texture value (not a guess - the exact real base64 values
  * in {@link #WATCHER_SKULL_TEXTURES}/{@link #MOB_SKULL_TEXTURES} are copied verbatim from that source).
@@ -174,7 +174,10 @@ public final class BloodCampFeature {
     }
 
     private static boolean isActive() {
-        return BloodCampConfig.getInstance().isEnabled() && DungeonState.isF7OrM7();
+        // Every floor's Blood Room, never the boss fight - NoammAddons' own gate. This used to be F7/M7 only,
+        // which is why it worked in F7 and silently did nothing everywhere else.
+        return BloodCampConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+                && !com.killer560.hub.livemap.LiveMapFeature.isInBoss();
     }
 
     // ------------------------------------------------------------------
@@ -332,7 +335,8 @@ public final class BloodCampFeature {
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
         }
-        String gates = "enabled=" + cfg.isEnabled() + " f7OrM7=" + DungeonState.isF7OrM7() + " overlay=" + cfg.isShowOverlay()
+        String gates = "enabled=" + cfg.isEnabled() + " inDungeon=" + DungeonState.isInDungeon()
+                + " inBoss=" + com.killer560.hub.livemap.LiveMapFeature.isInBoss() + " overlay=" + cfg.isShowOverlay()
                 + " triggerBot=" + cfg.isTriggerBotEnabled() + " aura=" + cfg.isAuraEnabled()
                 + " killPopup=" + cfg.isKillPopup() + " watcherId=" + watcherEntityId;
         if (!gates.equals(lastLoggedGates)) {

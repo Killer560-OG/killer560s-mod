@@ -639,7 +639,7 @@ final class SettingTooltipsData {
         d.put("push to talk", "ON sends your mic only while the Push-to-Talk Key is held; OFF sends your mic all the time unless Muted.");
         d.put("muted", "Stops sending your microphone to teammates (you still hear them). Shown when Push To Talk is OFF.");
         d.put("auto close chest", "In dungeons, blocks secret chest menus (titled Chest, Large Chest or Trapped Chest) from opening; the loot is still collected and the menu never flashes.");
-        d.put("blood camp", "Tracks the Watcher's blood mobs and predicts where each will land and when it can be hit. Currently only active in F7/M7 runs.");
+        d.put("blood camp", "Tracks the Watcher's blood mobs and predicts where each will land and when it can be hit. Works in every floor's Blood Room and switches off once the boss fight starts.");
         d.put("show overlay", "Draws a box where each blood mob will settle with a seconds countdown above it; the box turns green when the mob is ready to hit.");
         d.put("aura", "Cheat build only. Acts on targets around you without needing to aim at them.");
         d.put("auto detect lag", "Makes the Trigger Bot click earlier by your current ping (in ticks), so the hit reaches the server when the mob becomes hittable. Trigger Bot only.");
