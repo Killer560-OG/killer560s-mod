@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cheatutils.CheatUtilsConfig;
+import com.killer560.hub.dungeonextras.DungeonExtrasConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -15,9 +16,15 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Cheat Utils settings - Secret Aura, Auto GFS, Auto Ult, Auto Chocolate Factory (see
- *  {@code com.killer560.hub.cheatutils}). Cheat build only: on the legit build this tab builds no settings
- *  at all. Each section collapses to its master toggle while that toggle is OFF (SecretsTab pattern). */
+/** Cheat Utils settings - Secret Aura, plus the shared Action Gate pacing for every cheat automation in the
+ *  mod (see {@code com.killer560.hub.cheatutils} and {@code com.killer560.hub.dungeonextras}). Cheat build
+ *  only: on the legit build this tab builds no settings at all. Auto GFS, Auto Ult and Auto Chocolate
+ *  Factory moved to their own tabs 2026-09-20 per killer560: "Move auto gfs its own tab as well. Make auto
+ *  ult its own category as well and same with auto chocolate factory." - see {@link AutoGfsTab},
+ *  {@link AutoUltTab}, {@link AutoChocolateFactoryTab}. Action Gate used to live in the old "Dungeon
+ *  Extras" tab (deleted the same day, see {@link BreakerAuraTab}); it wasn't part of that request but has
+ *  no aura-specific home of its own, so it landed here - see "Needs his answer" in the staging notes for
+ *  this wave. Each section collapses to its master toggle while that toggle is OFF (SecretsTab pattern). */
 public class CheatUtilsTab extends BaseTab {
 
     private static final int BTN_W = 220;
@@ -39,11 +46,9 @@ public class CheatUtilsTab extends BaseTab {
             return w;
         }
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
+        DungeonExtrasConfig gateCfg = DungeonExtrasConfig.getInstance();
         int half = (contentWidth - 8) / 2;
         int[] y = {contentY};
-
-        label(w, contentX, y, contentWidth, "Real macros/ESP against Hypixel's rules - use at your own risk.");
-
 
         // ---- Secret Aura ----
         header(w, contentX, y, contentWidth, "Secret Aura (dungeons)");
@@ -78,64 +83,36 @@ public class CheatUtilsTab extends BaseTab {
             y[0] += 26;
         }
 
-        // ---- Auto GFS ----
-        header(w, contentX, y, contentWidth, "Auto GFS (dungeons, /gfs from sacks)");
-        toggle(w, contentX, y, "Auto GFS", cfg::isAutoGfsEnabled, v -> cfg.setAutoGfsEnabled(v), requestRebuild);
-        if (cfg.isAutoGfsEnabled()) {
-            toggle(w, contentX, y, "Ender Pearls", cfg::isGfsPearls, cfg::setGfsPearls, null);
-            toggle(w, contentX, y, "Spirit Leaps", cfg::isGfsLeaps, cfg::setGfsLeaps, null);
-            toggle(w, contentX, y, "Superboom TNT", cfg::isGfsSuperbooms, cfg::setGfsSuperbooms, null);
-            toggle(w, contentX, y, "Inflatable Jerry", cfg::isGfsJerries, cfg::setGfsJerries, null);
-            toggle(w, contentX, y, "Skip If None In Inventory", cfg::isGfsSkipIfNone, cfg::setGfsSkipIfNone, null);
-            slider(w, contentX, y[0], half, () -> "Refill Below: " + cfg.getGfsThresholdPercent() + "%",
-                    norm(cfg.getGfsThresholdPercent(), CheatUtilsConfig.MIN_GFS_THRESHOLD_PERCENT, CheatUtilsConfig.MAX_GFS_THRESHOLD_PERCENT),
-                    v -> cfg.setGfsThresholdPercent(denorm(v, CheatUtilsConfig.MIN_GFS_THRESHOLD_PERCENT, CheatUtilsConfig.MAX_GFS_THRESHOLD_PERCENT)));
-            slider(w, contentX + half + 8, y[0], half, () -> "Check Every: " + cfg.getGfsIntervalSec() + "s",
-                    norm(cfg.getGfsIntervalSec(), CheatUtilsConfig.MIN_GFS_INTERVAL_SEC, CheatUtilsConfig.MAX_GFS_INTERVAL_SEC),
-                    v -> cfg.setGfsIntervalSec(denorm(v, CheatUtilsConfig.MIN_GFS_INTERVAL_SEC, CheatUtilsConfig.MAX_GFS_INTERVAL_SEC)));
-            y[0] += 28;
+        // ---- Action Gate (all cheat auras; shares DungeonExtrasConfig - see class javadoc) ----
+        header(w, contentX, y, contentWidth, "Action Gate (all auras)");
+        w.add(SettingsButtonWidget.builder(onOff("Action Gate", gateCfg.isActionGateEnabled()), btn -> {
+                    gateCfg.setActionGateEnabled(!gateCfg.isActionGateEnabled());
+                    gateCfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], BTN_W, 20).build());
+        y[0] += 24;
+        if (gateCfg.isActionGateEnabled()) {
+            w.add(new ThemedSliderButton(contentX, y[0], BTN_W, 20, Component.literal(gateSpacingText(gateCfg)),
+                    gateCfg.getActionGateMinSpacingTicks() / 10.0) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal(gateSpacingText(gateCfg)));
+                }
+
+                @Override
+                protected void applyValue() {
+                    gateCfg.setActionGateMinSpacingTicks((int) Math.round(this.value * 10));
+                    gateCfg.save();
+                }
+            });
         }
 
-        // ---- Auto Ult ----
-        header(w, contentX, y, contentWidth, "Auto Ult (F7/M7 boss, Healer/Tank)");
-        toggle(w, contentX, y, "Auto Ult", cfg::isAutoUltEnabled, v -> cfg.setAutoUltEnabled(v), requestRebuild);
-        if (cfg.isAutoUltEnabled()) {
-            toggle(w, contentX, y, "On Maxor Enraged", cfg::isUltMaxorEnraged, cfg::setUltMaxorEnraged, null);
-            toggle(w, contentX, y, "On Goldor Factory Destroyed", cfg::isUltGoldorFactory, cfg::setUltGoldorFactory, null);
-            w.add(SettingsButtonWidget.builder(classText(cfg), btn -> {
-                cfg.cycleUltClassOverride();
-                cfg.save();
-                btn.setMessage(classText(cfg));
-            }).bounds(contentX, y[0], BTN_W, 20).build());
-            y[0] += 28;
-        }
-
-        // ---- Auto Chocolate Factory ----
-        header(w, contentX, y, contentWidth, "Auto Chocolate Factory (in its GUI)");
-        toggle(w, contentX, y, "Auto Chocolate Factory", cfg::isChocolateEnabled, v -> cfg.setChocolateEnabled(v), requestRebuild);
-        if (cfg.isChocolateEnabled()) {
-            toggle(w, contentX, y, "Click Cookie", cfg::isCfClickCookie, cfg::setCfClickCookie, null);
-            toggle(w, contentX, y, "Buy Best Upgrade", cfg::isCfAutoUpgrade, cfg::setCfAutoUpgrade, null);
-            toggle(w, contentX, y, "Claim Stray Rabbits", cfg::isCfClaimStrays, cfg::setCfClaimStrays, null);
-            toggle(w, contentX, y, "Auto Time Tower", cfg::isCfAutoTimeTower, cfg::setCfAutoTimeTower, null);
-            slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getCfMinDelayMs() + "ms",
-                    norm(cfg.getCfMinDelayMs(), CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS),
-                    v -> cfg.setCfMinDelayMs(denorm(v, CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS)));
-            slider(w, contentX + half + 8, y[0], half, () -> "Max Delay: " + cfg.getCfMaxDelayMs() + "ms",
-                    norm(cfg.getCfMaxDelayMs(), CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS),
-                    v -> cfg.setCfMaxDelayMs(denorm(v, CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS)));
-            y[0] += 24;
-            slider(w, contentX, y[0], BTN_W, () -> "Upgrade Delay: " + cfg.getCfUpgradeDelayMs() + "ms",
-                    norm(cfg.getCfUpgradeDelayMs(), CheatUtilsConfig.MIN_CF_UPGRADE_DELAY_MS, CheatUtilsConfig.MAX_CF_UPGRADE_DELAY_MS),
-                    v -> cfg.setCfUpgradeDelayMs(denorm(v, CheatUtilsConfig.MIN_CF_UPGRADE_DELAY_MS, CheatUtilsConfig.MAX_CF_UPGRADE_DELAY_MS)));
-            y[0] += 24;
-        }
         return w;
     }
 
-    private static Component classText(CheatUtilsConfig cfg) {
-        String c = cfg.getUltClassOverride();
-        return Component.literal("Class: §b" + ("AUTO".equalsIgnoreCase(c) ? "Auto (tab list)" : c.charAt(0) + c.substring(1).toLowerCase(java.util.Locale.ROOT)));
+    private static String gateSpacingText(DungeonExtrasConfig cfg) {
+        int t = cfg.getActionGateMinSpacingTicks();
+        return "Min Spacing: " + t + " tick" + (t == 1 ? "" : "s") + " (" + (t * 50) + " ms)";
     }
 
     private static double norm(int value, int min, int max) {

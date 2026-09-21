@@ -53,7 +53,7 @@ public class NewTab extends FolderTab {
                 new StorageSearchTab(),
                 new WaypointRoutesTab(),
                 new PathfindingTab(),
-                new DungeonExtrasTab(),
+                new CustomMageBeamTab(),
                 new DungeonQueueTab(),
                 new MaskInvincibilityTab(),
                 new ModChatTab(),
@@ -99,6 +99,9 @@ public class NewTab extends FolderTab {
             tabs.add(new InteractiveMapTab());
             tabs.add(new FastLeapTab());
             tabs.add(new CheatUtilsTab());
+            tabs.add(new AutoGfsTab());
+            tabs.add(new AutoUltTab());
+            tabs.add(new AutoChocolateFactoryTab());
             tabs.add(new SecretTriggerbotTab());
             tabs.add(new DoorHelpersTab());
             tabs.add(new DungeonBreakerTab());
@@ -108,6 +111,12 @@ public class NewTab extends FolderTab {
             tabs.add(new TerminalTriggerbotTab());
             tabs.add(new AutoRoutesTab());
             tabs.add(new Ap3Tab());
+            // Split out of the old "Dungeon Extras" tab 2026-09-20 (killer560: "remove that tab. Make a
+            // breaker aura tab itself. make auto dialoug its own category as well") - see BreakerAuraTab,
+            // AutoDialogueTab and CustomMageBeamTab (the last one is legit and lives in the normal list
+            // above, since Custom Mage Beam has no CHEAT_FEATURES_ENABLED gate of its own).
+            tabs.add(new BreakerAuraTab());
+            tabs.add(new AutoDialogueTab());
         }
         return tabs;
     }

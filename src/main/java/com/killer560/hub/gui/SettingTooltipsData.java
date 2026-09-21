@@ -342,7 +342,7 @@ final class SettingTooltipsData {
         d.put("ability timers", "Master switch: bound keys start countdowns and running timers show in the Ability Timers HUD list (hidden while a screen is open).");
         d.put("+ add timer", "Adds a new countdown timer to the list (60s, no key bound).");
         d.put("key", "Key this entry uses. Click, then press a key; Escape clears it.");
-        d.put("duration", "How long this lasts. Ability Timers: countdown length (+5s per click, wraps at 300s). Dungeon Extras: Mage beam lifetime in ticks.");
+        d.put("duration", "How long this lasts. Ability Timers: countdown length (+5s per click, wraps at 300s). Custom Mage Beam: Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer's countdown right now so you can check how it looks on the HUD.");
         d.put("secrets hud", "Shows your team's Secrets Found count and percentage (read from the tab list) while in a dungeon. It is part of the 'Dungeon Info (Secrets/Time)' HUD element, which you move in the HUD editor.");
         d.put("run time hud", "Shows the current or last run's time on the Dungeon Info HUD: real time since the mod detected you in the dungeon, plus a 'No Lag' time counted from server ticks.");
@@ -595,7 +595,7 @@ final class SettingTooltipsData {
         d.put("breaker aura", "Cheat build only. In dungeons, while you hold a Dungeon Breaker with charges, breaks blocks in your walking path (or where you face when standing still). Never breaks chests, levers, buttons, skulls, obsidian or bedrock.");
         d.put("zero ping", "Cheat build only. Blocks you break vanish instantly on your screen instead of waiting for the server.");
         d.put("blocks/cycle", "Cheat build only. Maximum blocks Breaker Aura breaks at once (1-5), also limited by remaining charges.");
-        d.put("cooldown", "Minimum wait between two automatic actions. Dungeon Extras uses ticks; Secret Triggerbot uses milliseconds.");
+        d.put("cooldown", "Minimum wait between two automatic actions. Breaker Aura uses ticks; Secret Triggerbot uses milliseconds.");
         d.put("auto requeue", "Sends /instancerequeue automatically when a dungeon run's end summary (EXTRA STATS) appears. At most once per run.");
         d.put("requeue delay", "Seconds to wait (0-30) after the run summary before Auto Requeue sends /instancerequeue.");
         d.put("disable on leave/kick", "Skips the next auto requeue if someone leaves, is kicked, or the party disbands. Resets when you change world.");
@@ -1167,9 +1167,6 @@ final class SettingTooltipsData {
 
         // ---- Cheat Utils ----
         d.put("secret aura (dungeons)", "Cheat build only. Clicks nearby secret chests, levers and Wither Essence for you while clearing a dungeon.");
-        d.put("auto gfs (dungeons, /gfs from sacks)", "Cheat build only. Runs /gfs to top your pearls, leaps, superbooms and jerries back up from your sacks during a run.");
-        d.put("auto ult (f7/m7 boss, healer/tank)", "Cheat build only. Casts your Healer or Tank ultimate at set moments in the F7/M7 boss.");
-        d.put("auto chocolate factory (in its gui)", "Cheat build only. Plays the Chocolate Factory menu for you: clicks the cookie, buys upgrades, claims strays.");
 
         // ---- Rag Axe ----
         d.put("cast", "Alerts around casting the Ragnarock Axe: the 3s channel starting, it being cancelled, and the strength buff landing.");
@@ -1369,9 +1366,7 @@ final class SettingTooltipsData {
         d.put("blessings/life color", "Colour of the Life line on the Blessings HUD (default dark green).");
         d.put("blessings/announce in chat", "Posts a client-side line only you can see each time a blessing level goes up.");
         d.put("blessings/announce in party", "Also sends the new level to party chat with /pc - once per blessing per run, so a five-blessing pickup can't spam the party.");
-        d.put("cheat utils", "Cheat build only. A group of macros: Secret Aura, Auto GFS restocking, Auto Ult and the Chocolate Factory clicker.");
-        d.put("cheat utils/min delay", "Cheat build only. Shortest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Raising it past Max Delay pushes Max Delay up.");
-        d.put("cheat utils/max delay", "Cheat build only. Longest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Lowering it below Min Delay pulls Min Delay down.");
+        d.put("cheat utils", "Cheat build only. Secret Aura (auto-interacts with dungeon secrets), plus the shared Action Gate pacing used by every cheat automation in the mod. Auto GFS, Auto Ult and Auto Chocolate Factory each moved to their own tab 2026-09-20.");
         d.put("click translate", "Adds a click action to chat messages that translates them into the language set below.");
         d.put("auto correct", "Fixes common typing mistakes in the chat messages you send, before they leave your client.");
         d.put("chat emotes", "Replaces Hypixel's emote shortcuts at the start or end of a message with the real emote text, client-side, before the message is sent.");
@@ -1401,13 +1396,6 @@ final class SettingTooltipsData {
         d.put("dungeon alerts/on-screen text", "Shows the room name as centred orange text on screen when a room alert fires. Move or resize it in the HUD editor.");
         d.put("dungeon alerts/display time", "How long the room alert's on-screen text stays up, 0.5-3.0 seconds.");
         d.put("dungeon breaker/zero ping", "Cheat build only. While you hold a Dungeon Breaker with charges left, the block you start mining disappears on your screen instantly instead of after the server confirms it. The server still decides whether it really broke.");
-        d.put("dungeon extras/fade", "Fades the custom Mage beam out over its Duration instead of it vanishing all at once at the end.");
-        d.put("dungeon extras/width", "How thick the custom Mage beam is drawn, in real world thickness (1 is about 5cm, 20 is a full block).");
-        d.put("dungeon extras/duration", "How long each custom Mage beam stays drawn, 5-100 ticks (20 ticks = 1 second).");
-        d.put("dungeon extras/delay", "Cheat build only. How long Auto Dialogue waits before clicking the option, 0-40 ticks (20 ticks = 1 second).");
-        d.put("dungeon extras/reach", "Cheat build only. How far ahead (1.0-5.5 blocks) Breaker Aura looks for blocks to break.");
-        d.put("dungeon extras/zero ping", "Cheat build only. Blocks that Breaker Aura breaks vanish on your screen instantly instead of waiting for the server. Obsidian is never shown as broken early.");
-        d.put("dungeon extras/cooldown", "Cheat build only. How long Breaker Aura waits after breaking something before it tries again, 1-20 ticks (20 ticks = 1 second).");
         d.put("secrets/score/timing/trigger", "The exact in-game event that sends the message on this row. Each alert sends at most once per run, and only inside a dungeon.");
         d.put("dungeon queue/highlight", "Fills each party head in the Party Finder with a colour: joinable or blocked (Catacombs level, class level, previous floor not completed, or your class already taken). Set the colours below.");
         d.put("dungeon queue/compact", "Member line format in party tooltips: None keeps Hypixel's line and adds stats, Style 1 and Style 2 are shorter formats, Custom uses the Custom Style text you type.");
@@ -1688,5 +1676,20 @@ final class SettingTooltipsData {
         d.put("croesus/auto croesus", "Cheat build only. You open Croesus yourself, then it opens each unopened run and claims that run's most profitable chest, as long as the profit clears your Min Profit. Closing the menu stops it.");
         d.put("rag axe/mage reduction", "Shortens the cooldown countdown while you are playing Mage, because Mage's dungeon perk really does make abilities come back faster. Detected from your own class, so it turns itself off on any other class. Hypixel never tells the client the exact number, which is why the amount below is yours to set.");
         d.put("rag axe/mage cut", "How much shorter the cooldown is on Mage, as a percentage. Click to step by 5% (wraps at 50%). 25% is the commonly quoted base; raise it if your class level gives you more.");
+        d.put("custom mage beam/fade", "Fades the custom Mage beam out over its Duration instead of it vanishing all at once at the end.");
+        d.put("custom mage beam/width", "How thick the custom Mage beam is drawn, in real world thickness (1 is about 5cm, 20 is a full block).");
+        d.put("custom mage beam/duration", "How long each custom Mage beam stays drawn, 5-100 ticks (20 ticks = 1 second).");
+        d.put("auto dialogue/delay", "Cheat build only. How long Auto Dialogue waits before clicking the option, 0-40 ticks (20 ticks = 1 second).");
+        d.put("breaker aura/reach", "Cheat build only. How far ahead (1.0-5.5 blocks) Breaker Aura looks for blocks to break.");
+        d.put("breaker aura/zero ping", "Cheat build only. Blocks that Breaker Aura breaks vanish on your screen instantly instead of waiting for the server. Obsidian is never shown as broken early.");
+        d.put("breaker aura/cooldown", "Cheat build only. How long Breaker Aura waits after breaking something before it tries again, 1-20 ticks (20 ticks = 1 second).");
+        d.put("breaker aura/auto swap", "Cheat build only. Lets Breaker Aura switch your held hotbar slot to the Dungeon Breaker itself instead of requiring it already in your hand.");
+        d.put("breaker aura/pause in edit mode", "Cheat build only. Breaker Aura stops swinging while Auto Routes' edit mode is active, so placing route nodes next to blocks doesn't get them broken.");
+        d.put("breaker aura/swap delay", "Cheat build only. Ticks Breaker Aura waits after swapping to the Dungeon Breaker before it swings, so the server has time to see the slot change.");
+        d.put("breaker aura/swap back after", "Cheat build only. Idle ticks with nothing left to break before Auto Swap switches your hotbar back to what you were holding.");
+        d.put("auto chocolate factory/min delay", "Cheat build only. Shortest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Raising it past Max Delay pushes Max Delay up.");
+        d.put("auto chocolate factory/max delay", "Cheat build only. Longest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Lowering it below Min Delay pulls Min Delay down.");
+        d.put("action gate", "Cheat build only. A shared pacing gate for every cheat automation (Breaker Aura, Lever Aura, Terminal Aura, Secret Aura, Auto GFS, Auto Ult, Auto Dialogue and friends) so their clicks/swings never land closer together than Min Spacing, on top of each feature's own cooldown.");
+        d.put("cheat utils/min spacing", "Cheat build only. Minimum ticks between any two automatic actions across every cheat feature the Action Gate covers, on top of each feature's own cooldown (20 ticks = 1 second).");
     }
 }
