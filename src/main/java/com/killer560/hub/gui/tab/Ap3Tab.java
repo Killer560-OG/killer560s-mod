@@ -158,10 +158,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX, y, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45, null);
         toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
 
-        // Aligns are input-only now (no position writes - Hypixel lags those back), so "aligned" is within this.
+        // Aligns are input-only (no position writes - Hypixel lags those back) and land exactly; this is how far off,
+        // per axis, still counts as landed (0.0005 = the exact 3-decimal coordinate).
         header(w, contentX, y, contentWidth, "Align");
         w.add(slider(contentX, y[0], BTN_W, alignToleranceText(cfg), Ap3Config.MIN_ALIGN_TOLERANCE, Ap3Config.MAX_ALIGN_TOLERANCE,
-                cfg.getAlignTolerance(), 0.005, cfg::setAlignTolerance, () -> alignToleranceText(cfg), cfg::save));
+                cfg.getAlignTolerance(), 0.0001, cfg::setAlignTolerance, () -> alignToleranceText(cfg), cfg::save));
         y[0] += 24;
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
@@ -364,7 +365,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component alignToleranceText(Ap3Config cfg) {
-        return Component.literal(String.format(Locale.US, "Align Tolerance: %.3f", cfg.getAlignTolerance()));
+        return Component.literal(String.format(Locale.US, "Align Tolerance: %.4f", cfg.getAlignTolerance()));
     }
 
     private static Component labelScaleText(Ap3Config cfg) {

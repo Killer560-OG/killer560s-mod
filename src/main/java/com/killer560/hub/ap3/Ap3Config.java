@@ -70,11 +70,12 @@ public final class Ap3Config {
     public static final float MAX_THICKNESS = 8f;
     public static final float MIN_HEIGHT = 0.1f;
     public static final float MAX_HEIGHT = 1f;
-    /** "Align Tolerance": how far from the point an align may settle. Inputs alone cannot always land on .500 at a
-     *  big speed buff (and AP3 never writes position - Hypixel lags that back), so this is the honest finish line. */
-    public static final double MIN_ALIGN_TOLERANCE = 0.005;
+    /** "Align Tolerance": how far from the point, per axis, an align may settle. 0.0005 = the coordinate reads the
+     *  exact 3-decimal value (killer560: "down to 3 decimals of perfect"). AP3 lands there by movement input alone -
+     *  it never writes position, Hypixel lags that back - solving vanilla's own step exactly ({@code Ap3AlignMath}). */
+    public static final double MIN_ALIGN_TOLERANCE = 0.0001;
     public static final double MAX_ALIGN_TOLERANCE = 0.1;
-    public static final double DEFAULT_ALIGN_TOLERANCE = 0.03;
+    public static final double DEFAULT_ALIGN_TOLERANCE = 0.0005;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;
@@ -235,7 +236,9 @@ public final class Ap3Config {
                 cfg.labelColorArgb = ConfigJson.getInt(o, "labelColorArgb", cfg.labelColorArgb);
                 cfg.setLabelScale(ConfigJson.getFloat(o, "labelScale", cfg.labelScale));
                 cfg.setLabelHeightOffset(ConfigJson.getFloat(o, "labelHeightOffset", cfg.labelHeightOffset));
-                cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignTolerance", cfg.alignTolerance));
+                // Saved under a new key: the previous build's "alignTolerance" was a loose 0.03 default, and aligns must now
+                // land to 3 decimals, so that old value is deliberately ignored once (killer560, 2026-09-21).
+                cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignToleranceExact", cfg.alignTolerance));
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
                 cfg.setLeapDetectRadius(ConfigJson.getDouble(o, "leapDetectRadius", cfg.leapDetectRadius));
@@ -283,7 +286,7 @@ public final class Ap3Config {
             o.addProperty("labelColorArgb", labelColorArgb);
             o.addProperty("labelScale", labelScale);
             o.addProperty("labelHeightOffset", labelHeightOffset);
-            o.addProperty("alignTolerance", alignTolerance);
+            o.addProperty("alignToleranceExact", alignTolerance);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
             o.addProperty("leapDetectRadius", leapDetectRadius);
@@ -438,7 +441,7 @@ public final class Ap3Config {
     public double getAlignTolerance() { return alignTolerance; }
     public void setAlignTolerance(double v) {
         if (Double.isFinite(v)) {
-            alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 1000.0) / 1000.0));
+            alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 10000.0) / 10000.0));
         }
     }
 
