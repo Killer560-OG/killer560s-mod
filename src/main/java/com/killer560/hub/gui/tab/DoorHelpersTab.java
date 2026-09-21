@@ -110,11 +110,6 @@ public class DoorHelpersTab extends BaseTab implements KeyCaptureTab {
                         cfg.save();
                         btn.setMessage(onOff("Swing Hand", cfg.isAutoDoorSwing()));
                     }).bounds(contentX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("In Menus", cfg.isAutoDoorInMenus()), btn -> {
-                        cfg.setAutoDoorInMenus(!cfg.isAutoDoorInMenus());
-                        cfg.save();
-                        btn.setMessage(onOff("In Menus", cfg.isAutoDoorInMenus()));
-                    }).bounds(col2bX, y, col2W, 18).build());
             y += 22;
         }
         y += 6;

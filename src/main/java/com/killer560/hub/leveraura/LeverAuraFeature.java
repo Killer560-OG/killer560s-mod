@@ -212,8 +212,8 @@ public final class LeverAuraFeature {
             gate = "not in P3 area";
         } else if (section > 2) {
             gate = "past S2 (section " + section + ")";
-        } else if (client.screen != null) {
-            gate = "screen open";
+        } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            gate = "a container screen is open";
         }
         logGate(gate == null ? (section == 1 ? "active (S2 not open)" : "active (S2 open)") : gate);
         if (gate != null) {

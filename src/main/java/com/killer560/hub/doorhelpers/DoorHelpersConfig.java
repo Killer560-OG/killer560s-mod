@@ -40,7 +40,6 @@ public final class DoorHelpersConfig {
     private double autoDoorRange = 5.0;
     private int autoDoorRetryDelayMs = 500;
     private boolean autoDoorSwing = false;
-    private boolean autoDoorInMenus = false;
 
     // Look At Door
     private boolean lookAtDoorEnabled = false;
@@ -72,7 +71,6 @@ public final class DoorHelpersConfig {
             cfg.setAutoDoorRange(ConfigJson.getDouble(obj, "autoDoorRange", cfg.autoDoorRange));
             cfg.setAutoDoorRetryDelayMs(ConfigJson.getInt(obj, "autoDoorRetryDelayMs", cfg.autoDoorRetryDelayMs));
             cfg.autoDoorSwing = ConfigJson.getBool(obj, "autoDoorSwing", cfg.autoDoorSwing);
-            cfg.autoDoorInMenus = ConfigJson.getBool(obj, "autoDoorInMenus", cfg.autoDoorInMenus);
             cfg.lookAtDoorEnabled = ConfigJson.getBool(obj, "lookAtDoorEnabled", cfg.lookAtDoorEnabled);
             cfg.lookAtDoorKey = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "lookAtDoorKey", cfg.lookAtDoorKey));
             cfg.lookAtDoorOnKeyPickup = ConfigJson.getBool(obj, "lookAtDoorOnKeyPickup", cfg.lookAtDoorOnKeyPickup);
@@ -92,7 +90,6 @@ public final class DoorHelpersConfig {
             obj.addProperty("autoDoorRange", autoDoorRange);
             obj.addProperty("autoDoorRetryDelayMs", autoDoorRetryDelayMs);
             obj.addProperty("autoDoorSwing", autoDoorSwing);
-            obj.addProperty("autoDoorInMenus", autoDoorInMenus);
             obj.addProperty("lookAtDoorEnabled", lookAtDoorEnabled);
             obj.addProperty("lookAtDoorKey", lookAtDoorKey);
             obj.addProperty("lookAtDoorOnKeyPickup", lookAtDoorOnKeyPickup);
@@ -149,14 +146,6 @@ public final class DoorHelpersConfig {
 
     public void setAutoDoorSwing(boolean autoDoorSwing) {
         this.autoDoorSwing = autoDoorSwing;
-    }
-
-    public boolean isAutoDoorInMenus() {
-        return autoDoorInMenus;
-    }
-
-    public void setAutoDoorInMenus(boolean autoDoorInMenus) {
-        this.autoDoorInMenus = autoDoorInMenus;
     }
 
     // ---- Look At Door ----

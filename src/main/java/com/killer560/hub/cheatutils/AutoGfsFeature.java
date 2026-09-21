@@ -88,7 +88,7 @@ public final class AutoGfsFeature {
                 : client.player == null ? "no-player"
                 : !CheatUtils.isOnDungeonServer(client) ? "not on hypixel/p3sim"
                 : !DungeonState.isInDungeon() ? "not in dungeon"
-                : client.screen != null ? "screen open" : null;
+                : com.killer560.hub.util.ActionGate.containerScreenOpen(client) ? "a container screen is open" : null;
         String gateLog = gate == null ? "active" : gate;
         if (!gateLog.equals(lastGate)) {
             lastGate = gateLog;

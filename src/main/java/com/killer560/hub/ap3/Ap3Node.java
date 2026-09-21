@@ -90,9 +90,13 @@ public final class Ap3Node {
         }
 
         /** Nodes whose whole point is WHERE you stand: they always wait for you to be inside their box, and refuse
-         *  when nothing is carrying you there. The others fire on the spot when no walk is being held. */
+         *  when nothing is carrying you there. The others fire on the spot when no walk is being held.
+         *  <p>
+         *  WALK / RUN are NOT positional (killer560, 2026-09-20 in-game test: "for the walk command if i am in it
+         *  then it should keep me walking until i hit a different node not stop after 1 tick"): a mover begins its
+         *  held walk from wherever the chain reaches it - it never refuses because you are not standing on it. */
         public boolean isPositional() {
-            return isAlign() || isMover() || this == STOP || this == BOOM;
+            return isAlign() || this == STOP || this == BOOM;
         }
 
         /** Nodes that block waiting for something outside the executor's control. A manual LEFT-CLICK satisfies
@@ -127,8 +131,6 @@ public final class Ap3Node {
 
     public static final double DEFAULT_LENGTH = 1.0;
     public static final double DEFAULT_WIDTH = 1.0;
-    /** Align nodes get a bigger default box: a walk has to be able to carry you INTO it (his old AP3 used 4x4). */
-    public static final double DEFAULT_ALIGN_BOX = 3.0;
     public static final double MIN_LENGTH = 0.5;
     public static final double MAX_LENGTH = 64.0;
     public static final double MIN_WIDTH = 0.5;
@@ -182,10 +184,9 @@ public final class Ap3Node {
         this.z = z;
         this.yaw = yaw;
         this.pitch = pitch;
-        if (type != null && type.isAlign()) {
-            this.length = DEFAULT_ALIGN_BOX;
-            this.width = DEFAULT_ALIGN_BOX;
-        }
+        // killer560 (2026-09-20 in-game test): "The align shouldnt default to this 3x3. It should only be the small
+        // inner box." Every node - aligns included - now defaults to the 1x1 block it sits on; an align still pulls
+        // you in from ALIGN_REACH once the chain reaches it, so a small box does not mean it is easy to miss.
     }
 
     // ---- snapping -------------------------------------------------------------------------------------------

@@ -126,9 +126,10 @@ public final class BreakerAuraFeature {
             skip("Auto Routes edit mode is active");
             return;
         }
-        if (client.screen != null) {
-            // Redundant with ActionGate's WORLD rule, but cheaper and it keeps the swap-back from firing mid-menu.
-            skip("screen open");
+        if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            // Mirrors ActionGate's WORLD rule (container screens only, not this mod's own menu),
+            // but cheaper, and it keeps the swap-back from firing mid-menu.
+            skip("a container screen is open");
             return;
         }
         if (!(client.gameMode instanceof MultiPlayerGameModeInvoker invoker)) {

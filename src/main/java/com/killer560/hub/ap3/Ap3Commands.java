@@ -6,8 +6,12 @@ import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +19,10 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The whole {@code /ap3} command tree, plus the one place every action's real body lives.
@@ -89,7 +95,6 @@ public final class Ap3Commands {
         REPLACE_LAST("replace_last", "Re-place Last Chain Node", "/ap3 replace <n> [pos|look]"),
         CLEAR("clear", "Clear Chain", "/ap3 clear"),
         RELOAD("reload", "Reload Chains File", "/ap3 reload"),
-        START("start", "Start Chain", "/ap3 start"),
         STOP("stop", "Stop Chain", "/ap3 stop"),
         TEST_MODE("testmode", "Test Mode", "/ap3 testmode");
 
@@ -112,6 +117,56 @@ public final class Ap3Commands {
     private Ap3Commands() {
     }
 
+    // ---- tab completion (killer560, 2026-09-20 in-game test: "Make sure tab will fill in things like walk and
+    //      axisalign and whatnot and show them as options, same for the mods to them.") ----
+
+    /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
+    private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "walk", "run", "leap",
+            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch");
+    /** Modifiers offered after any {@code /ap3 add <type>}. */
+    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise");
+
+    private static final SuggestionProvider<FabricClientCommandSource> TYPE_SUGGEST =
+            (ctx, b) -> suggestTokens(b, TYPE_WORDS);
+
+    /** Context-aware modifier completion: the common modifiers for every type, plus the leap target words for a
+     *  Leap and the counts for a Leap Counter. */
+    private static final SuggestionProvider<FabricClientCommandSource> MOD_SUGGEST = (ctx, b) -> {
+        List<String> opts = new ArrayList<>(COMMON_MODS);
+        try {
+            Ap3Node.Type t = Ap3Node.Type.parse(StringArgumentType.getString(ctx, "type"));
+            if (t == Ap3Node.Type.LEAP) {
+                opts.addAll(List.of("default", "class", "ign", "mage", "archer", "bers", "tank", "healer"));
+            } else if (t == Ap3Node.Type.LEAP_COUNTER) {
+                opts.addAll(List.of("1", "2", "3", "4"));
+            }
+        } catch (Exception ignored) {
+            // no type yet - just offer the common modifiers
+        }
+        return suggestTokens(b, opts);
+    };
+
+    private static final SuggestionProvider<FabricClientCommandSource> CLASS_SUGGEST =
+            (ctx, b) -> suggestTokens(b, List.of("mage", "archer", "bers", "tank", "healer"));
+
+    /**
+     * Suggests {@code options} for the LAST whitespace-separated token of the argument's input, so completion works
+     * inside a greedy modifier string ("walk w1 cl" -> "close") as well as for a single word.
+     */
+    private static CompletableFuture<Suggestions> suggestTokens(SuggestionsBuilder b, List<String> options) {
+        String remaining = b.getRemaining();
+        int lastSpace = remaining.lastIndexOf(' ');
+        String token = lastSpace < 0 ? remaining : remaining.substring(lastSpace + 1);
+        SuggestionsBuilder offset = b.createOffset(b.getStart() + lastSpace + 1);
+        String low = token.toLowerCase(Locale.ROOT);
+        for (String o : options) {
+            if (o.toLowerCase(Locale.ROOT).startsWith(low)) {
+                offset.suggest(o);
+            }
+        }
+        return offset.buildFuture();
+    }
+
     // ---- registration ----
 
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
@@ -125,11 +180,13 @@ public final class Ap3Commands {
                         // "/ap3 add <type> [modifiers...]" - one word for the type, the rest free-form modifiers.
                         .then(ClientCommands.literal("add")
                                 .then(ClientCommands.argument("type", StringArgumentType.word())
+                                        .suggests(TYPE_SUGGEST)
                                         .executes(context -> {
                                             addCommand(StringArgumentType.getString(context, "type"), "");
                                             return 1;
                                         })
                                         .then(ClientCommands.argument("mods", StringArgumentType.greedyString())
+                                                .suggests(MOD_SUGGEST)
                                                 .executes(context -> {
                                                     addCommand(StringArgumentType.getString(context, "type"),
                                                             StringArgumentType.getString(context, "mods"));
@@ -139,7 +196,6 @@ public final class Ap3Commands {
                         .then(ClientCommands.literal("undo").executes(context -> exec(Action.UNDO)))
                         .then(ClientCommands.literal("clear").executes(context -> exec(Action.CLEAR)))
                         .then(ClientCommands.literal("reload").executes(context -> exec(Action.RELOAD)))
-                        .then(ClientCommands.literal("start").executes(context -> exec(Action.START)))
                         .then(ClientCommands.literal("stop").executes(context -> exec(Action.STOP)))
                         .then(ClientCommands.literal("testmode").executes(context -> exec(Action.TEST_MODE)))
                         // "/ap3 delete [n]" and "/ap3 remove [n]" are the same command (killer560: "Both delete and
@@ -214,6 +270,7 @@ public final class Ap3Commands {
                                                         Ap3Node.LeapMode.DEFAULT, null, null) ? 1 : 0))
                                                 .then(ClientCommands.literal("class")
                                                         .then(ClientCommands.argument("c", StringArgumentType.word())
+                                                                .suggests(CLASS_SUGGEST)
                                                                 .executes(context -> setLeap(
                                                                         IntegerArgumentType.getInteger(context, "n") - 1,
                                                                         Ap3Node.LeapMode.CLASS,
@@ -318,7 +375,6 @@ public final class Ap3Commands {
             case REPLACE_LAST -> replaceLast();
             case CLEAR -> clear();
             case RELOAD -> reload();
-            case START -> startChain();
             case STOP -> stopChain();
             case TEST_MODE -> toggleTestMode();
         }
@@ -349,6 +405,7 @@ public final class Ap3Commands {
 
     private static void help() {
         ModChat.send(FEATURE, ModChat.text("Commands (F7/M7 boss only - any phase, one chain per area P1 / P2 / S1-S5 / P4 / P5):"));
+        ModChat.send(FEATURE, ModChat.dim("There is no start - a chain runs itself the moment you WALK INTO its first node."));
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
@@ -512,7 +569,7 @@ public final class Ap3Commands {
         Ap3Executor.setTestMode(on);
         if (on) {
             ModChat.send(FEATURE, ModChat.text("Test mode "), ModChat.good("ON"),
-                    ModChat.dim(" - /ap3 start runs every node; terminals, leap counters and close gates are skipped, and ANY key or button stops it. /ap3 testmode again to leave."));
+                    ModChat.dim(" - the chain still arms when you walk into its first node, but runs every node as a dry run: terminals, leap counters and close gates are skipped, and ANY key or button stops it. /ap3 testmode again to leave."));
         } else {
             if (Ap3Executor.isRunning()) {
                 Ap3Executor.stop("test mode off");
@@ -742,27 +799,6 @@ public final class Ap3Commands {
         ModChat.send(FEATURE, ModChat.text("Reloaded "), ModChat.value(loaded + " chain" + (loaded == 1 ? "" : "s")),
                 ModChat.text(" from "), ModChat.value(file.getFileName().toString()),
                 ModChat.dim(exists ? "." : " - no file yet; it's written the first time you add a node."));
-    }
-
-    /**
-     * Preconditions are checked here so the chat line is ours: the core's {@code start()} is only reached when
-     * there is something to run. BOSS ONLY - "It should only work in the boss stages, not in regular clear."
-     */
-    private static void startChain() {
-        if (Ap3Executor.isRunning()) {
-            ModChat.send(FEATURE, ModChat.text("Already running. "), ModChat.dim("/ap3 stop first."));
-            return;
-        }
-        if (!inBoss()) {
-            ModChat.send(FEATURE, ModChat.bad("Not in the F7/M7 boss"), ModChat.text(" - AP3 only runs inside the boss fight."));
-            return;
-        }
-        int count = Ap3Feature.currentChainNodes().size();
-        if (count == 0) {
-            ModChat.send(FEATURE, ModChat.text("No chain for "), ModChat.value(areaName()), ModChat.dim(" - nothing to start."));
-            return;
-        }
-        Ap3Executor.start();
     }
 
     private static void stopChain() {

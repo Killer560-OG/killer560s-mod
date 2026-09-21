@@ -55,7 +55,11 @@ public final class MobEspConfig {
         }
     }
 
-    public static final int DEFAULT_STARRED_COLOR = 0xFFFFD700;
+    /** The mod's Amber accent (MenuRowWidget.ACCENT), not gold - killer560, 2026-09-20: "keep bat as green
+     *  but make it so the regular starred mob color is the orange our mod uses". */
+    public static final int DEFAULT_STARRED_COLOR = 0xFFCC6600;
+    /** What the default used to be, so the one-time migration below only touches an untouched setting. */
+    private static final int LEGACY_STARRED_GOLD = 0xFFFFD700;
     public static final int DEFAULT_BAT_COLOR = 0xFF55FF55;
     public static final int DEFAULT_WITHER_COLOR = 0xFFFF0000;
     public static final float MIN_LINE_WIDTH = 1.0f;
@@ -75,6 +79,8 @@ public final class MobEspConfig {
     /** The non-ESP wither highlight (both builds) - never draws through walls. */
     private boolean witherHighlight = false;
     private int starredColor = DEFAULT_STARRED_COLOR;
+    /** One-time marker for the gold -> Amber default change. */
+    private boolean starredColorAmberMigrated = false;
     private int batColor = DEFAULT_BAT_COLOR;
     private int witherColor = DEFAULT_WITHER_COLOR;
     private int witherHighlightColor = DEFAULT_WITHER_COLOR;
@@ -126,6 +132,15 @@ public final class MobEspConfig {
 
             if (obj.has("starredColor")) {
                 cfg.starredColor = ConfigJson.getInt(obj, "starredColor", DEFAULT_STARRED_COLOR);
+                cfg.starredColorAmberMigrated = ConfigJson.getBool(obj, "starredColorAmberMigrated", false);
+                // A config written before 2026-09-20 has the old gold saved explicitly, so a changed
+                // default would never reach him. Flip it once, and only if he never picked his own.
+                if (!cfg.starredColorAmberMigrated) {
+                    if (cfg.starredColor == LEGACY_STARRED_GOLD) {
+                        cfg.starredColor = DEFAULT_STARRED_COLOR;
+                    }
+                    cfg.starredColorAmberMigrated = true;
+                }
             } else if (obj.has("colorHex")) {
                 cfg.starredColor = parseHex(ConfigJson.getString(obj, "colorHex", "FFD700"), DEFAULT_STARRED_COLOR);
                 migrated = true;
@@ -216,6 +231,7 @@ public final class MobEspConfig {
             obj.addProperty("withers", withers);
             obj.addProperty("witherHighlight", witherHighlight);
             obj.addProperty("starredColor", starredColor);
+            obj.addProperty("starredColorAmberMigrated", starredColorAmberMigrated);
             obj.addProperty("batColor", batColor);
             obj.addProperty("witherColor", witherColor);
             obj.addProperty("witherHighlightColor", witherHighlightColor);

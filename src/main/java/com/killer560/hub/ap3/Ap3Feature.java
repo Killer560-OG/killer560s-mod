@@ -54,6 +54,8 @@ public final class Ap3Feature {
      *  trailing suffix so a line annotated by another mod (Odin's terminal splits) still matches. */
     private static final Pattern TERM_COMPLETED =
             Pattern.compile("^(.{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
+    /** Hypixel's line when a P3 gate goes down - a boom node's authoritative success signal. */
+    private static final String GATE_DESTROYED = "The gate has been destroyed!";
     /** {@code /ap3 delete} with no number: the nearest node has to be this close ... */
     private static final double NEAREST_MAX = 3.0;
     /** ... and every other node at least this much further away, or it is not "clearly" the one he means. */
@@ -68,6 +70,8 @@ public final class Ap3Feature {
     private static Ap3Node lastAdded;
     private static Ap3Chain lastAddedChain;
     private static boolean migrationReported;
+    /** Auto-arm edge state: were you inside the current chain's first node box last tick (see {@link #maybeAutoArm}). */
+    private static boolean prevInsideFirstBox;
 
     private Ap3Feature() {
     }
@@ -261,6 +265,7 @@ public final class Ap3Feature {
         }
         store.markEdited();
         store.save();
+        suppressAutoArm();
         chat(ModChat.text("Deleted "), ModChat.value("#" + (index + 1) + " " + removed.type.label()),
                 ModChat.dim(" from " + chain.label()));
         return true;
@@ -325,6 +330,7 @@ public final class Ap3Feature {
                 }
                 store.markEdited();
                 store.save();
+                suppressAutoArm();
                 chat(ModChat.text("Undone "), ModChat.value("#" + (i + 1) + " " + removed.type.label()),
                         ModChat.dim(" from " + chain.label()));
                 return true;
@@ -474,6 +480,7 @@ public final class Ap3Feature {
         boolean removed = store.remove(chain);
         store.markEdited();
         store.save();
+        suppressAutoArm();
         if (removed) {
             chat(ModChat.text("Cleared "), ModChat.value(chain.label()));
         } else {
@@ -487,6 +494,7 @@ public final class Ap3Feature {
         Ap3Store store = Ap3Store.getInstance();
         store.markEdited();
         store.save();
+        suppressAutoArm();
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("chain edited");
         }
@@ -497,6 +505,7 @@ public final class Ap3Feature {
         lastAdded = null;
         lastAddedChain = null;
         migrationReported = false;
+        suppressAutoArm();
     }
 
     // ------------------------------------------------------------------------------------------- node capture
@@ -553,6 +562,7 @@ public final class Ap3Feature {
         lastAdded = node;
         lastAddedChain = chain;
         store.save();
+        suppressAutoArm(); // you are standing on the node you just placed - don't let it drive you until you re-enter
         chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.describe()),
                 ModChat.dim(" to " + chain.label()));
         return true;
@@ -613,6 +623,9 @@ public final class Ap3Feature {
         Ap3Area area = currentArea();
         if (area == null ? lastArea != null : !area.equals(lastArea)) {
             lastArea = area;
+            // A teleport / leap into a new area must not auto-fire the moment you land on a node - require a fresh
+            // walk-in there too.
+            prevInsideFirstBox = true;
         }
         if (Ap3Executor.isRunning()) {
             Ap3Executor.tick(client);
@@ -625,8 +638,43 @@ public final class Ap3Feature {
             Ap3Chain next = Ap3Store.getInstance().forArea(area, selfClass());
             if (next != null && !next.isEmpty()) {
                 Ap3Executor.start(next);
+                prevInsideFirstBox = true;
+                return;
             }
         }
+        maybeAutoArm(area, client.player);
+    }
+
+    /**
+     * killer560 (2026-09-20 in-game test): "/ap3 start should not exist. If i ever walk into a node it should always
+     * fire." There is no start command any more; instead the chain arms itself and begins the moment you WALK INTO
+     * the first node's trigger box (a rising edge - stepping in from outside). Standing in the box after placing a
+     * node, after a stop, or after a completion does NOT re-fire it: you have to leave and walk back in, so it never
+     * fights you or fires while you are editing. Test Mode no longer gates arming; it only changes what runs (see
+     * {@link Ap3Executor}).
+     */
+    private static void maybeAutoArm(Ap3Area area, LocalPlayer player) {
+        if (area == null || player == null) {
+            prevInsideFirstBox = false;
+            return;
+        }
+        Ap3Chain chain = Ap3Store.getInstance().forArea(area, selfClass());
+        if (chain == null || chain.isEmpty()) {
+            prevInsideFirstBox = false;
+            return;
+        }
+        boolean inside = chain.nodes().get(0).contains(player.position());
+        boolean rising = inside && !prevInsideFirstBox;
+        prevInsideFirstBox = inside;
+        if (rising) {
+            Ap3Executor.start(chain);
+        }
+    }
+
+    /** After a placement / edit (or a teleport into a new area), require the player to leave and re-enter the first
+     *  node's box before the chain auto-arms again - so adding a node at your feet doesn't instantly drive you. */
+    static void suppressAutoArm() {
+        prevInsideFirstBox = true;
     }
 
     /** The version-1 file migration, said once in chat so a renamed / merged / dropped node is never a surprise. */
@@ -684,6 +732,13 @@ public final class Ap3Feature {
                 return;
             }
             String plain = ChatObserver.strip(message);
+            // Boom nodes confirm off Hypixel's own gate line (a Superboom's block change can arrive late / outside
+            // the sampled cube) - killer560 (2026-09-20): "it says the superboom didnt break anything even though
+            // 'The gate has been destroyed!' came through."
+            if (GATE_DESTROYED.equals(plain)) {
+                Ap3Executor.onGateDestroyed();
+                return;
+            }
             Matcher m = TERM_COMPLETED.matcher(plain);
             if (!m.matches()) {
                 return;
@@ -791,6 +846,7 @@ public final class Ap3Feature {
         }
         renderFailed = false;
         lastArea = null;
+        prevInsideFirstBox = false;
     }
 
     /** Never let a tick/render exception take the frame down: switch the feature off (persisted) and say so. */

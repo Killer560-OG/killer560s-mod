@@ -361,8 +361,8 @@ public final class ArrowAlignFeature {
             triggerAimIndex = -1;
             return;
         }
-        if (!active || solution == null || client.player == null || client.level == null || client.screen != null
-                || client.gameMode == null || client.level != lastLevel) {
+        if (!active || solution == null || client.player == null || client.level == null
+                || com.killer560.hub.util.ActionGate.containerScreenOpen(client) || client.gameMode == null || client.level != lastLevel) {
             triggerAimIndex = -1;
             return;
         }

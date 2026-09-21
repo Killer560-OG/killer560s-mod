@@ -39,7 +39,10 @@ public final class AutoDoorOpenerFeature {
     }
 
     static void tick(Minecraft client, DoorHelpersConfig cfg) {
-        if (DoorHelpersFeature.isDead(client) || (client.screen != null && !cfg.isAutoDoorInMenus())) {
+        // Screen rules live in ActionGate now, not here: a world action is refused while a CONTAINER
+        // screen is open (server-visible) and allowed while a purely client-side one is - this mod's
+        // menu, chat, pause. That is what the old "In Menus" toggle was reaching for, so it is gone.
+        if (DoorHelpersFeature.isDead(client)) {
             return;
         }
         long now = System.currentTimeMillis();

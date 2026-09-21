@@ -28,7 +28,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <ul>
  *   <li><b>One automated interaction per client tick</b> - the first accepted claim owns the tick.</li>
  *   <li><b>A minimum spacing</b> between consecutive automated interactions ({@link #setMinSpacingTicks}).</li>
- *   <li><b>Context</b>: a {@link Kind#WORLD} actor never fires while any screen is open; a {@link Kind#SCREEN} actor
+ *   <li><b>Context</b>: a {@link Kind#WORLD} actor never fires while a CONTAINER screen is open (see the
+ *       WORLD case below for why only containers); a {@link Kind#SCREEN} actor
  *       only fires while the exact screen it believes it is driving is the focused one.</li>
  *   <li><b>Mutual exclusion</b> between the two classes: for {@link #CROSS_CLASS_TICKS} ticks after a GUI
  *       automation clicks, world auras stand down, and vice versa.</li>
@@ -171,6 +172,19 @@ public final class ActionGate {
 
     // ---- settings ----
 
+    /**
+     * True while a CONTAINER screen is open - the only kind of screen a world action must stand down for.
+     * <p>
+     * Hypixel opened that container, so it knows the menu is up, and a world interaction sent while it is up
+     * is something no legitimate client produces. A purely client-side screen (this mod's menu, the HUD
+     * editor, chat, the pause menu) is invisible to the server, so acting with one open is indistinguishable
+     * from ordinary play. Features call this instead of testing {@code client.screen != null}, which blocked
+     * far more than safety required (killer560, 2026-09-20).
+     */
+    public static boolean containerScreenOpen(Minecraft client) {
+        return client != null && client.screen instanceof AbstractContainerScreen<?>;
+    }
+
     public static boolean isEnabled() {
         return enabled;
     }
@@ -301,8 +315,16 @@ public final class ActionGate {
         Screen screen = client.screen;
         switch (actor.kind) {
             case WORLD -> {
-                if (screen != null) {
-                    return deny(actor, "a screen is open");
+                // Only a CONTAINER screen blocks a world action, not every screen (killer560, 2026-09-20:
+                // "delete the in menus setting but let stuff still work in things like our mod menu").
+                // The distinction is what the SERVER can see. Hypixel opened the container, so it knows that
+                // menu is up, and a world interaction while it is up is something no real client can send -
+                // a hard tell. The player's own inventory counts too: closing it sends a container-close for
+                // id 0, so that state is server-visible as well. A purely client-side screen - this mod's
+                // menu, the HUD editor, chat, the pause menu, Termism - is invisible to the server, so acting
+                // with one open looks exactly like ordinary play on the wire and blocking it bought nothing.
+                if (screen instanceof AbstractContainerScreen<?>) {
+                    return deny(actor, "a container screen is open");
                 }
                 if (armed && tick - lastScreenTick < CROSS_CLASS_TICKS) {
                     return deny(actor, "a GUI automation just clicked");

@@ -47,9 +47,14 @@ import java.util.UUID;
  * <b>Order + boxes.</b> Nodes run in chain order; each one is performed once you are inside its trigger box
  * ({@link Ap3Node#contains}). A WALK / RUN sets a <b>held</b> walk in its recorded world direction that lasts until
  * a STOP or an align node (killer560, 2026-09-20: "keeps you walking until a stop or align node, not just until you
- * leave the node") - that held walk is what carries you into the next node's box. A node nothing is carrying you
- * toward fires on the spot (LOOK, LEAP, TERMINAL...), or refuses if it is positional (WALK, RUN, STOP, BOOM);
- * an align node pulls you in from up to {@value #ALIGN_REACH} blocks.
+ * leave the node") - that held walk is what carries you into the next node's box. A WALK / RUN begins its hold from
+ * wherever the chain reaches it and never box-waits (killer560, 2026-09-20 in-game test: "keep me walking until i hit
+ * a different node not stop after 1 tick") - a trailing WALK with nothing after it keeps you moving until you take
+ * control. A node nothing is carrying you toward fires on the spot (LOOK, LEAP, TERMINAL...), or refuses if it is
+ * positional (STOP, BOOM, an align); an align node pulls you in from up to {@value #ALIGN_REACH} blocks.
+ * <p>
+ * There is no start command: {@link Ap3Feature} auto-arms the chain and calls {@link #start(Ap3Chain)} the moment
+ * the player walks into the first node's trigger box.
  * <p>
  * <b>Movement</b> is written as the analog {@code moveVector} through {@code mixin/Ap3InputMixin} (falling back to
  * holding the key mappings when the mixin config is not loaded, exactly like {@code RouteExecutor}). A held walk
@@ -92,14 +97,26 @@ public final class Ap3Executor {
     private static final double VANILLA_INPUT_SCALE = 0.98;
     private static final double LATERAL_GAIN = 1.5;
     private static final double MIN_NUDGE = 0.08;
-    private static final double SNEAK_BELOW = 0.3;
+    /** Start crouching once within this much of the target: sneaking scales the input by the ~0.3 SNEAKING_SPEED
+     *  attribute, which is the tool killer560 named ("use crouches") for cutting the per-tick step on the approach. */
+    private static final double SNEAK_APPROACH = 0.4;
     private static final double SETTLE_SPEED = 0.02;
     private static final int SETTLE_TICKS = 2;
     /** How far an align node may pull you in from when nothing is carrying you into its box. */
     private static final double ALIGN_REACH = 4.0;
-    /** Ground friction is 0.6/tick, so a sliding player still travels ~1.5x the current per-tick velocity before
-     *  stopping - what "align must account for player drift" costs when you arrive at a run. */
-    private static final double DRIFT_FACTOR = 1.5;
+    /**
+     * Below this error, movement input stops resolving the last fraction of a block: at Skyblock 550%+ speed even a
+     * crouched single-tick step is ~0.2 blocks (movement-speed attribute, not vanilla), so no input can land inside
+     * 0.05. killer560 (2026-09-20 in-game test): "it does a very poor job of centering ... consistent down to the
+     * point where each number is .000 of the same ... my coordinate decimals should always read .500 .500". The last
+     * bit is closed by a bounded DIRECT position correction (see {@link #settleAligned}) - honest, and small.
+     */
+    private static final double CORRECT_BELOW = 0.15;
+    /** The direct correction never moves you more than this in one tick (a normal walking step is ~0.2), so it reads
+     *  as ordinary movement rather than a teleport. At most ~2 ticks are ever needed (0.15 / 0.08). */
+    private static final double MAX_CORRECT_PER_TICK = 0.08;
+    /** Finished only within this of the exact target, so the coordinate reads {@code .500} to three decimals. */
+    private static final double EXACT_EPS = 0.0004;
     /** A node that is not about position still fires when the held walk brings you this close to it, so a walk
      *  that passes half a block beside a 1x1 box cannot leave the chain waiting forever. Align nodes get the same
      *  leniency in every case - a version-1 corridor loads as a 1-wide box. */
@@ -184,6 +201,12 @@ public final class Ap3Executor {
     private static boolean swapSent;
     private static BlockPos boomTarget;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
+    /** Set by {@link #onGateDestroyed()} from the chat hook: Hypixel's own confirmation that a boom worked. */
+    private static volatile boolean boomChatConfirmed;
+    /** Half-extent of the cube of blocks a boom snapshots for its block-change confirmation. A Superboom's blast is
+     *  bigger than one block, so the 6 face-neighbours the first cut sampled could all be unchanged even when the
+     *  gate really broke (killer560, 2026-09-20: the gate WAS destroyed but AP3 said it wasn't). */
+    private static final int BOOM_SCAN_RADIUS = 2;
 
     // ---- stopwatch (survives across chains and areas; reset on world change) ----
     private static long stopwatchStartMs;
@@ -434,6 +457,17 @@ public final class Ap3Executor {
     }
 
     /**
+     * From {@link Ap3Feature}'s chat hook: Hypixel's "The gate has been destroyed!" line. This is the authoritative
+     * confirmation for a boom - a Superboom's block-change can arrive a tick late or outside the sampled cube, but
+     * the chat line means the gate is down (killer560, 2026-09-20: the line came through yet AP3 reported failure).
+     */
+    static void onGateDestroyed() {
+        if (running && activeNode != null && activeNode.type == Ap3Node.Type.BOOM) {
+            boomChatConfirmed = true;
+        }
+    }
+
+    /**
      * Per render frame: the smooth camera step (LOOK) and a frame-rate poll of the mouse button so a short click
      * between two ticks is never missed.
      * <p>
@@ -516,6 +550,15 @@ public final class Ap3Executor {
             }
             if (activeNode == null) {
                 if (nextNode >= chain.nodes().size()) {
+                    if (holdDir != null) {
+                        // A trailing WALK / RUN with no node after it keeps you moving until you take control -
+                        // killer560: "keep me walking until i hit a different node". With nothing to hit, that means
+                        // until a movement key, a stop, or a screen ends it (all handled above). The chain stays
+                        // running, driving only the held walk.
+                        applyHold(player);
+                        applyFallbackKeys(client);
+                        return;
+                    }
                     complete();
                     return;
                 }
@@ -600,7 +643,10 @@ public final class Ap3Executor {
             // Never keep walking with a terminal GUI open - that is the one screen a node opens on purpose.
             holdDir = null;
         }
-        step = node.closeGate && !testMode ? Step.GATE : Step.BOX;
+        // A WALK / RUN begins its held walk from wherever the chain reaches it - it never box-waits and never
+        // refuses because you are not standing on it (killer560, 2026-09-20: "keep me walking until i hit a
+        // different node not stop after 1 tick"). Everything else waits to be inside its trigger box.
+        step = node.closeGate && !testMode ? Step.GATE : (node.type.isMover() ? Step.PREP : Step.BOX);
         LOGGER.info("[AP3] Node #{} {}", number(node), node.describe());
     }
 
@@ -735,11 +781,36 @@ public final class Ap3Executor {
             step = Step.DO;
         }
         // Drive toward where the target will be relative to where the slide is taking you, not where you are now.
-        double px = ex - vel.x * DRIFT_FACTOR;
-        double pz = ez - vel.z * DRIFT_FACTOR;
+        // The drift is modelled from the REAL block friction under your feet, not a fixed constant, so it holds at
+        // 550%+ Skyblock speed where the old fixed 1.5x under-predicted the overshoot (killer560's report).
+        double stopF = stopFactor(player);
+        double px = ex - vel.x * stopF;
+        double pz = ez - vel.z * stopF;
         if (settleAligned(client, player, node, err, px, pz)) {
             finishNode();
         }
+    }
+
+    /**
+     * How far a horizontal slide carries you before friction stops it, as a multiple of the current per-tick
+     * velocity: {@code f / (1 - f)} where {@code f} is the real per-tick horizontal friction (block friction x 0.91
+     * on the ground, 0.91 in the air), read from the block under your feet - so "align must account for drift" is
+     * computed from the surface you are actually on rather than an assumed vanilla value. Clamped so an airborne or
+     * ice reading can't produce a wild prediction.
+     */
+    private static double stopFactor(LocalPlayer player) {
+        double f = 0.6 * 0.91;
+        try {
+            if (player.onGround()) {
+                BlockState below = player.level().getBlockState(player.getBlockPosBelowThatAffectsMyMovement());
+                f = below.getBlock().getFriction() * 0.91;
+            } else {
+                f = 0.91;
+            }
+        } catch (Throwable ignored) {
+        }
+        double factor = f / (1.0 - f);
+        return Mth.clamp(factor, 0.5, 3.0);
     }
 
     // ---- AXIS_ALIGN: pressed square against the wall you placed it on, the other axis to the node ---------------
@@ -766,31 +837,39 @@ public final class Ap3Executor {
         }
         Ap3Config cfg = Ap3Config.getInstance();
         boolean touching = touching(client.level, player, node.wallDir);
-        if (touching && Math.abs(perpErr) <= cfg.getAlignTolerance()) {
+        // Exact on the perpendicular axis with no momentum, pressed to the wall - the wall makes the other axis exact.
+        if (touching && Math.abs(perpErr) <= EXACT_EPS && Math.abs(perpVel) < SETTLE_SPEED) {
             clearMovement();
-            if (Math.abs(perpVel) < SETTLE_SPEED) {
-                if (++settleTicks >= SETTLE_TICKS) {
-                    finishNode();
-                }
-            } else {
-                settleTicks = 0;
+            if (++settleTicks >= SETTLE_TICKS) {
+                finishNode();
             }
             return;
         }
         settleTicks = 0;
         if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            stop(String.format(Locale.US, "couldn't align on axis align #%d (%s, %.2f off)", number(node),
+            stop(String.format(Locale.US, "couldn't align on axis align #%d (%s, %.3f off)", number(node),
                     touching ? "on the wall" : "not on the wall", Math.abs(perpErr)));
             return;
         }
+        // Final approach on the perpendicular axis: same bounded direct correction a plain ALIGN uses, while still
+        // leaning into the wall so the wall axis stays flush. Movement input can't hit .000 at 550% speed.
+        if (Math.abs(perpErr) <= CORRECT_BELOW) {
+            double stepMag = Math.copySign(Math.min(Math.abs(perpErr), MAX_CORRECT_PER_TICK), perpErr);
+            player.setPos(pos.x + perp.x * stepMag, pos.y, pos.z + perp.z * stepMag);
+            Vec3 nv = player.getDeltaMovement();
+            double vPerp = nv.x * perp.x + nv.z * perp.z; // cancel the perpendicular slide, keep the wall-ward push
+            player.setDeltaMovement(nv.x - perp.x * vPerp, nv.y, nv.z - perp.z * vPerp);
+            writeMove(player, wall.x * WALL_PUSH_HELD, wall.z * WALL_PUSH_HELD, false);
+            wantSneak = true;
+            return;
+        }
         // Into the wall at full speed until it stops you, then keep leaning on it; across it, the same
-        // drift-compensated nudge a plain ALIGN uses. The wall itself is what makes this axis exact.
+        // drift-compensated nudge a plain ALIGN uses, crouched as it closes in.
         double push = touching ? WALL_PUSH_HELD : 1.0;
-        double predicted = perpErr - perpVel * DRIFT_FACTOR;
-        double corr = Math.abs(perpErr) <= cfg.getAlignTolerance() ? 0.0
-                : Math.copySign(Mth.clamp(Math.abs(predicted) * LATERAL_GAIN, MIN_NUDGE, 1.0), predicted);
+        double predicted = perpErr - perpVel * stopFactor(player);
+        double corr = Math.copySign(Mth.clamp(Math.abs(predicted) * LATERAL_GAIN, MIN_NUDGE, 1.0), predicted);
         writeMove(player, wall.x * push + perp.x * corr, wall.z * push + perp.z * corr, false);
-        wantSneak = touching && Math.abs(perpErr) < SNEAK_BELOW;
+        wantSneak = touching && Math.abs(perpErr) < SNEAK_APPROACH;
     }
 
     /** Whether the player's box is pressed against a collidable block on that side (within {@value #WALL_TOUCH}). */
@@ -824,38 +903,48 @@ public final class Ap3Executor {
      * {@code err} is within tolerance with no momentum left.
      */
     private static boolean settleAligned(Minecraft client, LocalPlayer player, Ap3Node node, double err,
-                                         double ex, double ez) {
+                                         double px, double pz) {
         Ap3Config cfg = Ap3Config.getInstance();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-        if (err <= cfg.getAlignTolerance()) {
-            // Within tolerance: no input at all and let ground friction kill what momentum is left (sneaking only
-            // scales INPUT, it does not brake), then report settled once the player has actually stopped.
+        // Finished only on the exact point with no momentum, so the coordinate reads .500/.500 (or the precise
+        // node's own value) rather than "somewhere inside the tolerance".
+        if (err <= EXACT_EPS && speed < SETTLE_SPEED) {
             clearMovement();
-            if (speed < SETTLE_SPEED) {
-                if (++settleTicks >= SETTLE_TICKS) {
-                    return true;
-                }
-            } else {
-                settleTicks = 0;
+            return true;
+        }
+        if (stepTicks > cfg.getAlignTimeoutTicks()) {
+            stop(String.format(Locale.US, "couldn't align on #%d (%.3f blocks off)", number(node), err));
+            return false;
+        }
+        // Final approach: at 550%+ speed no movement input can land the last fraction of a block, so close it with a
+        // bounded DIRECT position correction toward the exact target and kill the horizontal slide. Capped at
+        // MAX_CORRECT_PER_TICK (< a normal walking step) so it is indistinguishable from ordinary movement.
+        if (err <= CORRECT_BELOW) {
+            clearMovement();
+            Vec3 pos = player.position();
+            double ex = node.x - pos.x;
+            double ez = node.z - pos.z;
+            if (err > 1e-6) {
+                double stepMag = Math.min(err, MAX_CORRECT_PER_TICK);
+                player.setPos(pos.x + ex / err * stepMag, pos.y, pos.z + ez / err * stepMag);
             }
+            player.setDeltaMovement(0.0, vel.y, 0.0);
             return false;
         }
         settleTicks = 0;
-        if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            stop(String.format(Locale.US, "couldn't align on #%d (%.2f blocks off)", number(node), err));
-            return false;
-        }
-        double h = Math.sqrt(ex * ex + ez * ez);
+        double h = Math.sqrt(px * px + pz * pz);
         if (h < 1e-3) {
-            // The slide is already taking you onto the point - hands off and let it.
+            // The slide is already taking you onto the point - hands off, crouched, and let it.
             clearMovement();
-            wantSneak = err < SNEAK_BELOW;
+            wantSneak = true;
             return false;
         }
         double mag = Mth.clamp(h * LATERAL_GAIN, MIN_NUDGE, 1.0);
-        writeMove(player, ex / h * mag, ez / h * mag, false);
-        wantSneak = err < SNEAK_BELOW;
+        writeMove(player, px / h * mag, pz / h * mag, false);
+        // Crouch on the approach to cut the per-tick step (killer560: "use crouches"), so the drive doesn't blow
+        // past CORRECT_BELOW at high speed.
+        wantSneak = err < SNEAK_APPROACH;
         return false;
     }
 
@@ -1122,6 +1211,7 @@ public final class Ap3Executor {
     private static void tickBoom(Minecraft client, LocalPlayer player, Ap3Node node) {
         switch (step) {
             case PREP -> {
+                boomChatConfirmed = false;
                 step = Step.SWAP;
                 stepTicks = 0;
             }
@@ -1151,10 +1241,14 @@ public final class Ap3Executor {
                 }
                 boomTarget = b.getBlockPos();
                 boomBefore.clear();
-                boomBefore.put(boomTarget, client.level.getBlockState(boomTarget));
-                for (Direction d : Direction.values()) {
-                    BlockPos p = boomTarget.relative(d);
-                    boomBefore.put(p, client.level.getBlockState(p));
+                // Snapshot a cube around the hit block, not just its 6 faces - a Superboom breaks a wider area.
+                for (int dx = -BOOM_SCAN_RADIUS; dx <= BOOM_SCAN_RADIUS; dx++) {
+                    for (int dy = -BOOM_SCAN_RADIUS; dy <= BOOM_SCAN_RADIUS; dy++) {
+                        for (int dz = -BOOM_SCAN_RADIUS; dz <= BOOM_SCAN_RADIUS; dz++) {
+                            BlockPos p = boomTarget.offset(dx, dy, dz);
+                            boomBefore.put(p, client.level.getBlockState(p));
+                        }
+                    }
                 }
                 // Same packets Auto Routes' superboom node sends: a start + abort is the tap Hypixel reads as a click.
                 player.connection.send(new ServerboundPlayerActionPacket(
@@ -1166,15 +1260,18 @@ public final class Ap3Executor {
                 stepTicks = 0;
             }
             case CONFIRM -> {
-                boolean changed = false;
-                for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
-                    if (client.level.getBlockState(e.getKey()) != e.getValue()) {
-                        changed = true;
-                        break;
+                boolean changed = boomChatConfirmed; // Hypixel's "gate destroyed" line is proof enough on its own
+                if (!changed) {
+                    for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
+                        if (client.level.getBlockState(e.getKey()) != e.getValue()) {
+                            changed = true;
+                            break;
+                        }
                     }
                 }
                 if (changed) {
                     boomBefore.clear();
+                    boomChatConfirmed = false;
                     finishNode();
                 } else if (stepTicks > BOOM_TIMEOUT) {
                     if (testMode) {

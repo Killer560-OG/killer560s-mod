@@ -100,8 +100,8 @@ public final class SecretTriggerbotFeature {
             gate = "not on hypixel/p3sim";
         } else if (!DungeonState.isInDungeon()) {
             gate = "not in dungeon";
-        } else if (client.screen != null) {
-            gate = "screen open";
+        } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            gate = "a container screen is open";
         } else if (LiveMapFeature.isInBoss()) {
             gate = "in boss";
         }

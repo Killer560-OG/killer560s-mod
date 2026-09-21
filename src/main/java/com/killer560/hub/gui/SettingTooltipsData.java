@@ -412,9 +412,8 @@ final class SettingTooltipsData {
         d.put("reload routes file key", "Same as /ar reload - re-reads the routes file from disk.");
         d.put("allow command nodes", "Lets command nodes send chat and commands from your account. Off by default: a routes file from someone else could otherwise make you run anything. Only turn it on for routes you wrote.");
         d.put("ap3", "Cheat build only. Walks a hand-placed node chain through the F7/M7 boss fight - one chain per area: P1, P2, each P3 section (S1-S5), P4 and P5. Boss only, never in clear. Use at your own risk.");
-        d.put("ap3 status", "Which gate is closed right now: outside the F7/M7 boss, in boss with the phase not known yet, or the area you are standing in (P1, P2, P3 S1-S5, P4, P5) and whether a chain is running. The phase is read from the boss's chat lines, or from where you are standing when no dialogue has been heard. On p3sim the sim's own Maxor line counts as P3 (shown with '(p3sim)') and every sim restart stops a running chain.");
+        d.put("ap3 status", "Which gate is closed right now: outside the F7/M7 boss, in boss with the phase not known yet, or the area you are standing in (P1, P2, P3 S1-S5, P4, P5). There is no start - a chain arms itself and runs the moment you walk into its first node's box. '(p3sim)' means the sim's own line opened the gate; '[test mode]' means /ap3 testmode is on.");
         d.put("chain", "The node chain for the boss area you are standing in (P1, P2, a P3 section S1-S5, P4 or P5), top to bottom. Each row shows the node's type, its modifier and its number - the number /ap3 delete <n> wants. Chains are saved per area and only ever run in the area they were placed in.");
-        d.put("start chain", "Runs the chain of the boss area you are standing in from its first node. Only inside the F7/M7 boss fight, in any phase - on Hypixel from the moment you enter, on p3sim from the moment you spawn. Any movement key stops it; the mouse does not. Same as /ap3 start.");
         d.put("stop chain", "Stops the running chain immediately and releases every key. Works at any time, even with AP3 off. Same as /ap3 stop.");
         d.put("breaker edit mode", "While ON, right-clicking a block adds it to this chain's breaker node and shift-right-click removes it; your held item won't fire. Same as /ap3 edit db.");
         d.put("list chain in chat", "Prints this section's nodes in chat, numbered from 1 - the number /ap3 delete <n> wants. Same as /ap3 list.");
@@ -467,7 +466,6 @@ final class SettingTooltipsData {
         d.put("delete last chain node key", "Keybind that deletes the LAST node in this section's chain - the one you just added. The command form, /ap3 delete <n>, takes a number.");
         d.put("clear chain key", "Keybind for /ap3 clear.");
         d.put("reload chains file key", "Keybind for /ap3 reload.");
-        d.put("start chain key", "Keybind for /ap3 start.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
         d.put("class overrides", "Sets a player's class by hand for every feature at once: the Leap Menu, Fast Leap's class targeting, AP3 leap nodes and every class-coloured display. Use it when a run has duplicate classes and someone is doing another class's terminal. In the AP3 tab this list is read-only - edit it in Dungeon > Class Overrides.");
         d.put("current party", "You and everyone in your party, in Hypixel's order. Detected is the class the tab list shows; click Override to set a different one.");
@@ -1686,5 +1684,6 @@ final class SettingTooltipsData {
         d.put("auto routes/keybinds", "Cheat build only. One key per /ar command, all unbound by default. Click a row, press a key; Esc clears. Keys only fire in-game, never while a menu or chat is open. There is no stop key - any movement key, a click, or opening any screen stops a route.");
         d.put("auto routes/recording", "Cheat build only. Stand on the block the route should start from (usually where you etherwarp to), press Start, run the room the way you want it replayed, press Stop. Every tick of movement is saved; playback follows that path and only ever starts when you land on the start node.");
         d.put("auto routes/delete last node", "Cheat build only. Deletes the most recently added node in this room - the one you just placed. Use /ar delete <n> to remove any other node by its number (see the Chain list).");
+        d.put("test mode", "Session-only dry run. AP3 still arms when you walk into the first node, but every node runs without waiting on the arena: terminals, leap counters and close gates are skipped, a failed leap is skipped, and ANY key or mouse button stops the chain. Same as /ap3 testmode. Off at every restart.");
     }
 }

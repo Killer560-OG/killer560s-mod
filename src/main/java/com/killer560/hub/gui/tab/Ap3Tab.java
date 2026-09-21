@@ -46,7 +46,8 @@ import java.util.function.Supplier;
  * specific" one), applied to nodes after his 2026-09-16 request to "make it easier to edit them":
  * <ul>
  *     <li>the LIST - master toggle; the boss-only status line; the chain for the area you are in with one row per
- *     node (number, type, modifiers, position, Edit, Delete); Start / Stop / Test Mode; Undo / List / Clear; Open
+ *     node (number, type, modifiers, position, Edit, Delete); Stop / Test Mode (no Start - a chain runs when you
+ *     walk into its first node); Undo / List / Clear; Open
  *     Folder + Reload for the one shareable chains file; colours; the world-label settings; the stopwatch HUD; the
  *     class-override table read-only; one keybind row per command. Nodes are ADDED with {@code /ap3 add} or the
  *     keybinds only - killer560 (2026-09-20): "Do not list the add node section in the settings tab";</li>
@@ -180,27 +181,23 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         } catch (Exception e) {
             nodes = List.of();
         }
-        boolean running = safe(Ap3Executor::isRunning);
 
-        int colW = (width - GAP * 2) / 3;
-        int lastW = Math.max(1, width - (colW + GAP) * 2);
-        SettingsButtonWidget start = SettingsButtonWidget.builder(Component.literal("§aStart Chain"), btn -> {
-                    Action.START.run();
-                    rebuild.run();
-                }).bounds(x, y[0], colW, 20).build();
-        start.active = !running && !nodes.isEmpty();
-        w.add(start);
+        // No Start button - a chain arms itself and runs when you walk into its first node (killer560, 2026-09-20:
+        // "/ap3 start should not exist. If i ever walk into a node it should always fire"). Stop stays as the panic
+        // button; Test Mode is the dry-run toggle.
         // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
         w.add(SettingsButtonWidget.builder(Component.literal("§cStop Chain"), btn -> {
                     Action.STOP.run();
                     rebuild.run();
-                }).bounds(x + colW + GAP, y[0], colW, 20).build());
+                }).bounds(x, y[0], half, 20).build());
         w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
                     Action.TEST_MODE.run();
                     rebuild.run();
-                }).bounds(x + (colW + GAP) * 2, y[0], lastW, 20).build());
+                }).bounds(x + half + GAP, y[0], Math.max(1, width - half - GAP), 20).build());
         y[0] += 24;
 
+        int colW = (width - GAP * 2) / 3;
+        int lastW = Math.max(1, width - (colW + GAP) * 2);
         SettingsButtonWidget undo = SettingsButtonWidget.builder(Component.literal("Undo Last Node"), btn -> {
                     Action.UNDO.run();
                     rebuild.run();
@@ -580,7 +577,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (safe(Ap3Executor::isRunning)) {
             return "§aAP3 status: " + where + " - chain running." + test;
         }
-        return "§aAP3 status: " + where + " - idle." + test;
+        return "§aAP3 status: " + where + " - armed (walk into the first node to run)." + test;
     }
 
     private Component keyText(Action action, int key) {
