@@ -493,7 +493,6 @@ final class SettingTooltipsData {
         d.put("tick timers", "Countdown HUD for the F7/M7 boss (Storm, Goldor and Necron phases), started by the bosses' chat lines and counted in server ticks. Move it in the HUD editor. Resets when you leave the dungeon.");
         d.put("necron", "Shows a 3s (60 tick) 'Necron dropping in' countdown after Necron's 'your journey ends now' line in F7/M7 P4.");
         d.put("goldor", "Shows Goldor's repeating 3s damage 'Tick:' countdown through P3 until the Core entrance opens.");
-        d.put("storm", "Shows Storm (P2) timers: repeating 1s pad timer, 28s lightning, the purple pillar 'PY' window and a Storm counter.");
         d.put("ticks (vs seconds)", "Shows timer values in game ticks (20 per second) when ON; in seconds with one decimal when OFF.");
         d.put("symbol", "Adds a unit symbol after each timer value: 't' in tick mode, 's' in seconds mode.");
         d.put("show prefix", "Shows the timer name before each value (e.g. 'Tick:', 'Pad:', 'Necron dropping in'); OFF shows only the number.");
@@ -995,14 +994,6 @@ final class SettingTooltipsData {
         d.put("new waypoint floor", "Which floor the NEXT added waypoint is tagged with. Auto uses the floor you're on.");
         d.put("add waypoint here", "Saves the block you're standing on as a waypoint, tagged with the phase/floor selected above.");
         d.put("remove last waypoint", "Deletes the most recently added waypoint. Shows how many are saved.");
-        d.put("crush timer hud", "F7/M7 P2: times Storm's crushes ('Oof' / 'Ouch, that hurt!') and shows the count. Counts up unless a Crush Interval is set.");
-        d.put("crush title", "Shows 'Crush N' on screen each time Storm is crushed, and 'Pad Ready' when a Crush Interval countdown runs out. Works without the HUD.");
-        d.put("purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
-        d.put("pad color", "Colour of the crush pad outlines.");
-        d.put("show all pads", "Also outlines the green and yellow pads, not just purple. (The 4th red pad is broken in-game.)");
-        d.put("crush interval", "Seconds (0-120) to count down after each crush. 0 = Count Up, where the HUD just shows the time since the last crush. No source gives the real pillar cooldown, so it defaults to 0.");
-        d.put("crush warning", "The Crush countdown turns red when this many seconds (0-15) are left. Only used while Crush Interval is above 0.");
-        d.put("crush trigger text", "Optional chat text that also restarts the crush countdown, e.g. Storm's Giga Lightning line. Leave blank to use only his crush lines.");
         d.put("aim spots", "Draws crosshair markers at your saved Last Breath aim spots in the F7/M7 boss, filtered by phase and class unless the Show All options are ON. The list starts empty: look at a spot and press Add Aim Spot Here.");
         d.put("aim spot color", "Colour of the aim-spot crosshair markers.");
         d.put("aim spot labels", "Shows each aim spot's name next to its marker.");
@@ -1031,7 +1022,6 @@ final class SettingTooltipsData {
         d.put("m7 necron drop-down", "Prompts after Necron's entry line so the buff is up when he lands. The 8s line-to-landing figure is this mod's estimate; tune with the lead slider.");
         d.put("m7 storm (p2)", "Prompts after Storm's entry line so the buff is up when P2 starts. The 5s figure is an estimate; tune with the lead slider.");
         d.put("f5/m5 livid", "Prompts near the end of Livid's 390-tick invulnerability, so the buff is up the moment he can be damaged.");
-        d.put("pad cycle timer", "NoammAddons' Storm pad timer: a repeating 1-second (20 tick) countdown from Storm's first P2 line until he dies, for timing pad drops. Shown on the Crush Timer HUD, so it needs Crush Timer HUD ON and Crush Interval at 0 (Count Up).");
         d.put("full monitor borderless", "Only for Full Monitor (or 1 window per monitor): the window ends up in borderless fullscreen on that monitor. OFF: goes back to normal F11 fullscreen if you were in it, or otherwise stays a normal window with a title bar.");
 
         // Discord Rich Presence
@@ -1156,7 +1146,6 @@ final class SettingTooltipsData {
 
         // ---- F7 Spots ----
         d.put("walk-to waypoints", "Your own saved standing spots for F7/M7, drawn in the world and filtered by phase and floor.");
-        d.put("storm crush timer (p2)", "Timers and pad highlights for Storm's crush in P2.");
         d.put("last breath aim spots", "Saved aim points for Last Breath, filtered by your class and the situation.");
         d.put("crush trigger text (optional)", "Optional extra chat text (any part of a line, capitals ignored) that restarts the crush timer the same way Storm's crush lines do. Leave blank to use only his crush lines.");
 
@@ -1689,5 +1678,26 @@ final class SettingTooltipsData {
         d.put("breaker aura/swap back after", "Cheat build only. Idle ticks with nothing left to break before Auto Swap switches your hotbar back to what you were holding.");
         d.put("auto chocolate factory/min delay", "Cheat build only. Shortest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Raising it past Max Delay pushes Max Delay up.");
         d.put("auto chocolate factory/max delay", "Cheat build only. Longest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Lowering it below Min Delay pulls Min Delay down.");
+        d.put("auto gfs/dungeons & kuudra only", "Only sends /gfs while you're in a real Catacombs dungeon or fighting Kuudra. Off by default, so Auto GFS can refill sacks anywhere else in Skyblock too.");
+        d.put("blood camp/show overlay", "Draws the predicted landing box and vulnerability countdown over each blood mob. Turning it off leaves the tracking (and the automation) running with no world overlay.");
+        d.put("blood camp/kill popup", "Predicts when the Watcher makes his final move from his own chat lines and shows a KILL popup on that moment, so killing the last mobs there skips his closing dialogue. Move it in the HUD editor.");
+        d.put("blood camp/kill popup lead", "How many ticks before the predicted move the popup flips from a countdown to KILL, 0-20. Raise it if your hits land late.");
+        d.put("blood camp/trigger bot", "Cheat build only. Left-clicks a blood mob the moment its countdown expires, but only while your crosshair is on that mob's predicted spot. One click per mob, one action per tick mod-wide.");
+        d.put("blood camp/aura", "Cheat build only. Turns your camera towards the spot a blood mob is about to land in, before it visibly gets there.");
+        d.put("blood camp/auto detect lag", "Fires Trigger Bot's click earlier by your current ping, so the click packet reaches Hypixel around the moment the mob actually becomes hittable.");
+        d.put("blood camp/click offset", "Extra ticks added on top of Auto Detect Lag, -20 to +20. Positive clicks earlier, negative clicks later.");
+        d.put("auto fairy souls/auto walk path", "Master switch for the walking engine itself - Auto Fairy Souls also needs this on to actually move you.");
+        d.put("auto fairy souls/auto mode", "How it crosses a gap it can't walk: Walk only Etherwarps as a last resort, Etherwarp/Fast Etherwarp use it more freely, Pearls Only throws a real Ender Pearl instead and never touches Etherwarp - for an account with no Etherwarp unlock.");
+        d.put("tick timers/pad cycle timer", "NoammAddons' Storm pad timer: a repeating 1-second (20 tick) countdown from Storm's first P2 line until he dies, for timing pad drops. Its own line now, independent of Crush Timer HUD.");
+        d.put("tick timers/crush timer hud", "F7/M7 P2: times Storm's crushes ('Oof' / 'Ouch, that hurt!') and shows the count. Counts up unless a Crush Interval is set.");
+        d.put("tick timers/crush title", "Shows 'Crush N' on screen each time Storm is crushed, and 'Pad Ready' when a Crush Interval countdown runs out. Works without the HUD.");
+        d.put("tick timers/purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
+        d.put("tick timers/pad color", "Colour of the crush pad outlines.");
+        d.put("tick timers/show all pads", "Also outlines the green and yellow pads, not just purple. (The 4th red pad is broken in-game.)");
+        d.put("tick timers/crush interval", "Seconds (0-120) to count down after each crush. 0 = Count Up, where the HUD just shows the time since the last crush. No source gives the real pillar cooldown, so it defaults to 0.");
+        d.put("tick timers/crush warning", "The Crush countdown turns red when this many seconds (0-15) are left. Only used while Crush Interval is above 0.");
+        d.put("tick timers/crush trigger text", "Optional chat text that also restarts the crush countdown, e.g. Storm's Giga Lightning line. Leave blank to use only his crush lines.");
+        d.put("tick timers/storm crush timer (p2)", "Timers and pad highlights for Storm's crush in P2.");
+        d.put("tick timers/storm", "Shows Storm (P2) timers: 28s lightning, the purple pillar 'PY' window and a Storm counter. The repeating pad timer is its own separate toggle now (Pad Cycle Timer).");
     }
 }
