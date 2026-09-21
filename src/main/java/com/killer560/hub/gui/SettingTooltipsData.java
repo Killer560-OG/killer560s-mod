@@ -1865,5 +1865,10 @@ final class SettingTooltipsData {
         d.put("yt shorts/comments scroll guard", "YouTube Shorts only: while a comments panel looks open, Next/Previous's fallback key press is skipped so it can't pull the feed away while you're reading or typing comments. The on-page next/previous button still works normally.");
         d.put("yt shorts/sign in to youtube", "Opens a normal browser window (own address bar) on the same profile the overlay uses, for the currently selected Site, so you can log into your real account by hand. The mod never sees or stores your password.");
         d.put("supporters/custom cosmetics", "Shows supporters' custom colored names and player scale, set by staff on Discord. Off shows everyone's real IGN and normal scale.");
+        d.put("party interop/share dungeon data with party", "Sends the mimic/prince/bat/blood flags, run counters, room secrets, discovered rooms and doors, and M7 dragon events this client works out on its own to the rest of your party over the mod's relay. Needs Mod Chat and Use Mod Relay both on to do anything.");
+        d.put("party interop/cross-mod bridge", "Talks to Devonian, NoammAddons and Odin's own party servers so their users and ours share dungeon data both ways. Never connects for a mod you have installed yourself.");
+        d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party. Signs in with your Minecraft session the normal Mojang way.");
+        d.put("party interop/noammaddons bridge", "Shares rooms, doors, secrets, mimic/prince/bat and M7 dragon spawns with NoammAddons users in your run. Signs in with your chat-signing key, like our own Mod Chat.");
+        d.put("party interop/odin bridge", "Shows Odin users' Melody progress during F7/M7 P3. Listen-only: nothing is sent to Odin.");
     }
 }

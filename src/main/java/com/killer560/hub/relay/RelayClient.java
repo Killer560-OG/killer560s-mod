@@ -84,6 +84,16 @@ public final class RelayClient {
     private static final RelayListener NO_LISTENER = new RelayListener() {
     };
 
+    /** Secondary listeners that get every callback alongside the primary one set via {@link #setListener}.
+     *  Added for {@code com.killer560.hub.partydata} (party dungeon-data sharing, see
+     *  {@code killer560s-mod-relay/PROTOCOL.md}'s {@code dg.v1.*} keys): Mod Chat already owns the single
+     *  {@link #setListener} slot, and replacing it would silently break Mod Chat instead of adding a second
+     *  consumer of {@code data} packets. Copy-on-write because dispatch (the socket's own thread, via WORKER)
+     *  and registration (a feature's {@code register()}, on the client thread at startup) never overlap in
+     *  volume - this list is written once or twice per session and read on every packet. */
+    private static final java.util.concurrent.CopyOnWriteArrayList<RelayListener> extraListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
     // Written by the client tick, read by WORKER.
     private static volatile boolean wantOn;
     private static volatile String wantUrl = "";
@@ -120,6 +130,17 @@ public final class RelayClient {
 
     public static void setListener(RelayListener value) {
         listener = value == null ? NO_LISTENER : value;
+    }
+
+    /** Adds a listener alongside the primary one instead of replacing it - see {@link #extraListeners}. */
+    public static void addListener(RelayListener value) {
+        if (value != null) {
+            extraListeners.add(value);
+        }
+    }
+
+    public static void removeListener(RelayListener value) {
+        extraListeners.remove(value);
     }
 
     /**
@@ -312,6 +333,9 @@ public final class RelayClient {
             // "One chat line at most, then silence": the listener is told once per outage, not once per retry.
             reportedFailure = true;
             listener.onDisconnected(why);
+            for (RelayListener extra : extraListeners) {
+                extra.onDisconnected(why);
+            }
         }
         cancelRetry();
         retry = WORKER.schedule(RelayClient::retryNow, delay, TimeUnit.MILLISECONDS);
@@ -471,14 +495,30 @@ public final class RelayClient {
                 List<String> names = names(packet);
                 online = names;
                 target.onConnected(activeRoom, names);
+                for (RelayListener extra : extraListeners) {
+                    extra.onConnected(activeRoom, names);
+                }
             }
-            case "chat" -> target.onChat(str(packet, "from"), str(packet, "message"));
+            case "chat" -> {
+                target.onChat(str(packet, "from"), str(packet, "message"));
+                for (RelayListener extra : extraListeners) {
+                    extra.onChat(str(packet, "from"), str(packet, "message"));
+                }
+            }
             case "presence" -> {
                 List<String> names = names(packet);
                 online = names;
                 target.onPresence(str(packet, "event"), str(packet, "name"), names);
+                for (RelayListener extra : extraListeners) {
+                    extra.onPresence(str(packet, "event"), str(packet, "name"), names);
+                }
             }
-            case "data" -> target.onData(str(packet, "from"), str(packet, "key"), packet.get("value"));
+            case "data" -> {
+                target.onData(str(packet, "from"), str(packet, "key"), packet.get("value"));
+                for (RelayListener extra : extraListeners) {
+                    extra.onData(str(packet, "from"), str(packet, "key"), packet.get("value"));
+                }
+            }
             case "pong" -> {
                 // Keep-alive answered; nothing to do.
             }

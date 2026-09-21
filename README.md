@@ -103,6 +103,8 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Bazaar Browser — /killer560 bz or a keybind: buy/sell prices, spread and volume for every product; clicking one opens Hypixel's own Bazaar page
 - Listing Helper — on Hypixel's Create BIN Auction menu, shows the lowest BIN among similar listings with a similarity percentage and copies lowest-minus-one-coin to your clipboard. Never clicks or types into Hypixel's menu
 - Supporter Names — supporters' custom names show on nametags, the tab list and chat, with their model scale, for everyone running the mod (matched by UUID, set by staff on Discord). Your own Name Changer name still wins on your screen; "Custom Cosmetics" turns it all off; names go through a slur filter
+- Party Dungeon Data — teammates running this mod share room secrets, rooms and doors found, mimic/prince/bat kills and M7 dragon spawns over the mod's own relay, feeding the map, score calculator and HUDs. The format is an open spec (relay repo PROTOCOL.md)
+- Cross-Mod Bridge — connects to Devonian's, NoammAddons' and Odin's party sockets so teammates running those mods share data with you too, and your finds reach them. Skips any mod you already have installed, only ever sends your own name, logs in through Mojang's normal handshake, and is off by default
 - Command Shortcuts — /f0-/f7, /m1-/m7, /basic /hot /burning /fiery /infernal and /kuudra <tier>, each individually toggleable
 - Trail — a square dropped behind you each tick, orange on the ground and blue in the air, with adjustable length, size, opacity and fade
 - Inventory Theme — re-skins chest and inventory menus in the mod's orange theme, with opacity and accent colour settings

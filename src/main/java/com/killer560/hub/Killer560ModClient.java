@@ -158,6 +158,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());
         ModChatFeature.register();
         com.killer560.hub.interop.InteropFeature.register();
+        com.killer560.hub.partydata.PartyDataFeature.register();
+        com.killer560.hub.bridge.BridgeFeature.register();
         // Auto Leap Out replaced by the QUOI AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
         com.killer560.hub.fastleap.FastLeapFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.register();

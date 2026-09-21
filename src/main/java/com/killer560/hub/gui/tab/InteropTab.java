@@ -1,5 +1,7 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.partydata.PartyDataConfig;
+
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.interop.InteropConfig;
@@ -68,6 +70,13 @@ public class InteropTab extends BaseTab {
                     btn.setMessage(onOff("Use Mod Relay", cfg.isRelayData()));
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
+        PartyDataConfig dataCfg = PartyDataConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Share Dungeon Data With Party", dataCfg.isShareEnabled()), btn -> {
+                    dataCfg.setShareEnabled(!dataCfg.isShareEnabled());
+                    dataCfg.save();
+                    btn.setMessage(onOff("Share Dungeon Data With Party", dataCfg.isShareEnabled()));
+                }).bounds(contentX, y, 220, 18).build());
+        y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Local Mod Bridge", cfg.isLocalBridge()), btn -> {
                     cfg.setLocalBridge(!cfg.isLocalBridge());
@@ -82,6 +91,9 @@ public class InteropTab extends BaseTab {
                     btn.setMessage(onOff("Log Pickups", cfg.isLogPickups()));
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
+
+        // Cross-Mod Bridge (Devonian / NoammAddons / Odin party sockets) - its own block, see BridgeSettingsBlock.
+        y = com.killer560.hub.bridge.BridgeSettingsBlock.addWidgets(widgets, contentX, y, contentWidth, requestRebuild);
 
         // Live, not built once: this whole block changes during a run while the screen is open.
         widgets.add(new LiveTextWidget(contentX, y, contentWidth, LINE_HEIGHT * STATUS_LINES, InteropTab::status));
