@@ -23,7 +23,9 @@ public final class HudInGameRenderer {
             "mask_invincibility", "simonsays_party_progress", "live_map", "real_time", "score_calculator",
             "wither_dragon_timers", "king_relic_timer",
             "ability_cooldowns", "lag_display",
-            "blessings", "maxor_crystals");
+            "blessings", "maxor_crystals",
+            // Advanced Position (2026-09-21) - missing from this list at first, so it never drew in game.
+            "advanced_position");
 
     private HudInGameRenderer() {
     }
