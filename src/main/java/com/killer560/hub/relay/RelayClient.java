@@ -52,6 +52,10 @@ public final class RelayClient {
         OFF,
         /** On, but no deployed relay URL has been set yet - deliberately does not even try to connect. */
         NO_URL,
+        /** On, with a URL, but the caller couldn't compute a room yet (Party mode while alone; Lobby mode
+         *  before Hypixel's instance id is known) - deliberately does not connect anywhere else instead of
+         *  guessing a wider room. See {@link com.killer560.hub.relay.RelayRoom}'s class doc. */
+        NO_ROOM,
         CONNECTING,
         CONNECTED,
         /** Down, waiting out the backoff. */
@@ -83,7 +87,9 @@ public final class RelayClient {
     // Written by the client tick, read by WORKER.
     private static volatile boolean wantOn;
     private static volatile String wantUrl = "";
-    private static volatile String wantRoom = RelayRoom.GLOBAL;
+    /** Empty means "no room computed yet" - see {@link State#NO_ROOM}. There is no longer a default room to
+     *  fall back to (killer560, 2026-09-20: no global option). */
+    private static volatile String wantRoom = "";
 
     // Written by WORKER (and the socket callbacks), read from anywhere including the GUI.
     private static volatile State state = State.OFF;
@@ -122,7 +128,9 @@ public final class RelayClient {
      */
     public static void update(boolean on, String baseUrl, String room) {
         String url = RelayEndpoint.normalise(baseUrl);
-        String target = room == null || room.isBlank() ? RelayRoom.GLOBAL : room;
+        // null/blank means the caller (ModChatFeature) couldn't compute a room - go NO_ROOM in reconcile()
+        // rather than inventing a fallback. See RelayRoom's class doc on the removed Global option.
+        String target = room == null || room.isBlank() ? "" : room;
         if (on == wantOn && url.equals(wantUrl) && target.equals(wantRoom)) {
             return;
         }
@@ -179,6 +187,7 @@ public final class RelayClient {
         return switch (state) {
             case OFF -> "off";
             case NO_URL -> "no relay URL set";
+            case NO_ROOM -> "no room yet";
             case CONNECTING -> "connecting";
             case CONNECTED -> "connected";
             case RETRYING -> lastError.isEmpty() ? "reconnecting" : "reconnecting - " + lastError;
@@ -200,6 +209,13 @@ public final class RelayClient {
             shutdown(State.NO_URL, "no relay URL set");
             return;
         }
+        if (room.isEmpty()) {
+            // The caller couldn't compute a room (not in a party; Hypixel's instance id not known yet) -
+            // staying idle here instead of guessing something wider is the whole point of this feature
+            // (killer560's "public party chat" leak report). See RelayRoom's class doc.
+            shutdown(State.NO_ROOM, "no room selected");
+            return;
+        }
         boolean sameTarget = url.equals(connectedUrl) && room.equals(connectedRoom);
         if (sameTarget && (state == State.CONNECTED || state == State.CONNECTING || state == State.RETRYING)) {
             // Already there, on the way, or waiting out a backoff we must not short-circuit.
@@ -209,6 +225,10 @@ public final class RelayClient {
         cancelRetry();
         cancelKeepAlive();
         attempt = 0;
+        // Leave the old room's name behind immediately rather than let the tab keep showing it while the
+        // socket is already gone and a different room is connecting - see killer560's "no global fallback"
+        // report; misrepresenting which room you're actually in is the same class of mistake.
+        activeRoom = "";
         connect(url, room);
     }
 

@@ -1,9 +1,11 @@
 package com.killer560.hub.proximityvoice;
 
 import com.killer560.hub.leapmenu.LeapMenuFeature;
+import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.proximityvoice.ProximityVoiceConfig.VoiceScope;
 import com.killer560.hub.secrets.DungeonState;
-import com.mojang.blaze3d.platform.InputConstants;
+import com.killer560.hub.util.KeyUtil;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
@@ -14,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 import java.net.DatagramPacket;
@@ -25,6 +26,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,19 +45,30 @@ import java.util.regex.Pattern;
  * "hole-punches" through most home routers - this works for most people, but not universally (some
  * routers/NATs, particularly "symmetric" ones, cannot be hole-punched this way without a relay server,
  * which this mod has no way to provide for free).
- * <li><b>Discovering peers' addresses:</b> reuses the exact same tagged-party-chat trick
- * {@code PosmsgFeature}/{@code ModChatFeature} already use - broadcasts your own public IP:port over
- * Party Chat, tagged so only this mod's own copies act on it. Same real limitation as Mod Chat: this
- * is visible as an odd chat line to non-mod party members, not hidden.
+ * <li><b>Discovering peers' addresses:</b> reuses the exact same tagged-chat trick
+ * {@code PosmsgFeature}/{@code ModChatFeature} already use - broadcasts your own public IP:port as a
+ * tagged chat line, over Party Chat or plain chat depending on {@link ProximityVoiceConfig#getTalkScope()}
+ * (see {@link #broadcastOwnAddress}). Same real limitation as Mod Chat: this is visible as an odd chat
+ * line to non-mod party/lobby members, not hidden.
  * <li><b>Audio codec: none - raw 16kHz mono 16-bit PCM.</b> A real compressor (Opus) would use a
  * fraction of the bandwidth, but adds a second native-library dependency this session already took one
  * real risk on with Vosk; raw PCM needs no native code, no extra ~20MB dependency, and no additional
  * unverifiable native-loading risk - the real tradeoff is higher bandwidth (~32kbps per active
  * speaker) and no packet-loss resilience.
- * <li><b>Proximity:</b> each received packet's volume is scaled by the real, live in-game distance to
- * that teammate (reusing {@code LeapMenuFeature.currentPartyMembers()}), silence past the configured
- * max range - the actual "proximity" part of proximity voice.
+ * <li><b>Proximity and scope:</b> see {@link #volumeForPeer} - a real party member is always full volume;
+ * a lobby-only peer (discoverable only when THEY talk with Lobby scope - see below) fades with distance
+ * unless Lobby Falloff is turned off, and is only ever heard at all while your own Listen scope is Lobby.
  * </ul>
+ * <p>
+ * <b>Scope is peer-to-peer, not symmetric</b> (killer560, 2026-09-20 - separate Listen/Talk toggles, and
+ * "global" redefined as lobby-only): whether you can discover a given teammate as a peer at all depends on
+ * <em>their</em> Talk scope (Party broadcasts only over Party Chat; Lobby broadcasts over plain chat, which
+ * Hypixel only ever delivers to players physically inside the same dungeon instance - {@link LeapMenuFeature}'s
+ * own doc: "nobody else's player entities are ever sent to your client there"). Your own Listen scope then
+ * decides whether you actually play back a lobby-only peer once discovered. This mod cannot make itself
+ * discoverable to someone who chose Party-only talk, and that is by design - it never invents any address
+ * book/relay beyond what the two peers' own chat-scope choices reach.
+ * <p>
  * <b>Real, disclosed risk this session could not verify, same category as Voice To Text:</b> no
  * microphone and no second real player to test actual P2P audio with in this environment - only that
  * the mod itself still boots fine with this code present. Test with a real friend before trusting it.
@@ -64,17 +78,50 @@ public final class ProximityVoiceFeature {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-proximityvoice");
     private static final String TAG = "[K560V]";
     private static final Pattern PEER_PATTERN = Pattern.compile("\\[K560V]([0-9a-fA-F-]{36})\\|([\\d.]+)\\|(\\d+)");
-    private static final AudioFormat FORMAT = new AudioFormat(16000f, 16, 1, true, false);
+    // Same NAME shape PartyTracker's own chat patterns use. Deliberately does NOT match a whisper ("From
+    // Name: ...", two tokens before the colon) or a bare system message (no "Name: " at all) - format is
+    // what gates trust here, not content, same principle as the 2026-09-16 audit below.
+    private static final String CHAT_NAME = "(?:\\[[^]]+] )?([A-Za-z0-9_]{1,16})";
+    private static final Pattern PARTY_CHAT_LINE = Pattern.compile("^Party > " + CHAT_NAME + ": (.*)$");
+    private static final Pattern PLAIN_CHAT_LINE = Pattern.compile("^" + CHAT_NAME + ": (.*)$");
+    /** Package-private (not private): {@link MicrophoneDevices} and {@link MicTester} need the exact same
+     *  format to probe/open lines with. */
+    static final AudioFormat FORMAT = new AudioFormat(16000f, 16, 1, true, false);
     private static final int FRAME_BYTES = 640; // 20ms @ 16kHz mono 16-bit
+    /** A received peer is "talking" for this long after its last frame - long enough to bridge normal
+     *  between-word gaps in speech without the HUD indicator flickering off and back on. */
+    private static final long TALKING_HOLD_MS = 400L;
+
+    // Opening/closing/restarting the mic line always happens here, never on the caller's thread - AudioSystem
+    // device probing can be slow on Windows, and this repo has a real bug history of a TargetDataLine left
+    // open forever, so every open/close is serialized through one executor instead of racing on whichever
+    // thread happened to trigger it (a tick, a GUI click, dungeon start/stop).
+    private static final ExecutorService MIC_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-voice-mic");
+        t.setDaemon(true);
+        return t;
+    });
 
     private static DatagramSocket socket;
     private static Thread sendThread;
     private static Thread receiveThread;
     private static volatile boolean running = false;
     private static volatile boolean transmitting = false;
-    private static TargetDataLine micLine;
+    private static volatile TargetDataLine micLine;
+    /** The device actually in use ({@link MicrophoneDevices#DEFAULT_LABEL} on fallback), or {@code null}
+     *  while no line is open - read by the tab to show "which device is currently in use". */
+    private static volatile String currentDeviceName;
+    /** 0-1, updated on every frame read regardless of push-to-talk/mute state, so Test Mic still shows
+     *  activity even while not transmitting. */
+    private static volatile float currentInputLevel = 0f;
     private static final Map<UUID, SourceDataLine> playbackLines = new ConcurrentHashMap<>();
     private static final Map<UUID, InetSocketAddress> peerAddresses = new ConcurrentHashMap<>();
+    /** The chat-visible name a beacon's sessionId claims to be, taken from the SENDER of the chat line the
+     *  beacon rode in on (never from inside the payload itself) - lets talk/listen scope tell a real party
+     *  member's session apart from a lobby-only one. */
+    private static final Map<UUID, String> peerNames = new ConcurrentHashMap<>();
+    /** Wall-clock ms of the last audio frame actually received from each peer - backs {@link #isTalking}. */
+    private static final Map<UUID, Long> lastAudioAtMs = new ConcurrentHashMap<>();
     private static UUID localSessionId = UUID.randomUUID();
     private static boolean keyWasDown = false;
     private static long lastBroadcastAtMs = 0;
@@ -108,9 +155,14 @@ public final class ProximityVoiceFeature {
             broadcastOwnAddress();
         }
 
-        if (cfg.isPushToTalk() && cfg.getPushToTalkKeyCode() >= 0) {
-            Minecraft client = Minecraft.getInstance();
-            boolean down = client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
+        Minecraft client = Minecraft.getInstance();
+        if (cfg.isPushToTalk() && cfg.getPushToTalkKeyCode() != KeyUtil.NONE) {
+            // killer560, 2026-09-20: Voice To Text had exactly this bug today - typing the bound letter
+            // into an open chat/GUI screen fired the bind and streamed what it "heard" to the party. A
+            // screen being open (chat, inventory, this mod's own menu, anything) means keys are for
+            // typing/clicking, never for a raw keybind poll - so push-to-talk is forced off whenever one is
+            // open, independent of whether the bound key/mouse button is physically held.
+            boolean down = client.screen == null && KeyUtil.isBindDown(client.getWindow(), cfg.getPushToTalkKeyCode());
             transmitting = down && !cfg.isMutedSelf();
             keyWasDown = down;
         } else {
@@ -125,7 +177,8 @@ public final class ProximityVoiceFeature {
             running = true;
             localSessionId = UUID.randomUUID();
 
-            startMicCapture();
+            // Off the client tick thread - see MIC_EXECUTOR's doc.
+            MIC_EXECUTOR.execute(ProximityVoiceFeature::startMicCapture);
 
             ModOverlayMessage.show("[ProxVoice] Enabled - discovering your public address...", 2500);
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): receiveThread used to
@@ -162,11 +215,7 @@ public final class ProximityVoiceFeature {
     private static void stop() {
         running = false;
         transmitting = false;
-        if (micLine != null) {
-            micLine.stop();
-            micLine.close();
-            micLine = null;
-        }
+        MIC_EXECUTOR.execute(ProximityVoiceFeature::closeMicLine);
         if (socket != null) {
             socket.close();
             socket = null;
@@ -177,24 +226,33 @@ public final class ProximityVoiceFeature {
         }
         playbackLines.clear();
         peerAddresses.clear();
+        peerNames.clear();
+        lastAudioAtMs.clear();
     }
 
+    /** Only ever called on {@link #MIC_EXECUTOR}. Opens the configured device (or falls back to the
+     *  default - see {@link MicrophoneDevices#openLine}) and starts the frame-send thread. */
     private static void startMicCapture() {
         try {
-            DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
-            if (!AudioSystem.isLineSupported(info)) {
-                ModOverlayMessage.show("§c[ProxVoice] No compatible microphone found.", 3000);
-                return;
-            }
-            micLine = (TargetDataLine) AudioSystem.getLine(info);
-            micLine.open(FORMAT);
-            micLine.start();
+            MicrophoneDevices.OpenedLine opened =
+                    MicrophoneDevices.openLine(ProximityVoiceConfig.getInstance().getMicrophoneDeviceName());
+            TargetDataLine line = opened.line();
+            micLine = line;
+            currentDeviceName = opened.deviceName();
+            line.start();
 
+            // Reads `line`, the local captured at open time, not the static `micLine` field - a close
+            // racing this loop (device change, stop()) can null out the field between the while-condition
+            // check and a field-based read() call, which used to be a real NPE risk right on this line.
             sendThread = new Thread(() -> {
                 byte[] buffer = new byte[FRAME_BYTES];
-                while (running && micLine != null && micLine.isOpen()) {
-                    int read = micLine.read(buffer, 0, buffer.length);
-                    if (read > 0 && transmitting) {
+                while (running && line.isOpen()) {
+                    int read = line.read(buffer, 0, buffer.length);
+                    if (read <= 0) {
+                        continue;
+                    }
+                    currentInputLevel = computeLevel(buffer, read);
+                    if (transmitting) {
                         sendAudioFrame(buffer, read);
                     }
                 }
@@ -203,17 +261,114 @@ public final class ProximityVoiceFeature {
             sendThread.start();
         } catch (Exception e) {
             LOGGER.warn("[ProximityVoice] Failed to open microphone", e);
+            ModOverlayMessage.show("§c[ProxVoice] Failed to open microphone: " + e.getMessage(), 3000);
+            currentDeviceName = null;
         }
     }
 
+    /** Only ever called on {@link #MIC_EXECUTOR}. Stops/closes whatever mic line is open (if any) and
+     *  waits for the send thread reading it to actually exit before returning, so a caller that reopens
+     *  right after (see {@link #restartMicCapture}) never has two send threads alive at once. */
+    private static void closeMicLine() {
+        Thread threadToJoin = sendThread;
+        TargetDataLine line = micLine;
+        micLine = null;
+        currentDeviceName = null;
+        currentInputLevel = 0f;
+        if (line != null) {
+            try {
+                line.stop();
+            } catch (Exception ignored) {
+            }
+            try {
+                line.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (threadToJoin != null) {
+            try {
+                threadToJoin.join(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        sendThread = null;
+    }
+
+    /** Only ever called on {@link #MIC_EXECUTOR}. Cleanly closes the current line and, if still running
+     *  (the dungeon session didn't also end in the meantime), reopens with whatever device is now
+     *  configured - killer560, 2026-09-20: switching the mic mid-session must not leak the old line. */
+    private static void restartMicCapture() {
+        closeMicLine();
+        if (running) {
+            startMicCapture();
+        }
+    }
+
+    /** Called by {@link com.killer560.hub.gui.tab.ProximityVoiceTab} when the user picks a different
+     *  microphone. Persists instantly; only actually reopens the line (off-thread) if proximity voice is
+     *  live right now. Public: the tab lives in a different package. */
+    public static void onMicrophoneDeviceChanged() {
+        if (running) {
+            MIC_EXECUTOR.execute(ProximityVoiceFeature::restartMicCapture);
+        }
+    }
+
+    /** True while this feature (not {@link MicTester}) has a real mic line open. */
+    public static boolean isMicActive() {
+        return running && micLine != null;
+    }
+
+    /** True whenever proximity voice is live right now (enabled + inside a dungeon) - the same condition
+     *  {@link #tick()} uses to start/stop, exposed for {@link PartyVoiceHudElement}'s relevance check. */
+    public static boolean isActive() {
+        return running;
+    }
+
+    /** 0-1 input level from the last frame read, live regardless of push-to-talk/mute state. */
+    public static float currentInputLevel() {
+        return currentInputLevel;
+    }
+
+    /** The device name actually in use right now ({@link MicrophoneDevices#DEFAULT_LABEL} on fallback), or
+     *  {@code null} while no line is open - read by the tab to show "which device is currently in use". */
+    public static String currentDeviceInUse() {
+        return currentDeviceName;
+    }
+
+    /** RMS level of a 16-bit mono PCM buffer, normalized to roughly 0-1 (clipping treated as "full bar").
+     *  Shared with {@link MicTester} so the Test Mic meter and the real capture path read levels the same
+     *  way. */
+    static float computeLevel(byte[] data, int length) {
+        int samples = length / 2;
+        if (samples <= 0) {
+            return 0f;
+        }
+        long sumSquares = 0;
+        for (int i = 0; i + 1 < length; i += 2) {
+            short sample = (short) ((data[i] & 0xFF) | (data[i + 1] << 8));
+            sumSquares += (long) sample * sample;
+        }
+        double rms = Math.sqrt(sumSquares / (double) samples);
+        return (float) Math.min(1.0, rms / 12000.0);
+    }
+
+    /** Only ever sends to peers {@link ProximityVoiceConfig#getTalkScope()} actually allows - Party scope
+     *  drops anyone whose beacon didn't come with a real-party name attached, even if their address is
+     *  known (e.g. they broadcast Lobby-wide but you're talking Party-only). */
     private static void sendAudioFrame(byte[] data, int length) {
         if (socket == null || socket.isClosed()) {
             return;
         }
+        boolean talkLobby = ProximityVoiceConfig.getInstance().getTalkScope() == VoiceScope.LOBBY;
         byte[] packetData = new byte[16 + length];
         writeUuid(packetData, localSessionId);
         System.arraycopy(data, 0, packetData, 16, length);
-        for (InetSocketAddress addr : peerAddresses.values()) {
+        for (Map.Entry<UUID, InetSocketAddress> entry : peerAddresses.entrySet()) {
+            if (!talkLobby && !isRealPartyMemberByName(peerNames.get(entry.getKey()))) {
+                continue;
+            }
+            InetSocketAddress addr = entry.getValue();
             try {
                 socket.send(new DatagramPacket(packetData, packetData.length, addr.getAddress(), addr.getPort()));
             } catch (Exception ignored) {
@@ -231,13 +386,17 @@ public final class ProximityVoiceFeature {
                     continue;
                 }
                 UUID senderId = readUuid(packet.getData());
-                // Only play audio from a peer we learned about through party chat, and only from the
-                // address that peer announced - otherwise anyone who learns this socket's IP:port can
-                // inject audio into the game (2026-09-16 audit).
+                // Only play audio from a peer we learned about through chat, and only from the address
+                // that peer announced - otherwise anyone who learns this socket's IP:port can inject audio
+                // into the game (2026-09-16 audit).
                 InetSocketAddress known = peerAddresses.get(senderId);
                 if (known == null || packet.getAddress() == null || !packet.getAddress().equals(known.getAddress())) {
                     continue;
                 }
+                // Recorded before the listen-scope volume check below so the "who's talking" HUD reflects
+                // that a peer is actually transmitting even while you (locally) have them at 0 volume -
+                // same reasoning Discord-style overlays use for a deafened/out-of-range teammate.
+                lastAudioAtMs.put(senderId, System.currentTimeMillis());
                 int audioLen = packet.getLength() - 16;
                 playAudio(senderId, packet.getData(), 16, audioLen);
             } catch (Exception ignored) {
@@ -281,24 +440,92 @@ public final class ProximityVoiceFeature {
         return result;
     }
 
+    /**
+     * killer560, 2026-09-20: "not based on distance if you are in a party" (now folded into the
+     * Listen/Talk scope model - see the class doc) - a real party member is always full volume, a
+     * lobby-only peer fades with distance (unless Lobby Falloff is off) and only plays at all while Listen
+     * scope is Lobby.
+     */
     private static float volumeForPeer(UUID senderId) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return 0f;
         }
-        double range = ProximityVoiceConfig.getInstance().getMaxRange();
-        for (Player p : LeapMenuFeature.currentPartyMembers()) {
-            // No reliable way to map a session UUID back to a specific teammate's real UUID without a
-            // handshake this MVP doesn't implement - approximate using the nearest teammate as a
-            // reasonable stand-in until a real per-peer identity handshake exists.
-            double dist = client.player.distanceTo(p);
-            if (dist <= range) {
-                return (float) (1.0 - dist / range);
-            }
+        String senderName = peerNames.get(senderId);
+        if (senderName == null) {
+            return 0f; // Every beacon has carried a chat-verified name since the 2026-09-20 scope rework.
         }
-        return 0f;
+        ProximityVoiceConfig cfg = ProximityVoiceConfig.getInstance();
+        boolean isPartyMember = isRealPartyMemberByName(senderName);
+        if (!isPartyMember && cfg.getListenScope() != VoiceScope.LOBBY) {
+            return 0f; // Listen scope = Party: never hear a lobby-only peer, discovered or not.
+        }
+        Player sender = findLoadedPlayerByName(senderName);
+        if (sender == null) {
+            return 0f; // Not currently loaded/visible (shouldn't happen inside the same instance, but be safe).
+        }
+        if (isPartyMember) {
+            return 1.0f;
+        }
+        if (!cfg.isLobbyFalloffEnabled()) {
+            return 1.0f;
+        }
+        double dist = client.player.distanceTo(sender);
+        double range = cfg.getMaxRange();
+        return dist <= range ? (float) (1.0 - dist / range) : 0f;
     }
 
+    /** Any loaded player in the current instance with this name - {@link LeapMenuFeature#currentPartyMembers()}
+     *  is "everyone loaded", which inside a dungeon means the whole lobby, party or not. */
+    private static Player findLoadedPlayerByName(String name) {
+        for (Player p : LeapMenuFeature.currentPartyMembers()) {
+            if (p.getGameProfile().name().equalsIgnoreCase(name)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isRealPartyMemberByName(String name) {
+        if (name == null) {
+            return false;
+        }
+        for (String teammate : PartyTracker.teammates()) {
+            if (teammate.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True if {@code playerName} (a real party member - see {@link PartyTracker#teammates()}) has sent an
+     *  audio frame in the last {@link #TALKING_HOLD_MS} - backs {@link PartyVoiceHudElement}. Only reads
+     *  a timestamp map the network receive thread already maintains; never touches audio hardware, so it's
+     *  safe to call every HUD render frame. */
+    public static boolean isTalking(String playerName) {
+        if (playerName == null) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        for (Map.Entry<UUID, String> entry : peerNames.entrySet()) {
+            if (!entry.getValue().equalsIgnoreCase(playerName)) {
+                continue;
+            }
+            Long last = lastAudioAtMs.get(entry.getKey());
+            if (last != null && now - last <= TALKING_HOLD_MS) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Broadcasts this client's address beacon over whichever chat channel {@link ProximityVoiceConfig#getTalkScope()}
+     * needs to reach: Party Chat (real {@code /party} only) for {@link VoiceScope#PARTY}, or plain chat for
+     * {@link VoiceScope#LOBBY} - Hypixel only ever delivers a plain chat message from inside a Catacombs
+     * instance to the players physically in that same instance (see the class doc), so this never reaches
+     * further than "the lobby" even though it isn't Party Chat.
+     */
     private static void broadcastOwnAddress() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || socket == null) {
@@ -312,6 +539,12 @@ public final class ProximityVoiceFeature {
             return;
         }
         String payload = String.format(Locale.US, "%s%s|%s|%d", TAG, localSessionId, ip, socket.getLocalPort());
+        // DELIBERATELY party chat only. The 2026-09-20 scope rework briefly sent this over PLAIN chat for
+        // Lobby scope, which would have published killer560's (and every user's) IP address to every
+        // stranger in the lobby and into Hypixel's chat logs - an invitation to be DDoSed, for a
+        // convenience feature. Lobby-scope voice therefore needs a discovery path that is not public chat;
+        // the mod's own relay already carries scoped, authenticated `data` packets and is the right home
+        // for it. Until that lands, Lobby scope simply finds nobody rather than leaking an address.
         client.player.connection.sendCommand("pc " + payload);
     }
 
@@ -323,15 +556,27 @@ public final class ProximityVoiceFeature {
         if (!raw.contains(TAG)) {
             return;
         }
-        // Only accept beacons that arrived as real party chat ("Party > [RANK] Name: [K560V]..."). Beacons
-        // are only ever sent via /pc, so this loses nothing - but without it ANY player in the lobby (or a
-        // /msg, or an NPC line) could type a beacon and have this client stream its microphone to an
-        // attacker-chosen address (2026-09-16 audit). A whisper renders as "From ..." and public chat as
-        // "[RANK] Name: ...", so neither can satisfy the prefix.
-        if (!raw.startsWith("Party > ")) {
-            return;
+        String senderName;
+        String rest;
+        Matcher partyMatch = PARTY_CHAT_LINE.matcher(raw);
+        if (partyMatch.matches()) {
+            senderName = partyMatch.group(1);
+            rest = partyMatch.group(2);
+        } else {
+            // Only accept a message shaped like real chat ("[RANK] Name: text") - a whisper ("From Name:
+            // ...") or a system line never matches this, so format alone keeps this from trusting either.
+            // Combined with `running` (this client is inside a dungeon instance right now) and the same
+            // instance-isolation Hypixel gives Catacombs groups, a plain-chat beacon can only ever have
+            // come from someone physically in this run - see the class doc (2026-09-16 audit's reasoning
+            // extended to the 2026-09-20 Lobby scope work).
+            Matcher plainMatch = PLAIN_CHAT_LINE.matcher(raw);
+            if (!plainMatch.matches()) {
+                return;
+            }
+            senderName = plainMatch.group(1);
+            rest = plainMatch.group(2);
         }
-        Matcher m = PEER_PATTERN.matcher(raw);
+        Matcher m = PEER_PATTERN.matcher(rest);
         if (!m.find()) {
             return;
         }
@@ -345,11 +590,12 @@ public final class ProximityVoiceFeature {
             if (port <= 0 || port > 65535) {
                 return;
             }
-            // A party is at most 5 players; anything beyond that is beacon spam.
+            // A dungeon instance is at most 5 players; anything beyond that is beacon spam.
             if (!peerAddresses.containsKey(sessionId) && peerAddresses.size() >= 8) {
                 return;
             }
             peerAddresses.put(sessionId, new InetSocketAddress(InetAddress.getByName(ip), port));
+            peerNames.put(sessionId, senderName);
         } catch (Exception ignored) {
         }
     }

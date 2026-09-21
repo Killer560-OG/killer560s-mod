@@ -43,6 +43,12 @@ final class Win32 {
     static final int GW_OWNER = 4;
     static final int LWA_ALPHA = 0x00000002;
 
+    /** DWM's own per-window accent border (Windows 11), separate from any WS_* frame style - this is what was
+     *  still drawing a thin white/light border around the cropped, caption-less Shorts window (killer560:
+     *  "it still has that white border around the outside of it"). DWMWA_COLOR_NONE turns it off entirely. */
+    static final int DWMWA_BORDER_COLOR = 34;
+    static final int DWMWA_COLOR_NONE = 0xFFFFFFFE;
+
     static final String CHROME_WINDOW_CLASS = "Chrome_WidgetWin_1";
 
     interface WndEnumProc extends StdCallLibrary.StdCallCallback {
@@ -93,15 +99,22 @@ final class Win32 {
         boolean DeleteObject(long handle);
     }
 
+    interface Dwmapi extends StdCallLibrary {
+        int DwmSetWindowAttribute(long hwnd, int dwAttribute, int[] pvAttribute, int cbAttribute);
+    }
+
     private static volatile User32 user32;
     private static volatile Gdi32 gdi32;
+    private static volatile Dwmapi dwmapi;
     private static volatile Throwable loadError;
     private static boolean loadAttempted;
 
     private Win32() {
     }
 
-    /** Loads the bindings once. @return null on success, or the load failure. */
+    /** Loads the bindings once. @return null on success, or the load failure. Dwmapi is best-effort (only
+     *  used for the cosmetic border fix) and never fails this method - {@link #dwmapi()} is null if it's
+     *  unavailable and callers just skip that step, same as WindowLayoutWin32 does it. */
     static synchronized Throwable ensureLoaded() {
         if (!loadAttempted) {
             loadAttempted = true;
@@ -113,6 +126,11 @@ final class Win32 {
                 user32 = null;
                 gdi32 = null;
             }
+            try {
+                dwmapi = Native.load("dwmapi", Dwmapi.class);
+            } catch (Throwable t) {
+                dwmapi = null;
+            }
         }
         return loadError;
     }
@@ -123,6 +141,10 @@ final class Win32 {
 
     static Gdi32 gdi32() {
         return gdi32;
+    }
+
+    static Dwmapi dwmapi() {
+        return dwmapi;
     }
 
     static String className(long hwnd) {

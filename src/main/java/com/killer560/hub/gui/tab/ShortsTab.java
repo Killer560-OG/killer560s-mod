@@ -145,11 +145,9 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         }
         y += 6;
 
-        widgets.add(label(contentX, y, contentWidth, "§7First launch: click the Shorts window and log into YouTube once -"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7it uses its own browser profile, so the login is remembered."));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7Best in windowed or borderless mode (not exclusive fullscreen)."));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Sign in to YouTube"), btn -> {
+                    ShortsFeature.signInToYouTube();
+                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
     }

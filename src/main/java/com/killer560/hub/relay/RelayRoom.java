@@ -10,36 +10,61 @@ import java.util.Locale;
 import java.util.TreeSet;
 
 /**
- * Which relay room this client belongs in.
+ * Which relay room this client belongs in, for whichever of Mod Chat's two room choices -
+ * {@link Mode#PARTY} or {@link Mode#LOBBY} - killer560 picked. Both are derived, never assigned: every
+ * member computes the same string from their own client state without anyone coordinating, and the relay
+ * never learns who is in the party or which Hypixel instance a hash came from - all it ever sees is a hash.
  * <p>
- * A party's room name is derived, not assigned: SHA-256 over the sorted lower-case IGNs of everyone in the
- * party, hex, truncated. Every member computes the same string from their own {@link PartyTracker} view without
- * anyone coordinating, and the relay never learns who is in the party - all it ever sees is a hash. Outside a
- * party there is nothing to derive, so the client falls back to {@link #GLOBAL}.
+ * <b>Rebuilt 2026-09-20.</b> killer560: <i>"Poor the global mod chat. Do not have a global option only have
+ * a lobby option or a party option."</i> There is deliberately no third "everyone" choice and no fallback
+ * between the two: {@link #current} returns {@code null} when the chosen mode's room can't be computed yet
+ * (alone, for Party; Hypixel's instance id not known yet, for Lobby) and callers must stay disconnected
+ * rather than guess something wider - see {@link RelayClient.State#NO_ROOM}. Silently widening the room is
+ * the exact bug this feature replaced (Mod Chat used to leak into real, public party chat).
  * <p>
  * Truncated to 32 hex characters purely to stay inside the relay's 64-character room-name limit
  * ({@code safeRoom} in the Worker's {@code index.ts}, which also restricts the charset to
- * {@code [a-z0-9:_-]} - {@code "party:" + hex} fits both).
+ * {@code [a-z0-9:_-]} - {@code "party:"}/{@code "lobby:"} + hex fits both).
  */
 public final class RelayRoom {
 
-    public static final String GLOBAL = "global";
-
-    private static final int HEX_LENGTH = 32;
+    static final int HEX_LENGTH = 32;
 
     private RelayRoom() {
     }
 
+    /** The two room choices left once the global option was removed - see the class doc. */
+    public enum Mode {
+        LOBBY("Lobby"),
+        PARTY("Party");
+
+        public final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+
+        public Mode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
     /**
-     * @return {@code party:<hash>} for the current party, or {@link #GLOBAL} when you are alone / the party
-     *         isn't known yet. Reads {@link PartyTracker} only; call it from the client thread.
+     * @return the room for {@code mode}, or {@code null} if it can't be computed right now - never a wider
+     *         fallback room (see the class doc). Reads {@link PartyTracker} / {@link HypixelLocation} only;
+     *         call it from the client thread.
      */
-    public static String current() {
+    public static String current(Mode mode) {
+        return mode == Mode.PARTY ? partyRoom() : HypixelLocation.lobbyRoom();
+    }
+
+    /** {@code party:<hash>} for the current party, or {@code null} when you are alone / it isn't known yet. */
+    private static String partyRoom() {
         Minecraft client = Minecraft.getInstance();
         String self = client == null || client.player == null ? null : client.player.getGameProfile().name();
         List<String> teammates = PartyTracker.teammates();
         if (self == null || teammates.isEmpty()) {
-            return GLOBAL;
+            return null;
         }
         // Sorted + lower-cased + de-duplicated so every member hashes byte-identical input regardless of the
         // order Hypixel listed them in or how anyone's client capitalised a name.
@@ -51,13 +76,14 @@ public final class RelayRoom {
             }
         }
         if (names.size() < 2) {
-            return GLOBAL;
+            return null;
         }
         String hash = sha256Hex(String.join(",", names));
-        return hash == null ? GLOBAL : "party:" + hash.substring(0, HEX_LENGTH);
+        return hash == null ? null : "party:" + hash.substring(0, HEX_LENGTH);
     }
 
-    private static String sha256Hex(String input) {
+    /** Package-visible so {@link HypixelLocation} hashes the Hypixel instance id the same way. */
+    static String sha256Hex(String input) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder out = new StringBuilder(digest.length * 2);
@@ -70,11 +96,19 @@ public final class RelayRoom {
         }
     }
 
-    /** "Party (4)" / "Global" - what the settings tab shows instead of a meaningless hash. */
+    /** "Party (4)" / "Lobby" - what the settings tab shows instead of a meaningless hash. Only meant to be
+     *  called with a non-null room; the tab explains a null one itself (not in a party / instance not known
+     *  yet / p3sim), since only it knows which mode is selected. */
     public static String describe(String room) {
-        if (room == null || room.equals(GLOBAL)) {
-            return "Global";
+        if (room == null || room.isEmpty()) {
+            return "-";
         }
-        return room.startsWith("party:") ? "Party (" + (PartyTracker.teammates().size() + 1) + ")" : room;
+        if (room.startsWith("party:")) {
+            return "Party (" + (PartyTracker.teammates().size() + 1) + ")";
+        }
+        if (room.startsWith("lobby:")) {
+            return "Lobby";
+        }
+        return room;
     }
 }

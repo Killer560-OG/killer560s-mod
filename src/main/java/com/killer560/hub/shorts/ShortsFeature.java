@@ -390,11 +390,9 @@ public final class ShortsFeature {
                     ModChat.dim(c != null && c.isOpen() ? "First time? Click the Shorts window and log into YouTube once."
                             : "Controls not connected - keybinds may not work."));
             scheduleInsetMeasure(800);
-            int vol = ShortsConfig.getInstance().getVolume();
-            if (vol >= 0) {
-                EXEC.schedule(() -> runCommand("volume " + vol, cc -> str(cc.evaluate(volumeJs(vol)))), 3, TimeUnit.SECONDS);
-            }
-            // Same 3s settle as the volume: YouTube's app shell has to exist before the html[dark] nudge means
+            // Volume is applied from connectCdp (installVolumeHookNow), not here - see that method's comment
+            // for why a fixed post-launch delay isn't good enough.
+            // Same 3s settle as before: YouTube's app shell has to exist before the html[dark] nudge means
             // anything (the media emulation itself was already sent the moment CDP connected).
             if (ShortsConfig.getInstance().getTheme() != ShortsConfig.Theme.SYSTEM) {
                 EXEC.schedule(() -> runCommand("theme (launch)", cc -> applyThemeNow(cc, "launch")), 3, TimeUnit.SECONDS);
@@ -473,6 +471,13 @@ public final class ShortsFeature {
                         LOGGER.info("[Shorts] Theme: {}.", applyThemeNow(client, "connect"));
                     } catch (Exception e) {
                         LOGGER.warn("[Shorts] Theme apply on connect failed: {}", e.toString());
+                    }
+                    // Own try/catch for the same reason as the theme above: install the volume hook (page-side
+                    // JS, dies with the CDP session same as the emulation) fresh on every (re)connect.
+                    try {
+                        LOGGER.info("[Shorts] Volume hook: {}.", installVolumeHookNow(client));
+                    } catch (Exception e) {
+                        LOGGER.warn("[Shorts] Volume hook install on connect failed: {}", e.toString());
                     }
                     return;
                 }
@@ -658,6 +663,7 @@ public final class ShortsFeature {
         u.SetWindowPos(h, 0, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOZORDER
                 | Win32.SWP_NOACTIVATE | Win32.SWP_NOOWNERZORDER | Win32.SWP_FRAMECHANGED);
         boolean ownerOk = u.GetWindow(h, Win32.GW_OWNER) == mc;
+        removeDwmBorder(h);
 
         attachedHwnd = h;
         shown = false;
@@ -675,6 +681,21 @@ public final class ShortsFeature {
             LOGGER.info("[Shorts] Returned focus to Minecraft.");
         }
         return true;
+    }
+
+    /** Windows 11 draws a thin accent-colour border around every top-level window via DWM, independent of the
+     *  WS_* frame styles already stripped above - that's what was still visible as a white border around the
+     *  cropped, caption-less Shorts window (killer560 screenshot 2026-09-20_15.18.59.png). Best-effort: silently
+     *  does nothing on Windows 10 (no DWMWA_BORDER_COLOR support) or if dwmapi failed to load. */
+    private static void removeDwmBorder(long h) {
+        Win32.Dwmapi dwm = Win32.dwmapi();
+        if (dwm == null) {
+            return;
+        }
+        try {
+            dwm.DwmSetWindowAttribute(h, Win32.DWMWA_BORDER_COLOR, new int[]{Win32.DWMWA_COLOR_NONE}, 4);
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void detachLocal() {
@@ -921,10 +942,93 @@ public final class ShortsFeature {
         return "(()=>{const v=" + ACTIVE_VIDEO_JS + ";if(v&&v.paused){v.play();return 'playing'}return 'idle'})()";
     }
 
-    private static String volumeJs(int volume) {
-        return "(()=>{const n=" + volume + ";const p=document.querySelector('#shorts-player');"
-                + "if(p&&typeof p.setVolume==='function'){p.setVolume(n);if(n>0&&typeof p.isMuted==='function'&&p.isMuted())p.unMute();return 'player api'}"
-                + "const v=" + ACTIVE_VIDEO_JS + ";if(!v)return 'no video';v.volume=n/100;if(n>0)v.muted=false;return 'video element'})()";
+    /**
+     * Background thread. Applies the saved volume once the active video/player actually exists, and keeps it
+     * applied as Shorts' feed swaps in each new video.
+     * <p>
+     * killer560: "if i have it set to 1 percent and open yt shorts, then it defaults to the default volume
+     * until I reset it back to 1 percent then it updates". The old code pushed the volume once, 3 seconds
+     * after launch - a guess: if the player wasn't ready yet by then the call landed on nothing, and the very
+     * next Short (a new {@code <video>} element - this is a feed, not one page) reset it right back.
+     * <p>
+     * This installs a small MutationObserver plus a cheap safety-poll INSIDE the page instead (survives exactly
+     * as long as the page does - CDP reconnect re-sends it, same as the theme emulation above). Every check
+     * reads the live {@code window.__k560Vol} and the current active video/player, and only calls
+     * {@code setVolume}/writes {@code .volume} when that element hasn't already been set to that value - so once
+     * it sticks for a given video, nothing keeps re-touching it (and it won't fight a live YouTube volume
+     * change) until either a new video appears or {@link #applyVolume()} bumps {@code __k560Vol} itself.
+     */
+    private static String installVolumeHookNow(CdpClient c) throws Exception {
+        int vol = ShortsConfig.getInstance().getVolume();
+        return str(c.evaluate(volumeHookJs(vol)));
+    }
+
+    private static String volumeHookJs(int volume) {
+        return "(()=>{window.__k560Vol=" + volume + ";"
+                + "const apply=()=>{const n=window.__k560Vol;if(n<0)return;"
+                + "const v=" + ACTIVE_VIDEO_JS + ";if(!v||v.__k560AppliedVol===n)return;"
+                + "const p=document.querySelector('#shorts-player');"
+                + "if(p&&typeof p.setVolume==='function'){p.setVolume(n);if(n>0&&typeof p.isMuted==='function'&&p.isMuted())p.unMute();}"
+                + "else{v.volume=n/100;if(n>0)v.muted=false;}"
+                + "v.__k560AppliedVol=n;};"
+                + "if(window.__k560VolHook){apply();return 'updated'}"
+                + "window.__k560VolHook=new MutationObserver(apply);"
+                + "window.__k560VolHook.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['is-active']});"
+                // Fallback for the case the fixed delay used to miss: the player element can exist before its
+                // setVolume API is ready, with no DOM mutation marking the moment it becomes usable.
+                + "setInterval(apply,400);"
+                + "apply();return 'installed'})()";
+    }
+
+    // ------------------------------------------------------------------------------------------------
+    // Sign-in (2026-09-20, killer560: "please implement the login through my mod by having me click a button
+    // that says sign in to youtube shorts or sign into tictoc or reels once you finish implementing those")
+    // ------------------------------------------------------------------------------------------------
+
+    private static final String YOUTUBE_SIGNIN_URL =
+            "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/shorts";
+
+    /**
+     * Opens a real, decorated Google sign-in page in an ordinary browser window on the Shorts profile, for
+     * killer560 to log into by hand. The mod never sees, asks for, or stores a password - it only starts a
+     * normal browser process pointed at a normal URL; everything past that is between him and Google, same as
+     * if he'd typed the address himself. See {@link BrowserLauncher#buildSignInCommand} for why this can't
+     * collide with an overlay that's already running.
+     * <p>
+     * TikTok/Reels don't exist yet - adding one later is just another URL constant through
+     * {@link #openSignInWindow}, not a new mechanism.
+     */
+    public static void signInToYouTube() {
+        openSignInWindow(YOUTUBE_SIGNIN_URL, "YouTube");
+    }
+
+    private static void openSignInWindow(String url, String platform) {
+        if (!isSupported()) {
+            ModChat.send(CHAT, ModChat.bad(unsupportedReason));
+            return;
+        }
+        EXEC.execute(() -> {
+            try {
+                Path exe = BrowserLauncher.findBrowser(LOGGER);
+                if (exe == null) {
+                    chatLater(ModChat.bad("Couldn't find Microsoft Edge or Google Chrome - install one and try again."));
+                    return;
+                }
+                Path profile = BrowserLauncher.profileDir();
+                Files.createDirectories(profile);
+                List<String> cmd = BrowserLauncher.buildSignInCommand(exe, profile, url);
+                LOGGER.info("[Shorts] Opening {} sign-in: {}", platform, String.join(" ", cmd));
+                new ProcessBuilder(cmd)
+                        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                        .redirectError(ProcessBuilder.Redirect.DISCARD)
+                        .start();
+                chatLater(ModChat.text("Opened a "), ModChat.value(platform + " sign-in"),
+                        ModChat.text(" window - log in there, then close it."));
+            } catch (Exception e) {
+                LOGGER.error("[Shorts] Sign-in launch failed.", e);
+                chatLater(ModChat.bad("Couldn't open the sign-in window: " + e.getMessage()));
+            }
+        });
     }
 
     public static void toggleShown() {
@@ -1001,7 +1105,7 @@ public final class ShortsFeature {
                 volumePending.set(false);
                 int vol = ShortsConfig.getInstance().getVolume();
                 if (vol >= 0) {
-                    runCommand("volume " + vol, c -> str(c.evaluate(volumeJs(vol))));
+                    runCommand("volume " + vol, ShortsFeature::installVolumeHookNow);
                 }
             }, 150, TimeUnit.MILLISECONDS);
         }

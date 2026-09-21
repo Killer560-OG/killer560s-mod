@@ -139,6 +139,21 @@ final class BrowserLauncher {
         return cmd;
     }
 
+    /** Plain, decorated (non {@code --app}) window on the very same profile the Shorts overlay uses, for
+     *  killer560 to sign in by hand - own title bar and URL bar, so he can see he's really on the real page,
+     *  and never puppeted over CDP. If the overlay is already running on this profile, Chromium's single-instance
+     *  handoff means this just opens an ordinary new window in that same running browser instead of a second
+     *  process, leaving the pinned overlay untouched. */
+    static List<String> buildSignInCommand(Path exe, Path profile, String url) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(exe.toString());
+        cmd.add("--user-data-dir=" + profile.toAbsolutePath());
+        cmd.add("--no-first-run");
+        cmd.add("--no-default-browser-check");
+        cmd.add(url);
+        return cmd;
+    }
+
     /** Marks the profile as cleanly exited so no "Restore pages?" bubble appears after a forced kill. */
     static void markProfileExitedCleanly(Path profile, Logger log) {
         Path prefs = profile.resolve("Default").resolve("Preferences");

@@ -193,6 +193,7 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.scoreboard.CustomScoreboardFeature.Element.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
+        HudElementRegistry.register(new com.killer560.hub.proximityvoice.PartyVoiceHudElement());
         com.killer560.hub.util.SkyblockGate.register();
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
         com.killer560.hub.leapmenu.PartyTracker.register();

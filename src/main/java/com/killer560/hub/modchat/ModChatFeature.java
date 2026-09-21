@@ -1,6 +1,7 @@
 package com.killer560.hub.modchat;
 
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.relay.HypixelLocation;
 import com.killer560.hub.relay.RelayClient;
 import com.killer560.hub.relay.RelayEndpoint;
 import com.killer560.hub.relay.RelayListener;
@@ -40,6 +41,7 @@ public final class ModChatFeature {
 
     public static void register() {
         RelayClient.setListener(new Listener());
+        HypixelLocation.register();
         ClientTickEvents.END_CLIENT_TICK.register(ModChatFeature::onTick);
     }
 
@@ -50,7 +52,13 @@ public final class ModChatFeature {
         tickCounter = 0;
         ModChatConfig cfg = ModChatConfig.getInstance();
         boolean on = cfg.isEnabled() && client.getConnection() != null && client.player != null;
-        String room = on && cfg.isPartyRoom() ? RelayRoom.current() : RelayRoom.GLOBAL;
+        RelayRoom.Mode mode = cfg.getRoomMode();
+        // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
+        // never sends /locraw at all.
+        HypixelLocation.tick(client, on && mode == RelayRoom.Mode.LOBBY);
+        // null (never a wider fallback room) when the chosen mode's room can't be computed yet - RelayClient
+        // goes NO_ROOM and stays disconnected instead of guessing. See RelayRoom's class doc.
+        String room = on ? RelayRoom.current(mode) : null;
         // Cheap no-op unless one of these three actually changed - all the work happens on the relay's thread.
         RelayClient.update(on, cfg.getRelayUrl(), room);
     }

@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.relay.RelayEndpoint;
+import com.killer560.hub.relay.RelayRoom;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -18,6 +19,13 @@ import java.nio.file.Path;
  * The old {@code channel} key (Party/Guild) is gone: Mod Chat no longer sends over Hypixel chat at all, so there
  * is no channel to pick. An existing config file that still has that key simply loads without it - every other
  * setting still reads, because {@link ConfigJson} reads per key rather than all-or-nothing.
+ * <p>
+ * <b>Room, 2026-09-20.</b> killer560: <i>"Poor the global mod chat. Do not have a global option only have a
+ * lobby option or a party option."</i> The old {@code partyRoom} boolean (Party vs. the removed Global) is
+ * replaced by {@link RelayRoom.Mode}. {@link #load} migrates an old file's boolean once: {@code true} (already
+ * the default) stays Party; {@code false} - the removed Global - becomes Lobby, its closest surviving
+ * equivalent (everyone on your current instance, not literally everyone on the relay). {@link #save} only
+ * ever writes the new {@code roomMode} key from here on.
  */
 public final class ModChatConfig {
 
@@ -35,7 +43,7 @@ public final class ModChatConfig {
     // and there is no longer any UI for this. The field only survives so an older config that has one does
     // not fail to parse - it is read, never written, and never used to pick the endpoint.
     private String legacyRelayUrlIgnored = "";
-    private boolean partyRoom = true;
+    private RelayRoom.Mode roomMode = RelayRoom.Mode.PARTY;
     private boolean logToChat = false;
     private boolean presenceAlerts = false;
 
@@ -60,7 +68,10 @@ public final class ModChatConfig {
             ModChatConfig cfg = new ModChatConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.legacyRelayUrlIgnored = ConfigJson.getString(obj, "relayUrl", "");
-            cfg.partyRoom = ConfigJson.getBool(obj, "partyRoom", true);
+            // Pre-2026-09-20 configs only ever had "partyRoom"; see the class doc for the migration mapping.
+            RelayRoom.Mode legacyMode =
+                    ConfigJson.getBool(obj, "partyRoom", true) ? RelayRoom.Mode.PARTY : RelayRoom.Mode.LOBBY;
+            cfg.roomMode = ConfigJson.getEnum(obj, "roomMode", RelayRoom.Mode.class, legacyMode);
             cfg.logToChat = ConfigJson.getBool(obj, "logToChat", false);
             cfg.presenceAlerts = ConfigJson.getBool(obj, "presenceAlerts", false);
             instance = cfg;
@@ -74,7 +85,7 @@ public final class ModChatConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("partyRoom", partyRoom);
+            obj.addProperty("roomMode", roomMode.name());
             obj.addProperty("logToChat", logToChat);
             obj.addProperty("presenceAlerts", presenceAlerts);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -95,13 +106,14 @@ public final class ModChatConfig {
         return RelayEndpoint.DEFAULT_BASE_URL;
     }
 
-    /** Talk only to your own party (a hashed room name) rather than to everyone on the relay. */
-    public boolean isPartyRoom() {
-        return partyRoom;
+    /** Talk only to your party, or only to everyone on your current Hypixel instance - see
+     *  {@link RelayRoom.Mode}. There is deliberately no wider "everyone on the relay" choice. */
+    public RelayRoom.Mode getRoomMode() {
+        return roomMode;
     }
 
-    public void setPartyRoom(boolean partyRoom) {
-        this.partyRoom = partyRoom;
+    public void setRoomMode(RelayRoom.Mode roomMode) {
+        this.roomMode = roomMode;
     }
 
     /** Also print received messages into the real chat log, so they can be scrolled back to. */

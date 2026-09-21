@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.modchat.ModChatConfig;
 import com.killer560.hub.notify.ModOverlayMessage;
+import com.killer560.hub.relay.HypixelLocation;
 import com.killer560.hub.relay.RelayClient;
 import com.killer560.hub.relay.RelayRoom;
 import com.killer560.hub.util.ModChat;
@@ -45,10 +46,10 @@ public class ModChatTab extends BaseTab {
         }
 
         widgets.add(SettingsButtonWidget.builder(
-                Component.literal("Room: " + (cfg.isPartyRoom() ? "Party" : "Global")), btn -> {
-                    cfg.setPartyRoom(!cfg.isPartyRoom());
+                Component.literal("Room: " + cfg.getRoomMode().label), btn -> {
+                    cfg.setRoomMode(cfg.getRoomMode().next());
                     cfg.save();
-                    btn.setMessage(Component.literal("Room: " + (cfg.isPartyRoom() ? "Party" : "Global")));
+                    btn.setMessage(Component.literal("Room: " + cfg.getRoomMode().label));
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 
@@ -81,9 +82,7 @@ public class ModChatTab extends BaseTab {
         };
         List<Component> lines = new ArrayList<>(3);
         lines.add(ModChat.colored("Relay: ", ModChat.TEXT).append(ModChat.colored(RelayClient.statusText(), colour)));
-        String room = RelayClient.room();
-        lines.add(ModChat.colored("Room: ", ModChat.TEXT).append(ModChat.value(
-                room == null || room.isEmpty() ? "-" : RelayRoom.describe(room))));
+        lines.add(ModChat.colored("Room: ", ModChat.TEXT).append(roomLine(RelayClient.room())));
         List<String> online = RelayClient.online();
         List<String> others = new ArrayList<>(online.size());
         Minecraft client = Minecraft.getInstance();
@@ -97,6 +96,26 @@ public class ModChatTab extends BaseTab {
                 ? ModChat.dim(state == RelayClient.State.CONNECTED ? "nobody else yet" : "-")
                 : ModChat.value(String.join(", ", others))));
         return lines;
+    }
+
+    /** Honest about why there's no room yet instead of ever implying a wider one is in use - see
+     *  {@code RelayRoom}'s class doc on the removed Global option. {@code room} is whatever the relay
+     *  actually connected with, which can lag one connect cycle behind a just-changed setting. */
+    private static Component roomLine(String room) {
+        if (room != null && !room.isEmpty()) {
+            return ModChat.value(RelayRoom.describe(room));
+        }
+        ModChatConfig cfg = ModChatConfig.getInstance();
+        if (cfg.getRoomMode() == RelayRoom.Mode.PARTY) {
+            return ModChat.dim("Party (not in a party)");
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (HypixelLocation.isP3Sim(client)) {
+            return ModChat.dim("Lobby (not available on p3sim)");
+        }
+        // The id can already be known here (e.g. right after switching modes) with the socket still on its
+        // way to the new room - say so rather than imply nothing has happened yet.
+        return ModChat.dim(HypixelLocation.isKnown() ? "Lobby (connecting...)" : "Lobby (waiting for location...)");
     }
 
     private static Component onOff(String label, boolean value) {
