@@ -12,6 +12,7 @@ import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -81,6 +82,7 @@ public final class ThornEspFeature {
         boolean wantBear = cfg.isBearEspEnabled();
         boolean wantMobs = cfg.isMobEspEnabled();
         boolean wantBow = cfg.isBowEspEnabled();
+        boolean wantThorn = cfg.isThornEspEnabled();
         boolean throughWalls = cfg.isThroughWalls();
         Vec3 eye = client.player.getEyePosition();
         Map<Integer, Integer> found = new LinkedHashMap<>();
@@ -101,6 +103,11 @@ public final class ThornEspFeature {
                 if (wantBow && isSpiritBow(stand) && visible(client, eye, stand, throughWalls)) {
                     found.put(stand.getId(), cfg.getBowColor());
                     bows.add(stand.getId());
+                }
+            } else if (entity instanceof Ghast) {
+                // Thorn himself: the only ghast in the F4/M4 boss room.
+                if (wantThorn && entity.isAlive() && visible(client, eye, entity, throughWalls)) {
+                    found.put(entity.getId(), cfg.getThornColor());
                 }
             } else if (wantMobs && isKnownSpiritAnimal(entity) && entity.isAlive() && !entity.isInvisible()
                     && visible(client, eye, entity, throughWalls)) {

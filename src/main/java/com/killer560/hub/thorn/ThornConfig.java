@@ -22,7 +22,7 @@ import java.util.Locale;
  * ANDs {@link SkyblockGate#allows()}; the tab reads the {@code *Raw} getters.
  * <p>
  * <b>Stun spots</b> ({@link #getStunSpots()}) are the extension point for killer560's stun-spot coordinates: a JSON
- * array {@code "stunSpotList": [{"x": 0.0, "y": 0.0, "z": 0.0, "label": "Spot 1", "floor": "ANY"}]} in this file, empty by
+ * array {@code "stunSpotList": [{"x": 0.0, "y": 0.0, "z": 0.0, "label": "Spot 1", "floor": "ANY"}]} in this file, his three built-in spots by
  * default. {@code floor} is "F4", "M4" or "ANY" (missing = ANY). Coordinates are block coordinates (a waypoint box is
  * drawn on the block at floor(x), floor(y), floor(z)). Hand-edited files load on the next restart or profile apply.
  */
@@ -51,6 +51,7 @@ public final class ThornConfig {
 
     // Defaults: Spirit Bear magenta + Spirit Bow cyan are NoammAddons F4Features' own defaults.
     public static final int DEFAULT_BEAR_COLOR = 0xFFFF55FF;
+    public static final int DEFAULT_THORN_COLOR = 0xFFFF5555;
     public static final int DEFAULT_MOB_COLOR = 0xFFFFAA00;
     public static final int DEFAULT_BOW_COLOR = 0xFF55FFFF;
     public static final int DEFAULT_STUN_SPOT_COLOR = 0xFFFFA040;
@@ -66,6 +67,9 @@ public final class ThornConfig {
 
     // ---- ESP ----
     private boolean bearEsp = false;
+    /** Highlight on Thorn himself (the ghast boss) - added 2026-09-21 after killer560 looked for one there. */
+    private boolean thornEsp = false;
+    private int thornColor = DEFAULT_THORN_COLOR;
     private boolean mobEsp = false;
     private boolean bowEsp = false;
     private int bearColor = DEFAULT_BEAR_COLOR;
@@ -80,7 +84,15 @@ public final class ThornConfig {
     private boolean stunSpots = false;
     private boolean stunSpotLabels = true;
     private int stunSpotColor = DEFAULT_STUN_SPOT_COLOR;
-    private final List<StunSpot> stunSpotList = new ArrayList<>();
+    private final List<StunSpot> stunSpotList = new ArrayList<>(DEFAULT_STUN_SPOTS);
+
+    /** killer560's own three F4/M4 stun spots (recorded 2026-09-21 in his test instance), each shifted one block down
+     *  as he asked, so the box sits on the block you stand on. The Thorn room is the same on M4, hence ANY. Used
+     *  whenever a config has no saved list of its own; a saved list (even an empty one) always wins. */
+    public static final List<StunSpot> DEFAULT_STUN_SPOTS = List.of(
+            new StunSpot(-5.0, 83.0, 27.0, "Stun 1", "ANY"),
+            new StunSpot(27.0, 81.0, 18.0, "Stun 2", "ANY"),
+            new StunSpot(6.0, 68.0, 4.0, "Stun 3", "ANY"));
 
     private ThornConfig() {
     }
@@ -107,6 +119,8 @@ public final class ThornConfig {
             cfg.showOverkill = ConfigJson.getBool(obj, "showOverkill", false);
             cfg.overkillChat = ConfigJson.getBool(obj, "overkillChat", false);
             cfg.bearEsp = ConfigJson.getBool(obj, "bearEsp", false);
+            cfg.thornEsp = ConfigJson.getBool(obj, "thornEsp", false);
+            cfg.thornColor = ConfigJson.getInt(obj, "thornColor", DEFAULT_THORN_COLOR);
             cfg.mobEsp = ConfigJson.getBool(obj, "mobEsp", false);
             cfg.bowEsp = ConfigJson.getBool(obj, "bowEsp", false);
             cfg.bearColor = ConfigJson.getInt(obj, "bearColor", DEFAULT_BEAR_COLOR);
@@ -120,6 +134,7 @@ public final class ThornConfig {
             cfg.stunSpotColor = ConfigJson.getInt(obj, "stunSpotColor", DEFAULT_STUN_SPOT_COLOR);
             JsonArray spots = ConfigJson.getArray(obj, "stunSpotList");
             if (spots != null) {
+                cfg.stunSpotList.clear();
                 for (JsonElement el : spots) {
                     // One malformed entry is skipped on its own; the rest still load.
                     if (el == null || !el.isJsonObject()) {
@@ -148,6 +163,8 @@ public final class ThornConfig {
             obj.addProperty("showOverkill", showOverkill);
             obj.addProperty("overkillChat", overkillChat);
             obj.addProperty("bearEsp", bearEsp);
+            obj.addProperty("thornEsp", thornEsp);
+            obj.addProperty("thornColor", thornColor);
             obj.addProperty("mobEsp", mobEsp);
             obj.addProperty("bowEsp", bowEsp);
             obj.addProperty("bearColor", bearColor);
@@ -194,6 +211,11 @@ public final class ThornConfig {
 
     // ---- ESP targets ----
     public boolean isBearEspEnabled() { return bearEsp && SkyblockGate.allows(); }
+    public boolean isThornEspEnabled() { return thornEsp && SkyblockGate.allows(); }
+    public boolean getThornEspRaw() { return thornEsp; }
+    public void setThornEsp(boolean v) { thornEsp = v; }
+    public int getThornColor() { return thornColor; }
+    public void setThornColor(int v) { thornColor = v; }
     public boolean getBearEspRaw() { return bearEsp; }
     public void setBearEsp(boolean v) { bearEsp = v; }
 
@@ -206,7 +228,7 @@ public final class ThornConfig {
     public void setBowEsp(boolean v) { bowEsp = v; }
 
     public boolean isAnyEspEnabled() {
-        return isBearEspEnabled() || isMobEspEnabled() || isBowEspEnabled();
+        return isBearEspEnabled() || isMobEspEnabled() || isBowEspEnabled() || isThornEspEnabled();
     }
 
     public int getBearColor() { return bearColor; }

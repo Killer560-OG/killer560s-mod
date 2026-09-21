@@ -845,6 +845,8 @@ final class SettingTooltipsData {
         d.put("spirit bear hud", "Shows Spirit Bear progress in F4/M4 boss: kills out of 25 (F4) or 30 (M4), then a spawn countdown, then Alive/Killed. Movable in the HUD editor.");
         d.put("show overkill", "Adds an 'Overkill' line under the Spirit Bear HUD: spirit animals killed after the ring was already full (wasted kills). Needs Spirit Bear HUD ON.");
         d.put("overkill chat", "Sends a client-side chat line with each Spirit Bear's overkill count when its ring resets.");
+        d.put("thorn highlight", "Highlights Thorn himself (the ghast boss) during the F4/M4 fight, using the Thorn ESP Style. Only while you can see him, unless Through Walls is on in the cheat build.");
+        d.put("thorn color", "Opens a color picker for the Thorn highlight.");
         d.put("spirit bear highlight", "Highlights the Spirit Bear during the Thorn fight. Only while you can actually see it.");
         d.put("spirit mob highlight", "Highlights the spirit animals (wolf, bull, bat, rabbit, chicken, sheep) in the Thorn fight. Each kill lights one ring block, and a full ring spawns the Spirit Bear. Matched by mob type, so any such animal in the arena is highlighted.");
         d.put("spirit bow highlight", "Highlights the Spirit Bow that drops when the Spirit Bear dies. Thorn can only be damaged with that bow, so grab it fast.");
@@ -1135,7 +1137,7 @@ final class SettingTooltipsData {
 
         // ---- Thorn (F4/M4) ----
         d.put("spirit bear counter", "Tracking for Thorn's Spirit Bear: a HUD count of bears left and optional overkill reporting.");
-        d.put("thorn esp", "Highlights for the Thorn fight: the Spirit Bear, spirit mobs and the Spirit Bow drop.");
+        d.put("thorn esp", "Highlights for the Thorn fight: Thorn himself, the Spirit Bear, spirit mobs and the Spirit Bow drop.");
         d.put("stun spots", "Saved waypoints for where to stand to stun Thorn, drawn in the world during F4/M4.");
         d.put("spirit bear", "Colour of the Spirit Bear highlight.");
         d.put("spirit mob", "Colour of the spirit mob highlights.");

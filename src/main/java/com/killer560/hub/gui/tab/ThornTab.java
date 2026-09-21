@@ -52,6 +52,9 @@ public class ThornTab extends BaseTab {
         // ---- Thorn Highlights (depth-tested unless the cheat-only Through Walls is on) ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Thorn Highlights", false), mc.font));
         y += 16;
+        targetRow(widgets, contentX, col2X, y, colW, "Thorn Highlight", cfg::getThornEspRaw, cfg::setThornEsp,
+                "Thorn", cfg::getThornColor, cfg::setThornColor, ThornConfig.DEFAULT_THORN_COLOR);
+        y += 22;
         targetRow(widgets, contentX, col2X, y, colW, "Spirit Bear Highlight", cfg::getBearEspRaw, cfg::setBearEsp,
                 "Spirit Bear", cfg::getBearColor, cfg::setBearColor, ThornConfig.DEFAULT_BEAR_COLOR);
         y += 22;
