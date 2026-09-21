@@ -147,6 +147,7 @@ public final class PartyDataFeature {
     public static final String KEY_ROOM = PartyDataProtocol.KEY_ROOM;
     public static final String KEY_DOOR = PartyDataProtocol.KEY_DOOR;
     public static final String KEY_DRAGON = PartyDataProtocol.KEY_DRAGON;
+    public static final String KEY_MELODY = PartyDataProtocol.KEY_MELODY;
 
     /**
      * One fact this client worked out itself, already in {@code dg.v1.*} wire form. {@code id} names WHICH
@@ -233,6 +234,31 @@ public final class PartyDataFeature {
             out.add(new SelfFact(KEY_DOOR, "door:" + idx,
                     PartyDataProtocol.doorPayload(pos.getX(), pos.getZ(), idx % DungeonLayout.GRID,
                             idx / DungeonLayout.GRID, type)));
+        }
+        // Melody (2026-09-21, com.killer560.hub.melody): our own read-only tracker's own reading of our own
+        // open terminal, gated by its own "Share My Progress" toggle on top of this feature's master one -
+        // unlike every other fact above, sharing your live terminal clicks is more exposing than passive
+        // room/door/flag data, so it gets its own opt-in rather than riding the master toggle alone.
+        if (com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress()) {
+            com.killer560.hub.melody.MelodyTrackerFeature.SelfMelody self =
+                    com.killer560.hub.melody.MelodyTrackerFeature.selfSnapshot();
+            if (self != null) {
+                if (self.clayRow() >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_CLAY_ROW
+                        && self.clayRow() <= com.killer560.hub.bridge.BridgeTables.MELODY_MAX_CLAY_ROW) {
+                    out.add(new SelfFact(KEY_MELODY, "melody:clay", PartyDataProtocol.melodyPayload(
+                            com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_CLAY, self.clayRow())));
+                }
+                if (self.target() >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_COLUMN
+                        && self.target() <= com.killer560.hub.bridge.BridgeTables.MELODY_MAX_COLUMN) {
+                    out.add(new SelfFact(KEY_MELODY, "melody:target", PartyDataProtocol.melodyPayload(
+                            com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PURPLE, self.target())));
+                }
+                if (self.current() >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_COLUMN
+                        && self.current() <= com.killer560.hub.bridge.BridgeTables.MELODY_MAX_COLUMN) {
+                    out.add(new SelfFact(KEY_MELODY, "melody:current", PartyDataProtocol.melodyPayload(
+                            com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE, self.current())));
+                }
+            }
         }
         return out;
     }
@@ -386,6 +412,18 @@ public final class PartyDataFeature {
                 int secrets = PartyDataProtocol.readPlayerSecrets(value);
                 if (secrets >= 0) {
                     PartyRoomIntel.offerPlayerSecrets(from, secrets);
+                }
+            }
+            case PartyDataProtocol.KEY_MELODY -> {
+                // Same store BridgeFeature.applyOdin already writes teammates' Odin-sourced progress into -
+                // one place for the Team Melody HUD regardless of which of our own users' Melody state came
+                // from. "from" is the relay-verified sender, never a claimed field in the payload.
+                Integer type = PartyDataProtocol.readMelodyType(value);
+                if (type != null) {
+                    int slot = PartyDataProtocol.readMelodySlot(value, type);
+                    if (slot >= 0) {
+                        com.killer560.hub.bridge.MelodyIntel.offer(from, type, slot);
+                    }
                 }
             }
             default -> {

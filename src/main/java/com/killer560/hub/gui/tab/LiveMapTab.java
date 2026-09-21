@@ -77,6 +77,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(toggle("Show Teammates", cfg::isShowTeammates, cfg::setShowTeammates, cfg, contentX, y, colW));
             widgets.add(toggle("Recolor by Class", cfg::isClassRecolorTeammates, cfg::setClassRecolorTeammates, cfg, colB, y, colW));
             y += 20;
+            widgets.add(toggle("Mark Reported Rooms", cfg::isMarkReportedRooms, cfg::setMarkReportedRooms, cfg, contentX, y, colW));
+            y += 20;
             widgets.add(keyButton("Peek Key", KeyTarget.PEEK, cfg.getPeekKeyCode(), contentX, y, colW));
             widgets.add(slider("Peek Scale", cfg::getPeekScale, v -> cfg.setPeekScale((float) v), 1.25, 4, "x", cfg, colB, y, colW));
             y += 24;

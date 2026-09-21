@@ -34,6 +34,12 @@ final class PartyDataProtocol {
      *  compatibility; nothing in this build PUBLISHES it yet - see {@link PartyDataFeature}'s class doc for
      *  why (no existing SELF-derived "secrets I personally opened" signal to relay honestly). */
     static final String KEY_PLAYER_SECRETS = "dg.v1.playerSecrets";
+    /** F7/M7 Melody terminal progress (2026-09-21, {@code com.killer560.hub.melody}) - the sender's own
+     *  reading of their own open terminal, in Odin's own {@code type}/{@code slot} numbering (see
+     *  {@code com.killer560.hub.bridge.BridgeTables}) so one value means the same thing whether it came from
+     *  Odin, this relay, or our own tracker. {@code who} is always the packet's {@code from}, same as
+     *  {@link #KEY_PLAYER_SECRETS}. */
+    static final String KEY_MELODY = "dg.v1.melody";
 
     private static final int MAX_COUNT = 999;
     private static final int MAX_COORD = 20_000;
@@ -256,6 +262,50 @@ final class PartyDataProtocol {
     static int readPlayerSecrets(JsonElement value) {
         Integer v = intField(value, "secrets");
         return v != null && v >= 0 && v <= MAX_COUNT ? v : -1;
+    }
+
+    // ------------------------------------------------------------------ melody
+
+    static JsonObject melodyPayload(int type, int slot) {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", type);
+        o.addProperty("slot", slot);
+        return o;
+    }
+
+    /** @return the melody {@code type} (Odin's own 1/2/5 - clay/purple/pane, see {@code BridgeTables}), or
+     *  null if missing/not one of those three (0/3/4 are never sent by anything real - see
+     *  {@code OdinCodec#decode}'s own doc). */
+    static Integer readMelodyType(JsonElement value) {
+        Integer type = intField(value, "type");
+        if (type == null) {
+            return null;
+        }
+        return switch (type) {
+            case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_CLAY,
+                 com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PURPLE,
+                 com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE -> type;
+            default -> null;
+        };
+    }
+
+    /** @return {@code slot}, validated against {@code type}'s own real range ({@code BridgeTables}), or -1. */
+    static int readMelodySlot(JsonElement value, int type) {
+        Integer slot = intField(value, "slot");
+        if (slot == null) {
+            return -1;
+        }
+        boolean valid = switch (type) {
+            case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_CLAY ->
+                    slot >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_CLAY_ROW
+                            && slot <= com.killer560.hub.bridge.BridgeTables.MELODY_MAX_CLAY_ROW;
+            case com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PURPLE,
+                 com.killer560.hub.bridge.BridgeTables.MELODY_TYPE_PANE ->
+                    slot >= com.killer560.hub.bridge.BridgeTables.MELODY_MIN_COLUMN
+                            && slot <= com.killer560.hub.bridge.BridgeTables.MELODY_MAX_COLUMN;
+            default -> false;
+        };
+        return valid ? slot : -1;
     }
 
     // ------------------------------------------------------------------ helpers

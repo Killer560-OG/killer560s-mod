@@ -240,6 +240,104 @@ final class MapPainter {
         return cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
     }
 
+    /** A teammate-reported room's fill colour: its real type colour once {@link RoomDatabase#lookupByName}
+     *  resolves it, else a plain generic box - never the "unopened"/grey treatment {@link #roomColor} gives
+     *  an unseen local cell, since a reported cell is not "unseen", it is "seen by someone else". Dimmed the
+     *  same way {@link #drawDoors} dims a reported door when {@link LiveMapConfig#isMarkReportedRooms()} is on. */
+    static int reportedRoomColor(PartyMapIntel.ReportedRoom room, LiveMapConfig cfg) {
+        int color;
+        if (room.entry() != null && room.entry().type != null) {
+            color = cfg.isColourByType() ? typeColor(room.entry().type.toUpperCase(Locale.ROOT), cfg) : cfg.getColorNormal();
+        } else {
+            color = cfg.getColorNormal(); // unresolved name - generic discovered room, never dropped
+        }
+        return cfg.isMarkReportedRooms() ? multiply(color, REPORTED_DIM) : color;
+    }
+
+    /** Fills a reported room's single 16-unit anchor cell - see {@link PartyMapIntel.ReportedRoom}'s doc for
+     *  why a multi-tile room only ever gets one box here. */
+    static void drawReportedRoom(GuiGraphicsExtractor graphics, PartyMapIntel.ReportedRoom room, LiveMapConfig cfg,
+                                 float ox, float oy, float ppu) {
+        int gx = room.col();
+        int gz = room.row();
+        int color = reportedRoomColor(room, cfg);
+        int x0 = px(ox, cellPos(gx), ppu);
+        int y0 = px(oy, cellPos(gz), ppu);
+        int x1 = px(ox, cellPos(gx) + ROOM_UNITS, ppu);
+        int y1 = px(oy, cellPos(gz) + ROOM_UNITS, ppu);
+        graphics.fill(x0, y0, x1, y1, color);
+        if (cfg.isMarkReportedRooms()) {
+            int m = Math.max(3, Math.round(4 * ppu));
+            graphics.fill(x0, y0, Math.min(x1, x0 + m), Math.min(y1, y0 + m), REPORTED_MARK_COLOR);
+        }
+    }
+
+    /** Same {@code found/total} shape {@link #secretsText} draws for a local room, for a reported one -
+     *  {@code found} can only ever come from a teammate's own {@code PartyInteropState} report here, since
+     *  this client has not opened the room itself. */
+    static String reportedSecretsText(PartyMapIntel.ReportedRoom room) {
+        RoomEntry entry = room.entry();
+        if (entry == null) {
+            return "?";
+        }
+        if (entry.secrets == 0) {
+            return "0";
+        }
+        com.killer560.hub.interop.PartyInteropState.Fact<com.killer560.hub.interop.PartyInteropState.RoomSecrets> fact =
+                com.killer560.hub.interop.PartyInteropState.roomSecrets(entry.name);
+        int found = fact != null ? fact.value().found() : -1;
+        return (found < 0 ? "?" : String.valueOf(found)) + "/" + entry.secrets;
+    }
+
+    /** A reported room's name/secrets label, drawn independently of {@link #labels} (a reported room has no
+     *  {@code RoomGroup} - no tiles, no map-item state, no checkmark) but following the same
+     *  {@code roomLabels} style so it does not visually contradict the local rooms around it. */
+    static void drawReportedLabel(GuiGraphicsExtractor graphics, Font font, int style, LiveMapConfig cfg,
+                                  PartyMapIntel.ReportedRoom room, float ox, float oy, float ppu) {
+        if (style == 0 || style == 1) {
+            return; // style 1 (checkmarks) has nothing to draw here - a reported room has no scan state
+        }
+        RoomEntry entry = room.entry();
+        String type = entry != null && entry.type != null ? entry.type.toUpperCase(Locale.ROOT) : null;
+        List<String> lines = new ArrayList<>();
+        if (style == 2) {
+            lines.add(reportedSecretsText(room));
+        } else {
+            boolean skipName = "ENTRANCE".equals(type) || "FAIRY".equals(type) || "BLOOD".equals(type);
+            if (!skipName) {
+                String name = entry != null && entry.name != null ? entry.name : room.reportedName();
+                if (name != null && !name.isBlank()) {
+                    java.util.Collections.addAll(lines, name.split(" "));
+                }
+            }
+            if (style == 4 && entry != null && entry.secrets > 0) {
+                lines.add(reportedSecretsText(room));
+            }
+        }
+        if (lines.isEmpty()) {
+            return;
+        }
+        int maxWidth = 0;
+        for (String s : lines) {
+            maxWidth = Math.max(maxWidth, font.width(s));
+        }
+        float want = 0.4f * cfg.getFontScale() * ppu;
+        float fit = Math.min(ROOM_UNITS * ppu / Math.max(1, maxWidth), ROOM_UNITS * ppu / (lines.size() * font.lineHeight));
+        float scale = Math.max(0.3f, Math.min(want, fit));
+        float cx = ox + (cellPos(room.col()) + ROOM_UNITS / 2f) * ppu;
+        float cy = oy + (cellPos(room.row()) + ROOM_UNITS / 2f) * ppu;
+        int color = 0xFFCCCCCC; // neutral - a reported room has no cleared/failed/unopened state to colour by
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.pose().scale(scale, scale);
+        int top = Math.round(-lines.size() * font.lineHeight / 2f);
+        for (int i = 0; i < lines.size(); i++) {
+            String s = lines.get(i);
+            graphics.text(font, s, -font.width(s) / 2, top + i * font.lineHeight, color, cfg.isTextShadow());
+        }
+        graphics.pose().popMatrix();
+    }
+
     /** Colour a plain corridor inherits from the rooms it joins. */
     private static int connectorColor(int idx, LiveMapConfig cfg) {
         int g = LiveMapFeature.GRID;
@@ -332,6 +430,14 @@ final class MapPainter {
 
     // ------------------------------------------------------------------------------------------- doors
 
+    /** Fill colour a reported-but-unseen cell is dimmed by, when {@link LiveMapConfig#isMarkReportedRooms()}
+     *  is on - "subtly", per killer560s-mod-relay task (2026-09-21): still readable as its real colour, just
+     *  not mistaken for something this client actually saw. */
+    private static final float REPORTED_DIM = 0.78f;
+    /** Accent colour for the small reported-cell corner marker - the same amber already used for the
+     *  locked-wither-door outline below, so it reads as "the mod's own accent", not a new colour language. */
+    private static final int REPORTED_MARK_COLOR = 0xFFFFAA00;
+
     /** NoammAddons {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the
      *  rooms on both sides, is the 4-unit gap long, and 6 units wide across the doorway. */
     static void drawDoors(GuiGraphicsExtractor graphics, DungeonLayout layout, LiveMapConfig cfg,
@@ -389,6 +495,53 @@ final class MapPainter {
             }
             if (idx == hoveredDoor) {
                 graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xB4FFFFFF);
+            }
+        }
+    }
+
+    /**
+     * killer560s-mod-relay task (2026-09-21): teammate-reported doors this client has not scanned itself yet
+     * - drawn entirely independently of {@link #drawDoors}/{@link DungeonLayout}, which also feed the
+     * teleport pathfinders and Auto Blood Rush ({@code livemap.autoclear}). Unverified network data must
+     * never reach automation, only this display path, fed straight from {@link PartyMapIntel}. A cell
+     * {@link PartyMapIntel} has already dropped (local scan settled it) simply is not in
+     * {@link PartyMapIntel#reportedDoorsView()} any more, so this can never draw over a real local door.
+     * <p>
+     * The wire format carries only the door TYPE, never a lock state, so this always draws the LOCKED colour
+     * for a wither/blood door - the safer default for a door nobody here has actually checked.
+     */
+    static void drawReportedDoors(GuiGraphicsExtractor graphics, LiveMapConfig cfg, float ox, float oy, float ppu) {
+        boolean mark = cfg.isMarkReportedRooms();
+        for (PartyMapIntel.ReportedDoor door : PartyMapIntel.reportedDoorsView()) {
+            int idx = door.idx();
+            int type = door.type();
+            int gx = idx % LiveMapFeature.GRID;
+            int gz = idx / LiveMapFeature.GRID;
+            int color = switch (type) {
+                case DungeonLayout.DOOR_WITHER -> cfg.getColorWitherDoor();
+                case DungeonLayout.DOOR_BLOOD -> cfg.getColorBlood();
+                case DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
+                default -> cfg.getColorNormal();
+            };
+            if (mark) {
+                color = multiply(color, REPORTED_DIM);
+            }
+            float ux = gx % 2 == 1 ? cellPos(gx) : cellPos(gx) + 5;
+            float uz = gz % 2 == 1 ? cellPos(gz) : cellPos(gz) + 5;
+            float uw = gx % 2 == 1 ? GAP_UNITS : 6;
+            float uh = gz % 2 == 1 ? GAP_UNITS : 6;
+            int x0 = px(ox, ux, ppu);
+            int y0 = px(oy, uz, ppu);
+            int x1 = px(ox, ux + uw, ppu);
+            int y1 = px(oy, uz + uh, ppu);
+            graphics.fill(x0, y0, x1, y1, color);
+            if (type == DungeonLayout.DOOR_WITHER) {
+                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
+                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+            }
+            if (mark) {
+                int m = Math.max(2, Math.round(3 * ppu));
+                graphics.fill(x0, y0, Math.min(x1, x0 + m), Math.min(y1, y0 + m), REPORTED_MARK_COLOR);
             }
         }
     }
@@ -561,6 +714,16 @@ final class MapPainter {
         int found = LiveMapFeature.foundSecrets(entry.name);
         if (visibleState(group) == DungeonMapScanner.STATE_GREEN) {
             found = entry.secrets;
+        } else {
+            // killer560s-mod-relay task (2026-09-21): a teammate's own found-count (PartyInteropState, RELAY
+            // source) is at least as fresh as ours - it is monotonic within a run, same as our own action-bar
+            // parse - so take whichever is higher instead of only ever trusting our own. Never regresses what
+            // we already show ourselves.
+            com.killer560.hub.interop.PartyInteropState.Fact<com.killer560.hub.interop.PartyInteropState.RoomSecrets> fact =
+                    com.killer560.hub.interop.PartyInteropState.roomSecrets(entry.name);
+            if (fact != null) {
+                found = Math.max(found, fact.value().found());
+            }
         }
         return (found < 0 ? 0 : found) + "/" + entry.secrets;
     }

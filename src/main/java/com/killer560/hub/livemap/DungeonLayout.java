@@ -118,6 +118,17 @@ public final class DungeonLayout {
                 }
             }
         }
+        // killer560s-mod-relay task (2026-09-21): refresh which cells teammates have reported that THIS
+        // client has not scanned itself (PartyRoomIntel, via the relay or the Cross-Mod Bridge), at most
+        // once a tick (PartyMapIntel.mergeIfNeeded's own guard). Deliberately NOT written into doorType/
+        // doorLocked/roomOf above: those arrays also drive the teleport pathfinders and Auto Blood Rush
+        // (livemap.autoclear) - unverified network data must never steer automation, only the display
+        // (MapPainter.drawReportedRoom/drawReportedDoors, fed straight from PartyMapIntel). Local scans
+        // always win here too: the predicates are this same in-progress layout's own arrays, so a cell this
+        // pass just resolved locally is never handed to a reported cell.
+        PartyMapIntel.mergeIfNeeded(LiveMapFeature.tickCount(), LiveMapFeature.resetGeneration(),
+                idx -> layout.roomOf[idx] >= 0, idx -> layout.doorType[idx] != DOOR_NONE);
+
         int current = -1;
         if (client.player != null) {
             current = layout.roomAtWorld(client.player.getX(), client.player.getZ());

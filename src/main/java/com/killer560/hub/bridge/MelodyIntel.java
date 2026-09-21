@@ -7,13 +7,16 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Party mates' Melody terminal progress, as Odin users broadcast it (spec 3.4, slot meanings resolved in
- * {@link BridgeTables}). Client thread only.
+ * Melody terminal progress, keyed by player name, from every source this mod knows: Odin users (spec 3.4,
+ * slot meanings resolved in {@link BridgeTables}), our own relay's users
+ * ({@code PartyDataFeature}'s {@code dg.v1.melody}), and - since {@code com.killer560.hub.melody} shipped
+ * (2026-09-21) - our own local player's own real-time reading of their own open terminal
+ * ({@code MelodyTrackerFeature}), stored here under their own real name so the Team Melody HUD, and
+ * {@code OdinAdapter}'s outbound half, both have one place to read. Client thread only.
  * <p>
- * <b>Gap:</b> nothing in this mod can display a teammate's Melody progress today - the terminal solver and
- * Termism only ever look at the player's own open terminal, and there is no Melody HUD. So this is stored and
- * shown on the Party Interop tab's bridge status lines only; a future Melody HUD (or the terminal timers) can
- * read {@link #snapshot()}.
+ * Shown on the Party Interop tab's bridge status lines (Odin-sourced only, historically) and on the Team
+ * Melody HUD ({@code com.killer560.hub.melody.MelodyTrackerFeature.HUD}), which reads {@link #get} for every
+ * current teammate.
  */
 public final class MelodyIntel {
 
@@ -33,7 +36,10 @@ public final class MelodyIntel {
     private MelodyIntel() {
     }
 
-    static void offer(String player, int type, int slot) {
+    /** Public (2026-09-21, was package-private) so {@code com.killer560.hub.partydata} (relay-received
+     *  teammate progress) and {@code com.killer560.hub.melody} (our own local reading) can feed the same
+     *  store {@code BridgeFeature.applyOdin} already does - one place, three sources, never re-derived. */
+    public static void offer(String player, int type, int slot) {
         String key = player.toLowerCase(Locale.ROOT);
         if (type == BridgeTables.MELODY_TYPE_REMOVE) {
             BY_PLAYER.remove(key);
@@ -63,5 +69,11 @@ public final class MelodyIntel {
 
     public static List<Progress> snapshot() {
         return new ArrayList<>(BY_PLAYER.values());
+    }
+
+    /** @return the known progress for this exact player name (case-insensitive), or null if none yet. Used
+     *  by the Team Melody HUD to look up each of {@code PartyTracker.teammates()} in turn. */
+    public static Progress get(String player) {
+        return player == null ? null : BY_PLAYER.get(player.toLowerCase(Locale.ROOT));
     }
 }

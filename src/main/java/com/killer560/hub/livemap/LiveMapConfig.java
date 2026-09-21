@@ -31,6 +31,10 @@ public final class LiveMapConfig {
     private boolean enabled = false;
     private boolean showTeammates = true;
     private boolean classRecolorTeammates = true;
+    /** killer560s-mod-relay task (2026-09-21): dim/mark a room or door PartyRoomIntel reported but this
+     *  client has not scanned itself. Default ON, unlike most new settings - it only ever adds what a
+     *  teammate's own mod legitimately shared, same as the merge itself. */
+    private boolean markReportedRooms = true;
     /** Pixels per 16-unit room. The map is 116 units square (6 rooms + 5 gaps), so the HUD map is
      *  {@code 116 * roomPx / 16} pixels wide - see {@link MapPainter}. Replaced the old uniform "cellSize". */
     private int roomPx = 16;
@@ -127,6 +131,7 @@ public final class LiveMapConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.showTeammates = ConfigJson.getBool(obj, "showTeammates", true);
                 cfg.classRecolorTeammates = ConfigJson.getBool(obj, "classRecolorTeammates", true);
+                cfg.markReportedRooms = ConfigJson.getBool(obj, "markReportedRooms", true);
                 // Migration: the old uniform "cellSize" (4..16, default 8) was one grid step; a room is now two
                 // of those, so an existing config keeps roughly the map size it had.
                 cfg.setRoomPx(ConfigJson.getInt(obj, "roomPx", ConfigJson.getInt(obj, "cellSize", 8) * 2));
@@ -206,6 +211,7 @@ public final class LiveMapConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTeammates", showTeammates);
             obj.addProperty("classRecolorTeammates", classRecolorTeammates);
+            obj.addProperty("markReportedRooms", markReportedRooms);
             obj.addProperty("roomPx", roomPx);
             obj.addProperty("roomLabels", roomLabels);
             obj.addProperty("peekKeyCode", peekKeyCode);
@@ -311,6 +317,14 @@ public final class LiveMapConfig {
 
     public void setClassRecolorTeammates(boolean classRecolorTeammates) {
         this.classRecolorTeammates = classRecolorTeammates;
+    }
+
+    public boolean isMarkReportedRooms() {
+        return markReportedRooms;
+    }
+
+    public void setMarkReportedRooms(boolean markReportedRooms) {
+        this.markReportedRooms = markReportedRooms;
     }
 
     public int getRoomPx() {

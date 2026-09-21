@@ -1,6 +1,7 @@
 package com.killer560.hub.bridge;
 
 import com.killer560.hub.interop.DetectedMods;
+import com.killer560.hub.melody.MelodyTrackerFeature;
 
 import java.net.URI;
 import java.net.http.WebSocket;
@@ -8,21 +9,30 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Odin's Melody socket ({@code wss://ws.odtheking.com/<server code>}, spec section 3). Receive-only.
+ * Odin's Melody socket ({@code wss://ws.odtheking.com/<server code>}, spec section 3).
  * <p>
  * <b>When:</b> exactly Odin's own window - from Goldor's P3 line to "The Core entrance is opening!" (spec 3.3),
  * in an F7/M7 run, while the sidebar shows a server code. Odin itself never retries a dropped socket inside that
  * window; we do, but never sooner than the shared 30 s minimum backoff, so in practice at most once or twice.
  * <p>
- * <b>Why nothing is sent:</b> Odin's protocol has no authentication at all - its {@code "user"} field is
- * whatever the sender claims (spec 3.2). The only thing it carries is Melody progress, and this mod has no
- * always-on SELF signal for our own Melody state: {@code TerminalSolverFeature} only tracks the lime/magenta
- * panes inside its Auto Melody path, a cheat-build click loop. Deriving a new one here would be a second Melody
- * detector, which is exactly the "re-derive instead of relay" this bridge is told not to do, so the outbound half
- * is left as a documented gap (see the staging notes) and this adapter never speaks. Inbound progress is only
- * accepted for players the party list says are in OUR party, never for arbitrary names.
+ * <b>Outbound (2026-09-21, was a documented gap):</b> {@code com.killer560.hub.melody.MelodyTrackerFeature} now
+ * carries an always-on, legit, read-only SELF Melody signal (it reads the terminal's own contents each tick,
+ * never clicks) - see its class doc. {@link #produceOutbound} polls {@link MelodyTrackerFeature#selfSnapshot()}
+ * (never re-derives it) and sends whichever of the three fields changed since the last send, in exactly Odin's
+ * own wire format ({@link OdinCodec#update}), each de-duplicated against its own last-sent value so a steady
+ * board doesn't resend. Odin's protocol has no authentication at all - its {@code "user"} field is whatever the
+ * sender claims (spec 3.2) - so only our own real, verified IGN ({@code ctx.selfName()}) is ever sent, never a
+ * teammate's. Inbound progress is likewise only accepted for players the party list says are in OUR party,
+ * never for arbitrary names.
  */
 final class OdinAdapter extends SocketAdapter {
+
+    /** Client thread only (see {@link #produceOutbound}/{@link #resetOutbound}): the last value of each field
+     *  actually sent to Odin, so a steady board is not resent every tick. -1 = nothing sent yet (also reset on
+     *  reconnect via {@link #resetOutbound}, matching every other adapter's own dedupe map). */
+    private int sentClayRow = -1;
+    private int sentTarget = -1;
+    private int sentCurrent = -1;
 
     OdinAdapter() {
         super("Odin", DetectedMods.ODIN);
@@ -86,10 +96,37 @@ final class OdinAdapter extends SocketAdapter {
 
     @Override
     protected void resetOutbound() {
+        sentClayRow = -1;
+        sentTarget = -1;
+        sentCurrent = -1;
     }
 
     @Override
     protected void produceOutbound(BridgeContext ctx) {
-        // Receive-only - see the class doc.
+        if (ctx.selfName() == null) {
+            return; // spec 3.2/3.7: never send anything but our own verified name
+        }
+        MelodyTrackerFeature.SelfMelody self = MelodyTrackerFeature.selfSnapshot();
+        if (self == null) {
+            return; // our own terminal isn't open right now - nothing new to say
+        }
+        if (self.clayRow() != sentClayRow && self.clayRow() >= BridgeTables.MELODY_MIN_CLAY_ROW
+                && self.clayRow() <= BridgeTables.MELODY_MAX_CLAY_ROW) {
+            if (offer(OdinCodec.update(ctx.selfName(), BridgeTables.MELODY_TYPE_CLAY, self.clayRow()))) {
+                sentClayRow = self.clayRow();
+            }
+        }
+        if (self.target() != sentTarget && self.target() >= BridgeTables.MELODY_MIN_COLUMN
+                && self.target() <= BridgeTables.MELODY_MAX_COLUMN) {
+            if (offer(OdinCodec.update(ctx.selfName(), BridgeTables.MELODY_TYPE_PURPLE, self.target()))) {
+                sentTarget = self.target();
+            }
+        }
+        if (self.current() != sentCurrent && self.current() >= BridgeTables.MELODY_MIN_COLUMN
+                && self.current() <= BridgeTables.MELODY_MAX_COLUMN) {
+            if (offer(OdinCodec.update(ctx.selfName(), BridgeTables.MELODY_TYPE_PANE, self.current()))) {
+                sentCurrent = self.current();
+            }
+        }
     }
 }

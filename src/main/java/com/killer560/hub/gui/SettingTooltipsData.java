@@ -1869,6 +1869,10 @@ final class SettingTooltipsData {
         d.put("party interop/cross-mod bridge", "Talks to Devonian, NoammAddons and Odin's own party servers so their users and ours share dungeon data both ways. Never connects for a mod you have installed yourself.");
         d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party. Signs in with your Minecraft session the normal Mojang way.");
         d.put("party interop/noammaddons bridge", "Shares rooms, doors, secrets, mimic/prince/bat and M7 dragon spawns with NoammAddons users in your run. Signs in with your chat-signing key, like our own Mod Chat.");
-        d.put("party interop/odin bridge", "Shows Odin users' Melody progress during F7/M7 P3. Listen-only: nothing is sent to Odin.");
+        d.put("party interop/odin bridge", "Shows Odin users' Melody progress during F7/M7 P3. Now also sends your own Melody progress to Odin's socket (your real name only) once the Team Melody tab's \"Share My Progress\" is on and this bridge is connected.");
+        d.put("dungeon map/mark reported rooms", "Dims and marks a room or door your party shared but you haven't seen yourself, so you can tell your own scan apart from theirs. Turn off to draw them identically to what you've scanned.");
+        d.put("team melody/team melody hud", "Shows each teammate's Floor 7/M7 Melody terminal progress live during Phase 3 - name, current row, and a small progress bar. Fed by Odin users, our own relay's users, and this mod's own read-only terminal reader.");
+        d.put("team melody/share my progress", "Lets your own live Melody terminal progress reach teammates - over our own relay, and to Odin's socket if the Cross-Mod Bridge's Odin toggle is on and connected. Never sent anywhere unless this is on.");
+        d.put("team melody/scale", "Resizes the Team Melody HUD - the same value as scrolling on it in the HUD editor.");
     }
 }

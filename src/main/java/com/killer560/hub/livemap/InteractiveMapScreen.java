@@ -126,15 +126,29 @@ public class InteractiveMapScreen extends Screen {
         int hoveredCell = inside(p, mouseX, mouseY) ? cellAt(mouseX, mouseY) : -1;
         int hoveredGroup = hoveredCell >= 0 ? LiveMapFeature.groupIdAt(hoveredCell) : -1;
         int hoveredDoor = hoveredCell >= 0 && hoveredGroup < 0 && MapPainter.isDoorCell(hoveredCell) ? hoveredCell : -1;
+        // killer560s-mod-relay task (2026-09-21): a reported room only ever occupies a cell local scanning
+        // has no claim on yet, so it can never disagree with hoveredGroup/hoveredDoor above.
+        PartyMapIntel.ReportedRoom hoveredReported = hoveredCell >= 0 && hoveredGroup < 0 && hoveredDoor < 0
+                ? PartyMapIntel.reportedRoomAt(hoveredCell) : null;
         DungeonLayout layout = DungeonLayout.current();
 
         graphics.enableScissor(p[0], p[1], p[2], p[3]);
         try {
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, hoveredDoor);
+            MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
             for (int gid = 0; gid < groups.size(); gid++) {
                 drawRoom(graphics, groups.get(gid), gid, gid == hoveredGroup, cfg, ox, oy, ppu);
             }
+            // killer560s-mod-relay task (2026-09-21): teammate-reported rooms this client has not scanned
+            // itself yet. Display only - not part of the click/teleport/hover-route targets below, since a
+            // reported cell is not verified by this client's own scan.
+            for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
+                MapPainter.drawReportedRoom(graphics, rr, cfg, ox, oy, ppu);
+            }
             MapPainter.drawLabels(graphics, font, cfg.getMapRoomLabels(), cfg, ox, oy, ppu);
+            for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
+                MapPainter.drawReportedLabel(graphics, font, cfg.getMapRoomLabels(), cfg, rr, ox, oy, ppu);
+            }
             List<InteractiveMapFeature.MapPlayer> players = InteractiveMapFeature.playersCached(client);
             InteractiveMapFeature.MapPlayer hoveredPlayer = null;
             boolean names = cfg.getPlayerNames() == 2 || (cfg.getPlayerNames() == 1 && holdingLeap(client));
@@ -157,6 +171,8 @@ public class InteractiveMapScreen extends Screen {
                 graphics.setComponentTooltipForNextFrame(font, roomTooltip(groups.get(hoveredGroup)), mouseX, mouseY);
             } else if (hoveredDoor >= 0) {
                 graphics.setComponentTooltipForNextFrame(font, doorTooltip(layout, hoveredDoor), mouseX, mouseY);
+            } else if (hoveredReported != null) {
+                graphics.setComponentTooltipForNextFrame(font, reportedRoomTooltip(hoveredReported), mouseX, mouseY);
             }
         } finally {
             graphics.disableScissor();
@@ -219,6 +235,23 @@ public class InteractiveMapScreen extends Screen {
         if (by != null && !by.isEmpty()) {
             lines.add(row(by.size() == 1 ? "Cleared by" : "Stacked by", String.join(", ", by)));
         }
+        return lines;
+    }
+
+    /** killer560s-mod-relay task (2026-09-21): hover text for a cell nobody on this client has scanned yet,
+     *  but a teammate has - deliberately thin (name, type if resolved, who reported it), since none of the
+     *  local room's richer facts (state, crypts, waypoints, cleared-by) exist for a cell this client has not
+     *  actually seen. */
+    private List<Component> reportedRoomTooltip(PartyMapIntel.ReportedRoom room) {
+        List<Component> lines = new ArrayList<>();
+        RoomEntry entry = room.entry();
+        String name = entry != null && entry.name != null ? entry.name : room.reportedName();
+        lines.add(Component.literal(name != null && !name.isBlank() ? name : "Unknown Room").withColor(0xF0E6DC));
+        if (entry != null && entry.type != null) {
+            lines.add(row("Type", MapPainter.typeName(entry.type.toUpperCase(java.util.Locale.ROOT))));
+        }
+        lines.add(Component.literal("Reported by " + (room.reporter() == null || room.reporter().isBlank()
+                ? "a teammate" : room.reporter())).withColor(DIM & 0xFFFFFF));
         return lines;
     }
 

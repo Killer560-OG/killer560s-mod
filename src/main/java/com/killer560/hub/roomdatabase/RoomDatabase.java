@@ -66,6 +66,12 @@ public final class RoomDatabase {
     private static final long MAX_EXTRACTED_BYTES = 256L * 1024 * 1024;
 
     private static volatile Map<Integer, RoomEntry> byCoreHash;
+    /** Same entries as {@link #byCoreHash}, keyed by {@link RoomEntry#name} instead - added for
+     *  {@code com.killer560.hub.livemap.PartyMapIntel} (2026-09-21), which resolves a teammate-REPORTED room
+     *  name to the same real database entry local scanning would have found, so it draws with the same real
+     *  type/secrets-total instead of a guess. Built alongside {@code byCoreHash} in {@link #loadBlocking()};
+     *  read-only, additive - nothing about hash lookup changed. */
+    private static volatile Map<String, RoomEntry> byName;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
     private static int loadAttempts = 0;
     private static volatile int consecutiveFailures = 0;
@@ -105,6 +111,14 @@ public final class RoomDatabase {
         return map == null ? null : map.get(coreHash);
     }
 
+    /** @return the real room entry with this exact {@link RoomEntry#name}, or null if the database is not
+     *  loaded yet or no room has that name (an older/mismatched database, a typo'd report, ...). Never
+     *  throws on a bad or unknown name. */
+    public static RoomEntry lookupByName(String name) {
+        Map<String, RoomEntry> map = byName;
+        return map == null || name == null ? null : map.get(name);
+    }
+
     private static Path dataDir() {
         return FabricLoader.getInstance().getConfigDir().resolve("killer560smod-roomdata");
     }
@@ -139,7 +153,11 @@ public final class RoomDatabase {
             String json = Files.readString(dir.resolve("rooms-modern.json"), StandardCharsets.UTF_8);
             RoomEntry[] entries = GSON.fromJson(json, RoomEntry[].class);
             Map<Integer, RoomEntry> map = new HashMap<>();
+            Map<String, RoomEntry> nameMap = new HashMap<>();
             for (RoomEntry entry : entries) {
+                if (entry.name != null) {
+                    nameMap.put(entry.name, entry);
+                }
                 if (entry.cores == null) {
                     continue;
                 }
@@ -148,6 +166,7 @@ public final class RoomDatabase {
                 }
             }
             byCoreHash = map;
+            byName = nameMap;
             consecutiveFailures = 0;
             LOGGER.info("[RoomDatabase] Loaded {} rooms ({} core hashes) on attempt #{}. version local={} remote={}",
                     entries.length, map.size(), loadAttempts, localHash, remoteHash);
