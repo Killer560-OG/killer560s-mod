@@ -1841,5 +1841,15 @@ final class SettingTooltipsData {
         d.put("inventory theme/background opacity", "How solid the themed panel background is behind the container - lower values let more of the game world show through.");
         d.put("inventory theme/accent source", "Mod Theme uses the same Amber accent as the rest of the mod's menu. Custom lets you pick your own color for the panel border, slot highlight and title text below.");
         d.put("inventory theme/accent color", "Opens a color picker for the custom accent color used by the panel border, slot hover highlight and title text. Only shown when Accent Source is set to Custom.");
+        d.put("best friends/party time tracker", "Tracks how long you've spent partied with each player (any time, not just dungeons) and how many dungeon runs you've cleared together by floor, forever. Off by default - open with /bestfriends once enabled.");
+        d.put("best friends/sort", "Changes how the /bestfriends list is ordered: total time together, total dungeon runs together, or alphabetically by name.");
+        d.put("best friends/dungeon only filter", "Hides anyone you've never cleared a dungeon with from the /bestfriends list - toggle off to see everyone you've ever partied with.");
+        d.put("friends list/use our /fl", "When on, typing /fl opens this mod's own Friends List instead of Hypixel's. /flhypixel always reaches Hypixel's list either way, and /flcustom always reaches this one. Off by default so /fl behaves exactly like normal until you turn this on.");
+        d.put("pet wheel/pet wheel", "Turns the whole Pet Wheel feature on. Off by default - nothing in this tab does anything until this is on.");
+        d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel. Won't open while another screen (a menu, chat, this settings screen) is already open.");
+        d.put("pet wheel/mode", "Hold & Release: hold the wheel key, drag over a slice, let go to summon it. Press then Click: press the key to open the wheel, then click a slice.");
+        d.put("pet wheel/slices", "How many pets show on the wheel at once (4-12). More pets than this page through with the scroll wheel.");
+        d.put("pet wheel/scale", "How big the wheel draws on screen.");
+        d.put("pet wheel/edit pets", "Choose which of your scanned pets appear on the wheel, and in what order. Open /pets at least once with Pet Wheel turned on so it has pets to show here.");
     }
 }

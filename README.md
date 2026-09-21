@@ -96,6 +96,9 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Chat Keybinds — bind any key or mouse button (middle click included) to a command or chat message you type in yourself; the old 8 menu binds are migrated automatically
 - Revert Master Stars — shows Master Star items with the old all-red-stars look instead of Hypixel's numbered pip (cosmetic only)
 - Inventory Search — Ctrl+F, or a click into the search bar, to search and highlight matching items by name/lore in any inventory-type screen; adjustable bar scale, Ctrl+Backspace word delete, and correct highlighting inside the Storage Overlay's own grid
+- Pet Wheel — a radial keybind menu of the pets you choose; picking one summons it through /pets (hold-and-release or press-then-click, adjustable slice count and scale, page flipping)
+- Best Friends — /bestfriends: time partied and dungeon runs done with each player, kept forever, in a searchable, sortable menu
+- Friends List — our own friends list with notes; /fl can open it instead of Hypixel's, and /flcustom and /flhypixel always reach either one
 - Command Shortcuts — /f0-/f7, /m1-/m7, /basic /hot /burning /fiery /infernal and /kuudra <tier>, each individually toggleable
 - Trail — a square dropped behind you each tick, orange on the ground and blue in the air, with adjustable length, size, opacity and fade
 - Inventory Theme — re-skins chest and inventory menus in the mod's orange theme, with opacity and accent colour settings

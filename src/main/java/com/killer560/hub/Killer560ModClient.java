@@ -232,6 +232,10 @@ public class Killer560ModClient implements ClientModInitializer {
         EtherwarpFeature.register();
         com.killer560.hub.trail.TrailFeature.register();
         com.killer560.hub.interop.ModConflictWarnings.register();
+        com.killer560.hub.social.BestFriendsTracker.register();
+        com.killer560.hub.social.BestFriendsCommands.register();
+        com.killer560.hub.social.FriendsListCommands.register();
+        com.killer560.hub.petwheel.PetWheelFeature.register();
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
 

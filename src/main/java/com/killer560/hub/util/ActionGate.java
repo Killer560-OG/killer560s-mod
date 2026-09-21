@@ -145,7 +145,11 @@ public final class ActionGate {
         /** Chocolate Factory. */
         CHOCOLATE_FACTORY(Kind.SCREEN),
         /** Auto GFS (a {@code /gfs} command, not a click). */
-        AUTO_GFS(Kind.COMMAND);
+        AUTO_GFS(Kind.COMMAND),
+        /** Pet Wheel clicking a slot in the real /pets menu after a wheel selection. */
+        PET_WHEEL_MENU(Kind.SCREEN),
+        /** Pet Wheel sending the /pets command itself. */
+        PET_WHEEL_CMD(Kind.COMMAND);
 
         private final Kind kind;
 
