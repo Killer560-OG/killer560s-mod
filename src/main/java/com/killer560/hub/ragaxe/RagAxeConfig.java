@@ -56,6 +56,13 @@ public final class RagAxeConfig {
     private boolean endAlert = true;
     private boolean readyAlert = false;
     private float cooldownSeconds = 20f;
+    // killer560, 2026-09-20: "For the rag axe make sure that it also detects what class I am playing
+    // incase that makes it faster." Mage is the class that matters - its dungeon perk shortens ability
+    // cooldowns, so a flat 20s countdown is simply wrong while playing Mage. The percentage is a setting
+    // rather than a constant because the real reduction scales with class level and is not worth guessing
+    // at: 25 is the commonly quoted base. Detection itself is free - PartyTracker already knows the class.
+    private boolean mageCooldownReduction = true;
+    private float mageCooldownReductionPercent = 25f;
     /** false (default): the detected cast sound is the START of the 3 s channel. See {@link RagAxeState}. */
     private boolean soundIsBuffStart = false;
 
@@ -95,6 +102,9 @@ public final class RagAxeConfig {
                 cfg.cooldownTimer = ConfigJson.getBool(o, "cooldownTimer", cfg.cooldownTimer);
                 cfg.endAlert = ConfigJson.getBool(o, "endAlert", cfg.endAlert);
                 cfg.readyAlert = ConfigJson.getBool(o, "readyAlert", cfg.readyAlert);
+                cfg.mageCooldownReduction = ConfigJson.getBool(o, "mageCooldownReduction", cfg.mageCooldownReduction);
+                cfg.mageCooldownReductionPercent = Math.max(0f, Math.min(90f,
+                        ConfigJson.getFloat(o, "mageCooldownReductionPercent", cfg.mageCooldownReductionPercent)));
                 cfg.cooldownSeconds = clamp(ConfigJson.getFloat(o, "cooldownSeconds", cfg.cooldownSeconds),
                         MIN_COOLDOWN_S, MAX_COOLDOWN_S);
                 cfg.soundIsBuffStart = ConfigJson.getBool(o, "soundIsBuffStart", cfg.soundIsBuffStart);
@@ -169,6 +179,8 @@ public final class RagAxeConfig {
             o.addProperty("endAlert", endAlert);
             o.addProperty("readyAlert", readyAlert);
             o.addProperty("cooldownSeconds", cooldownSeconds);
+            o.addProperty("mageCooldownReduction", mageCooldownReduction);
+            o.addProperty("mageCooldownReductionPercent", mageCooldownReductionPercent);
             o.addProperty("soundIsBuffStart", soundIsBuffStart);
             o.addProperty("promptText", promptText);
             o.addProperty("promptTitle", promptTitle);
@@ -266,6 +278,32 @@ public final class RagAxeConfig {
 
     public void setReadyAlert(boolean v) {
         readyAlert = v;
+    }
+
+    public boolean isMageCooldownReduction() {
+        return mageCooldownReduction;
+    }
+
+    public void setMageCooldownReduction(boolean v) {
+        mageCooldownReduction = v;
+    }
+
+    public float getMageCooldownReductionPercent() {
+        return mageCooldownReductionPercent;
+    }
+
+    public void setMageCooldownReductionPercent(float v) {
+        mageCooldownReductionPercent = Math.max(0f, Math.min(90f, v));
+    }
+
+    /** The cooldown to actually count down, with Mage's reduction applied when he is playing Mage. */
+    public float effectiveCooldownSeconds() {
+        if (!mageCooldownReduction) {
+            return cooldownSeconds;
+        }
+        return com.killer560.hub.leapmenu.PartyTracker.selfClass() == com.killer560.hub.dungeonclass.DungeonClass.MAGE
+                ? cooldownSeconds * (1f - mageCooldownReductionPercent / 100f)
+                : cooldownSeconds;
     }
 
     public float getCooldownSeconds() {

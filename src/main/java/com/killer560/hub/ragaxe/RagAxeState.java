@@ -94,7 +94,7 @@ public final class RagAxeState {
         pendingStrength = (int) (loreStrength(held) * 1.5);
         buffStartMs = cfg.isSoundIsBuffStart() ? now : now + CHANNEL_MS;
         buffEndMs = buffStartMs + BUFF_MS;
-        cooldownEndMs = now + (long) (cfg.getCooldownSeconds() * 1000f);
+        cooldownEndMs = now + (long) (cfg.effectiveCooldownSeconds() * 1000f);
         strengthSent = false;
         endAlerted = false;
         readyAlerted = false;

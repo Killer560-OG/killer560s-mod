@@ -79,11 +79,22 @@ public class RagAxeTab extends BaseTab {
         y[0] += 22;
         toggle(w, contentX, y[0], half, "Buff Ended Alert", cfg::isEndAlert, cfg::setEndAlert, cfg);
         toggle(w, colB, y[0], half, "Off Cooldown Alert", cfg::isReadyAlert, cfg::setReadyAlert, cfg);
+        y[0] += 22;
+        toggle(w, contentX, y[0], half, "Mage Reduction", cfg::isMageCooldownReduction,
+                cfg::setMageCooldownReduction, cfg);
+        if (cfg.isMageCooldownReduction()) {
+            w.add(SettingsButtonWidget.builder(
+                    Component.literal(String.format(Locale.US, "Mage Cut: §6%.0f%%",
+                            cfg.getMageCooldownReductionPercent())),
+                    btn -> {
+                        float next = cfg.getMageCooldownReductionPercent() + 5f;
+                        cfg.setMageCooldownReductionPercent(next > 50f ? 0f : next);
+                        cfg.save();
+                        btn.setMessage(Component.literal(String.format(Locale.US, "Mage Cut: §6%.0f%%",
+                                cfg.getMageCooldownReductionPercent())));
+                    }).bounds(colB, y[0], half, 18).build());
+        }
         y[0] += 24;
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7Cooldown assumes the base 20s - Hypixel never tells the client your reduction."),
-                Minecraft.getInstance().font));
-        y[0] += 18;
 
         header(w, contentX, y, contentWidth, "Rag Prompts");
         toggle(w, contentX, y[0], half, "Also Show Title", cfg::isPromptTitle, cfg::setPromptTitle, cfg);

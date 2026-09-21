@@ -1686,5 +1686,7 @@ final class SettingTooltipsData {
         d.put("auto routes/delete last node", "Cheat build only. Deletes the most recently added node in this room - the one you just placed. Use /ar delete <n> to remove any other node by its number (see the Chain list).");
         d.put("test mode", "Session-only dry run. AP3 still arms when you walk into the first node, but every node runs without waiting on the arena: terminals, leap counters and close gates are skipped, a failed leap is skipped, and ANY key or mouse button stops the chain. Same as /ap3 testmode. Off at every restart.");
         d.put("croesus/auto croesus", "Cheat build only. You open Croesus yourself, then it opens each unopened run and claims that run's most profitable chest, as long as the profit clears your Min Profit. Closing the menu stops it.");
+        d.put("rag axe/mage reduction", "Shortens the cooldown countdown while you are playing Mage, because Mage's dungeon perk really does make abilities come back faster. Detected from your own class, so it turns itself off on any other class. Hypixel never tells the client the exact number, which is why the amount below is yours to set.");
+        d.put("rag axe/mage cut", "How much shorter the cooldown is on Mage, as a percentage. Click to step by 5% (wraps at 50%). 25% is the commonly quoted base; raise it if your class level gives you more.");
     }
 }
