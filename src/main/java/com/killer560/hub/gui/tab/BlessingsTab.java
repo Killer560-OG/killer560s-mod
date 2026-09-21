@@ -82,9 +82,8 @@ public class BlessingsTab extends BaseTab {
         widgets.add(toggle(contentX, y, colW, "Announce In Chat", cfg::getAnnounceChatRaw, cfg::setAnnounceChat));
         widgets.add(toggle(col2X, y, colW, "Announce In Party", cfg::getAnnouncePartyRaw, cfg::setAnnounceParty));
         y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Levels only - no source gives a blessing stat table."), mc.font));
 
+        // "Levels only - no source gives a blessing stat table" already lives in the tab's own tooltip.
         return widgets;
     }
 

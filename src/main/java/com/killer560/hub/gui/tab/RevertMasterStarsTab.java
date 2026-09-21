@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.revertmasterstars.RevertMasterStarsConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -31,14 +29,6 @@ public class RevertMasterStarsTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Shows Master Star items with the old all-red-stars look instead"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7of Hypixel's numbered pip - purely a display change."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

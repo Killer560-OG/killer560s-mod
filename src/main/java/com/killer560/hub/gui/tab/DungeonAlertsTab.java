@@ -72,9 +72,7 @@ public class DungeonAlertsTab extends BaseTab {
                 }
             });
             y[0] += 24;
-            w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                    Component.literal("§7Room names (comma separated, e.g. Water Board, Trinity):"), Minecraft.getInstance().font));
-            y[0] += 14;
+            // Format instructions moved into the "Room Names" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
             EditBox names = new EditBox(Minecraft.getInstance().font, contentX, y[0], contentWidth, 18, Component.literal("Room names"));
             names.setMaxLength(500);
             names.setValue(cfg.roomAlertsNames);

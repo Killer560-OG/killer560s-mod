@@ -34,7 +34,7 @@ final class SettingTooltipsData {
         d.put("select", "Solve the 'Select all the [color] items!' terminal: highlights every item of the requested color.");
         d.put("melody", "Detect the Melody terminal (the moving-pane timing one). It gets no click highlights, but Custom GUI redraws its board, and Send Mel Coords On Open and Auto Terminals' Melody need this ON.");
         d.put("numbers 3-tier reveal", "For the Numbers terminal, also highlights the 3rd upcoming click (in Numbers 3rd Colour), not just the next two.");
-        d.put("open termism", "Opens Termism, a practice screen that generates fake F7 terminals to solve offline. Same as the /termism command.");
+        d.put("open termism", "Opens Termism, a practice screen that generates fake F7 terminals to solve offline - never a real one, and never highlighted, since the whole point is reading it yourself. Same as the /termism command.");
         d.put("simon says", "Master toggle for the F7/M7 Simon Says device helper (Goldor phase). Other Simon Says settings only show while this is ON.");
         d.put("show highlights", "Draws boxes on the Simon Says buttons you still need to click, colored by order (next, after that, the rest).");
         d.put("show numbers", "Writes each button's place in the current round's order on the button. Numbers don't change as you click. Only drawn while Show Highlights is ON.");
@@ -250,7 +250,7 @@ final class SettingTooltipsData {
         d.put("s4 leaps", "Leaps expected while you stand in section 4. Default 4 (killer560's number). 0 turns S4 off.");
         d.put("core leaps", "Leaps expected once the Core entrance has opened and you stand inside the core. Default 4. 0 turns it off.");
         d.put("relic leaps", "Leaps expected in Phase 5 (Wither King, relics). Default 4. 0 turns it off.");
-        d.put("detection", "How an arrival is told apart from someone walking over: they must cover the Jump Distance within a few ticks (or pop into view) and land within the Leap Radius of you.");
+        d.put("detection", "How an arrival is told apart from someone walking over: they must cover the Jump Distance within a few ticks (or pop into view) and land within the Leap Radius of you. Nothing counts for 3s after your own leap, or while you are walking.");
         d.put("leap radius", "How close to you (in blocks) a teammate must land to count, 1-8. Default 3. Walking more than this far from where the first leap landed resets the count.");
         d.put("jump distance", "Blocks a teammate must cover within a few ticks for the arrival to count as a leap rather than a walk-in, 3-20. Default 8. Lower it (5-6) if very short leaps, like the 6-block hop into the core, are being missed.");
         d.put("alert", "What happens when the expected number of teammates have leaped to you.");
@@ -361,7 +361,7 @@ final class SettingTooltipsData {
         d.put("wither bosses", "Cheat build only. The F7/M7 wither bosses (Maxor, Storm, Goldor, Necron) through walls, at any range. Overrides Wither Highlight while it is on.");
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");
-        d.put("auto routes", "Cheat build only. Records what you do in a dungeon room and replays it the next time you land on that room's start node. Off by default - nothing runs until you turn it on.");
+        d.put("auto routes", "Cheat build only. Records what you do in a dungeon room and replays it the next time you land on that room's start node. Off by default - nothing runs until you turn it on. Use at your own risk.");
         d.put("auto routes/mode", "Legit turns your camera for every etherwarp with the human-looking rotation and only ever starts a route from its start node. Obvious skips the camera turn.");
         d.put("start from start node only", "ON: a route only arms when you land on its start node - never halfway through, and never by crossing the map. OFF: standing in any node of the route starts it from there (obvious mode only; Legit forces this ON).");
         d.put("recording", "Cheat build only. Record a route: stand on the node it should start from, Start, run the room how you want it replayed, Stop. Same as /ar start record and /ar stop record.");
@@ -606,7 +606,7 @@ final class SettingTooltipsData {
         d.put("tooltip stats", "Adds each member's Catacombs level, secrets, average secrets and floor PB to party tooltips. Stats come from an online dungeon stats API.");
         d.put("show missing", "Adds a Missing line to party tooltips listing classes nobody has picked (yours in green).");
         d.put("pb mode", "Which personal best to show in tooltips: S, S+, or Both (S+ if they have one, else S).");
-        d.put("rank name colors", "Colours member names by their Hypixel rank instead of their dungeon class. Only affects Compact Style 1, Style 2 and Custom; None keeps Hypixel's own line.");
+        d.put("rank name colors", "Colours member names by their Hypixel rank instead of their dungeon class. Only affects Party Finder style 1, Style 2 and Custom; None keeps Hypixel's own line.");
         d.put("custom style", "Type the member line format for Custom compact mode, using placeholders like $Name $Role $RoleLevel $Cata $Secrets $SecretAvg $PB and & colour codes.");
         d.put("motion blur", "Blends each frame with the previous ones for a motion blur effect. Turns itself off with a chat notice if the shader fails to load.");
         d.put("strength", "How much of the previous frame is kept (0-100%). Higher means longer trails; adjusted for your frame rate.");
@@ -895,7 +895,7 @@ final class SettingTooltipsData {
 
         // M7 Wither Dragons / King Relics / P5 splits
         d.put("wither dragons", "M7 Phase 5 (the Wither King fight): tracks the five dragons with spawn countdowns, spawn boxes, health, spawn titles, and the dragon your class should go to. Shows info only; nothing is aimed or clicked for you.");
-        d.put("spawn timers", "Shows each dragon's spawn countdown above its spawn point and on the Wither Dragon Timers HUD. The number turns yellow under 3 seconds and red under 1. Turning this off hides both.");
+        d.put("spawn timers", "Shows each dragon's spawn countdown above its spawn point and on the Wither Dragon Timers HUD. The number turns yellow under 3 seconds and red under 1. Turning this off hides both. Move it in the HUD editor.");
         d.put("timer style", "How the dragon countdown reads: Milliseconds, Seconds or Ticks.");
         d.put("timer symbol", "Adds the unit after the dragon countdown: ms, s or t, depending on Timer Style.");
         d.put("dragon boxes", "Draws the wireframe spawn box of every dragon that isn't dead.");
@@ -918,7 +918,7 @@ final class SettingTooltipsData {
         d.put("solo debuff on all splits", "Uses the solo-debuff rule on every split, not only when Purple is spawning.");
         d.put("your class", "Auto reads your class from the dungeon tab list; pick one manually if the tab list can't be read (e.g. p3sim).");
         d.put("king relics", "M7 Phase 5 relic helpers: a countdown until the relics spawn, a highlight on the cauldron for the relic you're carrying, and placement times. A \"relic spawned in Xs\" message always shows while this is on.");
-        d.put("relic spawn timer", "Shows the countdown until the relics spawn on the King Relic Timer HUD.");
+        d.put("relic spawn timer", "Shows the countdown until the relics spawn on the King Relic Timer HUD. Move it in the HUD editor.");
         d.put("relic spawn ticks", "How many ticks (20 = 1 second) after Necron's last line the relic countdown starts from (0-100, default 38). This only changes the countdown shown; it doesn't change how the mod detects the relics.");
         d.put("highlight cauldron", "Boxes and beams the cauldron that matches the relic you are carrying.");
         d.put("cauldron tracer", "Also draws a line from you to that cauldron.");
@@ -929,7 +929,7 @@ final class SettingTooltipsData {
         d.put("p5 lines position", "Draw the Phase 5 lines in a column to the right of the splits, or underneath them.");
 
         // Chunk Cache
-        d.put("chunk cache", "Keeps every chunk you've loaded readable in memory after Minecraft would unload it, so the Interactive Map, secret waypoints and solvers still see rooms you walked away from. Cleared on every world change. Skyblock only.");
+        d.put("chunk cache", "Keeps every chunk you've loaded readable in memory after Minecraft would unload it, so the Interactive Map, secret waypoints and solvers still see rooms you walked away from. Cleared on every world change. A cached chunk is a snapshot - the server sends no block updates for chunks it no longer tracks, so it refreshes when you return. Nothing extra is rendered; it's for reading only. Skyblock only.");
         d.put("max cached chunks", "How many chunks to keep in memory (500-20000). Oldest are dropped first; roughly 6 KB per chunk, so 4000 chunks is about 25 MB.");
         d.put("clear cache", "Throws away every chunk cached for the current world right now. Chunks the game still has loaded are unaffected.");
 
@@ -959,7 +959,7 @@ final class SettingTooltipsData {
         d.put("sprint", "Sprints on long straight stretches.");
         d.put("turn speed", "How fast the camera turns while auto walking, in degrees per tick.");
         d.put("start/stop key", "Starts or stops Auto Fairy Souls.");
-        d.put("start auto fairy souls", "Starts the automatic run now.");
+        d.put("start auto fairy souls", "Starts the automatic run now. Stops immediately on any key press, click, mouse move, opened screen, damage, or world change.");
 
         // Terminal overlay colours
         d.put("panes colour", "Colour of the highlight on every red pane in the 'Correct all the panes!' terminal.");
@@ -1006,11 +1006,11 @@ final class SettingTooltipsData {
         d.put("remove last aim spot", "Deletes the most recently added aim spot. Shows how many are saved.");
 
         // Rag Axe
-        d.put("rag axe", "Ragnarock Axe helper: cast detection, channel/buff/cooldown countdowns and built-in 'rag now' prompts for F7-M7 and F5/M5. Skyblock only, nothing is clicked for you.");
+        d.put("rag axe", "Ragnarock Axe helper: cast detection, channel/buff/cooldown countdowns and built-in 'rag now' prompts for F7-M7 and F5/M5. Base axe timing is a 3s channel, 10s strength buff, 20s cooldown. Skyblock only, nothing is clicked for you.");
         d.put("sound is buff start", "Treats the cast sound as the moment the buff applies instead of the start of the 3s channel. Only flip this if the timers read 3s early in a real run.");
-        d.put("channel countdown", "HUD line counting the 3s channel down to the moment the Strength buff applies.");
-        d.put("buff countdown", "HUD line counting the 10s Ragnarock Strength buff down.");
-        d.put("cooldown countdown", "HUD line counting the ability cooldown down from your cast.");
+        d.put("channel countdown", "HUD line counting the 3s channel down to the moment the Strength buff applies. Move it in the HUD editor (element: Ragnarock Timers).");
+        d.put("buff countdown", "HUD line counting the 10s Ragnarock Strength buff down. Move it in the HUD editor (element: Ragnarock Timers).");
+        d.put("cooldown countdown", "HUD line counting the ability cooldown down from your cast. Move it in the HUD editor (element: Ragnarock Timers).");
         d.put("off cooldown alert", "Shows 'Ragnarock Ready' when the cooldown finishes.");
         d.put("also show title", "Rag prompts also draw the prompt text as a vanilla title, not just on the HUD element.");
         d.put("skip tank/healer", "Suppresses the two M7 dragon rag prompts while you are playing Tank or Healer, like Odin and NoammAddons do.");
@@ -1158,7 +1158,7 @@ final class SettingTooltipsData {
         d.put("cast", "Alerts around casting the Ragnarock Axe: the 3s channel starting, it being cancelled, and the strength buff landing.");
         d.put("timers", "Countdown HUDs for the axe: the 3s channel, the 10s strength buff and the 20s cooldown.");
         d.put("rag prompts", "Prompts that tell you to start casting early enough that the 3s channel finishes exactly on a boss moment.");
-        d.put("prompt text", "Type the text the rag prompts show. Supports colour codes.");
+        d.put("prompt text", "Type the text the rag prompts show. Supports colour codes. Move the on-screen prompt in the HUD editor (element: Rag Prompt).");
 
         // ---- misc single settings ----
         d.put("dragon alerts", "Chat messages about the M7 dragons: spawns, time alive, ice sprays, arrows hit, and kills confirmed. Only you can see them; nothing is sent to party chat.");
@@ -1181,7 +1181,7 @@ final class SettingTooltipsData {
         d.put("terminals to solve", "Which of the six F7 terminal types the solver draws highlights for. Each one can be turned off on its own.");
         d.put("terminals to auto-click", "Cheat build only. Which terminal types get clicked automatically. Each still needs its solver on in Terminal Solver.");
         d.put("restrict when these apply", "Limits the enlarged hitboxes to dungeons, or to the boss fight, so they don't get in the way elsewhere.");
-        d.put("overlay colours", "Colours the terminal solver draws its highlights in. Defaults are the stock orange theme.");
+        d.put("overlay colours", "Colours the terminal solver draws its highlights in. Defaults are the stock orange theme. Alpha is adjustable per colour; the panel background stays opaque so nothing bleeds through.");
         d.put("active profile", "Which saved settings profile is loaded right now, or none if you are on the default settings.");
         d.put("currently", "The language this feature is set to right now. Pick a different one from the list below.");
         d.put("real item catalog", "How many real SkyBlock items the browser has loaded. If it says not loaded yet, press Refresh Item Catalog.");
@@ -1282,9 +1282,9 @@ final class SettingTooltipsData {
         d.put("mage reduction", "Shortens cooldowns by the Mage class reduction while you are playing Mage in a dungeon. Off by default.");
         d.put("unique class", "You are the only Mage in the party, so the base reduction is 50% instead of 25%.");
         d.put("mage class level", "Your Mage class level, used for the extra 1% reduction per 2 levels. Nothing reads it from tab yet, so set it here.");
-        d.put("lag display", "Shows how long ago the last server tick arrived, plus ping, FPS and a click counter, in one movable HUD element.");
-        d.put("server lag", "Shows 'zzz for N.NNs' once the server has gone quiet for longer than the Lag Threshold.");
-        d.put("lag threshold", "How long the server has to go silent before the lag line appears. Devonian's default is 300ms.");
+        d.put("lag display", "Shows how long ago the last server tick arrived, plus ping, FPS and a click counter, in one movable HUD element (element: Lag Display in the HUD editor). Pairs well with the terminal click threshold - click when the server is answering.");
+        d.put("server lag", "Shows 'zzz for N.NNs' once the server has gone quiet for longer than the Lag Threshold. Recovery can register up to a second late, so a spike never reads shorter than it was.");
+        d.put("lag threshold", "How long the server has to go silent before the lag line appears. Devonian's default is 300ms. Needs a server that pings every tick (Hypixel does) - stays hidden otherwise.");
         d.put("ping", "Shows your own ping from the tab list, coloured green under 50ms up to red over 200ms.");
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second over the last second. Sampled once per frame, so a click can be missed at very low FPS.");
@@ -1378,7 +1378,6 @@ final class SettingTooltipsData {
         d.put("dungeon breaker/zero ping", "Cheat build only. While you hold a Dungeon Breaker with charges left, the block you start mining disappears on your screen instantly instead of after the server confirms it. The server still decides whether it really broke.");
         d.put("secrets/score/timing/trigger", "The exact in-game event that sends the message on this row. Each alert sends at most once per run, and only inside a dungeon.");
         d.put("dungeon queue/highlight", "Fills each party head in the Party Finder with a colour: joinable or blocked (Catacombs level, class level, previous floor not completed, or your class already taken). Set the colours below.");
-        d.put("dungeon queue/compact", "Member line format in party tooltips: None keeps Hypixel's line and adds stats, Style 1 and Style 2 are shorter formats, Custom uses the Custom Style text you type.");
         d.put("dvd/on", "This DVD box is showing. Click to hide it; its settings are kept.");
         d.put("dvd/off", "This DVD box is hidden. Click to make it bounce on screen again.");
         d.put("dvd/edit", "Opens this DVD box's setup steps to change its content, look, speed and corner-hit effects.");
@@ -1389,7 +1388,7 @@ final class SettingTooltipsData {
         d.put("dvd/speed", "Type how fast this box moves as a multiplier (1 = about 90 pixels per second, minimum 0.05), then press Set Speed.");
         d.put("dvd/width", "GIF boxes only. Type the box width in pixels before Scale (minimum 4), then press Set Width. Picking a different GIF resets it to the GIF's own size.");
         d.put("dvd/height", "GIF boxes only. Type the box height in pixels before Scale (minimum 4), then press Set Height. Picking a different GIF resets it to the GIF's own size.");
-        d.put("dvd/scale", "Type a size multiplier for the whole box (1 = normal, minimum 0.05), then press Set Scale.");
+        d.put("dvd/scale", "Type a size multiplier for the whole box (1 = normal, minimum 0.05), then press Set Scale. Text boxes always size themselves to the text automatically - Scale is what resizes them since there's no separate width/height field for text.");
         d.put("dvd/set speed", "Saves the speed typed in the box to its left. Only matches once the button label is changed to 'Set Speed: <value>' (see UX issues).");
         d.put("dvd/set width", "Saves the width typed in the box to its left. Only matches once the button label is changed to 'Set Width: <value>' (see UX issues).");
         d.put("dvd/set height", "Saves the height typed in the box to its left. Only matches once the button label is changed to 'Set Height: <value>' (see UX issues).");
@@ -1571,7 +1570,7 @@ final class SettingTooltipsData {
         d.put("trajectories/bows", "Draws the arrow path and landing spot while holding a bow. While drawing, it follows how far the bow is pulled back. Otherwise it shows a full-power shot, which is how shortbows like the Terminator fire. Off by default.");
         d.put("trajectories/ender pearls", "Draws the throw path and landing spot while holding an Ender Pearl (Spirit Pearls are ignored). On by default.");
         d.put("chat/translate", "Translates the chat you type into another language before it's sent. Pick the language inside.");
-        d.put("translate/language", "The language your outgoing chat is translated into. Click to open a searchable list. Picking one also turns Chat Translate on. English means no translation.");
+        d.put("translate/language", "The language your outgoing chat is translated into. Click to open a searchable list. Picking one also turns Chat Translate on, same as typing /translate <language>. English means no translation. /language opens this picker directly.");
         d.put("translate/search", "Type part of a language name to filter the list, then click a language to select it and turn Chat Translate on.");
         d.put("voice to text/send to", "Where transcribed speech goes: Party (/pc) or Guild (/gc) chat. It is sent right away with no confirm step.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws an orange line from it to the one after. OFF hides both and leaves only the countdowns.");
@@ -1797,5 +1796,50 @@ final class SettingTooltipsData {
         d.put("party commands/tps", "!tps replies with the server's tick rate, or \"Unknown\" when this client can't tell (the server isn't pinging fast enough to measure it).");
         d.put("party commands/location", "!location replies with your current Skyblock area, read from the tab list.");
         d.put("party commands/discord", "!odin / !od (Odin's own triggers, kept for parity) and !killer560 / !k560 (this mod's own) reply with this mod's Discord invite link.");
+        d.put("secrets hud/secrets hud", "Shows secrets found this run (read from the tab list) as a small movable HUD. Only draws while you're inside a dungeon.");
+        d.put("secrets hud/per-room secrets", "Adds a second HUD line showing secrets found since you walked into the room you're currently standing in. Needs Live Map to have identified that room first.");
+        d.put("time hud/time hud", "Shows the run's elapsed time (and, if enabled, the no-lag elapsed time) as a small movable HUD.");
+        d.put("time hud/include \"without lag\"", "Also includes the no-lag elapsed time in the message sent by Send Time.");
+        d.put("time hud/show current split", "Adds a line mirroring Split Timers' own current segment name and how long it's been running. Needs Split Timers enabled too - this doesn't track splits on its own; the full breakdown is Split Timers' own HUD.");
+        d.put("score calculator/bonus kill alerts", "Party-chat messages sent when you personally get credit for a mimic, prince or bat bonus-score kill. Each sends at most once per run and never if a party mate's mod already announced the same kill.");
+        d.put("score calculator/send 270 now", "Sends the 270 party message immediately, regardless of your current score. Does not affect the automatic 270 alert above.");
+        d.put("score calculator/send 300 now", "Sends the 300 party message immediately, regardless of your current score. Does not affect the automatic 300 alert above.");
+        d.put("trail/trail", "Drops one cosmetic square per tick at your feet: amber while grounded, blue while airborne, nothing while you're standing still. Purely visual, no gameplay effect.");
+        d.put("trail/length", "How many squares the trail keeps before the oldest one drops off, from 1 to 100.");
+        d.put("trail/square size", "How big each trail square is, in blocks.");
+        d.put("trail/opacity", "How visible the trail squares are.");
+        d.put("trail/fade toward tail", "When on, squares fade out the older they are instead of staying at full opacity for the whole trail length.");
+        d.put("command shortcuts/command shortcuts", "Master switch for every /f0-/f7, /m1-/m7 and Kuudra command shortcut below. Off means none of them are registered at all, so the words are free for another mod or Hypixel itself to use.");
+        d.put("command shortcuts/f0", "Sends /joininstance catacombs_floor_entrance - queues the Catacombs entrance.");
+        d.put("command shortcuts/f1", "Sends /joininstance catacombs_floor_one.");
+        d.put("command shortcuts/f2", "Sends /joininstance catacombs_floor_two.");
+        d.put("command shortcuts/f3", "Sends /joininstance catacombs_floor_three.");
+        d.put("command shortcuts/f4", "Sends /joininstance catacombs_floor_four.");
+        d.put("command shortcuts/f5", "Sends /joininstance catacombs_floor_five.");
+        d.put("command shortcuts/f6", "Sends /joininstance catacombs_floor_six.");
+        d.put("command shortcuts/f7", "Sends /joininstance catacombs_floor_seven.");
+        d.put("command shortcuts/m1", "Sends /joininstance master_catacombs_floor_one.");
+        d.put("command shortcuts/m2", "Sends /joininstance master_catacombs_floor_two.");
+        d.put("command shortcuts/m3", "Sends /joininstance master_catacombs_floor_three.");
+        d.put("command shortcuts/m4", "Sends /joininstance master_catacombs_floor_four.");
+        d.put("command shortcuts/m5", "Sends /joininstance master_catacombs_floor_five.");
+        d.put("command shortcuts/m6", "Sends /joininstance master_catacombs_floor_six.");
+        d.put("command shortcuts/m7", "Sends /joininstance master_catacombs_floor_seven.");
+        d.put("command shortcuts/basic", "Sends /joininstance kuudra_normal - Hypixel's own internal name for the Basic Kuudra tier.");
+        d.put("command shortcuts/hot", "Sends /joininstance kuudra_hot.");
+        d.put("command shortcuts/burning", "Sends /joininstance kuudra_burning.");
+        d.put("command shortcuts/fiery", "Sends /joininstance kuudra_fiery.");
+        d.put("command shortcuts/infernal", "Sends /joininstance kuudra_infernal.");
+        d.put("custom scoreboard/open visual editor", "Opens a drag-and-drop editor with a live preview: reorder lines, events and chunked stats, or drag them into Disabled to turn them off.");
+        d.put("dungeon queue/party finder style", "Member line format in party tooltips: None keeps Hypixel's line and adds stats, Style 1 and Style 2 are shorter formats, Custom uses the Custom Style text you type.");
+        d.put("dungeon queue/style preview", "Shows a live sample of the Party Finder style above using 5 example names, so you can see the format before it shows up in a real party.");
+        d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's centre, overriding a preset's pre-positioned coordinates. Needed before the ring is drawn or the message can send.");
+        d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
+        d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
+        d.put("inventory theme/inventory theme", "Re-skins the vanilla chest and player-inventory GUI (background, slot backdrops, hover highlight, title text) to match this mod's own Amber theme instead of Minecraft's stone texture. Off by default.");
+        d.put("inventory theme/applies to", "Hypixel/p3sim Menus Only re-skins just chest-style menus while connected to hypixel.net or p3sim.net (and the player's own inventory screen everywhere). Every Container also re-skins vanilla singleplayer/other-server chests and the player inventory.");
+        d.put("inventory theme/background opacity", "How solid the themed panel background is behind the container - lower values let more of the game world show through.");
+        d.put("inventory theme/accent source", "Mod Theme uses the same Amber accent as the rest of the mod's menu. Custom lets you pick your own color for the panel border, slot highlight and title text below.");
+        d.put("inventory theme/accent color", "Opens a color picker for the custom accent color used by the panel border, slot hover highlight and title text. Only shown when Accent Source is set to Custom.");
     }
 }

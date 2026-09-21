@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.autopuzzles.AutoPuzzlesConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -136,14 +134,7 @@ public class AutoPuzzlesTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Etherwarp Reposition", cfg.getEtherwarpRepositionRaw()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Every auto needs its puzzle's solver on. Bow autos shoot the held shortbow."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Etherwarp Reposition: AOTV-warps you to the puzzle's standing spots."),
-                Minecraft.getInstance().font));
+        // Both notes above already covered by the "Auto Puzzles" and "Etherwarp Reposition" tooltips.
         return widgets;
     }
 

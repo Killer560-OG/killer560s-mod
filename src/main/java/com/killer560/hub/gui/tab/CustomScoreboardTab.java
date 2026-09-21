@@ -56,6 +56,12 @@ public class CustomScoreboardTab extends BaseTab {
             return widgets;
         }
 
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Visual Editor"), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new com.killer560.hub.scoreboard.ScoreboardEditorScreen(client.screen));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
         int gap = 4;
         int perRow = 3;
         int pageW = (contentWidth - gap * (perRow - 1)) / perRow;

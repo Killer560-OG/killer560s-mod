@@ -49,8 +49,6 @@ public class TerminalTriggerbotTab extends BaseTab {
         y += 24;
 
         if (!cfg.isEnabledRaw()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Opens the P3 terminal you are looking at. Never moves your camera."), font));
             return widgets;
         }
 
@@ -76,9 +74,6 @@ public class TerminalTriggerbotTab extends BaseTab {
                 }).bounds(contentX, y, halfW, ROW).build());
         y += ROW + GAP;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Only clicks what your crosshair is already on - Terminal Aura is the in-range version."),
-                font));
         return widgets;
     }
 

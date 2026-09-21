@@ -50,13 +50,6 @@ public class PathfindingTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
         if (!cfg.isEnabledRaw()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Shows the fastest route to anywhere on the island, using"),
-                    client.font));
-            y += 12;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7SkyHanni's public island graph data (downloaded, not bundled)."),
-                    client.font));
             return widgets;
         }
 

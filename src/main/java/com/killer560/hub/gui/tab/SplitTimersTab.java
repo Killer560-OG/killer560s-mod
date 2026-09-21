@@ -66,10 +66,6 @@ public class SplitTimersTab extends BaseTab {
                     btn.setMessage(onOff("Watcher Move", cfg.isWatcherMoveSplit()));
                 }).bounds(contentX + 168, y, 160, 18).build());
         y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Clear Splits: Blood Rush / Blood Open / Watcher Dialogue / Blood Clear"),
-                Minecraft.getInstance().font));
-        y += 16;
 
         // Core entry times (2026-09-16, killer560: "time to enter core after terms finish").
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -101,10 +97,6 @@ public class SplitTimersTab extends BaseTab {
                         btn.setMessage(onOff("Slowest In HUD", cfg.isCoreEntrySlowestHud()));
                     }).bounds(contentX, y, 220, 18).build());
             y += 22;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Slowest To Party posts in PARTY chat - everyone sees it."),
-                    Minecraft.getInstance().font));
-            y += 16;
         }
 
         // 2026-09-20 killer560 change list: divider bar, Boss Entry/Boss running timers, lagless times and
@@ -177,18 +169,6 @@ public class SplitTimersTab extends BaseTab {
                     btn.setMessage(p5PosLabel(cfg));
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Odin's splits: Blood Open/Clear, Portal Entry, each boss phase"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7(E-F7, e.g. Maxor/Storm/Terminals/Goldor/Necron) and Total - armed"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7on \"Starting in 1 second.\", clock starts on Mort's line."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

@@ -51,10 +51,6 @@ public class LeapCounterTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
         // Settings stay visible while the master is OFF (like F7 Spots) so the counts can be set up before a run.
-        note(w, contentX, y, contentWidth,
-                "Counts teammates that leap TO you in F7/M7 P3 and alerts when the expected number have arrived.");
-        note(w, contentX, y, contentWidth,
-                "Someone who walks over is not counted - only arrivals by leap.");
 
         // Per-section targets - killer560's numbers for S2/S3/S4, S1 and Core/Relic from NoammAddons (0 = off).
         header(w, contentX, y, contentWidth, "Expected Leaps");
@@ -67,7 +63,6 @@ public class LeapCounterTab extends BaseTab {
         countSlider(w, contentX, y[0], half, "Core Leaps", cfg::getCountCore, cfg::setCountCore, cfg);
         countSlider(w, colB, y[0], half, "Relic Leaps", cfg::getCountRelic, cfg::setCountRelic, cfg);
         y[0] += 24;
-        note(w, contentX, y, contentWidth, "Capped to your party size - a 4-man never waits for a 5th leap. 0 turns a section off.");
 
         header(w, contentX, y, contentWidth, "Detection");
         w.add(new ThemedSliderButton(contentX, y[0], half, 18, radiusText(cfg),
@@ -101,7 +96,6 @@ public class LeapCounterTab extends BaseTab {
             }
         });
         y[0] += 24;
-        note(w, contentX, y, contentWidth, "Nothing counts for 3s after your own leap, or while you are walking.");
 
         // "Alert Sound" alone is already a tooltip key (Dungeon Alerts' 270/300 title) - hence the "Leap" prefix.
         header(w, contentX, y, contentWidth, "Alert");
@@ -125,7 +119,6 @@ public class LeapCounterTab extends BaseTab {
         toggle(w, contentX, y[0], half, "Leap HUD", cfg::isHud, cfg::setHud, cfg);
         toggle(w, colB, y[0], half, "Show At Zero", cfg::isHudShowAtZero, cfg::setHudShowAtZero, cfg);
         y[0] += 24;
-        note(w, contentX, y, contentWidth, "Move it in the HUD editor (element: Leap Counter).");
         return w;
     }
 
@@ -162,11 +155,6 @@ public class LeapCounterTab extends BaseTab {
         y[0] += 4;
         w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
         y[0] += 14;
-    }
-
-    private static void note(List<AbstractWidget> w, int x, int[] y, int width, String text) {
-        w.add(new StringWidget(x, y[0], width, 12, Component.literal("§7" + text), Minecraft.getInstance().font));
-        y[0] += 12;
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label,

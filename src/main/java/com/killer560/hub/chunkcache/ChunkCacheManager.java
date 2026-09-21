@@ -129,6 +129,11 @@ public final class ChunkCacheManager {
             onLevelChanged(level);
             return;
         }
+        if (level == null) {
+            // Title screen / between worlds: there is no chunk cache to find, so a missing store here says nothing
+            // about the mixin. Checking it here used to log a false "mixin did not apply" at every boot.
+            return;
+        }
         ChunkCacheStore store = storeOf(level);
         if (store == null) {
             if (active && !warnedNoStore) {

@@ -34,11 +34,7 @@ public class AutoTerminalTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("A real macro against Hypixel's rules - auto-clicks Floor 7 terminals."),
-                Minecraft.getInstance().font));
-        y += 22;
-
+        // Ban-risk warning already covered by the "Auto Terminals" tooltip on the toggle right below.
         widgets.add(SettingsButtonWidget.builder(autoEnabledText(), btn -> {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
                     cfg.setAutoTerminalsEnabled(!cfg.isAutoTerminalsEnabled());
@@ -180,10 +176,7 @@ public class AutoTerminalTab extends BaseTab {
                         }
                     });
                     y += 26;
-                    widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                            Component.literal("Melody: how many rows to click ahead once an edge row matches (0 = none)."),
-                            Minecraft.getInstance().font));
-                    y += 16;
+                    // Already covered by the "Melody Lookahead Clicks" tooltip.
                 }
             }
         }
@@ -197,10 +190,7 @@ public class AutoTerminalTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Hover Terminals", true), Minecraft.getInstance().font));
         y += 16;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Hover a slot the solver says is correct and it clicks itself. Needs Terminal Solver on."),
-                Minecraft.getInstance().font));
-        y += 22;
+        // Description already covered by the "Hover Terminals" tooltip.
 
         widgets.add(SettingsButtonWidget.builder(hoverEnabledText(), btn -> {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
@@ -258,11 +248,7 @@ public class AutoTerminalTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Melody: hovering a row button arms it - the click fires the moment that row lines up."),
-                Minecraft.getInstance().font));
-        y += 16;
-
+        // Already covered by the "Hover Melody" tooltip.
         return widgets;
     }
 

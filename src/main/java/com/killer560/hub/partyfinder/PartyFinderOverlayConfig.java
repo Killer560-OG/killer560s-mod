@@ -70,6 +70,9 @@ public final class PartyFinderOverlayConfig {
     private CompactMode compactMode = CompactMode.NONE;
     private String customStyle = "";
     private boolean rankNameColors = false;
+    /** Settings-tab "live preview of the selected style" (killer560 7.2) - a preview panel, not an in-game
+     *  behaviour change, so unlike a new automation feature this defaults ON. */
+    private boolean stylePreview = true;
 
     private PartyFinderOverlayConfig() {
     }
@@ -101,6 +104,7 @@ public final class PartyFinderOverlayConfig {
                 cfg.compactMode = ConfigJson.getEnum(obj, "compactMode", CompactMode.class, CompactMode.NONE);
                 cfg.setCustomStyle(ConfigJson.getString(obj, "customStyle", ""));
                 cfg.rankNameColors = ConfigJson.getBool(obj, "rankNameColors", false);
+                cfg.stylePreview = ConfigJson.getBool(obj, "stylePreview", true);
             } catch (Exception ignored) {
                 // unreadable file - defaults
             }
@@ -127,6 +131,7 @@ public final class PartyFinderOverlayConfig {
             obj.addProperty("compactMode", compactMode.name());
             obj.addProperty("customStyle", customStyle);
             obj.addProperty("rankNameColors", rankNameColors);
+            obj.addProperty("stylePreview", stylePreview);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -255,5 +260,13 @@ public final class PartyFinderOverlayConfig {
 
     public void setRankNameColors(boolean rankNameColors) {
         this.rankNameColors = rankNameColors;
+    }
+
+    public boolean isStylePreview() {
+        return stylePreview;
+    }
+
+    public void setStylePreview(boolean stylePreview) {
+        this.stylePreview = stylePreview;
     }
 }

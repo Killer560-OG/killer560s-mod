@@ -13,12 +13,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted settings for {@link ScoreCalculatorFeature}. Everything that does something ships OFF; per-key
- *  {@link ConfigJson} readers so one bad value never resets the rest; the tab saves after every change. */
+ *  {@link ConfigJson} readers so one bad value never resets the rest; the tab saves after every change.
+ *  <p>
+ *  Reorg 2026-09-21 (killer560's "score hud that has all the send messages and the score display"): the
+ *  mimic/prince/bat KILL party-alert settings moved here from {@code DungeonInfoConfig} - the DETECTION
+ *  itself already lived in {@link ScoreCalculatorFeature} independently (needed for the score formula), so
+ *  {@code DungeonInfoFeature} keeping its own second copy just to fire a chat message was pure overlap; see
+ *  {@link #migrateLegacyDungeonInfoSettings} for the one-time carry-over of anything killer560 already had
+ *  configured there. */
 public final class ScoreCalculatorConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-scorecalc.json");
+    private static final Path LEGACY_DUNGEON_INFO_CONFIG_PATH =
+            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-dungeoninfo.json");
 
     public enum PaulMode {
         AUTO("Auto"), FORCE_ON("Force On"), FORCE_OFF("Force Off");
@@ -58,6 +67,18 @@ public final class ScoreCalculatorConfig {
     private String party300Message = "300 Score!";
     private boolean chatNote = false;
     private boolean alertSound = true;
+    // Bonus-kill party alerts (moved from DungeonInfoConfig 2026-09-21 - see class doc). Same default
+    // messages as before the move; detection stays in ScoreCalculatorFeature (self-kill only - a kill
+    // another mod already announced in party chat is never re-announced, same as before the move).
+    private boolean mimicAlertEnabled = false;
+    private String mimicAlertMessage = "Mimic Killed!";
+    private boolean princeAlertEnabled = false;
+    private String princeAlertMessage = "Prince Killed!";
+    private boolean batAlertEnabled = false;
+    private String batAlertMessage = "Bat Killed!";
+    /** Guards {@link #migrateLegacyDungeonInfoSettings} to exactly one carry-over, ever - once true (and
+     *  saved), killer560 turning these back off/blank on purpose must stick, not get re-migrated. */
+    private boolean legacyAlertsMigrated = false;
 
     private ScoreCalculatorConfig() {
     }
@@ -92,11 +113,68 @@ public final class ScoreCalculatorConfig {
                 cfg.party300Message = ConfigJson.getString(obj, "party300Message", cfg.party300Message);
                 cfg.chatNote = ConfigJson.getBool(obj, "chatNote", cfg.chatNote);
                 cfg.alertSound = ConfigJson.getBool(obj, "alertSound", cfg.alertSound);
+                cfg.mimicAlertEnabled = ConfigJson.getBool(obj, "mimicAlertEnabled", cfg.mimicAlertEnabled);
+                cfg.mimicAlertMessage = ConfigJson.getString(obj, "mimicAlertMessage", cfg.mimicAlertMessage);
+                cfg.princeAlertEnabled = ConfigJson.getBool(obj, "princeAlertEnabled", cfg.princeAlertEnabled);
+                cfg.princeAlertMessage = ConfigJson.getString(obj, "princeAlertMessage", cfg.princeAlertMessage);
+                cfg.batAlertEnabled = ConfigJson.getBool(obj, "batAlertEnabled", cfg.batAlertEnabled);
+                cfg.batAlertMessage = ConfigJson.getString(obj, "batAlertMessage", cfg.batAlertMessage);
+                cfg.legacyAlertsMigrated = ConfigJson.getBool(obj, "legacyAlertsMigrated", cfg.legacyAlertsMigrated);
             } catch (Exception ignored) {
                 // Unparseable file: keep defaults for this session (per-key readers cover single bad values).
             }
         }
+        if (!cfg.legacyAlertsMigrated) {
+            migrateLegacyDungeonInfoSettings(cfg);
+            instance = cfg;
+            // Persist the migration result (and the guard flag) immediately - otherwise, if killer560 never
+            // touches a Score Calculator setting before his next restart, legacyAlertsMigrated never reaches
+            // disk and this harmless-but-pointless re-read happens on every launch.
+            cfg.save();
+            return;
+        }
         instance = cfg;
+    }
+
+    /** One-time carry-over (2026-09-21 reorg) of whatever killer560 already had set for the mimic/prince/bat
+     *  kill alerts and the manual 270/300 messages in the old {@code killer560smod-dungeoninfo.json} - read
+     *  only, never written back to that file. Runs at most once per install: {@link #legacyAlertsMigrated}
+     *  is set and saved here so a later intentional "turn it back off" is never overwritten again. Missing
+     *  or unparseable legacy file just means there was nothing to carry over - defaults stand. */
+    private static void migrateLegacyDungeonInfoSettings(ScoreCalculatorConfig cfg) {
+        cfg.legacyAlertsMigrated = true;
+        if (!Files.exists(LEGACY_DUNGEON_INFO_CONFIG_PATH)) {
+            return;
+        }
+        try {
+            JsonObject legacy = JsonParser.parseString(Files.readString(LEGACY_DUNGEON_INFO_CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            cfg.mimicAlertEnabled = ConfigJson.getBool(legacy, "mimicMessageEnabled", cfg.mimicAlertEnabled);
+            cfg.mimicAlertMessage = ConfigJson.getString(legacy, "mimicMessage", cfg.mimicAlertMessage);
+            cfg.princeAlertEnabled = ConfigJson.getBool(legacy, "princeMessageEnabled", cfg.princeAlertEnabled);
+            cfg.princeAlertMessage = ConfigJson.getString(legacy, "princeMessage", cfg.princeAlertMessage);
+            cfg.batAlertEnabled = ConfigJson.getBool(legacy, "batMessageEnabled", cfg.batAlertEnabled);
+            cfg.batAlertMessage = ConfigJson.getString(legacy, "batMessage", cfg.batAlertMessage);
+            // The old manual 270/300 "Send Now" text only carries over into the (now shared) party message
+            // if killer560 actually customised it away from its own old default - otherwise the party
+            // message's own text (customised or not) wins, same idea as DungeonInfoConfig's own
+            // migrateOldDefault used to apply to the mimic/prince/bat text.
+            // These alerts used to fire from Dungeon Info on their own; here they only fire while the Score
+            // Calculator is on. If any was switched on before the move, switch the Score Calculator on too so
+            // the move does not silently mute an alert he had set up.
+            if (!cfg.enabled && (cfg.mimicAlertEnabled || cfg.princeAlertEnabled || cfg.batAlertEnabled)) {
+                cfg.enabled = true;
+            }
+            String legacy270 = ConfigJson.getString(legacy, "score270Message", null);
+            if (legacy270 != null && !"270 score - carrying/leaving is fine from here!".equals(legacy270)) {
+                cfg.party270Message = legacy270;
+            }
+            String legacy300 = ConfigJson.getString(legacy, "score300Message", null);
+            if (legacy300 != null && !"300 score!".equals(legacy300)) {
+                cfg.party300Message = legacy300;
+            }
+        } catch (Exception ignored) {
+            // Unparseable/missing legacy file: nothing to carry over, defaults stand.
+        }
     }
 
     public void save() {
@@ -121,6 +199,13 @@ public final class ScoreCalculatorConfig {
             obj.addProperty("party300Message", party300Message);
             obj.addProperty("chatNote", chatNote);
             obj.addProperty("alertSound", alertSound);
+            obj.addProperty("mimicAlertEnabled", mimicAlertEnabled);
+            obj.addProperty("mimicAlertMessage", mimicAlertMessage);
+            obj.addProperty("princeAlertEnabled", princeAlertEnabled);
+            obj.addProperty("princeAlertMessage", princeAlertMessage);
+            obj.addProperty("batAlertEnabled", batAlertEnabled);
+            obj.addProperty("batAlertMessage", batAlertMessage);
+            obj.addProperty("legacyAlertsMigrated", legacyAlertsMigrated);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -276,5 +361,55 @@ public final class ScoreCalculatorConfig {
 
     public void setAlertSound(boolean v) {
         alertSound = v;
+    }
+
+    // ---- bonus-kill party alerts (moved from DungeonInfoConfig 2026-09-21) ----
+
+    public boolean isMimicAlertEnabled() {
+        return mimicAlertEnabled && SkyblockGate.allows();
+    }
+
+    public void setMimicAlertEnabled(boolean v) {
+        mimicAlertEnabled = v;
+    }
+
+    public String getMimicAlertMessage() {
+        return mimicAlertMessage;
+    }
+
+    public void setMimicAlertMessage(String v) {
+        mimicAlertMessage = v == null ? "" : v;
+    }
+
+    public boolean isPrinceAlertEnabled() {
+        return princeAlertEnabled && SkyblockGate.allows();
+    }
+
+    public void setPrinceAlertEnabled(boolean v) {
+        princeAlertEnabled = v;
+    }
+
+    public String getPrinceAlertMessage() {
+        return princeAlertMessage;
+    }
+
+    public void setPrinceAlertMessage(String v) {
+        princeAlertMessage = v == null ? "" : v;
+    }
+
+    public boolean isBatAlertEnabled() {
+        return batAlertEnabled && SkyblockGate.allows();
+    }
+
+    public void setBatAlertEnabled(boolean v) {
+        batAlertEnabled = v;
+    }
+
+    public String getBatAlertMessage() {
+        return batAlertMessage;
+    }
+
+    public void setBatAlertMessage(String v) {
+        batAlertMessage = v == null ? "" : v;
     }
 }

@@ -92,10 +92,6 @@ public class ProfilesTab extends BaseTab {
 
         y += 8;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7To share: Export, then send the .zip Minecraft tells you about."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7To receive one: drop the .zip in config/killer560smod-profiles/,"),
                 Minecraft.getInstance().font));
         y += 12;

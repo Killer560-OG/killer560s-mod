@@ -113,10 +113,7 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
                     }
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Stops on any key press, click, mouse move, screen, damage or world change."),
-                client.font));
+        // Stop-condition list moved into the Start/Stop button's hover tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         return widgets;
     }
 

@@ -40,9 +40,6 @@ public class RagAxeTab extends BaseTab {
         master(w, contentX, y, contentWidth, "Rag Axe", cfg::isEnabled, cfg::setEnabled, cfg, requestRebuild);
 
         if (!cfg.isEnabled()) {
-            w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                    Component.literal("§7Ragnarock Axe: 3s channel, 10s strength buff, 20s cooldown."),
-                    Minecraft.getInstance().font));
             return w;
         }
 
@@ -136,17 +133,6 @@ public class RagAxeTab extends BaseTab {
             y[0] += 24;
         }
 
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7Lead = how early to prompt, so the 3s channel finishes on the moment."),
-                Minecraft.getInstance().font));
-        y[0] += 14;
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7M7 Dragon Spawns needs Wither Dragons (or King Relics) turned on."),
-                Minecraft.getInstance().font));
-        y[0] += 14;
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7Move the Ragnarock Timers / Rag Prompt HUDs in the HUD editor."),
-                Minecraft.getInstance().font));
         return w;
     }
 

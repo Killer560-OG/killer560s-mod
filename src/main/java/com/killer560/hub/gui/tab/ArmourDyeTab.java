@@ -83,9 +83,7 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
             requestRebuild.run();
         }).bounds(contentX, y, colW, 18).build());
         y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
-                "§7Client-side only - nothing is sent to the server and the real item never changes."), mc.font));
-        y += 14;
+        // "Client-side only" reassurance moved into the "Armour Recolour" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         // The mixin config is required:false so a cosmetic feature can never stop the game booting - but that
         // also means it could quietly do nothing, which is exactly how Item Protect and Object Hider stayed
         // dead for days. Say so rather than let him wonder why his armour never changed (2026-09-16).
@@ -119,9 +117,7 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(x, y, quarterW, 18).build());
         }
         y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
-                "§7Or bind the capture key and press it while hovering a piece in any inventory."), mc.font));
-        y += 18;
+        // "Or bind the capture key..." already covered by the "Add A Piece" section's tooltip.
 
         // --- entries ---
         List<ArmourDyeEntry> entries = cfg.getEntries();
@@ -192,8 +188,7 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
                     "§7Trim lists load once you're in a world."), mc.font));
             y += 14;
         }
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
-                "§7\"Custom ID\" skins use the equipment-asset id you set in the config file."), mc.font));
+        // "Custom ID" skin explanation already covered by the "Skin" tooltip.
 
         return widgets;
     }

@@ -34,13 +34,7 @@ public class ChunkCacheTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        widgets.add(label(contentX, y, contentWidth, "§7Keeps every chunk you have loaded readable for the rest of the"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7world, so the Interactive Map, secret waypoints and solvers still"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7see rooms you walked away from. Cleared on every world change."));
-        y += 16;
-
+        // In-panel description moved into the "Chunk Cache" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
@@ -77,14 +71,7 @@ public class ChunkCacheTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(label(contentX, y, contentWidth, "§7Oldest chunks are dropped first once the limit is reached."));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7A cached chunk is a snapshot: the server sends no block updates"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7for chunks it no longer tracks, so it refreshes when you return."));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7Nothing extra is rendered - cached chunks are for reading only."));
-
+        // Snapshot/staleness explanation moved into the "Chunk Cache" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         return widgets;
     }
 

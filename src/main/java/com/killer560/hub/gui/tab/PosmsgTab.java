@@ -59,15 +59,6 @@ public class PosmsgTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Only active in the F7/M7 boss fight. Turn on each waypoint you want."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Presets are pre-positioned; \"Set To My Position\" overrides one."),
-                Minecraft.getInstance().font));
-        y += 18;
-
         for (PosmsgEntry e : new ArrayList<>(PosmsgConfig.getInstance().entries())) {
             y = buildEntryRows(widgets, e, contentX, y, contentWidth, requestRebuild);
             y += 12;

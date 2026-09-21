@@ -289,7 +289,7 @@ public final class PartyFinderOverlay {
                 keys.put("NameColor", nameColor);
                 keys.put("Name", name);
                 keys.put("RoleLevel", roleLevel);
-                keys.put("Cata", String.valueOf(stats.level()));
+                keys.put("Cata", String.valueOf((int) stats.level()));
                 keys.put("Secrets", String.valueOf(stats.secrets()));
                 keys.put("SecretsShort", secretsShort);
                 keys.put("SecretAvg", avg2);
@@ -305,7 +305,11 @@ public final class PartyFinderOverlay {
                 yield literal(sb.toString());
             }
             case NONE -> {
-                String suffix = " &8(&6" + stats.level() + "&8) &8[&3"
+                // killer560 7.2 "the current style does not work": NONE is the default/unselected style, and
+                // it printed the raw fractional Cata level from the API ("45.87362...") instead of the whole
+                // number Style 1/2 already cast to int - looked broken on every single party head. CUSTOM's
+                // $Cata had the exact same bug (String.valueOf(stats.level()) below).
+                String suffix = " &8(&6" + (int) stats.level() + "&8) &8[&3"
                         + NumberFormat.getNumberInstance(Locale.US).format(stats.secrets()) + " &7| &b" + avg2 + "&8]";
                 if (pbTime == null) {
                     suffix += " &8[&cNO PB&8]";
@@ -378,5 +382,68 @@ public final class PartyFinderOverlay {
     /** Selected dungeon class as last seen, or null. */
     public static DungeonClass getCurrentRole() {
         return currentRole;
+    }
+
+    // ------------------------------------------------------------------------------------------ settings-tab preview
+
+    /** killer560 7.2: "live preview of the selected style using killer560, aut0balls, agreencatgirl,
+     *  femboy_recruiter, latinomommy at cata/class 50/45/40/35/30". Fixed sample data, one per dungeon class,
+     *  spread across a floor 7 Master Mode party (a mix of S/S+/no PB so the preview shows every PB branch).
+     *  Fed through the exact same {@link #memberLine} the real tooltip uses, so the preview can never drift
+     *  from - or paper over a bug in - what actually renders on a Party Finder head. */
+    private record PreviewPlayer(String name, DungeonClass role, int level, PlayerStats stats) {
+    }
+
+    private static JsonObject pbEntry(String s, String sPlus) {
+        if (s == null && sPlus == null) {
+            return null;
+        }
+        JsonObject root = new JsonObject();
+        if (s != null) {
+            JsonObject sObj = new JsonObject();
+            sObj.addProperty("floor_7", s);
+            root.add("s", sObj);
+        }
+        if (sPlus != null) {
+            JsonObject spObj = new JsonObject();
+            spObj.addProperty("floor_7", sPlus);
+            root.add("s_plus", spObj);
+        }
+        return root;
+    }
+
+    private static PlayerStats previewStats(double level, int secrets, double avg, JsonObject pbMaster) {
+        return new PlayerStats(level, secrets, avg, pbMaster, pbMaster, System.currentTimeMillis());
+    }
+
+    private static final List<PreviewPlayer> PREVIEW_PLAYERS = List.of(
+            new PreviewPlayer("killer560", DungeonClass.HEALER, 50,
+                    previewStats(50, 210_000, 62.4, pbEntry("4:15", "4:02"))),
+            new PreviewPlayer("aut0balls", DungeonClass.TANK, 45,
+                    previewStats(45, 150_000, 55.1, pbEntry("4:40", null))),
+            new PreviewPlayer("agreencatgirl", DungeonClass.MAGE, 40,
+                    previewStats(40, 95_000, 48.3, pbEntry("4:55", null))),
+            new PreviewPlayer("femboy_recruiter", DungeonClass.BERSERK, 35,
+                    previewStats(35, 52_000, 39.7, pbEntry(null, null))),
+            new PreviewPlayer("latinomommy", DungeonClass.ARCHER, 30,
+                    previewStats(30, 21_000, 30.2, pbEntry(null, null))));
+
+    private static final Party PREVIEW_PARTY =
+            new Party(0, 7, true, List.of(), List.of(), EnumSet.noneOf(Status.class));
+
+    /** Number of sample rows {@link #renderPreviewLines} returns - lets the settings tab size its preview box
+     *  without hard-coding the sample roster size a second time. */
+    public static final int PREVIEW_LINE_COUNT = PREVIEW_PLAYERS.size();
+
+    /** @return the fixed sample roster rendered with {@code cfg}'s current style/PB mode/rank colors/custom
+     *  style - call fresh every frame (it's cheap) so a settings-tab preview widget tracks live edits with no
+     *  rebuild needed. */
+    public static List<Component> renderPreviewLines(PartyFinderOverlayConfig cfg) {
+        List<Component> out = new ArrayList<>(PREVIEW_PLAYERS.size());
+        for (PreviewPlayer p : PREVIEW_PLAYERS) {
+            Component original = literal(" " + p.name() + ": " + p.role().displayName + " (" + p.level() + ")");
+            out.add(memberLine(cfg, PREVIEW_PARTY, original, p.name(), p.role(), String.valueOf(p.level()), p.stats()));
+        }
+        return out;
     }
 }

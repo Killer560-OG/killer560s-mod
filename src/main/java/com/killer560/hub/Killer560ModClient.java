@@ -116,7 +116,8 @@ public class Killer560ModClient implements ClientModInitializer {
         AbilityTimersFeature.register();
         HudElementRegistry.register(new AbilityTimersFeature.TimersHudElement());
         DungeonInfoFeature.register();
-        HudElementRegistry.register(new DungeonInfoFeature.InfoHudElement());
+        HudElementRegistry.register(new DungeonInfoFeature.SecretsHudElement());
+        HudElementRegistry.register(new DungeonInfoFeature.TimeHudElement());
         MobEspFeature.register();
         com.killer560.hub.teammates.TeammatesFeature.register();
         SimonSaysFeature.register();
@@ -229,6 +230,9 @@ public class Killer560ModClient implements ClientModInitializer {
         SecretWaypointsFeature.register();
         MappingFeature.register();
         EtherwarpFeature.register();
+        com.killer560.hub.trail.TrailFeature.register();
+        com.killer560.hub.interop.ModConflictWarnings.register();
+        com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);

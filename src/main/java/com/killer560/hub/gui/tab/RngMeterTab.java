@@ -43,11 +43,6 @@ public class RngMeterTab extends BaseTab {
                 }).bounds(contentX, y, 260, 20).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Refresh interval (minutes, starts after each refresh finishes):"),
-                Minecraft.getInstance().font));
-        y += 12;
-
         intervalField = new EditBox(Minecraft.getInstance().font, contentX, y, 60, 20, Component.literal("Minutes"));
         intervalField.setMaxLength(3);
         intervalField.setValue(String.valueOf(RngMeterConfig.getInstance().getRefreshIntervalMinutes()));

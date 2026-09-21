@@ -103,8 +103,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         int[] y = {contentY};
         int half = (contentWidth - GAP) / 2;
 
-        label(w, contentX, y, contentWidth, "§7Records a route per dungeon room and plays it back from its start node. Use at your own risk.");
-
+        // Tab description moved into the "Auto Routes" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         header(w, contentX, y, contentWidth, "Auto Routes");
         toggle(w, contentX, y, "Auto Routes", cfg::isEnabledRaw, cfg::setEnabled, requestRebuild);
         if (!cfg.isEnabledRaw()) {
@@ -119,9 +118,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y[0], BTN_W, 20).build());
         y[0] += 24;
-        label(w, contentX, y, contentWidth, cfg.isLegitMode()
-                ? "§7Legit: turns your camera for every etherwarp, human-looking. Routes only ever start from their start node."
-                : "§7Obvious: no camera turn before etherwarps. Faster, and it looks like it.");
+        // Legit/Obvious explanation already covered by the "Mode" tooltip.
 
         SettingsButtonWidget startOnly = SettingsButtonWidget.builder(
                 cfg.isLegitMode()
@@ -137,7 +134,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         startOnly.active = !cfg.isLegitMode();
         w.add(startOnly);
         y[0] += 24;
-        label(w, contentX, y, contentWidth, "§7ON: a route only arms when you land on its start node - never halfway through, never via the map.");
+        // Already covered by the "Start From Start Node Only" tooltip.
 
         w.add(SettingsButtonWidget.builder(onOff("Allow Command Nodes", cfg.isAllowCommandNodes()), btn -> {
                     cfg.setAllowCommandNodes(!cfg.isAllowCommandNodes());
@@ -145,10 +142,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Allow Command Nodes", cfg.isAllowCommandNodes()));
                 }).bounds(contentX, y[0], BTN_W, 20).build());
         y[0] += 24;
-        label(w, contentX, y, contentWidth,
-                "§7OFF: command nodes are skipped. A shared routes file can make your account run any");
-        label(w, contentX, y, contentWidth,
-                "§7command or send any chat - only turn this on for routes you wrote yourself.");
+        // Command-injection warning already covered by the "Allow Command Nodes" tooltip.
 
         buildRecordingSection(w, contentX, y, contentWidth, half, requestRebuild);
         buildNodesSection(w, contentX, y, contentWidth, requestRebuild);
@@ -181,7 +175,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // No "Stop Route" button here on purpose: RouteExecutor stops on ANY screen opening, this one
         // included, so a route can never still be running by the time this tab draws. The button was
         // unreachable and its tooltip described something nobody could ever see (2026-09-16 review).
-        label(w, x, y, width, "§7Stand on the node the route should start from, Start, run the room, Stop. Chat commands: /ar");
+        // Usage note already covered by the "Recording" tooltip.
     }
 
     private void buildNodesSection(List<AbstractWidget> w, int x, int[] y, int width, Runnable rebuild) {
@@ -214,7 +208,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
             label(w, x, y, width, "§7No route here yet. Record one, or /ar add ew / breaker / use / walk / boom / await / start.");
             return;
         }
-        label(w, x, y, width, "§7Right-click any block in Edit mode to add it to the breaker node; shift-right-click removes it.");
+        // Already covered by the "Edit Breaker Blocks" tooltip.
 
         int delW = 60;
         int labelW = Math.max(1, width - delW - GAP);
@@ -246,8 +240,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                     rebuild.run();
                 }).bounds(x + half + GAP, y[0], half, 20).build());
         y[0] += 24;
-        label(w, x, y, width, "§7All routes live in one file: §f" + AutoRoutesCommands.ROUTES_FILE_NAME);
-        label(w, x, y, width, "§7Edit it in Notepad or hand it to someone as-is. Paste a friend's copy in, then Reload - no restart.");
+        // Filename and share/reload instructions already covered by the "Open Routes Folder" and "Reload Routes" tooltips.
     }
 
     private void buildColourSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width, int half,
@@ -298,7 +291,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private void buildKeybindSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width) {
         header(w, x, y, width, "Keybinds");
-        label(w, x, y, width, "§7Click a row, press a key. Esc clears. Keys only work in-game, never while a menu or chat is open.");
+        // Already covered by the "Keybinds" tooltip.
         for (Action action : Action.values()) {
             w.add(SettingsButtonWidget.builder(keyText(action, cfg.getKeybind(action.id)), btn -> {
                         capturing = action;

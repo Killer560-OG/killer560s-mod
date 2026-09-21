@@ -15,7 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-/** Dungeon Score Calculator settings - see {@link ScoreCalculatorFeature} / {@link ScoreCalculator}. */
+/** Dungeon Score Calculator settings - see {@link ScoreCalculatorFeature} / {@link ScoreCalculator}. Also
+ *  the Score HUD's settings tab per killer560's secret/score/time HUD split (2026-09-21): "a score hud that
+ *  has all the send messages and the score display" - the Bonus Kill Alerts section and the 270/300 "Send
+ *  Now" buttons below moved here from {@code DungeonInfoTab}, see {@link ScoreCalculatorConfig}'s class doc
+ *  for what was merged vs kept. */
 public class ScoreCalculatorTab extends BaseTab {
 
     public ScoreCalculatorTab() {
@@ -70,6 +74,20 @@ public class ScoreCalculatorTab extends BaseTab {
         widgets.add(toggle("Assume Spirit Pet", cfg.isAssumeSpiritPet(), v -> cfg.setAssumeSpiritPet(v), cfg, col2X, y, colW));
         y += 28;
 
+        // ---- Bonus Kill Alerts (moved from DungeonInfoTab 2026-09-21 - see class doc) ----
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Bonus Kill Alerts", false), font));
+        y += 16;
+        y = alertRow(widgets, "Mimic Killed Msg", "§7Trigger: baby zombie (mimic) dies, F6/F7 clear",
+                contentX, y, contentWidth, cfg.isMimicAlertEnabled(), cfg::setMimicAlertEnabled,
+                cfg.getMimicAlertMessage(), cfg::setMimicAlertMessage);
+        y = alertRow(widgets, "Prince Killed Msg", "§7Trigger: \"A Prince falls. +1 Bonus Score\"",
+                contentX, y, contentWidth, cfg.isPrinceAlertEnabled(), cfg::setPrinceAlertEnabled,
+                cfg.getPrinceAlertMessage(), cfg::setPrinceAlertMessage);
+        y = alertRow(widgets, "Bat Killed Msg", "§7Trigger: \"A Bat has been slain. +1 Bonus Score\"",
+                contentX, y, contentWidth, cfg.isBatAlertEnabled(), cfg::setBatAlertEnabled,
+                cfg.getBatAlertMessage(), cfg::setBatAlertMessage);
+        y += 6;
+
         // ---- 270 ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("270 Score Alert", false), font));
         y += 16;
@@ -78,7 +96,9 @@ public class ScoreCalculatorTab extends BaseTab {
                 btn -> ScoreCalculatorFeature.previewAlert(270)).bounds(col2X, y, colW, 18).build());
         y += 20;
         y = textBox(widgets, "270 title text", cfg.getTitle270Text(), v -> cfg.setTitle270Text(v), cfg, contentX, y, contentWidth);
-        widgets.add(toggle("270 Party Message", cfg.isParty270(), v -> cfg.setParty270(v), cfg, contentX, y, contentWidth));
+        widgets.add(toggle("270 Party Message", cfg.isParty270(), v -> cfg.setParty270(v), cfg, contentX, y, colW));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Send 270 Now"),
+                btn -> ScoreCalculatorFeature.sendParty270Now()).bounds(col2X, y, colW, 18).build());
         y += 20;
         y = textBox(widgets, "270 party message", cfg.getParty270Message(), v -> cfg.setParty270Message(v), cfg, contentX, y, contentWidth);
         y += 6;
@@ -91,7 +111,9 @@ public class ScoreCalculatorTab extends BaseTab {
                 btn -> ScoreCalculatorFeature.previewAlert(300)).bounds(col2X, y, colW, 18).build());
         y += 20;
         y = textBox(widgets, "300 title text", cfg.getTitle300Text(), v -> cfg.setTitle300Text(v), cfg, contentX, y, contentWidth);
-        widgets.add(toggle("300 Party Message", cfg.isParty300(), v -> cfg.setParty300(v), cfg, contentX, y, contentWidth));
+        widgets.add(toggle("300 Party Message", cfg.isParty300(), v -> cfg.setParty300(v), cfg, contentX, y, colW));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Send 300 Now"),
+                btn -> ScoreCalculatorFeature.sendParty300Now()).bounds(col2X, y, colW, 18).build());
         y += 20;
         y = textBox(widgets, "300 party message", cfg.getParty300Message(), v -> cfg.setParty300Message(v), cfg, contentX, y, contentWidth);
         y += 6;
@@ -128,6 +150,26 @@ public class ScoreCalculatorTab extends BaseTab {
         });
         widgets.add(box);
         return y + 22;
+    }
+
+    /** A bonus-kill alert row (toggle + trigger description + its message text box) - ported from the old
+     *  {@code DungeonInfoTab.buildAlertRow} 2026-09-21 when the mimic/prince/bat alerts moved here. */
+    private static int alertRow(List<AbstractWidget> widgets, String label, String triggerText, int contentX, int y, int contentWidth,
+                                 boolean enabled, Consumer<Boolean> enabledSetter, String message, Consumer<String> messageSetter) {
+        ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
+        boolean[] state = {enabled};
+        widgets.add(SettingsButtonWidget.builder(onOff(label, state[0]), btn -> {
+                    state[0] = !state[0];
+                    enabledSetter.accept(state[0]);
+                    cfg.save();
+                    btn.setMessage(onOff(label, state[0]));
+                }).bounds(contentX, y, 160, 18).build());
+
+        widgets.add(new StringWidget(contentX + 166, y + 5, Math.max(0, contentWidth - 166), 12,
+                Component.literal(triggerText), Minecraft.getInstance().font));
+        y += 20;
+
+        return textBox(widgets, label + " message", message, messageSetter, cfg, contentX, y, contentWidth);
     }
 
     private static Component paulLabel(ScoreCalculatorConfig cfg) {

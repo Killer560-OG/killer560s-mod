@@ -11,8 +11,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted settings for the Secrets/Score/Timing info bundle - see {@link DungeonInfoFeature}.
- *  Everything ships off by default, per killer560's standing instruction for new features. */
+/** Persisted settings for the Secrets HUD and Time HUD - see {@link DungeonInfoFeature}. Everything ships
+ *  off by default, per killer560's standing instruction for new features.
+ *  <p>
+ *  Reorg 2026-09-21 (killer560's "secret hud / score hud / time hud" three-way split): the mimic/prince/bat
+ *  KILL alerts and the manual 270/300 "Send Now" messages that used to live here moved to
+ *  {@code ScoreCalculatorConfig} - killer560's own wording ("a score hud that has all the send messages and
+ *  the score display") puts every bonus-score-related chat message under Score, not here. This class now
+ *  only backs the two HUDs that are actually about secrets-count and run-timing. */
 public final class DungeonInfoConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -21,25 +27,22 @@ public final class DungeonInfoConfig {
 
     private static DungeonInfoConfig instance;
 
+    // ---- Secrets HUD ----
     private boolean secretsHudEnabled = false;
-    // Real bug found and fixed (2026-09-14, first real F7 run log): the user-editable "keyword" fields
-    // (default "mimic"/"prince"/"bat", plain substring match) were removed - "bat" matched every
-    // "Combat Wisdom" chat line. DungeonInfoFeature now triggers on confirmed KILL signals only, so the
-    // old SPAWN/FOUND-worded default messages were reworded too (and migrated on load, below).
-    private boolean mimicMessageEnabled = false;
-    private String mimicMessage = "Mimic Killed!";
-    private boolean princeMessageEnabled = false;
-    private String princeMessage = "Prince Killed!";
-    private boolean batMessageEnabled = false;
-    private String batMessage = "Bat Killed!";
+    /** New (2026-09-21, killer560: "the hud for how many secrets I have gotten in a room") - secrets found
+     *  since the player entered the room currently standing in, alongside the existing run total. Off by
+     *  default like every new HUD line here. See {@link DungeonInfoFeature#updateRoomSecrets()}. */
+    private boolean showPerRoomSecrets = false;
 
-    private boolean score270Enabled = false;
-    private String score270Message = "270 score - carrying/leaving is fine from here!";
-    private boolean score300Enabled = false;
-    private String score300Message = "300 score!";
-
+    // ---- Time HUD ----
     private boolean timeTrackerEnabled = false;
     private boolean sendTimeWithoutLag = true;
+    /** New (2026-09-21) - shows the Split Timers feature's own "current segment" name/elapsed time
+     *  ({@code SplitTimersFeature.getCurrentSegmentLabel()}/{@code getCurrentSegmentStartedAtMs()}) as one
+     *  extra line here, so the Time HUD reflects split progress without re-implementing split parsing - the
+     *  full split breakdown stays the separately-movable Split Timers HUD. Off by default; also does
+     *  nothing while Split Timers itself is disabled. */
+    private boolean showCurrentSplit = false;
 
     private DungeonInfoConfig() {
     }
@@ -61,32 +64,14 @@ public final class DungeonInfoConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DungeonInfoConfig cfg = new DungeonInfoConfig();
             cfg.secretsHudEnabled = ConfigJson.getBool(obj, "secretsHudEnabled", cfg.secretsHudEnabled);
-            cfg.mimicMessageEnabled = ConfigJson.getBool(obj, "mimicMessageEnabled", cfg.mimicMessageEnabled);
-            cfg.mimicMessage = migrateOldDefault(getString(obj, "mimicMessage", cfg.mimicMessage), "Mimic found!", cfg.mimicMessage);
-            cfg.princeMessageEnabled = ConfigJson.getBool(obj, "princeMessageEnabled", cfg.princeMessageEnabled);
-            cfg.princeMessage = migrateOldDefault(getString(obj, "princeMessage", cfg.princeMessage), "Prince spawned!", cfg.princeMessage);
-            cfg.batMessageEnabled = ConfigJson.getBool(obj, "batMessageEnabled", cfg.batMessageEnabled);
-            cfg.batMessage = migrateOldDefault(getString(obj, "batMessage", cfg.batMessage), "Party bat found!", cfg.batMessage);
-            cfg.score270Enabled = ConfigJson.getBool(obj, "score270Enabled", cfg.score270Enabled);
-            cfg.score270Message = getString(obj, "score270Message", cfg.score270Message);
-            cfg.score300Enabled = ConfigJson.getBool(obj, "score300Enabled", cfg.score300Enabled);
-            cfg.score300Message = getString(obj, "score300Message", cfg.score300Message);
+            cfg.showPerRoomSecrets = ConfigJson.getBool(obj, "showPerRoomSecrets", cfg.showPerRoomSecrets);
             cfg.timeTrackerEnabled = ConfigJson.getBool(obj, "timeTrackerEnabled", cfg.timeTrackerEnabled);
             cfg.sendTimeWithoutLag = ConfigJson.getBool(obj, "sendTimeWithoutLag", cfg.sendTimeWithoutLag);
+            cfg.showCurrentSplit = ConfigJson.getBool(obj, "showCurrentSplit", cfg.showCurrentSplit);
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonInfoConfig();
         }
-    }
-
-    private static String getString(JsonObject obj, String key, String fallback) {
-        return ConfigJson.getString(obj, key, fallback);
-    }
-
-    /** A saved message still equal to the old spawn-worded default becomes the new kill-worded default;
-     *  anything the user customised is kept as-is. */
-    private static String migrateOldDefault(String loaded, String oldDefault, String newDefault) {
-        return oldDefault.equals(loaded) ? newDefault : loaded;
     }
 
     public void save() {
@@ -94,18 +79,10 @@ public final class DungeonInfoConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("secretsHudEnabled", secretsHudEnabled);
-            obj.addProperty("mimicMessageEnabled", mimicMessageEnabled);
-            obj.addProperty("mimicMessage", mimicMessage);
-            obj.addProperty("princeMessageEnabled", princeMessageEnabled);
-            obj.addProperty("princeMessage", princeMessage);
-            obj.addProperty("batMessageEnabled", batMessageEnabled);
-            obj.addProperty("batMessage", batMessage);
-            obj.addProperty("score270Enabled", score270Enabled);
-            obj.addProperty("score270Message", score270Message);
-            obj.addProperty("score300Enabled", score300Enabled);
-            obj.addProperty("score300Message", score300Message);
+            obj.addProperty("showPerRoomSecrets", showPerRoomSecrets);
             obj.addProperty("timeTrackerEnabled", timeTrackerEnabled);
             obj.addProperty("sendTimeWithoutLag", sendTimeWithoutLag);
+            obj.addProperty("showCurrentSplit", showCurrentSplit);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -119,84 +96,12 @@ public final class DungeonInfoConfig {
         this.secretsHudEnabled = secretsHudEnabled;
     }
 
-    public boolean isMimicMessageEnabled() {
-        return mimicMessageEnabled && com.killer560.hub.util.SkyblockGate.allows();
+    public boolean isShowPerRoomSecrets() {
+        return showPerRoomSecrets;
     }
 
-    public void setMimicMessageEnabled(boolean v) {
-        this.mimicMessageEnabled = v;
-    }
-
-    public String getMimicMessage() {
-        return mimicMessage;
-    }
-
-    public void setMimicMessage(String v) {
-        this.mimicMessage = v;
-    }
-
-    public boolean isPrinceMessageEnabled() {
-        return princeMessageEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public void setPrinceMessageEnabled(boolean v) {
-        this.princeMessageEnabled = v;
-    }
-
-    public String getPrinceMessage() {
-        return princeMessage;
-    }
-
-    public void setPrinceMessage(String v) {
-        this.princeMessage = v;
-    }
-
-    public boolean isBatMessageEnabled() {
-        return batMessageEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public void setBatMessageEnabled(boolean v) {
-        this.batMessageEnabled = v;
-    }
-
-    public String getBatMessage() {
-        return batMessage;
-    }
-
-    public void setBatMessage(String v) {
-        this.batMessage = v;
-    }
-
-    public boolean isScore270Enabled() {
-        return score270Enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public void setScore270Enabled(boolean v) {
-        this.score270Enabled = v;
-    }
-
-    public String getScore270Message() {
-        return score270Message;
-    }
-
-    public void setScore270Message(String v) {
-        this.score270Message = v;
-    }
-
-    public boolean isScore300Enabled() {
-        return score300Enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public void setScore300Enabled(boolean v) {
-        this.score300Enabled = v;
-    }
-
-    public String getScore300Message() {
-        return score300Message;
-    }
-
-    public void setScore300Message(String v) {
-        this.score300Message = v;
+    public void setShowPerRoomSecrets(boolean v) {
+        this.showPerRoomSecrets = v;
     }
 
     public boolean isTimeTrackerEnabled() {
@@ -213,5 +118,13 @@ public final class DungeonInfoConfig {
 
     public void setSendTimeWithoutLag(boolean v) {
         this.sendTimeWithoutLag = v;
+    }
+
+    public boolean isShowCurrentSplit() {
+        return showCurrentSplit;
+    }
+
+    public void setShowCurrentSplit(boolean v) {
+        this.showCurrentSplit = v;
     }
 }

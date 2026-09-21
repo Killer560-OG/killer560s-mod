@@ -41,10 +41,6 @@ public class LagDisplayTab extends BaseTab {
         y[0] += 24;
 
         if (!cfg.isEnabled()) {
-            note(w, contentX, y, contentWidth,
-                    "Shows how long ago the last server tick arrived, plus ping, FPS and CPS.");
-            note(w, contentX, y, contentWidth,
-                    "Pairs with the terminal click threshold: click when the server is answering.");
             return w;
         }
 
@@ -79,16 +75,6 @@ public class LagDisplayTab extends BaseTab {
             }
         });
         y[0] += 24;
-        note(w, contentX, y, contentWidth,
-                "The lag line only appears once the server has been silent this long (Devonian's 300ms).");
-        note(w, contentX, y, contentWidth,
-                "Needs a server that pings every tick (Hypixel does); it stays hidden where that isn't true.");
-        note(w, contentX, y, contentWidth,
-                "Recovery can register up to a second late, so a spike never reads shorter than it was.");
-        note(w, contentX, y, contentWidth,
-                "CPS is sampled once per frame, so at very low FPS a click can be missed.");
-        y[0] += 6;
-        note(w, contentX, y, contentWidth, "Move it in the HUD editor (element: Lag Display).");
         return w;
     }
 
@@ -100,11 +86,6 @@ public class LagDisplayTab extends BaseTab {
         y[0] += 4;
         w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
         y[0] += 14;
-    }
-
-    private static void note(List<AbstractWidget> w, int x, int[] y, int width, String text) {
-        w.add(new StringWidget(x, y[0], width, 12, Component.literal("§7" + text), Minecraft.getInstance().font));
-        y[0] += 12;
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label,

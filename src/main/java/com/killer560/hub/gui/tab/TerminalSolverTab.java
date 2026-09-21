@@ -96,15 +96,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(customGuiText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Custom GUI replaces the terminal with a bigger panel showing"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("only the slot(s) you actually need to click."),
-                Minecraft.getInstance().font));
         y += 22;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -174,10 +165,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(melodySendCoordsText());
                     }).bounds(contentX, y, 220, 20).build());
             y += 24;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("Types \"Mel at x, y, z\" into party chat when the Melody terminal opens."),
-                    Minecraft.getInstance().font));
-            y += 18;
         }
         y += 6;
 
@@ -187,16 +174,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(numbersThreeTierText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Numbers: also reveal the 3rd click, a fainter shade again."),
-                Minecraft.getInstance().font));
-        y += 22;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Highlights the correct slot(s) to click - never clicks for you."),
-                Minecraft.getInstance().font));
         y += 24;
 
         // ------------------------------------------------------------------ overlay colours
@@ -256,12 +233,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(onOff("Subtract Ping", cfg.isProtectionSubtractPing()));
                     }).bounds(col2bX, y, col2W, 18).build());
             y += 20;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("Eats the first click that lands this soon after a terminal"), mc.font));
-            y += 11;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("opens. 400ms minus your ping is the usual safe value."), mc.font));
-            y += 16;
         }
 
         // ---- Drop Key ----
@@ -278,12 +249,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(Component.literal("Press any key..."));
                     }).bounds(contentX, y, col2W, 18).build());
             y += 20;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("Your Drop key becomes this while a terminal is open, so"), mc.font));
-            y += 11;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("Q can't throw your blade. Escape = nothing can drop."), mc.font));
-            y += 16;
         }
 
         // ---- Melody Keys ----
@@ -293,9 +258,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Melody Keys 1-4", cfg.isMelodyKeysEnabledRaw()));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 22;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Press 1-4 to click Melody's four rows instead of mousing."), mc.font));
-        y += 18;
 
         // ---- Terminal GUI Scale ----
         int scaleSpan = TerminalQolConfig.MAX_GUI_SCALE - TerminalQolConfig.MIN_GUI_SCALE;
@@ -326,9 +288,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             }
         });
         y += 20;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Minecraft's GUI scale while a terminal is open. Auto = off."), mc.font));
-        y += 18;
 
         // ---- Hide Completion ----
         widgets.add(SettingsButtonWidget.builder(onOff("Hide Completion Titles", cfg.isHideCompletionTitlesRaw()), btn -> {
@@ -344,15 +303,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 22;
-
-        if (cfg.isHideCompletionChatRaw()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§eNote: this also hides Terminal Timers' own split times,"), mc.font));
-            y += 11;
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§ewhich are appended to these same lines."), mc.font));
-            y += 15;
-        }
 
         if (cfg.isHideCompletionTitlesRaw() || cfg.isHideCompletionChatRaw()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Only Hide Others'", cfg.isHideCompletionOnlyOthers()), btn -> {
@@ -406,12 +356,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Overlay Colours", false), mc.font));
         y += 14;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Defaults are the stock orange theme. Alpha is adjustable;"), mc.font));
-        y += 11;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("the panel background stays opaque so nothing bleeds through."), mc.font));
-        y += 16;
 
         TerminalSolverConfig.OverlayColor[] order = {
                 TerminalSolverConfig.OverlayColor.PANES,

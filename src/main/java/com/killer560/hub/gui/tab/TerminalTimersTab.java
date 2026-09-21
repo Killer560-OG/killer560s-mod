@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.splittimers.TerminalTimersConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -41,8 +39,6 @@ public class TerminalTimersTab extends BaseTab {
                     btn.setMessage(onOff("Terminal Solve Times", cfg.getSolveTimesRaw()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
-        widgets.add(label(contentX, y, contentWidth, "§7\"Panes solved in 3.21s!\" after each terminal you complete."));
-        y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Terminal/Device Splits", cfg.getSplitsRaw()), btn -> {
                     cfg.setSplits(!cfg.getSplitsRaw());
@@ -50,24 +46,14 @@ public class TerminalTimersTab extends BaseTab {
                     btn.setMessage(onOff("Terminal/Device Splits", cfg.getSplitsRaw()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
-        widgets.add(label(contentX, y, contentWidth, "§7Adds (section | phase) times to every terminal/device/lever"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7completion line, and all section times when the core opens."));
-        y += 16;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Simon Says Time", cfg.getSimonSaysTimeRaw()), btn -> {
                     cfg.setSimonSaysTime(!cfg.getSimonSaysTimeRaw());
                     cfg.save();
                     btn.setMessage(onOff("Simon Says Time", cfg.getSimonSaysTimeRaw()));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(label(contentX, y, contentWidth, "§7\"Whole device solved in X\" after Simon Says."));
 
         return widgets;
-    }
-
-    private static StringWidget label(int x, int y, int width, String text) {
-        return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
     }
 
     private static Component onOff(String label, boolean value) {

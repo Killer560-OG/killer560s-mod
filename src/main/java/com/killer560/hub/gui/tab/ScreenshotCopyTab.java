@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.screenshotcopy.ScreenshotCopyConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -30,14 +28,6 @@ public class ScreenshotCopyTab extends BaseTab {
                     btn.setMessage(enabledText());
                 }).bounds(contentX, y, 220, 20).build());
         y += 30;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Copies your screenshot to the clipboard the moment"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("vanilla finishes saving it - paste it anywhere with Ctrl+V."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

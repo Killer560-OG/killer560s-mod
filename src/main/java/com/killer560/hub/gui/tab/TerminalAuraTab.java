@@ -48,8 +48,6 @@ public class TerminalAuraTab extends BaseTab {
         y += 24;
 
         if (!cfg.isEnabledRaw()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Opens P3 terminals for you when you walk within range."), font));
             return widgets;
         }
 
@@ -89,8 +87,6 @@ public class TerminalAuraTab extends BaseTab {
             y += ROW + GAP;
         }
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Only opens terminals - Auto Terminals solves them."), font));
         return widgets;
     }
 

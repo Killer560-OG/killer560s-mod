@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.voicetotext.VoiceToTextConfig;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -53,22 +51,6 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(Component.literal("Send to: " + (cfg.isSendToPartyChat() ? "Party" : "Guild")));
                     }).bounds(contentX, y, 160, 18).build());
         y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Hold the key to talk, release to transcribe and send. First use"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7downloads a small (~40MB) offline speech model automatically."),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lUntested: this session had no microphone to verify actual speech"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§c§lrecognition with - test this specifically before trusting it live."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

@@ -54,10 +54,7 @@ public class ClassOverridesTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         int[] y = {contentY};
 
-        label(w, contentX, y, contentWidth, "§7Sets a player's class by hand, for every feature at once: the Leap Menu, Fast Leap's class targeting,");
-        label(w, contentX, y, contentWidth, "§7AP3 leap nodes and every class-coloured display. Use it when the run has duplicates - e.g. five mages,");
-        label(w, contentX, y, contentWidth, "§7one doing Berserk's terminal - so a role can differ from the class the tab list shows.");
-
+        // Tab description moved into the "Class Overrides" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         Map<String, DungeonClass> overrides = safeAll();
         List<String> party = partyNames();
 
@@ -74,7 +71,7 @@ public class ClassOverridesTab extends BaseTab {
             label(w, x, y, width, "§7No party known yet - join a party or a dungeon and this fills in by itself.");
             return;
         }
-        label(w, x, y, width, "§7Click Override to cycle a teammate's class. Detected is what the tab list says; the override wins.");
+        // "Click Override to cycle..." already covered by the "Current Party" tooltip.
         for (String name : party) {
             row(w, x, y, width, name, overrides, rebuild);
         }
@@ -98,7 +95,7 @@ public class ClassOverridesTab extends BaseTab {
         }
         header(w, x, y, width, "Other Overrides");
         if (others.isEmpty()) {
-            label(w, x, y, width, "§7None. Overrides for people not in your current party show here.");
+            label(w, x, y, width, "§7None.");
             return;
         }
         for (String ign : others) {
@@ -135,7 +132,7 @@ public class ClassOverridesTab extends BaseTab {
 
     private void buildAddSection(List<AbstractWidget> w, int x, int[] y, int width, Runnable rebuild) {
         header(w, x, y, width, "Add By Name");
-        label(w, x, y, width, "§7For someone who isn't in the party yet. Type the IGN, pick the class, Add.");
+        // "For someone who isn't in the party yet..." already covered by the "Add By Name" tooltip.
         int classW = 130;
         int addW = 100;
         int boxW = Math.max(60, width - classW - addW - GAP * 2);

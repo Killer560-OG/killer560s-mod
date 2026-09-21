@@ -103,11 +103,6 @@ public class WitherDragonsTab extends BaseTab {
                         btn.setMessage(cycleLabel("Your Class", cfg.getClassOverride().label));
                     }).bounds(contentX, y[0], half, 18).build());
             y[0] += 24;
-
-            w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                    Component.literal("§7Power 0 = always split by class. Common values: Normal 22, Easy 19."),
-                    Minecraft.getInstance().font));
-            y[0] += 16;
         }
 
         header(w, contentX, y, contentWidth, "King Relics");
@@ -137,10 +132,6 @@ public class WitherDragonsTab extends BaseTab {
             toggle(w, colB, y[0], half, "Party Relic Summary", cfg::isRelicSummary, cfg::setRelicSummary, cfg);
             y[0] += 26;
         }
-
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7Move the Wither Dragon Timers / King Relic Timer HUDs in the HUD editor."),
-                Minecraft.getInstance().font));
 
         return w;
     }

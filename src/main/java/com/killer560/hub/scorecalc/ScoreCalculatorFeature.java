@@ -258,9 +258,27 @@ public final class ScoreCalculatorFeature {
                 LOGGER.info("[ScoreCalc] Mimic killed (baby zombie id={} at {})", zombie.getId(), zombie.position());
                 // We saw it ourselves, so this is the most trustworthy version of the fact the party has.
                 PartyInteropState.offerFlag(PartyInteropState.Flag.MIMIC_KILLED, InteropSource.SELF, null);
+                maybeSendKillAlert("Mimic", ScoreCalculatorConfig.getInstance().isMimicAlertEnabled(),
+                        ScoreCalculatorConfig.getInstance().getMimicAlertMessage(), PartyInteropState.Flag.MIMIC_KILLED);
                 return;
             }
         }
+    }
+
+    /** Bonus-kill party alerts (moved from {@code DungeonInfoFeature} 2026-09-21 - see this class's doc).
+     *  Only ever called from a self-detected kill (the real baby-zombie death / exact Hypixel bonus-score
+     *  chat line) - a kill only known about because another mod announced it in party chat never reaches
+     *  here, so this can't double up with that announcement. The interop check is still kept as a second
+     *  guard for the case where our own detection and a party mate's mod both fire in the same tick. */
+    private static void maybeSendKillAlert(String label, boolean enabled, String message, PartyInteropState.Flag flag) {
+        if (!enabled) {
+            return;
+        }
+        if (InteropFeature.alreadyAnnouncedInParty(flag)) {
+            LOGGER.info("[ScoreCalc] {} kill alert suppressed - a party mate's mod already announced it", label);
+            return;
+        }
+        TranslateFeature.sendGenerated(message, "pc");
     }
 
     private static void readTabList(Minecraft client) {
@@ -386,16 +404,22 @@ public final class ScoreCalculatorFeature {
         String plain = ChatObserver.strip(message).trim();
         if (PRINCE_KILLED.matcher(plain).matches()) {
             if (!princeKilled) {
+                princeKilled = true;
                 LOGGER.info("[ScoreCalc] Prince killed");
+                // The bonus-score line is public server chat identical for the whole party, so this is a
+                // SELF fact for Party Interop - same as DungeonInfoFeature used to offer it.
+                PartyInteropState.offerFlag(PartyInteropState.Flag.PRINCE_KILLED, InteropSource.SELF, null);
+                maybeSendKillAlert("Prince", cfg.isPrinceAlertEnabled(), cfg.getPrinceAlertMessage(), PartyInteropState.Flag.PRINCE_KILLED);
             }
-            princeKilled = true;
             return;
         }
         if (BAT_KILLED.matcher(plain).matches()) {
             if (!batKilled) {
+                batKilled = true;
                 LOGGER.info("[ScoreCalc] Bat killed");
+                PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
+                maybeSendKillAlert("Bat", cfg.isBatAlertEnabled(), cfg.getBatAlertMessage(), PartyInteropState.Flag.BAT_KILLED);
             }
-            batKilled = true;
             return;
         }
         if (WATCHER_DONE.matcher(plain).find()) {
@@ -497,6 +521,19 @@ public final class ScoreCalculatorFeature {
         if (cfg.isAlertSound()) {
             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
         }
+    }
+
+    /** Manual "Send Now" for the 270/300 party message - moved here from {@code DungeonInfoFeature}
+     *  2026-09-21 (reuses this class's own {@code party270Message}/{@code party300Message} text instead of
+     *  the separate, dead-toggle copies that used to live in {@code DungeonInfoConfig}, so there's exactly
+     *  one 270/300 message to edit, not two). Sends immediately regardless of the automatic threshold /
+     *  once-per-run gates below - killer560 asking for it explicitly overrides those. */
+    public static void sendParty270Now() {
+        TranslateFeature.sendGenerated(ScoreCalculatorConfig.getInstance().getParty270Message(), "pc");
+    }
+
+    public static void sendParty300Now() {
+        TranslateFeature.sendGenerated(ScoreCalculatorConfig.getInstance().getParty300Message(), "pc");
     }
 
     private static boolean isPaul(ScoreCalculatorConfig cfg) {

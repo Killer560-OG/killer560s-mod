@@ -158,11 +158,7 @@ public class DvdTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Box size follows the text automatically - use Scale to resize."),
-                Minecraft.getInstance().font));
-        y += 14;
-
+        // "Box size follows the text automatically" moved into the "Scale" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         EditBox textField = new EditBox(Minecraft.getInstance().font, contentX, y, 220, ROW_H, Component.literal("Text"));
         textField.setMaxLength(100);
         textField.setValue(e.text);
@@ -344,15 +340,7 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build());
         y += ROW_H + 6;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Corner message supports {name} (the gif's filename, or this"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7DVD's own name for Text content). Shown on screen, not sent to chat."),
-                Minecraft.getInstance().font));
-        y += 16;
-
+        // Already covered by the "Corner Hit Message" tooltip.
         widgets.add(SettingsButtonWidget.builder(Component.literal("<- Back"), btn -> {
                     step = e.contentType == DvdContentType.TEXT ? Step.TEXT_DETAILS : Step.GIF_SELECT;
                     requestRebuild.run();

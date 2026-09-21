@@ -721,7 +721,10 @@ public final class CustomScoreboardFeature {
         }
     }
 
-    private static List<ScoreboardLine> previewLines() {
+    /** Board content for a preview with no live board of its own (HUD editor, {@link ScoreboardEditorScreen}):
+     *  the real current board when one exists, otherwise each enabled line's own sample text. Package-private
+     *  so both editors share exactly one "what would this look like" implementation. */
+    static List<ScoreboardLine> previewLines() {
         if ((isActive() || minimalActive()) && !current.isEmpty()) {
             return current;
         }

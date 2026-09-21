@@ -2,12 +2,11 @@ package com.killer560.hub.dungeoninfo;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
-import com.killer560.hub.interop.InteropFeature;
-import com.killer560.hub.interop.InteropSource;
-import com.killer560.hub.interop.PartyInteropState;
+import com.killer560.hub.livemap.LiveMapFeature;
+import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.translate.TranslateFeature;
-import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.splittimers.SplitTimersConfig;
+import com.killer560.hub.splittimers.SplitTimersFeature;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -15,8 +14,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.monster.zombie.Zombie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,20 +23,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Secrets-found display, run-time tracking, and mimic/prince/bat KILL party alerts.
+ * Secrets-found display and run-time tracking - backs the Secrets HUD and Time HUD.
  * <ul>
  * <li>Secrets: read from the TAB LIST (player-info display names), not the sidebar - see
  * {@link #updateSecretsCount()}.
- * <li>Prince/Bat: exact Hypixel system lines {@code A Prince falls. +1 Bonus Score} /
- * {@code A Bat has been slain. +1 Bonus Score} (confirmed in both Odin's {@code Mimic.kt} and
- * NoammAddons' {@code ScoreCalculation.kt}). These are KILL lines, so the alerts are worded as kills.
- * <li>Mimic: Hypixel sends no chat line for a normal mimic kill - Odin and NoammAddons both detect it as a
- * baby {@link Zombie} dying (entity event 3) on floor 6/7 outside the boss. This polls the same signal
- * ({@code isBaby() && isDeadOrDying()} - vanilla's event-3 handler sets health to 0) from the tick loop.
+ * <li>Per-room secrets (2026-09-21, killer560: "the hud for how many secrets I have gotten in a room"): the
+ * run-total secrets count above, minus whatever it was when {@link LiveMapFeature#currentRoomEntry()} last
+ * changed - see {@link #updateRoomSecrets()}. Reuses LiveMap's already-solved room identity instead of
+ * re-deriving room boundaries here.
  * </ul>
  * Run-time tracking reuses {@link DungeonState#isInDungeon()}'s already-integrated transition (the
  * same signal {@code PosmsgFeature} already trusts for its own "new run" reset) rather than guessing a
  * new "dungeon completed" chat regex.
+ * <p>
+ * Reorg 2026-09-21: this class used to also own the mimic/prince/bat KILL party alerts and the manual
+ * 270/300 "Send Now" messages. Both moved to {@code ScoreCalculatorFeature}/{@code ScoreCalculatorConfig} -
+ * killer560's own "score hud that has all the send messages" puts every bonus-score chat message under
+ * Score, and {@code ScoreCalculatorFeature} already ran its own, independent mimic/prince/bat detection for
+ * the score formula, so keeping a second copy here just to fire a chat message was the exact kind of
+ * overlap this reorg was asked to collapse. See that class for the merged detection+alert code.
  */
 public final class DungeonInfoFeature {
 
@@ -51,12 +53,6 @@ public final class DungeonInfoFeature {
     // ScoreCalculation (same lines, colour-coded) - matched on the formatting-stripped string.
     private static final Pattern TAB_SECRETS_COUNT_PATTERN = Pattern.compile("^\\s*Secrets Found: (\\d+)\\s*$");
     private static final Pattern TAB_SECRETS_PERCENT_PATTERN = Pattern.compile("^\\s*Secrets Found: ([\\d.]+)%\\s*$");
-    // Real bug found and fixed (2026-09-14, first real F7 run log): alerts used to fire on any chat line
-    // CONTAINING a user keyword with no dungeon gate - the default "bat" matched every
-    // "+20 Kill Combo +15☯ Combat Wisdom" line, and all three could fire in the hub. Now exact full-line
-    // matches (Odin's regexes verbatim) and only while DungeonState.isInDungeon().
-    private static final Pattern PRINCE_KILLED_PATTERN = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
-    private static final Pattern BAT_KILLED_PATTERN = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
 
     private static boolean wasInDungeon = false;
     private static long runStartAtMs = 0;
@@ -73,19 +69,16 @@ public final class DungeonInfoFeature {
     private static boolean loggedSecretsLineThisRun = false;
     private static int lastSecretsCount = -1;
     private static String lastSecretsPercent = null;
-    private static boolean mimicKilledThisRun = false;
-    private static boolean princeKilledThisRun = false;
-    private static boolean batKilledThisRun = false;
+
+    // ---- per-room secrets (2026-09-21) ----
+    private static RoomEntry lastRoomEntry = null;
+    private static int roomBaselineSecrets = -1;
+    private static int roomSecretsFound = -1;
 
     private DungeonInfoFeature() {
     }
 
     public static void register() {
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
-        // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
-        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
-        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
-        ChatObserver.subscribe(message -> onChatMessage(message.getString()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
@@ -104,9 +97,9 @@ public final class DungeonInfoFeature {
             lastSecretsPercent = null;
             secretsReadsThisRun = 0;
             loggedSecretsMissThisRun = false;
-            mimicKilledThisRun = false;
-            princeKilledThisRun = false;
-            batKilledThisRun = false;
+            lastRoomEntry = null;
+            roomBaselineSecrets = -1;
+            roomSecretsFound = -1;
             LOGGER.info("[DungeonInfo] Run timer started (floor={}, gameTime={})", DungeonState.getFloor(), runStartGameTime);
         } else if (inDungeonNow && client.level != null) {
             if (runLevel.get() == null && runStartGameTime < 0) {
@@ -125,16 +118,15 @@ public final class DungeonInfoFeature {
             runEndedAtMs = System.currentTimeMillis();
             runEndedGameTime = lastInDungeonGameTime;
             loggedLevelMismatchThisRun = false;
-            LOGGER.info("[DungeonInfo] Run timer stopped: elapsed={} noLag={} (gameTime {} -> {}) lastSecretsCount={} lastSecretsPercent={} mimic={} prince={} bat={}",
+            LOGGER.info("[DungeonInfo] Run timer stopped: elapsed={} noLag={} (gameTime {} -> {}) lastSecretsCount={} lastSecretsPercent={}",
                     elapsedTimeText(), elapsedTimeWithoutLagText(), runStartGameTime, runEndedGameTime,
-                    lastSecretsCount, lastSecretsPercent, mimicKilledThisRun, princeKilledThisRun, batKilledThisRun);
+                    lastSecretsCount, lastSecretsPercent);
         }
         wasInDungeon = inDungeonNow;
 
         DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
         String gates = "secretsHud=" + cfg.isSecretsHudEnabled() + " timeTracker=" + cfg.isTimeTrackerEnabled()
-                + " mimicMsg=" + cfg.isMimicMessageEnabled() + " princeMsg=" + cfg.isPrinceMessageEnabled()
-                + " batMsg=" + cfg.isBatMessageEnabled() + " inDungeon=" + inDungeonNow;
+                + " inDungeon=" + inDungeonNow;
         if (!gates.equals(lastLoggedGates)) {
             LOGGER.info("[DungeonInfo] Gates changed: {}", gates);
             lastLoggedGates = gates;
@@ -142,9 +134,9 @@ public final class DungeonInfoFeature {
 
         if (inDungeonNow && cfg.isSecretsHudEnabled()) {
             updateSecretsCount();
-        }
-        if (inDungeonNow && cfg.isMimicMessageEnabled() && !mimicKilledThisRun) {
-            checkMimicKilled(client);
+            if (cfg.isShowPerRoomSecrets()) {
+                updateRoomSecrets();
+            }
         }
     }
 
@@ -210,86 +202,24 @@ public final class DungeonInfoFeature {
         }
     }
 
-    /** Mimic kill - see the class doc. Floor 6/7 only (the only floors with a mimic), and not during the
-     *  tracked boss phase (DungeonState only tracks F7/M7's boss; F6's boss has no baby zombies to confuse). */
-    private static void checkMimicKilled(Minecraft client) {
-        if (client.level == null || DungeonState.isBossPhaseActive() || !isFloor6or7(DungeonState.getFloor())) {
+    /** Secrets found since the player walked into whichever room {@link LiveMapFeature#currentRoomEntry()}
+     *  currently resolves to - a room change is detected by reference (LiveMap keeps one {@link RoomEntry}
+     *  instance per grid slot), and the baseline is the run-total secrets count at that moment. Leaves
+     *  {@link #roomSecretsFound} at its last value while the room is unresolved (between a world-change
+     *  placeholder and LiveMap settling) rather than flashing back to unknown every such tick. */
+    private static void updateRoomSecrets() {
+        RoomEntry entry = LiveMapFeature.currentRoomEntry();
+        if (entry == null) {
             return;
         }
-        for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity instanceof Zombie zombie && zombie.isBaby() && zombie.isDeadOrDying()) {
-                mimicKilledThisRun = true;
-                PartyInteropState.offerFlag(PartyInteropState.Flag.MIMIC_KILLED, InteropSource.SELF, null);
-                // With four or five dungeon mods in one party, everyone's mod announces the same mimic. If a
-                // party mate's mod already said it (Party Interop saw their line), stay quiet.
-                if (InteropFeature.alreadyAnnouncedInParty(PartyInteropState.Flag.MIMIC_KILLED)) {
-                    LOGGER.info("[DungeonInfo] Mimic killed (baby zombie id={}) - a party mate's mod already announced it, not repeating",
-                            zombie.getId());
-                    return;
-                }
-                LOGGER.info("[DungeonInfo] Mimic killed (baby zombie id={} dead at {}, floor={}) - sending party message",
-                        zombie.getId(), zombie.position(), DungeonState.getFloor());
-                TranslateFeature.sendGenerated(DungeonInfoConfig.getInstance().getMimicMessage(), "pc");
-                return;
-            }
+        if (entry != lastRoomEntry) {
+            lastRoomEntry = entry;
+            roomBaselineSecrets = Math.max(0, lastSecretsCount);
+            roomSecretsFound = 0;
+            LOGGER.info("[DungeonInfo] Room changed to \"{}\" - per-room secrets baseline set to {}", entry.name, roomBaselineSecrets);
+        } else if (lastSecretsCount >= 0) {
+            roomSecretsFound = Math.max(0, lastSecretsCount - roomBaselineSecrets);
         }
-    }
-
-    private static boolean isFloor6or7(String floor) {
-        return floor != null && floor.length() >= 2 && (floor.charAt(1) == '6' || floor.charAt(1) == '7');
-    }
-
-    private static void onChatMessage(String text) {
-        String plain = ChatFormatting.stripFormatting(text);
-        if (plain == null) {
-            return;
-        }
-        plain = plain.trim();
-        boolean princeLine = PRINCE_KILLED_PATTERN.matcher(plain).matches();
-        boolean batLine = !princeLine && BAT_KILLED_PATTERN.matcher(plain).matches();
-        if (!princeLine && !batLine) {
-            return;
-        }
-        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-        boolean inDungeon = DungeonState.isInDungeon();
-        if (inDungeon) {
-            // The bonus-score line itself is public server chat, so this is a SELF fact for Party Interop.
-            PartyInteropState.offerFlag(princeLine ? PartyInteropState.Flag.PRINCE_KILLED
-                    : PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
-        }
-        if (princeLine) {
-            boolean send = inDungeon && cfg.isPrinceMessageEnabled() && !princeKilledThisRun
-                    && !InteropFeature.alreadyAnnouncedInParty(PartyInteropState.Flag.PRINCE_KILLED);
-            LOGGER.info("[DungeonInfo] Prince kill line seen (inDungeon={} enabled={} alreadySentThisRun={} -> send={}): \"{}\"",
-                    inDungeon, cfg.isPrinceMessageEnabled(), princeKilledThisRun, send, plain);
-            if (inDungeon) {
-                princeKilledThisRun = true;
-            }
-            if (send) {
-                TranslateFeature.sendGenerated(cfg.getPrinceMessage(), "pc");
-            }
-        } else {
-            boolean send = inDungeon && cfg.isBatMessageEnabled() && !batKilledThisRun
-                    && !InteropFeature.alreadyAnnouncedInParty(PartyInteropState.Flag.BAT_KILLED);
-            LOGGER.info("[DungeonInfo] Bat kill line seen (inDungeon={} enabled={} alreadySentThisRun={} -> send={}): \"{}\"",
-                    inDungeon, cfg.isBatMessageEnabled(), batKilledThisRun, send, plain);
-            if (inDungeon) {
-                batKilledThisRun = true;
-            }
-            if (send) {
-                TranslateFeature.sendGenerated(cfg.getBatMessage(), "pc");
-            }
-        }
-    }
-
-    public static void sendScore270() {
-        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-        TranslateFeature.sendGenerated(cfg.getScore270Message(), "pc");
-    }
-
-    public static void sendScore300() {
-        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-        TranslateFeature.sendGenerated(cfg.getScore300Message(), "pc");
     }
 
     /** Client-side elapsed time for the current (or most recently finished) run - real wall-clock
@@ -326,10 +256,12 @@ public final class DungeonInfoFeature {
         String message = cfg.isSendTimeWithoutLag()
                 ? String.format(Locale.US, "Time: %s (%s without lag)", elapsedTimeText(), elapsedTimeWithoutLagText())
                 : "Time: " + elapsedTimeText();
-        TranslateFeature.sendGenerated(message, "pc");
+        com.killer560.hub.translate.TranslateFeature.sendGenerated(message, "pc");
     }
 
-    public static final class InfoHudElement implements HudElement {
+    /** Secrets HUD - per-run and (optionally) per-room secrets found. Keeps the old "dungeon_info" HUD id
+     *  so a saved drag position from before the 2026-09-21 Secrets/Time split carries over. */
+    public static final class SecretsHudElement implements HudElement {
         @Override
         public String id() {
             return "dungeon_info";
@@ -337,7 +269,7 @@ public final class DungeonInfoFeature {
 
         @Override
         public String displayName() {
-            return "Dungeon Info (Secrets/Time)";
+            return "Secrets HUD";
         }
 
         @Override
@@ -357,34 +289,102 @@ public final class DungeonInfoFeature {
 
         @Override
         public int height() {
-            return 36;
+            return DungeonInfoConfig.getInstance().isShowPerRoomSecrets() ? 24 : 12;
         }
 
         @Override
         public boolean isRelevantNow() {
-            DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-            return (cfg.isSecretsHudEnabled() || cfg.isTimeTrackerEnabled()) && DungeonState.isInDungeon();
+            return DungeonInfoConfig.getInstance().isSecretsHudEnabled() && DungeonState.isInDungeon();
         }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-            if (HudVisibility.hidesHud()) {
+            if (!cfg.isSecretsHudEnabled() || !DungeonState.isInDungeon() || HudVisibility.hidesHud()) {
                 return;
             }
             int lineY = y;
-            if (cfg.isSecretsHudEnabled() && DungeonState.isInDungeon()) {
-                String text = lastSecretsCount >= 0 ? ("Secrets: " + lastSecretsCount) : "Secrets: ?";
-                if (lastSecretsPercent != null) {
-                    text += " (" + lastSecretsPercent + "%)";
-                }
-                graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);
-                lineY += 12;
+            String text = lastSecretsCount >= 0 ? ("Secrets: " + lastSecretsCount) : "Secrets: ?";
+            if (lastSecretsPercent != null) {
+                text += " (" + lastSecretsPercent + "%)";
             }
-            if (cfg.isTimeTrackerEnabled() && runStartAtMs > 0) {
-                graphics.text(Minecraft.getInstance().font, "Time: " + elapsedTimeText(), x, lineY, 0xFFFFFFFF, false);
-                lineY += 12;
-                graphics.text(Minecraft.getInstance().font, "No Lag: " + elapsedTimeWithoutLagText(), x, lineY, 0xFFAAAAAA, false);
+            graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);
+            lineY += 12;
+            if (cfg.isShowPerRoomSecrets()) {
+                String roomText = roomSecretsFound >= 0 ? ("Room: " + roomSecretsFound) : "Room: ?";
+                graphics.text(Minecraft.getInstance().font, roomText, x, lineY, 0xFFAAAAAA, false);
+            }
+        }
+    }
+
+    /** Time HUD - run elapsed/no-lag timer, plus (optionally) the Split Timers feature's own "current
+     *  segment" readout via its public getters - this HUD does not parse split lines itself. */
+    public static final class TimeHudElement implements HudElement {
+        @Override
+        public String id() {
+            return "dungeon_time_hud";
+        }
+
+        @Override
+        public String displayName() {
+            return "Time HUD";
+        }
+
+        @Override
+        public int defaultX() {
+            return 10;
+        }
+
+        @Override
+        public int defaultY() {
+            return 300;
+        }
+
+        @Override
+        public int width() {
+            return 150;
+        }
+
+        @Override
+        public int height() {
+            return currentSplitLine() != null ? 36 : 24;
+        }
+
+        @Override
+        public boolean isRelevantNow() {
+            return DungeonInfoConfig.getInstance().isTimeTrackerEnabled() && DungeonState.isInDungeon();
+        }
+
+        /** The Split Timers feature's own current-segment name/elapsed - read via its two public getters
+         *  ({@code getCurrentSegmentLabel}/{@code getCurrentSegmentStartedAtMs}), never re-derived from chat
+         *  here. Null when the toggle is off, Split Timers itself is disabled, or no segment is running. */
+        private static String currentSplitLine() {
+            if (!DungeonInfoConfig.getInstance().isShowCurrentSplit() || !SplitTimersConfig.getInstance().isEnabled()) {
+                return null;
+            }
+            String label = SplitTimersFeature.getCurrentSegmentLabel();
+            long startedAt = SplitTimersFeature.getCurrentSegmentStartedAtMs();
+            if (label == null || startedAt <= 0) {
+                return null;
+            }
+            long elapsedSec = Math.max(0, (System.currentTimeMillis() - startedAt) / 1000);
+            return "Split: " + label + " " + formatSeconds(elapsedSec);
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+            DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
+            if (!cfg.isTimeTrackerEnabled() || !DungeonState.isInDungeon() || HudVisibility.hidesHud() || runStartAtMs <= 0) {
+                return;
+            }
+            int lineY = y;
+            graphics.text(Minecraft.getInstance().font, "Time: " + elapsedTimeText(), x, lineY, 0xFFFFFFFF, false);
+            lineY += 12;
+            graphics.text(Minecraft.getInstance().font, "No Lag: " + elapsedTimeWithoutLagText(), x, lineY, 0xFFAAAAAA, false);
+            lineY += 12;
+            String splitLine = currentSplitLine();
+            if (splitLine != null) {
+                graphics.text(Minecraft.getInstance().font, splitLine, x, lineY, 0xFFAAAAAA, false);
             }
         }
     }

@@ -6,7 +6,6 @@ import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -73,22 +72,7 @@ public class EtherwarpOverlayTab extends BaseTab {
         }
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7While holding a real Etherwarp item (shift for the enchant,"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7no shift needed for the Conduit), highlights where you'd land -"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7safe or not, in your chosen colours. Never moves you - the real"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7server still handles the actual Etherwarp exactly as normal."),
-                Minecraft.getInstance().font));
-
+        // In-panel description moved into the "Etherwarp Overlay" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         return widgets;
     }
 

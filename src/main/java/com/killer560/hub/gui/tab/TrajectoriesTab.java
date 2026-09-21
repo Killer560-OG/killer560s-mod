@@ -3,9 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.trajectories.TrajectoriesConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -67,14 +65,6 @@ public class TrajectoriesTab extends BaseTab {
             }
         });
         y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Predicts where a real bow shot or Ender Pearl throw would land,"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7using the real vanilla drag/gravity for each. Never fires anything."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

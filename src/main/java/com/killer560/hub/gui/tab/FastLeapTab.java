@@ -38,6 +38,14 @@ import java.util.Locale;
  * state would be nonsense (cheat features off, or the Fast Leap master switch turned off).
  * <p>
  * Cheat-only, so the tab title and every section header are red ({@link SectionHeaders}).
+ * <p>
+ * Regrouped 2026-09-21 at killer560's request ("I hate the way fast leaps menu is currently set up. Please
+ * redesign the setting menu for it" - no further detail given, a judgement call): the actual row-building lives
+ * in {@link FastLeapSection}, whose own class doc has the full before/after reasoning, but the short version is
+ * headed groups instead of one flat row of toggles, settings that only matter once their switch is on now
+ * staying hidden until then, and the leap list now split under a red header per boss phase instead of one flat
+ * 13-row list. This class only had to change {@link #matchesSearch}, which now asks {@link FastLeapSection} for
+ * its {@code includeHidden} variants so a search still finds a setting that the normal view is hiding.
  */
 public class FastLeapTab extends BaseTab {
 
@@ -132,9 +140,13 @@ public class FastLeapTab extends BaseTab {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return false;
         }
-        List<AbstractWidget> scan = new ArrayList<>(buildList(0, 0, 200, () -> {}));
+        List<AbstractWidget> scan = new ArrayList<>();
+        scan.add(header(0, 0, 200, "Fast Leap"));
+        FastLeapSection.buildGeneral(scan, 0, 0, 200, () -> {}, true);
+        scan.add(header(0, 0, 200, "Leaps"));
+        FastLeapSection.buildLeapList(scan, 0, 0, 200, group -> {});
         for (LeapGroup group : LeapGroup.values()) {
-            FastLeapSection.buildLeapEditor(scan, 0, 0, 200, group);
+            FastLeapSection.buildLeapEditor(scan, 0, 0, 200, group, true);
         }
         String q = query.toLowerCase(Locale.US);
         for (AbstractWidget widget : scan) {

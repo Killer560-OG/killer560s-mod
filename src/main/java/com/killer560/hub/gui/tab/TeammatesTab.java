@@ -114,14 +114,6 @@ public class TeammatesTab extends BaseTab {
                 }).bounds(col2X, y, colW, 18).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Colors come from each teammate's dungeon class (same palette as"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Class Colors and the Live Map dots)."), Minecraft.getInstance().font));
-        y += 16;
-
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     SectionHeaders.header("Cheat", true), Minecraft.getInstance().font));

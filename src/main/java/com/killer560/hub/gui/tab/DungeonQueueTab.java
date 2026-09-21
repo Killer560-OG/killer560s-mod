@@ -5,12 +5,16 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.partyfinder.PartyFinderOverlay;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig.CompactMode;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig.PbMode;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.narration.NarratedElementType;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -121,7 +125,9 @@ public class DungeonQueueTab extends BaseTab {
                     btn.setMessage(valueText("PB Mode", pf.getPbMode().label));
                 }).bounds(colBX, y, colW, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(valueText("Compact", pf.getCompactMode().label), btn -> {
+        // Label renamed from "Compact" to "Party Finder style" (killer560 7.2) - the persisted CompactMode
+        // enum values (NONE/STYLE1/STYLE2/CUSTOM) are untouched, so an existing selection still loads.
+        widgets.add(SettingsButtonWidget.builder(valueText("Party Finder style", pf.getCompactMode().label), btn -> {
                     CompactMode[] modes = CompactMode.values();
                     pf.setCompactMode(modes[(pf.getCompactMode().ordinal() + 1) % modes.length]);
                     pf.save();
@@ -140,8 +146,58 @@ public class DungeonQueueTab extends BaseTab {
                 pf.save();
             });
             widgets.add(style);
+            y += 20;
+        }
+
+        // ---------------------------------------------------------------- Style Preview
+        y += 4;
+        widgets.add(rebuildToggle("Style Preview", pf::isStylePreview, pf::setStylePreview, pf::save, requestRebuild,
+                contentX, y, contentWidth));
+        y += 20;
+        if (pf.isStylePreview()) {
+            int previewHeight = 8 + (PartyFinderOverlay.PREVIEW_LINE_COUNT + 1) * 10;
+            widgets.add(new StylePreviewWidget(contentX, y, contentWidth, previewHeight, pf));
         }
         return widgets;
+    }
+
+    /** Live preview of "Party Finder style" (killer560 7.2): killer560/aut0balls/agreencatgirl/
+     *  femboy_recruiter/latinomommy at cata/class 50/45/40/35/30, rendered through the exact same
+     *  {@link PartyFinderOverlay#renderPreviewLines} the real tooltip formatting uses. Reads {@code cfg} fresh
+     *  every frame, so it tracks the selected style, PB Mode, Rank Name Colors and Custom Style text live
+     *  without needing {@code requestRebuild} (which would otherwise steal focus from the Custom Style box
+     *  while typing). */
+    private static final class StylePreviewWidget extends AbstractWidget {
+        private static final int BG = 0xFF1A1108;
+        private static final int BORDER = 0xFF663D1A;
+        private static final int LABEL = 0xFFAAAAAA;
+        private static final int LINE_H = 10;
+
+        private final PartyFinderOverlayConfig cfg;
+
+        StylePreviewWidget(int x, int y, int width, int height, PartyFinderOverlayConfig cfg) {
+            super(x, y, width, height, Component.literal("Party Finder Style Preview"));
+            this.cfg = cfg;
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+            int x0 = getX();
+            int y0 = getY();
+            graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), BG);
+            graphics.outline(x0, y0, getWidth(), getHeight(), BORDER);
+            graphics.text(Minecraft.getInstance().font, "Preview:", x0 + 4, y0 + 3, LABEL, false);
+            int ly = y0 + 3 + LINE_H;
+            for (Component line : PartyFinderOverlay.renderPreviewLines(cfg)) {
+                graphics.text(Minecraft.getInstance().font, line, x0 + 4, ly, 0xFFFFFFFF, false);
+                ly += LINE_H;
+            }
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {
+            output.add(NarratedElementType.TITLE, getMessage());
+        }
     }
 
     private interface BoolGetter {

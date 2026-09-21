@@ -71,7 +71,6 @@ public class SecretAuraTab extends BaseTab {
                 norm(cfg.getAuraCooldownMs(), CheatUtilsConfig.MIN_AURA_COOLDOWN_MS, CheatUtilsConfig.MAX_AURA_COOLDOWN_MS),
                 v -> cfg.setAuraCooldownMs(denorm(v, CheatUtilsConfig.MIN_AURA_COOLDOWN_MS, CheatUtilsConfig.MAX_AURA_COOLDOWN_MS)));
         y[0] += 24;
-        label(w, contentX, y, contentWidth, "Pause while holding (comma-separated item names / IDs):");
         EditBox pause = new EditBox(Minecraft.getInstance().font, contentX, y[0], BTN_W, 18, Component.literal("Pause while holding"));
         pause.setMaxLength(200);
         pause.setValue(cfg.getAuraPauseHolding());

@@ -58,22 +58,6 @@ public class TranslateTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(languageText(), btn -> {
                     openPicker(requestRebuild);
                 }).bounds(contentX, y, 260, 20).build());
-        y += 30;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("When on, chat you type is translated into the selected"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("language before it's sent."), Minecraft.getInstance().font));
-        y += 20;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7/translate <language> - sets the language and turns this on"),
-                Minecraft.getInstance().font));
-        y += 14;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7/language - opens this picker directly"), Minecraft.getInstance().font));
 
         return widgets;
     }

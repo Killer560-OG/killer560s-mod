@@ -68,13 +68,6 @@ public class RunSummaryTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        widgets.add(label(contentX, y, contentWidth, "§7Records one entry per finished dungeon run - splits, devices,"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7secrets, crypts, deaths, both scores, class and party - then"));
-        y += 12;
-        widgets.add(label(contentX, y, contentWidth, "§7keeps them so you can open any past run again. Nothing is sent."));
-        y += 16;
-
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
@@ -101,11 +94,6 @@ public class RunSummaryTab extends BaseTab {
                         btn.setMessage(onOff("Don't Repeat Split Timers", cfg.isAvoidDuplicateChat()));
                     }).bounds(contentX, y, contentWidth, ROW).build());
             y += ROW + GAP;
-            widgets.add(label(contentX, y, contentWidth,
-                    "§7While Split Timers is announcing in chat, the phase lines are left"));
-            y += 12;
-            widgets.add(label(contentX, y, contentWidth, "§7out of this summary so the two never post the same thing."));
-            y += 14;
         }
 
         widgets.add(SettingsButtonWidget.builder(onOff("Record Device/Terminal Times", cfg.isRecordDeviceTimes()), btn -> {

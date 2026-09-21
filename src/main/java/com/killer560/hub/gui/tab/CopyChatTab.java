@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.copychat.CopyChatConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -28,15 +26,8 @@ public class CopyChatTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(enabledText());
                 }).bounds(contentX, y, 220, 20).build());
-        y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Shift+Click any chat message (right-click: just that line) to copy its plain text"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("to the clipboard."), Minecraft.getInstance().font));
-
+        // In-panel usage text moved to the toggle's hover tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
         return widgets;
     }
 

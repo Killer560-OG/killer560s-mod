@@ -55,7 +55,6 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         }
 
         if (!cfg.isEnabled()) {
-            widgets.add(label(contentX, y, contentWidth, "§7Watch YouTube Shorts in a small window pinned over Minecraft."));
             return widgets;
         }
 
