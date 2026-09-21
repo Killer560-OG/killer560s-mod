@@ -158,6 +158,12 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX, y, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45, null);
         toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
 
+        // Aligns are input-only now (no position writes - Hypixel lags those back), so "aligned" is within this.
+        header(w, contentX, y, contentWidth, "Align");
+        w.add(slider(contentX, y[0], BTN_W, alignToleranceText(cfg), Ap3Config.MIN_ALIGN_TOLERANCE, Ap3Config.MAX_ALIGN_TOLERANCE,
+                cfg.getAlignTolerance(), 0.005, cfg::setAlignTolerance, () -> alignToleranceText(cfg), cfg::save));
+        y[0] += 24;
+
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         header(w, contentX, y, contentWidth, "Stopwatch");
         toggle(w, contentX, y, "Stopwatch HUD", cfg::isStopwatchHud, cfg::setStopwatchHud, null);
@@ -355,6 +361,10 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static Component labelColorModeText(Ap3Config cfg) {
         return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
+    }
+
+    private static Component alignToleranceText(Ap3Config cfg) {
+        return Component.literal(String.format(Locale.US, "Align Tolerance: %.3f", cfg.getAlignTolerance()));
     }
 
     private static Component labelScaleText(Ap3Config cfg) {

@@ -141,29 +141,14 @@ public final class Ap3Executor {
     private static final double KEY_THRESHOLD = 0.38;
     /** A plain W press reaches {@code LocalPlayer.modifyInput}'s square mapping at 0.98 - see {@link #writeMove}. */
     private static final double VANILLA_INPUT_SCALE = 0.98;
-    private static final double LATERAL_GAIN = 1.5;
-    private static final double MIN_NUDGE = 0.08;
-    /** Start crouching once within this much of the target: sneaking scales the input by the ~0.3 SNEAKING_SPEED
-     *  attribute, which is the tool killer560 named ("use crouches") for cutting the per-tick step on the approach. */
+    /** Sneak may latch on for the finish once within this much of the target: sneaking scales the input by the
+     *  ~0.3 SNEAKING_SPEED attribute, which is the tool killer560 named ("use crouches") for the small last steps. */
     private static final double SNEAK_APPROACH = 0.4;
     private static final double SETTLE_SPEED = 0.02;
     private static final int SETTLE_TICKS = 2;
     /** How far an align node may pull you in from. A queued align fires even after you walked out of its box; past
      *  this it fails instead of dragging you across the room. */
     private static final double ALIGN_REACH = 4.0;
-    /**
-     * Below this error, movement input stops resolving the last fraction of a block: at Skyblock 550%+ speed even a
-     * crouched single-tick step is ~0.2 blocks (movement-speed attribute, not vanilla), so no input can land inside
-     * 0.05. killer560 (2026-09-20 in-game test): "it does a very poor job of centering ... consistent down to the
-     * point where each number is .000 of the same ... my coordinate decimals should always read .500 .500". The last
-     * bit is closed by a bounded DIRECT position correction (see {@link #settleAligned}) - honest, and small.
-     */
-    private static final double CORRECT_BELOW = 0.15;
-    /** The direct correction never moves you more than this in one tick (a normal walking step is ~0.2), so it reads
-     *  as ordinary movement rather than a teleport. At most ~2 ticks are ever needed (0.15 / 0.08). */
-    private static final double MAX_CORRECT_PER_TICK = 0.08;
-    /** Finished only within this of the exact target, so the coordinate reads {@code .500} to three decimals. */
-    private static final double EXACT_EPS = 0.0004;
     private static final double WALL_TOUCH = 0.02;
     private static final double WALL_PUSH_HELD = 0.35;
     private static final int LOOK_TIMEOUT = 80;
@@ -296,6 +281,8 @@ public final class Ap3Executor {
 
     // ---- alignment progress ----
     private static int settleTicks;
+    /** Sneak latched on for the finish of the current align (see driveToward); cleared when the node ends. */
+    private static boolean alignSneak;
 
     // ---- input ----
     private static boolean mixinApplied;
@@ -364,6 +351,7 @@ public final class Ap3Executor {
         stopReason = reason;
         activeNode = null;
         step = null;
+        alignSneak = false;
         lookHeld = false;
         holdDir = null;
         waitUntilMs = 0L;
@@ -901,6 +889,7 @@ public final class Ap3Executor {
         activeNode = node;
         stepTicks = 0;
         settleTicks = 0;
+        alignSneak = false;
         swapSent = false;
         gateSawScreen = false;
         if (!node.type.isMover()) {
@@ -982,11 +971,19 @@ public final class Ap3Executor {
         gateSawScreen = false;
     }
 
-    // ---- ALIGN: to the node's exact point, drift accounted for ---------------------------------------------------
+    // ---- ALIGN: to the node's point, by movement input alone ----------------------------------------------------
+    //
+    // killer560 on real Hypixel (2026-09-21): "for the align, it kind of walks into it then gets lagged through on
+    // actual hypixel, on sim it is perfect, on the server it breaks though. it lags me back a lot." The old final
+    // approach closed the last 0.15 blocks with DIRECT setPos nudges and a setDeltaMovement that killed the slide in one
+    // tick. Hypixel simulates movement from the inputs it is sent; a position change the inputs do not explain, and
+    // momentum that vanishes in a tick, fail that simulation and the server sets you back - the lagbacks. p3sim has no
+    // such check, which is why it looked perfect there. NOTHING in this package writes position or velocity any more:
+    // every tick of motion is vanilla physics acting on the input record the mixin installs (plus sneak), exactly as
+    // for a human pressing those keys, and "aligned" means within Align Tolerance, not on the exact point.
 
     private static void tickAlign(Minecraft client, LocalPlayer player, Ap3Node node) {
         Vec3 pos = player.position();
-        Vec3 vel = player.getDeltaMovement();
         double ex = node.x - pos.x;
         double ez = node.z - pos.z;
         double err = Math.sqrt(ex * ex + ez * ez);
@@ -997,41 +994,104 @@ public final class Ap3Executor {
             }
             step = Step.DO;
         }
-        // Drive toward where the target will be relative to where the slide is taking you, not where you are now.
-        // The drift is modelled from the REAL block friction under your feet, not a fixed constant, so it holds at
-        // 550%+ Skyblock speed where the old fixed 1.5x under-predicted the overshoot (killer560's report).
-        double stopF = stopFactor(player);
-        double px = ex - vel.x * stopF;
-        double pz = ez - vel.z * stopF;
-        if (settleAligned(client, player, node, err, px, pz)) {
-            reportAlignTimer(node);
-            finishNode();
+        Ap3Config cfg = Ap3Config.getInstance();
+        Vec3 vel = player.getDeltaMovement();
+        double speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+        // Done: inside the tolerance with the slide gone, held for SETTLE_TICKS with no input so it is really at rest.
+        if (err <= cfg.getAlignTolerance() && speed < SETTLE_SPEED) {
+            clearMovement();
+            wantSneak = alignSneak;
+            if (++settleTicks >= SETTLE_TICKS) {
+                clearMovement();
+                reportAlignTimer(node, err);
+                finishNode();
+            }
+            return;
         }
+        settleTicks = 0;
+        if (stepTicks > cfg.getAlignTimeoutTicks()) {
+            // Never a direct correction: if inputs cannot land it in time, the node fails, as it always did.
+            failNode(String.format(Locale.US, "couldn't align on #%d (%.3f blocks off)", number(node), err));
+            return;
+        }
+        driveToward(player, ex, ez, err);
     }
 
-    /** Dev builds only: how long this align took from box entry to fully aligned, in chat and the log. */
-    private static void reportAlignTimer(Ap3Node node) {
+    /** Dev builds only: how long this align took from box entry to aligned, and how far off it settled. */
+    private static void reportAlignTimer(Ap3Node node, double error) {
         long[] entered = alignEntered.remove(node);
         if (entered == null || !Ap3Config.getInstance().isAlignTimerDev()) {
             return;
         }
         long ticks = tickCounter - entered[0];
         double seconds = (System.currentTimeMillis() - entered[1]) / 1000.0;
-        String text = String.format(Locale.US, "%s #%d took %.2fs (%d ticks)", node.type.label(), number(node), seconds, ticks);
+        String text = String.format(Locale.US, "%s #%d took %.2fs (%d ticks), %.3f off", node.type.label(), number(node),
+                seconds, ticks, error);
         LOGGER.info("[AP3 dev] {}", text);
         ModChat.send("AP3 dev", ModChat.text(node.type.label() + " "), ModChat.value("#" + number(node)),
                 ModChat.text(" took "), ModChat.value(String.format(Locale.US, "%.2fs", seconds)),
-                ModChat.dim(String.format(Locale.US, " (%d ticks)", ticks)));
+                ModChat.dim(String.format(Locale.US, " (%d ticks), %.3f off", ticks, error)));
     }
 
     /**
-     * How far a horizontal slide carries you before friction stops it, as a multiple of the current per-tick
-     * velocity: {@code f / (1 - f)} where {@code f} is the real per-tick horizontal friction (block friction x 0.91
-     * on the ground, 0.91 in the air), read from the block under your feet - so "align must account for drift" is
-     * computed from the surface you are actually on rather than an assumed vanilla value. Clamped so an airborne or
-     * ice reading can't produce a wild prediction.
+     * One tick of the input-only approach along the world error {@code (ex, ez)} (target minus feet).
+     * <p>
+     * What vanilla does with an input, read from the 26.1.2 bytecode ({@code LivingEntity.travelInAir} /
+     * {@code handleRelativeFrictionAndCalculateMovement} / {@code getFrictionInfluencedSpeed},
+     * {@code LocalPlayer.modifyInput}): with {@code v0} the current delta movement, one tick is
+     * {@code v = v0 + a * input; pos += v; v *= f}, where {@code a} is {@link #inputAccel} and {@code f} the friction.
+     * So the tick's displacement is {@code v0 + a * input}: to land ON the target this tick the input has to be
+     * {@code (e - v0) / a}. When that is within one full input it is applied exactly (the landing tick); the tick
+     * after, {@code e} is ~0 and {@code v0 = f * e_prev}, so the same rule presses the OPPOSITE way by exactly the
+     * residual - the brake - and the slide is gone. When it is more than one full input, the input is full in that
+     * direction, which is "accelerate toward" while the slide falls short and "brake" while it would carry past;
+     * this is re-decided every tick from the real velocity, so friction and speed buffs need no tuning.
+     * Sneak is latched on for the finish once the remaining step fits a crouched tick (a crouch scales the input by
+     * the sneaking-speed attribute, ~0.3), so the last steps are the small ones a crouch gives, and it stays on until
+     * the node ends rather than flickering tick to tick. The acceleration is always computed from the pose vanilla
+     * is IN this tick ({@code isCrouching}), so a pose change lands short, never long, and is corrected next tick.
      */
-    private static double stopFactor(LocalPlayer player) {
+    private static void driveToward(LocalPlayer player, double ex, double ez, double err) {
+        Vec3 vel = player.getDeltaMovement();
+        double dvx = ex - vel.x;
+        double dvz = ez - vel.z;
+        double need = Math.sqrt(dvx * dvx + dvz * dvz);
+        if (!alignSneak && err < SNEAK_APPROACH && need <= inputAccel(player, true)) {
+            alignSneak = true;
+        }
+        if (need < 1e-6) {
+            clearMovement();
+            wantSneak = alignSneak;
+            return;
+        }
+        double a = inputAccel(player, player.isCrouching());
+        double mag = Math.min(1.0, need / a);
+        writeMove(player, dvx / need * mag, dvz / need * mag, false);
+        wantSneak = alignSneak;
+    }
+
+    /**
+     * Blocks per tick of velocity that ONE full-magnitude input adds this tick, as vanilla will compute it:
+     * on the ground {@code getSpeed() * 0.21600002 / f^3} ({@code getSpeed()} carries the Skyblock speed attribute
+     * and the sprint modifier), in the air the player's flying speed (0.02, 0.026 sprinting); times the input
+     * pipeline's 0.98 - or 1.0 when 45 Degree Strafe makes {@link #writeMove} pre-scale for the real W+A speed -
+     * and, crouched, the sneaking-speed attribute. Every constant is javap-verified on the 26.1.2 jar.
+     */
+    private static double inputAccel(LocalPlayer player, boolean crouched) {
+        double f = groundFriction(player);
+        double a = player.onGround()
+                ? player.getSpeed() * 0.21600002 / (f * f * f)
+                : (player.isSprinting() ? 0.026 : 0.02);
+        double k = Ap3Config.getInstance().isStrafe45() ? 1.0 : VANILLA_INPUT_SCALE;
+        if (crouched) {
+            k *= sneakSpeed(player);
+        }
+        return Math.max(1e-4, a * k);
+    }
+
+    /** The per-tick horizontal friction vanilla applies: the block under your feet x 0.91 on the ground, 0.91 in
+     *  the air ({@code LivingEntity.travelInAir}). */
+    private static double groundFriction(LocalPlayer player) {
         double f = 0.6 * 0.91;
         try {
             if (player.onGround()) {
@@ -1042,8 +1102,17 @@ public final class Ap3Executor {
             }
         } catch (Throwable ignored) {
         }
-        double factor = f / (1.0 - f);
-        return Mth.clamp(factor, 0.5, 3.0);
+        return Mth.clamp(f, 0.3, 0.999);
+    }
+
+    /** The crouch input multiplier ({@code LocalPlayer.modifyInput}: the SNEAKING_SPEED attribute, 0.3 by default). */
+    private static double sneakSpeed(LocalPlayer player) {
+        try {
+            double v = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.SNEAKING_SPEED);
+            return v > 0.01 && v <= 1.0 ? v : 0.3;
+        } catch (Throwable t) {
+            return 0.3;
+        }
     }
 
     // ---- AXIS_ALIGN: pressed square against the wall you placed it on, the other axis to the node ---------------
@@ -1069,11 +1138,14 @@ public final class Ap3Executor {
         }
         Ap3Config cfg = Ap3Config.getInstance();
         boolean touching = touching(client.level, player, node.wallDir);
-        // Exact on the perpendicular axis with no momentum, pressed to the wall - the wall makes the other axis exact.
-        if (touching && Math.abs(perpErr) <= EXACT_EPS && Math.abs(perpVel) < SETTLE_SPEED) {
+        // Within tolerance on the perpendicular axis with no slide, pressed to the wall - the wall makes the other
+        // axis exact (vanilla collision, nothing written).
+        if (touching && Math.abs(perpErr) <= cfg.getAlignTolerance() && Math.abs(perpVel) < SETTLE_SPEED) {
             clearMovement();
+            wantSneak = alignSneak;
             if (++settleTicks >= SETTLE_TICKS) {
-                reportAlignTimer(node);
+                clearMovement();
+                reportAlignTimer(node, Math.abs(perpErr));
                 finishNode();
             }
             return;
@@ -1084,25 +1156,18 @@ public final class Ap3Executor {
                     touching ? "on the wall" : "not on the wall", Math.abs(perpErr)));
             return;
         }
-        // Final approach on the perpendicular axis: same bounded direct correction a plain ALIGN uses, while still
-        // leaning into the wall so the wall axis stays flush. Movement input can't hit .000 at 550% speed.
-        if (Math.abs(perpErr) <= CORRECT_BELOW) {
-            double stepMag = Math.copySign(Math.min(Math.abs(perpErr), MAX_CORRECT_PER_TICK), perpErr);
-            player.setPos(pos.x + perp.x * stepMag, pos.y, pos.z + perp.z * stepMag);
-            Vec3 nv = player.getDeltaMovement();
-            double vPerp = nv.x * perp.x + nv.z * perp.z; // cancel the perpendicular slide, keep the wall-ward push
-            player.setDeltaMovement(nv.x - perp.x * vPerp, nv.y, nv.z - perp.z * vPerp);
-            writeMove(player, wall.x * WALL_PUSH_HELD, wall.z * WALL_PUSH_HELD, false);
-            wantSneak = true;
-            return;
+        // The perpendicular axis: the same one-dimensional landing rule driveToward uses (input = (e - v0) / a, capped
+        // at one). The wall axis: into the wall at full input until it stops you, then a lean that keeps you flush.
+        // The two are perpendicular, so the lean is trimmed to keep the whole input inside one full press.
+        double dv = perpErr - perpVel;
+        if (!alignSneak && touching && Math.abs(perpErr) < SNEAK_APPROACH && Math.abs(dv) <= inputAccel(player, true)) {
+            alignSneak = true;
         }
-        // Into the wall at full speed until it stops you, then keep leaning on it; across it, the same
-        // drift-compensated nudge a plain ALIGN uses, crouched as it closes in.
-        double push = touching ? WALL_PUSH_HELD : 1.0;
-        double predicted = perpErr - perpVel * stopFactor(player);
-        double corr = Math.copySign(Mth.clamp(Math.abs(predicted) * LATERAL_GAIN, MIN_NUDGE, 1.0), predicted);
-        writeMove(player, wall.x * push + perp.x * corr, wall.z * push + perp.z * corr, false);
-        wantSneak = touching && Math.abs(perpErr) < SNEAK_APPROACH;
+        double a = inputAccel(player, player.isCrouching());
+        double m = Math.copySign(Math.min(1.0, Math.abs(dv) / a), dv);
+        double push = Math.min(touching ? WALL_PUSH_HELD : 1.0, Math.sqrt(Math.max(0.0, 1.0 - m * m)));
+        writeMove(player, wall.x * push + perp.x * m, wall.z * push + perp.z * m, false);
+        wantSneak = alignSneak;
     }
 
     /** Whether the player's box is pressed against a collidable block on that side (within {@value #WALL_TOUCH}). */
@@ -1128,57 +1193,6 @@ public final class Ap3Executor {
             }
         }
         return null;
-    }
-
-    /**
-     * Drives the player along the world vector {@code (ex, ez)} (its length = how far off, drift already taken
-     * out), sneaking for the last bit so the landing is precise, and reports settled once the REAL error
-     * {@code err} is on the exact point with no momentum left.
-     */
-    private static boolean settleAligned(Minecraft client, LocalPlayer player, Ap3Node node, double err,
-                                         double px, double pz) {
-        Ap3Config cfg = Ap3Config.getInstance();
-        Vec3 vel = player.getDeltaMovement();
-        double speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-        // Finished only on the exact point with no momentum, so the coordinate reads .500/.500 (or the precise
-        // node's own value) rather than "somewhere inside the tolerance".
-        if (err <= EXACT_EPS && speed < SETTLE_SPEED) {
-            clearMovement();
-            return true;
-        }
-        if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            failNode(String.format(Locale.US, "couldn't align on #%d (%.3f blocks off)", number(node), err));
-            return false;
-        }
-        // Final approach: at 550%+ speed no movement input can land the last fraction of a block, so close it with a
-        // bounded DIRECT position correction toward the exact target and kill the horizontal slide. Capped at
-        // MAX_CORRECT_PER_TICK (< a normal walking step) so it is indistinguishable from ordinary movement.
-        if (err <= CORRECT_BELOW) {
-            clearMovement();
-            Vec3 pos = player.position();
-            double ex = node.x - pos.x;
-            double ez = node.z - pos.z;
-            if (err > 1e-6) {
-                double stepMag = Math.min(err, MAX_CORRECT_PER_TICK);
-                player.setPos(pos.x + ex / err * stepMag, pos.y, pos.z + ez / err * stepMag);
-            }
-            player.setDeltaMovement(0.0, vel.y, 0.0);
-            return false;
-        }
-        settleTicks = 0;
-        double h = Math.sqrt(px * px + pz * pz);
-        if (h < 1e-3) {
-            // The slide is already taking you onto the point - hands off, crouched, and let it.
-            clearMovement();
-            wantSneak = true;
-            return false;
-        }
-        double mag = Mth.clamp(h * LATERAL_GAIN, MIN_NUDGE, 1.0);
-        writeMove(player, px / h * mag, pz / h * mag, false);
-        // Crouch on the approach to cut the per-tick step (killer560: "use crouches"), so the drive doesn't blow
-        // past CORRECT_BELOW at high speed.
-        wantSneak = err < SNEAK_APPROACH;
-        return false;
     }
 
     // ---- LEAP -----------------------------------------------------------------------------------------------

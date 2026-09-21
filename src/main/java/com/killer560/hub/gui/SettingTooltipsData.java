@@ -1900,5 +1900,8 @@ final class SettingTooltipsData {
         d.put("fixed label color", "The one colour every AP3 node label is drawn in while Label Color is set to Fixed.");
         d.put("ap3/stop ap3", "Ends whatever AP3 is doing right now - the node being performed, a held walk and everything queued - and lets go of every key. Works at any time. Same as /ap3 stop.");
         d.put("ap3/test mode", "Dry run: nodes run without waiting on terminals, teammates or close gates, a failed leap is skipped, and ANY key or mouse button stops everything. Never saved.");
+        d.put("ap3/force dungeon", "Testing only. Makes AP3 act as if you are in the F7/M7 boss wherever you are - the hub, singleplayer, any server - so you can place, see and test nodes. In a real boss the real phase and section still apply. Never saved: it turns itself off on every restart and world change, and a red reminder sits at the top of the screen while it is on.");
+        d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on and you are not in a real boss. Click to cycle P1, P2, S1-S5, P4, P5.");
+        d.put("ap3/align tolerance", "How close to the node's point an Align counts as done, in blocks (default 0.030). Aligns move you with real key input only - nothing is ever teleported or nudged, so Hypixel sees ordinary walking - and pure input cannot always land on the exact .500 with a big speed buff. Smaller = more exact but slower and more likely to time out.");
     }
 }

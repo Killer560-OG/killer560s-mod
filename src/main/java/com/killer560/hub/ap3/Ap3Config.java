@@ -70,8 +70,11 @@ public final class Ap3Config {
     public static final float MAX_THICKNESS = 8f;
     public static final float MIN_HEIGHT = 0.1f;
     public static final float MAX_HEIGHT = 1f;
-    public static final double MIN_ALIGN_TOLERANCE = 0.01;
-    public static final double MAX_ALIGN_TOLERANCE = 0.25;
+    /** "Align Tolerance": how far from the point an align may settle. Inputs alone cannot always land on .500 at a
+     *  big speed buff (and AP3 never writes position - Hypixel lags that back), so this is the honest finish line. */
+    public static final double MIN_ALIGN_TOLERANCE = 0.005;
+    public static final double MAX_ALIGN_TOLERANCE = 0.1;
+    public static final double DEFAULT_ALIGN_TOLERANCE = 0.03;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;
@@ -139,8 +142,8 @@ public final class Ap3Config {
      *  where it has always sat) - the same two knobs Posmsg's waypoints got. */
     private float labelScale = 1f;
     private float labelHeightOffset = 0f;
-    /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target. */
-    private double alignTolerance = 0.05;
+    /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target (see the constants). */
+    private double alignTolerance = DEFAULT_ALIGN_TOLERANCE;
     private int alignTimeoutTicks = 100;
     /** WALK / RUN: no progress toward the end of the travel for this many ticks and the chain gives up. */
     private int moveTimeoutTicks = 100;
@@ -435,7 +438,7 @@ public final class Ap3Config {
     public double getAlignTolerance() { return alignTolerance; }
     public void setAlignTolerance(double v) {
         if (Double.isFinite(v)) {
-            alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 100.0) / 100.0));
+            alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 1000.0) / 1000.0));
         }
     }
 
