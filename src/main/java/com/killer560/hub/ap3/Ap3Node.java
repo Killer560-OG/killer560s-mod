@@ -16,8 +16,8 @@ import java.util.Locale;
  * Everything spatial is in <b>absolute world coordinates</b>: the boss arena is fixed, so none of Auto Routes'
  * room-relative transform applies here.
  * <p>
- * <b>Trigger box.</b> Every node owns a box {@link #width} x {@link #length} blocks (width across the yaw, length
- * along it) centred on the node. Every node is armed on its own: walking INTO its box fires it, in whatever order
+ * <b>Trigger box.</b> Every node owns a box {@link #width} x {@link #length} blocks (width across, length along
+ * the grid-snapped {@link #boxYaw()}; 0.5 x 0.5 by default) centred on the node. Every node is armed on its own: walking INTO its box fires it, in whatever order
  * you reach the nodes (killer560, 2026-09-20: "node one, then node two, then node 4, then node 18, they should all
  * fire ... The order never matters"); same-tick collisions fire one per tick by {@link Type#priority()}. "/ap3 add
  * walk w1 l1" sets the box "in whole blocks, any size". A held Walk carries you into the next box.
@@ -143,11 +143,11 @@ public final class Ap3Node {
         }
     }
 
-    public static final double DEFAULT_LENGTH = 1.0;
-    public static final double DEFAULT_WIDTH = 1.0;
-    /** ALIGN / AXIS_ALIGN start at half a block each way - killer560 (2026-09-21): "by default our nodes should be
-     *  .5 .5 of a block". Only the placement default: a saved size is kept exactly. */
-    public static final double DEFAULT_ALIGN_SIZE = 0.5;
+    /** Every node starts at half a block each way - killer560 (2026-09-21): "by default our nodes should be .5 .5 of
+     *  a block" and "For other nodes they should also default to that .5 .5." Only the placement default: a saved
+     *  size is kept exactly. */
+    public static final double DEFAULT_LENGTH = 0.5;
+    public static final double DEFAULT_WIDTH = 0.5;
     public static final double MIN_LENGTH = 0.5;
     public static final double MAX_LENGTH = 64.0;
     public static final double MIN_WIDTH = 0.5;
@@ -199,21 +199,8 @@ public final class Ap3Node {
         this.z = z;
         this.yaw = yaw;
         this.pitch = pitch;
-        // killer560 (2026-09-20): "The align shouldnt default to this 3x3. It should only be the small inner box."
-        // and (2026-09-21) "by default our nodes should be .5 .5 of a block" - an align starts at 0.5 x 0.5, every
-        // other type at the 1x1 block it sits on. An align still pulls you in from ALIGN_REACH once it fires.
-        this.width = defaultWidth();
-        this.length = defaultLength();
-    }
-
-    /** The trigger width a freshly placed node of this type gets. */
-    public double defaultWidth() {
-        return type != null && type.isAlign() ? DEFAULT_ALIGN_SIZE : DEFAULT_WIDTH;
-    }
-
-    /** The trigger length a freshly placed node of this type gets. */
-    public double defaultLength() {
-        return type != null && type.isAlign() ? DEFAULT_ALIGN_SIZE : DEFAULT_LENGTH;
+        // Box: DEFAULT_WIDTH x DEFAULT_LENGTH (0.5 x 0.5) for every type - the field initialisers. An align still
+        // pulls you in from ALIGN_REACH once it fires, so a small box does not mean it is easy to miss.
     }
 
     // ---- snapping -------------------------------------------------------------------------------------------
@@ -286,15 +273,16 @@ public final class Ap3Node {
     }
 
     /**
-     * The yaw the TRIGGER BOX is laid out along. A WALK / RUN / LOOK / BOOM box follows the node's own yaw (the box
-     * is "along the way you walk"). An ALIGN / AXIS_ALIGN snaps you onto a block centre, so its box is locked to
-     * the block grid instead: the nearest cardinal of the placement yaw. killer560 (2026-09-21): the align's box
-     * "rotates ... if I'm not centered" - it was turned to whatever angle he happened to be looking at when he
-     * placed it, while the marker inside it is always square to the world, so unless he was looking dead along an
-     * axis the two disagreed. Old nodes need no migration: the snap is applied when the yaw is read.
+     * The yaw the TRIGGER BOX is laid out along: the nearest cardinal of the placement yaw, for EVERY type, so the
+     * box is always square to the block grid. killer560 (2026-09-21) for aligns: the box "rotates ... if I'm not
+     * centered"; then for the rest: "for something like walk if i place it at an angle still have the node squared
+     * to a block face like the align does, but have that arrow facing away." Only the box snaps - {@link #yaw},
+     * {@link #dir()} and {@link #left()} (the walk's travel direction, the arrow, a LOOK / BOOM target) keep the real
+     * angle untouched. Old nodes need no migration: the snap is applied when the yaw is read. Width stays across
+     * and length along the snapped direction, so a {@code w1 l3} walk placed facing roughly east is 3 long east-west.
      */
     public float boxYaw() {
-        return type.isAlign() ? Math.round(Mth.wrapDegrees(yaw) / 90f) * 90f : yaw;
+        return Math.round(Mth.wrapDegrees(yaw) / 90f) * 90f;
     }
 
     /** {@link #dir()} for the trigger box - see {@link #boxYaw()}. */
@@ -321,17 +309,10 @@ public final class Ap3Node {
         return (p.x - x) * d.x + (p.z - z) * d.z;
     }
 
-    /** True while the box is still the size this node's type is placed with (0.5x0.5 align, 1x1 otherwise) - only
-     *  decides whether chat / labels print the size; every box is drawn and tested at its exact size. */
+    /** True while the box is still the 0.5x0.5 every node is placed with - only decides whether chat / labels print
+     *  the size; every box is drawn and tested at its exact size. */
     public boolean hasDefaultBox() {
-        return width == defaultWidth() && length == defaultLength();
-    }
-
-    /** Whether the trigger box lies square to the world axes (every align box does; a walk box only when it was
-     *  placed looking exactly along an axis). */
-    public boolean isTriggerBoxAxisAligned() {
-        Vec3 d = boxDir();
-        return Math.abs(d.x) < 1e-6 || Math.abs(d.z) < 1e-6;
+        return width == DEFAULT_WIDTH && length == DEFAULT_LENGTH;
     }
 
     /** The trigger box's four floor corners at {@code y}, in world space, in ring order (a, b, c, d). */
@@ -348,8 +329,8 @@ public final class Ap3Node {
         };
     }
 
-    /** The trigger box as a world AABB of the given height. Exact when {@link #isTriggerBoxAxisAligned()}; for a
-     *  turned box it is the enclosing box, so callers draw those from {@link #triggerCorners} instead. */
+    /** The trigger box as a world AABB of the given height - exact, since every box is square to the grid
+     *  ({@link #boxYaw()}); the same corners {@link #contains} tests against. */
     public AABB triggerBox(double height) {
         Vec3[] c = triggerCorners(y);
         double minX = c[0].x, maxX = c[0].x, minZ = c[0].z, maxZ = c[0].z;

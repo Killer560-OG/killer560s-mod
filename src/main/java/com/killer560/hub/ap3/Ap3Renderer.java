@@ -164,32 +164,22 @@ public final class Ap3Renderer {
      * The node's ONE box, always at the EXACT trigger size, centred on the node. killer560 (2026-09-21): "if I go to
      * 1 1 then nothing changes visually ... If I go bigger than 1 1 it does though" - a default-size node used to
      * draw a fixed 0.5-wide marker whatever its real box was, so 0.5x0.5 and 1x1 looked the same; now what is drawn
-     * is what {@link Ap3Node#contains} tests. Fixed in world space: laid out on {@link Ap3Node#boxYaw()} (the block
-     * grid for an align, the recorded yaw for a walk), never on the player's position or facing. An axis-aligned box
-     * is a real AABB (so the active node's fill still works); a turned walk box is drawn as its two rings plus
-     * uprights.
+     * is what {@link Ap3Node#contains} tests. Fixed in world space and ALWAYS square to the block grid
+     * ({@link Ap3Node#boxYaw()} - killer560, 2026-09-21: a walk placed at an angle is "squared to a block face like
+     * the align does, but have that arrow facing away"), never on the player's position or facing. A real AABB, so
+     * the active node's fill works for every type; the arrow ({@link #renderArrow}) keeps the true heading.
      */
     private static void renderNodeBox(LevelRenderContext ctx, Ap3Node node, boolean active, double height,
                                       float[] c, float alpha, float thickness) {
-        if (node.isTriggerBoxAxisAligned()) {
-            AABB box = node.triggerBox(height);
-            if (active) {
-                WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
-            }
-            WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
-            return;
+        AABB box = node.triggerBox(height);
+        if (active) {
+            WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
         }
-        double top = Math.max(0.1, height);
-        Vec3[] floor = node.triggerCorners(node.y + GROUND_OFFSET);
-        Vec3[] ceil = node.triggerCorners(node.y + top);
-        WorldRenderUtils.renderLineStrip(ctx, List.of(floor[0], floor[1], floor[2], floor[3], floor[0]), c[0], c[1], c[2], alpha, thickness);
-        WorldRenderUtils.renderLineStrip(ctx, List.of(ceil[0], ceil[1], ceil[2], ceil[3], ceil[0]), c[0], c[1], c[2], alpha, thickness);
-        for (int i = 0; i < 4; i++) {
-            WorldRenderUtils.renderLineStrip(ctx, List.of(floor[i], ceil[i]), c[0], c[1], c[2], alpha, thickness);
-        }
+        WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
     }
 
-    /** Travel direction of a WALK / RUN (the walk is held until a STOP / align, so no length is drawn). */
+    /** Travel direction of a WALK / RUN at its REAL stored yaw (the box around it is grid-snapped; the arrow is not).
+     *  The walk is held until a STOP / align, so no length is drawn. */
     private static void renderArrow(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
         Vec3 d = node.dir();
         Vec3 l = node.left();
