@@ -84,6 +84,27 @@ final class EspRenderer {
         poseStack.popPose();
     }
 
+    /** A single line from {@code from} to {@code to} - the Wither ESP tracer, drawn in the ESP's own colour. */
+    static void tracer(LevelRenderContext context, Vec3 from, Vec3 to, int argb, float width, boolean throughWalls) {
+        MultiBufferSource.BufferSource buffers = context.bufferSource();
+        if (buffers == null) {
+            return;
+        }
+        float[] c = rgba(argb, 1.0f);
+        PoseStack poseStack = context.poseStack();
+        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        PoseStack.Pose pose = poseStack.last();
+        VertexConsumer buffer = buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
+        float sx = (float) from.x, sy = (float) from.y, sz = (float) from.z;
+        float ex = (float) to.x, ey = (float) to.y, ez = (float) to.z;
+        float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+        buffer.addVertex(pose, sx, sy, sz).setColor(c[0], c[1], c[2], c[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
+        buffer.addVertex(pose, ex, ey, ez).setColor(c[0], c[1], c[2], c[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
+        poseStack.popPose();
+    }
+
     private static float[] rgba(int argb, float alphaScale) {
         float a = ((argb >>> 24) & 0xFF) / 255f;
         if (a <= 0f) {

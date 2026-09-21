@@ -77,7 +77,6 @@ public class NewTab extends FolderTab {
                 new ProfileViewerTab(),
                 new PlayerStatsTab(),
                 new SlotBindsTab(),
-                new ChatCommandsTab(),
                 new PartyCommandsTab(),
                 new DoorKeysTab(),
                 new WitherDoorsTab(),
@@ -104,6 +103,7 @@ public class NewTab extends FolderTab {
             // tracking and display.
             tabs.add(new AutoFairySoulsTab());
             tabs.add(new FastLeapTab());
+            tabs.add(new GoldorTriggerbotTab());
             tabs.add(new AutoGfsTab());
             tabs.add(new AutoUltTab());
             tabs.add(new AutoChocolateFactoryTab());

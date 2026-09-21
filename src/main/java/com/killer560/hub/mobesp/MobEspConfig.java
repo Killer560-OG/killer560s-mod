@@ -76,6 +76,10 @@ public final class MobEspConfig {
     private boolean bats = false;
     /** Cheat build only (was Cheat Utils' Wither ESP) - see {@link #isWithersEnabled()}. */
     private boolean withers = false;
+    /** killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him." Wither ESP only
+     *  (cheat build), so it is through walls and un-ranged exactly like the boxes it belongs to. */
+    private boolean witherTracer = false;
+    private float witherTracerThickness = 2.0f;
     /** The non-ESP wither highlight (both builds) - never draws through walls. */
     private boolean witherHighlight = false;
     private int starredColor = DEFAULT_STARRED_COLOR;
@@ -170,6 +174,9 @@ public final class MobEspConfig {
             cfg.witherHighlightColor = ConfigJson.getInt(obj, "witherHighlightColor", DEFAULT_WITHER_COLOR);
             cfg.witherHighlightStyle = ConfigJson.getEnum(obj, "witherHighlightStyle", WitherStyle.class, WitherStyle.GLOW);
 
+            cfg.witherTracer = ConfigJson.getBool(obj, "witherTracer", false);
+            cfg.setWitherTracerThickness(ConfigJson.getFloat(obj, "witherTracerThickness", 2.0f));
+
             if (obj.has("withers")) {
                 cfg.withers = ConfigJson.getBool(obj, "withers", false);
                 cfg.witherColor = ConfigJson.getInt(obj, "witherColor", DEFAULT_WITHER_COLOR);
@@ -229,6 +236,8 @@ public final class MobEspConfig {
             obj.addProperty("starredMobs", starredMobs);
             obj.addProperty("bats", bats);
             obj.addProperty("withers", withers);
+            obj.addProperty("witherTracer", witherTracer);
+            obj.addProperty("witherTracerThickness", witherTracerThickness);
             obj.addProperty("witherHighlight", witherHighlight);
             obj.addProperty("starredColor", starredColor);
             obj.addProperty("starredColorAmberMigrated", starredColorAmberMigrated);
@@ -264,6 +273,16 @@ public final class MobEspConfig {
     public boolean isWithersEnabled() { return cheat() && withers && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean getWithersRaw() { return withers; }
     public void setWithers(boolean v) { withers = v; }
+
+    /** Tracer to the wither the Wither ESP is drawing - cheat build only, like the ESP it hangs off. */
+    public boolean isWitherTracerEnabled() { return cheat() && witherTracer && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean getWitherTracerRaw() { return witherTracer; }
+    public void setWitherTracer(boolean v) { witherTracer = v; }
+
+    public float getWitherTracerThickness() { return witherTracerThickness; }
+    public void setWitherTracerThickness(float v) {
+        witherTracerThickness = Math.max(MIN_LINE_WIDTH, Math.min(MAX_LINE_WIDTH, Math.round(v * 2.0f) / 2.0f));
+    }
 
     /** The non-ESP wither highlight - available on both builds, so no {@link #cheat()} gate. */
     public boolean isWitherHighlightEnabled() { return witherHighlight && com.killer560.hub.util.SkyblockGate.allows(); }

@@ -203,6 +203,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.partycommands.PartyCommandsFeature.register();
         com.killer560.hub.doorkeys.DoorKeysFeature.register();
         com.killer560.hub.witherdoors.WitherDoorsFeature.register();
+        com.killer560.hub.goldor.GoldorTriggerbotFeature.register();
         com.killer560.hub.trajectories.TrajectoriesFeature.register();
         com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature.register();
         com.killer560.hub.abilitykeybinds.AbilityKeybindsFeature.register();

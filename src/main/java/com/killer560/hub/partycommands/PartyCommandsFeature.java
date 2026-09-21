@@ -1,5 +1,7 @@
 package com.killer560.hub.partycommands;
 
+import com.killer560.hub.chatcommands.ChatCommandsFeature.Channel;
+import com.killer560.hub.dungeonqueue.DungeonQueueFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Command;
 import com.killer560.hub.secrets.DungeonState;
@@ -42,10 +44,16 @@ import java.util.regex.Pattern;
  * gate is a blacklist (or an opt-in whitelist), so on stock Odin any stranger who can reach your party, guild or
  * DMs can make your client kick/warp/transfer. The differences from Odin, all deliberate:
  * <ul>
- * <li><b>Teammate-only.</b> {@link #isTeammate} - the sender must be in {@link PartyTracker}'s party list or in
- *     the current run's dungeon tab list (or be you). Everyone else is ignored in silence.
- * <li><b>Party channel only.</b> Odin also accepts guild and (for {@code !invite}) private messages. A guild
- *     member or a random DM is not a teammate, so those channels never reach this class.
+ * <li><b>Teammate-only for anything party-mutating.</b> {@link #isTeammate} - the sender must be in
+ *     {@link PartyTracker}'s party list or in the current run's dungeon tab list (or be you). Everyone else is
+ *     ignored in silence. This is "the one thing to keep" (killer560, 2026-09-21): a party command must never
+ *     run off someone else's message unless that command is actually meant to be triggered that way.
+ * <li><b>Channel scope matches what each command is "meant" to do, per Odin.</b> Warp/kick/promote/etc. are
+ *     party-chat only, teammate-gated, exactly as before. {@code !boop}/{@code !racism} (Odin: "all" channels)
+ *     and a DM'd {@code !invite} (Odin: invites whoever sent it) are the three exceptions Odin itself makes -
+ *     see {@link #isChannelAllowed} - and none of the three ever needs the teammate gate: a DM sender can't be
+ *     a teammate in the first place (that's the entire point of DM-inviting them), and boop/racism are jokes
+ *     with no real party effect. Co-op chat is never passed in at all (Odin has no such channel).
  * <li><b>Real server lines only.</b> Intake is {@code ChatCommandsFeature}'s Fabric
  *     {@code ClientReceiveMessageEvents.CHAT/GAME} listener, which only fires for lines that arrived in a chat
  *     packet. {@code util.ChatObserver} is NOT used here on purpose: its second source (the {@code ChatComponent}
@@ -151,12 +159,14 @@ public final class PartyCommandsFeature {
     }
 
     /**
-     * A "!" message from {@code sender} in real party chat. {@code body} is the text after the "!".
+     * A "!" message from {@code sender} in real party, guild or private (DM) chat. {@code body} is the text
+     * after the "!". {@code channel} is never {@code COOP} - {@code ChatCommandsFeature} never calls this for
+     * co-op chat.
      *
      * @return true when this was a party command (handled or deliberately dropped), so the informational
      *         Chat Commands half doesn't also answer it.
      */
-    public static boolean handle(String sender, String body) {
+    public static boolean handle(String sender, String body, Channel channel) {
         PartyCommandsConfig cfg = PartyCommandsConfig.getInstance();
         if (!cfg.isEnabled() || body == null || body.isBlank()) {
             return false;
@@ -165,12 +175,15 @@ public final class PartyCommandsFeature {
         String word = words[0].toLowerCase(Locale.US);
         String arg = words.length > 1 ? words[1] : null;
 
-        Command command = commandFor(word);
+        Command command = commandFor(word, channel);
         if (command == null) {
             return false;
         }
-        // THE gate: only someone actually on your team. Silent, exactly like an unknown command.
-        if (!isTeammate(sender)) {
+        // THE gate for every party-chat command: only someone actually on your team. Silent, exactly like an
+        // unknown command. Guild/DM commands never reach here in the first place unless isChannelAllowed
+        // already decided that channel is one Odin itself answers on (boop/racism/DM-invite) - none of those
+        // need or get a teammate check, see the class doc.
+        if (channel == Channel.PARTY && !isTeammate(sender)) {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - not a party/dungeon teammate", word, sender);
             return false;
         }
@@ -189,25 +202,47 @@ public final class PartyCommandsFeature {
             return true;
         }
         try {
-            run(command, word, sender, arg, body);
+            run(command, word, sender, arg, body, channel);
         } catch (RuntimeException e) {
             LOGGER.error("[PartyCommands] \"!{}\" from {} failed", word, sender, e);
         }
         return true;
     }
 
-    private static Command commandFor(String word) {
+    private static Command commandFor(String word, Channel channel) {
+        Command command;
         if (FLOOR_PATTERN.matcher(word).matches()) {
-            return instanceFor(word) == null ? null : Command.QUEUE_INSTANCE;
-        }
-        for (Command c : Command.values()) {
-            for (String trigger : c.triggers()) {
-                if (trigger.equals(word)) {
-                    return c;
+            command = instanceFor(word) == null ? null : Command.QUEUE_INSTANCE;
+        } else {
+            command = null;
+            outer:
+            for (Command c : Command.values()) {
+                for (String trigger : c.triggers()) {
+                    if (trigger.equals(word)) {
+                        command = c;
+                        break outer;
+                    }
                 }
             }
         }
-        return null;
+        return command != null && isChannelAllowed(command, channel) ? command : null;
+    }
+
+    /** Which channel(s) a command is actually "meant" to be triggered from, per Odin. Party chat is every
+     *  command's home channel (unchanged from before this class understood other channels at all). Odin's own
+     *  three exceptions - {@code !boop}/{@code !racism} answer in guild and DMs too, and a DM'd {@code !invite}
+     *  invites the sender - are the only ones that also fire outside party chat. Everything else (warp, kick,
+     *  promote, downtime, the floor-queue commands, ...) stays party-chat only: Hypixel wouldn't honour most of
+     *  them from outside a party anyway, and none of them are "meant" to run off a guild message or a DM. */
+    private static boolean isChannelAllowed(Command command, Channel channel) {
+        if (channel == Channel.PARTY) {
+            return true;
+        }
+        return switch (command) {
+            case BOOP, RACISM -> channel == Channel.GUILD || channel == Channel.PRIVATE;
+            case INVITE -> channel == Channel.PRIVATE;
+            default -> false;
+        };
     }
 
     /** Commands Hypixel only lets the party leader run - Odin gates these on {@code PartyUtils.isLeader()}. */
@@ -218,7 +253,7 @@ public final class PartyCommandsFeature {
         };
     }
 
-    private static void run(Command command, String word, String sender, String arg, String body) {
+    private static void run(Command command, String word, String sender, String arg, String body, Channel channel) {
         switch (command) {
             case HELP -> partyChat("Commands: " + enabledList());
             case WARP -> execute(command, sender, "p warp", "warped the party");
@@ -248,14 +283,20 @@ public final class PartyCommandsFeature {
             case REINVITE -> reinvite(sender);
             case DEMOTE -> execute(command, sender, "p demote " + sender, "demoted themself");
             case PROMOTE -> execute(command, sender, "p promote " + sender, "promoted themself");
-            case INVITE -> invite(sender, arg);
+            case INVITE -> invite(sender, arg, channel);
             case BOOP -> {
                 if (!validName(arg)) {
                     return;
                 }
                 execute(command, sender, "boop " + arg, "booped " + arg);
             }
-            case DOWNTIME -> downtime(sender, body);
+            case DOWNTIME -> {
+                downtime(sender, body);
+                // Odin: "!dt" also skips the pending Auto Requeue for this run (2026-09-21 gap review) -
+                // requesting downtime and then getting auto-requeued into the next run a few seconds later
+                // defeats the whole point of asking for downtime.
+                DungeonQueueFeature.skipRequeueForThisRun();
+            }
             case UN_DOWNTIME -> unDowntime(sender);
             case QUEUE_INSTANCE -> {
                 String instance = instanceFor(word);
@@ -264,7 +305,7 @@ public final class PartyCommandsFeature {
                 }
                 execute(command, sender, "joininstance " + instance, "queued " + word.toUpperCase(Locale.US));
             }
-            case RACISM -> partyChat(sender + " is " + (1 + (int) (Math.random() * 100)) + RACISM_SUFFIX);
+            case RACISM -> reply(sender + " is " + (1 + (int) (Math.random() * 100)) + RACISM_SUFFIX, sender, channel);
         }
     }
 
@@ -485,23 +526,27 @@ public final class PartyCommandsFeature {
 
     // ------------------------------------------------------------------ invite
 
-    private static void invite(String sender, String arg) {
-        if (!validName(arg)) {
+    /** Party chat: invites the named {@code arg} (unchanged). Private (DM): invites whoever sent the DM,
+     *  ignoring {@code arg} entirely - that's Odin's actual behaviour, and the whole reason this channel gets
+     *  no teammate check (a DM sender can't already be on your team; inviting them is how they'd become one). */
+    private static void invite(String sender, String arg, Channel channel) {
+        String target = channel == Channel.PRIVATE ? sender : arg;
+        if (!validName(target)) {
             return;
         }
         PartyCommandsConfig cfg = PartyCommandsConfig.getInstance();
         if (!cfg.isConfirmInvites()) {
-            execute(Command.INVITE, sender, "p invite " + arg, "invited " + arg);
+            execute(Command.INVITE, sender, "p invite " + target, "invited " + target);
             return;
         }
-        // Odin's default: no invite is sent, you get a clickable prompt instead.
+        // Odin's "Auto Confirm" default off: no invite is sent, you get a clickable prompt instead.
         MutableComponent line = ModChat.line("Party Commands",
-                ModChat.value(sender), ModChat.text(" asked you to invite "), ModChat.value(arg),
+                ModChat.value(sender), ModChat.text(" asked you to invite "), ModChat.value(target),
                 ModChat.dim(" - click to invite."));
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             client.player.sendSystemMessage(line.withStyle(style ->
-                    style.withClickEvent(new ClickEvent.RunCommand("/party invite " + arg))));
+                    style.withClickEvent(new ClickEvent.RunCommand("/party invite " + target))));
         }
     }
 
@@ -543,6 +588,20 @@ public final class PartyCommandsFeature {
 
     private static void partyChat(String message) {
         sendCommand("pc " + message);
+    }
+
+    /** Sends {@code message} back into whichever channel the command actually came from - "pc "/"gc "/
+     *  "msg &lt;name&gt; ", same prefixes as {@code ChatCommandsFeature#sendToChannel}. Needed since 2026-09-21:
+     *  {@code !racism} can now fire from guild chat or a DM (Odin: "all" channels), and Odin replies in the
+     *  same channel the taunt was asked from, not always party chat. */
+    private static void reply(String message, String sender, Channel channel) {
+        String command = switch (channel) {
+            case PARTY -> "pc " + message;
+            case GUILD -> "gc " + message;
+            case PRIVATE -> "msg " + sender + " " + message;
+            case COOP -> "cc " + message; // unreachable - isChannelAllowed never allows COOP, kept for completeness
+        };
+        sendCommand(command);
     }
 
     private static String enabledList() {

@@ -2,9 +2,12 @@ package com.killer560.hub.inventorysearch;
 
 import com.killer560.hub.inventorysearch.mixin.ContainerScreenPositionAccessor;
 import com.killer560.hub.itembrowser.ItemBrowserConfig;
+import com.killer560.hub.storageoverlay.StorageOverlayConfig;
+import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -29,11 +32,32 @@ import java.util.Locale;
  * search box) - that's a separate quality-of-life feature bolted onto the same text box in his version,
  * not part of what killer560 actually asked for here, and skipping it keeps this feature's own scope
  * (and testing surface) to exactly the real search-and-highlight behavior described.
+ * <p>
+ * killer560 (2026-09-21): "make it so I can click into that bar as well and adjust the scale of it.
+ * Also make ctrl backspace work as normal ctrl backspace does. Also you need to adjust how it works in
+ * the custom storage to actually adjust to the new slots things are in for that gui." - see
+ * {@link #onScreenInit} for the click-to-focus and Ctrl+Backspace handling, and
+ * {@link #renderOverlayHighlight} for the Storage Overlay slot-remapping fix.
  */
 public final class InventorySearchFeature {
 
+    /** How long a Storage Overlay grid highlight (see {@link #renderOverlayHighlight}) stays armed once
+     *  fired - matches the pulse duration Storage Item Search already uses for the same real API. */
+    private static final long OVERLAY_HIGHLIGHT_DURATION_MS = 4000L;
+
     private static final StringBuilder QUERY = new StringBuilder();
     private static boolean listening = false;
+
+    /** Real screen bounds of the standalone floating search box from the most recent render (null
+     *  whenever it isn't drawn - i.e. the Item Browser panel is showing its own header box instead) -
+     *  used by the click-to-focus handler below. */
+    private static int[] lastBoxBounds = null;
+
+    /** Tracks the query/key this feature last pushed into the Storage Overlay grid's own single-slot
+     *  highlight, so it's only re-armed when the match actually changes instead of fighting his own
+     *  manual scrolling on the grid every single frame - see {@link #renderOverlayHighlight}. */
+    private static String lastOverlayQuery = null;
+    private static String lastOverlayKey = null;
 
     private InventorySearchFeature() {
     }
@@ -49,6 +73,13 @@ public final class InventorySearchFeature {
 
     public static boolean isListening() {
         return listening;
+    }
+
+    /** Starts (or stops) typing without needing the Ctrl+F chord - killer560 (2026-09-21): "make it so I
+     *  can click into that bar as well", so a plain left click on either search box focuses it exactly
+     *  like clicking into any real text field, same shared state Ctrl+F already toggles. */
+    public static void setListening(boolean value) {
+        listening = value;
     }
 
     /** Ctrl+F/typing is shared between this feature's own real-inventory highlight and
@@ -68,6 +99,9 @@ public final class InventorySearchFeature {
             return;
         }
         listening = false;
+        lastBoxBounds = null;
+        lastOverlayQuery = null;
+        lastOverlayKey = null;
 
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
             if (!anyConsumerEnabled()) {
@@ -85,7 +119,9 @@ public final class InventorySearchFeature {
                 return false;
             }
             if (event.key() == InputConstants.KEY_BACKSPACE) {
-                if (QUERY.length() > 0) {
+                if (event.hasControlDown()) {
+                    deletePreviousWord();
+                } else if (QUERY.length() > 0) {
                     QUERY.deleteCharAt(QUERY.length() - 1);
                 }
                 return false;
@@ -103,8 +139,38 @@ public final class InventorySearchFeature {
             return false;
         });
 
+        // killer560 (2026-09-21): "make it so I can click into that bar as well" - a plain left click
+        // inside whichever search box is actually on screen starts typing, same as clicking any real
+        // vanilla text field. Only ever claims the click when it's actually inside the box, so normal
+        // inventory clicks elsewhere are untouched.
+        ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+            if (!anyConsumerEnabled() || event.button() != 0 || lastBoxBounds == null) {
+                return true;
+            }
+            if (inside(lastBoxBounds, event.x(), event.y())) {
+                listening = true;
+                return false;
+            }
+            return true;
+        });
+
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
                 render(containerScreen, graphics));
+    }
+
+    /** Standard Ctrl+Backspace: deletes back through any trailing spaces, then through the word behind
+     *  them - killer560 (2026-09-21): "make ctrl backspace work as normal ctrl backspace does" (the
+     *  plain Backspace handler above only ever deleted one character). */
+    private static void deletePreviousWord() {
+        int end = QUERY.length();
+        int i = end;
+        while (i > 0 && QUERY.charAt(i - 1) == ' ') {
+            i--;
+        }
+        while (i > 0 && QUERY.charAt(i - 1) != ' ') {
+            i--;
+        }
+        QUERY.delete(i, end);
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
@@ -114,22 +180,34 @@ public final class InventorySearchFeature {
         // second, redundant search box on screen at the same time.
         boolean panelHasOwnBox = ItemBrowserConfig.getInstance().isEnabled();
         if (!highlightEnabled && !panelHasOwnBox) {
+            lastBoxBounds = null;
             return;
         }
 
         if (!panelHasOwnBox) {
-            int screenWidth = screen.width;
-            int screenHeight = screen.height;
+            InventorySearchConfig cfg = InventorySearchConfig.getInstance();
+            float scale = cfg.getBoxScale();
             int boxWidth = 140;
             int boxHeight = 16;
-            int boxX = (screenWidth - boxWidth) / 2;
-            int boxY = screenHeight - 30;
+            int screenX = (screen.width - Math.round(boxWidth * scale)) / 2;
+            int screenY = screen.height - Math.round(boxHeight * scale) - 30;
+            lastBoxBounds = new int[]{screenX, screenY, Math.round(boxWidth * scale), Math.round(boxHeight * scale)};
 
-            String boxQuery = QUERY.toString();
-            graphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xCC0D0D0D);
-            graphics.outline(boxX, boxY, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
-            String display = boxQuery.isEmpty() ? "§8Ctrl+F to search..." : boxQuery;
-            graphics.text(Minecraft.getInstance().font, display, boxX + 4, boxY + 4, 0xFFFFFFFF, false);
+            graphics.pose().pushMatrix();
+            try {
+                graphics.pose().translate(screenX, screenY);
+                graphics.pose().scale(scale, scale);
+
+                String boxQuery = QUERY.toString();
+                graphics.fill(0, 0, boxWidth, boxHeight, 0xCC0D0D0D);
+                graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
+                String display = boxQuery.isEmpty() ? "§8Ctrl+F or click to search..." : boxQuery;
+                graphics.text(Minecraft.getInstance().font, display, 4, 4, 0xFFFFFFFF, false);
+            } finally {
+                graphics.pose().popMatrix();
+            }
+        } else {
+            lastBoxBounds = null;
         }
 
         if (!highlightEnabled) {
@@ -138,7 +216,25 @@ public final class InventorySearchFeature {
         InventorySearchConfig cfg = InventorySearchConfig.getInstance();
         String query = QUERY.toString();
         if (query.isBlank()) {
+            lastOverlayQuery = null;
+            lastOverlayKey = null;
             return;
+        }
+
+        String title = screen.getTitle().getString();
+        // killer560 (2026-09-21): "you need to adjust how it works in the custom storage to actually
+        // adjust to the new slots things are in for that gui" - with the Storage Overlay on, every real
+        // slot of a tracked Ender Chest page/Backpack is hidden and redrawn in that overlay's own grid
+        // (see StorageOverlayFeature), so an outline drawn at the real vanilla slot position (below)
+        // lands on an invisible slot. Reusing StorageOverlayFeature.highlightItem - the exact same real
+        // hook Storage Item Search already uses for this - instead of drawing a second, separate mapping.
+        boolean overlayHiding = StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(title);
+        String overlayKey = overlayHiding ? StorageOverlayFeature.storageKeyForTitle(title) : null;
+        if (overlayHiding && overlayKey != null) {
+            renderOverlayHighlight(screen, overlayKey, query, cfg);
+        } else {
+            lastOverlayQuery = null;
+            lastOverlayKey = null;
         }
 
         ContainerScreenPositionAccessor accessor = (ContainerScreenPositionAccessor) screen;
@@ -146,6 +242,11 @@ public final class InventorySearchFeature {
         int topPos = accessor.killer560smod$getTopPos();
 
         for (Slot slot : screen.getMenu().slots) {
+            if (overlayHiding) {
+                // Every real slot on a tracked overlay screen is invisible at its own vanilla position -
+                // see renderOverlayHighlight above for where the highlight actually gets drawn instead.
+                continue;
+            }
             ItemStack stack = slot.getItem();
             if (stack.isEmpty() || !matches(stack, query, cfg)) {
                 continue;
@@ -153,6 +254,41 @@ public final class InventorySearchFeature {
             int x = leftPos + slot.x;
             int y = topPos + slot.y;
             graphics.outline(x - 1, y - 1, 18, 18, cfg.getHighlightColor());
+        }
+    }
+
+    /** Points the Storage Overlay grid at the first real match inside the currently open tracked page's
+     *  own contents (real container slots 9..N, matching {@code StorageOverlayFeature.captureIfChanged}'s
+     *  own real capture range 1:1) whenever the query actually changes - not every frame, since
+     *  {@code highlightItem} also re-arms a one-shot scroll-to-it each time, which would otherwise fight
+     *  his own manual scrolling on the grid while he keeps typing.
+     * <p>
+     * Known real limit: {@code StorageOverlayFeature.highlightItem} only tracks one slot at a time (the
+     * same single-highlight API Storage Item Search itself uses), so with several matches in the same
+     * page only the first is pointed at - see the staging notes for why a second, independent
+     * multi-highlight mapping wasn't built to work around that. Matches inside the relocated Inventory
+     * panel at the bottom of the overlay aren't covered either - that panel has no equivalent public
+     * highlight hook to reuse (its own bounds are private to StorageOverlayFeature). */
+    private static void renderOverlayHighlight(AbstractContainerScreen<?> screen, String overlayKey, String query,
+                                                InventorySearchConfig cfg) {
+        if (query.equals(lastOverlayQuery) && overlayKey.equals(lastOverlayKey)) {
+            return;
+        }
+        lastOverlayQuery = query;
+        lastOverlayKey = overlayKey;
+
+        var slots = screen.getMenu().slots;
+        int containerSlotCount = Math.max(0, slots.size() - 36);
+        for (Slot slot : slots) {
+            if (slot.index < 9 || slot.index >= containerSlotCount) {
+                continue;
+            }
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty() || !matches(stack, query, cfg)) {
+                continue;
+            }
+            StorageOverlayFeature.highlightItem(overlayKey, slot.index - 9, OVERLAY_HIGHLIGHT_DURATION_MS);
+            return;
         }
     }
 
@@ -178,5 +314,9 @@ public final class InventorySearchFeature {
             }
         }
         return false;
+    }
+
+    private static boolean inside(int[] rect, double x, double y) {
+        return x >= rect[0] && x < rect[0] + rect[2] && y >= rect[1] && y < rect[1] + rect[3];
     }
 }

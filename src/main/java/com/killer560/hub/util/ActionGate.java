@@ -123,6 +123,8 @@ public final class ActionGate {
         I4(Kind.WORLD),
         /** Mask Invincibility's death-item swap: the /stats command, the click in its menu, and the rod cast.
          *  Three actors because they are three different kinds of action and the gate's rules differ per kind. */
+        /** Goldor trigger bot's click. */
+        GOLDOR_TRIGGER(Kind.WORLD),
         MASK_SWAP_CMD(Kind.COMMAND),
         MASK_SWAP_MENU(Kind.SCREEN),
         MASK_SWAP_ROD(Kind.WORLD),

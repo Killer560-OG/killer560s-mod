@@ -94,6 +94,18 @@ public final class DungeonQueueFeature {
         }
     }
 
+    /** Called by Party Commands' "!dt" ({@code partycommands.PartyCommandsFeature}) - Odin's own "!dt" also
+     *  disables the pending auto-requeue for that run (2026-09-21 gap review vs Odin 0.3.1), since asking for
+     *  downtime and then getting auto-requeued into the next run a few seconds later defeats the point of
+     *  asking. Safe to call at any time, including while this feature is off or nothing is pending. */
+    public static void skipRequeueForThisRun() {
+        disableRequeue = true;
+        if (pendingTicks >= 0) {
+            pendingTicks = -1;
+            ModChat.send(FEATURE, ModChat.text("Skipped - downtime was requested."));
+        }
+    }
+
     private static void tick(Minecraft client) {
         if (client.player == null || client.level == null) {
             pendingTicks = -1;

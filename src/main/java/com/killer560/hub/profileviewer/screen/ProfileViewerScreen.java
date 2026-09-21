@@ -9,17 +9,21 @@ import com.killer560.hub.util.ModChat;
 import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.PlayerSkinWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ResolvableProfile;
+import org.lwjgl.glfw.GLFW;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -29,8 +33,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The /pv screen. Layout follows NEU's old GuiProfileViewer (fixed panel, page tabs along the top, profile
@@ -73,6 +79,18 @@ public class ProfileViewerScreen extends Screen {
 
     private enum State { LOADING, ERROR, EMPTY, READY }
 
+    // ------------------------------------------------------------------ recent-views sidebar
+    // killer560: a right-hand section showing the last people you've pv'd (head + name, your own head
+    // pinned on top) that you can click back into, plus a box to type someone else's name.
+
+    private static final int SIDEBAR_W = 78;
+    private static final int SIDEBAR_GAP = 6;
+    private static final int SIDEBAR_ROW_H = 16;
+    /** Shared across every open screen this session - a head/name only needs fetching once. */
+    private static final Map<UUID, ItemStack> HEAD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<UUID, String> LIVE_NAME_CACHE = new ConcurrentHashMap<>();
+    private static final Set<UUID> HEAD_FETCHING = ConcurrentHashMap.newKeySet();
+
     private final Screen parent;
     private ProfileViewerFeature.Target target;
 
@@ -103,6 +121,13 @@ public class ProfileViewerScreen extends Screen {
     private final WeightPage weightPage = new WeightPage(this);
     private final List<int[]> tabRects = new ArrayList<>();
 
+    private boolean sidebarVisible;
+    int sidebarX, sidebarY, sidebarW, sidebarH;
+    private EditBox switchBox;
+    /** Kept outside the widget so a background rebuild (e.g. the skin fetch finishing) can't wipe out
+     *  what's mid-typing when {@link #init()} recreates the widget. */
+    private String switchBoxText = "";
+
     record Hotspot(int x, int y, int w, int h, Runnable action) {
         boolean contains(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
@@ -123,6 +148,43 @@ public class ProfileViewerScreen extends Screen {
         this.page = cfg.isRememberLastPage() ? Math.max(0, Math.min(PAGES.length - 1, cfg.getLastPage())) : 0;
         LevelTables.ensureLoaded();
         load(false);
+    }
+
+    /** Switches this same screen to a different player - used by the recent-views heads and the name box
+     *  so picking someone doesn't stack a new screen on top of this one. */
+    private void open(ProfileViewerFeature.Target newTarget) {
+        if (newTarget == null) {
+            return;
+        }
+        target = newTarget;
+        displayName = newTarget.name();
+        uuid = newTarget.uuid();
+        skinProfile = null;
+        result = null;
+        profileIndex = 0;
+        invView = 0;
+        invPage = 0;
+        petScroll = 0;
+        pinnedPet = null;
+        subView = 0;
+        subPage = 0;
+        pageScroll = 0;
+        load(false);
+    }
+
+    /** The typed-name box: reuses {@code /pv}'s own name/uuid resolution (including the tab-list shortcut),
+     *  so an invalid name surfaces through the same error screen the command would show. */
+    private void submitSwitch() {
+        if (switchBox == null) {
+            return;
+        }
+        String name = switchBoxText.trim();
+        if (name.isEmpty()) {
+            return;
+        }
+        switchBoxText = "";
+        switchBox.setValue("");
+        open(ProfileViewerFeature.targetForName(name));
     }
 
     // ------------------------------------------------------------------ loading
@@ -172,6 +234,9 @@ public class ProfileViewerScreen extends Screen {
                 rebuildSafe();
                 return;
             }
+            // Resolution + fetch both succeeded, so this uuid is a real account - safe to remember. Keyed
+            // by uuid (never the typed/displayed name) so a later rename can't fork the history.
+            ProfileViewerConfig.getInstance().recordRecentView(uuid, displayName);
             result = res;
             if (res.profiles().isEmpty()) {
                 state = State.EMPTY;
@@ -235,6 +300,24 @@ public class ProfileViewerScreen extends Screen {
                 skin.setPosition(contentX + (118 - (skinH / 2 + 10)) / 2, contentY + 4);
                 addRenderableWidget(skin);
             }
+        }
+
+        // Recent-views sidebar: only when it fits in the panel's own centering margin, so it never
+        // squeezes the main content or overlaps the edge of the window on a small screen.
+        int margin = (this.width - panelW) / 2;
+        sidebarVisible = margin >= SIDEBAR_GAP + SIDEBAR_W;
+        switchBox = null;
+        if (sidebarVisible) {
+            sidebarX = panelX + panelW + SIDEBAR_GAP;
+            sidebarY = panelY;
+            sidebarW = SIDEBAR_W;
+            sidebarH = panelH;
+            switchBox = new EditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"));
+            switchBox.setMaxLength(16);
+            switchBox.setHint(Component.literal("Name..."));
+            switchBox.setValue(switchBoxText);
+            switchBox.setResponder(text -> switchBoxText = text);
+            addRenderableWidget(switchBox);
         }
     }
 
@@ -306,6 +389,15 @@ public class ProfileViewerScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (switchBox != null && switchBox.isFocused()) {
+            // Enter submits the typed name; otherwise let the box handle its own text/cursor keys
+            // (in particular Left/Right, which would otherwise page instead of moving the cursor).
+            if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                submitSwitch();
+                return true;
+            }
+            return super.keyPressed(event);
+        }
         if (state == State.READY) {
             if (event.key() == InputConstants.KEY_LEFT) {
                 if (page > PAGE_PETS) {
@@ -359,6 +451,9 @@ public class ProfileViewerScreen extends Screen {
         g.outline(panelX, panelY, panelW, panelH, BORDER);
 
         drawHeader(g, mouseX, mouseY);
+        if (sidebarVisible) {
+            drawSidebar(g, mouseX, mouseY);
+        }
 
         switch (state) {
             case LOADING -> centered(g, status + dots(), contentY + contentH / 2 - 4, VALUE);
@@ -479,6 +574,77 @@ public class ProfileViewerScreen extends Screen {
         });
     }
 
+    // ------------------------------------------------------------------ recent-views sidebar
+
+    private void drawSidebar(GuiGraphicsExtractor g, int mx, int my) {
+        box(g, sidebarX, sidebarY, sidebarW, sidebarH);
+        int x = sidebarX + 4;
+        int y = sidebarY + 4;
+        text(g, "Switch", x, y, DIM);
+        // The EditBox widget itself renders/handles input; just leave its row clear and add the button.
+        y += 30;
+        int btnY = y;
+        button(g, x, btnY, sidebarW - 8, 14, "Go", mx, my, false, this::submitSwitch);
+        y += 19;
+
+        g.fill(sidebarX + 2, y, sidebarX + sidebarW - 2, y + 1, BORDER);
+        y += 4;
+        text(g, "Recent", x, y, DIM);
+        y += SIDEBAR_ROW_H;
+
+        ProfileViewerFeature.Target self = ProfileViewerFeature.self();
+        y = sidebarRow(g, x, y, self.uuid(), self.name(), mx, my, () -> open(self));
+
+        int bottom = sidebarY + sidebarH - 4;
+        for (ProfileViewerConfig.RecentView v : ProfileViewerConfig.getInstance().getRecentViews()) {
+            if (v.uuid().equals(self.uuid()) || y + SIDEBAR_ROW_H > bottom) {
+                continue;
+            }
+            y = sidebarRow(g, x, y, v.uuid(), v.name(), mx, my, () -> open(new ProfileViewerFeature.Target(
+                    LIVE_NAME_CACHE.getOrDefault(v.uuid(), v.name()), v.uuid())));
+        }
+    }
+
+    /** One head + name row; returns the y for the next row. */
+    private int sidebarRow(GuiGraphicsExtractor g, int x, int y, UUID uuid, String storedName, int mx, int my, Runnable onClick) {
+        boolean hover = inside(mx, my, x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H) && !dropdownOpen;
+        if (hover) {
+            g.fill(x - 2, y - 1, x + sidebarW - 8, y - 1 + SIDEBAR_ROW_H, 0xFF2A1A0A);
+        }
+        g.item(headFor(uuid), x, y - 1);
+        String name = LIVE_NAME_CACHE.getOrDefault(uuid, storedName);
+        g.text(this.font, this.font.plainSubstrByWidth(name, sidebarW - 22), x + 18, y + 3, hover ? VALUE : TEXT, false);
+        hotspots.add(new Hotspot(x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H, onClick));
+        return y + SIDEBAR_ROW_H;
+    }
+
+    private void text(GuiGraphicsExtractor g, String str, int x, int y, int color) {
+        g.text(this.font, str, x, y, color, false);
+    }
+
+    /** A player-head icon for the sidebar, fetched (and cached process-wide) from the session service the
+     *  same way the Basic Info skin preview is - a plain head until the async lookup lands. */
+    private static ItemStack headFor(UUID uuid) {
+        ItemStack cached = HEAD_CACHE.get(uuid);
+        if (cached != null) {
+            return cached;
+        }
+        if (HEAD_FETCHING.add(uuid)) {
+            ProfileViewerApi.fetchSkinProfile(uuid).thenAccept(gp -> minecraftExecute(() -> {
+                if (gp == null) {
+                    return;
+                }
+                ItemStack head = new ItemStack(Items.PLAYER_HEAD);
+                head.set(DataComponents.PROFILE, ResolvableProfile.createResolved(gp));
+                HEAD_CACHE.put(uuid, head);
+                if (gp.name() != null && !gp.name().isEmpty()) {
+                    LIVE_NAME_CACHE.put(uuid, gp.name());
+                }
+            }));
+        }
+        return new ItemStack(Items.PLAYER_HEAD);
+    }
+
     private void drawDropdown(GuiGraphicsExtractor g, int mx, int my) {
         if (result == null) {
             return;
@@ -595,7 +761,18 @@ public class ProfileViewerScreen extends Screen {
                 int cy = sy + 12 + (i / 2) * rowH;
                 LevelTables.Skill def = LevelTables.skill(id);
                 String name = def != null ? def.name() : SbProfile.titleCase(id);
-                bar(g, cx, cy, colW, skillIcon(id), name, lvl, mx, my, xp);
+                // killer560: "if I have overflow skills show the real skill level to the left... to the
+                // right in parentheses show what level I would be with all the overflow xp I have" - a
+                // capped skill (Farming/Taming/Foraging) keeps banking XP past the cap; the uncapped level
+                // (cap=-1, the table's own max) shows what that XP is worth once the cap is raised.
+                String overflow = null;
+                if (lvl.maxed()) {
+                    LevelTables.Level uncapped = LevelTables.skillLevel(id, xp, -1);
+                    if (uncapped.level() > lvl.level()) {
+                        overflow = " (" + uncapped.level() + ")";
+                    }
+                }
+                bar(g, cx, cy, colW, skillIcon(id), name, lvl, mx, my, xp, overflow);
                 i++;
             }
             String avg = count == 0 ? "" : String.format(Locale.ROOT, "Skill Avg %.2f", sum / count);
@@ -639,10 +816,16 @@ public class ProfileViewerScreen extends Screen {
     /** Icon + "Name Level" + progress bar, NEU style. Hover shows XP numbers. */
     void bar(GuiGraphicsExtractor g, int x, int y, int w, ItemStack icon, String name, LevelTables.Level lvl,
                      int mx, int my, long totalXp) {
+        bar(g, x, y, w, icon, name, lvl, mx, my, totalXp, null);
+    }
+
+    /** @param levelSuffix appended after the level number (e.g. an overflow level in parentheses), or null. */
+    void bar(GuiGraphicsExtractor g, int x, int y, int w, ItemStack icon, String name, LevelTables.Level lvl,
+                     int mx, int my, long totalXp, String levelSuffix) {
         g.item(icon, x, y);
         int tx = x + 18;
         int bw = w - 18;
-        String levelText = String.valueOf(lvl.level());
+        String levelText = levelSuffix == null ? String.valueOf(lvl.level()) : lvl.level() + levelSuffix;
         g.text(this.font, this.font.plainSubstrByWidth(name, bw - this.font.width(levelText) - 4), tx, y, TEXT, false);
         g.text(this.font, levelText, tx + bw - this.font.width(levelText), y, lvl.maxed() ? MAXED : VALUE, false);
         int barY = y + 11;

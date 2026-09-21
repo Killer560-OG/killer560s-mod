@@ -30,7 +30,8 @@ import java.util.function.IntSupplier;
  * <li><b>Wither Highlight</b> (orange) - the non-ESP F7/M7 wither highlight: Glow Hitbox or Hitbox Fill, never
  *     through walls, never range-limited. Exists on both builds.</li>
  * <li><b>ESP</b> (red, cheat jar only) - Through Walls for the starred mobs and bats above.</li>
- * <li><b>Wither ESP</b> (red, cheat jar only) - the F7/M7 wither bosses through walls at any range.</li>
+ * <li><b>Wither ESP</b> (red, cheat jar only) - the F7/M7 wither bosses through walls at any range, plus an
+ *     optional Tracer line from your eyes to each of them.</li>
  * </ul>
  * The legit jar never constructs a single widget of the red sections (killer560: "If you are on the legit version it
  * shouldnt mention cheat things at all"), which is also why the tab itself is named "Starred Mob Hitboxes" there and
@@ -157,6 +158,31 @@ public class MobEspTab extends BaseTab {
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Wither Bosses", cfg::getWithersRaw, cfg::setWithers,
                 "Wither", cfg::getWitherColor, cfg::setWitherColor, MobEspConfig.DEFAULT_WITHER_COLOR);
+        y += 22;
+
+        // killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him" (Goldor).
+        widgets.add(SettingsButtonWidget.builder(onOff("Tracer", cfg.getWitherTracerRaw()), btn -> {
+                    cfg.setWitherTracer(!cfg.getWitherTracerRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, colW, 18).build());
+        if (cfg.getWitherTracerRaw()) {
+            float minT = MobEspConfig.MIN_LINE_WIDTH;
+            float maxT = MobEspConfig.MAX_LINE_WIDTH;
+            widgets.add(new ThemedSliderButton(col2X, y, colW, 18, tracerThicknessText(cfg),
+                    (cfg.getWitherTracerThickness() - minT) / (maxT - minT)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(tracerThicknessText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setWitherTracerThickness((float) (minT + this.value * (maxT - minT)));
+                    cfg.save();
+                }
+            });
+        }
         return widgets;
     }
 
@@ -188,6 +214,10 @@ public class MobEspTab extends BaseTab {
 
     private static Component lineWidthText(MobEspConfig cfg) {
         return Component.literal(String.format(Locale.US, "Line Width: %.1f", cfg.getLineWidth()));
+    }
+
+    private static Component tracerThicknessText(MobEspConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Tracer Thickness: %.1f", cfg.getWitherTracerThickness()));
     }
 
     private static Component rangeText(MobEspConfig cfg) {

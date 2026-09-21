@@ -48,7 +48,8 @@ import java.util.Set;
  * Glow Hitbox or Hitbox Fill ({@link MobEspConfig.WitherStyle}).
  * <li><b>Wither ESP</b> (F7/M7 boss, P1-P4): {@link WitherEspFeature#isRealWither} (not Hypixel's invisible /
  * 800-invulnerable-tick display withers). Cheat build only, like the Cheat Utils Wither ESP it replaces; always
- * through walls and never range-limited. Takes precedence over Wither Highlight when both are on.
+ * through walls and never range-limited. Takes precedence over Wither Highlight when both are on. Its optional
+ * Tracer draws a line from your eyes to each highlighted wither's hitbox centre, in the ESP's own colour.
  * </ul>
  * Styles: Outline Box / Filled Box ({@link EspRenderer}) or Glow - vanilla's entity outline, forced through
  * {@code Minecraft#shouldEntityAppearGlowing} and coloured through {@code Entity#getTeamColor} by the
@@ -77,6 +78,10 @@ public final class MobEspFeature {
     private static volatile Map<Integer, Box> boxTargets = Map.of();
     /** Entity id -> ARGB for the targets whose style is Glow; read by the glow mixins. */
     private static volatile Map<Integer, Integer> glowTargets = Map.of();
+    /** Entity id -> ARGB for Wither ESP targets that also get a tracer line. Kept separate from
+     *  {@link #boxTargets} because a tracer has to be drawn for the Glow style too, and because nothing in the box
+     *  map records which of its entries is a wither. */
+    private static volatile Map<Integer, Integer> tracerTargets = Map.of();
     /** Starred name-tag armor stand id -> resolved real mob id (resolved once, like Noamm's own cache). */
     private static final Map<Integer, Integer> standToMob = new HashMap<>();
     private static Object lastLevel = null;
@@ -139,7 +144,7 @@ public final class MobEspFeature {
         boolean anyRaw = (cfg.getStarredMobsRaw() || cfg.getBatsRaw() || cfg.getWithersRaw()
                 || cfg.getWitherHighlightRaw()) && com.killer560.hub.util.SkyblockGate.allows();
         if (!hasWorld || !anyRaw) {
-            if (!boxTargets.isEmpty() || !glowTargets.isEmpty()) {
+            if (!boxTargets.isEmpty() || !glowTargets.isEmpty() || !tracerTargets.isEmpty()) {
                 standToMob.clear();
                 losCache.clear();
                 clearTargets();
@@ -179,8 +184,11 @@ public final class MobEspFeature {
                 ? currentRoomBox(client, cfg.getRoomMargin()) : null;
         double rangeSq = roomBox != null ? Double.MAX_VALUE : cfg.getRange() * cfg.getRange();
 
+        boolean witherTracer = wantWitherEsp && cfg.isWitherTracerEnabled();
+
         Map<Integer, Box> foundBoxes = new LinkedHashMap<>();
         Map<Integer, Integer> foundGlows = new LinkedHashMap<>();
+        Map<Integer, Integer> foundTracers = new LinkedHashMap<>();
         Set<Integer> liveStands = new HashSet<>();
         int stars = 0;
         int bats = 0;
@@ -204,6 +212,9 @@ public final class MobEspFeature {
                 if (accept(client, eye, entity, Double.MAX_VALUE, null, wallsOk, asGlow, asFilled, wallsOk,
                         foundBoxes, foundGlows, color)) {
                     withers++;
+                    if (witherTracer) {
+                        foundTracers.put(entity.getId(), color);
+                    }
                 }
             } else if (wantBats && entity instanceof Bat bat) {
                 if (isSecretBat(bat) && accept(client, eye, bat, rangeSq, roomBox, throughWalls, glow, filled,
@@ -242,6 +253,7 @@ public final class MobEspFeature {
 
         boxTargets = Map.copyOf(foundBoxes);
         glowTargets = Map.copyOf(foundGlows);
+        tracerTargets = Map.copyOf(foundTracers);
 
         long nowMs = System.currentTimeMillis();
         if (nowMs - lastCountsLogMs >= 2000) {
@@ -264,17 +276,18 @@ public final class MobEspFeature {
                 | (cfg.getBatsRaw() ? 1 << 5 : 0) | (cfg.getWithersRaw() ? 1 << 6 : 0)
                 | (cfg.getWitherHighlightRaw() ? 1 << 7 : 0) | (cfg.isThroughWalls() ? 1 << 8 : 0)
                 | (inDungeon ? 1 << 9 : 0) | (inBoss ? 1 << 10 : 0) | (cfg.isRoomScoped() ? 1 << 11 : 0)
-                | (cfg.getStyle().ordinal() << 12) | (cfg.getWitherHighlightStyle().ordinal() << 14);
+                | (cfg.getStyle().ordinal() << 12) | (cfg.getWitherHighlightStyle().ordinal() << 14)
+                | (cfg.getWitherTracerRaw() ? 1 << 15 : 0);
         if (bits == lastLoggedGateBits) {
             return;
         }
         lastLoggedGateBits = bits;
         LOGGER.info("[DungeonEsp] Gates changed: stars={} bats={} witherEsp={} witherHighlight={} (cfg stars={}"
-                        + " bats={} withers={} witherHighlight={}) style={} witherStyle={} throughWalls={}"
-                        + " roomScoped={} inDungeon={} inBoss={}",
+                        + " bats={} withers={} witherHighlight={}) style={} witherStyle={} witherTracer={}"
+                        + " throughWalls={} roomScoped={} inDungeon={} inBoss={}",
                 wantStars, wantBats, wantWitherEsp, wantWitherHighlight, cfg.getStarredMobsRaw(), cfg.getBatsRaw(),
                 cfg.getWithersRaw(), cfg.getWitherHighlightRaw(), cfg.getStyle(), cfg.getWitherHighlightStyle(),
-                cfg.isThroughWalls(), cfg.isRoomScoped(), inDungeon, inBoss);
+                cfg.getWitherTracerRaw(), cfg.isThroughWalls(), cfg.isRoomScoped(), inDungeon, inBoss);
     }
 
     /**
@@ -364,12 +377,29 @@ public final class MobEspFeature {
 
     private static void render(LevelRenderContext context) {
         Map<Integer, Box> current = boxTargets;
+        Map<Integer, Integer> tracers = tracerTargets;
         Minecraft client = Minecraft.getInstance();
-        if (current.isEmpty() || client.level == null) {
+        if ((current.isEmpty() && tracers.isEmpty()) || client.level == null || client.player == null) {
             return;
         }
-        float lineWidth = MobEspConfig.getInstance().getLineWidth();
+        MobEspConfig renderCfg = MobEspConfig.getInstance();
+        float lineWidth = renderCfg.getLineWidth();
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        if (!tracers.isEmpty()) {
+            Vec3 eyes = client.player.getEyePosition(partialTick);
+            float thickness = renderCfg.getWitherTracerThickness();
+            for (Map.Entry<Integer, Integer> target : tracers.entrySet()) {
+                Entity entity = client.level.getEntity(target.getKey());
+                if (entity == null || entity.isRemoved()) {
+                    continue;
+                }
+                // Aim at the hitbox centre rather than the feet: a wither's box is 3.5 blocks tall and a line to
+                // its origin reads as pointing at the floor underneath it.
+                Vec3 lerped = entity.getPosition(partialTick);
+                Vec3 centre = entity.getBoundingBox().move(lerped.subtract(entity.position())).getCenter();
+                EspRenderer.tracer(context, eyes, centre, target.getValue(), thickness, true);
+            }
+        }
         for (Map.Entry<Integer, Box> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
             if (entity == null || entity.isRemoved()) {
@@ -462,5 +492,6 @@ public final class MobEspFeature {
     private static void clearTargets() {
         boxTargets = Map.of();
         glowTargets = Map.of();
+        tracerTargets = Map.of();
     }
 }

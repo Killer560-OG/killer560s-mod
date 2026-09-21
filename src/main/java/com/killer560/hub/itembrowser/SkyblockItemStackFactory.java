@@ -126,4 +126,43 @@ public final class SkyblockItemStackFactory {
         Item item = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(path));
         return item != Items.AIR ? item : Items.PAPER;
     }
+
+    /** Real, standard Hypixel Skyblock rarity color for a real {@code tier} value (shared by
+     *  {@link ItemBrowserFeature}'s hover tooltip and {@link ItemCraftView}'s popup so both agree). */
+    public static String tierColorCode(String tier) {
+        if (tier == null) {
+            return "§f";
+        }
+        return switch (tier.toUpperCase(Locale.ROOT)) {
+            case "COMMON" -> "§f";
+            case "UNCOMMON" -> "§a";
+            case "RARE" -> "§9";
+            case "EPIC" -> "§5";
+            case "LEGENDARY" -> "§6";
+            case "MYTHIC" -> "§d";
+            case "DIVINE" -> "§b";
+            case "SPECIAL", "VERY_SPECIAL" -> "§c";
+            case "ADMIN" -> "§4";
+            default -> "§f";
+        };
+    }
+
+    /** {@code REFORGE_STONE} -> {@code Reforge Stone}. */
+    public static String niceCategory(String category) {
+        if (category == null || category.isBlank()) {
+            return "";
+        }
+        String[] words = category.toLowerCase(Locale.ROOT).split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) {
+            if (w.isEmpty()) {
+                continue;
+            }
+            if (!sb.isEmpty()) {
+                sb.append(' ');
+            }
+            sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
+        }
+        return sb.toString();
+    }
 }

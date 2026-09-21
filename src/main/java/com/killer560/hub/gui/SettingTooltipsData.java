@@ -1196,23 +1196,23 @@ final class SettingTooltipsData {
         d.put("leap message", "Chat messages sent when you leap to someone: the normal one, the cringe one, and the \"Leaping to\" line.");
 
         // Party Commands
-        d.put("party commands/party commands", "Lets your party/dungeon teammates run party commands by typing them in party chat. Nobody outside your party can trigger anything. Every command is off until you turn it on.");
+        d.put("party commands/party commands", "Turns the whole Party Commands tab on - both the real party-management commands (below) and the informational \"!\" replies (Info Commands section). One switch for both; every individual command still starts off and needs its own toggle turned on too. Party-management commands only ever run for a real party/dungeon teammate; a few (Invite, Boop, Racism) can also answer in guild chat or a DM, see their own tooltips.");
         d.put("party commands/allow destructive commands", "Extra switch needed before Warp, Warp + Transfer, Kick, Reinvite, Demote and Queue Floor can run, even when those are individually on.");
         d.put("party commands/confirm invites", "!invite only prints a click-to-invite line instead of inviting by itself. Off means the invite is sent immediately.");
         d.put("party commands/warp", "!warp from a teammate warps the party (you must be leader).");
         d.put("party commands/warp + transfer", "!wt warps the party, then transfers it to whoever asked.");
         d.put("party commands/all invite", "!allinvite toggles the party's all-invite setting.");
         d.put("party commands/transfer to sender", "!ptme / !pt transfers the party to whoever asked (or to a named member).");
-        d.put("party commands/invite", "!invite <name> invites that player. See Confirm Invites.");
+        d.put("party commands/invite", "Party chat: !invite <name> invites that player (see Confirm Invites). A DM'd !inv/!invite invites whoever sent it instead - that's Odin's own behaviour, so there's no teammate check for the DM case.");
         d.put("party commands/kick", "!kick <name> removes that player from the party.");
         d.put("party commands/reinvite", "!reinv (or !reinvite) kicks the teammate who typed it and invites them back 5 seconds later - the usual fix for a stuck party or instance. The invite is dropped if you leave the party or the run before it fires.");
         d.put("party commands/demote", "!demote applies to the teammate who typed it.");
         d.put("party commands/promote", "!promote applies to the teammate who typed it.");
-        d.put("party commands/boop", "!boop <name> sends /boop to that player.");
-        d.put("party commands/downtime", "!dt [reason] sets a downtime reminder announced at the end of the run.");
+        d.put("party commands/boop", "!boop <name> sends /boop to that player. Works from party chat, guild chat or a DM now (Odin's own \"all channels\" behaviour).");
+        d.put("party commands/downtime", "!dt [reason] sets a downtime reminder announced at the end of the run, and skips the pending Auto Requeue for this run so you aren't queued into the next one anyway.");
         d.put("party commands/un-downtime", "!undt clears the downtime reminder.");
         d.put("party commands/queue floor (!f7/!m7/!t5)", "!f1-!f7, !m1-!m7 and !t1-!t5 queue the party into that dungeon floor or Kuudra tier.");
-        d.put("party commands/racism (joke)", "Odin's joke command: replies with a random percentage. Sends a message from your account.");
+        d.put("party commands/racism (joke)", "Odin's joke command: replies with a random percentage, in whichever channel (party/guild/DM) it was asked from. Sends a message from your account.");
 
         // Item Protection
         d.put("item protection", "Master toggle for the four guards that stop you losing your own gear: Slot Lock, Protect Item, Auto-Protect Starred and Prevent Hotbar Drops. Only ever blocks your own clicks.");
@@ -1769,5 +1769,27 @@ final class SettingTooltipsData {
         d.put("storage overlay/storage overlay enabled", "Draws every known Ender Chest page and backpack in a grid beside the real menu, and moves your inventory to the bottom. Opening a page logs it.");
         d.put("storage overlay/overlay theme", "Dark or light panels for the grid and the relocated inventory.");
         d.put("storage overlay/columns", "How many storage panels sit side by side. Fewer columns means a taller, scrollable grid.");
+        d.put("goldor triggerbot", "Cheat build only. In F7/M7 P3, clicks Goldor while your crosshair is actually on him, at a rate rolled inside the CPS range. Never moves your camera and never clicks anything else.");
+        d.put("goldor triggerbot/cps", "Clicks per second. Every gap is rolled fresh between the two ends, so the spacing is never a fixed interval. The millisecond band it works out to is shown beside it. Above about 20 CPS the one-action-per-tick limit would refuse the extra clicks, so that is the cap.");
+        d.put("goldor triggerbot/click type", "Attack is a left click, for melee. Use is a right click, for a Terminator or Juju shot. Click to cycle.");
+        d.put("goldor triggerbot/aim delay", "How long your crosshair has to have been on Goldor before the first click of that aim, 0-500 ms in 25 ms steps (default 0). Each click raises it; after the max it wraps back to 0.");
+        d.put("goldor triggerbot/range", "How far away Goldor's hitbox can be and still count as aimed at, 3-50 blocks (default 25). Attacks past the server's own melee reach do nothing, so only raise this for Use.");
+        d.put("dungeon esp/tracer", "Cheat build only. Draws a line from your eyes to each wither the Wither ESP is highlighting, in that section's colour, through walls.");
+        d.put("dungeon esp/tracer thickness", "How thick the Wither ESP tracer line is drawn, 1.0-10.0.");
+        d.put("party commands/party", "Lets Info Commands (coords, ping, tps, etc) reply when asked in party chat.");
+        d.put("party commands/guild", "Lets Info Commands reply when asked in guild chat.");
+        d.put("party commands/private", "Lets Info Commands reply when asked in a DM.");
+        d.put("party commands/co-op", "Lets Info Commands reply when asked in co-op chat.");
+        d.put("party commands/coords", "!coords / !co replies with your current x, y, z.");
+        d.put("party commands/ping", "!ping replies with your current ping to Hypixel.");
+        d.put("party commands/fps", "!fps replies with your current FPS.");
+        d.put("party commands/time", "!time replies with the current real-world date and time.");
+        d.put("party commands/holding", "!holding replies with the name of the item in your main hand.");
+        d.put("party commands/coinflip", "!cf / !coinflip replies heads or tails.");
+        d.put("party commands/8ball", "!8ball replies with a random Magic 8-Ball answer.");
+        d.put("party commands/dice", "!dice replies with a random number 1-6.");
+        d.put("party commands/tps", "!tps replies with the server's tick rate, or \"Unknown\" when this client can't tell (the server isn't pinging fast enough to measure it).");
+        d.put("party commands/location", "!location replies with your current Skyblock area, read from the tab list.");
+        d.put("party commands/discord", "!odin / !od (Odin's own triggers, kept for parity) and !killer560 / !k560 (this mod's own) reply with this mod's Discord invite link.");
     }
 }

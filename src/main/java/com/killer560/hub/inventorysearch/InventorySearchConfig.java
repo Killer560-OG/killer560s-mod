@@ -19,12 +19,19 @@ public final class InventorySearchConfig {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-inventorysearch.json");
 
+    public static final float MIN_BOX_SCALE = 0.5f;
+    public static final float MAX_BOX_SCALE = 3.0f;
+
     private static InventorySearchConfig instance;
 
     private boolean enabled = false;
     private boolean searchLore = true;
     private boolean ignoreCase = true;
     private int highlightColor = 0xFFFF5555;
+    /** Scale of the standalone floating search bar (not drawn at all when the Item Browser panel's own
+     *  header already has a search box - see {@link InventorySearchFeature#render}) - killer560
+     *  (2026-09-21): "make it so I can... adjust the scale of it". */
+    private float boxScale = 1.0f;
 
     private InventorySearchConfig() {
     }
@@ -49,6 +56,7 @@ public final class InventorySearchConfig {
             cfg.searchLore = ConfigJson.getBool(obj, "searchLore", true);
             cfg.ignoreCase = ConfigJson.getBool(obj, "ignoreCase", true);
             cfg.highlightColor = ConfigJson.getInt(obj, "highlightColor", 0xFFFF5555);
+            cfg.setBoxScale(ConfigJson.getFloat(obj, "boxScale", 1.0f));
             instance = cfg;
         } catch (Exception e) {
             instance = new InventorySearchConfig();
@@ -63,6 +71,7 @@ public final class InventorySearchConfig {
             obj.addProperty("searchLore", searchLore);
             obj.addProperty("ignoreCase", ignoreCase);
             obj.addProperty("highlightColor", highlightColor);
+            obj.addProperty("boxScale", boxScale);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -98,5 +107,13 @@ public final class InventorySearchConfig {
 
     public void setHighlightColor(int highlightColor) {
         this.highlightColor = highlightColor;
+    }
+
+    public float getBoxScale() {
+        return boxScale;
+    }
+
+    public void setBoxScale(float boxScale) {
+        this.boxScale = Math.max(MIN_BOX_SCALE, Math.min(MAX_BOX_SCALE, boxScale));
     }
 }

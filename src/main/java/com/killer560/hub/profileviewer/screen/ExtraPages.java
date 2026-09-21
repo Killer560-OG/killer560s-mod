@@ -378,7 +378,8 @@ final class ExtraPages {
         }
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
-        int view = nav(g, new String[]{"Mountain", "Glacite", "Foraging"}, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
+        // killer560: rename "Mountain" to "HOTM" - matches the perk tree's own name (Heart of the Mountain).
+        int view = nav(g, new String[]{"HOTM", "Glacite", "Foraging"}, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
         int rx = s.contentX + navW + 6;
         int rw = s.contentW - navW - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
@@ -618,22 +619,25 @@ final class ExtraPages {
                 }
             }
         }
-        int lw = 130;
+        // killer560: "make the bestiary tab more friendly... clicking into an area to see their bestiary
+        // instead of panning through a bunch of menus" - swap the "< Category >" pager for the same
+        // click-a-category nav list Collections/Mining/Crimson already use.
+        int lw = 100;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
+        String[] catNames = cats.stream().map(ExtraTables.BestiaryCategory::name).toArray(String[]::new);
+        int idx = nav(g, catNames, s.contentX + 4, s.contentY + 4, lw - 8, mx, my);
         int x = s.contentX + 6;
-        int y = s.contentY + 5;
-        title(g, "Bestiary", x, y);
-        y += 12;
+        int y = s.contentY + 8 + catNames.length * 19;
         y = s.stat2(g, x, y, lw - 12, "Milestone", String.valueOf(totalTiers / 10));
         y = s.stat2(g, x, y, lw - 12, "Family Tiers", commas(totalTiers));
         y = s.stat2(g, x, y, lw - 12, "Maxed", maxed + " / " + families);
         s.stat2(g, x, y, lw - 12, "Total Kills", shorten(kills));
 
+        ExtraTables.BestiaryCategory cat = cats.get(idx);
         int rx = s.contentX + lw + 6;
         int rw = s.contentW - lw - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
-        int idx = pager(g, cats.get(Math.floorMod(s.subPage, cats.size())).name(), rx, s.contentY + 1, rw, cats.size(), mx, my);
-        ExtraTables.BestiaryCategory cat = cats.get(idx);
+        title(g, cat.name(), rx + 6, s.contentY + 5);
         int cell = 20;
         int cols = Math.max(1, (rw - 16) / cell);
         int top = s.contentY + 20;

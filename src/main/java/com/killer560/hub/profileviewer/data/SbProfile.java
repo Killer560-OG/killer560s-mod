@@ -315,8 +315,43 @@ public final class SbProfile {
         List<ItemStack> armor = LegacyItems.decodeInventory(inv.get("inv_armor"));
         List<ItemStack> equipment = LegacyItems.decodeInventory(inv.get("equipment_contents"));
         List<List<ItemStack>> ender = chunk(LegacyItems.decodeInventory(inv.get("ender_chest_contents")), 45);
-        List<List<ItemStack>> wardrobe = chunk(LegacyItems.decodeInventory(inv.get("wardrobe_contents")), 36);
-        int wardrobeEquipped = (int) num(inv.get("wardrobe_equipped_slot"));
+
+        // Hypixel's armor-loadout rework moved wardrobe storage off "wardrobe_contents" onto
+        // member.loadout.armor (killer560: "I cannot see wardrobe... even though my api is on and I have
+        // stuff in it" - the old field is simply empty/gone now, so the mod was reading nothing). Each set
+        // is its own {HELMET,CHESTPLATE,LEGGINGS,BOOTS} entry keyed by set id, with "equipped_set" giving
+        // the active one. Only profiles nobody has opened since the rework still carry the legacy blob.
+        JsonObject armorLoadout = obj(obj(memberJson, "loadout"), "armor");
+        boolean hasLoadoutSets = false;
+        if (armorLoadout != null) {
+            for (String k : armorLoadout.keySet()) {
+                if (!k.equals("equipped_set")) {
+                    hasLoadoutSets = true;
+                    break;
+                }
+            }
+        }
+        List<List<ItemStack>> wardrobe;
+        int wardrobeEquipped;
+        if (hasLoadoutSets) {
+            TreeMap<Integer, List<ItemStack>> bySet = new TreeMap<>();
+            int maxSet = -1;
+            for (Map.Entry<String, JsonElement> e : armorLoadout.entrySet()) {
+                if (e.getKey().equals("equipped_set")) {
+                    continue;
+                }
+                int setId = parseInt(e.getKey());
+                JsonObject set = asObj(e.getValue());
+                bySet.put(setId, List.of(pieceOrEmpty(set, "HELMET"), pieceOrEmpty(set, "CHESTPLATE"),
+                        pieceOrEmpty(set, "LEGGINGS"), pieceOrEmpty(set, "BOOTS")));
+                maxSet = Math.max(maxSet, setId);
+            }
+            wardrobe = wardrobePagesFromSets(bySet, maxSet);
+            wardrobeEquipped = (int) num(armorLoadout.get("equipped_set")) + 1;
+        } else {
+            wardrobe = chunk(LegacyItems.decodeInventory(inv.get("wardrobe_contents")), 36);
+            wardrobeEquipped = (int) num(inv.get("wardrobe_equipped_slot"));
+        }
 
         Map<Integer, ItemStack> icons = new TreeMap<>();
         JsonObject iconObj = asObj(inv.get("backpack_icons"));
@@ -357,6 +392,37 @@ public final class SbProfile {
             out.add(new ArrayList<>(list.subList(i, Math.min(list.size(), i + size))));
         }
         return out;
+    }
+
+    /** One armor piece from a {@code loadout.armor.<set>} entry - each key decodes like any other item
+     *  blob ({@code {"type":0,"data":...}}), just holding a single-item list. */
+    private static ItemStack pieceOrEmpty(JsonObject set, String key) {
+        if (set == null) {
+            return ItemStack.EMPTY;
+        }
+        List<ItemStack> decoded = LegacyItems.decodeInventory(set.get(key));
+        return decoded.isEmpty() ? ItemStack.EMPTY : decoded.get(0);
+    }
+
+    /** Lays armor-loadout sets out the way the in-game Wardrobe does: each set is one vertical column
+     *  (Helmet/Chestplate/Leggings/Boots top to bottom), 9 set-columns per page, matching the plain
+     *  row-major 9-wide {@code grid()} renderer the inventories page already uses for every other view. */
+    private static List<List<ItemStack>> wardrobePagesFromSets(Map<Integer, List<ItemStack>> bySet, int maxSet) {
+        List<List<ItemStack>> pages = new ArrayList<>();
+        for (int pageStart = 0; pageStart <= maxSet; pageStart += 9) {
+            List<ItemStack> page = new ArrayList<>(Collections.nCopies(36, ItemStack.EMPTY));
+            for (int col = 0; col < 9 && pageStart + col <= maxSet; col++) {
+                List<ItemStack> pieces = bySet.get(pageStart + col);
+                if (pieces == null) {
+                    continue;
+                }
+                for (int row = 0; row < 4; row++) {
+                    page.set(row * 9 + col, pieces.get(row));
+                }
+            }
+            pages.add(page);
+        }
+        return pages;
     }
 
     // ------------------------------------------------------------------ json helpers

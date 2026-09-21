@@ -14,15 +14,48 @@ import java.nio.file.Path;
 /** Persisted Item Browser settings - see {@link ItemBrowserFeature}. Ships disabled by default. */
 public final class ItemBrowserConfig {
 
+    /** Horizontal screen anchor for the panel - killer560 (2026-09-21): "make it so I can adjust... how
+     *  it is centered as well". The panel is always full screen height (see {@link ItemBrowserFeature}),
+     *  so only the horizontal anchor is meaningful. */
+    public enum HorizontalAlign {
+        LEFT("Left"), CENTER("Center"), RIGHT("Right");
+
+        private final String label;
+
+        HorizontalAlign(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public HorizontalAlign next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-itembrowser.json");
+
+    public static final int MIN_COLUMNS = 3;
+    public static final int MAX_COLUMNS = 20;
+    public static final float MIN_SCALE = 0.5f;
+    public static final float MAX_SCALE = 2.0f;
 
     private static ItemBrowserConfig instance;
 
     private boolean enabled = false;
     private int columns = 5;
-    private int rows = 6;
+    private float scale = 1.0f;
+    /** Fill order of the grid - killer560 (2026-09-21): "make it so I can adjust if it is horizontal or
+     *  vertical". True = fills left-to-right then wraps to the next row (row-major, scrolls a row at a
+     *  time - the original behavior). False = fills top-to-bottom then wraps to the next column
+     *  (column-major, scrolls a column at a time). Either way the grid is always {@link #columns} wide
+     *  and always fills the full available screen height. */
+    private boolean horizontal = true;
+    private HorizontalAlign align = HorizontalAlign.RIGHT;
 
     private ItemBrowserConfig() {
     }
@@ -46,7 +79,9 @@ public final class ItemBrowserConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             // Through the clamping setters so a hand-edited out-of-range value can't break the panel layout.
             cfg.setColumns(ConfigJson.getInt(obj, "columns", 5));
-            cfg.setRows(ConfigJson.getInt(obj, "rows", 6));
+            cfg.setScale(ConfigJson.getFloat(obj, "scale", 1.0f));
+            cfg.horizontal = ConfigJson.getBool(obj, "horizontal", true);
+            cfg.align = ConfigJson.getEnum(obj, "align", HorizontalAlign.class, HorizontalAlign.RIGHT);
             instance = cfg;
         } catch (Exception e) {
             instance = new ItemBrowserConfig();
@@ -59,7 +94,9 @@ public final class ItemBrowserConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("columns", columns);
-            obj.addProperty("rows", rows);
+            obj.addProperty("scale", scale);
+            obj.addProperty("horizontal", horizontal);
+            obj.addProperty("align", align.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -78,14 +115,30 @@ public final class ItemBrowserConfig {
     }
 
     public void setColumns(int columns) {
-        this.columns = Math.max(3, Math.min(9, columns));
+        this.columns = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, columns));
     }
 
-    public int getRows() {
-        return rows;
+    public float getScale() {
+        return scale;
     }
 
-    public void setRows(int rows) {
-        this.rows = Math.max(3, Math.min(10, rows));
+    public void setScale(float scale) {
+        this.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+    }
+
+    public boolean isHorizontal() {
+        return horizontal;
+    }
+
+    public void setHorizontal(boolean horizontal) {
+        this.horizontal = horizontal;
+    }
+
+    public HorizontalAlign getAlign() {
+        return align;
+    }
+
+    public void setAlign(HorizontalAlign align) {
+        this.align = align == null ? HorizontalAlign.RIGHT : align;
     }
 }
