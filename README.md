@@ -24,7 +24,6 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 - Spotify Mod — posts the lyrics of whatever you're playing on Spotify into chat, synced to the song
 - Mod Chat — a genuinely private chat channel between mod users. Messages travel over the mod's own relay server rather than Hypixel's party or guild chat, so players who don't run the mod never see them. Send with `/killer560 chat <message>`; the tab shows who else from your party is connected. Falls back to nothing if the relay is unreachable — it will never quietly post your message in public chat
 - Voice To Text — hold a push-to-talk key, speak, release to send the transcription to chat. Fully offline (Vosk), downloads its small speech model automatically on first use so there's no manual setup. **Untested with a real microphone** - see the New tab
-- Proximity Voice — real peer-to-peer voice chat with distance-based volume falloff, no server required (uses a free public STUN server for NAT traversal + Party Chat to exchange connection info). No audio compression (raw PCM, to avoid a second unverified native-library dependency) and doesn't work through every home network (no relay server to fall back on for strict NATs). **Untested with a real microphone or a second player** - see the New tab
 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay

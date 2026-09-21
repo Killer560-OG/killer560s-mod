@@ -61,7 +61,6 @@ public class NewTab extends FolderTab {
                 new I4SensorsTab(),
                 new LiveMapTab(),
                 new SecretWaypointsTab(),
-                new ProximityVoiceTab(),
                 new AutoCloseChestTab(),
                 new BloodCampTab(),
                 new ThornTab(),

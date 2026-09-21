@@ -1520,8 +1520,6 @@ final class SettingTooltipsData {
         d.put("posmsg/set", "Saves the message typed in the box to the left. The box also saves as you type, so this is just a confirmation.");
         d.put("posmsg/color", "Colour of this waypoint's ring and its floating label.");
         d.put("profile viewer/clear", "Deletes the saved Hypixel API key. The viewer keeps working through the keyless backend.");
-        d.put("proximity voice/range", "How far away a teammate can be, in blocks, and still be heard - 8 to 128. Voices fade out towards the edge.");
-        d.put("proximity voice/volume", "How loud teammates' voices are played back to you. Does not change your own microphone.");
         d.put("rag axe/cooldown", "How long the Ragnarock cooldown countdown runs, in seconds. The base axe is 20s; lower it to match your own cooldown reduction.");
         d.put("rag axe/sound", "Also plays a sound when this rag prompt appears, not just the on-screen text.");
         d.put("m7 wither king line lead", "How early this prompt fires, in milliseconds, before the moment it is aiming at. 3000 means the 3s Ragnarock channel finishes exactly on time.");

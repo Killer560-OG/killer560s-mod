@@ -24,7 +24,6 @@ import com.killer560.hub.mapping.MappingFeature;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityFeature;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.modchat.ModChatFeature;
-import com.killer560.hub.proximityvoice.ProximityVoiceFeature;
 import com.killer560.hub.secretwaypoints.SecretWaypointsFeature;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.notify.ModOverlayMessage;
@@ -193,7 +192,6 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.scoreboard.CustomScoreboardFeature.Element.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
-        HudElementRegistry.register(new com.killer560.hub.proximityvoice.PartyVoiceHudElement());
         com.killer560.hub.util.SkyblockGate.register();
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
         com.killer560.hub.leapmenu.PartyTracker.register();
@@ -225,7 +223,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.runstats.RunStatsFeature.register();
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
-        ProximityVoiceFeature.register();
         MappingFeature.register();
         EtherwarpFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());

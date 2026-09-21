@@ -351,7 +351,6 @@ public final class ProfileManager {
                 com.killer560.hub.partyfinder.PartyFinderOverlayConfig::load,
                 com.killer560.hub.playerstats.PlayerStatsConfig::load,
                 com.killer560.hub.posmsg.PosmsgConfig::load,
-                com.killer560.hub.proximityvoice.ProximityVoiceConfig::load,
                 com.killer560.hub.puzzlesolvers.BeamsSolverConfig::load,
                 com.killer560.hub.puzzlesolvers.BlazeSolverConfig::load,
                 com.killer560.hub.puzzlesolvers.BoulderSolverConfig::load,
