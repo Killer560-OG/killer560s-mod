@@ -775,9 +775,9 @@ final class SettingTooltipsData {
         d.put("dungeon hub", "Key that runs /warp dungeon_hub. Escape clears the bind.");
         d.put("potion bag", "Key that runs /potionbag. Escape clears the bind.");
         d.put("revert master stars", "Recolors Master Star item names back to the old look: the numbered pip after the stars is removed and that many stars turn red. Display only.");
-        d.put("inventory search", "Press Ctrl+F in any inventory, chest or menu to type a search. Slots whose item matches get a red outline. Esc or Enter stops typing, but the search stays active in every menu until you Backspace it away.");
+        d.put("inventory search", "Press Ctrl+F in any inventory, chest or menu, or click the search bar, to type a search. Slots whose item matches get a red outline. Ctrl+Backspace deletes a whole word. Esc or Enter stops typing, but the search stays active in every menu until you Backspace it away.");
         d.put("ignore case", "ON makes the inventory highlight ignore upper/lower case. The Item Browser panel always ignores case and only searches item names.");
-        d.put("item browser", "Shows a NEU-style grid of every Skyblock item on the right of inventory screens. Hover an item to see its tooltip. Ctrl+F types into its search bar (item names only), and scrolling over the grid moves it one row. Browse only, with no recipes or prices.");
+        d.put("item browser", "A NEU-style panel listing every Skyblock item, drawn full height beside any inventory screen. Hover an item for its tier, category, description and NPC sell price; left-click it for a craft and obtain popup. Shares its search box and Ctrl+F with Inventory Search.");
         d.put("refresh item catalog", "Downloads the Skyblock item list again from Hypixel's public API, in the background. It also refreshes by itself when the saved copy is more than 12 hours old.");
         d.put("auto quiz", "Cheat build only. In the dungeon Quiz room, clicks the correct answer block once per question (no camera turn). Needs Quiz Solver ON and you within 6 blocks.");
         d.put("quiz click delay", "How long Auto Quiz waits after the answer is known before clicking it, in ms (0-2000). Still waits for the answer holograms and for you to be in reach.");
@@ -1444,8 +1444,14 @@ final class SettingTooltipsData {
         d.put("inventory hud/key", "Key used by Show: Hold Key or Toggle Key. Click, then press a key; Esc clears it. With no key set, Hold Key never shows the panel.");
         d.put("inventory hud/show", "When the panel shows: Always; Hold Key (only while the key is held, not while chat is open); or Toggle Key (press it outside menus to show or hide; remembered across restarts).");
         d.put("inventory hud/vertical", "Lays the panel out as 3 columns by 9 rows instead of 9 columns by 3 rows.");
-        d.put("item browser/columns", "Number of item columns in the browser panel, 3-9 (default 5). Click to cycle.");
-        d.put("item browser/rows", "Number of item rows the browser panel shows at once, 3-10 (default 6). Click to cycle.");
+        d.put("item browser/item width (columns)", "How many item columns wide the panel is, 3-20. The panel always fills the full screen height, so there is no row count.");
+        d.put("item browser/scale", "Resizes the whole panel - grid, search box and all - without moving its anchor point.");
+        d.put("item browser/orientation", "Horizontal fills each row left to right before wrapping down, and scrolls a row at a time. Vertical fills each column top to bottom before wrapping right, and scrolls a column at a time.");
+        d.put("item browser/centered", "Which side of the screen the panel is anchored to. Center can overlap your open menu; clicks on the panel are absorbed so they cannot reach a real slot underneath, but it does cover the view.");
+        d.put("item browser/refresh item catalog", "Re-downloads the item list from Hypixel's API right now instead of waiting for the automatic 12-hour refresh.");
+        d.put("inventory search/search lore", "Also matches an item's lore text, not just its name.");
+        d.put("inventory search/ignore case", "Matches regardless of upper or lower case.");
+        d.put("inventory search/search bar scale", "Resizes the floating search bar. Only used when the Item Browser panel is not already providing its own search box.");
         d.put("item protection/marker", "How a locked slot is marked: Outline, Lock Icon (a small padlock), or Outline + Icon.");
         d.put("item protection/highlight color", "Colour of the outline drawn on protected items while the Show Protected Key is held (default aqua).");
         d.put("item protection/item name", "Type part of an item name here, then click + Add Name. Upper/lower case doesn't matter.");

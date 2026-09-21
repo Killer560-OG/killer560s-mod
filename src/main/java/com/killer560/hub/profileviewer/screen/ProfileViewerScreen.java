@@ -106,6 +106,8 @@ public class ProfileViewerScreen extends Screen {
     private int page;
     private int invView = 0;
     private int invPage = 0;
+    /** Vertical scroll (in panel-rows) for the Ender Chest / Backpacks tiled multi-panel view. */
+    private int invScroll = 0;
     private int petScroll = 0;
     private SbProfile.Pet pinnedPet;
     boolean dropdownOpen = false;
@@ -164,6 +166,7 @@ public class ProfileViewerScreen extends Screen {
         profileIndex = 0;
         invView = 0;
         invPage = 0;
+        invScroll = 0;
         petScroll = 0;
         pinnedPet = null;
         subView = 0;
@@ -377,7 +380,13 @@ public class ProfileViewerScreen extends Screen {
             return true;
         }
         if (page == PAGE_INVENTORIES && state == State.READY) {
-            invPage += scrollY < 0 ? 1 : -1;
+            // Ender Chest / Backpacks are tiled (multiple panels visible at once) and scroll vertically
+            // through the rest; every other sub-view still pages one item at a time.
+            if (invView == 1 || invView == 2) {
+                invScroll = Math.max(0, invScroll - (int) Math.signum(scrollY));
+            } else {
+                invPage += scrollY < 0 ? 1 : -1;
+            }
             return true;
         }
         if (page > PAGE_PETS && state == State.READY) {
@@ -609,7 +618,7 @@ public class ProfileViewerScreen extends Screen {
     private int sidebarRow(GuiGraphicsExtractor g, int x, int y, UUID uuid, String storedName, int mx, int my, Runnable onClick) {
         boolean hover = inside(mx, my, x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H) && !dropdownOpen;
         if (hover) {
-            g.fill(x - 2, y - 1, x + sidebarW - 8, y - 1 + SIDEBAR_ROW_H, 0xFF2A1A0A);
+            g.fill(x - 2, y - 1, x + sidebarW - 6, y - 1 + SIDEBAR_ROW_H, 0xFF2A1A0A);
         }
         g.item(headFor(uuid), x, y - 1);
         String name = LIVE_NAME_CACHE.getOrDefault(uuid, storedName);
@@ -674,6 +683,7 @@ public class ProfileViewerScreen extends Screen {
                 profileIndex = idx;
                 dropdownOpen = false;
                 invPage = 0;
+                invScroll = 0;
                 pageScroll = 0;
                 subView = 0;
                 subPage = 0;
@@ -981,6 +991,7 @@ public class ProfileViewerScreen extends Screen {
             button(g, contentX + 4, ny, navW - 8, 16, INV_VIEWS[i], mx, my, i == invView, () -> {
                 invView = idx;
                 invPage = 0;
+                invScroll = 0;
             });
             ny += 19;
         }
@@ -1032,20 +1043,29 @@ public class ProfileViewerScreen extends Screen {
                     g.text(this.font, "Arrows in quiver: " + countItems(inv.quiver()), mainX, bagY, DIM, false);
                 }
             }
-            case 1 -> pagedGrid(g, "Ender Chest", inv.enderChest(), rx, rw, gridX, top, mx, my, -1);
+            // killer560: "for the enderchest and backpacks, make that fit a similar style to our custom
+            // gui overlay, so I can see more at once" - tile every page/backpack in a scrollable grid of
+            // panels (like the storage overlay does) instead of one page with "< 1/5 >" arrows.
+            case 1 -> {
+                g.text(this.font, "Ender Chest", rx + 6, contentY + 6, ACCENT, false);
+                multiPanelGrid(g, rx, rw, top, numbered("Page", inv.enderChest().size()), null, inv.enderChest(), mx, my);
+            }
             case 2 -> {
                 List<SbProfile.Backpack> bps = inv.backpacks();
+                g.text(this.font, "Backpacks", rx + 6, contentY + 6, ACCENT, false);
                 if (bps.isEmpty()) {
                     centeredIn(g, "No backpacks.", rx, rw, contentY + contentH / 2 - 4, DIM);
                     return;
                 }
-                invPage = Math.floorMod(invPage, bps.size());
-                SbProfile.Backpack bp = bps.get(invPage);
-                pager(g, "Backpack " + (bp.slot() + 1), rx, rw, invPage, bps.size(), mx, my);
-                if (!bp.icon().isEmpty()) {
-                    g.item(bp.icon(), rx + 6, contentY + 3);
+                List<String> labels = new ArrayList<>();
+                List<ItemStack> icons = new ArrayList<>();
+                List<List<ItemStack>> itemLists = new ArrayList<>();
+                for (SbProfile.Backpack bp : bps) {
+                    labels.add("Backpack " + (bp.slot() + 1));
+                    icons.add(bp.icon());
+                    itemLists.add(bp.items());
                 }
-                grid(g, bp.items(), gridX, top, mx, my, -1);
+                multiPanelGrid(g, rx, rw, top, labels, icons, itemLists, mx, my);
             }
             case 3 -> pagedGrid(g, "Wardrobe", inv.wardrobe(), rx, rw, gridX, top, mx, my, inv.wardrobeEquipped());
             case 4 -> pagedGrid(g, "Accessory Bag", inv.accessories(), rx, rw, gridX, top, mx, my, -1);
@@ -1097,6 +1117,86 @@ public class ProfileViewerScreen extends Screen {
             equippedCol = (wardrobeEquipped - 1) % 9;
         }
         grid(g, pages.get(invPage), gridX, top, mx, my, equippedCol);
+    }
+
+    private static List<String> numbered(String prefix, int count) {
+        List<String> out = new ArrayList<>(count);
+        for (int i = 1; i <= count; i++) {
+            out.add(prefix + " " + i);
+        }
+        return out;
+    }
+
+    /** Tiles every page/backpack as its own small labelled grid, several per row (as many as fit), and
+     *  scrolls vertically through the rest - the storage overlay's "columns of panels" layout, so far
+     *  more is visible than the old one-at-a-time "< 1/5 >" pager. {@code icons} may be null (Ender Chest
+     *  pages don't have one); when given it must be the same size as {@code pages}. */
+    private void multiPanelGrid(GuiGraphicsExtractor g, int rx, int rw, int top, List<String> labels,
+                                List<ItemStack> icons, List<List<ItemStack>> pages, int mx, int my) {
+        if (pages.isEmpty()) {
+            centeredIn(g, "Empty.", rx, rw, contentY + contentH / 2 - 4, DIM);
+            return;
+        }
+        int cellW = 9 * 18;
+        int labelH = 11;
+        int gap = 8;
+        int panelW = cellW + gap;
+        int cols = Math.max(1, (rw - gap) / panelW);
+        int startX = rx + Math.max(0, (rw - (cols * panelW - gap)) / 2);
+
+        int panelRows = (pages.size() + cols - 1) / cols;
+        int[] rowH = new int[panelRows];
+        for (int r = 0; r < panelRows; r++) {
+            int maxItemRows = 1;
+            for (int c = 0; c < cols; c++) {
+                int idx = r * cols + c;
+                if (idx < pages.size()) {
+                    maxItemRows = Math.max(maxItemRows, Math.max(1, (pages.get(idx).size() + 8) / 9));
+                }
+            }
+            rowH[r] = labelH + maxItemRows * 18 + gap;
+        }
+
+        // The max scroll always leaves at least the last row on screen, even if that one row alone is
+        // taller than the viewport - never scrolls one row past the end into blank space.
+        int visibleH = Math.max(0, contentY + contentH - top - 2);
+        int maxScrollRow = panelRows - 1;
+        int used = 0;
+        for (int r = panelRows - 1; r >= 0; r--) {
+            if (used + rowH[r] > visibleH) {
+                break;
+            }
+            used += rowH[r];
+            maxScrollRow = r;
+        }
+        invScroll = Math.max(0, Math.min(invScroll, maxScrollRow));
+
+        int y = top;
+        for (int r = invScroll; r < panelRows && y < top + visibleH; r++) {
+            for (int c = 0; c < cols; c++) {
+                int idx = r * cols + c;
+                if (idx >= pages.size()) {
+                    continue;
+                }
+                int px = startX + c * panelW;
+                int labelOffset = 0;
+                if (icons != null && !icons.get(idx).isEmpty()) {
+                    g.item(icons.get(idx), px, y - 1);
+                    labelOffset = 12;
+                }
+                g.text(this.font, this.font.plainSubstrByWidth(labels.get(idx), cellW - labelOffset), px + labelOffset, y, ACCENT, false);
+                grid(g, pages.get(idx), px, y + labelH, mx, my, -1);
+            }
+            y += rowH[r];
+        }
+
+        if (maxScrollRow > 0) {
+            int trackX = rx + rw - 4;
+            g.fill(trackX, top, trackX + 2, top + visibleH, 0xFF1A1A1A);
+            int thumbH = Math.max(8, visibleH * (panelRows - maxScrollRow) / panelRows);
+            int thumbY = top + (visibleH - thumbH) * invScroll / Math.max(1, maxScrollRow);
+            g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, ACCENT);
+        }
     }
 
     private void pager(GuiGraphicsExtractor g, String title, int rx, int rw, int index, int count, int mx, int my) {
