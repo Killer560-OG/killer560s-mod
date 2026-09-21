@@ -6,7 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
  * QUOI {@code RenderOptimiser.kt} "Disable text shadow" / "Container text shadow" (both OFF by default,
@@ -23,9 +23,14 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class ObjectHiderTextShadowMixin {
 
-    @ModifyArg(method = "text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",
-            at = @At(value = "NEW", target = "Lnet/minecraft/client/renderer/state/gui/GuiTextRenderState;"),
-            index = 7, require = 0)
+    // CRASHED THE GAME ON STARTUP (2026-09-20, killer560's boot log): this was an @ModifyArg at
+    // @At("NEW"), and a NEW insn is not a method call - Mixin rejects that outright with
+    // InvalidInjectionException, which is an apply-time error that require = 0 does NOT soften, so the
+    // whole mod failed to initialise. Modifying the method's own dropShadow PARAMETER at HEAD reaches the
+    // same constructor argument (the funnel passes it straight through) without depending on any
+    // instruction inside the method, so a future remap can only make it a no-op, never a crash.
+    @ModifyVariable(method = "text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",
+            at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private boolean killer560smod$objectHider$shadow(boolean shadow) {
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         boolean disable = cfg.isDisableTextShadow();
