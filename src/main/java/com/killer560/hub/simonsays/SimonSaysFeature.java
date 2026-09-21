@@ -447,7 +447,11 @@ public final class SimonSaysFeature {
     private static boolean idleSuppressedAfterCompletion = false;
     private static boolean goldorLineSeenThisPhase = false;
     private static final Vec3 IDLE_LOOK_ANCHOR = new Vec3(108.0, 120.0, 94.0);
-    private static final double IDLE_LOOK_RANGE_SQ = 3.0 * 3.0;
+    // killer560, 2026-09-20: "make it so the solver works no matter where I am but for autos and looking
+    // towards the middle and whatnot, none of that works unless I am within a radius of 2 blocks from the
+    // coordinates 108 120 94." The SOLVER keeps its own generous ACTIVE_RANGE_SQ (30 blocks) so the
+    // highlights still show on the walk up; everything that CLICKS or MOVES THE CAMERA uses this instead.
+    private static final double IDLE_LOOK_RANGE_SQ = 2.0 * 2.0;
     // Real bug history (2026-09-14) on idle's resting sway, for context on the current design in
     // applyIdleSwayFrame: started as one continuous slow sine wave (read as "always drifting one way"
     // since it spends half of every ~9-12s cycle near one extreme) -> discrete random micro-twitches on a
@@ -1446,6 +1450,9 @@ public final class SimonSaysFeature {
     }
 
     private static void tickAutoStart(Minecraft client, SimonSaysConfig cfg) {
+        if (!isWithinAutoAnchor(client)) {
+            return; // out of the 2-block anchor: solver only, nothing clicks
+        }
         if ((!cfg.isAutoStartEnabled() && !autoStartIsRestart) || !autoStartRunning) {
             return;
         }
@@ -1623,6 +1630,9 @@ public final class SimonSaysFeature {
     }
 
     private static void tickAutoSolveAndTriggerBot(Minecraft client, SimonSaysConfig cfg) {
+        if (!isWithinAutoAnchor(client)) {
+            return; // out of the 2-block anchor: solver only, nothing clicks
+        }
         long now = System.currentTimeMillis();
         boolean noStepsPending = clickNeeded >= clickInOrder.size();
         // Generalized (2026-09-14) beyond just firstPhase - see isStillRevealing()'s own doc comment:
@@ -2219,7 +2229,9 @@ public final class SimonSaysFeature {
     private static void tickRotateFrame() {
         Minecraft client = Minecraft.getInstance();
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (client.player == null || !cfg.isEnabled() || !rotateActive(cfg)) {
+        if (client.player == null || !cfg.isEnabled() || !rotateActive(cfg) || !isWithinAutoAnchor(client)) {
+            // The anchor check is here too, not just on the click paths: killer560 asked that "looking
+            // towards the middle" also stop outside 2 blocks, and this frame loop is what moves the camera.
             rotateLastFrameAtNanos = 0L;
             return;
         }
@@ -2346,6 +2358,12 @@ public final class SimonSaysFeature {
                 String.format(Locale.US, "%.2f", dYaw), String.format(Locale.US, "%.2f", dPitch),
                 String.format(Locale.US, "%.2f, %.2f", half[0], half[1]), withinFace, raycastOnTarget,
                 client.hitResult instanceof BlockHitResult hit2 ? hit2.getBlockPos() : "none", idleSwayActive);
+    }
+
+    /** The 2-block gate every automated click and every camera move has to pass (see IDLE_LOOK_RANGE_SQ).
+     *  Standing further away means the solver still draws, and nothing acts. */
+    private static boolean isWithinAutoAnchor(Minecraft client) {
+        return isNearIdleLookAnchor(client);
     }
 
     private static boolean isNearIdleLookAnchor(Minecraft client) {

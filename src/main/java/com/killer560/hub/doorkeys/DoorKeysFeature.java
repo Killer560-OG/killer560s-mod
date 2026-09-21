@@ -142,7 +142,13 @@ public final class DoorKeysFeature {
         }
         AABB box = currentKey.getBoundingBox().inflate(0.3, 0.3, 0.3);
         Vec3 eyes = client.player.getEyePosition();
-        Vec3 target = currentKey.position().add(0, 1.0, 0);
+        // killer560, 2026-09-20: "make it so the wither key tracer goes to some fixed midpoint that is
+        // unmoving. Right now it really bugs out." It was aimed at the dropped item's live position, and a
+        // dropped item bobs up and down and spins forever - so the far end of the line jittered every frame.
+        // Anchor it to the centre of the block the key is resting in instead: it stops moving the moment the
+        // key settles, and still follows if the key is actually thrown somewhere else.
+        Vec3 keyPos = currentKey.position();
+        Vec3 target = new Vec3(Math.floor(keyPos.x) + 0.5, Math.floor(keyPos.y) + 0.5, Math.floor(keyPos.z) + 0.5);
         float thickness = cfg.getTracerThickness();
 
         if (!cfg.isThroughWalls()) {

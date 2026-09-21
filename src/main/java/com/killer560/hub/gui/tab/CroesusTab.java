@@ -85,6 +85,14 @@ public class CroesusTab extends BaseTab {
 
         // ---- Auto Croesus (cheat build only) ----
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Red header, like every other cheat-only section (killer560, 2026-09-20: "Change auto croesus
+            // to be red and make sure it is only on the cheat version"). The gating was already right - it
+            // is behind CHEAT_FEATURES_ENABLED here and in CroesusConfig.isAutoCroesusEnabled - but nothing
+            // on screen said so, so it read like an ordinary setting.
+            widgets.add(new net.minecraft.client.gui.components.StringWidget(contentX, y, contentWidth, 12,
+                    com.killer560.hub.gui.SectionHeaders.header("Auto Croesus", true),
+                    net.minecraft.client.Minecraft.getInstance().font));
+            y += 14;
             widgets.add(SettingsButtonWidget.builder(onOff("Auto Croesus", cfg.getAutoCroesusEnabledRaw()), btn -> {
                         cfg.setAutoCroesusEnabled(!cfg.getAutoCroesusEnabledRaw());
                         cfg.save();
@@ -94,10 +102,6 @@ public class CroesusTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(contentX, y, contentWidth, 20).build());
             y += 22;
-            widgets.add(label(contentX, y, contentWidth, "§7Open Croesus yourself: claims the best chest of every unopened run"));
-            y += 12;
-            widgets.add(label(contentX, y, contentWidth, "§7whose profit is at least the minimum. Close the menu to stop."));
-            y += 16;
             if (cfg.getAutoCroesusEnabledRaw()) {
                 widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, minProfitText(),
                         cfg.getAutoMinProfitK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {

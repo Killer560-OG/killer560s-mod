@@ -1685,5 +1685,6 @@ final class SettingTooltipsData {
         d.put("auto routes/recording", "Cheat build only. Stand on the block the route should start from (usually where you etherwarp to), press Start, run the room the way you want it replayed, press Stop. Every tick of movement is saved; playback follows that path and only ever starts when you land on the start node.");
         d.put("auto routes/delete last node", "Cheat build only. Deletes the most recently added node in this room - the one you just placed. Use /ar delete <n> to remove any other node by its number (see the Chain list).");
         d.put("test mode", "Session-only dry run. AP3 still arms when you walk into the first node, but every node runs without waiting on the arena: terminals, leap counters and close gates are skipped, a failed leap is skipped, and ANY key or mouse button stops the chain. Same as /ap3 testmode. Off at every restart.");
+        d.put("croesus/auto croesus", "Cheat build only. You open Croesus yourself, then it opens each unopened run and claims that run's most profitable chest, as long as the profit clears your Min Profit. Closing the menu stops it.");
     }
 }
