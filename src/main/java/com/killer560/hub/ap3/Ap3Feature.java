@@ -41,9 +41,10 @@ import java.util.regex.Pattern;
  * only, never boss), so the two features can never be live at the same time; that mutual exclusion is what makes
  * two separate {@code KeyboardInput#tick} mixins safe (see {@code mixin/Ap3InputMixin}).
  * <p>
- * This class owns registration, the tick wiring, the gate, world / phase change handling, node placement with its
- * modifiers, undo / nearest-node delete, the stopwatch HUD, the chat hook that feeds TERMINAL nodes, and the public
- * API the commands / keybinds / tab code against. A tick or render exception never escapes: it is logged, the
+ * This class owns registration, the tick wiring (every boss tick hands {@link Ap3Executor} the node set of the area
+ * you stand in - every node in it is armed, walking into one fires it), the gate, world / phase change handling,
+ * node placement with its modifiers, undo / nearest-node delete, the stopwatch HUD, the chat hook that feeds
+ * TERMINAL / BOOM nodes and the leap rule, and the public API the commands / keybinds / tab code against. A tick or render exception never escapes: it is logged, the
  * feature switches itself off (saved) and says so in chat.
  */
 public final class Ap3Feature {
@@ -61,6 +62,10 @@ public final class Ap3Feature {
     /** ... and every other node at least this much further away, or it is not "clearly" the one he means. */
     private static final double NEAREST_MARGIN = 1.0;
 
+    /** Hypixel's line when YOU leap - the same regex {@code leapcounter/LeapTracker.SELF_LEAP} keys on (kept private
+     *  there; see the notes for the accessor that would let this be read from it instead of matched twice). */
+    private static final Pattern SELF_LEAP = Pattern.compile("^You have teleported to \\w{1,16}!$");
+
     private static Object lastLevel;
     private static boolean wasLive;
     private static boolean renderFailed;
@@ -70,8 +75,6 @@ public final class Ap3Feature {
     private static Ap3Node lastAdded;
     private static Ap3Chain lastAddedChain;
     private static boolean migrationReported;
-    /** Auto-arm edge state: were you inside the current chain's first node box last tick (see {@link #maybeAutoArm}). */
-    private static boolean prevInsideFirstBox;
 
     private Ap3Feature() {
     }
@@ -562,7 +565,7 @@ public final class Ap3Feature {
         lastAdded = node;
         lastAddedChain = chain;
         store.save();
-        suppressAutoArm(); // you are standing on the node you just placed - don't let it drive you until you re-enter
+        suppressAutoArm(); // you are standing on the node you just placed - it must not fire until you re-enter
         chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.describe()),
                 ModChat.dim(" to " + chain.label()));
         return true;
@@ -587,7 +590,7 @@ public final class Ap3Feature {
             Ap3Executor.resetStopwatch();
         }
         if (!cfg.isEnabled()) {
-            if (Ap3Executor.isRunning()) {
+            if (Ap3Executor.isRunning() || Ap3Executor.isArmed()) {
                 resetForWorld("AP3 turned off");
             }
             return;
@@ -620,61 +623,22 @@ public final class Ap3Feature {
                 }
             }
         }
+        // killer560 (2026-09-20): "/ap3 start should not exist. If i ever walk into a node it should always fire" and
+        // "node one, then node two, then node 4, then node 18, they should all fire ... The order never matters."
+        // So every tick in the boss the executor gets the node set of the area you stand in and arms all of it;
+        // walking into any node's box fires that node. Which nodes: the class chain for the class you play, else
+        // the class-less one (Ap3Store.forArea) - the same choice the old start made.
         Ap3Area area = currentArea();
-        if (area == null ? lastArea != null : !area.equals(lastArea)) {
-            lastArea = area;
-            // A teleport / leap into a new area must not auto-fire the moment you land on a node - require a fresh
-            // walk-in there too.
-            prevInsideFirstBox = true;
-        }
-        if (Ap3Executor.isRunning()) {
-            Ap3Executor.tick(client);
-            return;
-        }
-        Ap3Area completed = Ap3Executor.consumeCompletedArea();
-        if (completed != null && cfg.isContinueIntoNextSection() && area != null && !area.equals(completed)) {
-            // Only after a chain ran to its END - never after the player stopped one (that must stay stopped) - and
-            // only into a DIFFERENT area, so a chain that ends where it started can't restart itself.
-            Ap3Chain next = Ap3Store.getInstance().forArea(area, selfClass());
-            if (next != null && !next.isEmpty()) {
-                Ap3Executor.start(next);
-                prevInsideFirstBox = true;
-                return;
-            }
-        }
-        maybeAutoArm(area, client.player);
+        boolean arrival = area == null ? lastArea != null : !area.equals(lastArea);
+        lastArea = area;
+        Ap3Chain nodes = area == null ? null : Ap3Store.getInstance().forArea(area, selfClass());
+        Ap3Executor.tick(client, nodes, arrival);
     }
 
-    /**
-     * killer560 (2026-09-20 in-game test): "/ap3 start should not exist. If i ever walk into a node it should always
-     * fire." There is no start command any more; instead the chain arms itself and begins the moment you WALK INTO
-     * the first node's trigger box (a rising edge - stepping in from outside). Standing in the box after placing a
-     * node, after a stop, or after a completion does NOT re-fire it: you have to leave and walk back in, so it never
-     * fights you or fires while you are editing. Test Mode no longer gates arming; it only changes what runs (see
-     * {@link Ap3Executor}).
-     */
-    private static void maybeAutoArm(Ap3Area area, LocalPlayer player) {
-        if (area == null || player == null) {
-            prevInsideFirstBox = false;
-            return;
-        }
-        Ap3Chain chain = Ap3Store.getInstance().forArea(area, selfClass());
-        if (chain == null || chain.isEmpty()) {
-            prevInsideFirstBox = false;
-            return;
-        }
-        boolean inside = chain.nodes().get(0).contains(player.position());
-        boolean rising = inside && !prevInsideFirstBox;
-        prevInsideFirstBox = inside;
-        if (rising) {
-            Ap3Executor.start(chain);
-        }
-    }
-
-    /** After a placement / edit (or a teleport into a new area), require the player to leave and re-enter the first
-     *  node's box before the chain auto-arms again - so adding a node at your feet doesn't instantly drive you. */
+    /** After a placement / edit / reload: whatever box you stand in counts as already entered, so adding a node at
+     *  your feet does not instantly fire it - leave the box and walk back in. Also drops anything queued. */
     static void suppressAutoArm() {
-        prevInsideFirstBox = true;
+        Ap3Executor.resync();
     }
 
     /** The version-1 file migration, said once in chat so a renamed / merged / dropped node is never a surprise. */
@@ -707,7 +671,7 @@ public final class Ap3Feature {
             if (!isBossLive()) {
                 return;
             }
-            Ap3Chain chain = Ap3Executor.runningChain();
+            Ap3Chain chain = Ap3Executor.armedChain();
             if (chain == null) {
                 chain = currentChain();
                 if (chain == null) {
@@ -725,13 +689,22 @@ public final class Ap3Feature {
         }
     }
 
-    /** TERMINAL nodes advance only on Hypixel's own completion line naming YOU - never on a GUI close. */
+    /** TERMINAL nodes advance only on Hypixel's own completion line naming YOU - never on a GUI close. Also the
+     *  boom confirmation and the "you leapt" line. */
     private static void onChat(Component message) {
         try {
             if (!Ap3Executor.isRunning()) {
                 return;
             }
             String plain = ChatObserver.strip(message);
+            // killer560: leaping "drops all movement ... and then no movement on the other side unless it hits a
+            // node" - "also ... if I am using auto leap and auto leap goes off during it even if it isnt a node".
+            // Whoever caused the leap (a node, Fast Leap / Auto Leap, a manual click), Hypixel prints this line;
+            // the executor's own-position jump check catches it too, so p3sim is covered without the line.
+            if (SELF_LEAP.matcher(plain).matches()) {
+                Ap3Executor.onLeapHappened("you leapt");
+                return;
+            }
             // Boom nodes confirm off Hypixel's own gate line (a Superboom's block change can arrive late / outside
             // the sampled cube) - killer560 (2026-09-20): "it says the superboom didnt break anything even though
             // 'The gate has been destroyed!' came through."
@@ -841,12 +814,9 @@ public final class Ap3Feature {
     // ------------------------------------------------------------------------------------------- helpers
 
     private static void resetForWorld(String reason) {
-        if (Ap3Executor.isRunning()) {
-            Ap3Executor.stop(reason);
-        }
+        Ap3Executor.disarm(reason);
         renderFailed = false;
         lastArea = null;
-        prevInsideFirstBox = false;
     }
 
     /** Never let a tick/render exception take the frame down: switch the feature off (persisted) and say so. */

@@ -95,7 +95,9 @@ public final class Ap3Commands {
         REPLACE_LAST("replace_last", "Re-place Last Chain Node", "/ap3 replace <n> [pos|look]"),
         CLEAR("clear", "Clear Chain", "/ap3 clear"),
         RELOAD("reload", "Reload Chains File", "/ap3 reload"),
-        STOP("stop", "Stop Chain", "/ap3 stop"),
+        /** "Stop AP3", not "Stop Chain": there is no running sequence to stop any more - this ends the node being
+         *  performed, the held walk and everything queued, and releases every key. */
+        STOP("stop", "Stop AP3", "/ap3 stop"),
         TEST_MODE("testmode", "Test Mode", "/ap3 testmode");
 
         public final String id;
@@ -405,7 +407,7 @@ public final class Ap3Commands {
 
     private static void help() {
         ModChat.send(FEATURE, ModChat.text("Commands (F7/M7 boss only - any phase, one chain per area P1 / P2 / S1-S5 / P4 / P5):"));
-        ModChat.send(FEATURE, ModChat.dim("There is no start - a chain runs itself the moment you WALK INTO its first node."));
+        ModChat.send(FEATURE, ModChat.dim("There is no start and no order: every node is armed, walking INTO its box fires it. Same tick: stop > align > look > walk > boom > leap, one per tick."));
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
@@ -569,7 +571,7 @@ public final class Ap3Commands {
         Ap3Executor.setTestMode(on);
         if (on) {
             ModChat.send(FEATURE, ModChat.text("Test mode "), ModChat.good("ON"),
-                    ModChat.dim(" - the chain still arms when you walk into its first node, but runs every node as a dry run: terminals, leap counters and close gates are skipped, and ANY key or button stops it. /ap3 testmode again to leave."));
+                    ModChat.dim(" - nodes still fire when you walk into them, as a dry run: terminals, leap counters and close gates are skipped, a failed leap is skipped, and ANY key or button stops everything. /ap3 testmode again to leave."));
         } else {
             if (Ap3Executor.isRunning()) {
                 Ap3Executor.stop("test mode off");
@@ -615,7 +617,7 @@ public final class Ap3Commands {
             return;
         }
         if (Ap3Executor.isRunning()) {
-            // Yanking a node out from under a running chain would leave the executor seeking a node that no
+            // Yanking a node out from under the executor would leave it performing / queueing a node that no
             // longer exists - stop it first, with a reason it can echo.
             Ap3Executor.stop("node deleted");
         }
@@ -803,7 +805,7 @@ public final class Ap3Commands {
 
     private static void stopChain() {
         if (!Ap3Executor.isRunning()) {
-            ModChat.send(FEATURE, ModChat.text("Nothing is running."));
+            ModChat.send(FEATURE, ModChat.text("Nothing to stop - no node is being performed, no walk is held, nothing is queued."));
             return;
         }
         Ap3Executor.stop("/ap3 stop");

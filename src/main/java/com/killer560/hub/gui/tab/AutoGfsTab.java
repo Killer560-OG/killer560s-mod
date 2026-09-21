@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Auto GFS (dungeons, /gfs from sacks) - see {@code com.killer560.hub.cheatutils.CheatUtils}. Cheat build
+/** Auto GFS (/gfs from sacks; optional Dungeons &amp; Kuudra Only restriction) - see
+ *  {@code com.killer560.hub.cheatutils.CheatUtils}. Cheat build
  *  only; split out of the old "Cheat Utils" tab 2026-09-20 per killer560: "Move auto gfs its own tab as
  *  well" - shares {@link CheatUtilsConfig} with {@link CheatUtilsTab}, {@link AutoUltTab} and
  *  {@link AutoChocolateFactoryTab}; the config file itself was not split. */
@@ -49,6 +50,7 @@ public class AutoGfsTab extends BaseTab {
         toggle(w, contentX, y, "Superboom TNT", cfg::isGfsSuperbooms, cfg::setGfsSuperbooms, null);
         toggle(w, contentX, y, "Inflatable Jerry", cfg::isGfsJerries, cfg::setGfsJerries, null);
         toggle(w, contentX, y, "Skip If None In Inventory", cfg::isGfsSkipIfNone, cfg::setGfsSkipIfNone, null);
+        toggle(w, contentX, y, "Dungeons & Kuudra Only", cfg::isGfsDungeonKuudraOnly, cfg::setGfsDungeonKuudraOnly, null);
         slider(w, contentX, y[0], half, () -> "Refill Below: " + cfg.getGfsThresholdPercent() + "%",
                 norm(cfg.getGfsThresholdPercent(), CheatUtilsConfig.MIN_GFS_THRESHOLD_PERCENT, CheatUtilsConfig.MAX_GFS_THRESHOLD_PERCENT),
                 v -> cfg.setGfsThresholdPercent(denorm(v, CheatUtilsConfig.MIN_GFS_THRESHOLD_PERCENT, CheatUtilsConfig.MAX_GFS_THRESHOLD_PERCENT)));

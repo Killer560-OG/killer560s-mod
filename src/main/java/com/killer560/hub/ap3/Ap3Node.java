@@ -17,17 +17,18 @@ import java.util.Locale;
  * room-relative transform applies here.
  * <p>
  * <b>Trigger box.</b> Every node owns a box {@link #width} x {@link #length} blocks (width across the yaw, length
- * along it) centred on the node: the executor performs a node once the chain has reached it in order AND you are
- * standing inside that box. killer560 (2026-09-20): "/ap3 add walk w1 l1" sets it "in whole blocks, any size". That
- * is what lets a Walk "keep you walking until a stop or align node" - the walk carries you into the next node's box.
+ * along it) centred on the node. Every node is armed on its own: walking INTO its box fires it, in whatever order
+ * you reach the nodes (killer560, 2026-09-20: "node one, then node two, then node 4, then node 18, they should all
+ * fire ... The order never matters"); same-tick collisions fire one per tick by {@link Type#priority()}. "/ap3 add
+ * walk w1 l1" sets the box "in whole blocks, any size". A held Walk carries you into the next box.
  * <p>
  * <b>Snapping</b> (killer560: "All align nodes snap you to .5/.5 on the block by default. '/ap3 add align precise'
  * uses your exact current coordinates instead"): X and Z snap to the block centre ONCE at placement
  * ({@link #snapCentre}) unless the node is {@link #precise}; Y snaps to the block floor.
  * <p>
  * <b>Modifiers</b> (his "modifiers, replacing the wait node", and they apply to ANY node): {@link #waitAfterMs}
- * delays the next node by that long after this one is done; {@link #closeGate} makes this node fire only on a
- * manual left click or after a terminal/GUI closes.
+ * holds the next queued node by that long after this one is done; {@link #closeGate} makes this node perform only
+ * on a manual left click or after a terminal/GUI closes.
  * <p>
  * A stored {@link #yaw} is <b>data</b>: it is only ever turned into a world direction ({@link #dir()}) or handed to
  * {@code RouteRotation} as a target that becomes a wrapped delta on the live yaw. It is never written to the player
@@ -84,19 +85,32 @@ public final class Ap3Node {
             return this == ALIGN || this == AXIS_ALIGN;
         }
 
-        /** The two movers (they start a held walk that lasts until a STOP or an align node). */
+        /** The two movers (they start a held walk that lasts until any other node fires). */
         public boolean isMover() {
             return this == WALK || this == RUN;
         }
 
-        /** Nodes whose whole point is WHERE you stand: they always wait for you to be inside their box, and refuse
-         *  when nothing is carrying you there. The others fire on the spot when no walk is being held.
-         *  <p>
-         *  WALK / RUN are NOT positional (killer560, 2026-09-20 in-game test: "for the walk command if i am in it
-         *  then it should keep me walking until i hit a different node not stop after 1 tick"): a mover begins its
-         *  held walk from wherever the chain reaches it - it never refuses because you are not standing on it. */
-        public boolean isPositional() {
-            return isAlign() || this == STOP || this == BOOM;
+        /**
+         * The universal priority when more than one node triggers on the same tick - LOWER fires first, one per
+         * tick. killer560 (2026-09-20): "There should be a universal priority though. stop should go first, then
+         * align, then look, then walk, then boom, then leap. So if i hit a boom and leap node on the same tick then
+         * it should boom then the next tick leap." He named those six; the rest are slotted in: a STOPWATCH split is
+         * a timestamp and belongs at the instant you hit the box, ahead of a stop that takes ticks to settle; the two
+         * waits (TERMINAL, LEAP_COUNTER) sit after look and before walk, so "stop, do the terminal, walk on" reads in
+         * that order and a walk in the same box does not start and get cut by the terminal's own hold-drop.
+         */
+        public int priority() {
+            return switch (this) {
+                case STOPWATCH -> 0;
+                case STOP -> 1;
+                case ALIGN, AXIS_ALIGN -> 2;
+                case LOOK -> 3;
+                case TERMINAL -> 4;
+                case LEAP_COUNTER -> 5;
+                case WALK, RUN -> 6;
+                case BOOM -> 7;
+                case LEAP -> 8;
+            };
         }
 
         /** Nodes that block waiting for something outside the executor's control. A manual LEFT-CLICK satisfies

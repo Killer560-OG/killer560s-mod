@@ -45,9 +45,9 @@ import java.util.function.Supplier;
  * on the right half is an edit button. If you press the edit button then it opens all the settings for that
  * specific" one), applied to nodes after his 2026-09-16 request to "make it easier to edit them":
  * <ul>
- *     <li>the LIST - master toggle; the boss-only status line; the chain for the area you are in with one row per
- *     node (number, type, modifiers, position, Edit, Delete); Stop / Test Mode (no Start - a chain runs when you
- *     walk into its first node); Undo / List / Clear; Open
+ *     <li>the LIST - master toggle; the boss-only status line; the nodes for the area you are in with one row per
+ *     node (number, type, modifiers, position, Edit, Delete); Stop / Test Mode (no Start - every node is armed and
+ *     fires when you walk into it, in any order); Undo / List / Clear; Open
  *     Folder + Reload for the one shareable chains file; colours; the world-label settings; the stopwatch HUD; the
  *     class-override table read-only; one keybind row per command. Nodes are ADDED with {@code /ap3 add} or the
  *     keybinds only - killer560 (2026-09-20): "Do not list the add node section in the settings tab";</li>
@@ -182,11 +182,11 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             nodes = List.of();
         }
 
-        // No Start button - a chain arms itself and runs when you walk into its first node (killer560, 2026-09-20:
-        // "/ap3 start should not exist. If i ever walk into a node it should always fire"). Stop stays as the panic
-        // button; Test Mode is the dry-run toggle.
+        // No Start button - every node is armed and fires when you walk into it, in any order (killer560,
+        // 2026-09-20: "/ap3 start should not exist. If i ever walk into a node it should always fire"). Stop stays as
+        // the panic button; Test Mode is the dry-run toggle.
         // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
-        w.add(SettingsButtonWidget.builder(Component.literal("§cStop Chain"), btn -> {
+        w.add(SettingsButtonWidget.builder(Component.literal("§cStop AP3"), btn -> {
                     Action.STOP.run();
                     rebuild.run();
                 }).bounds(x, y[0], half, 20).build());
@@ -575,9 +575,19 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         }
         String test = safe(Ap3Executor::isTestMode) ? " §e[test mode]" : "";
         if (safe(Ap3Executor::isRunning)) {
-            return "§aAP3 status: " + where + " - chain running." + test;
+            int queued = 0;
+            try {
+                queued = Ap3Executor.queuedCount();
+            } catch (Exception ignored) {
+            }
+            return "§aAP3 status: " + where + " - busy" + (queued > 0 ? ", " + queued + " node(s) queued" : "") + "." + test;
         }
-        return "§aAP3 status: " + where + " - armed (walk into the first node to run)." + test;
+        int armed = 0;
+        try {
+            armed = Ap3Feature.currentChainNodes().size();
+        } catch (Exception ignored) {
+        }
+        return "§aAP3 status: " + where + " - " + armed + " node(s) armed, walk into any to fire it." + test;
     }
 
     private Component keyText(Action action, int key) {

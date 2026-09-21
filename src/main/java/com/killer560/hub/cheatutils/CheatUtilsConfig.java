@@ -64,6 +64,9 @@ public final class CheatUtilsConfig {
     private int gfsThresholdPercent = 50; // QUOI "Amount" default
     private int gfsIntervalSec = 20;      // Noamm "Check Delay" default
     private boolean gfsSkipIfNone = true; // Noamm: `if (current == 0) return`
+    // killer560 (2026-09-20): "make an option to only work in dungeons/kuudra" - off by default, matching
+    // every other "new setting" here, so Auto GFS keeps working anywhere in Skyblock/p3sim until he opts in.
+    private boolean gfsDungeonKuudraOnly = false;
 
     // ---- Auto Ult (NoammAddons Abilities.kt, CHEAT block) ----
     private boolean autoUltEnabled = false;
@@ -123,6 +126,7 @@ public final class CheatUtilsConfig {
                 cfg.setGfsThresholdPercent(integer(o, "gfsThresholdPercent", 50));
                 cfg.setGfsIntervalSec(integer(o, "gfsIntervalSec", 20));
                 cfg.gfsSkipIfNone = bool(o, "gfsSkipIfNone", true);
+                cfg.gfsDungeonKuudraOnly = bool(o, "gfsDungeonKuudraOnly", false);
 
                 cfg.autoUltEnabled = bool(o, "autoUltEnabled", false);
                 cfg.ultMaxorEnraged = bool(o, "ultMaxorEnraged", true);
@@ -169,6 +173,7 @@ public final class CheatUtilsConfig {
             o.addProperty("gfsThresholdPercent", gfsThresholdPercent);
             o.addProperty("gfsIntervalSec", gfsIntervalSec);
             o.addProperty("gfsSkipIfNone", gfsSkipIfNone);
+            o.addProperty("gfsDungeonKuudraOnly", gfsDungeonKuudraOnly);
 
             o.addProperty("autoUltEnabled", autoUltEnabled);
             o.addProperty("ultMaxorEnraged", ultMaxorEnraged);
@@ -266,6 +271,8 @@ public final class CheatUtilsConfig {
     public void setGfsIntervalSec(int v) { gfsIntervalSec = clamp(v, MIN_GFS_INTERVAL_SEC, MAX_GFS_INTERVAL_SEC); }
     public boolean isGfsSkipIfNone() { return gfsSkipIfNone; }
     public void setGfsSkipIfNone(boolean v) { gfsSkipIfNone = v; }
+    public boolean isGfsDungeonKuudraOnly() { return gfsDungeonKuudraOnly; }
+    public void setGfsDungeonKuudraOnly(boolean v) { gfsDungeonKuudraOnly = v; }
 
     // ---- Auto Ult ----
     public boolean isAutoUltEnabled() { return cheat() && autoUltEnabled && com.killer560.hub.util.SkyblockGate.allows(); }

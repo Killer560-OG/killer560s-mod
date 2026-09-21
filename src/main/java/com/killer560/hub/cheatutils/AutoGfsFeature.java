@@ -1,6 +1,7 @@
 package com.killer560.hub.cheatutils;
 
-import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.scoreboard.ScoreboardData;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Inventory;
@@ -12,7 +13,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Auto GFS - refills sack items with {@code /gfs <sack_id> <amount>} while in a dungeon. Command syntax is
+ * Auto GFS - refills sack items with {@code /gfs <sack_id> <amount>} while on Hypixel/p3sim. Command syntax is
  * identical in both references: NoammAddons {@code AutoGFS.kt} ({@code "gfs $id $count"}, e.g.
  * {@code gfs ender_pearl 12}) and QUOI {@code PlayerUtils.fillItemFromSack} ({@code "gfs $sackName $missing"}).
  * <ul>
@@ -21,8 +22,11 @@ import java.util.Set;
  * <li>Refills when count &lt; threshold% of max (QUOI "Amount" mode), pulling {@code max - count} (both refs).
  * Noamm's {@code needed >= 4} floor and {@code current == 0 -> skip} are kept (the latter as a toggle).
  * <li>Checked every N seconds (Noamm "Check Delay", default 20s); commands spaced &gt;= 3s apart (Noamm's
- * {@code sendCommand(..., 3000)} queue spacing). Never with a screen open (both refs).
+ * {@code sendCommand(..., 3000)} queue spacing). Never with a container screen open (both refs).
  * <li>"You have no X in your Sacks!" (QUOI) marks that item empty until world change.
+ * <li>killer560 (2026-09-20): "make an option to only work in dungeons/kuudra" - {@code gfsDungeonKuudraOnly}
+ * (off by default) gates on {@link ScoreboardData#inIsland}, mirroring Odin's own {@code AutoGFS} which keeps
+ * separate {@code inSkyblock}/{@code inKuudra}/{@code inDungeon} toggles rather than one hardcoded location.
  * </ul>
  */
 public final class AutoGfsFeature {
@@ -84,18 +88,34 @@ public final class AutoGfsFeature {
             lastCheckMs = System.currentTimeMillis(); // give the new world one interval before the first check
         }
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
+        // Real bug found (2026-09-20, killer560: "it isn't doing anything at all"): this was hardcoded to
+        // require DungeonState.isInDungeon(), which only matches a real Catacombs sidebar ("The Catacombs
+        // (..."). Kuudra never matches that, so Superboom TNT / Inflatable Jerry - the two items this
+        // feature exists to refill for Kuudra - could NEVER be topped up there; the log would have sat on
+        // "not in dungeon" the entire fight. Replaced with an opt-in restriction (gfsDungeonKuudraOnly,
+        // default off) using the mod's general island reader instead of the dungeon-only one, so by default
+        // Auto GFS works anywhere on Hypixel/p3sim (matching the master SkyblockGate scope) and killer560
+        // can additionally restrict it to Catacombs+Kuudra if he wants that.
+        boolean containerOpen = ActionGate.containerScreenOpen(client);
         String gate = !cfg.isAutoGfsEnabled() ? "disabled"
                 : client.player == null ? "no-player"
                 : !CheatUtils.isOnDungeonServer(client) ? "not on hypixel/p3sim"
-                : !DungeonState.isInDungeon() ? "not in dungeon"
-                : com.killer560.hub.util.ActionGate.containerScreenOpen(client) ? "a container screen is open" : null;
+                : cfg.isGfsDungeonKuudraOnly() && !ScoreboardData.inIsland("Catacombs", "Kuudra") ? "not in a dungeon or Kuudra"
+                : containerOpen ? "a container screen is open" : null;
         String gateLog = gate == null ? "active" : gate;
         if (!gateLog.equals(lastGate)) {
             lastGate = gateLog;
             CheatUtils.LOGGER.info("[CheatUtils] AutoGFS state: {}", gateLog);
         }
         if (gate != null) {
-            if (!"screen open".equals(gate)) {
+            // Real bug found (2026-09-20): this compared gate to the literal "screen open", which the gate
+            // string above never actually produces (it says "a container screen is open") - so the compare
+            // always failed and pending was wiped on EVERY gate hit, including a screen that closes a tick
+            // later. In a real dungeon that is constantly: opening your own inventory, a chest, the sack
+            // menu. Any one of those mid-cycle threw away a queued refill and forced a wait for the next
+            // full gfsIntervalSec check (up to 20s) before it could even be reconsidered - which is very
+            // plausibly why this "did nothing" in practice. Fixed to key off the actual boolean.
+            if (!containerOpen) {
                 pending.clear();
             }
             return;
@@ -111,6 +131,15 @@ public final class AutoGfsFeature {
             }
         }
         if (pending.isEmpty() || now - lastCommandMs < COMMAND_SPACING_MS) {
+            return;
+        }
+        // Gap found (2026-09-20): ActionGate.Actor.AUTO_GFS already existed (today's mod-wide automated-
+        // action gate) but nothing ever called tryAct for it, so this command wasn't actually coordinated
+        // with the mod's other auras/solvers - not what was making it "do nothing" (COMMAND has no screen
+        // rules, and our own 3s spacing already dwarfs a single tick), but worth wiring up now that every
+        // other automated action goes through this gate. A denial here just retries next tick; it can never
+        // shrink the >=3s spacing above, only occasionally push a send back by a tick or two.
+        if (!ActionGate.tryAct(ActionGate.Actor.AUTO_GFS)) {
             return;
         }
         RefillItem item = pending.poll();

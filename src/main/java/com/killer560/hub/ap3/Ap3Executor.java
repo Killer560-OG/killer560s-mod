@@ -8,6 +8,7 @@ import com.killer560.hub.fastleap.FastLeapConfig.LeapTarget;
 import com.killer560.hub.fastleap.LeapManager;
 import com.killer560.hub.fastleap.PosmsgTargets;
 import com.killer560.hub.fastleap.Teammates;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
@@ -32,59 +33,86 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Runs one AP3 chain: the movement, alignment, waiting and advancing. CHEAT BUILD ONLY - only ever started by
- * {@link Ap3Feature} behind {@link Ap3Config#isEnabled()} and the BOSS-ONLY gate (any boss phase, one chain per
- * {@link Ap3Area}).
+ * Performs AP3 nodes. CHEAT BUILD ONLY - only ever ticked by {@link Ap3Feature} behind {@link Ap3Config#isEnabled()}
+ * and the BOSS-ONLY gate (any boss phase, one node set per {@link Ap3Area}).
  * <p>
- * <b>Order + boxes.</b> Nodes run in chain order; each one is performed once you are inside its trigger box
- * ({@link Ap3Node#contains}). A WALK / RUN sets a <b>held</b> walk in its recorded world direction that lasts until
- * a STOP or an align node (killer560, 2026-09-20: "keeps you walking until a stop or align node, not just until you
- * leave the node") - that held walk is what carries you into the next node's box. A WALK / RUN begins its hold from
- * wherever the chain reaches it and never box-waits (killer560, 2026-09-20 in-game test: "keep me walking until i hit
- * a different node not stop after 1 tick") - a trailing WALK with nothing after it keeps you moving until you take
- * control. A node nothing is carrying you toward fires on the spot (LOOK, LEAP, TERMINAL...), or refuses if it is
- * positional (STOP, BOOM, an align); an align node pulls you in from up to {@value #ALIGN_REACH} blocks.
+ * <b>Every node is armed on its own; there is no sequence.</b> killer560 (2026-09-20): "if i hit node one, then
+ * node two, then node 4, then node 18, they should all fire even though they arent in sequential order. The order
+ * never matters in that sence." Walking into a node's trigger box ({@link Ap3Node#contains}) fires THAT node,
+ * whichever one it is. A node that has fired does not fire again while you stay inside its box - it re-arms when
+ * you leave (a rising edge on entry), so standing in one never machine-guns it.
  * <p>
- * There is no start command: {@link Ap3Feature} auto-arms the chain and calls {@link #start(Ap3Chain)} the moment
- * the player walks into the first node's trigger box.
+ * <b>Universal priority, one node per tick.</b> When more than one node triggers on the same tick, they fire one per
+ * tick in this order (killer560: "stop should go first, then align, then look, then walk, then boom, then leap. So
+ * if i hit a boom and leap node on the same tick then it should boom then the next tick leap"):
+ * {@code STOPWATCH > STOP > ALIGN / AXIS_ALIGN > LOOK > TERMINAL > LEAP_COUNTER > WALK / RUN > BOOM > LEAP}
+ * ({@link Ap3Node.Type#priority()}). A triggered node waits in the {@link #queue} until the executor is free (the
+ * previous node finished and any {@code wait:} modifier has elapsed) and then fires - <b>even if you have left its
+ * box by then</b> (killer560: "yes it should still fire even if you leave the box by then"). Entering a box queues a
+ * node once: it cannot be queued twice by a quick exit and re-entry while it is still waiting or being performed.
+ * <p>
+ * <b>What clears the queue</b> (a queued node is never fired somewhere it no longer makes sense): you take control
+ * (a movement key, the mouse while a LOOK turns the camera, any key or button in test mode), a screen the active
+ * node did not ask for opens, a node fails, {@code /ap3 stop}, leaving the boss, the area changing, a p3sim
+ * restart, a world change, AP3 being turned off, the file being reloaded or a node being edited - and <b>a leap
+ * landing</b>: whatever was queued was for where you were, and killer560's leap rule (below) says nothing moves on
+ * the far side until a node THERE fires. Every one of those goes through {@link #stop} or {@link #onLeapHappened}.
+ * <p>
+ * <b>Held walk.</b> A WALK / RUN sets a <b>held</b> walk in its recorded world direction and completes at once; the
+ * hold carries you along and lasts <b>until any other node fires</b> (killer560: "keep me walking until i hit a
+ * different node") - so the node that ends it can be anything, a STOP, an ALIGN, a LOOK, a BOOM. With nothing
+ * after it a walk keeps you moving until you take control.
+ * <p>
+ * <b>Leaping drops all movement</b> - killer560 (2026-09-20): "if it even encounters a leap node, it should stop all
+ * movement when it goes to leap, so that tick it would look like drops all movement, leaps, and then no movement
+ * on the other side unless it hits a node", and "Make sure that also happens if I am using auto leap and auto leap
+ * goes off during it even if it isnt a node." A LEAP node releases every input first and THEN asks for the leap
+ * ({@link #tickLeap}); a leap from anywhere else - Fast Leap / Auto Leap, a manual Spirit Leap click, a boss
+ * teleport - is observed by {@link #onLeapHappened} and gets the same treatment: the hold is dropped for good, the
+ * queue is cleared, and nothing moves again until a node at the destination fires. AP3 only ever OBSERVES Fast
+ * Leap's leap; it never cancels, delays or re-triggers it.
+ * <p>
+ * <b>Your hands win.</b> A physical movement key ends everything AP3 is doing (mixin path: the untouched
+ * {@code keyPresses}; fallback path: the physical keys through {@code KeyMappingKeyAccessor}). A node you walk
+ * into while holding a key does not fire under your hands: it fires the moment you let go while still inside the
+ * box, once, and not again until you leave and come back - so walking onto a node with W held and releasing is the
+ * natural hand-over, and tapping a key on a node you already fired does not fire it again.
+ * <p>
+ * <b>Interactions go through {@link ActionGate}</b> as {@link ActionGate.Actor#ROUTE}: the boom's hotbar swap and
+ * its destroy tap, and the leap request. AP3 already fires at most one node per tick and performs one node at a
+ * time, so it asks the gate at most once per tick; a refused tick simply retries the same step next tick. The two
+ * rules compose: AP3's priority decides WHICH node has the executor, the gate decides WHETHER that node's packet
+ * goes out this tick alongside every other feature's.
  * <p>
  * <b>Movement</b> is written as the analog {@code moveVector} through {@code mixin/Ap3InputMixin} (falling back to
  * holding the key mappings when the mixin config is not loaded, exactly like {@code RouteExecutor}). A held walk
- * moves in the world direction its yaw was recorded in <b>without turning the camera</b> - killer560: "whenever
- * I use a walk node, it does not actually make my character face that way, but it will move that way" - by
- * projecting that fixed world direction into the player's LIVE facing frame every tick ({@link #writeMove}).
+ * moves in the world direction its yaw was recorded in <b>without turning the camera</b> by projecting that fixed
+ * world direction into the player's LIVE facing frame every tick ({@link #writeMove}).
  * <p>
  * <b>Rotation</b> (LOOK only) is a wrapped delta on the running yaw through {@link RouteRotation} (Rotation 360
  * rule); nothing in this class ever calls {@code setYRot}. The camera step is bounded to one per rendered frame
  * and the node to a real-time timeout - see {@link #tickFrame()} and {@link #tickLook}.
  * <p>
- * <b>Modifiers</b> on any node: {@code wait:<ms>} holds the chain that long after the node ({@link #waitUntilMs});
- * {@code close} makes the node fire only on a manual left click or once a GUI that was open has closed
- * ({@link Step#GATE}).
+ * <b>Modifiers</b> on any node: {@code wait:<ms>} holds the NEXT queued node that long after this one
+ * ({@link #waitUntilMs}); {@code close} makes the node perform only on a manual left click or once a GUI that was
+ * open has closed ({@link Step#GATE}). ANY wait - a waiting node (LEAP, LEAP_COUNTER, TERMINAL), a close gate, a
+ * wait: modifier - ends on a manual LEFT-CLICK ({@link #pollClick}), read straight from GLFW: this class never
+ * presses the mouse, so a press can only be the player's.
  * <p>
- * <b>Waiting nodes</b> (LEAP, LEAP_COUNTER, TERMINAL) advance on their own real condition, and ANY wait - a node,
- * a close gate, a wait: modifier - ends on a manual LEFT-CLICK ({@link #pollClick}): one shared mechanism, and it
- * is the player's physical mouse button read straight from GLFW: this class never presses the mouse, so a press
- * can only be theirs.
- * <p>
- * <b>Test mode</b> ({@code /ap3 testmode}): the chain runs every node without waiting on anything the arena would
- * have to provide (terminals, teammates, close gates; a failed leap is skipped), and ANY key or mouse button ends
- * it - "runs every node until he takes control by pressing any button".
- * <p>
- * <b>Stopping</b>: the player's own movement keys (mixin path: the untouched {@code keyPresses}; fallback path: the
- * physical keys through {@code KeyMappingKeyAccessor}, since the held mappings would report our own state), their
- * mouse while the camera is being driven ({@link RouteRotation#userMovedCamera} - latched inside the per-frame step
- * before the write), any screen the active node did not ask for, world change, death, leaving the boss, a p3sim
- * restart, and the STOP command / tab button all release every key and clear the rotation controller. There is no
- * auto-arming, so a stop stays stopped.
+ * <b>Test mode</b> ({@code /ap3 testmode}): nodes run without waiting on anything the arena would have to provide
+ * (terminals, teammates, close gates; a failed leap is skipped), and ANY key or mouse button stops everything.
  */
 public final class Ap3Executor {
 
@@ -102,7 +130,8 @@ public final class Ap3Executor {
     private static final double SNEAK_APPROACH = 0.4;
     private static final double SETTLE_SPEED = 0.02;
     private static final int SETTLE_TICKS = 2;
-    /** How far an align node may pull you in from when nothing is carrying you into its box. */
+    /** How far an align node may pull you in from. A queued align fires even after you walked out of its box; past
+     *  this it fails instead of dragging you across the room. */
     private static final double ALIGN_REACH = 4.0;
     /**
      * Below this error, movement input stops resolving the last fraction of a block: at Skyblock 550%+ speed even a
@@ -117,16 +146,6 @@ public final class Ap3Executor {
     private static final double MAX_CORRECT_PER_TICK = 0.08;
     /** Finished only within this of the exact target, so the coordinate reads {@code .500} to three decimals. */
     private static final double EXACT_EPS = 0.0004;
-    /** A node that is not about position still fires when the held walk brings you this close to it, so a walk
-     *  that passes half a block beside a 1x1 box cannot leave the chain waiting forever. Align nodes get the same
-     *  leniency in every case - a version-1 corridor loads as a 1-wide box. */
-    private static final double NEAR_ENOUGH = 1.0;
-    /** With nothing carrying you, a positional node still fires from this close (the old walk-start tolerance):
-     *  "standing on" the first node of a chain was never a half-block affair. */
-    private static final double START_TOLERANCE = 1.5;
-    /** Walking away from a node you were meant to reach: once the distance has grown this much past its best,
-     *  the walk has missed it - say so now rather than after the whole move timeout. */
-    private static final double WALKED_PAST = 2.0;
     private static final double WALL_TOUCH = 0.02;
     private static final double WALL_PUSH_HELD = 0.35;
     private static final int LOOK_TIMEOUT = 80;
@@ -137,6 +156,8 @@ public final class Ap3Executor {
     private static final int LEAP_FAIL_GRACE = 3;
     private static final int LEAP_CLICKED_GRACE = 30;
     private static final double LEAP_ARRIVED = 4.0;
+    /** A position jump of this much in ONE tick is a teleport, never running: sprinting at the 500 speed cap is
+     *  ~1.4 blocks/tick. Used both for teammates leaping to you and for noticing that YOU were moved. */
     private static final double TELEPORT_JUMP = 8.0;
     private static final int BRAKE_TIMEOUT = 40;
     private static final int SWAP_TIMEOUT = 10;
@@ -146,26 +167,31 @@ public final class Ap3Executor {
     private static final int GLFW_FIRST_KEY = GLFW.GLFW_KEY_SPACE;
     private static final int GLFW_LAST_KEY = GLFW.GLFW_KEY_LAST;
 
-    /** GATE = waiting for the close modifier; BOX = waiting to be inside the node's trigger box; the rest are the
-     *  per-type phases. */
-    private enum Step { GATE, BOX, PREP, SWAP, DO, CONFIRM }
+    /** GATE = waiting for the close modifier; the rest are the per-type phases. */
+    private enum Step { GATE, PREP, SWAP, DO, CONFIRM }
 
-    // ---- session ----
-    private static boolean running;
+    // ---- the armed node set ----
+    /** The nodes of the area you stand in, all armed; null between sections / outside the boss. */
     private static Ap3Chain chain;
-    private static int nextNode;
+    /** Nodes whose box you were inside last tick (identity) - the edge detector's memory. */
+    private static final Set<Ap3Node> inside = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** Nodes you entered with a movement key held: they fire the moment you let go while still inside. */
+    private static final Set<Ap3Node> unfired = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** Triggered nodes waiting their turn, kept in priority order (ties keep trigger order). */
+    private static final List<Ap3Node> queue = new ArrayList<>();
+    /** Scratch: the nodes {@link #scanBoxes} triggered this tick, for the "queued behind" report. */
+    private static final List<Ap3Node> triggeredThisTick = new ArrayList<>();
+    private static Vec3 lastSelfPos;
+
+    // ---- the node being performed ----
     private static Ap3Node activeNode;
     private static Step step;
     private static int stepTicks;
     private static String stopReason;
-    private static Object lastLevel;
-    private static boolean stoppedByUser;
-    private static boolean completedNormally;
-    private static Ap3Area completedArea;
     private static int cameraGraceTicks;
     private static boolean testMode;
 
-    // ---- held walk (WALK / RUN until a STOP or align node) ----
+    // ---- held walk (WALK / RUN until any other node fires) ----
     private static Vec3 holdDir;
     private static boolean holdSprint;
 
@@ -208,14 +234,12 @@ public final class Ap3Executor {
      *  gate really broke (killer560, 2026-09-20: the gate WAS destroyed but AP3 said it wasn't). */
     private static final int BOOM_SCAN_RADIUS = 2;
 
-    // ---- stopwatch (survives across chains and areas; reset on world change) ----
+    // ---- stopwatch (survives across areas; reset on world change) ----
     private static long stopwatchStartMs;
     private static long lastStopwatchMs = -1L;
 
-    // ---- alignment / box progress ----
+    // ---- alignment progress ----
     private static int settleTicks;
-    private static double progressBest;
-    private static int noProgressTicks;
 
     // ---- input ----
     private static boolean mixinApplied;
@@ -236,25 +260,20 @@ public final class Ap3Executor {
 
     // ------------------------------------------------------------------------------------------- public API
 
+    /** True while AP3 is doing something: performing a node, holding a walk, or holding triggered nodes in the
+     *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
-        return running;
+        return activeNode != null || holdDir != null || !queue.isEmpty();
     }
 
-    /** True when the last stop was the player taking over (keys / mouse). Nothing re-arms on its own anyway. */
-    public static boolean wasStoppedByUser() {
-        return stoppedByUser;
+    /** True while an area's nodes are armed (you are in a boss area that has nodes). */
+    public static boolean isArmed() {
+        return chain != null && !chain.isEmpty();
     }
 
-    public static void clearStoppedByUser() {
-        stoppedByUser = false;
-    }
-
-    /** The area of a chain that just ran to its END (null when none) - consumed once by {@link Ap3Feature} for
-     *  "continue into next section", which must never restart the area that just finished. */
-    static Ap3Area consumeCompletedArea() {
-        Ap3Area a = completedNormally ? completedArea : null;
-        completedNormally = false;
-        return a;
+    /** Triggered nodes waiting their turn behind the active one. */
+    public static int queuedCount() {
+        return queue.size();
     }
 
     public static boolean isTestMode() {
@@ -264,6 +283,9 @@ public final class Ap3Executor {
     /** {@code /ap3 testmode}: session-only, never saved - a test mode that survived a restart would surprise him. */
     public static void setTestMode(boolean on) {
         testMode = on;
+        if (on) {
+            snapshotButtons(Minecraft.getInstance()); // keys already down (the Enter that sent the command) are not a takeover
+        }
     }
 
     /** Milliseconds the stopwatch has been running, or -1 when it is not. */
@@ -276,86 +298,26 @@ public final class Ap3Executor {
         return lastStopwatchMs;
     }
 
-    /** Starts the chain for the boss area you are standing in and the class you are playing. */
-    public static boolean start() {
-        if (!Ap3Config.getInstance().isEnabled()) {
-            chatBad("AP3 is off (cheat build + Skyblock only).");
-            return false;
-        }
-        Ap3Area area = Ap3Feature.currentArea();
-        if (area == null) {
-            chatBad(Ap3Feature.noAreaReason());
-            return false;
-        }
-        DungeonClass playing = Ap3Feature.selfClass();
-        Ap3Chain c = Ap3Store.getInstance().forArea(area, playing);
-        if (c == null || c.isEmpty()) {
-            chatBad("No chain for " + area.label() + (playing == null ? "" : " (" + playing.displayName() + " or any class)")
-                    + " - add nodes with /ap3 add.");
-            return false;
-        }
-        return start(c);
-    }
-
-    /** Starts a specific chain. Only the feature / the API above call this, after every gate has passed. */
-    public static boolean start(Ap3Chain c) {
-        Minecraft client = Minecraft.getInstance();
-        LocalPlayer player = client.player;
-        if (player == null || c == null || c.isEmpty()) {
-            return false;
-        }
-        if (running) {
-            stop("restarted");
-        }
-        chain = c;
-        nextNode = 0;
-        activeNode = null;
-        step = null;
-        stepTicks = 0;
-        stopReason = null;
-        lastLevel = client.level;
-        stoppedByUser = false;
-        completedNormally = false;
-        cameraGraceTicks = 2;
-        clickLatch = false;
-        leftWasDown = leftButtonDown(client); // a button already held when we start is not a "new" click
-        lookHeld = false;
-        holdDir = null;
-        holdSprint = false;
-        waitUntilMs = 0L;
-        gateSawScreen = false;
-        snapshotButtons(client); // test mode: keys already down (the Enter that sent /ap3 start) are not a takeover
-        RouteRotation.clear();
-        clearMovement();
-        running = true;
-        LOGGER.info("[AP3] Started {} ({} nodes{})", c.label(), c.nodes().size(), testMode ? ", TEST MODE" : "");
-        if (Ap3Config.getInstance().isChatFeedback()) {
-            chat(ModChat.good("Started"), ModChat.dim(" - " + c.label() + ", " + c.nodes().size() + " node(s)"
-                    + (testMode ? ", test mode - any key or button stops it" : "")));
-        }
-        return true;
-    }
-
-    /** Stops the chain and tells the user why (chat, when chat feedback is on). Safe to call when idle. */
+    /**
+     * Ends everything AP3 is doing: the active node, the held walk, every queued node, every key. Tells the user why
+     * (chat, when chat feedback is on) if anything was actually going on. Safe to call when idle. The nodes stay
+     * armed - the ones you are standing in do not fire again until you leave and re-enter their box.
+     */
     public static void stop(String reason) {
-        boolean wasRunning = running;
-        if (wasRunning && reason != null && (reason.equals("you moved") || reason.equals("you moved the camera")
-                || reason.startsWith("you took control"))) {
-            stoppedByUser = true;
-        }
-        running = false;
+        boolean wasBusy = isRunning();
         stopReason = reason;
         activeNode = null;
         step = null;
         lookHeld = false;
         holdDir = null;
         waitUntilMs = 0L;
+        queue.clear();
         releaseKeys();
         RouteRotation.clear();
         lastPositions.clear();
         counted.clear();
         boomBefore.clear();
-        if (wasRunning) {
+        if (wasBusy) {
             LOGGER.info("[AP3] Stopped: {}", reason);
             if (reason != null && Ap3Config.getInstance().isChatFeedback()) {
                 chat(ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
@@ -367,19 +329,14 @@ public final class Ap3Executor {
         return stopReason;
     }
 
-    /** The node currently being performed, for the renderer's active highlight. */
+    /** The node currently being performed (for the renderer's active highlight), or null. */
     static Ap3Node activeNode() {
-        if (!running) {
-            return null;
-        }
-        if (activeNode != null) {
-            return activeNode;
-        }
-        return chain != null && nextNode < chain.nodes().size() ? chain.nodes().get(nextNode) : null;
+        return activeNode;
     }
 
-    static Ap3Chain runningChain() {
-        return running ? chain : null;
+    /** The armed node set, or null. */
+    static Ap3Chain armedChain() {
+        return chain;
     }
 
     /** World change: the stopwatch belongs to the fight, not the client session. */
@@ -388,21 +345,62 @@ public final class Ap3Executor {
         lastStopwatchMs = -1L;
     }
 
+    // ------------------------------------------------------------------------------------------- arming
+
+    /**
+     * Arms {@code nodes} (the area you just entered, or the freshly reloaded file). {@code seedFromPosition} = the
+     * boxes you are standing in right now count as already entered, so nothing fires until you step out and back
+     * in - the rule after every placement / edit / reload ("adding a node at your feet must not drive you") and,
+     * unless Continue Into Next Section is on, on arriving in a new area by a leap or teleport.
+     */
+    private static void arm(Ap3Chain nodes, boolean seedFromPosition, LocalPlayer player) {
+        chain = nodes;
+        queue.clear();
+        inside.clear();
+        unfired.clear();
+        if (nodes != null && seedFromPosition && player != null) {
+            Vec3 pos = player.position();
+            for (Ap3Node n : nodes.nodes()) {
+                if (n.contains(pos)) {
+                    inside.add(n);
+                }
+            }
+        }
+    }
+
+    /** After a placement / edit / reload: whatever box you stand in counts as already entered (see {@link #arm}).
+     *  Also drops anything queued - the queued nodes may no longer exist. */
+    static void resync() {
+        queue.clear();
+        LocalPlayer player = Minecraft.getInstance().player;
+        arm(chain, true, player);
+    }
+
+    /** Leaving the boss / AP3 off / world change: stop everything and forget the armed set. */
+    static void disarm(String reason) {
+        stop(reason);
+        chain = null;
+        inside.clear();
+        unfired.clear();
+        triggeredThisTick.clear();
+        lastSelfPos = null;
+    }
+
     // ------------------------------------------------------------------------------------------- input hooks
 
     /** The input mixin asks this before touching anything. */
     public static boolean isSessionActive() {
-        return running;
+        return isRunning();
     }
 
     public static void onMixinApplied() {
         mixinApplied = true;
     }
 
-    /** From the input mixin: the player pressed a movement key themselves. Stops at ANY point of a running chain -
-     *  the player taking the controls back always wins, and nothing re-arms afterwards. */
+    /** From the input mixin: the player pressed a movement key themselves. Ends whatever AP3 is doing - the player
+     *  taking the controls back always wins. Nodes stay armed; the ones you stand in re-fire only on re-entry. */
     public static void onUserMovementInput() {
-        if (running) {
+        if (isRunning()) {
             stop("you moved");
         }
     }
@@ -410,7 +408,7 @@ public final class Ap3Executor {
     /** Driving the player this tick (the mixin asks this). Sneak alone (braking / the last bit of an alignment)
      *  still counts. */
     public static boolean isDriving() {
-        return running && (driving || wantSneak);
+        return driving || wantSneak;
     }
 
     /** The {@code Input} record the mixin installs: the 8-way keys nearest the analog direction, so the
@@ -436,7 +434,7 @@ public final class Ap3Executor {
      * and it goes out normally.
      */
     public static boolean isRotationSendSuppressed() {
-        if (!running || !lookHeld) {
+        if (!lookHeld) {
             return false;
         }
         LocalPlayer player = Minecraft.getInstance().player;
@@ -462,9 +460,35 @@ public final class Ap3Executor {
      * the chat line means the gate is down (killer560, 2026-09-20: the line came through yet AP3 reported failure).
      */
     static void onGateDestroyed() {
-        if (running && activeNode != null && activeNode.type == Ap3Node.Type.BOOM) {
+        if (activeNode != null && activeNode.type == Ap3Node.Type.BOOM) {
             boomChatConfirmed = true;
         }
+    }
+
+    /**
+     * A leap (or any teleport of you) just happened, whoever caused it: AP3's own LEAP node, Fast Leap / Auto Leap
+     * firing on its own, a manual Spirit Leap click, a boss teleport. Fed by {@link Ap3Feature}'s chat hook
+     * (Hypixel's "You have teleported to Name!" - the same line {@code leapcounter/LeapTracker} keys its own-leap
+     * suppression on) and by {@link #tick}'s own-position jump check, which also covers p3sim if it prints nothing.
+     * <p>
+     * killer560: "drops all movement, leaps, and then no movement on the other side unless it hits a node" - and
+     * "Make sure that also happens if I am using auto leap and auto leap goes off during it even if it isnt a node."
+     * So: the held walk is dropped for good (never resumed on the far side), the queue is cleared (it was for where
+     * you were), every key is released, and a node mid-way (an align, a stop) is cancelled - you are not there any
+     * more. The one exception is AP3's own LEAP node waiting to confirm its landing: that IS this leap, so it is left
+     * to finish. Nothing here touches Fast Leap: AP3 observes the leap, it never cancels, delays or re-triggers it.
+     */
+    static void onLeapHappened(String why) {
+        RouteRotation.rebase(); // the teleport's own camera change is not the player's mouse
+        boolean ownLeapConfirming = activeNode != null && activeNode.type == Ap3Node.Type.LEAP && step == Step.CONFIRM;
+        if (!ownLeapConfirming) {
+            stop(why);
+            return;
+        }
+        holdDir = null;
+        queue.clear();
+        clearMovement();
+        releaseKeys();
     }
 
     /**
@@ -472,15 +496,12 @@ public final class Ap3Executor {
      * between two ticks is never missed.
      * <p>
      * killer560 (2026-09-20): "I used the look node and instantly my game dropped to sub 1fps ... Make sure it isn't
-     * making me look thousands of times a second." The step is now taken only while a LOOK is actually turning the
-     * camera (never for the rest of a running chain), at most once per {@value #MIN_FRAME_STEP_NANOS} ns however
-     * many times the level-render hook fires in a frame, and the node itself ends after {@value #LOOK_TIMEOUT_MS} ms
-     * of wall time even if the controller never reports settled - so a LOOK can neither spin nor stay armed.
+     * making me look thousands of times a second." The step is taken only while a LOOK is actually turning the
+     * camera, at most once per {@value #MIN_FRAME_STEP_NANOS} ns however many times the level-render hook fires in
+     * a frame, and the node itself ends after {@value #LOOK_TIMEOUT_MS} ms of wall time even if the controller
+     * never reports settled - so a LOOK can neither spin nor stay armed.
      */
     static void tickFrame() {
-        if (!running) {
-            return;
-        }
         if (RouteRotation.isActive() && activeNode != null && activeNode.type == Ap3Node.Type.LOOK) {
             long now = System.nanoTime();
             if (now - lastFrameStepNanos >= MIN_FRAME_STEP_NANOS) {
@@ -493,35 +514,59 @@ public final class Ap3Executor {
 
     // ------------------------------------------------------------------------------------------- ticking
 
-    /** Call at the END of every client tick while {@link #isRunning()}; the feature has already applied the
-     *  enabled / boss gates before this runs. */
-    static void tick(Minecraft client) {
-        if (!running) {
-            releaseKeys();
-            return;
-        }
+    /**
+     * Call at the END of every client tick while AP3 is enabled and the boss gate is open (the feature applies both
+     * first). {@code current} is the node set of the area you stand in (null between sections); {@code arrival} is
+     * true on the tick the area changed.
+     */
+    static void tick(Minecraft client, Ap3Chain current, boolean arrival) {
         LocalPlayer player = client.player;
-        if (player == null || client.level == null || client.level != lastLevel) {
-            stop("world change");
+        if (player == null || client.level == null) {
+            disarm("world change");
             return;
         }
+        // YOU were moved 8+ blocks in one tick: a leap (auto, manual or ours), an etherwarp, a boss teleport. With
+        // no previous position (first tick in the boss, a rejoin) the origin is unknown and treated the same way.
+        Vec3 pos = player.position();
+        boolean jumped = lastSelfPos == null || pos.distanceTo(lastSelfPos) >= TELEPORT_JUMP;
+        if (current != chain) {
+            // A new area, or the file was reloaded (new objects). The held walk and the node being performed carry
+            // on - a walk from S1's last node has to survive the gap into S2 - but whatever was queued was for the
+            // old area. WALKING into a new area: the boxes you are in fire, that is hitting a node. LANDING in one
+            // by a leap / teleport: with Continue Into Next Section ON they fire at once; OFF, you must step out
+            // and back in first. A reload is neither: nothing you stand in fires until you re-enter.
+            boolean seed = !arrival || (jumped && !Ap3Config.getInstance().isContinueIntoNextSection());
+            arm(current, seed, player);
+        }
+        if (lastSelfPos != null && jumped) {
+            onLeapHappened("you leapt");
+        }
+        lastSelfPos = pos;
         if (player.isDeadOrDying() || player.isSpectator()
                 || client.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
             stop("you died");
+            applyFallbackKeys(client);
             return;
         }
+        boolean busy = isRunning();
         boolean screenOpen = client.screen != null;
-        if (screenOpen && !screenAllowed()) {
-            stop("a screen opened");
-            return;
+        if (busy) {
+            if (screenOpen && !screenAllowed()) {
+                stop("a screen opened");
+                return;
+            }
+            if (!screenOpen && userPressedMovementKeyInFallback(client)) {
+                stop("you moved");
+                return;
+            }
         }
-        if (!screenOpen && userPressedMovementKeyInFallback(client)) {
-            stop("you moved");
-            return;
-        }
-        if (testMode && !screenOpen && anyNewButton(client)) {
-            stop("you took control (test mode)");
-            return;
+        if (testMode) {
+            // Polled every tick so the snapshot stays fresh; only a press while something is going on is a takeover.
+            boolean pressed = anyNewButton(client);
+            if (pressed && busy && client.screen == null) {
+                stop("you took control (test mode)");
+                return;
+            }
         }
         if (cameraGraceTicks > 0) {
             cameraGraceTicks--;
@@ -532,50 +577,128 @@ public final class Ap3Executor {
         pollClick(client);
         if (clickLatch) {
             clickLatch = false;
-            if (testMode) {
-                stop("you took control (test mode)");
-                return;
+            if (isRunning()) {
+                if (testMode) {
+                    stop("you took control (test mode)");
+                    return;
+                }
+                consumeClick(client); // a click with nothing waiting is just a click
             }
-            consumeClick(client); // a click with nothing waiting is just a click
         }
         try {
             clearMovement(); // every node writes its own input; the held walk fills in below when none did
+            // With a screen the active node did not ask for open (chat, inventory, the mod menu) nothing new is
+            // entered or begun - a box is "walked into" when you can act; the edge is seen once the screen closes.
+            boolean canAct = !screenOpen || screenAllowed();
+            triggeredThisTick.clear();
+            if (canAct) {
+                scanBoxes(client, player);
+            }
             if (waitUntilMs > 0L) {
                 if (System.currentTimeMillis() < waitUntilMs) {
+                    reportQueued();
                     applyHold(player);
                     applyFallbackKeys(client);
                     return;
                 }
                 waitUntilMs = 0L;
             }
-            if (activeNode == null) {
-                if (nextNode >= chain.nodes().size()) {
-                    if (holdDir != null) {
-                        // A trailing WALK / RUN with no node after it keeps you moving until you take control -
-                        // killer560: "keep me walking until i hit a different node". With nothing to hit, that means
-                        // until a movement key, a stop, or a screen ends it (all handled above). The chain stays
-                        // running, driving only the held walk.
-                        applyHold(player);
-                        applyFallbackKeys(client);
-                        return;
-                    }
-                    complete();
-                    return;
-                }
-                beginNode(chain.nodes().get(nextNode), player);
+            if (activeNode == null && !queue.isEmpty() && canAct) {
+                // ONE node per tick, highest priority first; the rest wait for the following ticks.
+                beginNode(queue.remove(0), player);
             }
+            reportQueued();
             if (activeNode != null) {
                 tickNode(client, player);
             }
-            if (running) {
-                applyHold(player);
-            }
+            applyHold(player);
         } catch (Exception e) {
-            LOGGER.error("[AP3] Chain error", e);
+            LOGGER.error("[AP3] Node error", e);
             stop("internal error (see log)");
             return;
         }
         applyFallbackKeys(client);
+    }
+
+    /**
+     * The edge detector: entering a node's box (from outside) triggers it; staying inside does nothing; leaving
+     * re-arms it. A box entered with a movement key held is remembered in {@link #unfired} and triggers the tick
+     * you let go while still inside - once. The player's keys are read physically so this is right on both the
+     * mixin path (where the key mappings are untouched) and the fallback path (where AP3 holds the mappings).
+     */
+    private static void scanBoxes(Minecraft client, LocalPlayer player) {
+        if (chain == null) {
+            return;
+        }
+        Vec3 pos = player.position();
+        boolean handsOn = physicalMovementKeyDown(client);
+        for (Ap3Node node : chain.nodes()) {
+            boolean in = node.contains(pos);
+            boolean was = inside.contains(node);
+            if (in && !was) {
+                inside.add(node);
+                if (handsOn) {
+                    unfired.add(node);
+                } else {
+                    trigger(node);
+                }
+            } else if (!in && was) {
+                inside.remove(node);
+                unfired.remove(node);
+            } else if (in && !handsOn && unfired.remove(node)) {
+                trigger(node);
+            }
+        }
+    }
+
+    /** Queues a triggered node in priority order. A node already waiting or being performed is not queued again -
+     *  stepping out and back in while it waits its turn must not fire it twice. */
+    private static void trigger(Ap3Node node) {
+        if (node == activeNode) {
+            return;
+        }
+        for (Ap3Node q : queue) {
+            if (q == node) {
+                return;
+            }
+        }
+        int p = node.type.priority();
+        int at = queue.size();
+        for (int i = 0; i < queue.size(); i++) {
+            if (queue.get(i).type.priority() > p) {
+                at = i;
+                break;
+            }
+        }
+        queue.add(at, node);
+        triggeredThisTick.add(node);
+    }
+
+    /** The nodes triggered this tick that did NOT fire this tick - say so, so a boom that fires "late" is
+     *  understood as the priority (or a wait) at work, not a miss. */
+    private static void reportQueued() {
+        if (triggeredThisTick.isEmpty()) {
+            return;
+        }
+        for (Ap3Node node : triggeredThisTick) {
+            boolean waiting = false;
+            for (Ap3Node q : queue) {
+                if (q == node) {
+                    waiting = true;
+                    break;
+                }
+            }
+            if (!waiting) {
+                continue;
+            }
+            String behind = activeNode != null ? "behind #" + number(activeNode) + " " + activeNode.type.label()
+                    : waitUntilMs > 0L ? "behind a wait" : "(" + queue.size() + " waiting)";
+            LOGGER.info("[AP3] Queued #{} {} {}", number(node), node.type.label(), behind);
+            if (Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.dim("Queued "), ModChat.value("#" + number(node) + " " + node.type.label()), ModChat.dim(" " + behind));
+            }
+        }
+        triggeredThisTick.clear();
     }
 
     /** A manual left click ends whatever is waiting: the wait: modifier, a close gate, or a waiting node.
@@ -594,7 +717,7 @@ public final class Ap3Executor {
             releaseGate("you clicked");
             return true;
         }
-        if (activeNode != null && activeNode.type.isWaiting() && step != Step.BOX) {
+        if (activeNode != null && activeNode.type.isWaiting()) {
             Ap3Node skipped = activeNode;
             if (feedback) {
                 chat(ModChat.text("Skipped "), ModChat.value("#" + number(skipped) + " " + skipped.type.label()),
@@ -618,36 +741,27 @@ public final class Ap3Executor {
                 || step == Step.GATE;
     }
 
-    private static void complete() {
-        LOGGER.info("[AP3] Chain {} complete", chain.label());
-        boolean feedback = Ap3Config.getInstance().isChatFeedback();
-        completedArea = chain.area();
-        stop(null);
-        completedNormally = true;
-        if (feedback) {
-            chat(ModChat.good("Chain complete"), ModChat.dim(" - " + chain.label()));
-        }
-    }
-
     // ------------------------------------------------------------------------------------------- nodes
 
     private static void beginNode(Ap3Node node, LocalPlayer player) {
         activeNode = node;
         stepTicks = 0;
         settleTicks = 0;
-        progressBest = Double.POSITIVE_INFINITY;
-        noProgressTicks = 0;
         swapSent = false;
         gateSawScreen = false;
-        if (node.type == Ap3Node.Type.TERMINAL) {
-            // Never keep walking with a terminal GUI open - that is the one screen a node opens on purpose.
+        if (!node.type.isMover()) {
+            // "keep me walking until i hit a different node" - this is that node, whatever it is. A WALK / RUN
+            // replaces the hold with its own instead.
             holdDir = null;
         }
-        // A WALK / RUN begins its held walk from wherever the chain reaches it - it never box-waits and never
-        // refuses because you are not standing on it (killer560, 2026-09-20: "keep me walking until i hit a
-        // different node not stop after 1 tick"). Everything else waits to be inside its trigger box.
-        step = node.closeGate && !testMode ? Step.GATE : (node.type.isMover() ? Step.PREP : Step.BOX);
+        step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
         LOGGER.info("[AP3] Node #{} {}", number(node), node.describe());
+    }
+
+    /** A node failed: it ends, and so does everything else (the hold, the queue) - the nodes behind it were placed
+     *  assuming it worked, and standing down is the only safe default. Re-enter a box to go again. */
+    private static void failNode(String reason) {
+        stop(reason);
     }
 
     private static void finishNode() {
@@ -657,12 +771,12 @@ public final class Ap3Executor {
         // running, which silently made the next LOOK node uninterruptible by the mouse (2026-09-16 review).
         cameraGraceTicks = 0;
         if (activeNode != null && activeNode.waitAfterMs > 0) {
-            // "/ap3 add walk wait:1000 waits 1000ms after that node" - the held walk keeps going meanwhile.
+            // "/ap3 add walk wait:1000 waits 1000ms after that node" - the next queued node waits that long; a
+            // held walk keeps going meanwhile.
             waitUntilMs = System.currentTimeMillis() + activeNode.waitAfterMs;
         }
         activeNode = null;
         step = null;
-        nextNode++;
     }
 
     private static void tickNode(Minecraft client, LocalPlayer player) {
@@ -672,19 +786,11 @@ public final class Ap3Executor {
             tickGate(client);
             return;
         }
-        if (step == Step.BOX) {
-            if (!tickBoxWait(node, player)) {
-                return;
-            }
-            // reached this tick - perform it now rather than a tick late
-            step = Step.PREP;
-            stepTicks = 1;
-        }
         switch (node.type) {
             case ALIGN -> tickAlign(client, player, node);
             case AXIS_ALIGN -> tickAxisAlign(client, player, node);
             case WALK, RUN -> {
-                // The direction and speed persist until a STOP or align node - the node itself is done at once.
+                // The direction and speed persist until any other node fires - the node itself is done at once.
                 holdDir = node.dir();
                 holdSprint = node.type == Ap3Node.Type.RUN;
                 finishNode();
@@ -710,64 +816,21 @@ public final class Ap3Executor {
         } else if (gateSawScreen) {
             releaseGate("the screen closed");
         }
-        // the click half lives in consumeClick(); the held walk keeps running meanwhile
+        // the click half lives in consumeClick()
     }
 
     private static void releaseGate(String why) {
         if (Ap3Config.getInstance().isChatFeedback()) {
             chat(ModChat.text("#" + number(activeNode) + " " + activeNode.type.label() + " released"), ModChat.dim(" - " + why));
         }
-        step = Step.BOX;
+        step = Step.PREP;
         stepTicks = 0;
         gateSawScreen = false;
-    }
-
-    // ---- trigger box: perform the node once you are inside it --------------------------------------------------
-
-    /** @return true when the node should be performed this tick. */
-    private static boolean tickBoxWait(Ap3Node node, LocalPlayer player) {
-        Vec3 pos = player.position();
-        if (node.contains(pos)) {
-            return true;
-        }
-        double dist = node.horizontalDistance(pos);
-        String what = node.type.label().toLowerCase(Locale.ROOT);
-        if (node.type.isAlign() && dist <= NEAR_ENOUGH) {
-            return true;
-        }
-        if (holdDir == null) {
-            if (node.type.isAlign()) {
-                if (dist <= ALIGN_REACH) {
-                    return true; // an align pulls you the rest of the way
-                }
-                stop(String.format(Locale.US, "too far from %s #%d (%.1f blocks)", what, number(node), dist));
-                return false;
-            }
-            if (node.type.isPositional() && dist > START_TOLERANCE) {
-                stop(String.format(Locale.US, "not standing at %s #%d (%.1f blocks away)", what, number(node), dist));
-                return false;
-            }
-            return true; // nothing carries you anywhere - fire where you are
-        }
-        if (!node.type.isPositional() && dist <= NEAR_ENOUGH) {
-            return true;
-        }
-        // Walking toward it: the distance has to keep shrinking, or the walk is going the wrong way / is blocked.
-        if (dist < progressBest - 0.02) {
-            progressBest = dist;
-            noProgressTicks = 0;
-        } else if (dist > progressBest + WALKED_PAST) {
-            stop(String.format(Locale.US, "walked past %s #%d (%.1f blocks away)", what, number(node), dist));
-        } else if (++noProgressTicks > Ap3Config.getInstance().getMoveTimeoutTicks()) {
-            stop(String.format(Locale.US, "never reached %s #%d (%.1f blocks away)", what, number(node), dist));
-        }
-        return false;
     }
 
     // ---- ALIGN: to the node's exact point, drift accounted for ---------------------------------------------------
 
     private static void tickAlign(Minecraft client, LocalPlayer player, Ap3Node node) {
-        holdDir = null;
         Vec3 pos = player.position();
         Vec3 vel = player.getDeltaMovement();
         double ex = node.x - pos.x;
@@ -775,7 +838,7 @@ public final class Ap3Executor {
         double err = Math.sqrt(ex * ex + ez * ez);
         if (step == Step.PREP) {
             if (err > ALIGN_REACH + node.length / 2.0 + node.width / 2.0) {
-                stop(String.format(Locale.US, "too far from align #%d (%.1f blocks)", number(node), err));
+                failNode(String.format(Locale.US, "too far from align #%d (%.1f blocks)", number(node), err));
                 return;
             }
             step = Step.DO;
@@ -816,7 +879,6 @@ public final class Ap3Executor {
     // ---- AXIS_ALIGN: pressed square against the wall you placed it on, the other axis to the node ---------------
 
     private static void tickAxisAlign(Minecraft client, LocalPlayer player, Ap3Node node) {
-        holdDir = null;
         Vec3 wall = node.wallVector();
         if (wall == null) {
             tickAlign(client, player, node); // a hand-written node with no wall recorded degrades to a plain ALIGN
@@ -830,7 +892,7 @@ public final class Ap3Executor {
         double dist = node.horizontalDistance(pos);
         if (step == Step.PREP) {
             if (dist > ALIGN_REACH + node.length / 2.0 + node.width / 2.0) {
-                stop(String.format(Locale.US, "too far from axis align #%d (%.1f blocks)", number(node), dist));
+                failNode(String.format(Locale.US, "too far from axis align #%d (%.1f blocks)", number(node), dist));
                 return;
             }
             step = Step.DO;
@@ -847,7 +909,7 @@ public final class Ap3Executor {
         }
         settleTicks = 0;
         if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            stop(String.format(Locale.US, "couldn't align on axis align #%d (%s, %.3f off)", number(node),
+            failNode(String.format(Locale.US, "couldn't align on axis align #%d (%s, %.3f off)", number(node),
                     touching ? "on the wall" : "not on the wall", Math.abs(perpErr)));
             return;
         }
@@ -900,7 +962,7 @@ public final class Ap3Executor {
     /**
      * Drives the player along the world vector {@code (ex, ez)} (its length = how far off, drift already taken
      * out), sneaking for the last bit so the landing is precise, and reports settled once the REAL error
-     * {@code err} is within tolerance with no momentum left.
+     * {@code err} is on the exact point with no momentum left.
      */
     private static boolean settleAligned(Minecraft client, LocalPlayer player, Ap3Node node, double err,
                                          double px, double pz) {
@@ -914,7 +976,7 @@ public final class Ap3Executor {
             return true;
         }
         if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            stop(String.format(Locale.US, "couldn't align on #%d (%.3f blocks off)", number(node), err));
+            failNode(String.format(Locale.US, "couldn't align on #%d (%.3f blocks off)", number(node), err));
             return false;
         }
         // Final approach: at 550%+ speed no movement input can land the last fraction of a block, so close it with a
@@ -950,9 +1012,30 @@ public final class Ap3Executor {
 
     // ---- LEAP -----------------------------------------------------------------------------------------------
 
+    /**
+     * killer560: "it should stop all movement when it goes to leap, so that tick it would look like drops all
+     * movement, leaps, and then no movement on the other side unless it hits a node." In that order, here:
+     * <ol>
+     * <li>drop all movement - the held walk is ended for good (nothing resumes it on the far side), the analog
+     *     input is cleared and, on the fallback path, the key mappings are let go NOW;</li>
+     * <li>then leap - through the gate, then {@link #requestLeap};</li>
+     * <li>on the far side nothing moves: {@link #onLeapHappened} (fed by the landing) clears anything queued, and
+     *     only a node at the destination can start movement again.</li>
+     * </ol>
+     * If the leap fails or is cancelled (no target, menu never opened, timeout) the movement stays released - the
+     * hold was dropped before the request, and a failure ends in {@link #stop}, never in a resumed walk.
+     */
     private static void tickLeap(Minecraft client, LocalPlayer player, Ap3Node node) {
         switch (step) {
             case PREP -> {
+                // 1. drops all movement
+                holdDir = null;
+                clearMovement();
+                releaseKeys();
+                // 2. leaps - one interaction, through the mod-wide gate like every other automated click
+                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                    return; // standing still; ask again next tick
+                }
                 leapOrigin = player.position();
                 leapStartMs = System.currentTimeMillis();
                 if (!requestLeap(node)) {
@@ -963,6 +1046,7 @@ public final class Ap3Executor {
                 cameraGraceTicks = LEAP_TIMEOUT + 5; // the teleport's own camera change is not the player's mouse
             }
             case CONFIRM -> {
+                // 3. no movement on the other side: holdDir stays null; a node at the destination has to fire.
                 boolean clicked = LeapManager.lastLeapMs() >= leapStartMs;
                 if (clicked && player.position().distanceTo(leapOrigin) > LEAP_ARRIVED) {
                     RouteRotation.rebase();
@@ -985,7 +1069,8 @@ public final class Ap3Executor {
         }
     }
 
-    /** In test mode a leap that cannot happen (no party, nobody of that class) is skipped, not fatal. */
+    /** In test mode a leap that cannot happen (no party, nobody of that class) is skipped, not fatal. Either way
+     *  the movement released before the request stays released. */
     private static void leapFailed(Ap3Node node, String why) {
         if (testMode) {
             if (Ap3Config.getInstance().isChatFeedback()) {
@@ -993,7 +1078,7 @@ public final class Ap3Executor {
             }
             finishNode();
         } else {
-            stop(why);
+            failNode(why);
         }
     }
 
@@ -1028,11 +1113,12 @@ public final class Ap3Executor {
                 return true;
             }
             default -> {
-                // Fast Leap's target for the chain's area. P2 has five targets (predev, green, yellow, purple, py)
+                // Fast Leap's target for the node's area. P2 has five targets (predev, green, yellow, purple, py)
                 // and S5 none, so neither has a single default - those leaps need a class or IGN.
-                LeapTarget target = switch (chain.phase()) {
+                Ap3Area area = chain == null ? null : chain.area();
+                LeapTarget target = area == null ? null : switch (area.phase()) {
                     case P1 -> LeapTarget.P1;
-                    case P3 -> switch (chain.section()) {
+                    case P3 -> switch (area.section()) {
                         case 1 -> LeapTarget.S1;
                         case 2 -> LeapTarget.S2;
                         case 3 -> LeapTarget.S3;
@@ -1044,7 +1130,8 @@ public final class Ap3Executor {
                     default -> null;
                 };
                 if (target == null) {
-                    leapFailed(node, "Fast Leap has no single " + chain.area().label() + " target - give leap #" + number(node) + " a class or IGN");
+                    leapFailed(node, "Fast Leap has no single " + (area == null ? "area" : area.label())
+                            + " target - give leap #" + number(node) + " a class or IGN");
                     return false;
                 }
                 String name = cfg.getTargetName(target);
@@ -1172,9 +1259,8 @@ public final class Ap3Executor {
     // ---- STOP: "stops all movement. Exactly that, nothing else." ------------------------------------------
 
     private static void tickStop(LocalPlayer player) {
-        // Ends the held walk; no input of any kind; holds until the slide a RUN leaves behind has died out
-        // (ground friction), so whatever follows starts from a standstill.
-        holdDir = null;
+        // The held walk was already ended when this node began; no input of any kind; holds until the slide a RUN
+        // leaves behind has died out (ground friction), so whatever follows starts from a standstill.
         clearMovement();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
@@ -1202,7 +1288,7 @@ public final class Ap3Executor {
                 || System.currentTimeMillis() - lookStartMs > LOOK_TIMEOUT_MS) {
             lookYaw = player.getYRot();
             lookPitch = player.getXRot();
-            finishNode(); // clears the controller; lookHeld stays until the chain ends or the player turns
+            finishNode(); // clears the controller; lookHeld stays until a stop or the player turns
         }
     }
 
@@ -1218,14 +1304,28 @@ public final class Ap3Executor {
             case SWAP -> {
                 int slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
                 if (slot < 0) {
-                    stop("no Superboom in the hotbar");
+                    failNode("no Superboom in the hotbar");
                     return;
                 }
-                if (ensureSelected(player, slot)) {
+                if (player.getInventory().getSelectedSlot() != slot) {
+                    if (!swapSent) {
+                        // The swap packet takes the tick's interaction slot like any other automated action; a
+                        // refused tick costs nothing - the same swap is asked for again next tick.
+                        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                            return;
+                        }
+                        player.getInventory().setSelectedSlot(slot);
+                        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+                        swapSent = true;
+                        stepTicks = 0;
+                    } else if (stepTicks > SWAP_TIMEOUT) {
+                        failNode("couldn't switch to the Superboom");
+                    }
+                    return;
+                }
+                if (!swapSent || stepTicks >= 2) { // the tick after a swap the server has seen it
                     step = Step.DO;
                     stepTicks = 0;
-                } else if (stepTicks > SWAP_TIMEOUT) {
-                    stop("couldn't switch to the Superboom");
                 }
             }
             case DO -> {
@@ -1236,7 +1336,11 @@ public final class Ap3Executor {
                 HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                         ClipContext.Fluid.NONE, player));
                 if (!(hit instanceof BlockHitResult b) || hit.getType() != HitResult.Type.BLOCK) {
-                    stop("boom #" + number(node) + " isn't looking at a block");
+                    failNode("boom #" + number(node) + " isn't looking at a block");
+                    return;
+                }
+                // Last check before anything is sent: the gate decides whether this tick's interaction is ours.
+                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
                     return;
                 }
                 boomTarget = b.getBlockPos();
@@ -1277,7 +1381,7 @@ public final class Ap3Executor {
                     if (testMode) {
                         skipForTest(node);
                     } else {
-                        stop("superboom didn't break anything");
+                        failNode("superboom didn't break anything");
                     }
                 }
             }
@@ -1386,13 +1490,20 @@ public final class Ap3Executor {
         if (mixinApplied) {
             return;
         }
-        boolean any = running && (driving || wantSneak);
-        client.options.keyUp.setDown(any && wantForward);
-        client.options.keyDown.setDown(any && wantBackward);
-        client.options.keyLeft.setDown(any && wantLeft);
-        client.options.keyRight.setDown(any && wantRight);
-        client.options.keyShift.setDown(any && wantSneak);
-        client.options.keySprint.setDown(any && wantSprint);
+        boolean any = driving || wantSneak;
+        if (!any) {
+            // Idle: the mappings are the player's own - only let go of what WE were holding, never write them.
+            if (fallbackKeysHeld) {
+                releaseKeys();
+            }
+            return;
+        }
+        client.options.keyUp.setDown(wantForward);
+        client.options.keyDown.setDown(wantBackward);
+        client.options.keyLeft.setDown(wantLeft);
+        client.options.keyRight.setDown(wantRight);
+        client.options.keyShift.setDown(wantSneak);
+        client.options.keySprint.setDown(wantSprint);
         fallbackKeysHeld = true;
     }
 
@@ -1416,7 +1527,7 @@ public final class Ap3Executor {
      * Without the input mixin the executor drives by holding the key MAPPINGS, which means {@code KeyMapping.isDown()}
      * reports the bot's own state and the player's real keypresses become invisible (the Auto Routes 2026-09-16
      * review bug). Poll the physical keys through GLFW via {@code KeyMappingKeyAccessor} instead, and warn once
-     * that the fallback is in use - a chain that cannot be stopped is the worst failure this feature has.
+     * that the fallback is in use - a walk that cannot be stopped is the worst failure this feature has.
      */
     private static boolean userPressedMovementKeyInFallback(Minecraft client) {
         if (mixinApplied || !fallbackKeysHeld) {
@@ -1425,8 +1536,14 @@ public final class Ap3Executor {
         if (!warnedFallback) {
             warnedFallback = true;
             LOGGER.warn("[AP3] Input mixin did not apply - driving with key mappings instead (8-way only). "
-                    + "Movement keys are polled directly so you can still stop a chain.");
+                    + "Movement keys are polled directly so you can still stop it.");
         }
+        return physicalMovementKeyDown(client);
+    }
+
+    /** Whether any movement key (WASD / jump) is physically down right now - GLFW state, so it is the player's own
+     *  hand on both input paths. */
+    private static boolean physicalMovementKeyDown(Minecraft client) {
         var options = client.options;
         var window = client.getWindow();
         return rawDown(window, options.keyUp) || rawDown(window, options.keyDown)
@@ -1515,26 +1632,7 @@ public final class Ap3Executor {
         return chain == null ? -1 : chain.numberOf(node);
     }
 
-    /** Selects the hotbar slot (client + {@code ServerboundSetCarriedItemPacket}) and reports true once it is the
-     *  selected slot - at most one swap per node, the tick after it the server has seen it. */
-    private static boolean ensureSelected(LocalPlayer player, int slot) {
-        if (player.getInventory().getSelectedSlot() == slot) {
-            return !swapSent || stepTicks >= 2;
-        }
-        if (!swapSent) {
-            player.getInventory().setSelectedSlot(slot);
-            player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-            swapSent = true;
-            stepTicks = 0;
-        }
-        return false;
-    }
-
     private static void chat(Component... parts) {
         ModChat.send(CHAT, parts);
-    }
-
-    private static void chatBad(String text) {
-        ModChat.send(CHAT, ModChat.bad(text));
     }
 }
