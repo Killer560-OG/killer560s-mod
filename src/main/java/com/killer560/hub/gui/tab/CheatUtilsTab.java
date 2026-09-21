@@ -83,36 +83,7 @@ public class CheatUtilsTab extends BaseTab {
             y[0] += 26;
         }
 
-        // ---- Action Gate (all cheat auras; shares DungeonExtrasConfig - see class javadoc) ----
-        header(w, contentX, y, contentWidth, "Action Gate (all auras)");
-        w.add(SettingsButtonWidget.builder(onOff("Action Gate", gateCfg.isActionGateEnabled()), btn -> {
-                    gateCfg.setActionGateEnabled(!gateCfg.isActionGateEnabled());
-                    gateCfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], BTN_W, 20).build());
-        y[0] += 24;
-        if (gateCfg.isActionGateEnabled()) {
-            w.add(new ThemedSliderButton(contentX, y[0], BTN_W, 20, Component.literal(gateSpacingText(gateCfg)),
-                    gateCfg.getActionGateMinSpacingTicks() / 10.0) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(Component.literal(gateSpacingText(gateCfg)));
-                }
-
-                @Override
-                protected void applyValue() {
-                    gateCfg.setActionGateMinSpacingTicks((int) Math.round(this.value * 10));
-                    gateCfg.save();
-                }
-            });
-        }
-
         return w;
-    }
-
-    private static String gateSpacingText(DungeonExtrasConfig cfg) {
-        int t = cfg.getActionGateMinSpacingTicks();
-        return "Min Spacing: " + t + " tick" + (t == 1 ? "" : "s") + " (" + (t * 50) + " ms)";
     }
 
     private static double norm(int value, int min, int max) {

@@ -1689,7 +1689,5 @@ final class SettingTooltipsData {
         d.put("breaker aura/swap back after", "Cheat build only. Idle ticks with nothing left to break before Auto Swap switches your hotbar back to what you were holding.");
         d.put("auto chocolate factory/min delay", "Cheat build only. Shortest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Raising it past Max Delay pushes Max Delay up.");
         d.put("auto chocolate factory/max delay", "Cheat build only. Longest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Lowering it below Min Delay pulls Min Delay down.");
-        d.put("action gate", "Cheat build only. A shared pacing gate for every cheat automation (Breaker Aura, Lever Aura, Terminal Aura, Secret Aura, Auto GFS, Auto Ult, Auto Dialogue and friends) so their clicks/swings never land closer together than Min Spacing, on top of each feature's own cooldown.");
-        d.put("cheat utils/min spacing", "Cheat build only. Minimum ticks between any two automatic actions across every cheat feature the Action Gate covers, on top of each feature's own cooldown (20 ticks = 1 second).");
     }
 }

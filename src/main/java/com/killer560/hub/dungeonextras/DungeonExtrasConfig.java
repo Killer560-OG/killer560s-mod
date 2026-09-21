@@ -62,8 +62,6 @@ public final class DungeonExtrasConfig {
     private int breakerAuraSwapBackIdleTicks = 20;
 
     // Shared automation gate (global; lives here because this config is already in ProfileManager.reloadAllConfigs).
-    private boolean actionGateEnabled = true;
-    private int actionGateMinSpacingTicks = 2;
 
     private DungeonExtrasConfig() {
     }
@@ -100,20 +98,11 @@ public final class DungeonExtrasConfig {
                 cfg.breakerAuraSwapDelayTicks = clampInt(o.has("breakerAuraSwapDelayTicks") ? o.get("breakerAuraSwapDelayTicks").getAsInt() : cfg.breakerAuraSwapDelayTicks, 1, 20);
                 cfg.breakerAuraSwapBack = bool(o, "breakerAuraSwapBack", cfg.breakerAuraSwapBack);
                 cfg.breakerAuraSwapBackIdleTicks = clampInt(o.has("breakerAuraSwapBackIdleTicks") ? o.get("breakerAuraSwapBackIdleTicks").getAsInt() : cfg.breakerAuraSwapBackIdleTicks, 5, 100);
-                cfg.actionGateEnabled = bool(o, "actionGateEnabled", cfg.actionGateEnabled);
-                cfg.actionGateMinSpacingTicks = clampInt(o.has("actionGateMinSpacingTicks") ? o.get("actionGateMinSpacingTicks").getAsInt() : cfg.actionGateMinSpacingTicks, 0, 10);
             } catch (Exception e) {
                 cfg = new DungeonExtrasConfig();
             }
         }
         instance = cfg;
-        cfg.pushActionGate();
-    }
-
-    /** The gate itself holds no file of its own, so every load/save republishes the two settings to it. */
-    private void pushActionGate() {
-        com.killer560.hub.util.ActionGate.setEnabled(actionGateEnabled);
-        com.killer560.hub.util.ActionGate.setMinSpacingTicks(actionGateMinSpacingTicks);
     }
 
     public void save() {
@@ -140,12 +129,9 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraSwapDelayTicks", breakerAuraSwapDelayTicks);
             o.addProperty("breakerAuraSwapBack", breakerAuraSwapBack);
             o.addProperty("breakerAuraSwapBackIdleTicks", breakerAuraSwapBackIdleTicks);
-            o.addProperty("actionGateEnabled", actionGateEnabled);
-            o.addProperty("actionGateMinSpacingTicks", actionGateMinSpacingTicks);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
-        pushActionGate();
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {
@@ -210,11 +196,4 @@ public final class DungeonExtrasConfig {
     public void setBreakerAuraSwapBackIdleTicks(int v) { breakerAuraSwapBackIdleTicks = clampInt(v, 5, 100); }
 
     // ---- Shared automation gate (both builds; it only ever delays, never acts) ----
-    public boolean isActionGateEnabled() { return actionGateEnabled; }
-    public void setActionGateEnabled(boolean v) { actionGateEnabled = v; com.killer560.hub.util.ActionGate.setEnabled(v); }
-    public int getActionGateMinSpacingTicks() { return actionGateMinSpacingTicks; }
-    public void setActionGateMinSpacingTicks(int v) {
-        actionGateMinSpacingTicks = clampInt(v, 0, 10);
-        com.killer560.hub.util.ActionGate.setMinSpacingTicks(actionGateMinSpacingTicks);
-    }
 }

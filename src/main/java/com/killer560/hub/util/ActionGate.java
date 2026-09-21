@@ -140,8 +140,8 @@ public final class ActionGate {
     private static final int COUNT = Actor.values().length;
 
     // Settings (owned + persisted by DungeonExtrasConfig, pushed in on load/save).
-    private static boolean enabled = true;
-    private static int minSpacingTicks = 2;
+    /** Fixed one-tick floor - see isEnabled()'s comment. Not a setting. */
+    private static final int minSpacingTicks = 1;
 
     private static boolean armed = false;
     private static long tick = 0L;
@@ -185,21 +185,18 @@ public final class ActionGate {
         return client != null && client.screen instanceof AbstractContainerScreen<?>;
     }
 
+    // killer560, 2026-09-21, asked where the Action Gate settings should live: "Everything should by default
+    // be one tick and be unchangable. Thus it wont need a tab." So there is no setting, no tab and no way to
+    // switch this off - the gate is always on at a one-tick floor. That is the right call: it exists to stop
+    // the mod emitting two interactions in a tick, and a switch to turn that back on is a switch to make
+    // himself detectable. The jitter below stays, because it is not a preference - a flat floor would emit a
+    // perfectly regular click whenever the gate is saturated, which is its own signature.
     public static boolean isEnabled() {
-        return enabled;
-    }
-
-    public static void setEnabled(boolean value) {
-        enabled = value;
+        return true;
     }
 
     public static int getMinSpacingTicks() {
         return minSpacingTicks;
-    }
-
-    public static void setMinSpacingTicks(int ticks) {
-        minSpacingTicks = Math.max(0, Math.min(10, ticks));
-        spacingNanos = rollSpacing();
     }
 
     /**
@@ -305,9 +302,6 @@ public final class ActionGate {
      */
     public static boolean tryAct(Actor actor, Screen ownScreen) {
         WANTED_THIS_TICK[actor.ordinal()] = true;
-        if (!enabled) {
-            return true;
-        }
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.level == null) {
             return false;
