@@ -1901,7 +1901,7 @@ final class SettingTooltipsData {
         d.put("ap3 jump color", "Marker colour for Jump nodes.");
         d.put("ap3 edge jump color", "Marker colour for Edge Jump nodes.");
         d.put("add jump node", "Places a Jump node: the moment you walk into it you jump (on the next tick, as soon as you're on the ground). It does NOT end a Walk/Run - you keep walking while you jump.");
-        d.put("add edge jump node", "Places an Edge Jump node: once you walk into it, it jumps on the very last tick your feet are still on a block, so you get the full run-up before the gap. It does NOT end a Walk/Run.");
+        d.put("add edge jump node", "Places an Edge Jump node: once you walk into it, it jumps as late as Minecraft allows: on the coyote tick right after your feet leave the block (you can still jump for one tick after walking off), for the longest possible run-up. It does NOT end a Walk/Run.");
         d.put("ap3 stopwatch color", "Marker colour for Stopwatch nodes.");
         d.put("label color", "Node's Color: each label is drawn in its own node's marker colour, so the number matches the box it sits on. Fixed: every label in the one Fixed Label Color.");
         d.put("fixed label color", "The one colour every AP3 node label is drawn in while Label Color is set to Fixed.");

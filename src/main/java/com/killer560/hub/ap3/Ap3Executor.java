@@ -1007,9 +1007,7 @@ public final class Ap3Executor {
 
     /**
      * Called after this tick's movement (the node's own or the held walk) has been decided. JUMP: press jump now if
-     * on the ground. EDGE: predict where the NEXT tick's move ends - the current velocity plus the push of the keys
-     * just decided - and if the feet are no longer over a block there, the next tick is the last one on it, so jump
-     * in it (the jump goes in while the feet are still on the block).
+     * on the ground. EDGE: jump on the coyote tick - see {@link #leavesGroundNextTick}.
      */
     private static void applyJumps(LocalPlayer player) {
         if (jumpPendingTicks > 0) {
@@ -1028,22 +1026,17 @@ public final class Ap3Executor {
         }
     }
 
+    /**
+     * The edge moment, WITH vanilla's one tick of coyote time (killer560, 2026-09-21: "remember minecraft has coyote
+     * jumps for 1 tick"): {@code Entity.collide} resolves the Y axis before X/Z, so on the tick the feet walk off
+     * the block the downward move still hits it first and {@code onGround} stays true after the box has left - the
+     * NEXT tick can still jump, from further out. So the jump goes in on the first tick that starts with the box
+     * already clear of every block below while {@code onGround} is still true: the latest possible jump.
+     */
     private static boolean leavesGroundNextTick(LocalPlayer player) {
-        Vec3 v = player.getDeltaMovement();
-        double dx = v.x;
-        double dz = v.z;
-        if (driving) {
-            Ap3DiscretePlanner.Model m = modelFor(player, false);
-            boolean diagonal = (wantForward || wantBackward) && (wantLeft || wantRight);
-            double push = m.tickSpeed(wantSprint || player.isSprinting()) * (diagonal ? 1.0 : Ap3AlignMath.INPUT_SCALE);
-            double len = Math.sqrt(driveX * driveX + driveZ * driveZ);
-            if (len > 1e-6) {
-                dx += driveX / len * push;
-                dz += driveZ / len * push;
-            }
-        }
-        net.minecraft.world.phys.AABB next = player.getBoundingBox().move(dx, 0.0, dz);
-        return player.level().noCollision(player, next.move(0.0, -0.0625, 0.0).setMaxY(next.minY));
+        net.minecraft.world.phys.AABB box = player.getBoundingBox();
+        return player.onGround()
+                && player.level().noCollision(player, box.move(0.0, -0.0625, 0.0).setMaxY(box.minY));
     }
 
     // ---- close gate: "only fires on left click, or after a terminal closes" ------------------------------------
