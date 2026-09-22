@@ -504,6 +504,14 @@ final class Ap3RouteRunner {
                         pos.set(bx, feetY + dy, bz);
                         solid = blocksBody(level, pos);
                     }
+                    if (!solid) {
+                        // Lava has no collision and usually solid ground under it, so without this the route would
+                        // run straight through a pool. A bounce costs the whole run (horizontal speed halves every
+                        // tick in there - see Ap3RouteMath), so until the planner can spend that on purpose for the
+                        // height it gets, lava is somewhere the route does not go.
+                        pos.set(bx, feetY, bz);
+                        solid = !level.getBlockState(pos).getFluidState().isEmpty();
+                    }
                     pos.set(bx, feetY - 1, bz);
                     boolean hasFloor = !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
                     snap.wall[i * h + j] = solid;
