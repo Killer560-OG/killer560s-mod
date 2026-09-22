@@ -984,7 +984,7 @@ public final class Ap3Executor {
             return;
         }
         switch (node.type) {
-            case ALIGN -> tickAlign(client, player, node);
+            case ALIGN, TEST_ALIGN -> tickAlign(client, player, node);
             case AXIS_ALIGN -> tickAxisAlign(client, player, node);
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
@@ -1104,8 +1104,10 @@ public final class Ap3Executor {
         double ez = node.z - pos.z;
         double err = Math.max(Math.abs(ex), Math.abs(ez));
         Ap3Config cfg = Ap3Config.getInstance();
-        Ap3Config.AlignMethod method = cfg.getAlignMethod();
-        alignTolerance = cfg.getAlignTolerance();
+        boolean fast = node.type == Ap3Node.Type.TEST_ALIGN;
+        // Test Align always steers the real (camera) yaw - its planner snaps it freely, one delta per tick.
+        Ap3Config.AlignMethod method = fast ? Ap3Config.AlignMethod.CAMERA : cfg.getAlignMethod();
+        alignTolerance = fast ? Math.min(cfg.getAlignTolerance(), 0.001) : cfg.getAlignTolerance();
         if (step == Step.PREP) {
             double dist = Math.sqrt(ex * ex + ez * ez);
             if (dist > ALIGN_REACH + node.length / 2.0 + node.width / 2.0) {
@@ -1114,6 +1116,7 @@ public final class Ap3Executor {
             }
             step = Step.DO;
             alignModelReset();
+            Ap3FastAlign.reset();
             startAlignClock(node);
             if (method == Ap3Config.AlignMethod.SENT_YAW) {
                 // The sent yaw is the keys' frame for the whole align: take it over now (seeded from the live yaw).
@@ -1160,7 +1163,56 @@ public final class Ap3Executor {
             alignPhase = "waiting for the sent yaw to reach the camera";
             return;
         }
+        if (fast && driveFast(player, ex, ez)) {
+            return;
+        }
         driveDiscrete(player, ex, ez, method);
+    }
+
+    /**
+     * Test Align (killer560, 2026-09-22: "one more attempt at making a faster align node... the sole focus is making it
+     * as fast as possible"): {@link Ap3FastAlign} plans the fewest ticks until you are AT REST on the point - the last
+     * presses brake (any key combo, sneak included, at any yaw) instead of coasting down to vanilla's 0.003 zeroing line.
+     * Its first press goes out at its yaw, reached with ONE delta on the live running yaw (never wrapped or clamped to
+     * 0-360; not capped at the regular align's 30 degrees). Re-planned every tick from the measured state; it reuses last
+     * tick's schedule while that still lands. False = no plan found: the regular planner drives this tick.
+     */
+    private static boolean driveFast(LocalPlayer player, double ex, double ez) {
+        Vec3 vel = player.getDeltaMovement();
+        Ap3DiscretePlanner.Model m = modelFor(player, true);
+        Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
+        s.ex = ex;
+        s.ez = ez;
+        s.vx = vel.x;
+        s.vz = vel.z;
+        s.sprinting = player.isSprinting();
+        s.crouching = lastSneakSent;
+        s.sentYaw = player.getYRot();
+        Ap3FastAlign.Result r = Ap3FastAlign.solve(s, m, alignTolerance);
+        if (r == null) {
+            return false;
+        }
+        alignPhase = String.format(Locale.US, "test align %d press(es), rest in %d, %.1e", r.presses, r.ticks, r.error);
+        if (Float.isNaN(viewYaw) && freezeViewWanted()) {
+            viewYaw = player.getYRot();
+        }
+        Ap3DiscretePlanner.Action a = r.action;
+        if (!a.none()) {
+            float delta = Mth.wrapDegrees(r.yaw - player.getYRot());
+            if (Math.abs(delta) > 1e-4f) {
+                player.setYRot(player.getYRot() + delta);
+                RouteRotation.rebase(); // our turn is not the player's mouse
+            }
+        }
+        float frameYaw = player.getYRot();
+        Ap3DiscretePlanner.State pred = s.copy();
+        Ap3DiscretePlanner.step(pred, a, frameYaw, m);
+        Vec3 pos = player.position();
+        alignPredX = pos.x + (ex - pred.ex);
+        alignPredZ = pos.z + (ez - pred.ez);
+        alignPredValid = true;
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
+        return true;
     }
 
     /**

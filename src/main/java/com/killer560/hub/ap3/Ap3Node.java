@@ -40,7 +40,7 @@ public final class Ap3Node {
      *  (LINE, AXIS_LINE, LEAP_DETECTOR) still parse so a recorded chain keeps loading. WAIT and BREAKER are gone
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
-        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK;
+        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, TEST_ALIGN;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -63,6 +63,7 @@ public final class Ap3Node {
                 case "jump", "j" -> JUMP;
                 case "block", "place", "slab", "b" -> BLOCK;
                 case "edge", "edgejump", "edge_jump", "ej" -> EDGE;
+                case "testalign", "test_align", "ta" -> TEST_ALIGN;
                 default -> null;
             };
         }
@@ -84,12 +85,13 @@ public final class Ap3Node {
                 case JUMP -> "Jump";
                 case EDGE -> "Edge Jump";
                 case BLOCK -> "Block";
+                case TEST_ALIGN -> "Test Align";
             };
         }
 
         /** The two alignment nodes - the ones that END a held walk. */
         public boolean isAlign() {
-            return this == ALIGN || this == AXIS_ALIGN;
+            return this == ALIGN || this == AXIS_ALIGN || this == TEST_ALIGN;
         }
 
         /** Nodes that fire WITHOUT ending a held walk (killer560, 2026-09-21: "make both things that can go after
@@ -116,7 +118,7 @@ public final class Ap3Node {
             return switch (this) {
                 case STOPWATCH -> 0;
                 case STOP -> 1;
-                case ALIGN, AXIS_ALIGN -> 2;
+                case ALIGN, AXIS_ALIGN, TEST_ALIGN -> 2;
                 case LOOK -> 3;
                 case TERMINAL -> 4;
                 case LEAP_COUNTER -> 5;

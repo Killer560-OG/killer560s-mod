@@ -1897,6 +1897,7 @@ final class SettingTooltipsData {
         d.put("current node color", "The colour of the node AP3 is performing right now.");
         d.put("ap3 align color", "Marker colour for Align nodes.");
         d.put("ap3 axis align color", "Marker colour for Axis Align nodes.");
+        d.put("ap3 test align color", "Marker colour for Test Align nodes (the experimental fastest align: brakes with sneak taps at any yaw instead of coasting to a stop).");
         d.put("ap3 walk color", "Marker colour for Walk nodes.");
         d.put("ap3 run color", "Marker colour for Run nodes.");
         d.put("ap3 leap color", "Marker colour for Leap nodes.");

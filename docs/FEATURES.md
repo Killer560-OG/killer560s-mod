@@ -165,7 +165,7 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 
 *How it runs*
 - Every node has a small trigger box (0.5 or 1 block by default, or any size with w<n> l<n>). Walking INTO a box fires that node; the ones you are already standing in do not fire again until you leave and come back.
-- Nodes fire one per tick in a fixed priority: Stopwatch, Stop, Align/Axis Align, Look, Terminal, Leap Counter, Walk/Run, Jump/Edge/Block, Boom, Leap. A queued node waits for the one before it.
+- Nodes fire one per tick in a fixed priority: Stopwatch, Stop, Align/Axis Align/Test Align, Look, Terminal, Leap Counter, Walk/Run, Jump/Edge/Block, Boom, Leap. A queued node waits for the one before it.
 - AP3 knows which section you're in and only arms that section's nodes. Force Dungeon (in the tab) lets you place and test nodes anywhere, and Test Mode runs nodes without waiting for terminals or teammates.
 - Freeze View (Freecam): while AP3 turns your real yaw for an align or a walk, your screen keeps the view you had and your mouse moves only the view. Your model in F5 and the server see the real angle.
 - Moving yourself (WASD/space) stops AP3 at once - except inside an Align, which takes your keys over until it has landed.
@@ -178,6 +178,7 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 *Node types*
 - **Align** - lands you on the node's point to within 0.001 of a block, typically in 6-9 ticks from entering at speed. It plans the fastest landing each tick, mixing turning your real yaw, every key combination and sneak taps, and only counts as done once you have actually stopped.
 - **Axis Align** - for a node placed against a wall: walks you into the wall (which pins that coordinate exactly), then holds one key into the wall at a small angle that steers you along it until you stop exactly on the point, without ever pulling off the wall.
+- **Test Align** (experimental, `/ap3 add testalign`) - an align built only for speed: each tick it plans the fewest ticks until you are standing still on the point (within 0.001), combining a camera turn to any angle with any key combo and sneak, so it brakes with a sneaking tap against your momentum instead of coasting to a stop. In testing it usually finishes in 3 ticks where the regular Align takes 7-11.
 - **Walk / Run** - keeps you walking (or sprinting) in the direction the node was placed, until any other node fires. Your real yaw snaps so W+A / W+D (45 Degree Strafe on, the faster diagonal) or W points exactly along the walk from the first tick. On the tick a jump goes in it faces straight ahead so the sprint-jump boost follows the walk, then strafes again in the air.
 - **Jump** - jumps on the next tick after you enter it (waiting up to a second for the ground). Does not end a Walk/Run.
 - **Edge Jump** (`edge`) - jumps as late as the game allows when you run off a block: on the one-tick "coyote" window just after your feet leave it. Does not end a Walk/Run.

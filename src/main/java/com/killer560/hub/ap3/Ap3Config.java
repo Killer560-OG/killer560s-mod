@@ -41,6 +41,7 @@ public final class Ap3Config {
      *  nearest-node delete) so a key bound before the 2026-09-20 rework still works. */
     public static final String KEY_ADD_ALIGN = "add_line";
     public static final String KEY_ADD_AXIS_ALIGN = "add_axisline";
+    public static final String KEY_ADD_TEST_ALIGN = "add_testalign";
     public static final String KEY_ADD_WALK = "add_walk";
     public static final String KEY_ADD_RUN = "add_run";
     public static final String KEY_ADD_LEAP = "add_leap";
@@ -69,7 +70,7 @@ public final class Ap3Config {
 
     public static final List<String> KEYBIND_IDS = List.of(
             KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
-            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_ADD_BLOCK, KEY_LIST, KEY_UNDO,
+            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_ADD_BLOCK, KEY_ADD_TEST_ALIGN, KEY_LIST, KEY_UNDO,
             KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE,
             KEY_FREEZE_STATE, KEY_REWIND_TICK, KEY_FORWARD_TICK);
 
@@ -249,6 +250,7 @@ public final class Ap3Config {
             case JUMP -> 0xFF7DD3FC;
             case EDGE -> 0xFF22D3EE;
             case BLOCK -> 0xFFB45309;
+            case TEST_ALIGN -> 0xFFFFD27F;
         };
     }
 
