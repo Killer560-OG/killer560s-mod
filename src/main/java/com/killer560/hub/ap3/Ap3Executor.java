@@ -1224,8 +1224,8 @@ public final class Ap3Executor {
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
         expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
-                a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
+                a.fw() > 0, sprintFor(a));
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), sprintFor(a), frameYaw, m, s.crouching);
         return true;
     }
 
@@ -1300,15 +1300,15 @@ public final class Ap3Executor {
         Ap3DiscretePlanner.Model m = modelFor(player, false);
         if (!a.none()) {
             double eff = Ap3DiscretePlanner.effectiveLength(a, lastSneakSent, m.sneakMul);
-            double mag = m.tickSpeed(a.fw() > 0) * eff;
+            double mag = m.tickSpeed(sprintFor(a)) * eff;
             double rad = Math.toRadians(player.getYRot());
             double norm = Math.sqrt(a.fw() * a.fw() + a.st() * a.st());
             double ux = a.st() / norm;
             double uz = a.fw() / norm;
             expectPush(player, mag * (ux * Math.cos(rad) - uz * Math.sin(rad)),
-                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, a.fw() > 0);
+                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, sprintFor(a));
         }
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(), m, lastSneakSent);
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), sprintFor(a), player.getYRot(), m, lastSneakSent);
     }
 
     // ---- Term Aura: one click at the node, retried a couple of ticks later ----------------------------------------
@@ -1600,8 +1600,8 @@ public final class Ap3Executor {
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
-        // Learned from the pushes we measured, not read from the key - AP3 overwrites the key itself every tick.
-        m.sprintKeyHeld = sprintRestarts;
+        // AP3 presses sprint on every forward, non-sneaking tick (sprintFor), so the model can count on it.
+        m.sprintKeyHeld = true;
         return m;
     }
 
@@ -1611,6 +1611,16 @@ public final class Ap3Executor {
      * AP3 asked for no sprint (seen in his 2026-09-22 log: the plan predicted a non-sprint push and the game moved
      * 0.11 further). Planning with this instead of {@code isSprinting()} alone stops the align chasing its own tail.
      */
+    /**
+     * Whether THIS press sprints. AP3 sends the sprint key itself so the answer is its own, not a race with his
+     * keyboard: his log had the same keys[W] come out sprint=true on one tick and sprint=false on the next, because
+     * the game re-reads his held key every frame while AP3 writes the same key every tick. Nothing can plan against a
+     * coin toss, so the plan decides it - forward, not sneaking - and the model is told the same thing.
+     */
+    private static boolean sprintFor(Ap3DiscretePlanner.Action a) {
+        return a.fw() > 0 && !a.sneak();
+    }
+
     private static boolean sprintLikely(LocalPlayer player) {
         Minecraft client = Minecraft.getInstance();
         boolean keyHeld = client.options != null && client.options.keySprint.isDown();
@@ -1620,9 +1630,9 @@ public final class Ap3Executor {
     // ---- the measured push scale -------------------------------------------------------------------------------
     /** What the model's push has to be multiplied by to match what the game really did; 1 until something differs. */
     private static double pushScale = 1.0;
-    /** Only the leftovers after the sprint is accounted for, so the band is tight - a big miss is a sprint, not a scale. */
-    private static final double PUSH_SCALE_MIN = 0.85;
-    private static final double PUSH_SCALE_MAX = 1.2;
+    /** Only the leftovers now that AP3 owns the sprint: a wide miss means something else is wrong, not the scale. */
+    private static final double PUSH_SCALE_MIN = 0.75;
+    private static final double PUSH_SCALE_MAX = 1.35;
     /** Half a tick's evidence at a time: fast enough to catch a sprint flip, slow enough not to chase noise. */
     private static final double PUSH_SCALE_ALPHA = 0.5;
     private static boolean pushPending;
@@ -1901,8 +1911,8 @@ public final class Ap3Executor {
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
         expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
-                a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
+                a.fw() > 0, sprintFor(a));
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), sprintFor(a), frameYaw, m, s.crouching);
     }
 
     /** The nearest of the eight key directions at {@code yaw} to the world direction {@code (dx, dz)}: {fw, st}. */
