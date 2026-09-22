@@ -2212,10 +2212,8 @@ public final class Ap3Executor {
             }
             beginAim(player);
             aimAt(player, node);
-            if (holdDir != null && driving) {
-                int[] key = nearestKey8(holdDir.x, holdDir.z, player.getYRot());
-                boolean sprint = holdSprint && key[0] > 0 && !player.isInWater();
-                writeDiscrete(player, key[0], key[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
+            if (holdDir != null) {
+                applyAimedHold(player); // re-pick this tick's keys for the aimed yaw: straight, fastest
             }
             preAimed = node;
             preAimTick = tickCounter;
@@ -2255,10 +2253,98 @@ public final class Ap3Executor {
     }
 
     private static void aimAt(LocalPlayer player, Ap3Node node) {
+        chooseAim(player, node);
         float yaw = player.getYRot();
-        player.setYRot(yaw + Mth.wrapDegrees(node.yaw - yaw));
-        player.setXRot(Mth.clamp(node.pitch, -90f, 90f));
+        player.setYRot(yaw + Mth.wrapDegrees(aimYaw - yaw));
+        player.setXRot(aimPitch);
         RouteRotation.rebase();
+        aimLock = true;
+    }
+
+    // ---- the aim that keeps a held walk dead straight ----
+    //
+    // killer560 (2026-09-21): "It does need to adjust what keys it is holding to perfectly keep moving in the direction
+    // of a walk node though. I know it is going to drop the 45 degree but I want it to still stay in its perfectly
+    // straight line while carrying as much speed as possible." The node's own angle almost never lines a key up with
+    // the walk. But any angle whose ray hits the SAME face of the SAME block places the same block, so: for each key
+    // combination, in speed order (W+A / W+D - full speed and sprint; W; A / D; the backward ones), take the yaw that
+    // points that combination exactly along the walk, and look for a pitch at that yaw whose ray (from where the eye
+    // will be) hits the node's block face. The first that does is the aim and those keys are held for the aim ticks.
+    // None found: the aim is the node's own angle and no keys are pressed - coasting is exactly straight, only the
+    // one tick's push is lost.
+
+    private static float aimYaw;
+    private static float aimPitch;
+    private static Ap3Node aimNode;
+    /** Keys held while aimed (null = coast), and whether the aim owns the yaw instead of the walk. */
+    private static int[] aimKey;
+    private static boolean aimLock;
+    /** {fw, st, key yaw offset}: where each combination pushes relative to the facing, fastest first. */
+    private static final int[][] AIM_KEYS = {
+            {1, 1, -45}, {1, -1, 45}, {1, 0, 0}, {0, 1, -90}, {0, -1, 90}, {-1, 1, -135}, {-1, -1, 135}, {-1, 0, 180}};
+
+    static float aimYawFor(Ap3Node node) {
+        return aimNode == node ? aimYaw : node.yaw;
+    }
+
+    static float aimPitchFor(Ap3Node node) {
+        return aimNode == node ? aimPitch : node.pitch;
+    }
+
+    private static void chooseAim(LocalPlayer player, Ap3Node node) {
+        aimNode = node;
+        aimYaw = node.yaw;
+        aimPitch = Mth.clamp(node.pitch, -90f, 90f);
+        aimKey = null;
+        if (holdDir == null || player.level() == null) {
+            return;
+        }
+        // Where the eye will be on the tick the use goes out.
+        Vec3 v = player.getDeltaMovement();
+        Vec3 eye = player.getEyePosition().add(v.x, 0.0, v.z);
+        BlockHitResult ref = rayAt(player, eye, node.yaw, node.pitch);
+        float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+        if (ref == null) {
+            return;
+        }
+        for (int[] k : AIM_KEYS) {
+            float yaw = walkYaw - k[2]; // the facing that points this combination along the walk
+            for (int i = 0; i <= 360; i++) {
+                // centre-out search from the node's own pitch
+                float step = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.5f;
+                float pitch = node.pitch + step;
+                if (pitch < -90f || pitch > 90f) {
+                    continue;
+                }
+                BlockHitResult hit = rayAt(player, eye, yaw, pitch);
+                if (hit != null && hit.getBlockPos().equals(ref.getBlockPos()) && hit.getDirection() == ref.getDirection()) {
+                    aimYaw = yaw;
+                    aimPitch = pitch;
+                    aimKey = new int[]{k[0], k[1]};
+                    return;
+                }
+            }
+        }
+    }
+
+    private static BlockHitResult rayAt(LocalPlayer player, Vec3 eye, float yaw, float pitch) {
+        Vec3 end = eye.add(lookVector(yaw, pitch).scale(BOOM_REACH));
+        HitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        return hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK ? b : null;
+    }
+
+    /** While aimed, the held walk presses the chosen keys (or nothing) instead of turning to its own angle. */
+    private static boolean applyAimedHold(LocalPlayer player) {
+        if (!aimLock) {
+            return false;
+        }
+        if (aimKey == null) {
+            clearMovement(); // coast: exactly straight
+        } else {
+            boolean sprint = holdSprint && aimKey[0] > 0 && !player.isInWater();
+            writeDiscrete(player, aimKey[0], aimKey[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
+        }
+        return true;
     }
 
     private static void endAim(LocalPlayer player) {
@@ -2266,6 +2352,8 @@ public final class Ap3Executor {
             return;
         }
         aiming = false;
+        aimLock = false;
+        aimNode = null;
         if (player != null) {
             player.setXRot(Float.isNaN(viewPitch) ? aimPrevPitch : viewPitch);
         }
@@ -2321,7 +2409,7 @@ public final class Ap3Executor {
             }
             case DO -> {
                 Vec3 eye = player.getEyePosition();
-                Vec3 look = lookVector(node.yaw, node.pitch).scale(BOOM_REACH);
+                Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(BOOM_REACH);
                 HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                         ClipContext.Fluid.NONE, player));
                 if (!(hit instanceof BlockHitResult b) || hit.getType() != HitResult.Type.BLOCK) {
@@ -2437,7 +2525,7 @@ public final class Ap3Executor {
                 // killer560: "uses superboom exactly where you are looking, on that facing angle" - the ray is the
                 // node's recorded yaw/pitch from the live eye position; the camera is not turned.
                 Vec3 eye = player.getEyePosition();
-                Vec3 look = lookVector(node.yaw, node.pitch).scale(BOOM_REACH);
+                Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(BOOM_REACH);
                 HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                         ClipContext.Fluid.NONE, player));
                 if (!(hit instanceof BlockHitResult b) || hit.getType() != HitResult.Type.BLOCK) {
@@ -2582,6 +2670,9 @@ public final class Ap3Executor {
     private static void applyHoldRealYaw(LocalPlayer player) {
         if (Float.isNaN(viewYaw) && freezeViewWanted()) {
             viewYaw = player.getYRot();
+        }
+        if (applyAimedHold(player)) {
+            return; // a Block / Boom owns the yaw this tick - keys chosen to stay on the walk line
         }
         float yaw = player.getYRot();
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
