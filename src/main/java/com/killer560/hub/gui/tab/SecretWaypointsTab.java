@@ -60,22 +60,11 @@ public class SecretWaypointsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 
-        int min = SecretWaypointsConfig.MIN_RENDER_DISTANCE;
-        int max = SecretWaypointsConfig.MAX_RENDER_DISTANCE;
-        widgets.add(new ThemedSliderButton(contentX, y, 220, 18, distanceText(cfg),
-                (cfg.getRenderDistance() - min) / (double) (max - min)) {
-            @Override
-            protected void updateMessage() {
-                setMessage(distanceText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                // Snap to 8 so the label reads in round blocks.
-                cfg.setRenderDistance((int) (Math.round((min + this.value * (max - min)) / 8.0) * 8));
-                cfg.save();
-            }
-        });
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Names", cfg.isShowNames()), btn -> {
+                    cfg.setShowNames(!cfg.isShowNames());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Names", cfg.isShowNames()));
+                }).bounds(contentX, y, 220, 18).build());
 
         return widgets;
     }
@@ -87,10 +76,6 @@ public class SecretWaypointsTab extends BaseTab {
     private static Component boxSizeText(SecretWaypointsConfig cfg) {
         return Component.literal("Waypoint Box: "
                 + (cfg.getBoxSize() == SecretWaypointsConfig.BoxSize.FULL_BLOCK ? "Full Block" : "Hitbox Only"));
-    }
-
-    private static Component distanceText(SecretWaypointsConfig cfg) {
-        return Component.literal("Render Distance: " + cfg.getRenderDistance() + " blocks");
     }
 
     private static Component onOff(String label, boolean value) {

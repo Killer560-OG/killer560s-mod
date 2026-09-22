@@ -36,15 +36,19 @@ public final class SecretWaypointsConfig {
     /** killer560 (change 62): "draw them through walls" - that is the whole point of a preloaded waypoint,
      *  so it ships on; the toggle exists for anyone who wants the old depth-tested boxes back. */
     private boolean throughWalls = true;
-    private BoxSize boxSize = BoxSize.FULL_BLOCK;
+    private BoxSize boxSize = BoxSize.HITBOX;
     /** Blocks. Secrets further away than this are not built and not drawn (2026-09-20 FPS pass: this
      *  feature used to draw every secret of every identified room in the dungeon, every frame). */
     private int renderDistance = 64;
-    private int chestColor = 0xFFFFD700;
-    private int itemColor = 0xFF55FF55;
-    private int witherColor = 0xFF222222;
-    private int batColor = 0xFFAA00AA;
-    private int redstoneKeyColor = 0xFFFF5555;
+    // NoammAddons' DungeonWaypoints defaults (killer560, 2026-09-21: "I would like the colors by default to match
+    // noamm's coloring style"): chest MAGENTA, item its favoriteColor (0,134,255), bat GREEN, essence BLACK, key RED.
+    private int chestColor = 0xFFFF00FF;
+    private int itemColor = 0xFF0086FF;
+    private int witherColor = 0xFF000000;
+    private int batColor = 0xFF00FF00;
+    private int redstoneKeyColor = 0xFFFF0000;
+    /** Draw the secret's name (Chest, Item, Bat, Wither Essence, Redstone Key) above its waypoint. */
+    private boolean showNames = false;
 
     private SecretWaypointsConfig() {
     }
@@ -69,13 +73,25 @@ public final class SecretWaypointsConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.FILL_OUTLINE);
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", true);
-            cfg.boxSize = ConfigJson.getEnum(obj, "boxSize", BoxSize.class, BoxSize.FULL_BLOCK);
+            cfg.boxSize = ConfigJson.getEnum(obj, "boxSize", BoxSize.class, BoxSize.HITBOX);
+            cfg.showNames = ConfigJson.getBool(obj, "showNames", false);
             cfg.renderDistance = clampDistance(ConfigJson.getInt(obj, "renderDistance", 64));
             cfg.chestColor = ConfigJson.getInt(obj, "chestColor", cfg.chestColor);
             cfg.itemColor = ConfigJson.getInt(obj, "itemColor", cfg.itemColor);
             cfg.witherColor = ConfigJson.getInt(obj, "witherColor", cfg.witherColor);
             cfg.batColor = ConfigJson.getInt(obj, "batColor", cfg.batColor);
             cfg.redstoneKeyColor = ConfigJson.getInt(obj, "redstoneKeyColor", cfg.redstoneKeyColor);
+            if (!obj.has("noammDefaultsV1")) {
+                // One-time: older files saved the old colours and the Full Block size as plain values, so they are
+                // moved onto the new defaults once (colours match NoammAddons, boxes sized to the object).
+                SecretWaypointsConfig fresh = new SecretWaypointsConfig();
+                cfg.chestColor = fresh.chestColor;
+                cfg.itemColor = fresh.itemColor;
+                cfg.witherColor = fresh.witherColor;
+                cfg.batColor = fresh.batColor;
+                cfg.redstoneKeyColor = fresh.redstoneKeyColor;
+                cfg.boxSize = BoxSize.HITBOX;
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new SecretWaypointsConfig();
@@ -92,6 +108,8 @@ public final class SecretWaypointsConfig {
             obj.addProperty("throughWalls", throughWalls);
             obj.addProperty("boxSize", boxSize.name());
             obj.addProperty("renderDistance", renderDistance);
+            obj.addProperty("showNames", showNames);
+            obj.addProperty("noammDefaultsV1", true);
             obj.addProperty("chestColor", chestColor);
             obj.addProperty("itemColor", itemColor);
             obj.addProperty("witherColor", witherColor);
@@ -146,6 +164,14 @@ public final class SecretWaypointsConfig {
 
     public void setRenderDistance(int renderDistance) {
         this.renderDistance = clampDistance(renderDistance);
+    }
+
+    public boolean isShowNames() {
+        return showNames;
+    }
+
+    public void setShowNames(boolean v) {
+        showNames = v;
     }
 
     public int getChestColor() {

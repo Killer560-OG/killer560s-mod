@@ -42,7 +42,7 @@ import java.util.List;
 public final class SecretWaypointsFeature {
 
     /** What a waypoint actually marks - only used to pick the HITBOX-mode box shape. */
-    private enum Kind {
+    enum Kind {
         /** Vanilla chest block shape: 14/16 wide and deep, 14/16 tall, inset 1/16. */
         CHEST,
         /** A dropped item (secret item, wither essence, redstone key): 0.25 cube on the floor. */
@@ -51,10 +51,31 @@ public final class SecretWaypointsFeature {
         BAT
     }
 
+    /** The name shown with Show Names on. */
+    private static String labelFor(Kind kind, String group) {
+        return switch (group) {
+            case "wither" -> "Wither Essence";
+            case "key" -> "Redstone Key";
+            default -> switch (kind) {
+                case CHEST -> "Chest";
+                case BAT -> "Bat";
+                case ITEM -> "Item";
+            };
+        };
+    }
+
     /** One ready-to-draw box. Built on the tick, consumed by {@link SecretWaypointsRenderer} on the frame. */
     public record Waypoint(AABB box, double centerX, double centerY, double centerZ,
-                           float r, float g, float b, float a) {
+                           float r, float g, float b, float a, BlockPos pos, Kind kind, String label) {
     }
+
+    /** Secrets already taken in this run (block positions from the room database) - their waypoints are gone
+     *  (killer560, 2026-09-21: "if I click/get a secret then that waypoint should disappear"). Cleared on leaving
+     *  the dungeon. */
+    private static final java.util.Set<BlockPos> COLLECTED = new java.util.HashSet<>();
+    /** Item / bat entities near you last tick (id -> position), to notice one being picked up / killed. */
+    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> NEAR_ITEMS = new java.util.HashMap<>();
+    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> NEAR_BATS = new java.util.HashMap<>();
 
     private static boolean wasInDungeon = false;
 
@@ -115,6 +136,78 @@ public final class SecretWaypointsFeature {
         SecretWaypointsRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SecretWaypointsFeature::onWorldRender);
+        // A chest, wither essence or redstone key is taken by right-clicking its block - exactly its waypoint's block.
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (level.isClientSide() && hit != null) {
+                markCollected(hit.getBlockPos(), null, 0);
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+    }
+
+    /**
+     * Marks a secret taken. {@code kind == null}: the exact block (a click). ITEM / BAT: the nearest waypoint of
+     * that kind within {@code maxDist} blocks of where it happened - NoammAddons' own radii (items 5, bats 12),
+     * since an item can be kicked around and a bat flies before it dies.
+     */
+    private static void markCollected(BlockPos pos, Kind kind, double maxDist) {
+        Waypoint best = null;
+        double bestSq = maxDist * maxDist;
+        for (Waypoint w : CACHED) {
+            if (kind == null) {
+                if (w.pos().equals(pos)) {
+                    best = w;
+                    break;
+                }
+                continue;
+            }
+            if (w.kind() != kind || COLLECTED.contains(w.pos())) {
+                continue;
+            }
+            double d = w.pos().distSqr(pos);
+            if (d <= bestSq) {
+                bestSq = d;
+                best = w;
+            }
+        }
+        if (best != null && COLLECTED.add(best.pos())) {
+            invalidateCache();
+        }
+    }
+
+    /** Items picked up (they vanish while you're next to them) and bats killed near you. */
+    private static void watchPickups(Minecraft client) {
+        if (client.level == null || client.player == null || CACHED.isEmpty()) {
+            NEAR_ITEMS.clear();
+            NEAR_BATS.clear();
+            return;
+        }
+        var player = client.player;
+        AABB around = player.getBoundingBox().inflate(8.0);
+        java.util.Map<Integer, net.minecraft.world.phys.Vec3> items = new java.util.HashMap<>();
+        for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, around)) {
+            items.put(e.getId(), e.position());
+        }
+        // Bats: a bat that flies out of range also leaves the entity list, so only a bat actually seen DYING
+        // counts (its death animation keeps it around client-side for a moment) - once per bat.
+        java.util.Map<Integer, net.minecraft.world.phys.Vec3> bats = new java.util.HashMap<>();
+        for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.ambient.Bat.class, around.inflate(8.0))) {
+            if (e.isDeadOrDying()) {
+                if (!NEAR_BATS.containsKey(e.getId())) {
+                    markCollected(e.blockPosition(), Kind.BAT, 12.0);
+                }
+                bats.put(e.getId(), e.position());
+            }
+        }
+        for (var gone : NEAR_ITEMS.entrySet()) {
+            if (!items.containsKey(gone.getKey()) && player.position().distanceToSqr(gone.getValue()) <= 36.0) {
+                markCollected(BlockPos.containing(gone.getValue()), Kind.ITEM, 5.0);
+            }
+        }
+        NEAR_ITEMS.clear();
+        NEAR_ITEMS.putAll(items);
+        NEAR_BATS.clear();
+        NEAR_BATS.putAll(bats);
     }
 
     private static void logDiagnostics(boolean inDungeon) {
@@ -169,11 +262,13 @@ public final class SecretWaypointsFeature {
         if (!inDungeon && wasInDungeon) {
             shownRooms.clear();
             hiddenRooms.clear();
+            COLLECTED.clear();
             invalidateCache();
         }
         wasInDungeon = inDungeon;
         logDiagnostics(inDungeon);
         refreshCacheIfStale(inDungeon);
+        watchPickups(Minecraft.getInstance());
     }
 
     /** Rebuilds {@link #CACHED} at most once per {@link #CACHE_TTL_MS} / {@link #CACHE_MOVE_SQ}, on the tick. */
@@ -203,34 +298,33 @@ public final class SecretWaypointsFeature {
 
     private static void rebuild(SecretWaypointsConfig cfg, double px, double pz) {
         CACHED.clear();
-        double reach = cfg.getRenderDistance() + CACHE_MARGIN;
-        double reachSq = reach * reach;
+        // Only the room you are in (killer560, 2026-09-21: "only show the waypoints for the room I am currently in
+        // and remove the render distance option"). Rooms spanning several tiles are listed once per tile, so the
+        // name decides and duplicate positions are skipped.
+        RoomEntry current = LiveMapFeature.currentRoomEntry();
+        if (current == null) {
+            return;
+        }
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
             RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
-            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name)) {
-                continue;
-            }
-            // Whole-room XZ bounds first: one nearest-point test drops a far room before any coordinate of
-            // it is transformed. Y is ignored - dungeon rooms all sit in the same 60-140 band.
-            int[] b = LiveMapFeature.roomWorldBounds(room[0]);
-            double dx = Math.max(0.0, Math.max(b[0] - px, px - b[2]));
-            double dz = Math.max(0.0, Math.max(b[1] - pz, pz - b[3]));
-            if (dx * dx + dz * dz > reachSq) {
+            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name)
+                    || !entry.name.equals(current.name)) {
                 continue;
             }
             int clayX = room[1];
             int clayZ = room[2];
             int rotation = room[3];
-            addGroup(entry.secretCoords.chest, clayX, clayZ, rotation, cfg.getChestColor(), Kind.CHEST, cfg);
-            addGroup(entry.secretCoords.item, clayX, clayZ, rotation, cfg.getItemColor(), Kind.ITEM, cfg);
-            addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.ITEM, cfg);
-            addGroup(entry.secretCoords.bat, clayX, clayZ, rotation, cfg.getBatColor(), Kind.BAT, cfg);
-            addGroup(entry.secretCoords.redstoneKey, clayX, clayZ, rotation, cfg.getRedstoneKeyColor(), Kind.ITEM, cfg);
+            addGroup(entry.secretCoords.chest, clayX, clayZ, rotation, cfg.getChestColor(), Kind.CHEST, "chest", cfg, seen);
+            addGroup(entry.secretCoords.item, clayX, clayZ, rotation, cfg.getItemColor(), Kind.ITEM, "item", cfg, seen);
+            addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.ITEM, "wither", cfg, seen);
+            addGroup(entry.secretCoords.bat, clayX, clayZ, rotation, cfg.getBatColor(), Kind.BAT, "bat", cfg, seen);
+            addGroup(entry.secretCoords.redstoneKey, clayX, clayZ, rotation, cfg.getRedstoneKeyColor(), Kind.ITEM, "key", cfg, seen);
         }
     }
 
     private static void addGroup(List<RoomEntry.Pos> positions, int clayX, int clayZ, int rotation, int argb,
-                                 Kind kind, SecretWaypointsConfig cfg) {
+                                 Kind kind, String group, SecretWaypointsConfig cfg, java.util.Set<BlockPos> seen) {
         if (positions == null || positions.isEmpty()) {
             return;
         }
@@ -243,10 +337,13 @@ public final class SecretWaypointsFeature {
         }
         for (RoomEntry.Pos relative : positions) {
             BlockPos real = RoomDatabase.toRealCoord(relative, clayX, clayZ, rotation);
+            if (COLLECTED.contains(real) || !seen.add(real)) {
+                continue;
+            }
             AABB box = boxFor(real, kind, cfg.getBoxSize());
             CACHED.add(new Waypoint(box,
                     (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
-                    r, g, b, a));
+                    r, g, b, a, real, kind, labelFor(kind, group)));
         }
     }
 
@@ -272,6 +369,45 @@ public final class SecretWaypointsFeature {
             return;
         }
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
-        SecretWaypointsRenderer.draw(context, CACHED, cfg.getStyle(), cfg.isThroughWalls(), cfg.getRenderDistance());
+        // Everything cached is in your room, so no distance limit is applied any more.
+        SecretWaypointsRenderer.draw(context, CACHED, cfg.getStyle(), cfg.isThroughWalls(), SecretWaypointsConfig.MAX_RENDER_DISTANCE);
+        if (cfg.isShowNames()) {
+            drawNames(context);
+        }
+    }
+
+    /** The secret's name floating just above its box, always facing you, drawn through walls. */
+    private static void drawNames(LevelRenderContext ctx) {
+        var bufferSource = ctx.bufferSource();
+        var poseStack = ctx.poseStack();
+        if (bufferSource == null || poseStack == null) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        var camera = mc.gameRenderer.getMainCamera();
+        var cam = camera.position();
+        var font = mc.font;
+        for (Waypoint w : CACHED) {
+            double x = w.centerX();
+            double y = w.box().maxY + 0.35;
+            double z = w.centerZ();
+            double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
+            float s = 0.025f * (float) Math.min(6.0, Math.max(1.0, dist / 10.0));
+            int color = 0xFF000000 | ((int) (w.r() * 255) << 16) | ((int) (w.g() * 255) << 8) | (int) (w.b() * 255);
+            if ((color & 0xFFFFFF) == 0) {
+                color = 0xFFAAAAAA; // a black (essence) label would be invisible
+            }
+            poseStack.pushPose();
+            try {
+                poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
+                poseStack.mulPose(camera.rotation());
+                poseStack.scale(s, -s, s);
+                font.drawInBatch(w.label(), -font.width(w.label()) / 2f, -font.lineHeight / 2f, color, false,
+                        poseStack.last().pose(), bufferSource, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
+                        0, 0xF000F0);
+            } finally {
+                poseStack.popPose();
+            }
+        }
     }
 }
