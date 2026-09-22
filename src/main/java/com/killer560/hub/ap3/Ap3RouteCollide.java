@@ -123,18 +123,18 @@ final class Ap3RouteCollide {
      * tick's travel crosses. Built once on the client thread, then read from the planning worker.
      */
     static final class BoxWorld implements Shapes {
-        private final java.util.HashMap<Long, List<Box>> columns = new java.util.HashMap<>();
-
+        /**
+         * Boxes by block column. This is the route search's hottest structure by a wide margin - one plan sweeps the
+         * player box a few million times - so it is a flat array addressed by arithmetic rather than a HashMap: no
+         * hashing, no Long boxing, no allocation per query. Columns outside the built region hold nothing, which is
+         * correct for a snapshot taken around the route in the first place.
+         */
+        private Box[][] columns;
+        private int originX, originZ, width, depth;
+        private final List<Box> all = new ArrayList<>();
         void add(Box b) {
-            int minCx = (int) Math.floor(b.minX);
-            int maxCx = (int) Math.ceil(b.maxX) - 1;
-            int minCz = (int) Math.floor(b.minZ);
-            int maxCz = (int) Math.ceil(b.maxZ) - 1;
-            for (int cx = minCx; cx <= maxCx; cx++) {
-                for (int cz = minCz; cz <= maxCz; cz++) {
-                    columns.computeIfAbsent(key(cx, cz), k -> new ArrayList<>(2)).add(b);
-                }
-            }
+            all.add(b);
+            columns = null; // rebuilt lazily on the next query
         }
 
         void add(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
@@ -142,39 +142,128 @@ final class Ap3RouteCollide {
         }
 
         int size() {
-            return columns.size();
+            return all.size();
+        }
+
+        private void build() {
+            if (columns != null) {
+                return;
+            }
+            int loX = 0;
+            int hiX = 0;
+            int loZ = 0;
+            int hiZ = 0;
+            boolean first = true;
+            for (Box b : all) {
+                int bx0 = (int) Math.floor(b.minX);
+                int bx1 = (int) Math.ceil(b.maxX) - 1;
+                int bz0 = (int) Math.floor(b.minZ);
+                int bz1 = (int) Math.ceil(b.maxZ) - 1;
+                if (first) {
+                    loX = bx0;
+                    hiX = bx1;
+                    loZ = bz0;
+                    hiZ = bz1;
+                    first = false;
+                } else {
+                    loX = Math.min(loX, bx0);
+                    hiX = Math.max(hiX, bx1);
+                    loZ = Math.min(loZ, bz0);
+                    hiZ = Math.max(hiZ, bz1);
+                }
+            }
+            originX = loX;
+            originZ = loZ;
+            width = Math.max(1, hiX - loX + 1);
+            depth = Math.max(1, hiZ - loZ + 1);
+            int[] counts = new int[width * depth];
+            for (Box b : all) {
+                int x0 = colMinX(b);
+                int x1 = colMaxX(b);
+                int z0 = colMinZ(b);
+                int z1 = colMaxZ(b);
+                for (int cx = x0; cx <= x1; cx++) {
+                    for (int cz = z0; cz <= z1; cz++) {
+                        counts[(cx - originX) * depth + (cz - originZ)]++;
+                    }
+                }
+            }
+            Box[][] cols = new Box[width * depth][];
+            for (int i = 0; i < cols.length; i++) {
+                if (counts[i] > 0) {
+                    cols[i] = new Box[counts[i]];
+                    counts[i] = 0;
+                }
+            }
+            for (Box b : all) {
+                int x0 = colMinX(b);
+                int x1 = colMaxX(b);
+                int z0 = colMinZ(b);
+                int z1 = colMaxZ(b);
+                for (int cx = x0; cx <= x1; cx++) {
+                    for (int cz = z0; cz <= z1; cz++) {
+                        int i = (cx - originX) * depth + (cz - originZ);
+                        cols[i][counts[i]++] = b;
+                    }
+                }
+            }
+            columns = cols;
+        }
+
+        private int colMinX(Box b) {
+            return Math.max(originX, (int) Math.floor(b.minX));
+        }
+
+        private int colMaxX(Box b) {
+            return Math.min(originX + width - 1, (int) Math.ceil(b.maxX) - 1);
+        }
+
+        private int colMinZ(Box b) {
+            return Math.max(originZ, (int) Math.floor(b.minZ));
+        }
+
+        private int colMaxZ(Box b) {
+            return Math.min(originZ + depth - 1, (int) Math.ceil(b.maxZ) - 1);
         }
 
         @Override
         public void collect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
                             List<Box> out) {
-            int minCx = (int) Math.floor(minX);
-            int maxCx = (int) Math.floor(maxX);
-            int minCz = (int) Math.floor(minZ);
-            int maxCz = (int) Math.floor(maxZ);
+            build();
+            int minCx = Math.max(originX, (int) Math.floor(minX));
+            int maxCx = Math.min(originX + width - 1, (int) Math.floor(maxX));
+            int minCz = Math.max(originZ, (int) Math.floor(minZ));
+            int maxCz = Math.min(originZ + depth - 1, (int) Math.floor(maxZ));
+            if (minCx > maxCx || minCz > maxCz) {
+                return;
+            }
             for (int cx = minCx; cx <= maxCx; cx++) {
+                int base = (cx - originX) * depth;
                 for (int cz = minCz; cz <= maxCz; cz++) {
-                    List<Box> in = columns.get(key(cx, cz));
+                    Box[] in = columns[base + (cz - originZ)];
                     if (in == null) {
                         continue;
                     }
-                    for (int i = 0; i < in.size(); i++) {
-                        Box b = in.get(i);
+                    for (Box b : in) {
                         if (b.maxY <= minY || b.minY >= maxY
                                 || b.maxX <= minX || b.minX >= maxX
                                 || b.maxZ <= minZ || b.minZ >= maxZ) {
                             continue;
                         }
-                        if (!out.contains(b)) { // a box wider than a block is filed under every column it covers
-                            out.add(b);
+                        // A box wider than one block is filed under every column it covers, so take it only from
+                        // the first of those columns this query visits. That deduplicates in constant time and
+                        // WITHOUT writing to the box: the snapshot is read by the planning worker and the renderer
+                        // at the same time, so a mark stored on the box would race between them.
+                        if (cx > minCx && cx > colMinX(b)) {
+                            continue;
                         }
+                        if (cz > minCz && cz > colMinZ(b)) {
+                            continue;
+                        }
+                        out.add(b);
                     }
                 }
             }
-        }
-
-        private static long key(int cx, int cz) {
-            return ((long) cx << 32) ^ (cz & 0xFFFFFFFFL);
         }
     }
 
@@ -376,7 +465,9 @@ final class Ap3RouteCollide {
         shapes.clear();
         Box scratch = sc.axis;
         double[] moved = sc.moved;
-        gather(world, box, dx, dy, dz, 0.0, shapes);
+        // One gather, sized to cover the step-up probe too: it reaches MAX_UP_STEP higher and a sliver lower than
+        // the plain move, and a superset can only be narrowed by clips that do not overlap, so it is free to share.
+        gather(world, box, dx, dy, dz, STEP_SEARCH_SLIVER, MAX_UP_STEP, shapes);
         if (dx == 0.0 && dy == 0.0 && dz == 0.0) {
             moved[0] = 0.0;
             moved[1] = 0.0;
@@ -395,9 +486,7 @@ final class Ap3RouteCollide {
             if (landed) {
                 base.shift(0.0, moved[1], 0.0);
             }
-            List<Box> stepShapes = sc.stepShapes;
-            stepShapes.clear();
-            gather(world, base, dx, MAX_UP_STEP, dz, landed ? 0.0 : STEP_SEARCH_SLIVER, stepShapes);
+            List<Box> stepShapes = shapes; // the single gather above already covers the probe's reach
             int nHeights = candidateStepHeights(base, stepShapes, (float) moved[1], sc);
             double flatSq = moved[0] * moved[0] + moved[2] * moved[2];
             double[] stepped = sc.stepped;
@@ -429,12 +518,21 @@ final class Ap3RouteCollide {
         return out;
     }
 
-    /** {@code collectColliders} over {@code box.expandTowards(move)}, optionally grown downwards by a sliver. */
-    private static void gather(Shapes world, Box box, double dx, double dy, double dz, double down, List<Box> out) {
+    /**
+     * {@code collectColliders} over {@code box.expandTowards(move)}, grown downwards by a sliver and upwards by
+     * {@code extraUp} so ONE gather serves both the plain move and the step-up probe.
+     * <p>
+     * {@code extraUp} must be added to the move's own reach, not substituted for it: folding it in as
+     * {@code max(dy, extraUp)} threw away the downward extent whenever dy was negative, and a falling player then
+     * queried no boxes below himself and dropped straight through the floor. The harness caught it immediately -
+     * every jump test ended 36 blocks down inside a block.
+     */
+    private static void gather(Shapes world, Box box, double dx, double dy, double dz, double down, double extraUp,
+                               List<Box> out) {
         double minX = box.minX + Math.min(dx, 0.0);
         double maxX = box.maxX + Math.max(dx, 0.0);
         double minY = box.minY + Math.min(dy, 0.0) - down;
-        double maxY = box.maxY + Math.max(dy, 0.0);
+        double maxY = box.maxY + Math.max(dy, 0.0) + extraUp;
         double minZ = box.minZ + Math.min(dz, 0.0);
         double maxZ = box.maxZ + Math.max(dz, 0.0);
         world.collect(minX, minY, minZ, maxX, maxY, maxZ, out);

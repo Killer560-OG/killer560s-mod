@@ -310,21 +310,30 @@ final class Ap3RoutePlanner {
         // Running first (see Options.preferRunning). Half the budget is plenty: with jumps off the search either
         // finds the way across quickly or runs out of places to stand and dies on its own.
         long began = System.nanoTime();
-        Options onFoot = o.copy();
-        onFoot.allowJump = false;
-        // Capped as well as halved: when the probe FAILS its whole share is spent before the real search starts,
-        // and a mid-route re-plan only gets 300 ms in the first place. When it succeeds it is quick (under 250 ms
-        // in every measured case), so a ceiling costs nothing and bounds the worst case.
-        onFoot.budgetMs = Math.max(1, Math.min(o.budgetMs / 2, 400));
-        // A wider beam, because with jumps off the branching is halved and the answer often hangs on ONE approach
-        // phase surviving the cut - "it may have to adjust earlier portions of its movement to get the propper
-        // block alignment". Measured on a 3-block gap at 550: two of eleven approaches found nothing at beam 400
-        // and a 15-tick route at beam 1500, one of them in half the time, because finding the way across is
-        // cheaper than exhausting every way that falls in.
-        onFoot.beam = Math.min(4000, o.beam * 3);
-        Plan running = search(start, gates, blocked, terrain, m, onFoot);
-        if (running.complete) {
-            return running;
+        // Two stages, because the probe is paid for on EVERY plan and most of the time the ordinary beam already
+        // finds the way across. Only when it does not is the wide beam worth its cost - with jumps off the
+        // branching is halved, and the answer can hang on one approach phase surviving the cut ("it may have to
+        // adjust earlier portions of its movement to get the propper block alignment"). Measured on a 3-block gap
+        // at 550: nine of eleven approaches are answered at beam 400, and the remaining two need about 1500.
+        // Both stages are capped: when a probe FAILS its whole share is spent before the real search starts, and a
+        // mid-route re-plan only has 300 ms to begin with.
+        Plan running = null;
+        int[] beams = {o.beam, Math.min(4000, o.beam * 3)};
+        for (int stage = 0; stage < beams.length; stage++) {
+            Options onFoot = o.copy();
+            onFoot.allowJump = false;
+            onFoot.beam = beams[stage];
+            onFoot.budgetMs = Math.max(1, Math.min(o.budgetMs / 4, 250));
+            Plan probe = search(start, gates, blocked, terrain, m, onFoot);
+            if (probe.complete) {
+                return probe;
+            }
+            if (running == null || probe.gatesReached > running.gatesReached) {
+                running = probe;
+            }
+            if ((System.nanoTime() - began) / 1_000_000L >= o.budgetMs / 2) {
+                break; // half the budget is the most the probing may ever take
+            }
         }
         long spentMs = (System.nanoTime() - began) / 1_000_000L;
         Options withJumps = o.copy();
@@ -422,7 +431,8 @@ final class Ap3RoutePlanner {
         Gate target = gates.get(nextGate(n, groups));
         boolean fine = needsFineControl(n, target, top);
         double[] dirs = directions(n, target, o, fine);
-        Ap3DiscretePlanner.Action[] shapes = fine ? FINE_SHAPES : FAST_SHAPES;
+        Ap3DiscretePlanner.Action[] shapes = fine ? FINE_SHAPES
+                : (canBrakeInAir(n, target, top) ? AIR_BRAKE_SHAPES : FAST_SHAPES);
         for (double dir : dirs) {
             for (Ap3DiscretePlanner.Action a : shapes) {
                 float yaw = (float) (Math.toDegrees(dir) - keyOffset(a));
@@ -540,9 +550,23 @@ final class Ap3RoutePlanner {
     }
 
 
+    /**
+     * Airborne with the gate close enough that overshooting it is the risk worth spending branching on. A flight is
+     * about twelve ticks and carries roughly a tick of ground travel each, so "close" is measured in flights.
+     */
+    private static boolean canBrakeInAir(Node n, Gate g, double top) {
+        if (n.s.onGround) {
+            return false;
+        }
+        double d = Math.hypot(g.x - n.s.x, g.z - n.s.z);
+        return d < Math.max(3.0, top * 12);
+    }
+
     /** Fine control (sneak, sideways braking, a denser ring) near a gate that asks for a position or a speed. */
     private static boolean needsFineControl(Node n, Gate g, double top) {
-        if (!g.exact && !g.wantsVelocity()) {
+        // A gate that has to be LANDED ON needs the same care as an exact one: the approach has to be slowed and
+        // aimed, not just aimed, or the tick that reaches it carries straight past.
+        if (!g.exact && !g.wantsVelocity() && !g.mustLand) {
             return false;
         }
         double d = Math.hypot(g.x - n.s.x, g.z - n.s.z);
@@ -762,9 +786,19 @@ final class Ap3RoutePlanner {
         if (g.exact && !g.sameBlocks(to.x, to.z)) {
             return false; // right distance, wrong side of a block edge
         }
-        if (g.mustLand && !to.onGround) {
+        if (g.mustLand) {
             // Also rules out a jump on the crossing tick itself: pressing jump leaves the move airborne.
-            return false;
+            if (!to.onGround) {
+                return false;
+            }
+            // And it has to FINISH on the node, not merely pass through it. An ordinary gate is crossed when the
+            // tick's travel intersects its box, which is right for a waypoint you run past - but at speed 1000 a
+            // tick covers three blocks, so "crossed" could mean sailing 1.9 blocks beyond the thing you were
+            // supposed to stop on (measured). killer560: "sometimes when it goes to jump to a node it will overshoot
+            // it a ton."
+            if (Math.abs(to.x - g.x) > g.halfW + 1.0E-9 || Math.abs(to.z - g.z) > g.halfL + 1.0E-9) {
+                return false;
+            }
         }
         if (g.exact && !to.onGround) {
             // An exact gate is a place to STAND (killer560: "still either on or off of a block"), so passing over it
@@ -1074,6 +1108,25 @@ final class Ap3RoutePlanner {
             new Ap3DiscretePlanner.Action(1, 1, true),
             new Ap3DiscretePlanner.Action(0, 1, false),
             new Ap3DiscretePlanner.Action(0, 1, true),
+    };
+
+    /**
+     * In the air, closing on the gate you are aiming at: the braking shapes as well. killer560 (2026-09-22):
+     * "sometimes when it goes to jump to a node it will overshoot it a ton, make sure it can do things like press s
+     * to slow it down even faster midair."
+     * <p>
+     * Every other shape set is forward-only (fw = 1) because forward is what keeps a sprint, so until now the
+     * planner had no way to express S at all and a jump that carried too far could only be watched. Air control is
+     * a flat 0.02 a tick, so S is worth little per tick - but a twelve-tick flight has twelve of them, and it is the
+     * difference between landing on a node and sailing past it. Kept to the air and to the approach so the extra
+     * branching is not paid for on every ordinary running tick.
+     */
+    private static final Ap3DiscretePlanner.Action[] AIR_BRAKE_SHAPES = {
+            new Ap3DiscretePlanner.Action(1, 0, false),
+            new Ap3DiscretePlanner.Action(1, 1, false),
+            new Ap3DiscretePlanner.Action(0, 1, false),
+            new Ap3DiscretePlanner.Action(-1, 0, false),
+            new Ap3DiscretePlanner.Action(-1, 1, false),
     };
 
     /** Where an action pushes relative to the facing, in degrees (W = 0, W+A = -45, A = -90). */
