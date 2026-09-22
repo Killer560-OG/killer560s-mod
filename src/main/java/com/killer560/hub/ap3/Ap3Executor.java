@@ -344,6 +344,7 @@ public final class Ap3Executor {
     public static void stop(String reason) {
         boolean wasBusy = isRunning();
         stopReason = reason;
+        traceEnd();
         activeNode = null;
         step = null;
         alignPredValid = false;
@@ -749,6 +750,7 @@ public final class Ap3Executor {
             return;
         }
         applyFallbackKeys(client);
+        traceAlignTick(client, player);
     }
 
     /**
@@ -773,6 +775,7 @@ public final class Ap3Executor {
                     // Dev timer: "from the moment I enter an align to the moment it is fully aligned" - the clock
                     // starts on the entry edge, whether the node fires now, waits its turn, or waits for his hands.
                     alignEntered.put(node, new long[]{tickCounter, System.currentTimeMillis()});
+                    traceStart();
                 }
                 if (handsOn && !node.type.isAlign()) {
                     unfired.add(node);
@@ -902,6 +905,9 @@ public final class Ap3Executor {
     }
 
     private static void finishNode() {
+        if (activeNode != null && activeNode.type.isAlign()) {
+            traceEnd();
+        }
         // Release the camera as soon as the node is done - a finished LOOK must not keep pulling the view back.
         RouteRotation.clear();
         // ...and drop the grace window with it. Click-skipping a LEAP used to leave 205 ticks of grace
@@ -1031,7 +1037,8 @@ public final class Ap3Executor {
         String xTag = wallAxis == Direction.Axis.X ? " (wall)" : "";
         String zTag = wallAxis == Direction.Axis.Z ? " (wall)" : "";
         String offs = String.format(Locale.US, "X off %+.4f%s, Z off %+.4f%s", offX, xTag, offZ, zTag);
-        String model = String.format(Locale.US, "model %.3f, worst miss %.5f", alignGain, alignWorstMiss);
+        String model = String.format(Locale.US, "model %.3f, worst miss %.5f, server corrections %d", alignGain,
+                alignWorstMiss, alignCorrections);
         LOGGER.info("[AP3 dev] {} #{} took {} ({} ticks) - {} ({})", node.type.label(), number(node),
                 String.format(Locale.US, "%.2fs", seconds), ticks, offs, model);
         ModChat.send("AP3 dev", ModChat.text(node.type.label() + " "), ModChat.value("#" + number(node)),
@@ -1057,6 +1064,94 @@ public final class Ap3Executor {
         alignGain = 1.0;
         alignPredValid = false;
         alignWorstMiss = 0.0;
+        alignCorrections = 0;
+    }
+
+    // ---- server corrections (mixin/Ap3PositionPacketMixin) and the per-tick trace, dev builds ----
+    /** Server position packets seen during the current align and the 10 ticks after it. */
+    private static int alignCorrections;
+    /** True from the tick an align box is entered until 10 ticks after the align ended (dev builds, timer on). */
+    private static boolean traceActive;
+    /** Ticks of trace still to log after the align ended; -1 while it is still going. */
+    private static int traceCountdown = -1;
+    private static int traceTick;
+
+    /**
+     * From {@code mixin/Ap3PositionPacketMixin}, BEFORE vanilla applies the packet: the server is moving us by this
+     * delta from where the client is. During an align (and its 10-tick tail) that is Hypixel rejecting the movement -
+     * logged with the delta and counted into the dev line. Nothing is changed; vanilla applies it as always.
+     */
+    public static void onServerPositionPacket(double dx, double dy, double dz) {
+        boolean inAlign = activeNode != null && activeNode.type.isAlign();
+        if (!inAlign && !traceActive) {
+            return;
+        }
+        alignCorrections++;
+        LOGGER.info("[AP3 dev] SERVER CORRECTION #{} during align{}: delta ({}, {}, {}) blocks", alignCorrections,
+                inAlign ? "" : " tail",
+                String.format(Locale.US, "%.4f", dx), String.format(Locale.US, "%.4f", dy), String.format(Locale.US, "%.4f", dz));
+    }
+
+    /** Entry edge of an align box: start the trace (dev builds with the align timer on). */
+    private static void traceStart() {
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || !Ap3Config.getInstance().isAlignTimerDev()) {
+            return;
+        }
+        if (!traceActive) {
+            traceTick = 0;
+            alignCorrections = 0;
+        }
+        traceActive = true;
+        traceCountdown = -1;
+    }
+
+    /** The align ended (done, failed, stopped): keep logging for 10 more ticks so the tail is on record. */
+    private static void traceEnd() {
+        if (traceActive && traceCountdown < 0) {
+            traceCountdown = 10;
+        }
+    }
+
+    /**
+     * One INFO line per tick, dev builds only, from the moment an align box is entered until 10 ticks after the align
+     * ended: what was measured, what input goes out for the next tick, what the model predicts, and whether the
+     * override / lock were on - so the next test log shows exactly where a spit-back comes from.
+     */
+    private static void traceAlignTick(Minecraft client, LocalPlayer player) {
+        if (!traceActive) {
+            return;
+        }
+        traceTick++;
+        try {
+            Vec3 pos = player.position();
+            Vec3 vel = player.getDeltaMovement();
+            String input = driving
+                    ? String.format(Locale.US, "move(%.4f,%.4f) keys[%s%s%s%s%s%s]", moveX, moveY,
+                            wantForward ? "W" : "", wantBackward ? "S" : "", wantLeft ? "A" : "", wantRight ? "D" : "",
+                            wantSneak ? " sneak" : "", wantSprint ? " sprint" : "")
+                    : "none" + (wantSneak ? " (sneak)" : "");
+            String predicted = alignPredValid ? String.format(Locale.US, "(%.5f, %.5f)", alignPredX, alignPredZ) : "-";
+            float sent = strafeServerYaw();
+            String phase = activeNode != null && activeNode.type.isAlign()
+                    ? "ALIGN #" + number(activeNode) + " " + step
+                    : traceCountdown >= 0 ? "after +" + (10 - traceCountdown) : "queued";
+            LOGGER.info("[AP3 dev] trace t{} {} | pos ({}, {}, {}) vel ({}, {}) | input {} | vanilla sprint={} crouch={} onGround={} | predicted next {} | override={} lock={} sentYaw={} camYaw={} | corrections {}",
+                    traceTick, phase,
+                    String.format(Locale.US, "%.5f", pos.x), String.format(Locale.US, "%.3f", pos.y), String.format(Locale.US, "%.5f", pos.z),
+                    String.format(Locale.US, "%.5f", vel.x), String.format(Locale.US, "%.5f", vel.z),
+                    input, player.isSprinting(), player.isCrouching(), player.onGround(), predicted,
+                    isInputOverridden(), strafeLock,
+                    Float.isNaN(sent) ? "camera" : String.format(Locale.US, "%.1f", sent),
+                    String.format(Locale.US, "%.1f", player.getYRot()), alignCorrections);
+        } catch (RuntimeException e) {
+            LOGGER.warn("[AP3 dev] trace line failed", e);
+        }
+        if (traceCountdown > 0) {
+            traceCountdown--;
+        } else if (traceCountdown == 0) {
+            traceActive = false;
+            traceCountdown = -1;
+        }
     }
 
     /**
@@ -1114,17 +1209,11 @@ public final class Ap3Executor {
     }
 
     /**
-     * One tick of the exact approach along the world error {@code (ex, ez)} (target minus feet). With {@code A} the
-     * most one straight press can change the velocity this tick ({@code 0.98 * speed}) and {@code f} the friction
-     * multiplier that follows the move:
-     * <ul>
-     * <li>{@code |e| <= A / f}: the LANDING - {@code dv = e - v0} puts the feet on the point this tick (or, once there,
-     *     cancels the residual velocity so the position stays put); the friction residual {@code |e| * f <= A} is
-     *     exactly what the next tick's brake can cancel in place;</li>
-     * <li>otherwise the SHAPING step: a displacement of {@code (|e| + 0.9A) / (1 + f)} toward the point - the largest
-     *     one whose next-tick landing needs at most {@code 0.9A} of brake - and while even that is out of reach, the
-     *     full press toward it (accelerating, or braking momentum that would carry past).</li>
-     * </ul>
+     * One tick of the exact approach along the world error {@code (ex, ez)} (target minus feet): the plan is
+     * {@link Ap3AlignMath#planDelta} (full press while far, a run that shortens by 70% a tick with taps of brake, the
+     * exact landing from a crawl inside the landing zone, then the in-place cancel of the few-percent residual - the
+     * velocity never reverses unless the physics leaves no choice), with {@code A = 0.98 * speed} the most one straight
+     * press can change the velocity and {@code f} the friction multiplier that follows the move.
      * The sprint state the game will use is decided by vanilla from THIS record before travel (it stops when the
      * record has no forward impulse, never starts because the record never asks), so the speed is solved without
      * the sprint modifier first and re-solved with it only when the answer keeps a forward impulse while sprinting.
@@ -1147,12 +1236,12 @@ public final class Ap3Executor {
         double attrNoSprint = sprinting ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr;
 
         double speed = tickSpeed(ground, friction, attrNoSprint, false) * alignGain;
-        double[] dv = planDelta(ex, ez, v0x, v0z, Ap3AlignMath.FULL_PRESS * speed, f);
+        double[] dv = Ap3AlignMath.planDelta(ex, ez, v0x, v0z, Ap3AlignMath.FULL_PRESS * speed, f);
         float[] m = Ap3AlignMath.moveVectorFor(dv[0], dv[1], speed, c, s);
         if (sprinting && m[1] > 1.0E-5f) {
             // The record keeps a forward impulse, so vanilla keeps the sprint and its +30% - solve for that speed.
             double sprintSpeed = tickSpeed(ground, friction, attr, true) * alignGain;
-            double[] dv2 = planDelta(ex, ez, v0x, v0z, Ap3AlignMath.FULL_PRESS * sprintSpeed, f);
+            double[] dv2 = Ap3AlignMath.planDelta(ex, ez, v0x, v0z, Ap3AlignMath.FULL_PRESS * sprintSpeed, f);
             float[] m2 = Ap3AlignMath.moveVectorFor(dv2[0], dv2[1], sprintSpeed, c, s);
             if (m2[1] > 1.0E-5f) {
                 dv = dv2;
@@ -1171,18 +1260,6 @@ public final class Ap3Executor {
         writeInput(player, m[0], m[1], dv[0], dv[1]);
     }
 
-    /** The landing / shaping / full-press choice described on {@link #driveToward}. */
-    private static double[] planDelta(double ex, double ez, double v0x, double v0z, double a, double f) {
-        double dist = Math.sqrt(ex * ex + ez * ez);
-        if (dist <= a / f || dist < 1e-9) {
-            return Ap3AlignMath.solveDelta(ex, ez, v0x, v0z, a);
-        }
-        double dMag = (dist + 0.9 * a) / (1.0 + f);
-        double tx = ex / dist * dMag;
-        double tz = ez / dist * dMag;
-        return Ap3AlignMath.solveDelta(tx, tz, v0x, v0z, a);
-    }
-
     /** Installs an exact moveVector (no rescaling - {@link #writeMove} is for the speed-shaped holds) with the key
      *  record the server sees derived from the direction it moves in; never sprint, never sneak. */
     private static void writeInput(LocalPlayer player, float mx, float my, double dirX, double dirZ) {
@@ -1195,7 +1272,10 @@ public final class Ap3Executor {
         moveY = my;
         driveX = dirX / h;
         driveZ = dirZ / h;
-        writeKeys(player.getYRot(), false);
+        // The key record the server sees is derived against the yaw the server RECEIVES: while the strafe lock is
+        // still gliding back from a walk's angle that is serverYaw, not the camera yaw the movement itself uses -
+        // the same rule the held walk follows, so keys and yaw in one packet never disagree.
+        writeKeys(strafeLock ? serverYaw : player.getYRot(), false);
         wantSneak = false;
         driving = true;
     }
@@ -1256,7 +1336,7 @@ public final class Ap3Executor {
         // The perpendicular axis: the same landing / shaping rule in one dimension. The wall axis: whatever of the
         // press is left goes into the wall - full until touching, then a lean (the collision absorbs it, nothing is
         // written). The two are perpendicular, so the whole input stays inside one press.
-        double[] p = planDelta(perpErr, 0.0, perpV0, 0.0, a, f);
+        double[] p = Ap3AlignMath.planDelta(perpErr, 0.0, perpV0, 0.0, a, f);
         double dvp = p[0];
         double lean = Math.min((touching ? WALL_PUSH_HELD : 1.0) * a, Math.sqrt(Math.max(0.0, a * a - dvp * dvp)));
         double dvx = perp.x * dvp + wall.x * lean;
