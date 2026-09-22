@@ -2336,9 +2336,22 @@ public final class Ap3Executor {
      *  face of a neighbouring block included). A Boom needs the same block. */
     private static boolean sameTarget(Ap3Node node, BlockHitResult hit, BlockHitResult ref) {
         if (node.type == Ap3Node.Type.BLOCK) {
-            return hit.getBlockPos().relative(hit.getDirection()).equals(ref.getBlockPos().relative(ref.getDirection()));
+            // Same spot AND the same half (killer560, 2026-09-21: "it is important that it is on the bottom or top half
+            // of a block but that is it for the placing. Otherwise it can be anywhere on that part of it") - a slab
+            // goes top or bottom by where on the face you click.
+            return hit.getBlockPos().relative(hit.getDirection()).equals(ref.getBlockPos().relative(ref.getDirection()))
+                    && topHalf(hit) == topHalf(ref);
         }
         return hit.getBlockPos().equals(ref.getBlockPos());
+    }
+
+    /** Whether a place from this hit makes a TOP slab: clicking a block's underside, or the upper half of a side. */
+    private static boolean topHalf(BlockHitResult hit) {
+        return switch (hit.getDirection()) {
+            case DOWN -> true;
+            case UP -> false;
+            default -> hit.getLocation().y - Math.floor(hit.getLocation().y) > 0.5;
+        };
     }
 
     private static BlockHitResult rayAt(LocalPlayer player, Vec3 eye, float yaw, float pitch) {
