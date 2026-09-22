@@ -2270,8 +2270,9 @@ public final class Ap3Executor {
     // combination, in speed order (W+A / W+D - full speed and sprint; W; A / D; the backward ones), take the yaw that
     // points that combination exactly along the walk, and look for a pitch at that yaw whose ray (from where the eye
     // will be) hits the node's block face. The first that does is the aim and those keys are held for the aim ticks.
-    // None found: the aim is the node's own angle and no keys are pressed - coasting is exactly straight, only the
-    // one tick's push is lost.
+    // None found: the node's own angle with the closest key combination (full speed, at most 22.5 degrees off for that
+    // one tick). The aim lasts exactly ONE tick of movement: the use goes out on the entry tick and the walk takes the
+    // yaw and keys straight back.
 
     private static float aimYaw;
     private static float aimPitch;
@@ -2304,6 +2305,10 @@ public final class Ap3Executor {
         Vec3 eye = player.getEyePosition().add(v.x, 0.0, v.z);
         BlockHitResult ref = rayAt(player, eye, node.yaw, node.pitch);
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+        // Fallback when nothing lines up exactly (killer560: "it slows down way too much now. It needs to keep moving
+        // no slow down"): coasting cost almost half the speed in one ground tick, so hold the key combination closest to
+        // the walk at the node's own angle instead - full push, at most 22.5 degrees off for the one aim tick.
+        aimKey = nearestKey8(holdDir.x, holdDir.z, node.yaw);
         if (ref == null) {
             return;
         }
@@ -2317,7 +2322,7 @@ public final class Ap3Executor {
                     continue;
                 }
                 BlockHitResult hit = rayAt(player, eye, yaw, pitch);
-                if (hit != null && hit.getBlockPos().equals(ref.getBlockPos()) && hit.getDirection() == ref.getDirection()) {
+                if (hit != null && sameTarget(node, hit, ref)) {
                     aimYaw = yaw;
                     aimPitch = pitch;
                     aimKey = new int[]{k[0], k[1]};
@@ -2325,6 +2330,15 @@ public final class Ap3Executor {
                 }
             }
         }
+    }
+
+    /** A Block node places into hit.pos + face: any ray that ends in the same placement spot is as good (a different
+     *  face of a neighbouring block included). A Boom needs the same block. */
+    private static boolean sameTarget(Ap3Node node, BlockHitResult hit, BlockHitResult ref) {
+        if (node.type == Ap3Node.Type.BLOCK) {
+            return hit.getBlockPos().relative(hit.getDirection()).equals(ref.getBlockPos().relative(ref.getDirection()));
+        }
+        return hit.getBlockPos().equals(ref.getBlockPos());
     }
 
     private static BlockHitResult rayAt(LocalPlayer player, Vec3 eye, float yaw, float pitch) {
@@ -2339,7 +2353,7 @@ public final class Ap3Executor {
             return false;
         }
         if (aimKey == null) {
-            clearMovement(); // coast: exactly straight
+            clearMovement();
         } else {
             boolean sprint = holdSprint && aimKey[0] > 0 && !player.isInWater();
             writeDiscrete(player, aimKey[0], aimKey[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
@@ -2423,6 +2437,7 @@ public final class Ap3Executor {
                 if (r.consumesAction()) {
                     player.swing(InteractionHand.MAIN_HAND);
                 }
+                endAim(player); // placed: the walk takes yaw and keys back this same tick - one aimed tick, no more
                 step = Step.CONFIRM;
                 stepTicks = 0;
             }
