@@ -66,6 +66,14 @@ final class Ap3RoutePlanner {
         /** Optional heading requirement at the crossing (MC yaw degrees of the travel direction). */
         boolean hasDir;
         double dirDeg, dirTolDeg = 15.0;
+        /**
+         * Reach this one with both feet down. Set on the LAST gate of a plan, because that is where the route ends
+         * and killer560 (2026-09-22) wants it to end like a Stop node does: "don't have it randomly jump. It should
+         * just stop holding any movement key". Crossing a box gate in mid-air is fine everywhere else - it is how a
+         * route hops a gap - but arriving at the end still airborne means landing wherever the arc happens to put
+         * you, which is not stopping.
+         */
+        boolean mustLand;
 
         boolean wantsVelocity() {
             return minSpeed >= 0 || maxSpeed >= 0 || hasDir;
@@ -674,6 +682,10 @@ final class Ap3RoutePlanner {
         }
         if (g.exact && !g.sameBlocks(to.x, to.z)) {
             return false; // right distance, wrong side of a block edge
+        }
+        if (g.mustLand && !to.onGround) {
+            // Also rules out a jump on the crossing tick itself: pressing jump leaves the move airborne.
+            return false;
         }
         if (g.exact && !to.onGround) {
             // An exact gate is a place to STAND (killer560: "still either on or off of a block"), so passing over it

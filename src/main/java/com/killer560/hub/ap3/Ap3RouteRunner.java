@@ -400,6 +400,9 @@ final class Ap3RouteRunner {
         for (Ap3Node n : route) {
             gates.add(gateFor(n));
         }
+        if (!gates.isEmpty()) {
+            gates.get(gates.size() - 1).mustLand = true; // the route ends standing, not mid-jump
+        }
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
         Snap snap = Snap.of(client.level, player, gates, start);

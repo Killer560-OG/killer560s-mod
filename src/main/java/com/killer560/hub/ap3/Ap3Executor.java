@@ -1278,6 +1278,12 @@ public final class Ap3Executor {
         observePush(player); // the route learns the real push the same way an align does
         boolean running = Ap3RouteRunner.tick(client, player, node, s -> driveRouteStep(player, s));
         if (!running) {
+            // The last node of a route ends it like a Stop node - killer560 (2026-09-22): "It should just stop
+            // holding any movement key just like hitting a stop node." The plan already lands him on it rather
+            // than crossing it mid-jump (Gate.mustLand); this lets go of everything the last step was holding
+            // instead of leaving it pressed for whatever comes next to inherit.
+            wantJump = false;
+            releaseKeys();
             finishNode();
         }
     }
