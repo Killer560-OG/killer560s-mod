@@ -389,6 +389,7 @@ final class Ap3RouteRunner {
                             ModChat.dim(" (" + p.ticks + " ticks, " + jumpsIn(p) + " jumps"
                                     + (p.complete ? "" : ", INCOMPLETE - " + p.note) + ")"));
                 }
+                logTerrainProfile(snap, start, gates);
                 LOGGER.info("[AP3 route] planned {} ticks, {} gates{}, from ({}, {}) v {} splicing at step {}",
                         p.ticks, p.gateTick.length, p.complete ? "" : " INCOMPLETE - " + p.note,
                         String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
@@ -402,6 +403,37 @@ final class Ap3RouteRunner {
         }, "killer560smod-ap3-route");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /**
+     * What the planner believes the ground is, straight from where he stands to the last gate: the floor height every
+     * half block, or "X" where it thinks nothing can stand. When the route walks into something the plan thought was
+     * open, this line says whether the snapshot was wrong or the search was.
+     */
+    private static void logTerrainProfile(Snap snap, Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates) {
+        if (!Ap3Config.getInstance().isAlignTimerDev() || gates.isEmpty()) {
+            return;
+        }
+        Ap3RoutePlanner.Gate last = gates.get(gates.size() - 1);
+        double dx = last.x - start.x;
+        double dz = last.z - start.z;
+        double len = Math.hypot(dx, dz);
+        if (len < 0.1) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        int steps = (int) Math.min(80, Math.round(len / 0.5));
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            double x = start.x + dx * t;
+            double z = start.z + dz * t;
+            double f = snap.floorAt(x, z);
+            sb.append(Double.isNaN(f) ? "X" : String.format(Locale.US, "%.1f", f - start.y));
+            sb.append(' ');
+        }
+        LOGGER.info("[AP3 route] ground from ({}, {}) y {} to the last gate, every 0.5 blocks (relative heights): {}",
+                String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
+                String.format(Locale.US, "%.2f", start.y), sb.toString().trim());
     }
 
     private static int jumpsIn(Ap3RoutePlanner.Plan p) {

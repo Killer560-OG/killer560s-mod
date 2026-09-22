@@ -1125,15 +1125,6 @@ public final class Ap3Executor {
                 failNode(String.format(Locale.US, "too far from align #%d (%.1f blocks)", number(node), dist));
                 return;
             }
-            // Drop the sprint before planning anything. Vanilla's sprint flag flips around a press in a way the
-            // client cannot pin down (his log: a handful of ticks out by 0.111, exactly 0.48157 - 0.37044), and an
-            // align re-planning against a coin toss took 8-14 ticks instead of 3. One tick with no keys clears the
-            // flag - vanilla drops a sprint the moment there is no forward impulse - and every push after it is a
-            // walk, which is deterministic. It costs one tick and buys the other five back.
-            if (player.isSprinting()) {
-                clearMovement();
-                return;
-            }
             step = Step.DO;
             alignModelReset();
             Ap3FastAlign.reset();
@@ -1200,13 +1191,13 @@ public final class Ap3Executor {
      */
     private static boolean driveFast(LocalPlayer player, double ex, double ez) {
         Vec3 vel = player.getDeltaMovement();
-        Ap3DiscretePlanner.Model m = alignModel(player, true);
+        Ap3DiscretePlanner.Model m = modelFor(player, true);
         Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
         s.ex = ex;
         s.ez = ez;
         s.vx = vel.x;
         s.vz = vel.z;
-        s.sprinting = player.isSprinting();
+        s.sprinting = sprintLikely(player);
         s.crouching = lastSneakSent;
         s.sentYaw = player.getYRot();
         Ap3FastAlign.Result r = Ap3FastAlign.solve(s, m, alignTolerance);
@@ -1232,7 +1223,8 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m, a.fw() > 0, false);
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
+                a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
         return true;
     }
@@ -1308,15 +1300,15 @@ public final class Ap3Executor {
         Ap3DiscretePlanner.Model m = modelFor(player, false);
         if (!a.none()) {
             double eff = Ap3DiscretePlanner.effectiveLength(a, lastSneakSent, m.sneakMul);
-            double mag = m.tickSpeed(sprintFor(a)) * eff;
+            double mag = m.tickSpeed(a.fw() > 0) * eff;
             double rad = Math.toRadians(player.getYRot());
             double norm = Math.sqrt(a.fw() * a.fw() + a.st() * a.st());
             double ux = a.st() / norm;
             double uz = a.fw() / norm;
             expectPush(player, mag * (ux * Math.cos(rad) - uz * Math.sin(rad)),
-                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, sprintFor(a));
+                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, a.fw() > 0);
         }
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), sprintFor(a), player.getYRot(), m, lastSneakSent);
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(), m, lastSneakSent);
     }
 
     // ---- Term Aura: one click at the node, retried a couple of ticks later ----------------------------------------
@@ -1594,24 +1586,14 @@ public final class Ap3Executor {
         return m;
     }
 
-    /** An align never presses sprint (see tickAlign's PREP), so its model must not expect one either. */
-    private static Ap3DiscretePlanner.Model alignModel(LocalPlayer player, boolean yawSteerable) {
-        Ap3DiscretePlanner.Model m = modelFor(player, yawSteerable);
-        m.sprintKeyHeld = false;
-        return m;
-    }
-
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
         Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
         double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-        // Whether the sprint boost is IN that number is a question for the attribute, not for isSprinting(): the two
-        // can disagree within a tick, and taking the 1.3 out when it was never there priced a press at 0.73614 that
-        // the game gave 0.49140 - a 1.5x overestimate, and a 0.2 block miss.
-        boolean sprintInAttr = hasSprintModifier(player);
+
         // pushScale: what the last ticks actually did, divided by what the model said they would (see observePush).
         // It absorbs anything the model cannot see - his own sprint key re-arming sprint mid-align, a speed change,
         // a different floor - so the plan is built on the push the game IS giving rather than the one it should.
-        m.baseSpeedAttr = (sprintInAttr ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr) * pushScale;
+        m.baseSpeedAttr = (player.isSprinting() ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr) * pushScale;
         m.blockFriction = blockFriction(player);
         m.onGround = player.onGround();
         m.sneakMul = sneakSpeed(player);
@@ -1619,8 +1601,8 @@ public final class Ap3Executor {
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
-        // AP3 presses sprint on every forward, non-sneaking tick (sprintFor), so the model can count on it.
-        m.sprintKeyHeld = true;
+        // Learned from the pushes we measured, not read from the key - AP3 overwrites the key itself every tick.
+        m.sprintKeyHeld = sprintRestarts;
         return m;
     }
 
@@ -1630,52 +1612,21 @@ public final class Ap3Executor {
      * AP3 asked for no sprint (seen in his 2026-09-22 log: the plan predicted a non-sprint push and the game moved
      * 0.11 further). Planning with this instead of {@code isSprinting()} alone stops the align chasing its own tail.
      */
-    /**
-     * Whether THIS press sprints. AP3 sends the sprint key itself so the answer is its own, not a race with his
-     * keyboard: his log had the same keys[W] come out sprint=true on one tick and sprint=false on the next, because
-     * the game re-reads his held key every frame while AP3 writes the same key every tick. Nothing can plan against a
-     * coin toss, so the plan decides it - forward, not sneaking - and the model is told the same thing.
-     */
-    private static boolean sprintFor(Ap3DiscretePlanner.Action a) {
-        return a.fw() > 0; // including a sneaking one: measured at sprint speed x sneak's 0.3
-    }
-
-    /** Vanilla's own "minecraft:sprinting" modifier on the movement speed: present exactly when the 1.3 is applied. */
-    private static boolean hasSprintModifier(LocalPlayer player) {
-        try {
-            net.minecraft.world.entity.ai.attributes.AttributeInstance inst =
-                    player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-            if (inst == null) {
-                return player.isSprinting();
-            }
-            for (net.minecraft.world.entity.ai.attributes.AttributeModifier mod : inst.getModifiers()) {
-                if ("minecraft:sprinting".equals(mod.id().toString())) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (Throwable t) {
-            return player.isSprinting();
-        }
-    }
-
     private static boolean sprintLikely(LocalPlayer player) {
-        return player.isSprinting(); // the truth right now; the model carries it forward by vanilla's own rule
+        Minecraft client = Minecraft.getInstance();
+        return player.isSprinting() || (client.options != null && client.options.keySprint.isDown());
     }
 
     // ---- the measured push scale -------------------------------------------------------------------------------
     /** What the model's push has to be multiplied by to match what the game really did; 1 until something differs. */
     private static double pushScale = 1.0;
-    /** Only the leftovers now that AP3 owns the sprint: a wide miss means something else is wrong, not the scale. */
-    private static final double PUSH_SCALE_MIN = 0.75;
-    private static final double PUSH_SCALE_MAX = 1.35;
+    private static final double PUSH_SCALE_MIN = 0.5;
+    private static final double PUSH_SCALE_MAX = 2.0;
     /** Half a tick's evidence at a time: fast enough to catch a sprint flip, slow enough not to chase noise. */
     private static final double PUSH_SCALE_ALPHA = 0.5;
     private static boolean pushPending;
     private static double pushModelX, pushModelZ, pushBeforeX, pushBeforeZ, pushFriction;
     private static boolean pushAssumedSprint, pushForward;
-    /** The scale the model was using when this push was predicted, so the reading can be taken back to raw speed. */
-    private static double pushScaleAtExpect = 1.0;
     /**
      * Whether a forward press RESTARTS a sprint here. It cannot be read from the sprint key: AP3 writes that key's
      * state itself every tick, so {@code keySprint.isDown()} only reports what we just wrote. It is learned instead -
@@ -1706,7 +1657,6 @@ public final class Ap3Executor {
         pushBeforeX = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.x;
         pushBeforeZ = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.z;
         pushFriction = m.friction();
-        pushScaleAtExpect = pushScale;
         pushPending = Math.hypot(px, pz) > 1e-6;
     }
 
@@ -1730,27 +1680,25 @@ public final class Ap3Executor {
         if (model < 1e-6 || actual < 1e-6) {
             return;
         }
-        // Judge the sprint against the RAW model, not the scaled one. Reading it off the scaled model made the two
-        // corrections chase each other - the scale moved, the sprint flag flipped, the scale moved back - and an
-        // align took 71 ticks (his 2026-09-22 log: scale 0.886 / 1.177 / 0.915 / 0.878 with the flag flipping along).
-        double raw = actual / (model / Math.max(0.01, pushScaleAtExpect));
-        double residual = raw;
-        if (pushForward && !pushAssumedSprint && raw > 1.15 && raw < 1.5) {
-            sprintEvidence = Math.min(SPRINT_EVIDENCE_MAX, sprintEvidence + 1);
-            residual = raw / Ap3AlignMath.SPRINT_MULTIPLIER; // the 1.3 belongs to the sprint, not to the scale
-        } else if (pushForward && pushAssumedSprint && raw > 0.6 && raw < 0.85) {
-            sprintEvidence = Math.max(-SPRINT_EVIDENCE_MAX, sprintEvidence - 1);
-            residual = raw * Ap3AlignMath.SPRINT_MULTIPLIER;
+        double raw = actual / model;
+        if (pushForward && (raw > 1.15 || raw < 0.85)) {
+            // A walk-priced press that lands a sprint-sized push says forward restarts the sprint here, and the other
+            // way round says it does not. Two readings the same way to change the answer.
+            int before = sprintEvidence;
+            if (!pushAssumedSprint && raw > 1.15) {
+                sprintEvidence = Math.min(SPRINT_EVIDENCE_MAX, sprintEvidence + 1);
+            } else if (pushAssumedSprint && raw < 0.85) {
+                sprintEvidence = Math.max(-SPRINT_EVIDENCE_MAX, sprintEvidence - 1);
+            }
+            boolean now = sprintEvidence > 0;
+            if (now != sprintRestarts) {
+                sprintRestarts = now;
+                LOGGER.info("[AP3 dev] forward {} restart the sprint (model {}, actual {}, evidence {} -> {})",
+                        now ? "does" : "does not", String.format(Locale.US, "%.5f", model),
+                        String.format(Locale.US, "%.5f", actual), before, sprintEvidence);
+            }
         }
-        // Two readings to turn it on, two the other way to turn it off - one odd press must not flip it.
-        boolean now = sprintEvidence >= 2 || (sprintRestarts && sprintEvidence > -2);
-        if (now != sprintRestarts) {
-            sprintRestarts = now;
-            LOGGER.info("[AP3 dev] forward {} restart the sprint (model {}, actual {}, evidence {})",
-                    now ? "does" : "does not", String.format(Locale.US, "%.5f", model),
-                    String.format(Locale.US, "%.5f", actual), sprintEvidence);
-        }
-        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, residual));
+        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, raw));
         double next = pushScale * (1 - PUSH_SCALE_ALPHA) + ratio * PUSH_SCALE_ALPHA;
         double scaled = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, next));
         if (Math.abs(scaled - pushScale) > 0.01 && Ap3Config.getInstance().isAlignTimerDev()) {
@@ -1895,13 +1843,13 @@ public final class Ap3Executor {
         Vec3 vel = player.getDeltaMovement();
         boolean sentYawMethod = method == Ap3Config.AlignMethod.SENT_YAW && strafeLock && mixinApplied && rotationMixinApplied;
         boolean cameraMethod = method == Ap3Config.AlignMethod.CAMERA;
-        Ap3DiscretePlanner.Model m = alignModel(player, sentYawMethod || cameraMethod);
+        Ap3DiscretePlanner.Model m = modelFor(player, sentYawMethod || cameraMethod);
         Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
         s.ex = ex;
         s.ez = ez;
         s.vx = vel.x;
         s.vz = vel.z;
-        s.sprinting = player.isSprinting();
+        s.sprinting = sprintLikely(player);
         s.crouching = lastSneakSent; // the multiplier the next travel uses = the shift of the record installed this tick
         s.sentYaw = sentYawMethod ? serverYaw : player.getYRot();
 
@@ -1946,7 +1894,8 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m, a.fw() > 0, false);
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
+                a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
     }
 
