@@ -359,6 +359,8 @@ public final class Ap3Executor {
         holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
+        jumpPendingTicks = 0;
+        edgeArmedTicks = 0;
         releaseKeys();
         RouteRotation.clear();
         lastPositions.clear();
@@ -526,7 +528,7 @@ public final class Ap3Executor {
     /** Driving the player this tick (the mixin asks this). Sneak alone (braking / the last bit of an alignment)
      *  still counts. */
     public static boolean isDriving() {
-        return driving || wantSneak;
+        return driving || wantSneak || wantJump;
     }
 
     /**
@@ -550,7 +552,7 @@ public final class Ap3Executor {
     /** The {@code Input} record the mixin installs: the 8-way keys nearest the analog direction, so the
      *  {@code ServerboundPlayerInputPacket} the server sees is the plausible one for the way we move. */
     public static Input drivenInput() {
-        return new Input(wantForward, wantBackward, wantLeft, wantRight, false, wantSneak, wantSprint);
+        return new Input(wantForward, wantBackward, wantLeft, wantRight, wantJump, wantSneak, wantSprint);
     }
 
     /** Analog input, LEFT positive (vanilla's {@code calculateImpulse(left, right)} order). NOT unit length - the
@@ -752,6 +754,7 @@ public final class Ap3Executor {
                 tickNode(client, player);
             }
             applyHold(player);
+            applyJumps(player);
         } catch (Exception e) {
             LOGGER.error("[AP3] Node error", e);
             stop("internal error (see log)");
@@ -908,9 +911,9 @@ public final class Ap3Executor {
         settleTicks = 0;
         swapSent = false;
         gateSawScreen = false;
-        if (!node.type.isMover()) {
+        if (!node.type.isMover() && !node.type.keepsHold()) {
             // "keep me walking until i hit a different node" - this is that node, whatever it is. A WALK / RUN
-            // replaces the hold with its own instead.
+            // replaces the hold with its own instead; a JUMP / EDGE jumps without ending it.
             holdDir = null;
         }
         step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
@@ -968,7 +971,70 @@ public final class Ap3Executor {
                 toggleStopwatch();
                 finishNode();
             }
+            case JUMP -> {
+                // "Jump will jump the second it hits the node" - pressed on the next tick (the soonest any input can
+                // go in), waiting for the ground if he is in the air; the node itself is done at once.
+                jumpPendingTicks = JUMP_WAIT_TICKS;
+                finishNode();
+            }
+            case EDGE -> {
+                // "edge jumps on the last tick it is on a block" - armed until that tick comes (see applyJumps).
+                edgeArmedTicks = EDGE_WAIT_TICKS;
+                finishNode();
+            }
         }
+    }
+
+    // ---- JUMP / EDGE ------------------------------------------------------------------------------------------
+
+    /** A JUMP waits this long for the ground before giving up (a node hit mid-air). */
+    private static final int JUMP_WAIT_TICKS = 20;
+    /** An EDGE stays armed this long waiting for the edge. */
+    private static final int EDGE_WAIT_TICKS = 100;
+    private static int jumpPendingTicks;
+    private static int edgeArmedTicks;
+    /** The jump key for the next tick - a real key, part of the record the server sees. */
+    private static boolean wantJump;
+
+    /**
+     * Called after this tick's movement (the node's own or the held walk) has been decided. JUMP: press jump now if
+     * on the ground. EDGE: predict where the NEXT tick's move ends - the current velocity plus the push of the keys
+     * just decided - and if the feet are no longer over a block there, the next tick is the last one on it, so jump
+     * in it (the jump goes in while the feet are still on the block).
+     */
+    private static void applyJumps(LocalPlayer player) {
+        if (jumpPendingTicks > 0) {
+            jumpPendingTicks--;
+            if (player.onGround()) {
+                wantJump = true;
+                jumpPendingTicks = 0;
+            }
+        }
+        if (edgeArmedTicks > 0) {
+            edgeArmedTicks--;
+            if (player.onGround() && leavesGroundNextTick(player)) {
+                wantJump = true;
+                edgeArmedTicks = 0;
+            }
+        }
+    }
+
+    private static boolean leavesGroundNextTick(LocalPlayer player) {
+        Vec3 v = player.getDeltaMovement();
+        double dx = v.x;
+        double dz = v.z;
+        if (driving) {
+            Ap3DiscretePlanner.Model m = modelFor(player, false);
+            boolean diagonal = (wantForward || wantBackward) && (wantLeft || wantRight);
+            double push = m.tickSpeed(wantSprint || player.isSprinting()) * (diagonal ? 1.0 : Ap3AlignMath.INPUT_SCALE);
+            double len = Math.sqrt(driveX * driveX + driveZ * driveZ);
+            if (len > 1e-6) {
+                dx += driveX / len * push;
+                dz += driveZ / len * push;
+            }
+        }
+        net.minecraft.world.phys.AABB next = player.getBoundingBox().move(dx, 0.0, dz);
+        return player.level().noCollision(player, next.move(0.0, -0.0625, 0.0).setMaxY(next.minY));
     }
 
     // ---- close gate: "only fires on left click, or after a terminal closes" ------------------------------------
@@ -2317,6 +2383,7 @@ public final class Ap3Executor {
         moveX = 0f;
         moveY = 0f;
         wantForward = wantBackward = wantLeft = wantRight = wantSneak = wantSprint = false;
+        wantJump = false;
     }
 
     // ------------------------------------------------------------------------------------------- server-side yaw lock
@@ -2429,7 +2496,7 @@ public final class Ap3Executor {
         if (mixinApplied) {
             return;
         }
-        boolean any = driving || wantSneak;
+        boolean any = driving || wantSneak || wantJump;
         if (!any) {
             // Idle: the mappings are the player's own - only let go of what WE were holding, never write them.
             if (fallbackKeysHeld) {
@@ -2443,6 +2510,7 @@ public final class Ap3Executor {
         client.options.keyRight.setDown(wantRight);
         client.options.keyShift.setDown(wantSneak);
         client.options.keySprint.setDown(wantSprint);
+        client.options.keyJump.setDown(wantJump);
         fallbackKeysHeld = true;
     }
 

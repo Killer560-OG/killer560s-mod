@@ -50,6 +50,8 @@ public final class Ap3Config {
     public static final String KEY_ADD_LOOK = "add_look";
     public static final String KEY_ADD_BOOM = "add_boom";
     public static final String KEY_ADD_STOPWATCH = "add_stopwatch";
+    public static final String KEY_ADD_JUMP = "add_jump";
+    public static final String KEY_ADD_EDGE = "add_edge";
     public static final String KEY_LIST = "list";
     public static final String KEY_UNDO = "undo";
     public static final String KEY_DELETE = "delete";
@@ -66,7 +68,7 @@ public final class Ap3Config {
 
     public static final List<String> KEYBIND_IDS = List.of(
             KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
-            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_LIST, KEY_UNDO,
+            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_LIST, KEY_UNDO,
             KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE,
             KEY_FREEZE_STATE, KEY_REWIND_TICK, KEY_FORWARD_TICK);
 
@@ -235,6 +237,8 @@ public final class Ap3Config {
             case LOOK -> 0xFFFFFF00;
             case BOOM -> 0xFFFF8800;
             case STOPWATCH -> 0xFF9A8C80;
+            case JUMP -> 0xFF7DD3FC;
+            case EDGE -> 0xFF22D3EE;
         };
     }
 

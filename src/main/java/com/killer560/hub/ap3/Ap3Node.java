@@ -40,7 +40,7 @@ public final class Ap3Node {
      *  (LINE, AXIS_LINE, LEAP_DETECTOR) still parse so a recorded chain keeps loading. WAIT and BREAKER are gone
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
-        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH;
+        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -60,6 +60,8 @@ public final class Ap3Node {
                 case "look", "rotate" -> LOOK;
                 case "boom", "superboom", "tnt" -> BOOM;
                 case "stopwatch", "sw", "timer" -> STOPWATCH;
+                case "jump", "j" -> JUMP;
+                case "edge", "edgejump", "edge_jump", "ej" -> EDGE;
                 default -> null;
             };
         }
@@ -78,12 +80,20 @@ public final class Ap3Node {
                 case LOOK -> "Look";
                 case BOOM -> "Boom";
                 case STOPWATCH -> "Stopwatch";
+                case JUMP -> "Jump";
+                case EDGE -> "Edge Jump";
             };
         }
 
         /** The two alignment nodes - the ones that END a held walk. */
         public boolean isAlign() {
             return this == ALIGN || this == AXIS_ALIGN;
+        }
+
+        /** Nodes that fire WITHOUT ending a held walk (killer560, 2026-09-21: "make both things that can go after
+         *  something like a walk command as well") - the walk keeps driving while they jump. */
+        public boolean keepsHold() {
+            return this == JUMP || this == EDGE;
         }
 
         /** The two movers (they start a held walk that lasts until any other node fires). */
@@ -109,8 +119,10 @@ public final class Ap3Node {
                 case TERMINAL -> 4;
                 case LEAP_COUNTER -> 5;
                 case WALK, RUN -> 6;
-                case BOOM -> 7;
-                case LEAP -> 8;
+                // right after a walk in the same box, so the walk is already driving when the jump goes in
+                case JUMP, EDGE -> 7;
+                case BOOM -> 8;
+                case LEAP -> 9;
             };
         }
 
@@ -211,10 +223,11 @@ public final class Ap3Node {
         return Math.floor(v) + 0.5;
     }
 
-    /** The block floor under the feet. A tiny epsilon so a feet position that reads "68.99999" after a landing
-     *  still snaps to 69, not 68. */
+    /** The feet height itself, to a thousandth - no longer floored to the block (killer560, 2026-09-21: "if a node
+     *  is placed on carpet it is placed through the carpet and I cannot see it. Have the height not be fixed to a
+     *  block"). Carpet, slabs and snow layers keep the node on their top surface. */
     public static double snapY(double y) {
-        return Math.floor(y + 1e-4);
+        return Math.round(y * 1000.0) / 1000.0;
     }
 
     // ---- accessors (public fields for the codec; the UI reads through these) -------------------------------

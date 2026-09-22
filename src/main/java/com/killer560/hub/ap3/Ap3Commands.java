@@ -83,6 +83,8 @@ public final class Ap3Commands {
         ADD_LOOK("add_look", "Add Look Node", "/ap3 add look"),
         ADD_BOOM("add_boom", "Add Boom Node", "/ap3 add boom"),
         ADD_STOPWATCH("add_stopwatch", "Add Stopwatch Node", "/ap3 add stopwatch"),
+        ADD_JUMP("add_jump", "Add Jump Node", "/ap3 add jump"),
+        ADD_EDGE("add_edge", "Add Edge Jump Node", "/ap3 add edge"),
         LIST("list", "List Chain", "/ap3 list"),
         UNDO("undo", "Undo Last Node", "/ap3 undo"),
         /** The command takes an optional number; the key (and the bare command) delete the node you stand nearest. */
@@ -126,7 +128,7 @@ public final class Ap3Commands {
 
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "walk", "run", "leap",
-            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch");
+            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise");
 
@@ -418,6 +420,8 @@ public final class Ap3Commands {
             case ADD_LOOK -> add(Ap3Node.Type.LOOK);
             case ADD_BOOM -> add(Ap3Node.Type.BOOM);
             case ADD_STOPWATCH -> add(Ap3Node.Type.STOPWATCH);
+            case ADD_JUMP -> add(Ap3Node.Type.JUMP);
+            case ADD_EDGE -> add(Ap3Node.Type.EDGE);
             case LIST -> list();
             case UNDO -> undo();
             case DELETE_NEAREST -> deleteNearest();
