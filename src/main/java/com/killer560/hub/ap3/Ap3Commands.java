@@ -246,6 +246,15 @@ public final class Ap3Commands {
                         .then(ClientCommands.literal("testmode").executes(context -> exec(Action.TEST_MODE)))
                         // Throw away the saved plans - the route keeps the best one it has ever run, so if the
                         // world under it has changed this is how you make it look again.
+                        // Write the next plan's exact inputs - his position, the nodes, every collision box the
+                        // snapshot read - to config/killer560smod/ap3-route-dump.json, so the same problem can be
+                        // replayed outside the game instead of guessed at from a description.
+                        .then(ClientCommands.literal("dump").executes(context -> {
+                            Ap3RouteRunner.dumpNext = true;
+                            ModChat.send(FEATURE, ModChat.good("The next route plan will be written to"
+                                    + " config/killer560smod/ap3-route-dump.json."));
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("forget").executes(context -> {
                             int n = Ap3RouteCache.clear();
                             ModChat.send(FEATURE, ModChat.good("Forgot " + n + " saved route plan"

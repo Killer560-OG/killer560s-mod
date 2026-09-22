@@ -145,6 +145,11 @@ final class Ap3RouteCollide {
             return all.size();
         }
 
+        /** Every box, for writing a snapshot out so it can be replayed away from the game. */
+        List<Box> boxes() {
+            return all;
+        }
+
         private void build() {
             if (columns != null) {
                 return;

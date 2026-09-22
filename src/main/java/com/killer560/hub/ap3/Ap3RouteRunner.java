@@ -65,6 +65,12 @@ final class Ap3RouteRunner {
     private static final int PLAN_LATENCY = 6;
     /** A fresh plan is started this often while running, so the route keeps correcting instead of drifting. */
     private static final int REPLAN_EVERY = 20;
+    /**
+     * How long the first plan of a route may take. Long, on purpose: it is found once and then remembered, and it
+     * runs off the client thread, so the only cost is the pause before he sets off - which he already sees and
+     * would rather trade for an answer that works.
+     */
+    private static final long BRUTE_FORCE_MS = 4000;
     /** How close to the first Path node the pre-plan starts, so the route does not stall on arrival. */
     private static final double PRE_PLAN_RANGE = 12.0;
 
@@ -85,6 +91,8 @@ final class Ap3RouteRunner {
     private static Ap3DiscretePlanner.Model planModel;
     /** The world the current plan was made against - the renderer draws the path at its heights. */
     private static volatile Ap3RoutePlanner.Terrain snapshot;
+    /** Set by /ap3 dump: the next plan writes everything it was given to a file, for replaying offline. */
+    static volatile boolean dumpNext;
     /** The step index the pending plan begins at (it was planned from the predicted state at that tick). */
     private static volatile int pendingAt;
     /**
@@ -428,14 +436,25 @@ final class Ap3RouteRunner {
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
         Snap snap = Snap.of(client.level, player, gates, start);
+        if (dumpNext) {
+            dumpNext = false;
+            Ap3RouteDump.write(start, gates, blocked, snap, model);
+        }
         snapshot = snap;
         Ap3RoutePlanner.Options options = new Ap3RoutePlanner.Options();
         Ap3Config cfg = Ap3Config.getInstance();
         options.allowJump = cfg.isRouteAllowJumps();
         options.scanPad = cfg.getRouteScanPad();
-        options.beam = cfg.getRouteBeam();
-        // The first plan may think; a re-plan may not - every millisecond it spends is a tick the route is coasting.
-        options.budgetMs = plan == null ? cfg.getRouteBudgetMs() : Math.min(cfg.getRouteBudgetMs(), 300);
+        // killer560 (2026-09-22): "i do the vast majority of the configging myself... but for really annoying
+        // movement areas I want the path to help as a sort of brute forcer." So the FIRST plan of a route is
+        // allowed to think hard - a wide beam and seconds rather than a fraction of one - because the search runs
+        // on a worker, nothing in the game waits on it, and Ap3RouteCache keeps the answer so the price is paid
+        // once and never again. A re-plan mid-run gets the old small budget: there, every millisecond it spends is
+        // a tick the route is coasting.
+        boolean firstPlan = plan == null;
+        options.beam = firstPlan ? Math.min(4000, cfg.getRouteBeam() * 3) : cfg.getRouteBeam();
+        options.budgetMs = firstPlan ? Math.max(cfg.getRouteBudgetMs(), BRUTE_FORCE_MS)
+                : Math.min(cfg.getRouteBudgetMs(), 300);
         planStart = start;
         planModel = model;
         pendingAt = at;
@@ -796,6 +815,10 @@ final class Ap3RouteRunner {
 
         @Override
         public Ap3RouteCollide.Shapes shapes() {
+            return world;
+        }
+
+        Ap3RouteCollide.BoxWorld boxWorld() {
             return world;
         }
 
