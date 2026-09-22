@@ -71,7 +71,6 @@ public final class Ap3Commands {
      */
     public enum Action {
         ADD_ALIGN("add_line", "Add Align Node", "/ap3 add align [precise] [w<n> l<n>]"),
-        ADD_FAST_ALIGN("add_fastalign", "Add Fast Align Node", "/ap3 add fastalign [precise] [w<n> l<n>]"),
         ADD_AXIS_ALIGN("add_axisline", "Add Axis Align Node", "/ap3 add axisalign [precise]"),
         /** "(No Turn)" because that IS the point of AP3's walk: "it does not actually make my character face that
          *  way, but it will move that way" (killer560). Also keeps the label distinct from Auto Routes' walk node. */
@@ -121,7 +120,7 @@ public final class Ap3Commands {
     //      axisalign and whatnot and show them as options, same for the mods to them.") ----
 
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
-    private static final List<String> TYPE_WORDS = List.of("align", "fastalign", "axisalign", "walk", "run", "leap",
+    private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise");
@@ -359,7 +358,6 @@ public final class Ap3Commands {
     private static void dispatch(Action action) {
         switch (action) {
             case ADD_ALIGN -> add(Ap3Node.Type.ALIGN);
-            case ADD_FAST_ALIGN -> add(Ap3Node.Type.FAST_ALIGN);
             case ADD_AXIS_ALIGN -> add(Ap3Node.Type.AXIS_ALIGN);
             case ADD_WALK -> add(Ap3Node.Type.WALK);
             case ADD_RUN -> add(Ap3Node.Type.RUN);

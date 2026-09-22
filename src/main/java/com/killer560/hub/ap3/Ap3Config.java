@@ -41,7 +41,6 @@ public final class Ap3Config {
      *  nearest-node delete) so a key bound before the 2026-09-20 rework still works. */
     public static final String KEY_ADD_ALIGN = "add_line";
     public static final String KEY_ADD_AXIS_ALIGN = "add_axisline";
-    public static final String KEY_ADD_FAST_ALIGN = "add_fastalign";
     public static final String KEY_ADD_WALK = "add_walk";
     public static final String KEY_ADD_RUN = "add_run";
     public static final String KEY_ADD_LEAP = "add_leap";
@@ -63,7 +62,7 @@ public final class Ap3Config {
     public static final String KEY_REPLACE_LAST = "replace_last";
 
     public static final List<String> KEYBIND_IDS = List.of(
-            KEY_ADD_ALIGN, KEY_ADD_FAST_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
+            KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
             KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_LIST, KEY_UNDO,
             KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE);
 
@@ -106,9 +105,6 @@ public final class Ap3Config {
     /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
      *  the discrete planner typically lands far inside it. */
     public static final double DEFAULT_ALIGN_TOLERANCE = 0.001;
-    /** killer560 (2026-09-21): "I want it to be like 3 ticks or so", then "it should be .001 not .1" - the
-     *  planner takes the landing that is at rest soonest within this, and the closest of equally fast ones. */
-    public static final double DEFAULT_FAST_ALIGN_TOLERANCE = 0.001;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;
@@ -179,9 +175,6 @@ public final class Ap3Config {
     /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target (see the constants). */
     private double alignTolerance = DEFAULT_ALIGN_TOLERANCE;
     private AlignMethod alignMethod = AlignMethod.CAMERA;
-    /** Fast Align nodes settle within this instead (killer560, 2026-09-21: "defaults to only a precision of +-.005
-     *  but it prioritizes speed"). */
-    private double fastAlignTolerance = DEFAULT_FAST_ALIGN_TOLERANCE;
     /** Camera Planner only: his screen keeps the view he had while the real yaw does the planner's turns
      *  (killer560, 2026-09-21: "do the same freecam style we used for walk nodes"). */
     private boolean alignFreezeView = true;
@@ -205,7 +198,6 @@ public final class Ap3Config {
     public static int defaultNodeColor(Ap3Node.Type type) {
         return switch (type) {
             case ALIGN -> 0xFFFFA040;
-            case FAST_ALIGN -> 0xFFFFD080;
             case AXIS_ALIGN -> 0xFFCC6600;
             case WALK -> 0xFFFFFFFF;
             case RUN -> 0xFF55FF55;
@@ -283,7 +275,6 @@ public final class Ap3Config {
                 // New key: Camera Planner won the 2026-09-21 Hypixel A/B (8/8 exact, no corrections) and is the default
                 // now, so whatever was cycled to during that test is dropped once.
                 cfg.alignMethod = ConfigJson.getEnum(o, "alignMethodV2", AlignMethod.class, cfg.alignMethod);
-                cfg.setFastAlignTolerance(ConfigJson.getDouble(o, "fastAlignTolerance", cfg.fastAlignTolerance));
                 cfg.alignFreezeView = ConfigJson.getBool(o, "alignFreezeView", cfg.alignFreezeView);
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
@@ -334,7 +325,6 @@ public final class Ap3Config {
             o.addProperty("labelHeightOffset", labelHeightOffset);
             o.addProperty("alignToleranceExact", alignTolerance);
             o.addProperty("alignMethodV2", alignMethod.name());
-            o.addProperty("fastAlignTolerance", fastAlignTolerance);
             o.addProperty("alignFreezeView", alignFreezeView);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
@@ -493,13 +483,6 @@ public final class Ap3Config {
     public AlignMethod getAlignMethod() { return AlignMethod.CAMERA; }
     public void setAlignMethod(AlignMethod m) { alignMethod = m == null ? AlignMethod.CAMERA : m; }
 
-    public double getFastAlignTolerance() { return DEFAULT_FAST_ALIGN_TOLERANCE; }
-    public void setFastAlignTolerance(double v) {
-        if (Double.isFinite(v)) {
-            fastAlignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 10000.0) / 10000.0));
-        }
-    }
-
     public boolean isAlignFreezeView() { return alignFreezeView; }
     public void setAlignFreezeView(boolean v) { alignFreezeView = v; }
 
@@ -555,8 +538,6 @@ public final class Ap3Config {
     // Typed pairs, one per command, for the UI agent (all delegate to the id map above).
     public int getAddAlignKey() { return getKeybind(KEY_ADD_ALIGN); }
     public void setAddAlignKey(int code) { setKeybind(KEY_ADD_ALIGN, code); }
-    public int getAddFastAlignKey() { return getKeybind(KEY_ADD_FAST_ALIGN); }
-    public void setAddFastAlignKey(int code) { setKeybind(KEY_ADD_FAST_ALIGN, code); }
     public int getAddAxisAlignKey() { return getKeybind(KEY_ADD_AXIS_ALIGN); }
     public void setAddAxisAlignKey(int code) { setKeybind(KEY_ADD_AXIS_ALIGN, code); }
     public int getAddWalkKey() { return getKeybind(KEY_ADD_WALK); }

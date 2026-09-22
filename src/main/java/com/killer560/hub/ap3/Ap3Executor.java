@@ -948,7 +948,7 @@ public final class Ap3Executor {
             return;
         }
         switch (node.type) {
-            case ALIGN, FAST_ALIGN -> tickAlign(client, player, node);
+            case ALIGN -> tickAlign(client, player, node);
             case AXIS_ALIGN -> tickAxisAlign(client, player, node);
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
@@ -1012,9 +1012,7 @@ public final class Ap3Executor {
         double err = Math.max(Math.abs(ex), Math.abs(ez));
         Ap3Config cfg = Ap3Config.getInstance();
         Ap3Config.AlignMethod method = cfg.getAlignMethod();
-        boolean fast = node.type == Ap3Node.Type.FAST_ALIGN;
-        alignTolerance = fast ? cfg.getFastAlignTolerance() : cfg.getAlignTolerance();
-        alignFast = fast;
+        alignTolerance = cfg.getAlignTolerance();
         if (step == Step.PREP) {
             double dist = Math.sqrt(ex * ex + ez * ez);
             if (dist > ALIGN_REACH + node.length / 2.0 + node.width / 2.0) {
@@ -1044,27 +1042,6 @@ public final class Ap3Executor {
                 finishNode();
             }
             return;
-        }
-        if (fast && !driving && stepTicks > 0) {
-            // Fast Align: no keys went in last tick and the slide the player is on already ends inside the tolerance
-            // with no more input - hand over NOW instead of waiting out the friction (3-6 ticks). The next node starts
-            // while he is still gliding; a node that does not move him (look, leap, terminal, stop) lets the glide
-            // finish exactly where predicted, and a walk does not care. The dev line reports where it will stop.
-            double[] rest = coastRest(player, ex, ez);
-            if (Math.max(Math.abs(rest[0]), Math.abs(rest[1])) <= alignTolerance) {
-                clearMovement();
-                long[] entered = alignEntered.remove(node);
-                if (entered != null && cfg.isAlignTimerDev()) {
-                    fastCheckNode = node;
-                    fastCheckStart = entered;
-                    fastCheckPredX = -rest[0];
-                    fastCheckPredZ = -rest[1];
-                    fastCheckHandover = tickCounter - entered[0];
-                    fastCheckTicks = 0;
-                }
-                finishNode();
-                return;
-            }
         }
         // Done: both axes inside the tolerance and no velocity the game will still apply, held SETTLE_TICKS with no
         // input so it is really at rest.
@@ -1355,62 +1332,14 @@ public final class Ap3Executor {
         m.onGround = player.onGround();
         m.sneakMul = sneakSpeed(player);
         m.tolerance = alignTolerance;
-        m.refine = !alignFast;
-        m.fastest = alignFast;
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
         return m;
     }
 
-    /** The tolerance of the align being performed (Fast Align's own, or Align's) and whether it is a Fast Align;
-     *  set at the top of every align tick, read by {@link #modelFor}. */
+    /** The tolerance of the align being performed; set at the top of every align tick, read by {@link #modelFor}. */
     private static double alignTolerance = Ap3Config.DEFAULT_ALIGN_TOLERANCE;
-    private static boolean alignFast;
-
-    /** Dev builds: a Fast Align hands over before he stops, so its dev line is a PREDICTION - this checks where he
-     *  really comes to rest and prints that too (only while nothing else is moving him). */
-    private static Ap3Node fastCheckNode;
-    private static int fastCheckTicks;
-
-    private static long[] fastCheckStart;
-    private static double fastCheckPredX, fastCheckPredZ;
-    private static long fastCheckHandover;
-
-    private static void tickFastCheck(LocalPlayer player) {
-        if (fastCheckNode == null) {
-            return;
-        }
-        Vec3 v = player.getDeltaMovement();
-        String handover = "handed over after " + fastCheckHandover + " ticks";
-        if (++fastCheckTicks > 40 || driving) {
-            // Another node moved him before he stopped: no honest measurement - say so and give the prediction.
-            reportAlignTimer(fastCheckNode, fastCheckStart, fastCheckPredX, fastCheckPredZ, null,
-                    handover + ", PREDICTED - the next node moved you before you stopped");
-            fastCheckNode = null;
-            return;
-        }
-        if (Ap3AlignMath.horizontalZeroed(v.x, v.z)) {
-            Vec3 p = player.position();
-            reportAlignTimer(fastCheckNode, fastCheckStart, p.x - fastCheckNode.x, p.z - fastCheckNode.z, null, handover);
-            fastCheckNode = null;
-        }
-    }
-
-    /** Where the current slide ends with no more input, as {ex, ez} (target minus rest position). */
-    private static double[] coastRest(LocalPlayer player, double ex, double ez) {
-        Vec3 vel = player.getDeltaMovement();
-        Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
-        s.ex = ex;
-        s.ez = ez;
-        s.vx = vel.x;
-        s.vz = vel.z;
-        s.sprinting = player.isSprinting();
-        s.crouching = lastSneakSent;
-        s.sentYaw = player.getYRot();
-        Ap3DiscretePlanner.coast(s, modelFor(player, false));
-        return new double[]{s.ex, s.ez};
-    }
 
     // ---- Camera Planner view freeze ---------------------------------------------------------------------------
     //
@@ -1452,11 +1381,6 @@ public final class Ap3Executor {
      *  otherwise glides the real yaw back under the view and lets go. */
     static void tickView(Minecraft client) {
         LocalPlayer player = client.player;
-        if (player != null) {
-            tickFastCheck(player);
-        } else {
-            fastCheckNode = null;
-        }
         if (Float.isNaN(viewYaw)) {
             return;
         }
@@ -2299,7 +2223,10 @@ public final class Ap3Executor {
         } else {
             target = walkYaw;
         }
-        float delta = Mth.clamp(Mth.wrapDegrees(target - yaw), -(float) ALIGN_YAW_STEP, (float) ALIGN_YAW_STEP);
+        // SNAP, not a glide (killer560, 2026-09-21: "my head doesn't snap it is smooth rotating, so the walk will be
+        // slightly off kilter every time. It should snap"): the whole wrapped delta in one tick, added to the live
+        // yaw, so the very first key press already points exactly along the walk. Freeze View hides it.
+        float delta = Mth.wrapDegrees(target - yaw);
         if (Math.abs(delta) > 1e-4f) {
             player.setYRot(yaw + delta);
             RouteRotation.rebase();

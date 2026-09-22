@@ -1903,8 +1903,5 @@ final class SettingTooltipsData {
         d.put("ap3/force dungeon", "Testing only. Makes AP3 act as if you are in the F7/M7 boss wherever you are - the hub, singleplayer, any server - so you can place, see and test nodes. In a real boss the real phase and section still apply. Never saved: it turns itself off on every restart and world change, and a red reminder sits at the top of the screen while it is on.");
         d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on and you are not in a real boss. Click to cycle P1, P2, S1-S5, P4, P5.");
         d.put("ap3/freeze view (freecam)", "While an Align or a Walk/Run node turns your real yaw (what the server and your F5 model see), your screen keeps the view you had and your mouse steers only that view, so looking around never bends the movement. When the node ends your real yaw glides back under the view and nothing on screen moves. Default ON.");
-        d.put("ap3 fast align color", "Marker colour for Fast Align nodes.");
-        d.put("add fast align node", "Places a Fast Align: tuned for speed. It picks whatever keys, sneaks and turns bring you to a stop on the point soonest (within 0.001), then hands over to the next node.");
-        d.put("add fast align node key", "Keybind for /ap3 add fastalign.");
     }
 }
