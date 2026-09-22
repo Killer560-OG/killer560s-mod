@@ -158,8 +158,9 @@ final class Ap3DiscretePlanner {
 
     /** One vanilla tick applied to {@code s} in place: aiStep zeroing, the keys at {@code yaw}, travel, friction. */
     static void step(State s, Action a, float yaw, Model m) {
-        double v0x = Ap3AlignMath.zeroSmall(s.vx);
-        double v0z = Ap3AlignMath.zeroSmall(s.vz);
+        boolean zeroed = Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
+        double v0x = zeroed ? 0.0 : s.vx;
+        double v0z = zeroed ? 0.0 : s.vz;
         boolean sprintNow = s.sprinting && a.fw > 0;
         double vx = v0x, vz = v0z;
         if (!a.none()) {
@@ -190,15 +191,15 @@ final class Ap3DiscretePlanner {
         double f = m.friction();
         int ticks = 0;
         for (int i = 0; i < 60; i++) {
-            double v0x = Ap3AlignMath.zeroSmall(s.vx);
-            double v0z = Ap3AlignMath.zeroSmall(s.vz);
-            if (v0x == 0.0 && v0z == 0.0) {
+            if (Ap3AlignMath.horizontalZeroed(s.vx, s.vz)) {
+                s.vx = 0.0;
+                s.vz = 0.0;
                 break;
             }
-            s.ex -= v0x;
-            s.ez -= v0z;
-            s.vx = v0x * f;
-            s.vz = v0z * f;
+            s.ex -= s.vx;
+            s.ez -= s.vz;
+            s.vx *= f;
+            s.vz *= f;
             ticks++;
         }
         s.crouching = false;
@@ -297,7 +298,7 @@ final class Ap3DiscretePlanner {
             return null;
         }
         Plan p = new Plan();
-        boolean moving = Ap3AlignMath.zeroSmall(s.vx) != 0.0 || Ap3AlignMath.zeroSmall(s.vz) != 0.0;
+        boolean moving = !Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
         p.action = moving && s.crouching ? SNEAK_ONLY : NONE;
         p.yaw = s.sentYaw;
         p.reaches = true;
@@ -517,6 +518,49 @@ final class Ap3DiscretePlanner {
         }
     }
 
+    // ------------------------------------------------------------------------------------------- keys only
+
+    /** The nine sneak-held combinations (no keys ... diagonals), for the keys-only fine search. */
+    private static final Action[] SNEAK_ACTIONS;
+
+    static {
+        List<Action> list = new ArrayList<>();
+        for (int fw = -1; fw <= 1; fw++) {
+            for (int st = -1; st <= 1; st++) {
+                list.add(new Action(fw, st, true));
+            }
+        }
+        SNEAK_ACTIONS = list.toArray(new Action[0]);
+    }
+
+    /** Keys-only fine depth (9^5 = 59049 leaves). */
+    static final int KEYS_FINE_DEPTH = 5;
+
+    /**
+     * "Keys + Sneak" method: no yaw steering at all - the camera yaw is the frame and the sent yaw. The best a
+     * keyboard can do: an exhaustive joint search of sneak-held combinations over {@value #KEYS_FINE_DEPTH} ticks,
+     * scored by the rest position, so the taps land as close as their lattice allows (a few thousandths, which is
+     * what the other key-based mods get), re-planned every tick. Honest: the plan says the error it expects.
+     */
+    private static void keysFineSearch(State s, Model m, int depth, int k, Action first, JointResult out) {
+        if (k == depth) {
+            State r = s.copy();
+            int ticks = k + coast(r, m);
+            double rest = maxErr(r);
+            if (rest < out.restErr - 1e-9 || (Math.abs(rest - out.restErr) <= 1e-9 && ticks < out.ticks)) {
+                out.restErr = rest;
+                out.first = first;
+                out.ticks = ticks;
+            }
+            return;
+        }
+        for (Action a : SNEAK_ACTIONS) {
+            State n = s.copy();
+            step(n, a, s.sentYaw, m);
+            keysFineSearch(n, m, depth, k + 1, first == null ? a : first, out);
+        }
+    }
+
     // ------------------------------------------------------------------------------------------- the plan
 
     /**
@@ -570,12 +614,26 @@ final class Ap3DiscretePlanner {
         if (fine != null && fine.restError < joint.restErr && fine.restError < restNow) {
             return fine;
         }
+        if (!m.yawSteerable) {
+            // Keys + Sneak: once the full presses cannot beat a sneak plan, the exhaustive sneak search takes over.
+            JointResult keys = new JointResult();
+            keysFineSearch(s, m, KEYS_FINE_DEPTH, 0, null, keys);
+            if (keys.restErr <= joint.restErr || keys.restErr <= m.tolerance) {
+                p.action = keys.first == null ? NONE : keys.first;
+                p.yaw = s.sentYaw;
+                p.reaches = keys.restErr <= m.tolerance;
+                p.restError = keys.restErr;
+                p.ticks = keys.ticks;
+                p.phase = "keys-fine";
+                return p;
+            }
+        }
         p.action = joint.first == null ? NONE : joint.first;
         p.yaw = s.sentYaw;
         p.reaches = false;
         p.restError = joint.restErr;
         p.ticks = joint.ticks;
-        p.phase = m.yawSteerable ? "coarse" : "keys-only";
+        p.phase = m.yawSteerable ? "coarse" : "keys-coarse";
         return p;
     }
 }

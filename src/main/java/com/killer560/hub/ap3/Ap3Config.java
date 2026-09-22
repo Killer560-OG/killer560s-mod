@@ -75,6 +75,33 @@ public final class Ap3Config {
      *  it never writes position, Hypixel lags that back - solving vanilla's own step exactly ({@code Ap3AlignMath}). */
     public static final double MIN_ALIGN_TOLERANCE = 0.0001;
     public static final double MAX_ALIGN_TOLERANCE = 0.1;
+    /**
+     * How an ALIGN lands (killer560, 2026-09-21, after Hypixel corrected every tap made under a sent yaw that differed
+     * from the camera): three methods he can A/B on an alt, each reporting its server corrections in the dev line.
+     */
+    public enum AlignMethod {
+        /** RSA-style: the camera yaw only, sent yaw == camera always; discrete keys + sneak taps planned exhaustively
+         *  over a short horizon - as close as a keyboard gets (a few thousandths), nothing hidden. DEFAULT. */
+        KEYS_SNEAK("Keys + Sneak"),
+        /** The two-tap planner steering the yaw the SERVER receives (the strafe lock) while the camera stays put -
+         *  exact, but Hypixel corrected it on the first tap in his test. */
+        SENT_YAW("Sent-Yaw Planner"),
+        /** The same planner turning his REAL camera (bounded deltas on the live yaw) so the sent yaw always equals the
+         *  camera and nothing is hidden - exact, and the one expected to pass. */
+        CAMERA("Camera Planner");
+
+        public final String label;
+
+        AlignMethod(String label) {
+            this.label = label;
+        }
+
+        public AlignMethod next() {
+            AlignMethod[] all = values();
+            return all[(ordinal() + 1) % all.length];
+        }
+    }
+
     /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
      *  the discrete planner typically lands far inside it. */
     public static final double DEFAULT_ALIGN_TOLERANCE = 0.001;
@@ -147,6 +174,7 @@ public final class Ap3Config {
     private float labelHeightOffset = 0f;
     /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target (see the constants). */
     private double alignTolerance = DEFAULT_ALIGN_TOLERANCE;
+    private AlignMethod alignMethod = AlignMethod.KEYS_SNEAK;
     private int alignTimeoutTicks = 100;
     /** WALK / RUN: no progress toward the end of the travel for this many ticks and the chain gives up. */
     private int moveTimeoutTicks = 100;
@@ -241,6 +269,7 @@ public final class Ap3Config {
                 // Saved under a new key: the previous build's "alignTolerance" was a loose 0.03 default, and aligns must now
                 // land to 3 decimals, so that old value is deliberately ignored once (killer560, 2026-09-21).
                 cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignToleranceExact", cfg.alignTolerance));
+                cfg.alignMethod = ConfigJson.getEnum(o, "alignMethod", AlignMethod.class, cfg.alignMethod);
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
                 cfg.setLeapDetectRadius(ConfigJson.getDouble(o, "leapDetectRadius", cfg.leapDetectRadius));
@@ -289,6 +318,7 @@ public final class Ap3Config {
             o.addProperty("labelScale", labelScale);
             o.addProperty("labelHeightOffset", labelHeightOffset);
             o.addProperty("alignToleranceExact", alignTolerance);
+            o.addProperty("alignMethod", alignMethod.name());
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
             o.addProperty("leapDetectRadius", leapDetectRadius);
@@ -439,6 +469,9 @@ public final class Ap3Config {
     }
 
     // ------------------------------------------------------------------------------------------- executor
+
+    public AlignMethod getAlignMethod() { return alignMethod; }
+    public void setAlignMethod(AlignMethod m) { alignMethod = m == null ? AlignMethod.KEYS_SNEAK : m; }
 
     public double getAlignTolerance() { return alignTolerance; }
     public void setAlignTolerance(double v) {

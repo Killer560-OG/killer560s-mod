@@ -20,6 +20,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -161,8 +162,52 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // Aligns are input-only (no position writes - Hypixel lags those back) and land exactly; this is how far off,
         // per axis, still counts as landed (0.0005 = the exact 3-decimal coordinate).
         header(w, contentX, y, contentWidth, "Align");
-        w.add(slider(contentX, y[0], BTN_W, alignToleranceText(cfg), Ap3Config.MIN_ALIGN_TOLERANCE, Ap3Config.MAX_ALIGN_TOLERANCE,
-                cfg.getAlignTolerance(), 0.0001, cfg::setAlignTolerance, () -> alignToleranceText(cfg), cfg::save));
+        // killer560 (2026-09-21): three landing methods to A/B on an alt; each reports its server corrections.
+        w.add(SettingsButtonWidget.builder(alignMethodText(cfg), btn -> {
+                    cfg.setAlignMethod(cfg.getAlignMethod().next());
+                    cfg.save();
+                    btn.setMessage(alignMethodText(cfg));
+                }).bounds(contentX, y[0], BTN_W, 20).build());
+        y[0] += 24;
+        // The slider and a text box for an exact value ("e.g. 0.0005"), kept in step both ways: a valid typed value
+        // moves the slider and saves at once; a slider drag rewrites the box text.
+        int boxW = 70;
+        double tolMin = Ap3Config.MIN_ALIGN_TOLERANCE;
+        double tolMax = Ap3Config.MAX_ALIGN_TOLERANCE;
+        EditBox tolBox = new EditBox(Minecraft.getInstance().font, contentX + BTN_W - boxW, y[0], boxW, ROW,
+                Component.literal("Align Tolerance"));
+        tolBox.setMaxLength(8);
+        tolBox.setValue(String.format(Locale.US, "%.4f", cfg.getAlignTolerance()));
+        var tolSlider = new ThemedSliderButton(contentX, y[0], BTN_W - boxW - GAP, ROW, alignToleranceText(cfg),
+                Math.max(0.0, Math.min(1.0, (cfg.getAlignTolerance() - tolMin) / (tolMax - tolMin)))) {
+            @Override
+            protected void updateMessage() {
+                setMessage(alignToleranceText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                double raw = tolMin + this.value * (tolMax - tolMin);
+                cfg.setAlignTolerance(Math.round(raw / 0.0001) * 0.0001);
+                cfg.save();
+                tolBox.setValue(String.format(Locale.US, "%.4f", cfg.getAlignTolerance()));
+            }
+
+            void showValue(double v) {
+                this.value = Math.max(0.0, Math.min(1.0, (v - tolMin) / (tolMax - tolMin)));
+                updateMessage();
+            }
+        };
+        tolBox.setResponder(text -> {
+            Double v = parseTolerance(text);
+            if (v != null && v >= tolMin && v <= tolMax) {
+                cfg.setAlignTolerance(v);
+                cfg.save();
+                tolSlider.showValue(cfg.getAlignTolerance());
+            }
+        });
+        w.add(tolSlider);
+        w.add(tolBox);
         y[0] += 24;
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
@@ -362,6 +407,26 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static Component labelColorModeText(Ap3Config cfg) {
         return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
+    }
+
+    private static Component alignMethodText(Ap3Config cfg) {
+        return Component.literal("Align Method: §6" + cfg.getAlignMethod().label);
+    }
+
+    /** A typed tolerance: digits and one dot, e.g. "0.0005"; null when it is not a number yet. */
+    private static Double parseTolerance(String text) {
+        if (text == null) {
+            return null;
+        }
+        String t = text.trim();
+        if (t.isEmpty() || !t.matches("[0-9]*\\.?[0-9]+")) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(t);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static Component alignToleranceText(Ap3Config cfg) {

@@ -52,9 +52,20 @@ final class Ap3AlignMath {
     private Ap3AlignMath() {
     }
 
-    /** The velocity axis value the game will actually use next tick. */
+    /** The velocity axis value the game will actually use next tick - for NON-player entities (per axis). */
     static double zeroSmall(double v) {
         return Math.abs(v) < ZERO_VELOCITY ? 0.0 : v;
+    }
+
+    /**
+     * PLAYERS are different (javap, {@code LivingEntity.aiStep} 26.1.2: {@code if (type.is(PLAYER))
+     * horizontalDistanceSqr() < 9.0E-6 -> x = z = 0; else per-axis 0.003}): the horizontal velocity is zeroed only
+     * when its whole LENGTH is under 0.003 - one axis never stops on its own while the other still slides. killer560's
+     * p3sim traces (316516f) showed a 0.0009 Z velocity still moving him while X slid; the per-axis rule predicted
+     * a stop and every landing was off by the difference.
+     */
+    static boolean horizontalZeroed(double vx, double vz) {
+        return vx * vx + vz * vz < ZERO_VELOCITY * ZERO_VELOCITY;
     }
 
     /** {@code getFrictionInfluencedSpeed} on the ground, in the game's float arithmetic. */
