@@ -32,46 +32,38 @@ public class AutoPuzzlesTab extends BaseTab {
         }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         int y = contentY;
+        // Even spacing throughout (killer560, 2026-09-21: "there are some weird gaps between the settings"): every
+        // toggle and slider advances by the same ROW_STEP, and each group gets a small header instead of a bare
+        // 6px gap that only showed up as an odd hole when a group's options were hidden.
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Quiz", cfg.isAutoQuizEnabled()), btn -> {
-                    cfg.setAutoQuizEnabled(!cfg.isAutoQuizEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
+        y = header(widgets, contentX, y, contentWidth, "Chat Puzzles");
+        y = toggle(widgets, contentX, y, contentWidth, "Auto Quiz", cfg.isAutoQuizEnabled(),
+                () -> cfg.setAutoQuizEnabled(!cfg.isAutoQuizEnabled()), cfg, requestRebuild);
         if (cfg.isAutoQuizEnabled()) {
-            widgets.add(delaySlider(contentX, y, contentWidth, "Quiz Click Delay", cfg.getQuizDelayMs(),
-                    ms -> {
-                        cfg.setQuizDelayMs(ms);
-                        cfg.save();
-                    }));
-            y += 24;
+            widgets.add(delaySlider(contentX, y, contentWidth, "Quiz Click Delay", cfg.getQuizDelayMs(), ms -> {
+                cfg.setQuizDelayMs(ms);
+                cfg.save();
+            }));
+            y += ROW_STEP;
         }
-        y += 6;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Three Weirdos", cfg.isAutoWeirdosEnabled()), btn -> {
-                    cfg.setAutoWeirdosEnabled(!cfg.isAutoWeirdosEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
+        y = toggle(widgets, contentX, y, contentWidth, "Auto Three Weirdos", cfg.isAutoWeirdosEnabled(),
+                () -> cfg.setAutoWeirdosEnabled(!cfg.isAutoWeirdosEnabled()), cfg, requestRebuild);
         if (cfg.isAutoWeirdosEnabled()) {
-            widgets.add(delaySlider(contentX, y, contentWidth, "Chest Open Delay", cfg.getWeirdosDelayMs(),
-                    ms -> {
-                        cfg.setWeirdosDelayMs(ms);
-                        cfg.save();
-                    }));
-            y += 22;
+            widgets.add(delaySlider(contentX, y, contentWidth, "Chest Open Delay", cfg.getWeirdosDelayMs(), ms -> {
+                cfg.setWeirdosDelayMs(ms);
+                cfg.save();
+            }));
+            y += ROW_STEP;
             widgets.add(SettingsButtonWidget.builder(onOff("Talk to NPCs", cfg.getWeirdosTalkToNpcsRaw()), btn -> {
                         cfg.setWeirdosTalkToNpcs(!cfg.getWeirdosTalkToNpcsRaw());
                         cfg.save();
                         btn.setMessage(onOff("Talk to NPCs", cfg.getWeirdosTalkToNpcsRaw()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 24;
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += ROW_STEP;
         }
-        y += 6;
 
         // ---- bow puzzles (QUOI shared "Bow settings") ----
+        y = header(widgets, contentX, y, contentWidth, "Bow Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Blaze", cfg.isAutoBlazeEnabled(),
                 () -> cfg.setAutoBlazeEnabled(!cfg.isAutoBlazeEnabled()), cfg, requestRebuild);
         y = toggle(widgets, contentX, y, contentWidth, "Auto Creeper Beams", cfg.isAutoBeamsEnabled(),
@@ -85,55 +77,62 @@ public class AutoPuzzlesTab extends BaseTab {
                         cfg.setShootCooldownMs(v);
                         cfg.save();
                     }));
-            y += 22;
+            y += ROW_STEP;
             widgets.add(rangeSlider(contentX, y, contentWidth, "Miss Cooldown", cfg.getMissCooldownMs(),
                     AutoPuzzlesConfig.MISS_CD_MIN, AutoPuzzlesConfig.MISS_CD_MAX, AutoPuzzlesConfig.COOLDOWN_STEP_MS, "ms",
                     v -> {
                         cfg.setMissCooldownMs(v);
                         cfg.save();
                     }));
-            y += 24;
+            y += ROW_STEP;
         }
-        y += 6;
 
         // ---- click puzzles ----
+        y = header(widgets, contentX, y, contentWidth, "Click Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Boulder", cfg.isAutoBoulderEnabled(),
                 () -> cfg.setAutoBoulderEnabled(!cfg.isAutoBoulderEnabled()), cfg, requestRebuild);
         if (cfg.isAutoBoulderEnabled()) {
-            widgets.add(delaySlider(contentX, y, contentWidth, "Boulder Click Delay", cfg.getBoulderDelayMs(),
-                    ms -> {
-                        cfg.setBoulderDelayMs(ms);
-                        cfg.save();
-                    }));
-            y += 24;
+            widgets.add(delaySlider(contentX, y, contentWidth, "Boulder Click Delay", cfg.getBoulderDelayMs(), ms -> {
+                cfg.setBoulderDelayMs(ms);
+                cfg.save();
+            }));
+            y += ROW_STEP;
         }
         y = toggle(widgets, contentX, y, contentWidth, "Auto Water Board", cfg.isAutoWaterEnabled(),
                 () -> cfg.setAutoWaterEnabled(!cfg.isAutoWaterEnabled()), cfg, requestRebuild);
         y = toggle(widgets, contentX, y, contentWidth, "Auto Tic Tac Toe", cfg.isAutoTicTacToeEnabled(),
                 () -> cfg.setAutoTicTacToeEnabled(!cfg.isAutoTicTacToeEnabled()), cfg, requestRebuild);
-        y += 6;
 
         // ---- movement puzzles ----
+        y = header(widgets, contentX, y, contentWidth, "Movement Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Teleport Maze", cfg.isAutoTeleportMazeEnabled(),
                 () -> cfg.setAutoTeleportMazeEnabled(!cfg.isAutoTeleportMazeEnabled()), cfg, requestRebuild);
         y = toggle(widgets, contentX, y, contentWidth, "Auto Ice Fill", cfg.isAutoIceFillEnabled(),
                 () -> cfg.setAutoIceFillEnabled(!cfg.isAutoIceFillEnabled()), cfg, requestRebuild);
         if (cfg.isAutoIceFillEnabled()) {
-            widgets.add(rangeSlider(contentX, y, contentWidth, "Ice Fill Delay", cfg.getIceFillDelayTicks(),
-                    AutoPuzzlesConfig.ICE_FILL_DELAY_MIN, AutoPuzzlesConfig.ICE_FILL_DELAY_MAX, 1, "t",
-                    v -> {
-                        cfg.setIceFillDelayTicks(v);
+            widgets.add(SettingsButtonWidget.builder(onOff("Adaptive Ice Fill", cfg.isIceFillAdaptive()), btn -> {
+                        cfg.setIceFillAdaptive(!cfg.isIceFillAdaptive());
                         cfg.save();
-                    }));
-            y += 24;
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += ROW_STEP;
+            if (!cfg.isIceFillAdaptive()) {
+                widgets.add(rangeSlider(contentX, y, contentWidth, "Ice Fill Delay", cfg.getIceFillDelayTicks(),
+                        AutoPuzzlesConfig.ICE_FILL_DELAY_MIN, AutoPuzzlesConfig.ICE_FILL_DELAY_MAX, 1, "t",
+                        v -> {
+                            cfg.setIceFillDelayTicks(v);
+                            cfg.save();
+                        }));
+                y += ROW_STEP;
+            }
         }
-        y += 6;
 
+        y = header(widgets, contentX, y, contentWidth, "Shared");
         widgets.add(SettingsButtonWidget.builder(onOff("Etherwarp Reposition", cfg.getEtherwarpRepositionRaw()), btn -> {
                     cfg.setEtherwarpReposition(!cfg.getEtherwarpRepositionRaw());
                     cfg.save();
                     btn.setMessage(onOff("Etherwarp Reposition", cfg.getEtherwarpRepositionRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+                }).bounds(contentX, y, contentWidth, 20).build());
         // Both notes above already covered by the "Auto Puzzles" and "Etherwarp Reposition" tooltips.
         return widgets;
     }
@@ -145,13 +144,22 @@ public class AutoPuzzlesTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(x, y, width, 20).build());
-        return y + 24;
+        return y + ROW_STEP;
+    }
+
+    private static final int ROW_STEP = 22;
+
+    /** A small red group header (cheat tab), the same fixed height everywhere. */
+    private static int header(List<AbstractWidget> widgets, int x, int y, int width, String text) {
+        widgets.add(new net.minecraft.client.gui.components.StringWidget(x, y + 4, width, 12,
+                com.killer560.hub.gui.SectionHeaders.header(text, true), net.minecraft.client.Minecraft.getInstance().font));
+        return y + 18;
     }
 
     private static ThemedSliderButton rangeSlider(int x, int y, int width, String label, int current, int min, int max,
                                                   int step, String unit, IntConsumer onChange) {
         double norm = (current - min) / (double) (max - min);
-        return new ThemedSliderButton(x, y, width, 18, Component.literal(label + ": §6" + current + unit), norm) {
+        return new ThemedSliderButton(x, y, width, 20, Component.literal(label + ": §6" + current + unit), norm) {
             private int val() {
                 int steps = (max - min) / step;
                 return min + (int) Math.round(this.value * steps) * step;
@@ -171,7 +179,7 @@ public class AutoPuzzlesTab extends BaseTab {
 
     private static ThemedSliderButton delaySlider(int x, int y, int width, String label, int currentMs, IntConsumer onChange) {
         double norm = currentMs / (double) AutoPuzzlesConfig.MAX_DELAY_MS;
-        return new ThemedSliderButton(x, y, width, 18, sliderText(label, currentMs), norm) {
+        return new ThemedSliderButton(x, y, width, 20, sliderText(label, currentMs), norm) {
             private int ms() {
                 int steps = AutoPuzzlesConfig.MAX_DELAY_MS / AutoPuzzlesConfig.DELAY_STEP_MS;
                 return (int) Math.round(this.value * steps) * AutoPuzzlesConfig.DELAY_STEP_MS;

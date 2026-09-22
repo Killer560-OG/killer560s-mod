@@ -135,6 +135,17 @@ final class AutoIceFill {
         }
         // ticks is only advanced on a tick we did NOT warp on: >= (not ==) so that a tick the gate holds back simply
         // leaves the warp due, and the very next allowed tick takes it. The unblocked cadence is unchanged.
+        if (cfg.isIceFillAdaptive()) {
+            // Adaptive: no fixed delay - the next hop goes the moment the SERVER has taken the tile you stand on
+            // (plain ice turns to packed ice when it registers you on it). A slow server just means a longer wait
+            // here, never a hop off a tile it hasn't counted, so lag can't make it fail. Start / stair points are
+            // not ice at all and go straight away.
+            Vec3 here = path.get(lastIndex);
+            if (client.level.getBlockState(BlockPos.containing(here).below()).is(Blocks.ICE)) {
+                return;
+            }
+            ticks = Integer.MAX_VALUE - 1;
+        }
         if (ticks + 1 >= cfg.getIceFillDelayTicks()) {
             Vec3 current = path.get(lastIndex);
             Vec3 next = path.get(lastIndex + 1);

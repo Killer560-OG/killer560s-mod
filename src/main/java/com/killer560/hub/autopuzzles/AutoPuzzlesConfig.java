@@ -59,6 +59,9 @@ public final class AutoPuzzlesConfig {
     private boolean autoTeleportMazeEnabled = false;
     private boolean autoIceFillEnabled = false;
     private int iceFillDelayTicks = 2;
+    /** Adaptive Ice Fill (killer560, 2026-09-21: "an option for adaptive which means it will never be able to fail by
+     *  adjusting to server lag"): each hop waits for the server to confirm the tile you are on. Off by default. */
+    private boolean iceFillAdaptive = false;
 
     private AutoPuzzlesConfig() {
     }
@@ -95,6 +98,7 @@ public final class AutoPuzzlesConfig {
             cfg.autoTicTacToeEnabled = ConfigJson.getBool(obj, "autoTicTacToeEnabled", false);
             cfg.autoTeleportMazeEnabled = ConfigJson.getBool(obj, "autoTeleportMazeEnabled", false);
             cfg.autoIceFillEnabled = ConfigJson.getBool(obj, "autoIceFillEnabled", false);
+            cfg.iceFillAdaptive = ConfigJson.getBool(obj, "iceFillAdaptive", false);
             cfg.iceFillDelayTicks = clamp(ConfigJson.getInt(obj, "iceFillDelayTicks", cfg.iceFillDelayTicks),
                     ICE_FILL_DELAY_MIN, ICE_FILL_DELAY_MAX);
             instance = cfg;
@@ -125,6 +129,7 @@ public final class AutoPuzzlesConfig {
             obj.addProperty("autoTeleportMazeEnabled", autoTeleportMazeEnabled);
             obj.addProperty("autoIceFillEnabled", autoIceFillEnabled);
             obj.addProperty("iceFillDelayTicks", iceFillDelayTicks);
+            obj.addProperty("iceFillAdaptive", iceFillAdaptive);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -296,6 +301,14 @@ public final class AutoPuzzlesConfig {
 
     public void setAutoIceFillEnabled(boolean enabled) {
         this.autoIceFillEnabled = enabled;
+    }
+
+    public boolean isIceFillAdaptive() {
+        return iceFillAdaptive;
+    }
+
+    public void setIceFillAdaptive(boolean v) {
+        iceFillAdaptive = v;
     }
 
     public int getIceFillDelayTicks() {
