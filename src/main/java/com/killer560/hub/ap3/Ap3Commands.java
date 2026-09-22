@@ -549,11 +549,11 @@ public final class Ap3Commands {
                     spec.length = Double.parseDouble(t.substring(7));
                 } else if (t.startsWith("len:")) {
                     spec.length = Double.parseDouble(t.substring(4));
-                } else if (t.matches("w\\d+(\\.\\d+)?")) {
+                } else if (t.matches("w(\\d+(\\.\\d+)?|\\.\\d+)")) { // w1, w2.5, w.5
                     spec.width = Double.parseDouble(t.substring(1));
-                } else if (t.matches("l\\d+(\\.\\d+)?")) {
+                } else if (t.matches("l(\\d+(\\.\\d+)?|\\.\\d+)")) { // l1, l2.5, l.5
                     spec.length = Double.parseDouble(t.substring(1));
-                } else if (t.matches("\\d+(\\.\\d+)?x\\d+(\\.\\d+)?")) {
+                } else if (t.matches("(\\d+(\\.\\d+)?|\\.\\d+)x(\\d+(\\.\\d+)?|\\.\\d+)")) { // 2x3, .5x.5
                     String[] wl = t.split("x");
                     spec.width = Double.parseDouble(wl[0]);
                     spec.length = Double.parseDouble(wl[1]);
