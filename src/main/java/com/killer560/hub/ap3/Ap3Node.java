@@ -226,9 +226,12 @@ public final class Ap3Node {
 
     // ---- snapping -------------------------------------------------------------------------------------------
 
-    /** The centre of the block the coordinate is in ({@code n.5}) - killer560's ".5/.5 on the block". */
+    /** The nearest half-block line: a block centre ({@code n.5}) - killer560's ".5/.5 on the block" - or, when you
+     *  stand closer to it, the seam between two blocks ({@code n.0}) (2026-09-21: "if I am closer to being halfway
+     *  between blocks then the node snaps there as well. So it could snap in the middle of 4 blocks, or just 2").
+     *  Per axis, so one .0 axis is between 2 blocks and two .0 axes the middle of 4. */
     public static double snapCentre(double v) {
-        return Math.floor(v) + 0.5;
+        return Math.round(v * 2.0) / 2.0;
     }
 
     /** The feet height itself, to a thousandth - no longer floored to the block (killer560, 2026-09-21: "if a node
