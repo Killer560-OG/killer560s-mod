@@ -695,7 +695,7 @@ public final class Ap3Executor {
                 stop("a screen opened");
                 return;
             }
-            if (!screenOpen && userPressedMovementKeyInFallback(client)) {
+            if (!screenOpen && !Ap3FreezeState.isFrozen() && userPressedMovementKeyInFallback(client)) {
                 stop("you moved");
                 return;
             }

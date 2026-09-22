@@ -1,6 +1,7 @@
 package com.killer560.hub.ap3.mixin;
 
 import com.killer560.hub.ap3.Ap3Executor;
+import com.killer560.hub.ap3.Ap3FreezeState;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.world.entity.player.Input;
@@ -39,6 +40,15 @@ public abstract class Ap3InputMixin extends ClientInput {
     @Inject(method = "tick", at = @At("TAIL"), require = 0)
     private void killer560smod$ap3Input(CallbackInfo ci) {
         Ap3Executor.onMixinApplied();
+        if (Ap3FreezeState.isFrozen()) {
+            // Frozen, this only runs on a predicted forward step. His own keys never count (killer560, 2026-09-21:
+            // "if I change my angle or my held movement keys it doesn't affect it, only the last AP3 node"): the
+            // record is AP3's when it is driving, otherwise nothing is pressed.
+            boolean ap3 = Ap3Executor.isSessionActive() && (Ap3Executor.isInputOverridden() || Ap3Executor.isDriving());
+            this.keyPresses = ap3 ? Ap3Executor.drivenInput() : Input.EMPTY;
+            this.moveVector = ap3 ? new Vec2(Ap3Executor.moveVectorX(), Ap3Executor.moveVectorY()) : Vec2.ZERO;
+            return;
+        }
         if (!Ap3Executor.isSessionActive()) {
             return;
         }

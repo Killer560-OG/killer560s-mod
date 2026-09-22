@@ -20,7 +20,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
-- YT Shorts — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System theme option. Also plays normal YouTube, TikTok, Instagram Reels, Twitch or any URL; an edit mode to drag-move and resize the window; a zoom setting; a DVD-style bouncing placement; and a YouTube comments guard so next/previous does not fire while comments are open. **Untested** - see the New tab
+- Video Browser (was YT Shorts) — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System / Amber theme option. Also plays normal YouTube, TikTok, Instagram Reels, Twitch or any URL; an edit mode to drag-move and resize the window; a zoom setting; a DVD-style bouncing placement; and a YouTube comments guard so next/previous does not fire while comments are open. **Untested** - see the New tab
 
 **Helpers**
 - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand

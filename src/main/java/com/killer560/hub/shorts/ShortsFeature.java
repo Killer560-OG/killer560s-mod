@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class ShortsFeature {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-shorts");
-    private static final String CHAT = "YT Shorts";
+    private static final String CHAT = "Video Browser";
 
     private static final ScheduledExecutorService EXEC = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-shorts");
@@ -122,15 +122,15 @@ public final class ShortsFeature {
             String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
             if (!os.startsWith("windows")) {
                 supported = false;
-                unsupportedReason = "YT Shorts only works on Windows (it drives an Edge/Chrome window).";
+                unsupportedReason = "Video Browser only works on Windows (it drives an Edge/Chrome window).";
             } else if (!arch.contains("64")) {
                 supported = false;
-                unsupportedReason = "YT Shorts needs 64-bit Java.";
+                unsupportedReason = "Video Browser needs 64-bit Java.";
             } else {
                 Throwable err = Win32.ensureLoaded();
                 supported = err == null;
                 if (err != null) {
-                    unsupportedReason = "YT Shorts couldn't load Windows APIs (" + err.getClass().getSimpleName() + ").";
+                    unsupportedReason = "Video Browser couldn't load Windows APIs (" + err.getClass().getSimpleName() + ").";
                     LOGGER.error("[Shorts] Failed to load user32/gdi32 via JNA - feature disabled.", err);
                 }
             }
@@ -1140,7 +1140,42 @@ public final class ShortsFeature {
      */
     private static String installVolumeHookNow(CdpClient c) throws Exception {
         int vol = ShortsConfig.getInstance().getVolume();
+        // Registered for every new document too: a hook evaluated only into the page that existed at connect
+        // time died with the first navigation (the launch page loading, a reload), which is why a 1% volume still
+        // played at full until the slider was touched again (killer560, 2026-09-21).
+        persistScript(c, "volume", volumeHookJs(vol));
         return str(c.evaluate(volumeHookJs(vol)));
+    }
+
+    /** Page.addScriptToEvaluateOnNewDocument identifiers of the scripts registered on {@link #scriptClient}. */
+    private static final java.util.Map<String, String> scriptIds = new java.util.concurrent.ConcurrentHashMap<>();
+    private static CdpClient scriptClient;
+
+    /**
+     * (Re)registers {@code js} to run in every document this CDP session loads from now on, replacing the one
+     * registered under {@code key} before. Registrations die with the session, so a new client starts clean.
+     */
+    private static synchronized void persistScript(CdpClient c, String key, String js) {
+        try {
+            if (scriptClient != c) {
+                scriptClient = c;
+                scriptIds.clear();
+            }
+            String old = scriptIds.remove(key);
+            if (old != null) {
+                JsonObject rm = new JsonObject();
+                rm.addProperty("identifier", old);
+                c.send("Page.removeScriptToEvaluateOnNewDocument", rm).get(5500, TimeUnit.MILLISECONDS);
+            }
+            JsonObject add = new JsonObject();
+            add.addProperty("source", js);
+            JsonObject r = c.send("Page.addScriptToEvaluateOnNewDocument", add).get(5500, TimeUnit.MILLISECONDS);
+            if (r != null && r.has("identifier")) {
+                scriptIds.put(key, r.get("identifier").getAsString());
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Shorts] Couldn't register the {} script for new pages: {}", key, e.toString());
+        }
     }
 
     private static String volumeHookJs(int volume) {
@@ -1153,7 +1188,9 @@ public final class ShortsFeature {
                 + "v.__k560AppliedVol=n;};"
                 + "if(window.__k560VolHook){apply();return 'updated'}"
                 + "window.__k560VolHook=new MutationObserver(apply);"
-                + "window.__k560VolHook.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['is-active']});"
+                // As a new-document script this runs before <html> exists: observe once it does.
+                + "const obs=()=>window.__k560VolHook.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['is-active']});"
+                + "if(document.documentElement)obs();else document.addEventListener('readystatechange',obs,{once:true});"
                 // Fallback for the case the fixed delay used to miss: the player element can exist before its
                 // setVolume API is ready, with no DOM mutation marking the moment it becomes usable.
                 + "setInterval(apply,400);"
@@ -1401,47 +1438,68 @@ public final class ShortsFeature {
         }
         params.add("features", features);
         c.send("Emulation.setEmulatedMedia", params).get(5500, TimeUnit.MILLISECONDS);
-        applyAmberStyleNow(c, theme == ShortsConfig.Theme.AMBER);
-        if (theme == ShortsConfig.Theme.SYSTEM) {
-            return "emulation cleared (" + why + ")";
+        // The page-side half (html[dark] + the Amber sheet) is registered for every new document AND run now, so
+        // it survives navigations and a live theme change takes effect at once (killer560, 2026-09-21: "If I change
+        // the theme while it is loaded then it doesn't update"). System now also sets html[dark] - to what the OS
+        // prefers - instead of leaving whatever Dark/Light had put there.
+        String js = themeJs(theme);
+        persistScript(c, "theme", js);
+        String r;
+        try {
+            r = str(c.evaluate(js));
+        } catch (Exception e) {
+            r = "page not ready (" + e.getMessage() + ")";
         }
-        boolean dark = theme != ShortsConfig.Theme.LIGHT;
-        String r = str(c.evaluate("(()=>{const h=document.documentElement;if(!h)return 'no document';"
-                + "const want=" + dark + ";if(h.hasAttribute('dark')===want)return 'already';"
-                + "if(want)h.setAttribute('dark','');else h.removeAttribute('dark');return 'nudged'})()"));
-        return theme.label.toLowerCase(Locale.ROOT) + " emulated, html[dark] " + r + " (" + why + ")";
+        return theme.label.toLowerCase(Locale.ROOT) + ": " + r + " (" + why + ")";
     }
 
     /**
-     * Amber: this mod's own theme, applied to the Shorts page as a single injected stylesheet.
+     * The page-side theme: YouTube's {@code html[dark]} switch (for a profile set to an explicit Dark/Light
+     * appearance, which ignores the emulated media query), and for Amber this mod's own stylesheet.
      * <p>
-     * Deliberately narrow. It recolours the progress bar, the "chrome" accents and link/hover colour to the
-     * menu's own accent and nothing else - YouTube's class names change constantly, so a stylesheet that
-     * tried to restyle the whole player would quietly rot into a broken-looking page. Anything it fails to
-     * match simply stays the dark theme underneath it, which is a fine fallback rather than a broken one.
-     * The element is removed again when the theme is not Amber, so switching away is clean.
+     * Amber (killer560: "the amber theme doesn't work"): the old sheet set YouTube's colour variables on
+     * {@code :root}, which LOSES to YouTube's own {@code html[dark]} rule (one more attribute of specificity), so it
+     * changed nothing visible. It now sets them on {@code html[dark]} with {@code !important} and goes further than
+     * accents: warm near-black backgrounds, amber text and the mod's orange on the progress bar, buttons and links.
+     * YouTube renames classes constantly, so everything leans on its colour variables; anything unmatched simply
+     * stays dark. Waits for the document when run at document start.
      */
-    private static void applyAmberStyleNow(CdpClient c, boolean on) throws Exception {
-        // The menu's accent, kept in sync with SectionHeaders/MainMenuTheme's orange by eye rather than by
-        // import: this string is CSS, and the GUI constants are ARGB ints for a different renderer.
+    private static String themeJs(ShortsConfig.Theme theme) {
         final String accent = "#cc6600";
         final String accentBright = "#ff8c1a";
-        String js = on
-                ? "(()=>{const id='k560-amber';let e=document.getElementById(id);"
-                + "if(!e){e=document.createElement('style');e.id=id;(document.head||document.documentElement).appendChild(e);}"
-                + "e.textContent=`"
-                + ":root{--yt-spec-static-brand-red:" + accent + ";--yt-spec-call-to-action:" + accent + ";"
-                + "--yt-spec-text-primary-inverse:#000;--yt-spec-brand-button-background:" + accent + ";}"
+        String dark = switch (theme) {
+            case LIGHT -> "false";
+            case SYSTEM -> "matchMedia('(prefers-color-scheme: dark)').matches";
+            default -> "true";
+        };
+        String css = theme == ShortsConfig.Theme.AMBER
+                ? "html[dark],html{"
+                + "--yt-spec-base-background:#140b04 !important;--yt-spec-raised-background:#1f1207 !important;"
+                + "--yt-spec-menu-background:#1f1207 !important;--yt-spec-general-background-a:#140b04 !important;"
+                + "--yt-spec-general-background-b:#1a0e05 !important;--yt-spec-general-background-c:#1f1207 !important;"
+                + "--yt-spec-text-primary:#ffd9b0 !important;--yt-spec-text-secondary:#d9a066 !important;"
+                + "--yt-spec-static-brand-red:" + accent + " !important;--yt-spec-brand-icon-active:" + accentBright + " !important;"
+                + "--yt-spec-call-to-action:" + accentBright + " !important;--yt-spec-icon-active-other:" + accentBright + " !important;"
+                + "--yt-spec-brand-button-background:" + accent + " !important;--yt-spec-10-percent-layer:rgba(255,140,26,.18) !important;"
+                + "--yt-spec-badge-chip-background:rgba(255,140,26,.15) !important;}"
+                + "html[dark] body,html[dark] ytd-app{background:#140b04 !important;}"
                 + ".ytp-play-progress,.ytp-swatch-background-color{background:" + accent + " !important;}"
                 + ".ytp-scrubber-button{background:" + accentBright + " !important;}"
                 + "a{color:" + accentBright + ";}"
-                + "`;return 'applied'})()"
-                : "(()=>{const e=document.getElementById('k560-amber');if(e){e.remove();return 'removed';}return 'absent'})()";
-        try {
-            c.evaluate(js);
-        } catch (Exception ignored) {
-            // A cosmetic overlay must never be the reason the Shorts window stops working.
-        }
+                : "";
+        return "(()=>{const go=()=>{const h=document.documentElement;if(!h)return 'no document';"
+                + "const want=" + dark + ";if(want)h.setAttribute('dark','');else h.removeAttribute('dark');"
+                + "const id='k560-amber';let e=document.getElementById(id);const css=" + jsString(css) + ";"
+                + "if(css){if(!e){e=document.createElement('style');e.id=id;}e.textContent=css;"
+                + "(document.head||h).appendChild(e);}else if(e){e.remove();}return want?'dark':'light'};"
+                // YouTube sets html[dark] itself while its app boots: apply again once it has loaded.
+                + "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',go,{once:true});"
+                + "addEventListener('load',go,{once:true});return 'queued'}"
+                + "return go()})()";
+    }
+
+    private static String jsString(String s) {
+        return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'";
     }
 
     /** Client thread entry point for user-triggered commands. */
@@ -1456,7 +1514,7 @@ public final class ShortsFeature {
         }
         if (!isRunning()) {
             ModChat.send(CHAT, ModChat.text("Browser isn't running - press your toggle key or use "),
-                    ModChat.value("Launch Browser"), ModChat.text(" in the YT Shorts tab."));
+                    ModChat.value("Launch Browser"), ModChat.text(" in the Video Browser tab."));
             return;
         }
         EXEC.execute(() -> runCommand(name, action));

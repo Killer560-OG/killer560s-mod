@@ -632,6 +632,12 @@ public final class Ap3Feature {
     // ------------------------------------------------------------------------------------------- ticking
 
     private static void tick(Minecraft client) {
+        // Frozen: AP3's time stands still with the character and moves on only with it - one executor tick per
+        // predicted forward step, the node, queue and held walk all carrying on as if nothing stopped (killer560,
+        // 2026-09-21: "when I freeze it should continue reading the AP3 as though it hasn't stopped").
+        if (Ap3FreezeState.isFrozen() && !Ap3FreezeState.takeExecutorTick()) {
+            return;
+        }
         try {
             tickInner(client);
         } catch (Exception e) {
@@ -662,9 +668,6 @@ public final class Ap3Feature {
             // Force Dungeon never survives a world change (nor a restart - it is not saved): a test switch that was
             // left on cannot follow him into a real run.
             setForceDungeon(false);
-        }
-        if (Ap3FreezeState.isFrozen()) {
-            return; // nothing may drive a frozen character (Freeze State stopped AP3 when it froze)
         }
         if (!cfg.isEnabled()) {
             if (Ap3Executor.isRunning() || Ap3Executor.isArmed()) {
@@ -744,7 +747,9 @@ public final class Ap3Feature {
             if (!cfg.isEnabled()) {
                 return;
             }
-            Ap3Executor.tickFrame();
+            if (!Ap3FreezeState.isFrozen()) {
+                Ap3Executor.tickFrame(); // a LOOK's per-frame turn waits while time is frozen
+            }
             if (!isBossLive()) {
                 return;
             }

@@ -132,9 +132,6 @@ public final class Ap3FreezeState {
     }
 
     private static void freeze(LocalPlayer player, boolean announce) {
-        if (Ap3Executor.isRunning()) {
-            Ap3Executor.stop("Freeze State");
-        }
         // The tick you froze on is the newest one you can come back to - unless this tick's end already recorded
         // exactly this state (a key press lands after it), which would make the first rewind a no-op.
         Vec3 p = player.position();
@@ -158,6 +155,7 @@ public final class Ap3FreezeState {
         frozen = false;
         pendingForward = 0;
         stepRan = false;
+        executorTicks = 0;
         if (cursor >= 0 && cursor < history.size()) {
             Snap s = history.get(cursor);
             // Resume the timeline from here: its motion carries on, and the ticks after it no longer happened.
@@ -218,6 +216,7 @@ public final class Ap3FreezeState {
             return false;
         }
         pendingForward--;
+        executorTicks++;
         Snap s = history.get(cursor);
         player.setDeltaMovement(s.vx, s.vy, s.vz);
         stepRan = true;
@@ -225,6 +224,17 @@ public final class Ap3FreezeState {
     }
 
     private static boolean stepRan;
+    /** Executor ticks owed to AP3 while frozen: one per predicted step that ran. */
+    private static int executorTicks;
+
+    /** From Ap3Feature at the end of a client tick while frozen: true (once per step) = AP3 may tick now. */
+    public static boolean takeExecutorTick() {
+        if (executorTicks <= 0) {
+            return false;
+        }
+        executorTicks--;
+        return true;
+    }
 
     /** Puts the character exactly in a recorded tick's state (frozen: no velocity until resumed). */
     private static void apply(LocalPlayer player, Snap s) {

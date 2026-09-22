@@ -26,7 +26,8 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
     private int capturing = -1;
 
     public ShortsTab() {
-        super("YT Shorts");
+        // Renamed from "YT Shorts" 2026-09-21: it plays Shorts, normal YouTube, TikTok, Reels, Twitch or any URL.
+        super("Video Browser");
     }
 
     @Override
@@ -40,7 +41,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("YT Shorts", cfg.isEnabled()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Video Browser", cfg.isEnabled()), btn -> {
                     cfg.setEnabled(!cfg.isEnabled());
                     cfg.save();
                     if (!cfg.isEnabled()) {
