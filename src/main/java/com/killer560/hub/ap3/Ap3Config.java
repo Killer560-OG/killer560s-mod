@@ -75,7 +75,9 @@ public final class Ap3Config {
      *  it never writes position, Hypixel lags that back - solving vanilla's own step exactly ({@code Ap3AlignMath}). */
     public static final double MIN_ALIGN_TOLERANCE = 0.0001;
     public static final double MAX_ALIGN_TOLERANCE = 0.1;
-    public static final double DEFAULT_ALIGN_TOLERANCE = 0.0005;
+    /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
+     *  the discrete planner typically lands far inside it. */
+    public static final double DEFAULT_ALIGN_TOLERANCE = 0.001;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;

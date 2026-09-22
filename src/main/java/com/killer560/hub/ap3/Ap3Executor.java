@@ -172,6 +172,8 @@ public final class Ap3Executor {
     private static final float STRAFE_MAX_STEP = 40f;
     /** Within this of its target the server-side yaw takes the (sub-half-degree) remainder and is done. */
     private static final float STRAFE_DONE = 0.5f;
+    /** Most the sent yaw turns in one tick while an align steers it (a flick a hand does; under STRAFE_MAX_STEP). */
+    private static final double ALIGN_YAW_STEP = 30.0;
 
     // ---- server-side yaw lock (a running value; the mixin sends it in place of the camera yaw) ----
     /** True while {@link #serverYaw} is what goes to the server (driving, or gliding back onto the camera yaw). */
@@ -278,6 +280,8 @@ public final class Ap3Executor {
 
     // ---- alignment progress ----
     private static int settleTicks;
+    /** The sneak flag of the record installed THIS tick (= the crouch multiplier the NEXT travel uses). */
+    private static boolean lastSneakSent;
 
     // ---- input ----
     private static boolean mixinApplied;
@@ -350,6 +354,7 @@ public final class Ap3Executor {
         alignPredValid = false;
         lookHeld = false;
         holdDir = null;
+        holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
         releaseKeys();
@@ -423,6 +428,7 @@ public final class Ap3Executor {
     static void disarm(String reason) {
         stop(reason);
         chain = null;
+        blockedNodes.clear();
         inside.clear();
         unfired.clear();
         triggeredThisTick.clear();
@@ -768,6 +774,16 @@ public final class Ap3Executor {
         boolean handsOn = physicalMovementKeyDown(client);
         for (Ap3Node node : chain.nodes()) {
             boolean in = node.contains(pos);
+            if (nodeBlocked(node, in)) {
+                // a correction cancelled this node: it re-arms only after a second outside its box
+                if (in) {
+                    inside.add(node);
+                } else {
+                    inside.remove(node);
+                    unfired.remove(node);
+                }
+                continue;
+            }
             boolean was = inside.contains(node);
             if (in && !was) {
                 inside.add(node);
@@ -935,6 +951,7 @@ public final class Ap3Executor {
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
                 holdDir = node.dir();
+                holdNode = node;
                 holdSprint = node.type == Ap3Node.Type.RUN;
                 finishNode();
             }
@@ -971,18 +988,17 @@ public final class Ap3Executor {
         gateSawScreen = false;
     }
 
-    // ---- ALIGN: onto the node's point to three decimals, by movement input alone ---------------------------------
+    // ---- ALIGN: onto the node's point with DISCRETE keys and a steered sent yaw ----------------------------------
     //
-    // killer560 on real Hypixel (2026-09-21): "for the align, it kind of walks into it then gets lagged through on
-    // actual hypixel, on sim it is perfect" - the old finish wrote position / velocity directly (setPos, setDeltaMovement),
-    // which Hypixel's movement simulation rejects. And then: "the align needs to be down to 3 decimals of perfect."
-    // Both at once: NOTHING here writes position, velocity or rotation. The server only ever sees positions; the
-    // client's movement input is fractional (the moveVector, like a stick), so a tick's displacement can be chosen
-    // continuously. Ap3AlignMath holds vanilla's per-tick step and its exact inverse (every constant and operation
-    // order from the 26.1.2 bytecode); driveToward re-solves every tick from the MEASURED position and velocity:
-    // approach, one shaping tick that leaves a residual a single press can cancel, the landing tick that puts the
-    // feet on the point, the brake tick that cancels the friction residual without moving off it. "Aligned" = each
-    // axis within Align Tolerance (0.0005 by default = the exact 3-decimal value) with zero velocity.
+    // killer560 on real Hypixel, fda6ad4 (2026-09-21 19:02): 14 server position corrections in 2 seconds during ONE
+    // align. The server reconstructs which real key combination could have produced each position delta and sets you
+    // back when none can - the fractional "3% of S" brake ticks matched nothing. So: every tick's movement is now one
+    // of the 17 real key combinations (W/A/S/D singly or diagonally, sneak on or off) through vanilla's own pipeline,
+    // never a fractional stick value (Ap3DiscretePlanner). Precision comes from the direction the keys are sent AT -
+    // the yaw AP3 already sends as its own bounded-step running value (the strafe lock): two straight-key taps of
+    // fixed size in solved directions close a triangle on the point to ~1e-7 (the exact simulation, zeroing tail
+    // included). NOTHING writes position, velocity or the camera. If the server corrects the position anyway, the
+    // align is abandoned at once and never retried without re-entering the box (onServerPositionPacket).
 
     private static void tickAlign(Minecraft client, LocalPlayer player, Ap3Node node) {
         Vec3 pos = player.position();
@@ -997,11 +1013,14 @@ public final class Ap3Executor {
             }
             step = Step.DO;
             alignModelReset();
+            // The sent yaw is the keys' frame for the whole align: take it over now (seeded from the live yaw, a
+            // running value) so every tap's direction is exactly what the server is told.
+            engageYawLock(player);
         }
         Ap3Config cfg = Ap3Config.getInstance();
         Vec3 vel = player.getDeltaMovement();
         boolean still = Ap3AlignMath.zeroSmall(vel.x) == 0.0 && Ap3AlignMath.zeroSmall(vel.z) == 0.0;
-        alignObserve(player, false);
+        alignObserve(player);
         // Done: both axes inside the tolerance and no velocity the game will still apply, held SETTLE_TICKS with no
         // input so it is really at rest.
         if (err <= cfg.getAlignTolerance() && still) {
@@ -1014,18 +1033,18 @@ public final class Ap3Executor {
         }
         settleTicks = 0;
         if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            // Never a direct correction: if inputs cannot land it in time, the node fails, as it always did.
+            // Never a direct correction: if the keys cannot land it in time, the node fails, as it always did.
             failNode(String.format(Locale.US, "couldn't align on #%d (%.4f blocks off)", number(node), err));
             return;
         }
-        driveToward(player, ex, ez);
+        driveDiscrete(player, ex, ez, null);
     }
 
     /**
      * Dev builds only: how long this align took from box entry to aligned and where it settled on EACH axis - signed,
      * feet minus target, so "-0.0003" means it stopped on the negative side of the point (killer560: "off in x axis
-     * and off in z axis") - plus how well the movement model matched the game while it ran (gain 1.000 = exact; the
-     * worst one-tick prediction miss). For an axis align the wall axis is marked: that axis is set by the wall.
+     * and off in z axis") - plus the worst one-tick prediction miss and the server corrections seen. For an axis
+     * align the wall axis is marked: that axis is set by the wall.
      */
     private static void reportAlignTimer(Ap3Node node, double offX, double offZ, Direction.Axis wallAxis) {
         long[] entered = alignEntered.remove(node);
@@ -1037,8 +1056,7 @@ public final class Ap3Executor {
         String xTag = wallAxis == Direction.Axis.X ? " (wall)" : "";
         String zTag = wallAxis == Direction.Axis.Z ? " (wall)" : "";
         String offs = String.format(Locale.US, "X off %+.4f%s, Z off %+.4f%s", offX, xTag, offZ, zTag);
-        String model = String.format(Locale.US, "model %.3f, worst miss %.5f, server corrections %d", alignGain,
-                alignWorstMiss, alignCorrections);
+        String model = String.format(Locale.US, "worst miss %.5f, server corrections %d", alignWorstMiss, alignCorrections);
         LOGGER.info("[AP3 dev] {} #{} took {} ({} ticks) - {} ({})", node.type.label(), number(node),
                 String.format(Locale.US, "%.2fs", seconds), ticks, offs, model);
         ModChat.send("AP3 dev", ModChat.text(node.type.label() + " "), ModChat.value("#" + number(node)),
@@ -1050,47 +1068,115 @@ public final class Ap3Executor {
     }
 
     // ---- the movement model's bookkeeping (per align) ----
-    /** Multiplier on the modelled input acceleration, learned from prediction vs. reality; 1.0 = the bytecode model
-     *  is exact. Only ever nudged on clean ticks (no collision, a real input), and kept close to 1. */
-    private static double alignGain = 1.0;
     private static boolean alignPredValid;
     private static double alignPredX, alignPredZ;
-    private static double alignLastPosX, alignLastPosZ;
-    private static double alignLastV0X, alignLastV0Z;
-    private static double alignLastDvX, alignLastDvZ;
     private static double alignWorstMiss;
+    /** What the planner decided last tick, for the trace. */
+    private static String alignPhase = "";
 
     private static void alignModelReset() {
-        alignGain = 1.0;
         alignPredValid = false;
         alignWorstMiss = 0.0;
         alignCorrections = 0;
+        alignPhase = "";
     }
 
-    // ---- server corrections (mixin/Ap3PositionPacketMixin) and the per-tick trace, dev builds ----
+    /** Compares last tick's predicted position with where the player really is now (debug log in dev builds; the
+     *  worst miss goes on the dev line). A miss is a fact the model did not know: a collision, a push, a correction. */
+    private static void alignObserve(LocalPlayer player) {
+        if (!alignPredValid) {
+            return;
+        }
+        alignPredValid = false;
+        Vec3 pos = player.position();
+        double missX = pos.x - alignPredX;
+        double missZ = pos.z - alignPredZ;
+        alignWorstMiss = Math.max(alignWorstMiss, Math.max(Math.abs(missX), Math.abs(missZ)));
+        if (com.killer560.hub.BuildVariant.DEV_TOOLS && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[AP3 dev] align model: predicted ({}, {}) actual ({}, {}) miss ({}, {})",
+                    String.format(Locale.US, "%.5f", alignPredX), String.format(Locale.US, "%.5f", alignPredZ),
+                    String.format(Locale.US, "%.5f", pos.x), String.format(Locale.US, "%.5f", pos.z),
+                    String.format(Locale.US, "%.6f", missX), String.format(Locale.US, "%.6f", missZ));
+        }
+    }
+
+    // ---- server corrections (mixin/Ap3PositionPacketMixin), the abort and the circuit breaker ----
     /** Server position packets seen during the current align and the 10 ticks after it. */
     private static int alignCorrections;
+    /** Wall-clock times of the last corrections seen while AP3 was moving him (the circuit breaker's window). */
+    private static final java.util.ArrayDeque<Long> correctionTimes = new java.util.ArrayDeque<>();
+    /** Corrections inside this window disable AP3 outright. */
+    private static final int BREAKER_COUNT = 2;
+    private static final long BREAKER_WINDOW_MS = 10_000L;
+    /** Nodes a correction cancelled: they do not fire again until he has been OUTSIDE their box this many ticks. */
+    private static final Map<Ap3Node, int[]> blockedNodes = new IdentityHashMap<>();
+    private static final int BLOCKED_OUTSIDE_TICKS = 20;
+    /** The WALK / RUN node whose hold is running (for blocking it after a correction). */
+    private static Ap3Node holdNode;
+
+    /**
+     * From {@code mixin/Ap3PositionPacketMixin}, BEFORE vanilla applies the packet: the server is moving us by this
+     * delta from where the client is. While AP3 is moving him that is Hypixel rejecting the movement (killer560:
+     * "spit me out right back the way I entered it", 14 of them in one align on fda6ad4) - so: everything AP3 is
+     * doing stops at once, the node(s) involved are blocked until he has left their box for a second, and two such
+     * corrections inside ten seconds switch AP3 off altogether until he turns it back on. Logged and counted into
+     * the dev line either way. Nothing is changed about the packet; vanilla applies it as always.
+     */
+    public static void onServerPositionPacket(double dx, double dy, double dz) {
+        boolean moving = activeNode != null || holdDir != null || driving;
+        boolean inAlign = activeNode != null && activeNode.type.isAlign();
+        if (inAlign || traceActive) {
+            alignCorrections++;
+        }
+        LOGGER.info("[AP3 dev] SERVER CORRECTION #{}{}: delta ({}, {}, {}) blocks", alignCorrections,
+                moving ? " while AP3 was moving you" : (traceActive ? " (align tail)" : ""),
+                String.format(Locale.US, "%.4f", dx), String.format(Locale.US, "%.4f", dy), String.format(Locale.US, "%.4f", dz));
+        if (!moving) {
+            return;
+        }
+        if (activeNode != null) {
+            blockedNodes.put(activeNode, new int[]{0});
+        }
+        if (holdNode != null) {
+            blockedNodes.put(holdNode, new int[]{0});
+        }
+        stop("server corrected your position - stopped to avoid flags");
+        long now = System.currentTimeMillis();
+        correctionTimes.addLast(now);
+        while (!correctionTimes.isEmpty() && now - correctionTimes.peekFirst() > BREAKER_WINDOW_MS) {
+            correctionTimes.pollFirst();
+        }
+        if (correctionTimes.size() >= BREAKER_COUNT) {
+            correctionTimes.clear();
+            Ap3Feature.disableAfterError("the server corrected your position " + BREAKER_COUNT
+                    + " times in 10 seconds - AP3 is OFF until you turn it back on, to avoid flags");
+        }
+    }
+
+    /** A node a correction cancelled stays blocked until he has been outside its box for a second - the correction
+     *  itself moves him out and back in, which must never re-fire it. Called from scanBoxes for every node. */
+    private static boolean nodeBlocked(Ap3Node node, boolean in) {
+        int[] outside = blockedNodes.get(node);
+        if (outside == null) {
+            return false;
+        }
+        if (in) {
+            outside[0] = 0;
+            return true;
+        }
+        if (++outside[0] >= BLOCKED_OUTSIDE_TICKS) {
+            blockedNodes.remove(node);
+            return false;
+        }
+        return true;
+    }
+
+    // ---- the per-tick trace, dev builds ----
     /** True from the tick an align box is entered until 10 ticks after the align ended (dev builds, timer on). */
     private static boolean traceActive;
     /** Ticks of trace still to log after the align ended; -1 while it is still going. */
     private static int traceCountdown = -1;
     private static int traceTick;
-
-    /**
-     * From {@code mixin/Ap3PositionPacketMixin}, BEFORE vanilla applies the packet: the server is moving us by this
-     * delta from where the client is. During an align (and its 10-tick tail) that is Hypixel rejecting the movement -
-     * logged with the delta and counted into the dev line. Nothing is changed; vanilla applies it as always.
-     */
-    public static void onServerPositionPacket(double dx, double dy, double dz) {
-        boolean inAlign = activeNode != null && activeNode.type.isAlign();
-        if (!inAlign && !traceActive) {
-            return;
-        }
-        alignCorrections++;
-        LOGGER.info("[AP3 dev] SERVER CORRECTION #{} during align{}: delta ({}, {}, {}) blocks", alignCorrections,
-                inAlign ? "" : " tail",
-                String.format(Locale.US, "%.4f", dx), String.format(Locale.US, "%.4f", dy), String.format(Locale.US, "%.4f", dz));
-    }
 
     /** Entry edge of an align box: start the trace (dev builds with the align timer on). */
     private static void traceStart() {
@@ -1114,8 +1200,8 @@ public final class Ap3Executor {
 
     /**
      * One INFO line per tick, dev builds only, from the moment an align box is entered until 10 ticks after the align
-     * ended: what was measured, what input goes out for the next tick, what the model predicts, and whether the
-     * override / lock were on - so the next test log shows exactly where a spit-back comes from.
+     * ended: what was measured, what keys and yaw go out for the next tick, what the planner decided, what the model
+     * predicts, and whether the override / lock were on - so the next test log shows exactly where anything comes from.
      */
     private static void traceAlignTick(Minecraft client, LocalPlayer player) {
         if (!traceActive) {
@@ -1126,14 +1212,14 @@ public final class Ap3Executor {
             Vec3 pos = player.position();
             Vec3 vel = player.getDeltaMovement();
             String input = driving
-                    ? String.format(Locale.US, "move(%.4f,%.4f) keys[%s%s%s%s%s%s]", moveX, moveY,
+                    ? String.format(Locale.US, "keys[%s%s%s%s%s%s] move(%.3f,%.3f)",
                             wantForward ? "W" : "", wantBackward ? "S" : "", wantLeft ? "A" : "", wantRight ? "D" : "",
-                            wantSneak ? " sneak" : "", wantSprint ? " sprint" : "")
+                            wantSneak ? " sneak" : "", wantSprint ? " sprint" : "", moveX, moveY)
                     : "none" + (wantSneak ? " (sneak)" : "");
             String predicted = alignPredValid ? String.format(Locale.US, "(%.5f, %.5f)", alignPredX, alignPredZ) : "-";
             float sent = strafeServerYaw();
             String phase = activeNode != null && activeNode.type.isAlign()
-                    ? "ALIGN #" + number(activeNode) + " " + step
+                    ? "ALIGN #" + number(activeNode) + " " + step + (alignPhase.isEmpty() ? "" : " " + alignPhase)
                     : traceCountdown >= 0 ? "after +" + (10 - traceCountdown) : "queued";
             LOGGER.info("[AP3 dev] trace t{} {} | pos ({}, {}, {}) vel ({}, {}) | input {} | vanilla sprint={} crouch={} onGround={} | predicted next {} | override={} lock={} sentYaw={} camYaw={} | corrections {}",
                     traceTick, phase,
@@ -1141,8 +1227,8 @@ public final class Ap3Executor {
                     String.format(Locale.US, "%.5f", vel.x), String.format(Locale.US, "%.5f", vel.z),
                     input, player.isSprinting(), player.isCrouching(), player.onGround(), predicted,
                     isInputOverridden(), strafeLock,
-                    Float.isNaN(sent) ? "camera" : String.format(Locale.US, "%.1f", sent),
-                    String.format(Locale.US, "%.1f", player.getYRot()), alignCorrections);
+                    Float.isNaN(sent) ? "camera" : String.format(Locale.US, "%.2f", sent),
+                    String.format(Locale.US, "%.2f", player.getYRot()), alignCorrections);
         } catch (RuntimeException e) {
             LOGGER.warn("[AP3 dev] trace line failed", e);
         }
@@ -1154,49 +1240,20 @@ public final class Ap3Executor {
         }
     }
 
-    /**
-     * Compares last tick's predicted position with where the player really is now: logs it (debug, dev builds) and
-     * folds a constant offset in the input term into {@link #alignGain}. Skipped after a collision (the game zeroed
-     * an axis - the model cannot know that in advance) and for tiny inputs (nothing to measure).
-     */
-    private static void alignObserve(LocalPlayer player, boolean againstWall) {
-        if (!alignPredValid) {
-            return;
-        }
-        alignPredValid = false;
-        Vec3 pos = player.position();
-        double missX = pos.x - alignPredX;
-        double missZ = pos.z - alignPredZ;
-        double miss = Math.max(Math.abs(missX), Math.abs(missZ));
-        alignWorstMiss = Math.max(alignWorstMiss, miss);
-        double dvLen = Math.sqrt(alignLastDvX * alignLastDvX + alignLastDvZ * alignLastDvZ);
-        boolean clean = !player.horizontalCollision && !againstWall && dvLen > 0.02;
-        double ratio = Double.NaN;
-        if (clean) {
-            double actX = (pos.x - alignLastPosX) - alignLastV0X;
-            double actZ = (pos.z - alignLastPosZ) - alignLastV0Z;
-            ratio = (actX * alignLastDvX + actZ * alignLastDvZ) / (dvLen * dvLen);
-            if (ratio > 0.5 && ratio < 1.5) {
-                alignGain = Mth.clamp(0.7 * alignGain + 0.3 * ratio, 0.85, 1.15);
-            }
-        }
-        if (com.killer560.hub.BuildVariant.DEV_TOOLS && LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[AP3 dev] align model: predicted ({}, {}) actual ({}, {}) miss ({}, {}) input-ratio {} gain {}",
-                    String.format(Locale.US, "%.5f", alignPredX), String.format(Locale.US, "%.5f", alignPredZ),
-                    String.format(Locale.US, "%.5f", pos.x), String.format(Locale.US, "%.5f", pos.z),
-                    String.format(Locale.US, "%.6f", missX), String.format(Locale.US, "%.6f", missZ),
-                    Double.isNaN(ratio) ? "-" : String.format(Locale.US, "%.4f", ratio),
-                    String.format(Locale.US, "%.4f", alignGain));
-        }
-    }
+    // ---- the discrete drive ----
 
-    /** The speed {@code getFrictionInfluencedSpeed} will return this tick for a movement-speed attribute value. */
-    private static double tickSpeed(boolean onGround, float blockFriction, double movementSpeed, boolean sprinting) {
-        if (onGround) {
-            return Ap3AlignMath.groundSpeed((float) movementSpeed, blockFriction);
+    /** The game's own trig table, so the planner's directions are the ones {@code getInputVector} produces. */
+    private static final Ap3DiscretePlanner.Trig MTH = new Ap3DiscretePlanner.Trig() {
+        @Override
+        public float cos(float rad) {
+            return Mth.cos(rad);
         }
-        return sprinting ? Ap3AlignMath.AIR_SPEED_SPRINTING : Ap3AlignMath.AIR_SPEED;
-    }
+
+        @Override
+        public float sin(float rad) {
+            return Mth.sin(rad);
+        }
+    };
 
     /** The friction of the block under the feet ({@code getBlockPosBelowThatAffectsMyMovement}), as the game reads it. */
     private static float blockFriction(LocalPlayer player) {
@@ -1208,75 +1265,148 @@ public final class Ap3Executor {
         }
     }
 
-    /**
-     * One tick of the exact approach along the world error {@code (ex, ez)} (target minus feet): the plan is
-     * {@link Ap3AlignMath#planDelta} (full press while far, a run that shortens by 70% a tick with taps of brake, the
-     * exact landing from a crawl inside the landing zone, then the in-place cancel of the few-percent residual - the
-     * velocity never reverses unless the physics leaves no choice), with {@code A = 0.98 * speed} the most one straight
-     * press can change the velocity and {@code f} the friction multiplier that follows the move.
-     * The sprint state the game will use is decided by vanilla from THIS record before travel (it stops when the
-     * record has no forward impulse, never starts because the record never asks), so the speed is solved without
-     * the sprint modifier first and re-solved with it only when the answer keeps a forward impulse while sprinting.
-     * The moveVector is the exact inverse of the pipeline for that speed, the camera's own {@code Mth.cos/sin} and
-     * the learned {@link #alignGain}; the prediction is stored for {@link #alignObserve}.
-     */
-    private static void driveToward(LocalPlayer player, double ex, double ez) {
-        Vec3 pos = player.position();
-        Vec3 vel = player.getDeltaMovement();
-        double v0x = Ap3AlignMath.zeroSmall(vel.x);
-        double v0z = Ap3AlignMath.zeroSmall(vel.z);
-        boolean ground = player.onGround();
-        float friction = blockFriction(player);
-        double f = Ap3AlignMath.frictionMultiplier(friction, ground);
-        float yawR = player.getYRot() * Ap3AlignMath.DEG_TO_RAD;
-        float c = Mth.cos(yawR);
-        float s = Mth.sin(yawR);
-        boolean sprinting = player.isSprinting();
-        double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-        double attrNoSprint = sprinting ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr;
-
-        double speed = tickSpeed(ground, friction, attrNoSprint, false) * alignGain;
-        double[] dv = Ap3AlignMath.planDelta(ex, ez, v0x, v0z, Ap3AlignMath.FULL_PRESS * speed, f);
-        float[] m = Ap3AlignMath.moveVectorFor(dv[0], dv[1], speed, c, s);
-        if (sprinting && m[1] > 1.0E-5f) {
-            // The record keeps a forward impulse, so vanilla keeps the sprint and its +30% - solve for that speed.
-            double sprintSpeed = tickSpeed(ground, friction, attr, true) * alignGain;
-            double[] dv2 = Ap3AlignMath.planDelta(ex, ez, v0x, v0z, Ap3AlignMath.FULL_PRESS * sprintSpeed, f);
-            float[] m2 = Ap3AlignMath.moveVectorFor(dv2[0], dv2[1], sprintSpeed, c, s);
-            if (m2[1] > 1.0E-5f) {
-                dv = dv2;
-                m = m2;
-            }
+    private static double sneakSpeed(LocalPlayer player) {
+        try {
+            double v = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.SNEAKING_SPEED);
+            return v > 0.01 && v <= 1.0 ? v : 0.3;
+        } catch (Throwable t) {
+            return 0.3;
         }
-        alignPredX = pos.x + v0x + dv[0];
-        alignPredZ = pos.z + v0z + dv[1];
-        alignLastPosX = pos.x;
-        alignLastPosZ = pos.z;
-        alignLastV0X = v0x;
-        alignLastV0Z = v0z;
-        alignLastDvX = dv[0];
-        alignLastDvZ = dv[1];
-        alignPredValid = true;
-        writeInput(player, m[0], m[1], dv[0], dv[1]);
     }
 
-    /** Installs an exact moveVector (no rescaling - {@link #writeMove} is for the speed-shaped holds) with the key
-     *  record the server sees derived from the direction it moves in; never sprint, never sneak. */
-    private static void writeInput(LocalPlayer player, float mx, float my, double dirX, double dirZ) {
-        double h = Math.sqrt(dirX * dirX + dirZ * dirZ);
-        if ((mx == 0f && my == 0f) || h < 1e-9) {
+    /** Takes the sent yaw over for an align (seeded from the live yaw when it is not already ours). */
+    private static void engageYawLock(LocalPlayer player) {
+        if (!mixinApplied || !rotationMixinApplied) {
+            return; // no coherent frame to steer: the align runs keys-only at the camera yaw
+        }
+        if (!strafeLock) {
+            serverYaw = player.getYRot();
+            serverYawO = serverYaw;
+            strafeSmoothing = 0.5f + (float) (Math.random() * 0.2);
+            LOGGER.info("[AP3] Server-side yaw: locking for an align from yaw {}", String.format(Locale.US, "%.1f", serverYaw));
+        }
+        strafeLock = true;
+        strafeReturning = false;
+        strafeHold = null;
+        lookHeld = false;
+    }
+
+    /**
+     * One tick of the discrete align: asks {@link Ap3DiscretePlanner} for this tick's keys and sent yaw from the
+     * measured state, steps the sent yaw there (a bounded delta on the running value, never more than the planner's
+     * cap), and installs exactly those keys - the record the server sees is the keys, the moveVector the client uses
+     * is the same keys turned from the sent frame into the camera frame (the walk lock's mechanism), so the movement
+     * on screen is what the server is told. {@code wallLean}, for axis aligns, adds the wall-ward key on top.
+     */
+    private static void driveDiscrete(LocalPlayer player, double ex, double ez, Vec3 wallLean) {
+        Vec3 vel = player.getDeltaMovement();
+        boolean steerable = strafeLock && mixinApplied && rotationMixinApplied;
+        Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
+        double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        boolean sprinting = player.isSprinting();
+        m.baseSpeedAttr = sprinting ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr;
+        m.blockFriction = blockFriction(player);
+        m.onGround = player.onGround();
+        m.sneakMul = sneakSpeed(player);
+        m.tolerance = Ap3Config.getInstance().getAlignTolerance();
+        m.trig = MTH;
+        m.yawSteerable = steerable;
+        m.yawStepCap = ALIGN_YAW_STEP;
+        Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
+        s.ex = ex;
+        s.ez = ez;
+        s.vx = vel.x;
+        s.vz = vel.z;
+        s.sprinting = sprinting;
+        s.crouching = lastSneakSent; // the multiplier the next travel uses = the shift of the record installed this tick
+        s.sentYaw = steerable ? serverYaw : player.getYRot();
+
+        Ap3DiscretePlanner.Plan plan = Ap3DiscretePlanner.plan(s, m);
+        alignPhase = plan.phase + (plan.reaches ? " ok" : " best") + String.format(Locale.US, " %.1e in %d", plan.restError, plan.ticks);
+        if (steerable) {
+            // The planner's yaw is at most the cap from the current one: a bounded delta on the running value.
+            float delta = Mth.clamp(Mth.wrapDegrees(plan.yaw - serverYaw), -STRAFE_MAX_STEP, STRAFE_MAX_STEP);
+            serverYawO = serverYaw;
+            serverYaw += delta;
+        }
+        Ap3DiscretePlanner.Action a = plan.action;
+        // prediction for the trace / miss log: one exact step of the model
+        Ap3DiscretePlanner.State pred = s.copy();
+        Ap3DiscretePlanner.step(pred, a, s.sentYaw + (steerable ? Mth.wrapDegrees(serverYaw - s.sentYaw) : 0f), m);
+        Vec3 pos = player.position();
+        alignPredX = pos.x + (ex - pred.ex);
+        alignPredZ = pos.z + (ez - pred.ez);
+        alignPredValid = true;
+
+        int fw = a.fw();
+        int st = a.st();
+        if (wallLean != null) {
+            // axis align: the wall-ward key is added to the planner's perpendicular choice (the wall absorbs it)
+            int[] wallKey = nearestKey(wallLean.x, wallLean.z, s.sentYaw);
+            if (fw == 0) {
+                fw = wallKey[0];
+            }
+            if (st == 0) {
+                st = wallKey[1];
+            }
+        }
+        writeDiscrete(player, fw, st, a.sneak(), false, steerable ? serverYaw : player.getYRot(), m, s.crouching);
+    }
+
+    /** The straight key (fw, st) at {@code yaw} nearest to the world direction {@code (dx, dz)}. */
+    private static int[] nearestKey(double dx, double dz, float yaw) {
+        float r = yaw * Ap3AlignMath.DEG_TO_RAD;
+        double c = Mth.cos(r), sn = Mth.sin(r);
+        double u = dx * -sn + dz * c;  // forward component
+        double w = dx * c + dz * sn;   // left component
+        if (Math.abs(u) >= Math.abs(w)) {
+            return new int[]{u >= 0 ? 1 : -1, 0};
+        }
+        return new int[]{0, w >= 0 ? 1 : -1};
+    }
+
+    /**
+     * Installs one real key combination for the next tick. The record the server sees is exactly {@code (fw, st,
+     * sneak, sprint)}. The client moveVector is the same keys: their world direction at {@code frameYaw} (what the
+     * server is told), turned into the camera frame through the exact inverse of vanilla's pipeline, so the player
+     * moves exactly as the server expects. When the frame IS the camera the raw key vector is installed as is.
+     */
+    private static void writeDiscrete(LocalPlayer player, int fw, int st, boolean sneak, boolean sprint, float frameYaw,
+                                      Ap3DiscretePlanner.Model m, boolean crouchingNow) {
+        if (fw == 0 && st == 0) {
             clearMovement();
+            wantSneak = sneak;
             return;
         }
-        moveX = mx;
-        moveY = my;
-        driveX = dirX / h;
-        driveZ = dirZ / h;
-        // The key record the server sees is derived against the yaw the server RECEIVES: while the strafe lock is
-        // still gliding back from a walk's angle that is serverYaw, not the camera yaw the movement itself uses -
-        // the same rule the held walk follows, so keys and yaw in one packet never disagree.
-        writeKeys(strafeLock ? serverYaw : player.getYRot(), false);
-        wantSneak = false;
+        double norm = Math.sqrt(fw * fw + st * st);
+        float camYaw = player.getYRot();
+        if (Math.abs(Mth.wrapDegrees(frameYaw - camYaw)) < 1e-4f) {
+            moveX = (float) (st / norm);
+            moveY = (float) (fw / norm);
+        } else {
+            Ap3DiscretePlanner.Action a = new Ap3DiscretePlanner.Action(fw, st, sneak);
+            double eff = Ap3DiscretePlanner.effectiveLength(a, crouchingNow, m.sneakMul);
+            double speed = m.tickSpeed(sprint || (player.isSprinting() && fw > 0));
+            float fr = frameYaw * Ap3AlignMath.DEG_TO_RAD;
+            double c = Mth.cos(fr), sn = Mth.sin(fr);
+            double ux = st / norm, uz = fw / norm;
+            double dvx = speed * eff * (ux * c - uz * sn);
+            double dvz = speed * eff * (uz * c + ux * sn);
+            float cr = camYaw * Ap3AlignMath.DEG_TO_RAD;
+            float[] mv = Ap3AlignMath.moveVectorFor(dvx, dvz, speed, Mth.cos(cr), Mth.sin(cr), crouchingNow ? m.sneakMul : 1.0);
+            moveX = mv[0];
+            moveY = mv[1];
+        }
+        float fr = frameYaw * Ap3AlignMath.DEG_TO_RAD;
+        double c = Mth.cos(fr), sn = Mth.sin(fr);
+        driveX = (st / norm) * c - (fw / norm) * sn;
+        driveZ = (fw / norm) * c + (st / norm) * sn;
+        wantForward = fw > 0;
+        wantBackward = fw < 0;
+        wantLeft = st > 0;
+        wantRight = st < 0;
+        wantSneak = sneak;
+        wantSprint = sprint;
         driving = true;
     }
 
@@ -1300,15 +1430,12 @@ public final class Ap3Executor {
             }
             step = Step.DO;
             alignModelReset();
+            engageYawLock(player);
         }
         Ap3Config cfg = Ap3Config.getInstance();
         boolean touching = touching(client.level, player, node.wallDir);
-        alignObserve(player, true); // pushing into a wall zeroes that axis - never learn from these ticks
-        double v0x = Ap3AlignMath.zeroSmall(vel.x);
-        double v0z = Ap3AlignMath.zeroSmall(vel.z);
-        double perpV0 = v0x * perp.x + v0z * perp.z;
-        // Within tolerance on the perpendicular axis with no velocity left on it, pressed to the wall - the wall
-        // makes the other axis exact by vanilla collision.
+        alignPredValid = false; // the wall zeroes an axis; the model cannot predict it - no miss log here
+        double perpV0 = Ap3AlignMath.zeroSmall(vel.x) * perp.x + Ap3AlignMath.zeroSmall(vel.z) * perp.z;
         if (touching && Math.abs(perpErr) <= cfg.getAlignTolerance() && perpV0 == 0.0) {
             clearMovement();
             if (++settleTicks >= SETTLE_TICKS) {
@@ -1323,27 +1450,9 @@ public final class Ap3Executor {
                     touching ? "on the wall" : "not on the wall", Math.abs(perpErr)));
             return;
         }
-        boolean ground = player.onGround();
-        float friction = blockFriction(player);
-        double f = Ap3AlignMath.frictionMultiplier(friction, ground);
-        float yawR = player.getYRot() * Ap3AlignMath.DEG_TO_RAD;
-        float c = Mth.cos(yawR);
-        float sn = Mth.sin(yawR);
-        boolean sprinting = player.isSprinting();
-        double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-        double speed = tickSpeed(ground, friction, sprinting ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr, false) * alignGain;
-        double a = Ap3AlignMath.FULL_PRESS * speed;
-        // The perpendicular axis: the same landing / shaping rule in one dimension. The wall axis: whatever of the
-        // press is left goes into the wall - full until touching, then a lean (the collision absorbs it, nothing is
-        // written). The two are perpendicular, so the whole input stays inside one press.
-        double[] p = Ap3AlignMath.planDelta(perpErr, 0.0, perpV0, 0.0, a, f);
-        double dvp = p[0];
-        double lean = Math.min((touching ? WALL_PUSH_HELD : 1.0) * a, Math.sqrt(Math.max(0.0, a * a - dvp * dvp)));
-        double dvx = perp.x * dvp + wall.x * lean;
-        double dvz = perp.z * dvp + wall.z * lean;
-        float[] m = Ap3AlignMath.moveVectorFor(dvx, dvz, speed, c, sn);
-        alignPredValid = false; // the wall axis is not predictable; the perpendicular one is checked by the settle test
-        writeInput(player, m[0], m[1], dvx, dvz);
+        // The perpendicular axis is planned exactly (the error along the wall axis is handed to the planner as zero);
+        // the wall-ward key is added on top so he stays pressed to the wall, which vanilla's collision absorbs.
+        driveDiscrete(player, perp.x * perpErr, perp.z * perpErr, touching ? wall : wall.scale(1.0));
     }
 
     /** Whether the player's box is pressed against a collidable block on that side (within {@value #WALL_TOUCH}). */
@@ -1779,11 +1888,29 @@ public final class Ap3Executor {
 
     // ------------------------------------------------------------------------------------------- movement
 
-    /** The held walk (WALK / RUN) when no node wrote its own input this tick. */
+    /**
+     * The held walk (WALK / RUN) when no node wrote its own input this tick. DISCRETE: the movement is exactly the
+     * key combination the server is told, at the yaw it is told - W+A / W+D (45 Degree Strafe on) or W at the
+     * locked server-side yaw, which is the walk's recorded direction once the lock has settled there (a curve of a
+     * few degrees for the 2-4 ticks it takes); without the lock (mixins missing) the nearest of the eight key
+     * directions at the camera yaw. Never the recorded direction as a fractional stick vector.
+     */
     private static void applyHold(LocalPlayer player) {
-        if (!driving && holdDir != null) {
-            writeMove(player, holdDir.x, holdDir.z, holdSprint);
+        if (driving || holdDir == null) {
+            return;
         }
+        if (strafeLockedForHold()) {
+            boolean diag = Ap3Config.getInstance().isStrafe45();
+            float keyYaw = diag ? serverYaw - strafeSide * STRAFE_ANGLE : serverYaw;
+            double r = Math.toRadians(keyYaw);
+            writeMove(player, -Math.sin(r), Math.cos(r), holdSprint, diag);
+            return;
+        }
+        float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+        float rel = Mth.wrapDegrees(walkYaw - player.getYRot());
+        int octant = Math.round(rel / 45f);
+        double r = Math.toRadians(player.getYRot() + octant * 45f);
+        writeMove(player, -Math.sin(r), Math.cos(r), holdSprint, (octant & 1) != 0);
     }
 
     /**
@@ -1809,7 +1936,7 @@ public final class Ap3Executor {
      * ({@code ClientInput.hasForwardImpulse}: {@code y > 1e-5}); while the server-side yaw is locked the
      * {@code Ap3StrafeImpulseMixin} supplies that, so a walk sprints whatever the camera does.
      */
-    private static void writeMove(LocalPlayer player, double wx, double wz, boolean sprint) {
+    private static void writeMove(LocalPlayer player, double wx, double wz, boolean sprint, boolean diagonalKey) {
         double h = Math.sqrt(wx * wx + wz * wz);
         if (h < 1e-4) {
             clearMovement();
@@ -1817,7 +1944,7 @@ public final class Ap3Executor {
         }
         double ux = wx / h;
         double uz = wz / h;
-        double mag = Math.min(1.0, h);
+        double mag = 1.0;
         // The analog vector is ALWAYS camera-relative: LivingEntity.travel turns it back into the world through the
         // live yaw, so this is what makes the movement go the recorded way whatever the camera does.
         double yr = Math.toRadians(player.getYRot());
@@ -1832,10 +1959,9 @@ public final class Ap3Executor {
         double ratio = ay > ax ? (ay == 0 ? 0 : ax / ay) : (ax == 0 ? 0 : ay / ax);
         double unitSquare = Math.sqrt(1.0 + ratio * ratio);
         boolean locked = strafeLockedForHold();
-        // The speed has to be the one the key record the server sees would really get: 45 Degree Strafe ON = the
-        // server sees W+A / W+D at the strafe yaw, so the real diagonal speed (1.00); OFF = it sees W at the walk
-        // yaw, so the plain-W speed (0.98).
-        double scale = Ap3Config.getInstance().isStrafe45() ? 1.0 / VANILLA_INPUT_SCALE : 1.0 / unitSquare;
+        // The speed is the one the key combination the server sees really gets: a diagonal (W+A / W+D) maps to
+        // 1.00, a straight key (W) to 0.98 - vanilla's own square mapping, reproduced for the rotated vector.
+        double scale = diagonalKey ? 1.0 / VANILLA_INPUT_SCALE : 1.0 / unitSquare;
         scale *= mag;
         moveX = (float) (lft * scale);
         moveY = (float) (fwd * scale);
@@ -1862,6 +1988,7 @@ public final class Ap3Executor {
     }
 
     private static void clearMovement() {
+        lastSneakSent = wantSneak;
         driving = false;
         moveX = 0f;
         moveY = 0f;
@@ -1893,6 +2020,10 @@ public final class Ap3Executor {
             releaseStrafeNow();
             return;
         }
+        if (strafeLock && activeNode != null && activeNode.type.isAlign()) {
+            // An align steers the sent yaw itself (driveDiscrete) - no glide, no release, until it ends.
+            return;
+        }
         boolean wanted = holdDir != null && driving && mixinApplied && rotationMixinApplied;
         boolean strafe45 = Ap3Config.getInstance().isStrafe45();
         if (wanted) {
@@ -1919,9 +2050,10 @@ public final class Ap3Executor {
             // ON: the strafe angle, so the record derived below is W plus A or D once there ("always pressing w and
             // some other movement key"). OFF: the walk direction itself, so the record is W alone.
             stepServerYaw(walkYaw + (strafe45 ? strafeSide * STRAFE_ANGLE : 0f));
-            // The key record has to agree with the yaw that goes out with it, so re-derive it against the stepped
-            // value (writeMove ran before this step, against last tick's).
-            writeKeys(serverYaw, wantSprint);
+            // The movement AND the key record have to be the keys at the yaw that goes out with them: rewrite the
+            // hold against the stepped value (applyHold ran earlier this tick against last tick's yaw).
+            driving = false;
+            applyHold(player);
             return;
         }
         if (!strafeLock) {

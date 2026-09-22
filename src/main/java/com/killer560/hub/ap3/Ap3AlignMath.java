@@ -126,7 +126,13 @@ final class Ap3AlignMath {
      * @return {moveX, moveY} as the floats the mixin installs
      */
     static float[] moveVectorFor(double dvx, double dvz, double speed, float cos, float sin) {
-        if (speed <= 0) {
+        return moveVectorFor(dvx, dvz, speed, cos, sin, 1.0);
+    }
+
+    /** As above, when the pipeline will also multiply the input by {@code inputMul} (the sneak multiplier while
+     *  crouching): the vector is pre-divided so the effective input comes out the same. */
+    static float[] moveVectorFor(double dvx, double dvz, double speed, float cos, float sin, double inputMul) {
+        if (speed <= 0 || inputMul <= 0) {
             return new float[]{0f, 0f};
         }
         double c = cos;
@@ -145,7 +151,7 @@ final class Ap3AlignMath {
         }
         double ax = Math.abs(ux) / len;
         double az = Math.abs(uz) / len;
-        double magnitude = len * Math.max(ax, az) / INPUT_SCALE;
+        double magnitude = len * Math.max(ax, az) / INPUT_SCALE / inputMul;
         return new float[]{(float) (ux / len * magnitude), (float) (uz / len * magnitude)};
     }
 
