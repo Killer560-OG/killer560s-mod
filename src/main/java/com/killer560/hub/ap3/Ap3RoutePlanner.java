@@ -202,6 +202,35 @@ final class Ap3RoutePlanner {
         /** How many ticks in a row the route may stand on a block a Block node places (a ghost block is short-lived). */
         int slabTicks = 2;
         /**
+         * Look for a route that never jumps before considering ones that do. killer560 (2026-09-22): "If it is fast
+         * enough such that it can cross something like a 3 block gap without jumping then it always should
+         * prioritize that over jumping... 99.999999% of the time just running is faster over gaps it can cross, but
+         * it may have to adjust earlier portions of its movement to get the propper block alignment to do so."
+         * <p>
+         * This is not a tie-break, and a tie-break does not fix it. Measured on a 3-block gap at speed 550: from one
+         * approach the free search returned 21 ticks WITH a jump while a 15-tick route with none existed. A jumping
+         * state looks good early - the sprint-jump boost buys 0.2 along the facing and the heuristic prices travel
+         * at the jump cycle's speed - so jumping states crowd the beam and the running answer, which needs its
+         * run-up aligned a few ticks earlier, gets pruned before it can pay off. Searching with jumps switched off
+         * first cannot be crowded out, and it is cheaper anyway because the branching is halved.
+         */
+        boolean preferRunning = true;
+
+        Options copy() {
+            Options c = new Options();
+            c.allowJump = allowJump;
+            c.beam = beam;
+            c.maxTicks = maxTicks;
+            c.dirs = dirs;
+            c.budgetMs = budgetMs;
+            c.turnCost = turnCost;
+            c.slabTicks = slabTicks;
+            c.exactSearch = exactSearch;
+            c.exactTol = exactTol;
+            c.preferRunning = preferRunning;
+            return c;
+        }
+        /**
          * How close the search must get to an exact gate before the polish takes over. The polish only re-aims yaws,
          * so it can redirect the speed that is there but cannot add any: hand it a 0.15 gap at walking pace and it
          * cannot close it (measured - a 0.146 hand-over polished to 0.055 and no further). 0.10 is inside its reach,
@@ -241,6 +270,8 @@ final class Ap3RoutePlanner {
         Ap3DiscretePlanner.Action keys;
         float yaw;
         boolean jump;
+        /** How many jumps this whole path has used - the tie-break that keeps a route on its feet. */
+        int jumps;
         /** Ticks in a row spent standing on a block a Block node will place. */
         int slabTicks;
         /** Gates crossed on this tick, as indices into the gate list. */
@@ -273,6 +304,38 @@ final class Ap3RoutePlanner {
 
     static Plan plan(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked, Terrain terrain,
                      Ap3DiscretePlanner.Model m, Options o) {
+        if (!o.allowJump || !o.preferRunning) {
+            return search(start, gates, blocked, terrain, m, o);
+        }
+        // Running first (see Options.preferRunning). Half the budget is plenty: with jumps off the search either
+        // finds the way across quickly or runs out of places to stand and dies on its own.
+        long began = System.nanoTime();
+        Options onFoot = o.copy();
+        onFoot.allowJump = false;
+        // Capped as well as halved: when the probe FAILS its whole share is spent before the real search starts,
+        // and a mid-route re-plan only gets 300 ms in the first place. When it succeeds it is quick (under 250 ms
+        // in every measured case), so a ceiling costs nothing and bounds the worst case.
+        onFoot.budgetMs = Math.max(1, Math.min(o.budgetMs / 2, 400));
+        // A wider beam, because with jumps off the branching is halved and the answer often hangs on ONE approach
+        // phase surviving the cut - "it may have to adjust earlier portions of its movement to get the propper
+        // block alignment". Measured on a 3-block gap at 550: two of eleven approaches found nothing at beam 400
+        // and a 15-tick route at beam 1500, one of them in half the time, because finding the way across is
+        // cheaper than exhausting every way that falls in.
+        onFoot.beam = Math.min(4000, o.beam * 3);
+        Plan running = search(start, gates, blocked, terrain, m, onFoot);
+        if (running.complete) {
+            return running;
+        }
+        long spentMs = (System.nanoTime() - began) / 1_000_000L;
+        Options withJumps = o.copy();
+        withJumps.budgetMs = Math.max(1, o.budgetMs - spentMs);
+        Plan jumping = search(start, gates, blocked, terrain, m, withJumps);
+        // If neither finishes, hand back whichever got further rather than the later one by default.
+        return jumping.complete || jumping.gatesReached >= running.gatesReached ? jumping : running;
+    }
+
+    private static Plan search(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
+                               Terrain terrain, Ap3DiscretePlanner.Model m, Options o) {
         Plan plan = new Plan();
         if (gates.isEmpty()) {
             plan.complete = true;
@@ -305,16 +368,26 @@ final class Ap3RoutePlanner {
             if (next.isEmpty()) {
                 break;
             }
-            // Goal: the last gate is crossed.
+            // Goal: the last gate is crossed. Every node in a layer has the same tick count, so taking the first
+            // one expansion order happened to produce was a coin toss between an identical run and jump - which is
+            // exactly what killer560 saw ("Right now sometimes it jumps sometimes it doesnt"). Look at all of them
+            // and take the one that stayed on its feet.
+            Node goal = null;
             for (Node n : next) {
                 if (n.group >= groups.size()) {
-                    return finish(n, gates, blocked, m, o, terrain, plan);
+                    if (goal == null || n.jumps < goal.jumps || (n.jumps == goal.jumps && n.f < goal.f)) {
+                        goal = n;
+                    }
+                    continue;
                 }
                 if (n.group > best.group || (n.group == best.group
                         && (Integer.bitCount(n.mask) > Integer.bitCount(best.mask)
                         || (Integer.bitCount(n.mask) == Integer.bitCount(best.mask) && n.f < best.f)))) {
                     best = n;
                 }
+            }
+            if (goal != null) {
+                return finish(goal, gates, blocked, m, o, terrain, plan);
             }
             next.sort((a, b) -> Double.compare(a.f, b.f));
             layer = next.size() > o.beam ? new ArrayList<>(next.subList(0, o.beam)) : next;
@@ -434,7 +507,12 @@ final class Ap3RoutePlanner {
         c.keys = a;
         c.yaw = yaw;
         c.jump = jump;
+        c.jumps = n.jumps + (jump ? 1 : 0);
         c.crossed = crossed;
+        // NOTE: the jump preference is deliberately NOT priced in here. f is what the beam prunes by, and charging
+        // jumps made the beam drop every jumping state in favour of running ones that could not finish: a 5-block
+        // gap at speed 550 has to be jumped, and it went from crossing every time to INCOMPLETE every time. The
+        // preference belongs where the answer is chosen, not where the search is cut.
         c.f = c.ticks + field.heuristic(s.x, s.z, group, mask, groups, top)
                 + o.turnCost * Math.abs(wrap(yaw - n.s.yaw)) / 180.0;
         long key = cell(s, group, mask);
@@ -448,6 +526,7 @@ final class Ap3RoutePlanner {
             old.mask = c.mask;
             old.slabTicks = c.slabTicks;
             old.ticks = c.ticks;
+            old.jumps = c.jumps;
             old.parent = c.parent;
             old.keys = c.keys;
             old.yaw = c.yaw;
