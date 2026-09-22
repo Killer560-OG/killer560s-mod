@@ -1622,9 +1622,7 @@ public final class Ap3Executor {
     }
 
     private static boolean sprintLikely(LocalPlayer player) {
-        Minecraft client = Minecraft.getInstance();
-        boolean keyHeld = client.options != null && client.options.keySprint.isDown();
-        return player.isSprinting() || keyHeld;
+        return player.isSprinting(); // the truth right now; the model carries it forward by vanilla's own rule
     }
 
     // ---- the measured push scale -------------------------------------------------------------------------------

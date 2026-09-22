@@ -106,7 +106,7 @@ final class Ap3RouteMath {
         double vx = Math.abs(s.vx) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vx;
         double vz = Math.abs(s.vz) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vz;
         boolean onGround = s.onGround;
-        boolean sprintNow = a.fw() > 0 && (s.sprinting || (m.sprintKeyHeld && !a.sneak() && !s.crouching));
+        boolean sprintNow = a.fw() > 0 && (s.sprinting || (m.sprintKeyHeld && !s.crouching));
         float rad = yaw * Ap3AlignMath.DEG_TO_RAD;
         double cos = m.trig.cos(rad);
         double sin = m.trig.sin(rad);

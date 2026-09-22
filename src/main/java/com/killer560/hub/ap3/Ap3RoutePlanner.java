@@ -92,6 +92,8 @@ final class Ap3RoutePlanner {
     static final double STEP_UP = 0.6;
     /** A gate counts as reached only on its own level, within this much. */
     static final double GATE_Y_TOLERANCE = 1.0;
+    /** How finely a tick's travel is walked when resolving the ground under it (a stair tread is 0.5 wide). */
+    static final double SAMPLE_STEP = 0.25;
 
     /**
      * The world the route runs through, sampled ahead of planning so the search can run off the client thread. A
@@ -342,7 +344,7 @@ final class Ap3RoutePlanner {
         if (hits(blocked, fromX, fromZ, s.x, s.z, s.y)) {
             return;
         }
-        if (!resolveGround(s, terrain, wasOnGround)) {
+        if (!resolveGround(s, terrain, wasOnGround, fromX, fromZ)) {
             return;
         }
         // A Block node's slab is only there for a moment: standing on one for longer is not a route that exists.
@@ -413,28 +415,53 @@ final class Ap3RoutePlanner {
      * makes a staircase a ramp rather than a barrier (killer560, 2026-09-22: "make sure it knows to make the line go
      * diagonally up").
      */
-    private static boolean resolveGround(Ap3RouteMath.RouteState s, Terrain terrain, boolean wasOnGround) {
+    private static boolean resolveGround(Ap3RouteMath.RouteState s, Terrain terrain, boolean wasOnGround,
+                                         double fromX, double fromZ) {
         double floor = terrain.floorAt(s.x, s.z);
         if (wasOnGround && s.onGround) {
+            // Walk the tick's travel, not just its end. At his speed a tick crosses a whole stair step, so measuring
+            // the rise end to end read 1.0 - over the 0.6 a player steps up - and the search rejected every way
+            // forward ("planned 0 ticks, 5 gates INCOMPLETE - no route found"). Vanilla steps up per collision along
+            // the way, which is why you run up a staircase at full speed, so the model climbs it sample by sample.
+            double dx = s.x - fromX;
+            double dz = s.z - fromZ;
+            int samples = (int) Math.ceil(Math.hypot(dx, dz) / SAMPLE_STEP);
+            double height = s.groundY;
+            for (int i = 1; i <= Math.max(1, samples); i++) {
+                double t = (double) i / Math.max(1, samples);
+                double sx = fromX + dx * t;
+                double sz = fromZ + dz * t;
+                double f = terrain.floorAt(sx, sz);
+                if (Double.isNaN(f)) {
+                    if (i < Math.max(1, samples)) {
+                        continue; // a gap mid-stride: you are over it, not standing in it
+                    }
+                    s.onGround = false; // walked off the end into nothing: the air model takes over
+                    s.vy = 0.0;
+                    return true;
+                }
+                if (f - height > STEP_UP) {
+                    return false; // a real step up too tall to walk: jump it or go round
+                }
+                if (!terrain.bodyClear(sx, sz, Math.max(f, height))) {
+                    return false; // head would be in a block on the way
+                }
+                height = f;
+            }
             if (Double.isNaN(floor)) {
-                return false; // nowhere to stand and not airborne: a wall or a hole with no floor beneath
-            }
-            double rise = floor - s.groundY;
-            if (rise > STEP_UP) {
-                return false; // too tall to walk up - the search has to jump it or go round
-            }
-            if (!terrain.bodyClear(s.x, s.z, Math.max(floor, s.groundY))) {
-                return false; // head would be in a block
-            }
-            if (rise >= -1.0E-4) {
-                s.groundY = floor; // walked up the stair / slab
-                s.y = floor;
-            } else {
-                // Walked off the edge: from here it is a fall, and the air model brings him down to the new floor.
                 s.onGround = false;
                 s.vy = 0.0;
-                s.groundY = floor;
+                return true;
             }
+            if (height < s.groundY - STEP_UP) {
+                // A real drop at the end of the stride: fall it rather than teleporting down.
+                s.onGround = false;
+                s.vy = 0.0;
+                s.groundY = height;
+                return true;
+            }
+            s.groundY = height;
+            s.y = height;
             return true;
         }
         // Airborne (a jump, or still falling): the body has to fit, and the feet land on whatever is under them.

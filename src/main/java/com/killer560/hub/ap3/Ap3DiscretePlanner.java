@@ -173,7 +173,10 @@ final class Ap3DiscretePlanner {
         // while crouched. His trace shows both halves - the same keys[W sneak sprint] came out sprinting when the
         // tick before was already a sprint, and walking when it was not. Since an align sneaks constantly to brake,
         // that one rule decides most of its ticks, and getting it wrong is a 1.3x miss on each of them.
-        boolean canStart = !a.sneak && !s.crouching;
+        // Only the crouch already in effect blocks a sprint from starting - the sneak key pressed THIS tick has not
+        // taken hold yet (vanilla's crouch state lags a tick, the same lag the 0.3 multiplier has). Measured: the
+        // model priced a sneak press at 0.11113 as a walk and the game sprinted it at 0.14447.
+        boolean canStart = !s.crouching;
         boolean sprintNow = a.fw > 0 && (s.sprinting || (m.sprintKeyHeld && canStart));
         double vx = v0x, vz = v0z;
         if (!a.none()) {
