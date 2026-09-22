@@ -88,6 +88,10 @@ final class Ap3RoutePlanner {
 
     /** Half of the player's 0.6-wide collision box: what decides whether you are on or off an edge. */
     static final double HALF_WIDTH = 0.3;
+    /** {@code Player.maxUpStep}: this much of a rise is walked up with no jump - a slab or a stair, not a full block. */
+    static final double STEP_UP = 0.6;
+    /** A gate counts as reached only on its own level, within this much. */
+    static final double GATE_Y_TOLERANCE = 1.0;
 
     /**
      * The world the route runs through, sampled ahead of planning so the search can run off the client thread. A
@@ -96,6 +100,16 @@ final class Ap3RoutePlanner {
      * "If a block is selected for breaker aura treat that block as not being there when you go to run through it").
      */
     interface Terrain {
+        /**
+         * The height the feet rest at here, or NaN where there is nowhere to stand. This is what lets a route use
+         * stairs: vanilla steps up to {@link #STEP_UP} of a block for free, so a stair or a slab is walked up without
+         * jumping, and anything taller needs a jump or is a wall.
+         */
+        double floorAt(double x, double z);
+
+        /** Is the body's space free with the feet at {@code y}? (Head room for a step up, a jump or a landing.) */
+        boolean bodyClear(double x, double z, double y);
+
         /** Can the player's box stand here, feet at the route's floor height? */
         boolean walkable(double x, double z);
 
@@ -113,6 +127,14 @@ final class Ap3RoutePlanner {
         }
 
         Terrain OPEN = new Terrain() {
+            public double floorAt(double x, double z) {
+                return 0.0;
+            }
+
+            public boolean bodyClear(double x, double z, double y) {
+                return true;
+            }
+
             public boolean walkable(double x, double z) {
                 return true;
             }
@@ -315,12 +337,12 @@ final class Ap3RoutePlanner {
         Ap3RouteMath.RouteState s = n.s.copy();
         double fromX = s.x;
         double fromZ = s.z;
+        boolean wasOnGround = s.onGround;
         Ap3RouteMath.step(s, a, yaw, jump, m);
         if (hits(blocked, fromX, fromZ, s.x, s.z, s.y)) {
             return;
         }
-        // The world itself: a wall is a wall, and a hole is only passable while the feet are off the ground.
-        if (s.onGround ? !terrain.walkable(s.x, s.z) : !terrain.clearAir(s.x, s.z)) {
+        if (!resolveGround(s, terrain, wasOnGround)) {
             return;
         }
         // A Block node's slab is only there for a moment: standing on one for longer is not a route that exists.
@@ -383,6 +405,52 @@ final class Ap3RoutePlanner {
         }
         seen.put(key, c);
         out.add(c);
+    }
+
+    /**
+     * Puts the tick's new position on the world: walks up a stair, steps off a ledge, lands from a jump, or refuses
+     * the move when a wall or a ceiling is in the way. Vanilla steps up to {@link #STEP_UP} for free, which is what
+     * makes a staircase a ramp rather than a barrier (killer560, 2026-09-22: "make sure it knows to make the line go
+     * diagonally up").
+     */
+    private static boolean resolveGround(Ap3RouteMath.RouteState s, Terrain terrain, boolean wasOnGround) {
+        double floor = terrain.floorAt(s.x, s.z);
+        if (wasOnGround && s.onGround) {
+            if (Double.isNaN(floor)) {
+                return false; // nowhere to stand and not airborne: a wall or a hole with no floor beneath
+            }
+            double rise = floor - s.groundY;
+            if (rise > STEP_UP) {
+                return false; // too tall to walk up - the search has to jump it or go round
+            }
+            if (!terrain.bodyClear(s.x, s.z, Math.max(floor, s.groundY))) {
+                return false; // head would be in a block
+            }
+            if (rise >= -1.0E-4) {
+                s.groundY = floor; // walked up the stair / slab
+                s.y = floor;
+            } else {
+                // Walked off the edge: from here it is a fall, and the air model brings him down to the new floor.
+                s.onGround = false;
+                s.vy = 0.0;
+                s.groundY = floor;
+            }
+            return true;
+        }
+        // Airborne (a jump, or still falling): the body has to fit, and the feet land on whatever is under them.
+        if (!terrain.bodyClear(s.x, s.z, s.y)) {
+            return false;
+        }
+        if (!Double.isNaN(floor)) {
+            s.groundY = floor;
+            if (s.y <= floor + 1.0E-9 && s.vy <= 0) {
+                s.y = floor;
+                s.vy = 0.0;
+                s.onGround = true;
+                s.airTicks = 0;
+            }
+        }
+        return true;
     }
 
     /** Fine control (sneak, sideways braking, a denser ring) near a gate that asks for a position or a speed. */
@@ -449,7 +517,7 @@ final class Ap3RoutePlanner {
                 for (int j = 0; j < h; j++) {
                     double cx = minX + i * CELL;
                     double cz = minZ + j * CELL;
-                    if (!terrain.clearAir(cx, cz)) {
+                    if (Double.isNaN(terrain.floorAt(cx, cz))) {
                         wall[i * h + j] = true;
                         continue;
                     }
@@ -588,6 +656,9 @@ final class Ap3RoutePlanner {
         }
         if (!in) {
             return false;
+        }
+        if (Math.abs(to.y - g.y) > GATE_Y_TOLERANCE) {
+            return false; // the right spot on the wrong floor is not the gate
         }
         if (g.exact && !g.sameBlocks(to.x, to.z)) {
             return false; // right distance, wrong side of a block edge

@@ -169,10 +169,12 @@ final class Ap3DiscretePlanner {
         boolean zeroed = Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
         double v0x = zeroed ? 0.0 : s.vx;
         double v0z = zeroed ? 0.0 : s.vz;
-        // A sneaking press still sprints here - measured: the model priced one at 0.11114 and the game gave 0.14447,
-        // which is the sprinting push 0.48157 times sneak's 0.3. (An earlier sample looked like sneak cancelled the
-        // sprint; that was a tick where the sprint had been lost to the key race, not the rule.)
-        boolean sprintNow = a.fw > 0 && (s.sprinting || m.sprintKeyHeld);
+        // Vanilla lets a sprint CONTINUE while sneaking but will not let one START: canStartSprinting() refuses
+        // while crouched. His trace shows both halves - the same keys[W sneak sprint] came out sprinting when the
+        // tick before was already a sprint, and walking when it was not. Since an align sneaks constantly to brake,
+        // that one rule decides most of its ticks, and getting it wrong is a 1.3x miss on each of them.
+        boolean canStart = !a.sneak && !s.crouching;
+        boolean sprintNow = a.fw > 0 && (s.sprinting || (m.sprintKeyHeld && canStart));
         double vx = v0x, vz = v0z;
         if (!a.none()) {
             double eff = effectiveLength(a, s.crouching, m.sneakMul);
