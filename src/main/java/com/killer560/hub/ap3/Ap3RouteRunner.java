@@ -77,6 +77,8 @@ final class Ap3RouteRunner {
     private static Ap3RouteMath.RouteState planStart;
     private static Ap3RouteMath.RouteState predicted;
     private static Ap3DiscretePlanner.Model planModel;
+    /** The world the current plan was made against - the renderer draws the path at its heights. */
+    private static volatile Ap3RoutePlanner.Terrain snapshot;
     /** The step index the pending plan begins at (it was planned from the predicted state at that tick). */
     private static volatile int pendingAt;
     /**
@@ -133,12 +135,21 @@ final class Ap3RouteRunner {
         if (p == null || planStart == null || planModel == null || p.steps.length == 0) {
             return List.of();
         }
+        // Drawn at the heights the plan actually runs at, so a staircase shows as a line going up it.
         List<Vec3> out = new ArrayList<>(p.steps.length + 1);
         Ap3RouteMath.RouteState s = planStart.copy();
-        out.add(new Vec3(s.x, y, s.z));
+        Ap3RoutePlanner.Terrain terrain = snapshot;
+        out.add(new Vec3(s.x, s.y + 0.1, s.z));
         for (Ap3RoutePlanner.Step st : p.steps) {
             Ap3RouteMath.step(s, st.keys(), st.yaw(), st.jump(), planModel);
-            out.add(new Vec3(s.x, y + (s.y - s.groundY), s.z));
+            if (terrain != null && s.onGround) {
+                double floor = terrain.floorAt(s.x, s.z);
+                if (!Double.isNaN(floor)) {
+                    s.y = floor;
+                    s.groundY = floor;
+                }
+            }
+            out.add(new Vec3(s.x, s.y + 0.1, s.z));
         }
         return out;
     }
@@ -355,6 +366,7 @@ final class Ap3RouteRunner {
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
         Snap snap = Snap.of(client.level, player, gates, start);
+        snapshot = snap;
         Ap3RoutePlanner.Options options = new Ap3RoutePlanner.Options();
         Ap3Config cfg = Ap3Config.getInstance();
         options.allowJump = cfg.isRouteAllowJumps();
@@ -521,19 +533,27 @@ final class Ap3RouteRunner {
      * body's space collides; it is standable when it also has a floor. Blocks Breaker Aura will break are air here.
      */
     static final class Snap implements Ap3RoutePlanner.Terrain {
-        /** How far above and below the starting level a column is searched for its standing surface. */
+        /**
+         * Half-block cells, not whole ones. A stair's bounding box is a full block tall because its back half is, so
+         * reading a column as {@code bounds().maxY} made every staircase a 1.0 rise - over the 0.6 a player steps up -
+         * and the route refused to climb it (killer560, 2026-09-22: "it still doesn't keep running up stairs"). At
+         * half-block resolution the front of a stair reads 0.5 and the back 1.0, which is what you actually walk up.
+         */
+        private static final double CELL = 0.5;
+        /** How far above and below the starting level a cell is searched for its standing surface. */
         private static final int BAND_UP = 6;
         private static final int BAND_DOWN = 8;
 
-        private final int minX, minZ, w, h;
-        /** The height the feet rest at in this column, or NaN where there is nothing to stand on. */
+        private final double minX, minZ;
+        private final int w, h;
+        /** The height the feet rest at in this half-block cell, or NaN where there is nothing to stand on. */
         private final double[] floorY;
         /** Air above that surface, so a step up or a jump can be refused when the head would not fit. */
         private final double[] headroom;
-        /** Columns whose only floor is a block an AP3 Block node is going to place (see {@link #placedFloorOnly}). */
+        /** Cells whose only floor is a block an AP3 Block node is going to place (see {@link #placedFloorOnly}). */
         private final boolean[] placed;
 
-        private Snap(int minX, int minZ, int w, int h) {
+        private Snap(double minX, double minZ, int w, int h) {
             this.minX = minX;
             this.minZ = minZ;
             this.w = w;
@@ -553,15 +573,15 @@ final class Ap3RouteRunner {
                 loz = Math.min(loz, g.z);
                 hiz = Math.max(hiz, g.z);
             }
-            int minX = Mth.floor(lox) - SNAP_PAD;
-            int minZ = Mth.floor(loz) - SNAP_PAD;
-            int w = Mth.floor(hix) + SNAP_PAD - minX + 1;
-            int h = Mth.floor(hiz) + SNAP_PAD - minZ + 1;
+            double minX = Math.floor(lox) - SNAP_PAD;
+            double minZ = Math.floor(loz) - SNAP_PAD;
+            int w = (int) Math.ceil((Math.ceil(hix) + SNAP_PAD - minX) / CELL) + 1;
+            int h = (int) Math.ceil((Math.ceil(hiz) + SNAP_PAD - minZ) / CELL) + 1;
             Snap snap = new Snap(minX, minZ, w, h);
             int feetY = Mth.floor(start.y);
             for (int i = 0; i < w; i++) {
                 for (int j = 0; j < h; j++) {
-                    snap.readColumn(level, minX + i, minZ + j, feetY, i * h + j);
+                    snap.readCell(level, minX + (i + 0.5) * CELL, minZ + (j + 0.5) * CELL, feetY, i * h + j);
                 }
             }
             snap.addBlockNodes(level, feetY);
@@ -569,36 +589,36 @@ final class Ap3RouteRunner {
         }
 
         /**
-         * Finds the surface to stand on in one column: the highest block top at or below the route's level (searching
-         * a little above it too, so a staircase going up is found) with room for the body above it. Storing the HEIGHT
-         * rather than a yes/no is what lets the planner walk up stairs instead of treating them as a wall.
+         * The surface under one half-block cell: the highest block top at this exact spot within the band, with room
+         * for the body above it. The height is read from the collision boxes that actually cover this spot, so half
+         * slabs, stairs and carpets give their real height rather than their block's outline.
          */
-        private void readColumn(ClientLevel level, int bx, int bz, int feetY, int cell) {
+        private void readCell(ClientLevel level, double x, double z, int feetY, int cell) {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            int bx = Mth.floor(x);
+            int bz = Mth.floor(z);
             for (int y = feetY + BAND_UP; y >= feetY - BAND_DOWN; y--) {
                 pos.set(bx, y, bz);
                 if (!level.isLoaded(pos)) {
                     continue;
                 }
                 if (!level.getBlockState(pos).getFluidState().isEmpty()) {
-                    // Lava (or water) is not a floor: a bounce costs the whole run, so the route stays out of it.
-                    return;
+                    return; // lava (or water): a bounce costs the whole run, so the route stays out
                 }
-                double top = surfaceTop(level, pos);
+                double top = topAt(level, pos, x - bx, z - bz);
                 if (Double.isNaN(top)) {
                     continue;
                 }
                 double head = 0;
-                for (int up = 1; up <= 3; up++) {
-                    pos.set(bx, (int) Math.floor(top) + up, bz);
-                    if (!level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
-                            && !BreakerAuraFeature.plannerTreatsAsAir(level, pos)) {
+                for (int up = 0; up < 3; up++) {
+                    pos.set(bx, (int) Math.floor(top + 1.0E-4) + up, bz);
+                    if (!Double.isNaN(topAt(level, pos, x - bx, z - bz))) {
                         break;
                     }
                     head += 1.0;
                 }
                 if (head < BODY_HEIGHT - 0.1) {
-                    return; // a surface with no room to stand on it is not somewhere the route can go
+                    return; // no room to stand here
                 }
                 floorY[cell] = top;
                 headroom[cell] = head;
@@ -606,8 +626,8 @@ final class Ap3RouteRunner {
             }
         }
 
-        /** The top of this block's collision shape as a height, or NaN when it is not something to stand on. */
-        private static double surfaceTop(ClientLevel level, BlockPos pos) {
+        /** The top of whatever collides at this spot inside the block, or NaN when nothing does. */
+        private static double topAt(ClientLevel level, BlockPos pos, double fx, double fz) {
             if (BreakerAuraFeature.plannerTreatsAsAir(level, pos)) {
                 return Double.NaN;
             }
@@ -616,7 +636,15 @@ final class Ap3RouteRunner {
             if (shape.isEmpty()) {
                 return Double.NaN;
             }
-            return pos.getY() + shape.bounds().maxY;
+            double best = Double.NaN;
+            for (AABB box : shape.toAabbs()) {
+                if (fx >= box.minX - 1.0E-7 && fx <= box.maxX + 1.0E-7
+                        && fz >= box.minZ - 1.0E-7 && fz <= box.maxZ + 1.0E-7) {
+                    double top = pos.getY() + box.maxY;
+                    best = Double.isNaN(best) ? top : Math.max(best, top);
+                }
+            }
+            return best;
         }
 
         /**
@@ -625,22 +653,49 @@ final class Ap3RouteRunner {
          * appear at that area. Then it should know that it will be able to run on that block for two ticks". Assumed
          * to be a bottom slab at most, and never placed by the route itself: the Block node does that.
          */
+        private void addBlockNodes(ClientLevel level, int feetY) {
+            Ap3Chain chain = Ap3Feature.currentChain();
+            if (chain == null) {
+                return;
+            }
+            for (Ap3Node n : chain.nodes()) {
+                if (n.type != Ap3Node.Type.BLOCK) {
+                    continue;
+                }
+                double rad = Math.toRadians(n.yaw);
+                double bx = n.x - Math.sin(rad);
+                double bz = n.z + Math.cos(rad);
+                for (int dx = 0; dx <= 1; dx++) {
+                    for (int dz = 0; dz <= 1; dz++) {
+                        int cell = cellIndex(Mth.floor(bx) + dx * CELL + 0.25, Mth.floor(bz) + dz * CELL + 0.25);
+                        if (cell < 0 || !Double.isNaN(floorY[cell])) {
+                            continue; // already somewhere to stand
+                        }
+                        floorY[cell] = n.y + 0.5; // a bottom slab at most, on the node's own level
+                        headroom[cell] = 3.0;
+                        placed[cell] = true;
+                    }
+                }
+            }
+        }
+
+        private int cellIndex(double x, double z) {
+            int i = (int) Math.floor((x - minX) / CELL);
+            int j = (int) Math.floor((z - minZ) / CELL);
+            return i < 0 || j < 0 || i >= w || j >= h ? -1 : i * h + j;
+        }
+
         @Override
         public double floorAt(double x, double z) {
-            // Every block column the 0.6-wide box covers has to hold it up; the feet rest on the highest of them.
-            int x0 = Mth.floor(x - HALF_WIDTH);
-            int x1 = Mth.floor(x + HALF_WIDTH);
-            int z0 = Mth.floor(z - HALF_WIDTH);
-            int z1 = Mth.floor(z + HALF_WIDTH);
+            // Every cell the 0.6-wide box covers has to hold it up; the feet rest on the highest of them.
             double best = Double.NaN;
-            for (int bx = x0; bx <= x1; bx++) {
-                for (int bz = z0; bz <= z1; bz++) {
-                    int i = bx - minX;
-                    int j = bz - minZ;
-                    if (i < 0 || j < 0 || i >= w || j >= h) {
+            for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
+                for (double sz = z - HALF_WIDTH; sz <= z + HALF_WIDTH + 1.0E-9; sz += CELL / 2) {
+                    int cell = cellIndex(sx, sz);
+                    if (cell < 0) {
                         return Double.NaN; // outside what was read: not somewhere to plan through
                     }
-                    double f = floorY[i * h + j];
+                    double f = floorY[cell];
                     if (Double.isNaN(f)) {
                         return Double.NaN;
                     }
@@ -652,59 +707,22 @@ final class Ap3RouteRunner {
 
         @Override
         public boolean bodyClear(double x, double z, double y) {
-            int x0 = Mth.floor(x - HALF_WIDTH);
-            int x1 = Mth.floor(x + HALF_WIDTH);
-            int z0 = Mth.floor(z - HALF_WIDTH);
-            int z1 = Mth.floor(z + HALF_WIDTH);
-            for (int bx = x0; bx <= x1; bx++) {
-                for (int bz = z0; bz <= z1; bz++) {
-                    int i = bx - minX;
-                    int j = bz - minZ;
-                    if (i < 0 || j < 0 || i >= w || j >= h) {
+            for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
+                for (double sz = z - HALF_WIDTH; sz <= z + HALF_WIDTH + 1.0E-9; sz += CELL / 2) {
+                    int cell = cellIndex(sx, sz);
+                    if (cell < 0) {
                         return false;
                     }
-                    double f = floorY[i * h + j];
+                    double f = floorY[cell];
                     if (Double.isNaN(f)) {
                         continue; // open space above a hole: nothing for the body to hit
                     }
-                    if (y < f - 1.0E-4 || y + BODY_HEIGHT > f + headroom[i * h + j] + 1.0E-4) {
+                    if (y < f - 1.0E-4 || y + BODY_HEIGHT > f + headroom[cell] + 1.0E-4) {
                         return false;
                     }
                 }
             }
             return true;
-        }
-
-        private void addBlockNodes(ClientLevel level, int feetY) {
-            Ap3Chain chain = Ap3Feature.currentChain();
-            if (chain == null) {
-                return;
-            }
-            for (Ap3Node n : chain.nodes()) {
-                if (n.type != Ap3Node.Type.BLOCK) {
-                    continue;
-                }
-                // Where the node aims: one block along its own facing, at the height its feet were placed at.
-                double rad = Math.toRadians(n.yaw);
-                int bx = Mth.floor(n.x - Math.sin(rad));
-                int bz = Mth.floor(n.z + Math.cos(rad));
-                int i = bx - minX;
-                int j = bz - minZ;
-                if (i < 0 || j < 0 || i >= w || j >= h || !Double.isNaN(floorY[i * h + j])) {
-                    continue; // already somewhere to stand: nothing for the Block node to add
-                }
-                floorY[i * h + j] = n.y + 0.5; // a bottom slab at most, on the node's own level
-                headroom[i * h + j] = 3.0;
-                placed[i * h + j] = true;
-            }
-        }
-
-        /** Does this block stop the body - counting anything Breaker Aura is going to remove as already gone? */
-        private static boolean blocksBody(ClientLevel level, BlockPos pos) {
-            if (level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
-                return false;
-            }
-            return !BreakerAuraFeature.plannerTreatsAsAir(level, pos);
         }
 
         @Override
@@ -713,31 +731,26 @@ final class Ap3RouteRunner {
         }
 
         @Override
+        public boolean clearAir(double x, double z) {
+            return true; // heights decide this now: see bodyClear
+        }
+
+        @Override
         public boolean placedFloorOnly(double x, double z) {
-            int x0 = Mth.floor(x - HALF_WIDTH);
-            int x1 = Mth.floor(x + HALF_WIDTH);
-            int z0 = Mth.floor(z - HALF_WIDTH);
-            int z1 = Mth.floor(z + HALF_WIDTH);
             boolean any = false;
-            for (int bx = x0; bx <= x1; bx++) {
-                for (int bz = z0; bz <= z1; bz++) {
-                    int i = bx - minX;
-                    int j = bz - minZ;
-                    if (i < 0 || j < 0 || i >= w || j >= h || Double.isNaN(floorY[i * h + j])) {
+            for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
+                for (double sz = z - HALF_WIDTH; sz <= z + HALF_WIDTH + 1.0E-9; sz += CELL / 2) {
+                    int cell = cellIndex(sx, sz);
+                    if (cell < 0 || Double.isNaN(floorY[cell])) {
                         continue;
                     }
-                    if (!placed[i * h + j]) {
+                    if (!placed[cell]) {
                         return false; // real ground under part of the box: that is what holds you up
                     }
                     any = true;
                 }
             }
             return any;
-        }
-
-        @Override
-        public boolean clearAir(double x, double z) {
-            return true; // heights decide this now: see bodyClear
         }
     }
 
