@@ -1,5 +1,6 @@
 package com.killer560.hub.leapmenu;
 
+import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.secrets.DungeonState;
@@ -36,6 +37,8 @@ public class LeapOrderScreen extends Screen {
     private DungeonClass editing = null;
     private int selectedSpot = -1;
     private boolean requestedPartyList = false;
+    /** The names the spot buttons were built for - a party change rebuilds them (auto-detects new members). */
+    private String builtFor = "";
 
     public LeapOrderScreen(Screen parent) {
         super(Component.literal("Leap Order"));
@@ -91,6 +94,59 @@ public class LeapOrderScreen extends Screen {
         }).bounds(cx + 4, by, 80, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(cx + 92, by, 80, 20).build());
+        addClassButtons();
+    }
+
+    /**
+     * Class Overrides, bundled into Leap Order (killer560, 2026-09-21: "I would like this to be bundled into the
+     * leaporder in a sense"): every spot with a player gets a button at the bottom of its box that cycles that
+     * player's mod-wide class override (None -> Mage -> Tank -> Healer -> Archer -> Berserker -> None), the same
+     * store the Class Overrides tab edits. Right-clicking a spot does the same when the boxes are too small for it.
+     */
+    private void addClassButtons() {
+        String[] layout = currentLayout();
+        builtFor = String.join(",", Arrays.asList(layout).stream().map(n -> n == null ? "" : n).toList());
+        for (int spot = 0; spot < 4; spot++) {
+            String name = layout[spot];
+            int[] b = spotBounds(spot);
+            if (name == null || b[3] < 34) {
+                continue;
+            }
+            addRenderableWidget(SettingsButtonWidget.builder(classButtonText(name), btn -> {
+                        cycleOverride(name);
+                        rebuild();
+                    }).bounds(b[0] + 4, b[1] + b[3] - 17, b[2] - 8, 14).build());
+        }
+    }
+
+    private static Component classButtonText(String name) {
+        DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
+        DungeonClass shown = override != null ? override : PartyTracker.classOf(name);
+        String cls = shown == null ? "\u00a77?" : com.killer560.hub.gui.tab.ClassOverridesTab.colourCode(shown) + shown.displayName();
+        return Component.literal("Class: " + cls + (override != null ? " \u00a78(override)" : ""));
+    }
+
+    private static void cycleOverride(String name) {
+        DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
+        DungeonClass next = com.killer560.hub.gui.tab.ClassOverridesTab.next(override);
+        if (next == null) {
+            ClassOverrides.clear(name);
+        } else {
+            ClassOverrides.set(name, next);
+        }
+        ClassOverrides.getInstance().save();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (editing == null) {
+            return;
+        }
+        String now = String.join(",", Arrays.asList(currentLayout()).stream().map(n -> n == null ? "" : n).toList());
+        if (!now.equals(builtFor)) {
+            rebuild(); // someone joined / left: new spot buttons
+        }
     }
 
     /** Outside a dungeon with no party known yet, ask Hypixel for the party list once so names show up. */
@@ -153,7 +209,9 @@ public class LeapOrderScreen extends Screen {
                     graphics.outline(b[0] + 1, b[1] + 1, b[2] - 2, b[3] - 2, 0xFFFFFFFF);
                 }
                 if (name != null) {
-                    graphics.centeredText(font, name, b[0] + b[2] / 2, b[1] + b[3] / 2 - 4, color);
+                    // Above the class button when the box has one.
+                    int textY = b[3] >= 34 ? b[1] + (b[3] - 17) / 2 - 4 : b[1] + b[3] / 2 - 4;
+                    graphics.centeredText(font, name, b[0] + b[2] / 2, textY, color);
                 }
             }
             if (!any) {
@@ -177,6 +235,13 @@ public class LeapOrderScreen extends Screen {
                 continue;
             }
             String[] layout = currentLayout();
+            if (event.button() == 1) {
+                if (layout[spot] != null) {
+                    cycleOverride(layout[spot]);
+                    rebuild();
+                }
+                return true;
+            }
             if (selectedSpot < 0) {
                 if (layout[spot] != null) {
                     selectedSpot = spot;
@@ -194,7 +259,7 @@ public class LeapOrderScreen extends Screen {
                 LeapMenuConfig cfg = LeapMenuConfig.getInstance();
                 cfg.setClassOrder(editing, slots);
                 cfg.save();
-                selectedSpot = -1;
+                rebuild(); // the class buttons follow the names
             }
             return true;
         }

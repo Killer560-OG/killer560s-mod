@@ -1452,6 +1452,7 @@ final class SettingTooltipsData {
         d.put("player stats", "HUD line with your health, mana and defense, read off the action bar.");
         d.put("profile viewer", "Opens any player's Skyblock profile in game (/pv <name>). This page is only the data source, API key, keybind and display options.");
         d.put("rng meter overlay", "Ranks the rewards in Hypixel's own RNG Meter menus by coins per meter point, using live Bazaar and auction prices.");
+        d.put("leap order class", "In the Leap Order editor each player's box has a Class button: it cycles that player's class override (None, Mage, Tank, Healer, Archer, Berserker) - the same overrides as the Class Overrides tab. Right-click a box does the same.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left. The box also saves as you type, so this is just a confirmation.");
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
         d.put("lever aura/range", "Maximum distance in blocks this feature reaches.");

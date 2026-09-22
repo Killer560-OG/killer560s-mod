@@ -58,6 +58,10 @@ public class ClassOverridesTab extends BaseTab {
         Map<String, DungeonClass> overrides = safeAll();
         List<String> party = partyNames();
 
+        // Auto-detect (killer560, 2026-09-21: "it doesn't auto detect new party members"): the list used to be read
+        // only when the tab was built. An invisible watcher, drawn only while this tab is on screen, rebuilds the tab
+        // (next tick, never mid-render) once the party changes.
+        w.add(new PartyWatcher(String.join(",", party), requestRebuild));
         buildPartySection(w, contentX, y, contentWidth, party, overrides, requestRebuild);
         buildOthersSection(w, contentX, y, contentWidth, party, overrides, requestRebuild);
         buildAddSection(w, contentX, y, contentWidth, requestRebuild);
@@ -239,7 +243,7 @@ public class ClassOverridesTab extends BaseTab {
     }
 
     /** None -> Mage -> Tank -> Healer -> Archer -> Berserker -> None (enum order), null meaning "no override". */
-    static DungeonClass next(DungeonClass current) {
+    public static DungeonClass next(DungeonClass current) {
         DungeonClass[] all = DungeonClass.values();
         if (current == null) {
             return all[0];
@@ -272,6 +276,37 @@ public class ClassOverridesTab extends BaseTab {
     /** "IGN §7-> §9Mage" for read-only listings (the AP3 tab). */
     public static String describeOverride(String ign, DungeonClass cls) {
         return "§f" + ign + " §7-> " + colourCode(cls) + (cls == null ? "?" : cls.displayName());
+    }
+
+    /** Zero-size widget that watches {@link #partyNames()} while the tab is visible. */
+    private static final class PartyWatcher extends net.minecraft.client.gui.components.AbstractWidget {
+        private final String builtFor;
+        private final Runnable rebuild;
+        private boolean fired;
+        private int frames;
+
+        PartyWatcher(String builtFor, Runnable rebuild) {
+            super(0, 0, 0, 0, Component.empty());
+            this.builtFor = builtFor;
+            this.rebuild = rebuild;
+            this.active = false;
+        }
+
+        @Override
+        protected void extractWidgetRenderState(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int mouseX,
+                                                int mouseY, float partialTick) {
+            if (fired || ++frames % 20 != 0) {
+                return;
+            }
+            if (!String.join(",", partyNames()).equals(builtFor)) {
+                fired = true;
+                Minecraft.getInstance().execute(rebuild);
+            }
+        }
+
+        @Override
+        protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput output) {
+        }
     }
 
     // ---- widget helpers ----
