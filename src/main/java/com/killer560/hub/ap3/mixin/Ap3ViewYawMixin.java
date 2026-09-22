@@ -37,8 +37,16 @@ public abstract class Ap3ViewYawMixin {
     /** Freeze State only: the free camera's pitch (the align/walk freeze never touches pitch). */
     @Inject(method = "getViewXRot", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$ap3FrozenPitch(float partialTick, CallbackInfoReturnable<Float> cir) {
-        if (Ap3FreezeState.isFrozen() && !((LocalPlayer) (Object) this).isPassenger()) {
+        if (((LocalPlayer) (Object) this).isPassenger()) {
+            return;
+        }
+        if (Ap3FreezeState.isFrozen()) {
             cir.setReturnValue(Ap3FreezeState.viewPitch());
+            return;
+        }
+        float pitch = Ap3Executor.frozenViewPitch(); // a Block node aiming the real pitch
+        if (!Float.isNaN(pitch)) {
+            cir.setReturnValue(pitch);
         }
     }
 }

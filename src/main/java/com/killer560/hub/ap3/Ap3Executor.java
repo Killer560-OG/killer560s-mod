@@ -210,7 +210,7 @@ public final class Ap3Executor {
     private static long tickCounter;
 
     /** GATE = waiting for the close modifier; the rest are the per-type phases. */
-    private enum Step { GATE, PREP, SWAP, DO, CONFIRM }
+    private enum Step { GATE, PREP, SWAP, AIM, DO, CONFIRM }
 
     // ---- the armed node set ----
     /** The nodes of the area you stand in, all armed; null between sections / outside the boss. */
@@ -359,6 +359,7 @@ public final class Ap3Executor {
         holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
+        endAim(Minecraft.getInstance().player);
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
         releaseKeys();
@@ -1423,6 +1424,21 @@ public final class Ap3Executor {
 
     /** The yaw the camera shows instead of the real yaw, or NaN when not frozen. */
     private static float viewYaw = Float.NaN;
+    /** ...and the pitch, only while a Block node has turned the real pitch; NaN otherwise. */
+    private static float viewPitch = Float.NaN;
+
+    public static float frozenViewPitch() {
+        return viewPitch;
+    }
+
+    /** A mouse pitch turn while a Block node holds the pitch: moves the view. False when not held. */
+    public static boolean onMousePitch(float deltaDegrees) {
+        if (Float.isNaN(viewPitch)) {
+            return false;
+        }
+        viewPitch = Mth.clamp(viewPitch + deltaDegrees, -90f, 90f);
+        return true;
+    }
     private static boolean viewMixinApplied;
 
     public static void onViewMixinApplied() {
@@ -1464,7 +1480,8 @@ public final class Ap3Executor {
             return;
         }
         boolean holding = freezeViewWanted() && (holdDir != null
-                || (activeNode != null && step == Step.DO && activeNode.type.isAlign()));
+                || (activeNode != null && step == Step.DO && activeNode.type.isAlign())
+                || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK || activeNode.type == Ap3Node.Type.BOOM)));
         if (!holding) {
             float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
             if (Math.abs(delta) <= ALIGN_YAW_STEP) {
@@ -2123,11 +2140,52 @@ public final class Ap3Executor {
     // It does not end a held walk (Type.keepsHold) and swaps back to the slot you had afterwards.
 
     private static int blockPrevSlot = -1;
+    private static float aimPrevPitch;
+    private static boolean aiming;
+
+    /**
+     * BLOCK and BOOM actually FACE what they use (killer560, 2026-09-21: "it looks like it is auraing the block place,
+     * it needs to actually face where it is going to place" / "make sure the same applies to boom"). beginAim
+     * remembers the pitch and starts the view freeze (yaw and pitch, so the screen does not move); aimAt snaps the
+     * real yaw (a delta on the live value, never wrapped) and pitch to the node's angle - the NEXT tick's movement
+     * packet carries that rotation, and the use goes out the tick after, so the server sees you looking at it;
+     * endAim puts the pitch back (where you moved the frozen view to, if you did). The yaw is left to the walk, which
+     * snaps it onto its own angle, or to the view freeze's glide back.
+     */
+    private static void beginAim(LocalPlayer player) {
+        aimPrevPitch = player.getXRot();
+        aiming = true;
+        if (freezeViewWanted()) {
+            if (Float.isNaN(viewYaw)) {
+                viewYaw = player.getYRot();
+            }
+            viewPitch = player.getXRot();
+        }
+    }
+
+    private static void aimAt(LocalPlayer player, Ap3Node node) {
+        float yaw = player.getYRot();
+        player.setYRot(yaw + Mth.wrapDegrees(node.yaw - yaw));
+        player.setXRot(Mth.clamp(node.pitch, -90f, 90f));
+        RouteRotation.rebase();
+    }
+
+    private static void endAim(LocalPlayer player) {
+        if (!aiming) {
+            return;
+        }
+        aiming = false;
+        if (player != null) {
+            player.setXRot(Float.isNaN(viewPitch) ? aimPrevPitch : viewPitch);
+        }
+        viewPitch = Float.NaN;
+    }
 
     private static void tickBlock(Minecraft client, LocalPlayer player, Ap3Node node) {
         switch (step) {
             case PREP -> {
                 blockPrevSlot = player.getInventory().getSelectedSlot();
+                beginAim(player);
                 step = Step.SWAP;
                 stepTicks = 0;
             }
@@ -2152,9 +2210,14 @@ public final class Ap3Executor {
                     return;
                 }
                 if (!swapSent || stepTicks >= 1) {
-                    step = Step.DO;
+                    step = Step.AIM;
                     stepTicks = 0;
                 }
+            }
+            case AIM -> {
+                aimAt(player, node);
+                step = Step.DO;
+                stepTicks = 0;
             }
             case DO -> {
                 Vec3 eye = player.getEyePosition();
@@ -2176,6 +2239,7 @@ public final class Ap3Executor {
                 stepTicks = 0;
             }
             case CONFIRM -> {
+                endAim(player);
                 // Back to what was held (one packet, next tick), then done - the walk never stopped.
                 if (blockPrevSlot >= 0 && blockPrevSlot != player.getInventory().getSelectedSlot()) {
                     if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
@@ -2226,6 +2290,7 @@ public final class Ap3Executor {
         switch (step) {
             case PREP -> {
                 boomChatConfirmed = false;
+                beginAim(player);
                 step = Step.SWAP;
                 stepTicks = 0;
             }
@@ -2252,9 +2317,14 @@ public final class Ap3Executor {
                     return;
                 }
                 if (!swapSent || stepTicks >= 2) { // the tick after a swap the server has seen it
-                    step = Step.DO;
+                    step = Step.AIM;
                     stepTicks = 0;
                 }
+            }
+            case AIM -> {
+                aimAt(player, node); // face it; the Superboom goes out next tick (see beginAim)
+                step = Step.DO;
+                stepTicks = 0;
             }
             case DO -> {
                 // killer560: "uses superboom exactly where you are looking, on that facing angle" - the ray is the
@@ -2272,6 +2342,7 @@ public final class Ap3Executor {
                     return;
                 }
                 boomTarget = b.getBlockPos();
+                endAim(player); // the swing is sent; look back where you were
                 boomBefore.clear();
                 // Snapshot a cube around the hit block, not just its 6 faces - a Superboom breaks a wider area.
                 for (int dx = -BOOM_SCAN_RADIUS; dx <= BOOM_SCAN_RADIUS; dx++) {

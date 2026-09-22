@@ -32,10 +32,13 @@ public abstract class Ap3MouseYawMixin {
     /** Freeze State: the pitch part of a mouse turn moves the free camera, not the frozen character. */
     @ModifyVariable(method = "turn", at = @At("HEAD"), argsOnly = true, ordinal = 1, require = 0)
     private double killer560smod$ap3MousePitch(double pitchDelta) {
-        if ((Object) this != Minecraft.getInstance().player || !Ap3FreezeState.isFrozen()) {
+        if ((Object) this != Minecraft.getInstance().player) {
             return pitchDelta;
         }
-        Ap3FreezeState.turnView(0f, (float) pitchDelta * 0.15f);
-        return 0.0;
+        if (Ap3FreezeState.isFrozen()) {
+            Ap3FreezeState.turnView(0f, (float) pitchDelta * 0.15f);
+            return 0.0;
+        }
+        return Ap3Executor.onMousePitch((float) pitchDelta * 0.15f) ? 0.0 : pitchDelta;
     }
 }
