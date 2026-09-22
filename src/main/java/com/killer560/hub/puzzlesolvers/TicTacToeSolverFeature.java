@@ -138,18 +138,62 @@ public final class TicTacToeSolverFeature {
             bestMove = best == null ? null : indexToPos(best, cr);
         } else if (TicTacToeSolverConfig.getInstance().isShowPrediction()) {
             bestMove = null;
-            Integer computer = getBestMove(board, false);
-            if (computer == null) {
-                predictedMove = null;
-            } else {
-                board[computer] = 'X';
-                Integer reply = getScore(board) == 0 ? getBestMove(board, true) : null;
-                predictedMove = reply == null ? null : indexToPos(reply, cr);
-            }
+            Integer safe = safePrediction(board);
+            predictedMove = safe == null ? null : indexToPos(safe, cr);
         } else {
             bestMove = null;
             predictedMove = null;
         }
+    }
+
+    /**
+     * The prediction, only when it is certain (killer560, 2026-09-21: "only as the prediction if it is 100% safe to
+     * click that square no matter what the bot will play ... so I should be able to spam click it"): a cell that is
+     * one of your best replies to EVERY move the computer could make next (best = the same outcome - win, draw or
+     * loss - as your best reply there). If the computer takes that cell itself your click on it simply does
+     * nothing, so it is still safe to spam. Null when no cell is safe against every move.
+     */
+    private static Integer safePrediction(char[] board) {
+        Integer found = null;
+        for (int s : MOVE_ORDER) {
+            if (board[s] != EMPTY) {
+                continue;
+            }
+            boolean safe = true;
+            boolean anyReply = false;
+            for (int c = 0; c < 9 && safe; c++) {
+                if (board[c] != EMPTY || c == s) {
+                    continue;
+                }
+                board[c] = 'X';
+                if (getScore(board) == 0) {
+                    anyReply = true;
+                    int best = Integer.MIN_VALUE;
+                    int mine = Integer.MIN_VALUE;
+                    for (int r = 0; r < 9; r++) {
+                        if (board[r] != EMPTY) {
+                            continue;
+                        }
+                        board[r] = 'O';
+                        int outcome = Integer.signum(alphaBeta(board, 0, -1000, 1000, false));
+                        board[r] = EMPTY;
+                        best = Math.max(best, outcome);
+                        if (r == s) {
+                            mine = outcome;
+                        }
+                    }
+                    safe = mine == best;
+                } else {
+                    safe = false; // the computer could win outright instead - nothing is safe then
+                }
+                board[c] = EMPTY;
+            }
+            if (safe && anyReply) {
+                found = s;
+                break;
+            }
+        }
+        return found;
     }
 
     private static BlockPos indexToPos(int i, int[] cr) {
@@ -216,6 +260,35 @@ public final class TicTacToeSolverFeature {
         return best;
     }
 
+    /** Only the clickable thing, like Simon Says (killer560, 2026-09-21: "for tictactoe I only want the button
+     *  highlighted so follow the same logic used for simon says"): a button there -> its real shape; else the item
+     *  frame on that cell -> the frame's own thin box; never the whole block. Fill or outline per the setting. */
+    private static void drawCell(LevelRenderContext context, BlockPos pos, float r, float g, float b, float thickness) {
+        Minecraft client = Minecraft.getInstance();
+        AABB box = null;
+        if (client.level != null) {
+            var shape = client.level.getBlockState(pos).getShape(client.level, pos);
+            if (!shape.isEmpty()) {
+                box = shape.bounds().move(pos);
+            } else {
+                for (ItemFrame frame : client.level.getEntitiesOfClass(ItemFrame.class, new AABB(pos))) {
+                    if (frame.blockPosition().equals(pos)) {
+                        box = frame.getBoundingBox();
+                        break;
+                    }
+                }
+            }
+        }
+        if (box == null) {
+            box = new AABB(pos);
+        }
+        if (TicTacToeSolverConfig.getInstance().isFill()) {
+            SolverEspRender.renderFilledBox(context, box, r, g, b, 0.5f);
+        } else {
+            SolverEspRender.renderOutlineBox(context, box, r, g, b, 0.9f, thickness);
+        }
+    }
+
     private static int getScore(char[] board) {
         for (int i = 0; i < WIN_SETS.length; i += 3) {
             char c = board[WIN_SETS[i]];
@@ -232,11 +305,11 @@ public final class TicTacToeSolverFeature {
         }
         BlockPos best = bestMove;
         if (best != null) {
-            SolverEspRender.renderOutlineBox(context, new AABB(best), 0.33f, 1.0f, 0.33f, 0.9f, 3f);
+            drawCell(context, best, 0.33f, 1.0f, 0.33f, 3f);
         }
         BlockPos predicted = predictedMove;
         if (predicted != null && TicTacToeSolverConfig.getInstance().isShowPrediction()) {
-            SolverEspRender.renderOutlineBox(context, new AABB(predicted), 1.0f, 1.0f, 0.33f, 0.9f, 2f);
+            drawCell(context, predicted, 1.0f, 1.0f, 0.33f, 2f);
         }
     }
 

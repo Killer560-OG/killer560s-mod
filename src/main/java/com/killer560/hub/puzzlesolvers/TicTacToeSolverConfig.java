@@ -22,6 +22,8 @@ public final class TicTacToeSolverConfig {
 
     private boolean enabled = false;
     private boolean showPrediction = false;
+    /** Highlight style (killer560, 2026-09-21: "make an option again for fill or outline"). */
+    private boolean fill = false;
 
     private TicTacToeSolverConfig() {
     }
@@ -43,6 +45,7 @@ public final class TicTacToeSolverConfig {
             TicTacToeSolverConfig cfg = new TicTacToeSolverConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showPrediction = ConfigJson.getBool(obj, "showPrediction", false);
+            cfg.fill = ConfigJson.getBool(obj, "fill", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new TicTacToeSolverConfig();
@@ -55,6 +58,7 @@ public final class TicTacToeSolverConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showPrediction", showPrediction);
+            obj.addProperty("fill", fill);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -66,6 +70,14 @@ public final class TicTacToeSolverConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isFill() {
+        return fill;
+    }
+
+    public void setFill(boolean fill) {
+        this.fill = fill;
     }
 
     public boolean isShowPrediction() {

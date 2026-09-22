@@ -1111,7 +1111,8 @@ final class SettingTooltipsData {
 
         // ---- small solvers ----
         d.put("tic tac toe solver", "Tic Tac Toe dungeon puzzle: reads the board and outlines the best square in green on your turn, so you can't lose. Never clicks for you.");
-        d.put("show prediction", "While the computer is taking its turn, also outlines in yellow where you will most likely need to play next. Off by default.");
+        d.put("show prediction", "While the computer is taking its turn, outlines in yellow a square that is safe to click whatever the computer plays - only shown when such a square exists, so you can spam-click it. Off by default.");
+        d.put("highlight style", "How the Tic Tac Toe square to click is drawn: Outline or Fill. Only the clickable part (the button, or the item frame) is highlighted, never the whole block.");
         d.put("ice path solver", "Draws the shortest silverfish push path to the exit in green. Never hits the silverfish for you.");
         d.put("outline next stop", "Outlines the next stop on the ice path in red so you can see where the silverfish should end up.");
         d.put("teleport maze solver", "For the Teleport Maze puzzle room. Colours the pads: red = already used, green = the exit, gold = still possible exits (worked out from the direction each teleport faces you), white = unknown. Never moves you.");
