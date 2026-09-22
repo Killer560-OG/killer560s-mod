@@ -54,11 +54,13 @@ final class Ap3RouteMath {
     /** Holding jump adds vanilla's in-fluid nudge on top. */
     static final double LAVA_BOUNCE_JUMP = 0.04;
     /**
-     * The pitch at which the "looking up" bonus kicks in. NOT PINNED YET: measured big at -72.5 and -82.1 degrees,
-     * measured small at -13.8 and everything below it, so the step is somewhere in between and this is the midpoint.
-     * Re-measure with bounces at -20 / -35 / -50 / -65 at one spot and set this to where it flips.
+     * The pitch at which the "looking up" bonus kicks in - a step, not a slope. Pinned by a 60-bounce sweep on
+     * 2026-09-22: every bounce at -40.4 degrees and higher up gave the big impulse, every one at -30.0 and below it
+     * gave the small one, with nothing else mattering. So the step is in (-40.4, -30.0) and this is the midpoint; the
+     * server is probably testing the look vector's y against 0.6 (-36.87 degrees). Operationally it does not matter
+     * much: when AP3 wants the big bounce it looks far past this, not at the edge of it.
      */
-    static final double LAVA_LOOK_UP_PITCH = -45.0;
+    static final double LAVA_LOOK_UP_PITCH = -35.0;
     /** What the launch tick keeps: lava's own drag, then the tick's gravity. */
     static final double LAVA_EXIT_DRAG = 0.8;
     static final double LAVA_EXIT_DROP = 0.025;
