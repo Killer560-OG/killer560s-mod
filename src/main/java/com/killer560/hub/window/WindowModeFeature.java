@@ -107,7 +107,9 @@ public final class WindowModeFeature {
             // stale windowed bounds and undoing the borderless geometry applied below. Flushing that
             // deferred sync here (it is a no-op once the two flags agree) keeps it from clobbering us.
             window.updateFullscreenIfChanged();
-        } else if (!fromStartup || !cfg.hasSavedWindowedBounds()) {
+        } else if ((!fromStartup || !cfg.hasSavedWindowedBounds()) && !coversMonitor(window, window.getWidth(), window.getHeight())) {
+            // A window that already fills the monitor (maximised, or the launcher's full-size window) is not a
+            // windowed size worth coming back to - leaving borderless would just give the same size again.
             cfg.saveWindowedBounds(window.getX(), window.getY(), window.getWidth(), window.getHeight());
             cfg.save();
         }
@@ -135,11 +137,35 @@ public final class WindowModeFeature {
         int y = cfg.hasSavedWindowedBounds() ? cfg.getSavedWindowedY() : 100;
         int width = cfg.hasSavedWindowedBounds() ? cfg.getSavedWindowedWidth() : 854;
         int height = cfg.hasSavedWindowedBounds() ? cfg.getSavedWindowedHeight() : 480;
+        // killer560 (2026-09-21): "the first time I press f11 to exit out of the borderless fullscreen, the window
+        // is still the same size just windowed. It would be nice if it was back to that original smaller size."
+        // Nothing smaller was ever saved (or an old build saved the full-monitor size): come back as a normal
+        // window - 60% of the monitor's width, 16:9, centred. Once he resizes it, that size is saved next time.
+        Monitor monitor = window.findBestMonitor();
+        if (monitor != null && (!cfg.hasSavedWindowedBounds() || coversMonitor(window, width, height))) {
+            VideoMode mode = monitor.getCurrentMode();
+            width = Math.max(854, Math.round(mode.getWidth() * 0.6f));
+            height = Math.max(480, width * 9 / 16);
+            x = monitor.getX() + (mode.getWidth() - width) / 2;
+            y = monitor.getY() + (mode.getHeight() - height) / 2;
+            cfg.saveWindowedBounds(x, y, width, height);
+            cfg.save();
+        }
 
         GLFW.glfwSetWindowAttrib(window.handle(), GLFW.GLFW_DECORATED, GLFW.GLFW_TRUE);
         GLFW.glfwSetWindowMonitor(window.handle(), 0L, x, y, width, height, GLFW.GLFW_DONT_CARE);
         reapplyCursorState(client);
         LOGGER.info("Borderless OFF: window {}x{} at {},{}", width, height, x, y);
+    }
+
+    /** Whether a {@code w x h} window is (nearly) the whole monitor it is on - 95% or more both ways. */
+    private static boolean coversMonitor(Window window, int w, int h) {
+        Monitor monitor = window.findBestMonitor();
+        if (monitor == null) {
+            return false;
+        }
+        VideoMode mode = monitor.getCurrentMode();
+        return w >= mode.getWidth() * 0.95 && h >= mode.getHeight() * 0.95;
     }
 
     /** The window rect to use for borderless on the monitor {@code (mx, my, mw, mh)}: the monitor itself

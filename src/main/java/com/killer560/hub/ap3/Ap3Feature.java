@@ -624,8 +624,13 @@ public final class Ap3Feature {
         lastAddedChain = chain;
         store.save();
         suppressAutoArm(); // you are standing on the node you just placed - it must not fire until you re-enter
-        chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.describe()),
-                ModChat.dim(" to " + chain.label()));
+        switch (Ap3Config.getInstance().getMessageDetail()) {
+            case DETAILED -> chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.describe()),
+                    ModChat.dim(" to " + chain.label()));
+            case SIMPLE -> chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.type.label()));
+            default -> {
+            }
+        }
         return true;
     }
 

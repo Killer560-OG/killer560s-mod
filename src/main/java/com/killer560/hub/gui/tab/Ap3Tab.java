@@ -109,23 +109,35 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
             return w;
         }
 
-        // killer560 (2026-09-21): "Change chains file to be called something like choose ap3 config and move it
-        // right below the main toggle ... keep the reload button and the open folder button."
-        w.add(SettingsButtonWidget.builder(Component.literal("Choose AP3 Config: §6" + cfg.getChainsFile()), btn -> {
+        // Reorganised 2026-09-21 (killer560: "go through and reorganize the menu"): config file, then the controls
+        // you reach for while testing, then how it moves, how it talks, how nodes look, and the collapsibles last.
+        // The "AP3 status:" line is gone (killer560: "remove the ap3 status: line").
+        w.add(SettingsButtonWidget.builder(Component.literal("Choose AP3 Config: \u00a76" + cfg.getChainsFile()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     client.setScreen(new Ap3ConfigScreen(client.screen));
-                }).bounds(contentX, y[0], BTN_W, 20).build());
+                }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
         w.add(SettingsButtonWidget.builder(Component.literal("Open AP3 Folder"), btn -> openFolder())
                 .bounds(contentX, y[0], half, 20).build());
         w.add(SettingsButtonWidget.builder(Component.literal("Reload AP3 Chains"), btn -> {
                     Action.RELOAD.run();
                     requestRebuild.run();
-                }).bounds(contentX + half + GAP, y[0], half, 20).build());
+                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
         y[0] += 24;
 
-        // killer560 (2026-09-21): "add a force dungeon tab to the ap3 so I can config outside of dungeons to test if
-        // I want to." Session only (Ap3Feature, not the config): off on every launch and world change.
+        header(w, contentX, y, contentWidth, "Controls");
+        // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
+        w.add(SettingsButtonWidget.builder(Component.literal("\u00a7cStop AP3"), btn -> {
+                    Action.STOP.run();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
+                    Action.TEST_MODE.run();
+                    requestRebuild.run();
+                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
+        y[0] += 24;
+        // "add a force dungeon tab to the ap3 so I can config outside of dungeons" - session only (Ap3Feature, not
+        // the config): off on every launch and world change.
         boolean forced = safe(Ap3Feature::isForceDungeon);
         w.add(SettingsButtonWidget.builder(onOff("Force Dungeon", forced), btn -> {
                     Ap3Feature.setForceDungeon(!Ap3Feature.isForceDungeon());
@@ -139,40 +151,32 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         }
         y[0] += 24;
 
-        label(w, contentX, y, contentWidth, statusLine());
-        // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
-        // Test Mode is the dry-run toggle. (These lived in the removed chain section; they are not chain-specific.)
-        w.add(SettingsButtonWidget.builder(Component.literal("§cStop AP3"), btn -> {
-                    Action.STOP.run();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
-                    Action.TEST_MODE.run();
-                    requestRebuild.run();
-                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
-        y[0] += 24;
-
         header(w, contentX, y, contentWidth, "Movement");
-        // killer560 (2026-09-21): "there should only be a 45 degree strafe toggle, and a chat feedback." The old
-        // 45-degree Walk Angle and Server Strafe Angle are one toggle now (Ap3Config#isStrafe45).
-        toggle(w, contentX, y, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45, null);
-        toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
+        toggleCell(w, contentX, y[0], half, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45);
+        toggleCell(w, contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), "Freeze View (Freecam)",
+                cfg::isAlignFreezeView, cfg::setAlignFreezeView);
+        y[0] += ROW + GAP;
 
-        // Aligns are input-only (no position writes - Hypixel lags those back) and land exactly; this is how far off,
-        // per axis, still counts as landed (0.0005 = the exact 3-decimal coordinate).
-        header(w, contentX, y, contentWidth, "Align");
-        toggle(w, contentX, y, "Freeze View (Freecam)", cfg::isAlignFreezeView, cfg::setAlignFreezeView, null);
+        header(w, contentX, y, contentWidth, "Chat");
+        toggleCell(w, contentX, y[0], half, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
+        w.add(SettingsButtonWidget.builder(messageDetailText(cfg), btn -> {
+                    cfg.setMessageDetail(cfg.getMessageDetail().next());
+                    cfg.save();
+                    btn.setMessage(messageDetailText(cfg));
+                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), ROW).build());
+        y[0] += ROW + GAP;
+
+        header(w, contentX, y, contentWidth, "Nodes");
         w.add(SettingsButtonWidget.builder(defaultSizeText(cfg), btn -> {
                     cfg.setDefaultNodeSize(cfg.getDefaultNodeSize() >= 1.0 ? 0.5 : 1.0);
                     cfg.save();
                     btn.setMessage(defaultSizeText(cfg));
-                }).bounds(contentX, y[0], BTN_W, 20).build());
-        y[0] += 24;
-
+                }).bounds(contentX, y[0], half, ROW).build());
+        toggleCell(w, contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), "Stopwatch HUD",
+                cfg::isStopwatchHud, cfg::setStopwatchHud);
+        y[0] += ROW + GAP;
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
-        header(w, contentX, y, contentWidth, "Stopwatch");
-        toggle(w, contentX, y, "Stopwatch HUD", cfg::isStopwatchHud, cfg::setStopwatchHud, null);
         if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
             // Compiled out of official releases (build.gradle -Prelease=true): this whole block does not exist there.
             header(w, contentX, y, contentWidth, "Dev Tools");
@@ -311,45 +315,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     // ---- text helpers ----
 
-    /** Which gate is closed, or what's happening - BOSS ONLY is the rule that most needs to be visible. */
-    private static String statusLine() {
-        if (!safe(Floor7Tracker::inF7Boss) && !safe(Ap3Feature::isForceDungeon)) {
-            return "§7AP3 status: not in the F7/M7 boss - nothing arms in clear.";
-        }
-        if (!safe(Ap3Commands::inBoss)) {
-            return "§eAP3 status: in boss, phase not known yet.";
-        }
-        String where;
-        try {
-            Ap3Area area = Ap3Feature.currentArea();
-            where = area != null ? area.longLabel() : Ap3Feature.currentPhase().name() + " (not inside a section)";
-        } catch (Exception e) {
-            where = "?";
-        }
-        // "(p3sim)" so it's visible the gate opened from the sim's own Maxor line / your position, not Goldor's line.
-        if (safe(Floor7Tracker::isOnP3Sim)) {
-            where += " (p3sim)";
-        }
-        if (safe(Ap3Feature::isForcedOnly)) {
-            where += " §d(FORCED)§a";
-        }
-        String test = safe(Ap3Executor::isTestMode) ? " §e[test mode]" : "";
-        if (safe(Ap3Executor::isRunning)) {
-            int queued = 0;
-            try {
-                queued = Ap3Executor.queuedCount();
-            } catch (Exception ignored) {
-            }
-            return "§aAP3 status: " + where + " - busy" + (queued > 0 ? ", " + queued + " node(s) queued" : "") + "." + test;
-        }
-        int armed = 0;
-        try {
-            armed = Ap3Feature.currentChainNodes().size();
-        } catch (Exception ignored) {
-        }
-        return "§aAP3 status: " + where + " - " + armed + " node(s) armed, walk into any to fire it." + test;
-    }
-
     private static Component forcedAreaText() {
         String area;
         try {
@@ -370,6 +335,10 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static Component labelColorModeText(Ap3Config cfg) {
         return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
+    }
+
+    private static Component messageDetailText(Ap3Config cfg) {
+        return Component.literal("Node Messages: \u00a76" + cfg.getMessageDetail().label);
     }
 
     private static Component defaultSizeText(Ap3Config cfg) {

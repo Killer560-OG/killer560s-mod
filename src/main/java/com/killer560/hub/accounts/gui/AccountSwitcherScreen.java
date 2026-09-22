@@ -54,6 +54,9 @@ public class AccountSwitcherScreen extends Screen {
     private SettingsButtonWidget universalButton;
     /** Util.getMillis() until which the Universal button shows "Set Instance Proxy first"; 0 = no hint. */
     private long universalHintUntil;
+    /** Pixels the account list is scrolled down (killer560, 2026-09-21: "make the swap accounts page scrollable"). */
+    private int scroll;
+    private int maxScroll;
 
     public AccountSwitcherScreen(Screen parent) {
         super(Component.literal("Swap Accounts"));
@@ -94,9 +97,20 @@ public class AccountSwitcherScreen extends Screen {
                     Component.literal(this.statusMessage), this.font));
         }
 
+        // The list gets the space above the four footer buttons; beyond that it scrolls with the mouse wheel, and
+        // rows scrolled out of that band are simply not added (no overlap with the title or the footer).
+        int footerHeight = 4 * 26 + 12;
+        int listBottom = Math.max(startY + rowHeight, this.height - footerHeight - 8);
+        int visibleRows = Math.max(1, (listBottom - startY) / rowHeight);
+        this.maxScroll = Math.max(0, (this.accounts.size() - visibleRows) * rowHeight);
+        this.scroll = Math.max(0, Math.min(this.maxScroll, this.scroll));
         int i = 0;
         for (PrismAccount account : this.accounts) {
-            int y = startY + i * rowHeight;
+            int y = startY + i * rowHeight - this.scroll;
+            if (y < startY || y + 20 > listBottom) {
+                i++;
+                continue;
+            }
 
             SettingsButtonWidget button = SettingsButtonWidget.builder(Component.literal(account.displayName()), btn -> onAccountSelected(account))
                     .bounds(startX, y, buttonWidth, 20)
@@ -122,7 +136,7 @@ public class AccountSwitcherScreen extends Screen {
             i++;
         }
 
-        int belowListY = startY + Math.max(i, 1) * rowHeight + 12;
+        int belowListY = Math.min(startY + Math.max(i, 1) * rowHeight, listBottom) + 12;
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> onBack())
                 .bounds(this.width / 2 - buttonWidth / 2, belowListY, buttonWidth, 20)
                 .build());
@@ -148,6 +162,19 @@ public class AccountSwitcherScreen extends Screen {
                 .bounds(this.width / 2 - buttonWidth / 2, proxyY + 26, buttonWidth, 20)
                 .build();
         this.addRenderableWidget(this.universalButton);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (this.maxScroll > 0 && scrollY != 0) {
+            int next = Math.max(0, Math.min(this.maxScroll, this.scroll - (int) Math.signum(scrollY) * 22));
+            if (next != this.scroll) {
+                this.scroll = next;
+                this.rebuildWidgets();
+            }
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     /** ON -> OFF disables the shared universal file; OFF -> ON publishes this instance's proxy into it. With no

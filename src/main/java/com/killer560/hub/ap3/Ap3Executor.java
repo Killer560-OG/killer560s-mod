@@ -852,7 +852,8 @@ public final class Ap3Executor {
             String behind = activeNode != null ? "behind #" + number(activeNode) + " " + activeNode.type.label()
                     : waitUntilMs > 0L ? "behind a wait" : "(" + queue.size() + " waiting)";
             LOGGER.info("[AP3] Queued #{} {} {}", number(node), node.type.label(), behind);
-            if (Ap3Config.getInstance().isChatFeedback()) {
+            if (Ap3Config.getInstance().isChatFeedback()
+                    && Ap3Config.getInstance().getMessageDetail() == Ap3Config.MessageDetail.DETAILED) {
                 chat(ModChat.dim("Queued "), ModChat.value("#" + number(node) + " " + node.type.label()), ModChat.dim(" " + behind));
             }
         }

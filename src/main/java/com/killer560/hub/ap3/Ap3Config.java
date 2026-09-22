@@ -127,6 +127,24 @@ public final class Ap3Config {
 
     private boolean enabled = false;
     private boolean chatFeedback = true;
+    /** How much the chat says when a node is added (and whether "Queued ..." lines show) - killer560, 2026-09-21:
+     *  "by default it should just be added 1 align ... Detailed should be as it is now. If it is in detailed then
+     *  show the queued as well. Otherwise hide it. Also have an option to show none." */
+    private MessageDetail messageDetail = MessageDetail.SIMPLE;
+
+    public enum MessageDetail {
+        NONE("None"), SIMPLE("Simple"), DETAILED("Detailed");
+
+        public final String label;
+
+        MessageDetail(String label) {
+            this.label = label;
+        }
+
+        public MessageDetail next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
     /**
      * killer560 (2026-09-21): "there should only be a 45 degree strafe toggle" - the old "45 degree Walk Angle"
      * (the 1.00 W+A speed) and "Server Strafe Angle" (the server-side yaw at the strafe angle) rolled into one.
@@ -245,6 +263,7 @@ public final class Ap3Config {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+                cfg.messageDetail = ConfigJson.getEnum(o, "messageDetail", MessageDetail.class, cfg.messageDetail);
                 // Migration (2026-09-21): a file from before the merge has "diagonalWalk" / "serverStrafeAngle"
                 // and no "strafe45" - either of those on means the merged toggle is on.
                 boolean legacyStrafe = ConfigJson.getBool(o, "diagonalWalk", false)
@@ -309,6 +328,7 @@ public final class Ap3Config {
             JsonObject o = new JsonObject();
             o.addProperty("enabled", enabled);
             o.addProperty("chatFeedback", chatFeedback);
+            o.addProperty("messageDetail", messageDetail.name());
             o.addProperty("strafe45", strafe45);
             o.addProperty("alignTimerDev", alignTimerDev);
             o.addProperty("editClassFilter", editClassFilter == null ? "" : editClassFilter.name());
@@ -365,6 +385,8 @@ public final class Ap3Config {
     public void setEnabled(boolean v) { enabled = v; }
 
     public boolean isChatFeedback() { return chatFeedback; }
+    public MessageDetail getMessageDetail() { return messageDetail; }
+    public void setMessageDetail(MessageDetail d) { messageDetail = d == null ? MessageDetail.SIMPLE : d; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }
 
     /** See the field doc. Only ever acted on inside {@link #isEnabled()}'s gate (the executor is never ticked
