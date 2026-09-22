@@ -549,6 +549,8 @@ final class Ap3RouteRunner {
         s.onGround = player.onGround();
         s.sprinting = player.isSprinting();
         s.crouching = player.isShiftKeyDown();
+        // Whatever the last tick's move ran into decides whether this one can sprint at all.
+        s.sprintBlocked = player.horizontalCollision && !player.minorHorizontalCollision;
         s.yaw = player.getYRot();
         return s;
     }

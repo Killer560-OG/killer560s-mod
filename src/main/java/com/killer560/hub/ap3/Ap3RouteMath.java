@@ -129,7 +129,12 @@ final class Ap3RouteMath {
         double vz = Math.abs(s.vz) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vz;
         double vy = Math.abs(s.vy) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vy;
         boolean onGround = s.onGround;
-        boolean sprintNow = a.fw() > 0 && (s.sprinting || (m.sprintKeyHeld && !a.sneak() && !s.crouching));
+        // LocalPlayer.aiStep does the sprint key FIRST and the stop check SECOND, so holding sprint does not save
+        // you: the key re-arms it and shouldStopRunSprinting kills it again on the same tick. That is why
+        // sprintBlocked has to sit outside sprintKeyHeld - the route holds sprint on every forward tick and still
+        // loses it to a riser.
+        boolean sprintNow = a.fw() > 0 && !s.sprintBlocked
+                && (s.sprinting || (m.sprintKeyHeld && !a.sneak() && !s.crouching));
         float rad = yaw * Ap3AlignMath.DEG_TO_RAD;
         double cos = m.trig.cos(rad);
         double sin = m.trig.sin(rad);
@@ -187,12 +192,13 @@ final class Ap3RouteMath {
 
         s.onGround = r.onGround;
         s.airTicks = r.onGround ? 0 : s.airTicks + 1;
-        // LocalPlayer.shouldStopRunSprinting: a horizontal collision that is not MINOR drops the sprint, and since
-        // aiStep reads the flag the move set last tick, the loss lands on the tick after the bump. This is most of
-        // what a staircase does to you - every riser deflects the move well off the keys you are holding, so the
-        // push after it is worth 1/1.3 of what it was. Without it the plan expects a sprint it has not got and the
-        // route drifts within three ticks of touching the stairs (killer560's log, 2026-09-22).
-        s.sprinting = sprintNow && !((r.hitX || r.hitZ) && !isCollisionMinor(inX, inZ, r.dx, r.dz));
+        // LocalPlayer.shouldStopRunSprinting: a horizontal collision that is not MINOR drops the sprint, and aiStep
+        // reads the flag the move set LAST tick, so the loss lands on the tick after the bump. This is most of what
+        // a staircase does to you - every riser deflects the move well off the keys you are holding, so the push
+        // after it is worth 1/1.3 of what it was. Without it the plan expects a sprint it has not got and the route
+        // drifts within three ticks of touching the stairs (killer560's log, 2026-09-22).
+        s.sprintBlocked = (r.hitX || r.hitZ) && !isCollisionMinor(inX, inZ, r.dx, r.dz);
+        s.sprinting = sprintNow;
         s.crouching = a.sneak();
         s.yaw = yaw;
     }
@@ -229,6 +235,8 @@ final class Ap3RouteMath {
         boolean sprinting;
         /** Sneak lands a tick late: this is the PREVIOUS tick's sneak key. */
         boolean crouching;
+        /** The last move hit something hard enough to cost the sprint, so this tick cannot sprint whatever is held. */
+        boolean sprintBlocked;
         int airTicks;
         float yaw;
 
@@ -243,6 +251,7 @@ final class Ap3RouteMath {
             c.onGround = onGround;
             c.sprinting = sprinting;
             c.crouching = crouching;
+            c.sprintBlocked = sprintBlocked;
             c.airTicks = airTicks;
             c.yaw = yaw;
             return c;
