@@ -28,6 +28,65 @@ final class Ap3RouteMath {
     /** {@code LivingEntity.travelInAir}: the horizontal multiplier with no block under you. */
     static final double AIR_DRAG = 0.91;
 
+    // ---- lava bounce (measured, not guessed) -----------------------------------------------------------------
+    // From killer560's own /lavalab runs, 2026-09-22 (two sessions, 30 bounces). Landing in lava launches you with a
+    // single upward impulse, and everything after it is ordinary air flight - the recorded velocities follow
+    // (vy - 0.08) * 0.98 to five decimals. The impulse itself is quantised, not a curve:
+    //     impulse = 2.25 * (looking up ? 1.35 : 1) + (jump held ? 0.04 : 0)      [blocks on the launch tick]
+    //     the velocity left after that tick = impulse * 0.8 - 0.025             [lava drag, then normal air]
+    // which reproduces every measured bounce exactly: 1.775 / 1.807 / 2.405 / 2.437. Peaks: about 18.5 blocks
+    // (flat), 19.2 (jump held), 30.5-31 (looking up). A bounce against a wall gives only 0.30 - killer560: "the ones
+    // where it didn't bounce very high (the really low ones) I ran up against a wall" - so a wall kills it.
+
+    /**
+     * How long after touching lava the launch lands, nominally. killer560 (2026-09-22): "sometimes when you enter
+     * lava the server lags a hair and you can spend more time in it. It will apply the bounce no matter what,
+     * sometimes it's just because of lag in the lava." So the bounce is CERTAIN and only its timing wanders (2-5
+     * ticks in his recordings, occasionally much longer): a route plans on this figure and the runner re-plans from
+     * the real launch when it actually happens.
+     */
+    static final int LAVA_BOUNCE_DELAY = 3;
+
+    /** The impulse a lava bounce gives, in blocks of rise on the launch tick. */
+    static final double LAVA_BOUNCE = 2.25;
+    /** Looking up multiplies it - killer560: "You go higher looking up". */
+    static final double LAVA_BOUNCE_LOOK_UP = 1.35;
+    /** Holding jump adds vanilla's in-fluid nudge on top. */
+    static final double LAVA_BOUNCE_JUMP = 0.04;
+    /**
+     * The pitch at which the "looking up" bonus kicks in. NOT PINNED YET: measured big at -72.5 and -82.1 degrees,
+     * measured small at -13.8 and everything below it, so the step is somewhere in between and this is the midpoint.
+     * Re-measure with bounces at -20 / -35 / -50 / -65 at one spot and set this to where it flips.
+     */
+    static final double LAVA_LOOK_UP_PITCH = -45.0;
+    /** What the launch tick keeps: lava's own drag, then the tick's gravity. */
+    static final double LAVA_EXIT_DRAG = 0.8;
+    static final double LAVA_EXIT_DROP = 0.025;
+
+    /** The launch impulse for this look and this key, in blocks of rise on the launch tick. */
+    static double lavaBounceImpulse(float pitch, boolean jumpHeld) {
+        double impulse = LAVA_BOUNCE * (pitch <= LAVA_LOOK_UP_PITCH ? LAVA_BOUNCE_LOOK_UP : 1.0);
+        return impulse + (jumpHeld ? LAVA_BOUNCE_JUMP : 0.0);
+    }
+
+    /** The upward velocity left once the launch tick is over - after that it is ordinary air flight. */
+    static double lavaBounceExitVy(double impulse) {
+        return impulse * LAVA_EXIT_DRAG - LAVA_EXIT_DROP;
+    }
+
+    /** How high a bounce carries you above the lava, and how many ticks it takes to get there. */
+    static double[] lavaBounceApex(double exitVy, double impulse) {
+        double y = impulse; // the launch tick's own rise
+        double vy = exitVy;
+        int ticks = 1;
+        while (vy > 0) {
+            y += vy;
+            vy = (vy - GRAVITY) * VERTICAL_DRAG;
+            ticks++;
+        }
+        return new double[]{y, ticks};
+    }
+
     /** One tick of the route model, in place. Ground ticks are exactly {@link Ap3DiscretePlanner#step}'s arithmetic. */
     static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, Ap3DiscretePlanner.Model m) {
         // aiStep zeroes a horizontal axis under 0.003 before anything else.
