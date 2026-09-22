@@ -1137,6 +1137,7 @@ public final class Ap3Executor {
         Vec3 vel = player.getDeltaMovement();
         boolean still = Ap3AlignMath.horizontalZeroed(vel.x, vel.z);
         alignObserve(player);
+        observePush(player);
         if (keysBestEffort && still) {
             // Keys + Sneak could not get inside the tolerance and nothing in its search gets closer: done as it is.
             clearMovement();
@@ -1196,7 +1197,7 @@ public final class Ap3Executor {
         s.ez = ez;
         s.vx = vel.x;
         s.vz = vel.z;
-        s.sprinting = player.isSprinting();
+        s.sprinting = sprintLikely(player);
         s.crouching = lastSneakSent;
         s.sentYaw = player.getYRot();
         Ap3FastAlign.Result r = Ap3FastAlign.solve(s, m, alignTolerance);
@@ -1222,6 +1223,7 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m);
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
         return true;
     }
@@ -1569,7 +1571,10 @@ public final class Ap3Executor {
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
         Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
         double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-        m.baseSpeedAttr = player.isSprinting() ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr;
+        // pushScale: what the last ticks actually did, divided by what the model said they would (see observePush).
+        // It absorbs anything the model cannot see - his own sprint key re-arming sprint mid-align, a speed change,
+        // a different floor - so the plan is built on the push the game IS giving rather than the one it should.
+        m.baseSpeedAttr = (player.isSprinting() ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr) * pushScale;
         m.blockFriction = blockFriction(player);
         m.onGround = player.onGround();
         m.sneakMul = sneakSpeed(player);
@@ -1578,6 +1583,70 @@ public final class Ap3Executor {
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
         return m;
+    }
+
+    /**
+     * Whether the next forward press will be a SPRINTING one. Vanilla starts sprinting from the sprint key, and his
+     * own key is re-read from the keyboard every frame - so during a hand-entered align the game sprints even though
+     * AP3 asked for no sprint (seen in his 2026-09-22 log: the plan predicted a non-sprint push and the game moved
+     * 0.11 further). Planning with this instead of {@code isSprinting()} alone stops the align chasing its own tail.
+     */
+    private static boolean sprintLikely(LocalPlayer player) {
+        Minecraft client = Minecraft.getInstance();
+        boolean keyHeld = client.options != null && client.options.keySprint.isDown();
+        return player.isSprinting() || keyHeld;
+    }
+
+    // ---- the measured push scale -------------------------------------------------------------------------------
+    /** What the model's push has to be multiplied by to match what the game really did; 1 until something differs. */
+    private static double pushScale = 1.0;
+    private static final double PUSH_SCALE_MIN = 0.5;
+    private static final double PUSH_SCALE_MAX = 2.0;
+    /** Half a tick's evidence at a time: fast enough to catch a sprint flip, slow enough not to chase noise. */
+    private static final double PUSH_SCALE_ALPHA = 0.5;
+    private static boolean pushPending;
+    private static double pushModelX, pushModelZ, pushBeforeX, pushBeforeZ, pushFriction;
+
+    /** Records what the model expects this tick's press to add, so the next tick can measure what it really added. */
+    private static void expectPush(LocalPlayer player, double px, double pz, Ap3DiscretePlanner.Model m) {
+        Vec3 v = player.getDeltaMovement();
+        pushModelX = px;
+        pushModelZ = pz;
+        pushBeforeX = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.x;
+        pushBeforeZ = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.z;
+        pushFriction = m.friction();
+        pushPending = Math.hypot(px, pz) > 1e-6;
+    }
+
+    /**
+     * One tick later: {@code v_now = (v_before + push) * friction}, so the push the game really applied is
+     * {@code v_now / friction - v_before}. Its length against the model's is the scale the next plan uses.
+     */
+    private static void observePush(LocalPlayer player) {
+        if (!pushPending) {
+            return;
+        }
+        pushPending = false;
+        if (pushFriction < 1e-6 || !player.onGround()) {
+            return;
+        }
+        Vec3 v = player.getDeltaMovement();
+        double actualX = v.x / pushFriction - pushBeforeX;
+        double actualZ = v.z / pushFriction - pushBeforeZ;
+        double actual = Math.hypot(actualX, actualZ);
+        double model = Math.hypot(pushModelX, pushModelZ);
+        if (model < 1e-6 || actual < 1e-6) {
+            return;
+        }
+        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, actual / model));
+        double next = pushScale * (1 - PUSH_SCALE_ALPHA) + ratio * PUSH_SCALE_ALPHA;
+        double scaled = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, next));
+        if (Math.abs(scaled - pushScale) > 0.01 && Ap3Config.getInstance().isAlignTimerDev()) {
+            LOGGER.info("[AP3 dev] push scale {} -> {} (model {}, actual {})",
+                    String.format(Locale.US, "%.3f", pushScale), String.format(Locale.US, "%.3f", scaled),
+                    String.format(Locale.US, "%.5f", model), String.format(Locale.US, "%.5f", actual));
+        }
+        pushScale = scaled;
     }
 
     /** The tolerance of the align being performed; set at the top of every align tick, read by {@link #modelFor}. */
@@ -1717,7 +1786,7 @@ public final class Ap3Executor {
         s.ez = ez;
         s.vx = vel.x;
         s.vz = vel.z;
-        s.sprinting = player.isSprinting();
+        s.sprinting = sprintLikely(player);
         s.crouching = lastSneakSent; // the multiplier the next travel uses = the shift of the record installed this tick
         s.sentYaw = sentYawMethod ? serverYaw : player.getYRot();
 
@@ -1762,6 +1831,7 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m);
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
     }
 

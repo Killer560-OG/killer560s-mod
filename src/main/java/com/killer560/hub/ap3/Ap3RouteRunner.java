@@ -167,7 +167,27 @@ final class Ap3RouteRunner {
             lastPlanStep = stepIndex;
             replanAhead(client, player, drifted);
         }
+        if (drifted) {
+            // The plan was made for somewhere else, so its keys and yaws mean nothing here: hold still until the
+            // re-plan lands rather than driving a schedule for a position we are not in (killer560, 2026-09-22:
+            // "it tends to just spin in circles. It never actually goes anywhere").
+            plan = null;
+            predicted = null;
+            return true;
+        }
         Ap3RoutePlanner.Step step = plan.steps[stepIndex++];
+        if (Ap3Config.getInstance().isAlignTimerDev()) {
+            // Dev line per driven tick: what went out, where the plan said we would be, and where we actually are.
+            LOGGER.info("[AP3 route] step {}/{} keys[{}] yaw {} jump {} | at ({}, {}) plan ({}, {}) drift {} | v {}",
+                    stepIndex, plan.steps.length, step.keys().label(),
+                    String.format(Locale.US, "%.1f", step.yaw()), step.jump(),
+                    String.format(Locale.US, "%.3f", player.getX()), String.format(Locale.US, "%.3f", player.getZ()),
+                    predicted == null ? "-" : String.format(Locale.US, "%.3f", predicted.x),
+                    predicted == null ? "-" : String.format(Locale.US, "%.3f", predicted.z),
+                    predicted == null ? "-" : String.format(Locale.US, "%.3f",
+                            Math.hypot(player.getX() - predicted.x, player.getZ() - predicted.z)),
+                    String.format(Locale.US, "%.4f", player.getDeltaMovement().horizontalDistance()));
+        }
         if (predicted != null) {
             Ap3RouteMath.step(predicted, step.keys(), step.yaw(), step.jump(), planModel);
         }
@@ -231,10 +251,15 @@ final class Ap3RouteRunner {
     }
 
     /** The pending pre-plan becomes this run's plan when it was made for this node and is still fresh. */
-    private static boolean takePrePlan(Ap3Node first) {
+    private static boolean takePrePlan(Ap3Node first, LocalPlayer player) {
         Ap3RoutePlanner.Plan p = pending;
         if (p == null || prePlanFor != first || System.currentTimeMillis() - prePlanMs > 4000) {
             return false;
+        }
+        if (planStart == null || Math.hypot(player.getX() - planStart.x, player.getZ() - planStart.z) > 0.5
+                || Math.abs(Math.hypot(player.getDeltaMovement().x, player.getDeltaMovement().z)
+                - Math.hypot(planStart.vx, planStart.vz)) > 0.15) {
+            return false; // it was planned from a different place or a different speed - plan again from here
         }
         pending = null;
         plan = p;
@@ -246,7 +271,7 @@ final class Ap3RouteRunner {
 
     private static void begin(Minecraft client, LocalPlayer player, Ap3Node first) {
         collectRoute(first);
-        if (takePrePlan(first)) {
+        if (takePrePlan(first, player)) {
             // Walked up to it with a plan already in hand: drive that, and correct it from the measured state.
             return;
         }
@@ -308,7 +333,8 @@ final class Ap3RouteRunner {
         Ap3Config cfg = Ap3Config.getInstance();
         options.allowJump = cfg.isRouteAllowJumps();
         options.beam = cfg.getRouteBeam();
-        options.budgetMs = cfg.getRouteBudgetMs();
+        // The first plan may think; a re-plan may not - every millisecond it spends is a tick the route is coasting.
+        options.budgetMs = plan == null ? cfg.getRouteBudgetMs() : Math.min(cfg.getRouteBudgetMs(), 300);
         planStart = start;
         planModel = model;
         pendingAt = at;
@@ -317,6 +343,10 @@ final class Ap3RouteRunner {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
                 pending = p;
+                LOGGER.info("[AP3 route] planned {} ticks, {} gates{}, from ({}, {}) v {} splicing at step {}",
+                        p.ticks, p.gateTick.length, p.complete ? "" : " INCOMPLETE - " + p.note,
+                        String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
+                        String.format(Locale.US, "%.4f", Math.hypot(start.vx, start.vz)), at);
                 if (Ap3Config.getInstance().isChatFeedback()) {
                     ModChat.send("AP3", ModChat.text("Route "),
                             ModChat.value(String.format(Locale.US, "%.2fs", p.ticks / 20.0)),

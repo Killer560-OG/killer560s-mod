@@ -138,6 +138,13 @@ final class Ap3RoutePlanner {
         int dirs = 16;
         /** Give up after this long and report the best partial route. */
         long budgetMs = 1500;
+        /**
+         * What a turn costs the plan, in ticks per 180 degrees. The same travel direction can be had as "W at this
+         * yaw" or "W+A at 45 degrees off it", and with nothing to separate them the search happily alternates - which
+         * on screen is the player spinning on the spot while walking straight (killer560, 2026-09-22: "it tends to
+         * just spin in circles"). Small enough that it only breaks ties, never enough to buy a slower route.
+         */
+        double turnCost = 0.25;
         /** How many ticks in a row the route may stand on a block a Block node places (a ghost block is short-lived). */
         int slabTicks = 2;
         /** How close the search must get to an exact gate before the polish takes over. */
@@ -353,7 +360,8 @@ final class Ap3RoutePlanner {
         c.yaw = yaw;
         c.jump = jump;
         c.crossed = crossed;
-        c.f = c.ticks + field.heuristic(s.x, s.z, group, mask, groups, top);
+        c.f = c.ticks + field.heuristic(s.x, s.z, group, mask, groups, top)
+                + o.turnCost * Math.abs(wrap(yaw - n.s.yaw)) / 180.0;
         long key = cell(s, group, mask);
         Node old = seen.get(key);
         if (old != null) {
