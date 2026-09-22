@@ -33,10 +33,15 @@ final class Ap3FastAlign {
             new Ap3DiscretePlanner.Action(1, 1, true),
             new Ap3DiscretePlanner.Action(0, 1, false),
             new Ap3DiscretePlanner.Action(0, 1, true),
+            // Sneak with no movement key: pushes nothing, but sneak lands with a one-tick lag, so this is the only way
+            // to get a 0.3x braking tap that is NOT preceded by a full-size push (and it drops sprint as well).
+            new Ap3DiscretePlanner.Action(0, 0, true),
     };
     private static final Ap3DiscretePlanner.Action[] NO_ACTS = {};
     private static final float[] NO_YAWS = {};
-    static final int MAX_PRESSES = 3;
+    /** Up to four presses: three cannot brake the hardest entries inside four ticks (and four ticks is the floor
+     *  for those - a dense grid over every 3-press schedule misses them by 0.01-0.18 blocks). */
+    static final int MAX_PRESSES = 4;
     static final int MAX_TICKS = 9;
     /** The final speed must be this far under the zeroing line (margin for float rounding in the real game). */
     private static final double REST_SPEED = Ap3AlignMath.ZERO_VELOCITY * 0.9;
@@ -220,6 +225,8 @@ final class Ap3FastAlign {
     private static final double NEAR_POS = 0.02;
     private static final double NEAR_SPEED = Ap3AlignMath.ZERO_VELOCITY;
     private static final int SCAN = 72;
+    /** Ring samples per free direction when there are two of them (the grid is this squared). */
+    private static final int SCAN4 = 24;
     private static final double[] SCAN_ANG = new double[SCAN];
     private static final double[] SCAN_X = new double[SCAN];
     private static final double[] SCAN_Z = new double[SCAN];
@@ -235,9 +242,9 @@ final class Ap3FastAlign {
     /** The schedule's linear model: pressing slots, their a / b lengths, and D / V0. */
     private static final class Lin {
         int n;
-        final int[] slot = new int[MAX_PRESSES];
-        final double[] a = new double[MAX_PRESSES];
-        final double[] b = new double[MAX_PRESSES];
+        final int[] slot = new int[MAX_TICKS];
+        final double[] a = new double[MAX_TICKS];
+        final double[] b = new double[MAX_TICKS];
         double dx, dz, v0x, v0z;
     }
 
@@ -302,17 +309,27 @@ final class Ap3FastAlign {
             best = cost(l, th);
             bestTh = th.clone();
         } else {
-            // n = 2: the two exact branches. n = 3: scan the first push's direction, the last two exact.
-            int scans = l.n == 3 ? SCAN : 1;
-            for (int q = 0; q < scans; q++) {
+            // n = 2: the two exact branches. Above that: scan the first n-2 directions on a ring (coarser the more
+            // there are), with the last two solved exactly for whatever displacement the scanned ones leave over.
+            int free = l.n - 2;
+            int scans = free == 0 ? 1 : (free == 1 ? SCAN : SCAN4);
+            int stride = free <= 1 ? 1 : SCAN / SCAN4;
+            int grid = 1;
+            for (int i = 0; i < free; i++) {
+                grid *= scans;
+            }
+            int i1 = l.n - 2;
+            int i2 = l.n - 1;
+            for (int q = 0; q < grid; q++) {
                 double rx = l.dx, rz = l.dz;
-                if (l.n == 3) {
-                    th[0] = SCAN_ANG[q];
-                    rx -= l.a[0] * SCAN_X[q];
-                    rz -= l.a[0] * SCAN_Z[q];
+                int code = q;
+                for (int i = 0; i < free; i++) {
+                    int idx = (code % scans) * stride;
+                    code /= scans;
+                    th[i] = SCAN_ANG[idx];
+                    rx -= l.a[i] * SCAN_X[idx];
+                    rz -= l.a[i] * SCAN_Z[idx];
                 }
-                int i1 = l.n - 2;
-                int i2 = l.n - 1;
                 for (int branch = -1; branch <= 1; branch += 2) {
                     if (!twoPush(rx, rz, l.a[i1], l.a[i2], branch, th, i1, i2)) {
                         continue;
