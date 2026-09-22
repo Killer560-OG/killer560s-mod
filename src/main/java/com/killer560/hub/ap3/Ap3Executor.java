@@ -1618,7 +1618,7 @@ public final class Ap3Executor {
      * coin toss, so the plan decides it - forward, not sneaking - and the model is told the same thing.
      */
     private static boolean sprintFor(Ap3DiscretePlanner.Action a) {
-        return a.fw() > 0 && !a.sneak();
+        return a.fw() > 0; // including a sneaking one: measured at sprint speed x sneak's 0.3
     }
 
     private static boolean sprintLikely(LocalPlayer player) {

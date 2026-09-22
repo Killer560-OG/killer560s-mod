@@ -169,11 +169,10 @@ final class Ap3DiscretePlanner {
         boolean zeroed = Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
         double v0x = zeroed ? 0.0 : s.vx;
         double v0z = zeroed ? 0.0 : s.vz;
-        // Sneaking cancels the sprint: a sneak tap is a 0.3x push at WALKING speed, not a sprinting one. Measured
-        // in his 2026-09-22 log - the model priced a sneak press at 0.17581 and the game gave 0.11760
-        // (0.4 x 0.3 x 0.98, no sprint) - and pricing them as sprinting presses was what made the sprint learning
-        // reverse itself every other tick and an align take 17.
-        boolean sprintNow = a.fw > 0 && !a.sneak && !s.crouching && (s.sprinting || m.sprintKeyHeld);
+        // A sneaking press still sprints here - measured: the model priced one at 0.11114 and the game gave 0.14447,
+        // which is the sprinting push 0.48157 times sneak's 0.3. (An earlier sample looked like sneak cancelled the
+        // sprint; that was a tick where the sprint had been lost to the key race, not the rule.)
+        boolean sprintNow = a.fw > 0 && (s.sprinting || m.sprintKeyHeld);
         double vx = v0x, vz = v0z;
         if (!a.none()) {
             double eff = effectiveLength(a, s.crouching, m.sneakMul);
