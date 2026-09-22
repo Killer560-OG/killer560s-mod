@@ -20,6 +20,8 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -197,6 +199,40 @@ public final class VoiceToTextFeature {
 
     private static final AudioFormat FORMAT = new AudioFormat(16000f, 16, 1, true, false);
 
+    /** Every input device that can record in {@link #FORMAT}, by its Java Sound mixer name (killer560, 2026-09-21:
+     *  "for voice to text also allow me to select the microphone"). */
+    public static List<String> microphones() {
+        List<String> out = new ArrayList<>();
+        DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
+        for (javax.sound.sampled.Mixer.Info mi : AudioSystem.getMixerInfo()) {
+            try {
+                if (AudioSystem.getMixer(mi).isLineSupported(info) && !out.contains(mi.getName())) {
+                    out.add(mi.getName());
+                }
+            } catch (Exception ignored) {
+                // a device that errors on query is just not offered
+            }
+        }
+        return out;
+    }
+
+    /** The chosen microphone if it is still plugged in, otherwise the system default. */
+    private static TargetDataLine openMicrophone(DataLine.Info info) throws Exception {
+        String wanted = VoiceToTextConfig.getInstance().getMicrophone();
+        if (!wanted.isEmpty()) {
+            for (javax.sound.sampled.Mixer.Info mi : AudioSystem.getMixerInfo()) {
+                if (mi.getName().equals(wanted)) {
+                    javax.sound.sampled.Mixer mixer = AudioSystem.getMixer(mi);
+                    if (mixer.isLineSupported(info)) {
+                        return (TargetDataLine) mixer.getLine(info);
+                    }
+                }
+            }
+            ModOverlayMessage.show("§e[Voice] \"" + wanted + "\" isn't available - using the default microphone.", 3000);
+        }
+        return (TargetDataLine) AudioSystem.getLine(info);
+    }
+
     private static void startRecording() {
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
@@ -204,7 +240,7 @@ public final class VoiceToTextFeature {
                 ModOverlayMessage.show("§c[Voice] No compatible microphone found.", 3000);
                 return;
             }
-            line = (TargetDataLine) AudioSystem.getLine(info);
+            line = openMicrophone(info);
             line.open(FORMAT);
             line.start();
             capturedAudio = new ByteArrayOutputStream();

@@ -12,7 +12,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
-import java.awt.Desktop;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -181,7 +180,7 @@ public class GifPlayerTab extends BaseTab {
 
     private static void openFolder() {
         try {
-            Desktop.getDesktop().open(GifPlayerFeature.folder().toFile());
+            net.minecraft.util.Util.getPlatform().openPath(GifPlayerFeature.folder()); // AWT is headless in MC
         } catch (Exception e) {
             ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open GIF folder: " + e.getMessage(), 4000);
         }

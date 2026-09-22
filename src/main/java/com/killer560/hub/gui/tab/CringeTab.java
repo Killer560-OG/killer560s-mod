@@ -6,7 +6,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.network.chat.Component;
 
-import java.awt.Desktop;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,7 +36,7 @@ public class CringeTab extends BaseTab {
 
     private static void openFolder() {
         try {
-            Desktop.getDesktop().open(CringeLines.file().getParent().toFile());
+            net.minecraft.util.Util.getPlatform().openPath(CringeLines.file().getParent()); // AWT is headless in MC
         } catch (Exception e) {
             ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open cringe folder: " + e.getMessage(), 4000);
         }

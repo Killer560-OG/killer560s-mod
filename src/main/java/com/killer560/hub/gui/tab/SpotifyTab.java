@@ -11,7 +11,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
-import java.awt.Desktop;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -105,7 +104,9 @@ public class SpotifyTab extends BaseTab {
     private static void openInstructions() {
         try {
             Files.writeString(INSTRUCTIONS_FILE, INSTRUCTIONS_TEXT, StandardCharsets.UTF_8);
-            Desktop.getDesktop().open(INSTRUCTIONS_FILE.toFile());
+            // Minecraft runs AWT headless, so java.awt.Desktop threw and the button did nothing (killer560,
+            // 2026-09-21). The game's own opener hands the file to Windows like the other "open folder" buttons.
+            net.minecraft.util.Util.getPlatform().openPath(INSTRUCTIONS_FILE);
         } catch (Exception e) {
             ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open setup guide: " + e.getMessage(), 4000);
         }

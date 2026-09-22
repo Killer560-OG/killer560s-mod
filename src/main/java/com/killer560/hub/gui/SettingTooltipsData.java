@@ -1557,6 +1557,7 @@ final class SettingTooltipsData {
         d.put("chat/translate", "Translates the chat you type into another language before it's sent. Pick the language inside.");
         d.put("translate/language", "The language your outgoing chat is translated into. Click to open a searchable list. Picking one also turns Chat Translate on, same as typing /translate <language>. English means no translation. /language opens this picker directly.");
         d.put("translate/search", "Type part of a language name to filter the list, then click a language to select it and turn Chat Translate on.");
+        d.put("voice to text/microphone", "Which microphone Voice To Text records from. Click to cycle System Default and every input device that can record; the list refreshes on each click. If the chosen one is unplugged it falls back to the default.");
         d.put("voice to text/send to", "Where transcribed speech goes: Party (/pc) or Guild (/gc) chat. It is sent right away with no confirm step.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws an orange line from it to the one after. OFF hides both and leaves only the countdowns.");
         d.put("waypoint routes/area", "Shows the Skyblock area read from the tab list and the route that is active there. Any Area means no area could be read (for example off Skyblock). A route activated there shows wherever an area has no route of its own.");

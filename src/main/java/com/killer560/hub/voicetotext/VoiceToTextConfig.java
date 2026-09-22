@@ -23,6 +23,8 @@ public final class VoiceToTextConfig {
     private boolean enabled = false;
     private int pushToTalkKeyCode = -1;
     private boolean sendToPartyChat = true;
+    /** Java Sound mixer name of the microphone to record from; empty = the system default (2026-09-21). */
+    private String microphone = "";
 
     private VoiceToTextConfig() {
     }
@@ -46,6 +48,7 @@ public final class VoiceToTextConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.pushToTalkKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "pushToTalkKeyCode", -1));
             cfg.sendToPartyChat = ConfigJson.getBool(obj, "sendToPartyChat", true);
+            cfg.microphone = obj.has("microphone") && obj.get("microphone").isJsonPrimitive() ? obj.get("microphone").getAsString() : "";
             instance = cfg;
         } catch (Exception e) {
             instance = new VoiceToTextConfig();
@@ -59,6 +62,7 @@ public final class VoiceToTextConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("pushToTalkKeyCode", pushToTalkKeyCode);
             obj.addProperty("sendToPartyChat", sendToPartyChat);
+            obj.addProperty("microphone", microphone);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -78,6 +82,14 @@ public final class VoiceToTextConfig {
 
     public void setPushToTalkKeyCode(int pushToTalkKeyCode) {
         this.pushToTalkKeyCode = pushToTalkKeyCode;
+    }
+
+    public String getMicrophone() {
+        return microphone;
+    }
+
+    public void setMicrophone(String microphone) {
+        this.microphone = microphone == null ? "" : microphone;
     }
 
     public boolean isSendToPartyChat() {

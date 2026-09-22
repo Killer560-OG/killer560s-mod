@@ -44,6 +44,17 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, 160, 18).build());
         y += 22;
 
+        widgets.add(SettingsButtonWidget.builder(micText(cfg), btn -> {
+                    // Cycles Default -> each device that can record -> Default. Re-listed on every click, so a
+                    // headset plugged in with the menu open shows up.
+                    java.util.List<String> mics = com.killer560.hub.voicetotext.VoiceToTextFeature.microphones();
+                    int i = mics.indexOf(cfg.getMicrophone());
+                    cfg.setMicrophone(i + 1 < mics.size() ? mics.get(i + 1) : "");
+                    cfg.save();
+                    btn.setMessage(micText(cfg));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(
                     Component.literal("Send to: " + (cfg.isSendToPartyChat() ? "Party" : "Guild")), btn -> {
                         cfg.setSendToPartyChat(!cfg.isSendToPartyChat());
@@ -53,6 +64,11 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         y += 24;
 
         return widgets;
+    }
+
+    private static Component micText(VoiceToTextConfig cfg) {
+        String m = cfg.getMicrophone();
+        return Component.literal("Microphone: §b" + (m.isEmpty() ? "System Default" : m));
     }
 
     private static Component keyText(VoiceToTextConfig cfg) {

@@ -23,13 +23,9 @@ import java.util.regex.Pattern;
  * whisper ("From &lt;name&gt;: ...") replies directly to that name via {@code /w}; anything else
  * (plain public chat) replies on whatever the current default outgoing channel is.
  * <p>
- * A short cooldown after each reply is the main safety net here, not sender-identity checking -
- * Hypixel's own party/guild/system chat doesn't come through vanilla's signed-chat path at all (see
- * {@code MagicFindTracker}, which also has to listen on both {@code CHAT} and {@code GAME} for this
- * reason), so there's no reliable structured "who sent this" data available for that traffic to
- * exclude killer560's own messages by identity. The cooldown is simpler and doubles as protection
- * against the bot's own generated reply (which itself contains a trigger word like "purr") echoing
- * back through chat and re-triggering itself in a loop.
+ * Your OWN lines never trigger it ({@link #isOwnMessage}, 2026-09-21): Hypixel's party/guild chat carries no
+ * structured sender, so the sender is read from the line's text. A short cooldown after each reply also stops the
+ * bot's own generated reply (which itself contains a trigger word like "purr") from re-triggering it.
  */
 public final class AutoMeowFeature {
 
@@ -66,6 +62,10 @@ public final class AutoMeowFeature {
         if (!TRIGGER.matcher(text).find()) {
             return;
         }
+        if (isOwnMessage(text)) {
+            // killer560 (2026-09-21): "Make it so auto meow does not toggle off of a message that I send."
+            return;
+        }
 
         lastReplyAtMs = now;
         String response = AutoMeowLines.ALL.get(ThreadLocalRandom.current().nextInt(AutoMeowLines.ALL.size()));
@@ -80,6 +80,40 @@ public final class AutoMeowFeature {
             Minecraft.getInstance().getSoundManager()
                     .play(SimpleSoundInstance.forUI(sound.value(), 1.0f, cfg.getCatVolume()));
         }
+    }
+
+    /**
+     * Whether a chat line is one YOU sent: an outgoing whisper ("To Name: ..."), or a line whose sender - the last
+     * word before the first ": ", once rank / level / guild-rank brackets and a channel prefix are dropped
+     * ("Party > [MVP+] Killer560: meow", "[312] [MVP+] Killer560: meow", "Guild > Killer560 [Member]: meow") - is
+     * your own name. Case-insensitive, colour codes stripped.
+     */
+    static boolean isOwnMessage(String raw) {
+        Minecraft client = Minecraft.getInstance();
+        String self = client.player != null ? client.player.getGameProfile().name() : client.getUser().getName();
+        if (self == null || self.isEmpty()) {
+            return false;
+        }
+        String text = net.minecraft.ChatFormatting.stripFormatting(raw);
+        if (text == null) {
+            return false;
+        }
+        text = text.trim();
+        if (text.startsWith("To ")) {
+            return true;
+        }
+        int colon = text.indexOf(": ");
+        if (colon <= 0) {
+            return false;
+        }
+        String head = text.substring(0, colon).replaceAll("\\[[^\\]]*\\]", " ");
+        int arrow = head.lastIndexOf('>');
+        if (arrow >= 0) {
+            head = head.substring(arrow + 1);
+        }
+        String[] words = head.trim().split("\\s+");
+        String name = words.length == 0 ? "" : words[words.length - 1].replaceAll("[^A-Za-z0-9_]", "");
+        return name.equalsIgnoreCase(self);
     }
 
     /** @return the commandWord to route the reply through (e.g. "pc", "w PlayerName"), or null for
