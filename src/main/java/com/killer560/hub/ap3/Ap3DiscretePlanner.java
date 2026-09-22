@@ -87,6 +87,9 @@ final class Ap3DiscretePlanner {
         /** False for a Fast Align: a slide that already ends inside the tolerance is taken as it is, never refined
          *  closer at the cost of extra ticks. */
         boolean refine = true;
+        /** Fast Align: the goal is the fewest ticks until he is AT REST inside the tolerance, not the smallest error
+         *  (killer560, 2026-09-21: "focus on making it align essentially as fast as possible ... like 3 ticks"). */
+        boolean fastest = false;
 
         double tickSpeed(boolean sprinting) {
             if (onGround) {
@@ -590,7 +593,72 @@ final class Ap3DiscretePlanner {
         return a.restError < b.restError;
     }
 
+    /** Fast Align look-ahead depth: every sequence of up to this many key ticks (all 17 combinations plus sneak),
+     *  each followed by coasting, is tried. */
+    static final int FAST_DEPTH = 3;
+
+    /** Exhaustive search for the sequence that comes to rest inside the tolerance soonest; at EVERY depth the
+     *  "stop pressing now" branch is scored too, so a sequence is never charged for ticks it does not need. */
+    private static void fastSearch(State s, Model m, int depth, int k, Action first, JointResult out) {
+        State r = s.copy();
+        int ticks = k + coast(r, m);
+        double rest = maxErr(r);
+        if (rest <= m.tolerance && (ticks < out.ticks || (ticks == out.ticks && rest < out.restErr - 1e-9))) {
+            out.restErr = rest;
+            out.first = first == null ? NONE : first;
+            out.ticks = ticks;
+        }
+        if (k == depth || k >= out.ticks) {
+            return;
+        }
+        for (Action a : ACTIONS) {
+            if (a.none()) {
+                continue; // waiting is scored by the coast branch above
+            }
+            State n = s.copy();
+            step(n, a, s.sentYaw, m);
+            fastSearch(n, m, depth, k + 1, first == null ? a : first, out);
+        }
+    }
+
+    private static Plan fastestPlan(State s, Model m) {
+        Plan best = null;
+        Plan settle = settlePlan(s, m);
+        if (settle != null) {
+            best = settle;
+        }
+        if (m.yawSteerable) {
+            for (Plan p : new Plan[]{oneTapPlan(s, m), twoTapPlan(s, m)}) {
+                if (p != null && p.reaches && (best == null || better(p, best))) {
+                    best = p;
+                }
+            }
+        }
+        JointResult fast = new JointResult();
+        fastSearch(s, m, FAST_DEPTH, 0, null, fast);
+        if (fast.ticks != Integer.MAX_VALUE) {
+            Plan p = new Plan();
+            p.action = fast.first;
+            p.yaw = s.sentYaw;
+            p.reaches = true;
+            p.restError = fast.restErr;
+            p.ticks = fast.ticks;
+            p.phase = "fast";
+            if (best == null || better(p, best)) {
+                best = p;
+            }
+        }
+        return best;
+    }
+
     static Plan plan(State s, Model m) {
+        if (m.fastest) {
+            Plan p = fastestPlan(s, m);
+            if (p != null) {
+                return p;
+            }
+            // nothing lands within the look-ahead yet (still far or very fast): drive in as a normal align would
+        }
         Plan settle = settlePlan(s, m);
         if (settle != null) {
             if (settle.restError > REFINE_ABOVE && m.yawSteerable && m.refine) {

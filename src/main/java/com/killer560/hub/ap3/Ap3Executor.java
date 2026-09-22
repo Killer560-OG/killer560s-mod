@@ -1356,6 +1356,7 @@ public final class Ap3Executor {
         m.sneakMul = sneakSpeed(player);
         m.tolerance = alignTolerance;
         m.refine = !alignFast;
+        m.fastest = alignFast;
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;

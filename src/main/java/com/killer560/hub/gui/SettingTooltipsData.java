@@ -1904,7 +1904,7 @@ final class SettingTooltipsData {
         d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on and you are not in a real boss. Click to cycle P1, P2, S1-S5, P4, P5.");
         d.put("ap3/freeze view while aligning", "Your screen keeps the view you had while the align turns your real yaw underneath (the server, and your model in F5, see the real one). Your mouse keeps steering the view. When the align ends your real yaw glides back under the view, and nothing on screen moves. Default ON.");
         d.put("ap3 fast align color", "Marker colour for Fast Align nodes.");
-        d.put("add fast align node", "Places a Fast Align: the same exact landing as an Align but tuned for speed - it settles within 0.005 and hands over while you are still sliding to a stop.");
+        d.put("add fast align node", "Places a Fast Align: tuned purely for speed. It picks whatever keys, sneaks and turns bring you to a stop soonest, anywhere within 0.1 of the point (and the closest of the equally fast options), then hands over to the next node.");
         d.put("add fast align node key", "Keybind for /ap3 add fastalign.");
     }
 }
