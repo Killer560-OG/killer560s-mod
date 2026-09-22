@@ -81,7 +81,7 @@ public final class Ap3Renderer {
                 }
             }
         }
-        if (chainLine.size() >= 2) {
+        if (chainLine.size() >= 2 && cfg.isShowChainLines()) {
             float[] a = WorldRenderUtils.argbToFloats(cfg.getActiveColorArgb());
             WorldRenderUtils.renderLineStrip(ctx, chainLine, a[0], a[1], a[2], 0.4f, Math.max(0.5f, thickness / 2f));
         }
