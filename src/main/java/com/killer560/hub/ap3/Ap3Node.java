@@ -40,7 +40,7 @@ public final class Ap3Node {
      *  (LINE, AXIS_LINE, LEAP_DETECTOR) still parse so a recorded chain keeps loading. WAIT and BREAKER are gone
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
-        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE;
+        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -61,6 +61,7 @@ public final class Ap3Node {
                 case "boom", "superboom", "tnt" -> BOOM;
                 case "stopwatch", "sw", "timer" -> STOPWATCH;
                 case "jump", "j" -> JUMP;
+                case "block", "place", "slab", "b" -> BLOCK;
                 case "edge", "edgejump", "edge_jump", "ej" -> EDGE;
                 default -> null;
             };
@@ -82,6 +83,7 @@ public final class Ap3Node {
                 case STOPWATCH -> "Stopwatch";
                 case JUMP -> "Jump";
                 case EDGE -> "Edge Jump";
+                case BLOCK -> "Block";
             };
         }
 
@@ -93,7 +95,7 @@ public final class Ap3Node {
         /** Nodes that fire WITHOUT ending a held walk (killer560, 2026-09-21: "make both things that can go after
          *  something like a walk command as well") - the walk keeps driving while they jump. */
         public boolean keepsHold() {
-            return this == JUMP || this == EDGE;
+            return this == JUMP || this == EDGE || this == BLOCK;
         }
 
         /** The two movers (they start a held walk that lasts until any other node fires). */
@@ -120,7 +122,7 @@ public final class Ap3Node {
                 case LEAP_COUNTER -> 5;
                 case WALK, RUN -> 6;
                 // right after a walk in the same box, so the walk is already driving when the jump goes in
-                case JUMP, EDGE -> 7;
+                case JUMP, EDGE, BLOCK -> 7;
                 case BOOM -> 8;
                 case LEAP -> 9;
             };
@@ -412,7 +414,7 @@ public final class Ap3Node {
             case WALK, RUN -> sb.append(String.format(Locale.US, " [@ %.0f deg]", yaw));
             case LEAP -> sb.append(" [").append(leapDescription()).append(']');
             case LEAP_COUNTER -> sb.append(" [").append(leapCount).append(leapCount == 1 ? " leap]" : " leaps]");
-            case LOOK, BOOM -> sb.append(String.format(Locale.US, " [%.1f / %.1f]", yaw, pitch));
+            case LOOK, BOOM, BLOCK -> sb.append(String.format(Locale.US, " [%.1f / %.1f]", yaw, pitch));
             case STOPWATCH -> {
                 if (name != null) {
                     sb.append(" [").append(name).append(']');

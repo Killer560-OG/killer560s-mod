@@ -255,7 +255,7 @@ public final class Ap3Store {
         JsonObject root = new JsonObject();
         root.addProperty("version", FORMAT_VERSION);
         root.addProperty("note", "AP3 - one chain per boss area (P1, P2, P3 sections S1-S5, P4, P5), optionally per class, absolute coordinates. "
-                + "Node types: ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH. "
+                + "Node types: ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK. "
                 + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / close. Edit, then /ap3 reload.");
         root.add("chains", new JsonObject());
         return root;

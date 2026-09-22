@@ -68,7 +68,7 @@ public final class Ap3Renderer {
             switch (node.type) {
                 case WALK, RUN -> renderArrow(ctx, node, c, alpha, thickness);
                 case AXIS_ALIGN -> renderWallSide(ctx, node, c, alpha, thickness);
-                case LOOK, BOOM -> renderLookRay(ctx, node, c, alpha, thickness);
+                case LOOK, BOOM, BLOCK -> renderLookRay(ctx, node, c, alpha, thickness);
                 default -> {
                 }
             }

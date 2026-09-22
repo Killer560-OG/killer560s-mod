@@ -976,6 +976,7 @@ public final class Ap3Executor {
             case STOP -> tickStop(player);
             case LOOK -> tickLook(player, node);
             case BOOM -> tickBoom(client, player, node);
+            case BLOCK -> tickBlock(client, player, node);
             case STOPWATCH -> {
                 toggleStopwatch(node);
                 finishNode();
@@ -2111,6 +2112,115 @@ public final class Ap3Executor {
     }
 
     // ---- BOOM: superboom where the node was looking, from where you stand ---------------------------------
+
+    // ---- BLOCK: place a block where the node looks ------------------------------------------------------------
+    //
+    // killer560 (2026-09-21): "a block node. This should work essentially the same as the boom node but meant for
+    // things like slabs and actual blocks. It will be useful for me to run on slabs as ghost blocks for a few frames
+    // to make faster AP3s." Same shape as BOOM - swap, one interaction along the node's recorded yaw/pitch from the
+    // live eye (the camera is not turned) - but the interaction is a block PLACE through the game's own
+    // gameMode.useItemOn, so the block appears client-side at once (the ghost block) whatever the server decides.
+    // It does not end a held walk (Type.keepsHold) and swaps back to the slot you had afterwards.
+
+    private static int blockPrevSlot = -1;
+
+    private static void tickBlock(Minecraft client, LocalPlayer player, Ap3Node node) {
+        switch (step) {
+            case PREP -> {
+                blockPrevSlot = player.getInventory().getSelectedSlot();
+                step = Step.SWAP;
+                stepTicks = 0;
+            }
+            case SWAP -> {
+                int slot = findBlockSlot(player);
+                if (slot < 0) {
+                    failNode("no block or slab in the hotbar");
+                    return;
+                }
+                if (player.getInventory().getSelectedSlot() != slot) {
+                    if (!swapSent) {
+                        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                            return;
+                        }
+                        player.getInventory().setSelectedSlot(slot);
+                        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+                        swapSent = true;
+                        stepTicks = 0;
+                    } else if (stepTicks > SWAP_TIMEOUT) {
+                        failNode("couldn't switch to the block");
+                    }
+                    return;
+                }
+                if (!swapSent || stepTicks >= 1) {
+                    step = Step.DO;
+                    stepTicks = 0;
+                }
+            }
+            case DO -> {
+                Vec3 eye = player.getEyePosition();
+                Vec3 look = lookVector(node.yaw, node.pitch).scale(BOOM_REACH);
+                HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, player));
+                if (!(hit instanceof BlockHitResult b) || hit.getType() != HitResult.Type.BLOCK) {
+                    failNode("block #" + number(node) + " isn't looking at a block to place against");
+                    return;
+                }
+                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                    return;
+                }
+                net.minecraft.world.InteractionResult r = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
+                if (r.consumesAction()) {
+                    player.swing(InteractionHand.MAIN_HAND);
+                }
+                step = Step.CONFIRM;
+                stepTicks = 0;
+            }
+            case CONFIRM -> {
+                // Back to what was held (one packet, next tick), then done - the walk never stopped.
+                if (blockPrevSlot >= 0 && blockPrevSlot != player.getInventory().getSelectedSlot()) {
+                    if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                        if (stepTicks > SWAP_TIMEOUT) {
+                            finishNode();
+                        }
+                        return;
+                    }
+                    player.getInventory().setSelectedSlot(blockPrevSlot);
+                    player.connection.send(new ServerboundSetCarriedItemPacket(blockPrevSlot));
+                }
+                blockPrevSlot = -1;
+                finishNode();
+            }
+            default -> finishNode();
+        }
+    }
+
+    /** The held item if it is a placeable block, else the first slab in the hotbar, else the first other block.
+     *  Heads are skipped - Skyblock uses them for items, not blocks. */
+    private static int findBlockSlot(LocalPlayer player) {
+        int held = player.getInventory().getSelectedSlot();
+        if (isPlaceableBlock(player.getInventory().getItem(held))) {
+            return held;
+        }
+        int any = -1;
+        for (int i = 0; i < 9; i++) {
+            net.minecraft.world.item.ItemStack st = player.getInventory().getItem(i);
+            if (!isPlaceableBlock(st)) {
+                continue;
+            }
+            if (((net.minecraft.world.item.BlockItem) st.getItem()).getBlock() instanceof net.minecraft.world.level.block.SlabBlock) {
+                return i;
+            }
+            if (any < 0) {
+                any = i;
+            }
+        }
+        return any;
+    }
+
+    private static boolean isPlaceableBlock(net.minecraft.world.item.ItemStack st) {
+        return st != null && !st.isEmpty() && st.getItem() instanceof net.minecraft.world.item.BlockItem bi
+                && !(bi.getBlock() instanceof net.minecraft.world.level.block.AbstractSkullBlock);
+    }
 
     private static void tickBoom(Minecraft client, LocalPlayer player, Ap3Node node) {
         switch (step) {
