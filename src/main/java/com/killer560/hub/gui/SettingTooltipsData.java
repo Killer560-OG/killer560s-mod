@@ -1111,6 +1111,8 @@ final class SettingTooltipsData {
 
         // ---- small solvers ----
         d.put("tic tac toe solver", "Tic Tac Toe dungeon puzzle: reads the board and outlines the best square in green on your turn, so you can't lose. Never clicks for you.");
+        d.put("architect's first draft/click message on puzzle fail", "When a dungeon puzzle is failed (\"PUZZLE FAIL! ...\"), posts a line in your chat you can click to get an Architect's First Draft from your sack (/gfs architect_first_draft 1). You still click it yourself. Off by default.");
+        d.put("architect's first draft/auto get from sack", "Cheat build only. When the PUZZLE FAIL line names YOU, gets an Architect's First Draft from your sack straight away. Off by default.");
         d.put("show prediction", "While the computer is taking its turn, outlines in yellow a square that is safe to click whatever the computer plays - only shown when such a square exists, so you can spam-click it. Off by default.");
         d.put("highlight style", "How the Tic Tac Toe square to click is drawn: Outline or Fill. Only the clickable part (the button, or the item frame) is highlighted, never the whole block.");
         d.put("ice path solver", "Draws the shortest silverfish push path to the exit in green. Never hits the silverfish for you.");

@@ -23,8 +23,7 @@ public class PuzzleSolversTab extends FolderTab {
                 new BeamsSolverTab(),
                 new BlazeSolverTab(),
                 new TicTacToeSolverTab(),
-                new TeleportMazeSolverTab(),
-                new LividSolverTab()
+                new TeleportMazeSolverTab()
         ));
     }
 }

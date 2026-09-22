@@ -302,6 +302,7 @@ public final class ProfileManager {
                 com.killer560.hub.commandshortcuts.CommandShortcutsConfig::load,
                 com.killer560.hub.autojoinskyblock.AutoJoinSkyblockConfig::load,
                 com.killer560.hub.automeow.AutoMeowConfig::load,
+                com.killer560.hub.architect.ArchitectDraftConfig::load,
                 com.killer560.hub.autopuzzles.AutoPuzzlesConfig::load,
                 com.killer560.hub.motionblur.MotionBlurConfig::load,
                 com.killer560.hub.discordrpc.DiscordRpcConfig::load,

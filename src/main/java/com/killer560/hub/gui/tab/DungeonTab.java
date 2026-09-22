@@ -38,6 +38,8 @@ public class DungeonTab extends FolderTab {
                 // dungeon tab... separate from Auto Puzzles, but all solvers in one tab". Ships on both
                 // builds - only Auto Puzzles below is cheat-only.
                 new PuzzleSolversTab(),
+                // Its own tab, out of Puzzles (killer560, 2026-09-21: "that is its own tab that should be called livid solver").
+                new LividSolverTab(),
                 // One home for everything secret-related (killer560, 2026-09-20): sound, waypoints,
                 // etherwarp waypoints, and the cheat-only Secret Aura/Triggerbot/Lever Aura/Full Block,
                 // which the folder gates internally so none of them exist in the legit jar.

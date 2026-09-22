@@ -89,6 +89,7 @@ public class Killer560ModClient implements ClientModInitializer {
         DvdFeature.register();
         com.killer560.hub.mainmenu.MainMenuTitleLayout.register();
         AutoMeowFeature.register();
+        com.killer560.hub.architect.ArchitectDraftFeature.register();
         ExperimentsFeature.register();
         StorageOverlayFeature.register();
         DungeonState.register();

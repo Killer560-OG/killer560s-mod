@@ -28,6 +28,7 @@ public class NewTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new LeapCounterTab(),
+                new ArchitectDraftTab(),
                 new ArmourDyeTab(),
                 new TooltipScrollTab(),
                 new EnchantColorsTab(),
