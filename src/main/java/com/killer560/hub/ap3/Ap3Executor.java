@@ -2733,16 +2733,41 @@ public final class Ap3Executor {
      * few degrees for the 2-4 ticks it takes); without the lock (mixins missing) the nearest of the eight key
      * directions at the camera yaw. Never the recorded direction as a fractional stick vector.
      */
+    /**
+     * Whether the held walk pushes (nearly) straight into the face of {@code pos} you're touching - within ~17 degrees,
+     * i.e. less than 0.3 of the walk runs along the face. A walk that slides along the block (killer560, 2026-09-22:
+     * "if I run into the side of the chest quickly just to align myself ... and then continue running parallel with
+     * the base of the block, something like that doesn't stop all of my movement") is left alone.
+     */
+    private static boolean headOnInto(LocalPlayer player, BlockPos pos) {
+        net.minecraft.world.phys.AABB me = player.getBoundingBox();
+        net.minecraft.world.phys.AABB b = new net.minecraft.world.phys.AABB(pos);
+        double gapX = Math.max(b.minX - me.maxX, me.minX - b.maxX);
+        double gapZ = Math.max(b.minZ - me.maxZ, me.minZ - b.maxZ);
+        double len = Math.sqrt(holdDir.x * holdDir.x + holdDir.z * holdDir.z);
+        if (len < 1e-6) {
+            return false;
+        }
+        double wx = holdDir.x / len;
+        double wz = holdDir.z / len;
+        boolean touchX = gapX > -0.01 && gapX < 0.06 && gapZ < 0.0; // against an X face
+        boolean touchZ = gapZ > -0.01 && gapZ < 0.06 && gapX < 0.0; // against a Z face
+        if (touchX) {
+            boolean into = (b.minX >= me.maxX - 0.01) ? wx > 0 : wx < 0;
+            return into && Math.abs(wz) < 0.3;
+        }
+        if (touchZ) {
+            boolean into = (b.minZ >= me.maxZ - 0.01) ? wz > 0 : wz < 0;
+            return into && Math.abs(wx) < 0.3;
+        }
+        return false;
+    }
+
     private static void applyHold(LocalPlayer player) {
         if (driving || holdDir == null) {
             return;
         }
-        boolean ahead = false;
-        if (placedBlocking && blockWatchPos != null) {
-            double bx = blockWatchPos.getX() + 0.5 - player.getX();
-            double bz = blockWatchPos.getZ() + 0.5 - player.getZ();
-            ahead = bx * holdDir.x + bz * holdDir.z > 0.0;
-        }
+        boolean ahead = placedBlocking && blockWatchPos != null && headOnInto(player, blockWatchPos);
         if (placedGraceTicks > 0 || ahead) {
             // A Block node's block is in the way (or just vanished from in front of you): no keys, like a player who
             // stops when they hit something - see placedBlocking. killer560 (2026-09-22): running into the placed chest
