@@ -47,6 +47,17 @@ final class Ap3RouteMath {
      */
     static final int LAVA_BOUNCE_DELAY = 3;
 
+    /**
+     * What lava does to a run: horizontal velocity HALVES every tick you are in it (vanilla's lava drag), and the
+     * bounce adds none back. Measured 2026-09-22: entering at 0.35-0.40 blocks/tick leaves 0.04-0.07 by the launch
+     * tick and 0.010 just after it, recovering only to about 0.10 five ticks later on air control alone. So a bounce
+     * buys height (18.5 blocks, or 30 looking up) at the price of the whole run - worth planning for the height, never
+     * as a shortcut across flat ground.
+     */
+    static final double LAVA_HORIZONTAL_DRAG = 0.5;
+    /** killer560 (2026-09-22): "there are no deeper pools that exist" - the feet always reach the floor before the bounce. */
+    static final boolean LAVA_ALWAYS_SHALLOW = true;
+
     /** The impulse a lava bounce gives, in blocks of rise on the launch tick. */
     static final double LAVA_BOUNCE = 2.25;
     /** Looking up multiplies it - killer560: "You go higher looking up". */
