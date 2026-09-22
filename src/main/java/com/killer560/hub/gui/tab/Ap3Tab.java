@@ -20,7 +20,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -162,16 +161,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // Aligns are input-only (no position writes - Hypixel lags those back) and land exactly; this is how far off,
         // per axis, still counts as landed (0.0005 = the exact 3-decimal coordinate).
         header(w, contentX, y, contentWidth, "Align");
-        // killer560 (2026-09-21): three landing methods to A/B on an alt; each reports its server corrections.
-        w.add(SettingsButtonWidget.builder(alignMethodText(cfg), btn -> {
-                    cfg.setAlignMethod(cfg.getAlignMethod().next());
-                    cfg.save();
-                    btn.setMessage(alignMethodText(cfg));
-                }).bounds(contentX, y[0], BTN_W, 20).build());
-        y[0] += 24;
         toggle(w, contentX, y, "Freeze View While Aligning", cfg::isAlignFreezeView, cfg::setAlignFreezeView, null);
-        toleranceRow(w, cfg, contentX, y, "Align Tolerance", cfg::getAlignTolerance, cfg::setAlignTolerance);
-        toleranceRow(w, cfg, contentX, y, "Fast Align Tolerance", cfg::getFastAlignTolerance, cfg::setFastAlignTolerance);
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         header(w, contentX, y, contentWidth, "Stopwatch");
@@ -370,74 +360,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static Component labelColorModeText(Ap3Config cfg) {
         return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
-    }
-
-    /** A tolerance slider and a text box for an exact value ("e.g. 0.0005"), kept in step both ways: a valid typed
-     *  value moves the slider and saves at once; a slider drag rewrites the box text. */
-    private static void toleranceRow(List<AbstractWidget> w, Ap3Config cfg, int contentX, int[] y, String name,
-                                     java.util.function.DoubleSupplier get, java.util.function.DoubleConsumer set) {
-        int boxW = 70;
-        double tolMin = Ap3Config.MIN_ALIGN_TOLERANCE;
-        double tolMax = Ap3Config.MAX_ALIGN_TOLERANCE;
-        EditBox tolBox = new EditBox(Minecraft.getInstance().font, contentX + BTN_W - boxW, y[0], boxW, ROW,
-                Component.literal(name));
-        tolBox.setMaxLength(8);
-        tolBox.setValue(String.format(Locale.US, "%.4f", get.getAsDouble()));
-        var tolSlider = new ThemedSliderButton(contentX, y[0], BTN_W - boxW - GAP, ROW, toleranceText(name, get.getAsDouble()),
-                Math.max(0.0, Math.min(1.0, (get.getAsDouble() - tolMin) / (tolMax - tolMin)))) {
-            @Override
-            protected void updateMessage() {
-                setMessage(toleranceText(name, get.getAsDouble()));
-            }
-
-            @Override
-            protected void applyValue() {
-                double raw = tolMin + this.value * (tolMax - tolMin);
-                set.accept(Math.round(raw / 0.0001) * 0.0001);
-                cfg.save();
-                tolBox.setValue(String.format(Locale.US, "%.4f", get.getAsDouble()));
-            }
-
-            void showValue(double v) {
-                this.value = Math.max(0.0, Math.min(1.0, (v - tolMin) / (tolMax - tolMin)));
-                updateMessage();
-            }
-        };
-        tolBox.setResponder(text -> {
-            Double v = parseTolerance(text);
-            if (v != null && v >= tolMin && v <= tolMax) {
-                set.accept(v);
-                cfg.save();
-                tolSlider.showValue(get.getAsDouble());
-            }
-        });
-        w.add(tolSlider);
-        w.add(tolBox);
-        y[0] += 24;
-    }
-
-    private static Component alignMethodText(Ap3Config cfg) {
-        return Component.literal("Align Method: §6" + cfg.getAlignMethod().label);
-    }
-
-    /** A typed tolerance: digits and one dot, e.g. "0.0005"; null when it is not a number yet. */
-    private static Double parseTolerance(String text) {
-        if (text == null) {
-            return null;
-        }
-        String t = text.trim();
-        if (t.isEmpty() || !t.matches("[0-9]*\\.?[0-9]+")) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(t);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static Component toleranceText(String name, double v) {
-        return Component.literal(String.format(Locale.US, "%s: %.4f", name, v));
     }
 
     private static Component labelScaleText(Ap3Config cfg) {

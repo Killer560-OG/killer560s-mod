@@ -485,10 +485,13 @@ public final class Ap3Config {
 
     // ------------------------------------------------------------------------------------------- executor
 
-    public AlignMethod getAlignMethod() { return alignMethod; }
+    /** Fixed (killer560, 2026-09-21: "No longer have the align method"): every align is the combined planner - the
+     *  real camera turns, any key combination, sneak - which is the Camera Planner path. The other two stay in the
+     *  code only as history; nothing selects them. */
+    public AlignMethod getAlignMethod() { return AlignMethod.CAMERA; }
     public void setAlignMethod(AlignMethod m) { alignMethod = m == null ? AlignMethod.CAMERA : m; }
 
-    public double getFastAlignTolerance() { return fastAlignTolerance; }
+    public double getFastAlignTolerance() { return DEFAULT_FAST_ALIGN_TOLERANCE; }
     public void setFastAlignTolerance(double v) {
         if (Double.isFinite(v)) {
             fastAlignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 10000.0) / 10000.0));
@@ -498,7 +501,8 @@ public final class Ap3Config {
     public boolean isAlignFreezeView() { return alignFreezeView; }
     public void setAlignFreezeView(boolean v) { alignFreezeView = v; }
 
-    public double getAlignTolerance() { return alignTolerance; }
+    /** Fixed, not a setting (killer560: "Remove the sliders as a whole and keep them fixed"). */
+    public double getAlignTolerance() { return DEFAULT_ALIGN_TOLERANCE; }
     public void setAlignTolerance(double v) {
         if (Double.isFinite(v)) {
             alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 10000.0) / 10000.0));

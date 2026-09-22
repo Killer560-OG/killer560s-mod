@@ -142,7 +142,9 @@ public final class Ap3Executor {
     /** A plain W press reaches {@code LocalPlayer.modifyInput}'s square mapping at 0.98 - see {@link #writeMove}. */
     private static final double VANILLA_INPUT_SCALE = 0.98;
     /** Ticks an align must sit inside the tolerance with zero velocity and no input before it counts as done. */
-    private static final int SETTLE_TICKS = 2;
+    /** Ticks at rest before an align counts as done. "At rest" already means under vanilla's 0.003 zeroing line,
+     *  so the next tick cannot move him; one tick is enough (was 2, 2026-09-21 - regular aligns took ~9 ticks). */
+    private static final int SETTLE_TICKS = 1;
     /** How far an align node may pull you in from. A queued align fires even after you walked out of its box; past
      *  this it fails instead of dragging you across the room. */
     private static final double ALIGN_REACH = 4.0;
@@ -1051,6 +1053,10 @@ public final class Ap3Executor {
             if (Math.max(Math.abs(rest[0]), Math.abs(rest[1])) <= alignTolerance) {
                 clearMovement();
                 reportAlignTimer(node, -rest[0], -rest[1], null);
+                if (cfg.isAlignTimerDev()) {
+                    fastCheckNode = node;
+                    fastCheckTicks = 0;
+                }
                 finishNode();
                 return;
             }
@@ -1342,6 +1348,31 @@ public final class Ap3Executor {
     private static double alignTolerance = Ap3Config.DEFAULT_ALIGN_TOLERANCE;
     private static boolean alignFast;
 
+    /** Dev builds: a Fast Align hands over before he stops, so its dev line is a PREDICTION - this checks where he
+     *  really comes to rest and prints that too (only while nothing else is moving him). */
+    private static Ap3Node fastCheckNode;
+    private static int fastCheckTicks;
+
+    private static void tickFastCheck(LocalPlayer player) {
+        if (fastCheckNode == null) {
+            return;
+        }
+        Vec3 v = player.getDeltaMovement();
+        if (++fastCheckTicks > 40 || driving) {
+            fastCheckNode = null; // another node moved him: no honest measurement
+            return;
+        }
+        if (Ap3AlignMath.horizontalZeroed(v.x, v.z)) {
+            Vec3 p = player.position();
+            String offs = String.format(Locale.US, "X off %+.4f, Z off %+.4f", p.x - fastCheckNode.x, p.z - fastCheckNode.z);
+            LOGGER.info("[AP3 dev] Fast Align #{} actually stopped {} ticks later - {}", number(fastCheckNode), fastCheckTicks, offs);
+            ModChat.send("AP3 dev", ModChat.text("Fast Align "), ModChat.value("#" + number(fastCheckNode)),
+                    ModChat.text(" actually stopped: "), ModChat.value(offs),
+                    ModChat.dim(String.format(Locale.US, " (%d ticks after hand-over)", fastCheckTicks)));
+            fastCheckNode = null;
+        }
+    }
+
     /** Where the current slide ends with no more input, as {ex, ez} (target minus rest position). */
     private static double[] coastRest(LocalPlayer player, double ex, double ez) {
         Vec3 vel = player.getDeltaMovement();
@@ -1397,6 +1428,11 @@ public final class Ap3Executor {
      *  otherwise glides the real yaw back under the view and lets go. */
     static void tickView(Minecraft client) {
         LocalPlayer player = client.player;
+        if (player != null) {
+            tickFastCheck(player);
+        } else {
+            fastCheckNode = null;
+        }
         if (Float.isNaN(viewYaw)) {
             return;
         }
@@ -1615,14 +1651,30 @@ public final class Ap3Executor {
         double wallVel = axis == Direction.Axis.X ? vel.x : vel.z;
         int[] key = nearestKey8(wall.x, wall.z, player.getYRot());
         boolean straightIn = key[0] == 1 && key[1] == 0;
-        if (touching && Math.abs(wallVel) < 1e-9) {
-            // Pinned by the block face. Keep leaning through the settle so the coordinate cannot drift.
+        boolean stopped = Ap3AlignMath.horizontalZeroed(vel.x, vel.z);
+        if (touching && Math.abs(wallVel) < 1e-9 && stopped) {
+            // Pinned by the block face AND no slide left along it (killer560, 2026-09-21: "it aligns me but doesn't
+            // account that I am still moving and I drift past the wall"). Keep leaning through the settle.
             if (++settleTicks >= SETTLE_TICKS) {
                 reportAlignTimer(node, pos.x - node.x, pos.z - node.z, axis);
                 finishNode();
                 return;
             }
             writeDiscrete(player, key[0], key[1], false, false, player.getYRot(), modelFor(player, false), lastSneakSent);
+            return;
+        }
+        if (touching) {
+            // On the wall but still sliding along it: the key combination (any of the 17, sneak included) that
+            // leaves the least along-wall speed after this tick while never pulling off the wall - a brake tap
+            // against the slide, leaning in wherever that costs nothing.
+            settleTicks = 0;
+            if (stepTicks > cfg.getAlignTimeoutTicks()) {
+                failNode(String.format(Locale.US, "couldn't stop the slide on axis align #%d", number(node)));
+                return;
+            }
+            alignPhase = "braking along the wall";
+            Ap3DiscretePlanner.Action brake = brakeAlongWall(player, wall, axis);
+            writeDiscrete(player, brake.fw(), brake.st(), brake.sneak(), false, player.getYRot(), modelFor(player, false), lastSneakSent);
             return;
         }
         settleTicks = 0;
@@ -1636,6 +1688,47 @@ public final class Ap3Executor {
         // Into the wall; sprint on the way in when the key is W (vanilla starts it from the record and the forward
         // impulse), never once touching.
         writeDiscrete(player, key[0], key[1], false, straightIn && !touching, player.getYRot(), modelFor(player, false), lastSneakSent);
+    }
+
+    /** One exact model tick per key combination at the camera yaw; the wall axis is zeroed after it (the collision
+     *  does that). Score: along-wall speed left, then more lean into the wall. Keys whose direction points away
+     *  from the wall are never used. */
+    private static Ap3DiscretePlanner.Action brakeAlongWall(LocalPlayer player, Vec3 wall, Direction.Axis axis) {
+        Ap3DiscretePlanner.Model m = modelFor(player, false);
+        Vec3 vel = player.getDeltaMovement();
+        float yaw = player.getYRot();
+        float r = yaw * Ap3AlignMath.DEG_TO_RAD;
+        double c = Mth.cos(r), sn = Mth.sin(r);
+        Ap3DiscretePlanner.Action best = Ap3DiscretePlanner.NONE;
+        double bestAlong = Double.MAX_VALUE, bestLean = -1;
+        for (Ap3DiscretePlanner.Action a : Ap3DiscretePlanner.ACTIONS) {
+            double lean = 0.0;
+            if (!a.none()) {
+                double norm = Math.sqrt(a.fw() * a.fw() + a.st() * a.st());
+                double dx = (a.st() * c - a.fw() * sn) / norm;
+                double dz = (a.fw() * c + a.st() * sn) / norm;
+                lean = dx * wall.x + dz * wall.z;
+                if (lean < -1e-6) {
+                    continue;
+                }
+            }
+            Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
+            s.vx = vel.x;
+            s.vz = vel.z;
+            s.sprinting = player.isSprinting();
+            s.crouching = lastSneakSent;
+            s.sentYaw = yaw;
+            Ap3DiscretePlanner.step(s, a, yaw, m);
+            double alongX = axis == Direction.Axis.X ? 0.0 : s.vx;
+            double alongZ = axis == Direction.Axis.X ? s.vz : 0.0;
+            double along = Ap3AlignMath.horizontalZeroed(alongX, alongZ) ? 0.0 : Math.abs(alongX + alongZ);
+            if (along < bestAlong - 1e-9 || (Math.abs(along - bestAlong) <= 1e-9 && lean > bestLean)) {
+                bestAlong = along;
+                bestLean = lean;
+                best = a;
+            }
+        }
+        return best;
     }
 
     /** Whether the player's box is pressed against a collidable block on that side (within {@value #WALL_TOUCH}). */

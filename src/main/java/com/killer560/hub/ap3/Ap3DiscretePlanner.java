@@ -576,6 +576,20 @@ final class Ap3DiscretePlanner {
     static final double REFINE_ABOVE = 1.0E-4;
     static final int REFINE_EXTRA_TICKS = 3;
 
+    /** Landing beats not landing; then fewer ticks to rest; then the smaller error. */
+    private static boolean better(Plan a, Plan b) {
+        if (a.reaches != b.reaches) {
+            return a.reaches;
+        }
+        if (!a.reaches) {
+            return a.restError < b.restError;
+        }
+        if (a.ticks != b.ticks) {
+            return a.ticks < b.ticks;
+        }
+        return a.restError < b.restError;
+    }
+
     static Plan plan(State s, Model m) {
         Plan settle = settlePlan(s, m);
         if (settle != null) {
@@ -597,11 +611,27 @@ final class Ap3DiscretePlanner {
         }
         Plan fine = null;
         if (m.yawSteerable) {
+            // Combined (killer560, 2026-09-21: "you should be able to change angle as well as crouch and all the other
+            // things ... if it makes it faster"): the turned one- and two-tap solves AND the exhaustive key+sneak search
+            // at the current yaw all compete, and of the ones that land inside the tolerance the one at rest soonest
+            // wins (then the closer one).
             fine = oneTapPlan(s, m);
-            if (fine == null || !fine.reaches) {
-                Plan two = twoTapPlan(s, m);
-                if (two != null && (fine == null || two.restError < fine.restError)) {
-                    fine = two;
+            Plan two = twoTapPlan(s, m);
+            if (two != null && (fine == null || better(two, fine))) {
+                fine = two;
+            }
+            JointResult keys = new JointResult();
+            keysFineSearch(s, m, KEYS_FINE_DEPTH, 0, null, keys);
+            if (keys.restErr <= m.tolerance) {
+                Plan kp = new Plan();
+                kp.action = keys.first == null ? NONE : keys.first;
+                kp.yaw = s.sentYaw;
+                kp.reaches = true;
+                kp.restError = keys.restErr;
+                kp.ticks = keys.ticks;
+                kp.phase = "keys";
+                if (fine == null || better(kp, fine)) {
+                    fine = kp;
                 }
             }
             if (fine != null && fine.reaches) {
