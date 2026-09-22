@@ -345,6 +345,15 @@ public final class BreakerAuraFeature {
         return new ArrayList<>(ordered);
     }
 
+    /**
+     * Whether a route planner should treat this block as air - killer560 (2026-09-22): "If a block is selected for
+     * breaker aura treat that block as not being there when you go to run through it". True only while Breaker Aura
+     * is actually on and the block is one it would break.
+     */
+    public static boolean plannerTreatsAsAir(ClientLevel level, BlockPos pos) {
+        return DungeonExtrasConfig.getInstance().isBreakerAuraEnabled() && isValidTarget(level, pos);
+    }
+
     private static boolean isValidTarget(ClientLevel level, BlockPos pos) {
         if (!level.isLoaded(pos)) {
             return false;

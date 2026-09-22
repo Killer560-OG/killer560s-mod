@@ -40,7 +40,8 @@ public final class Ap3Node {
      *  (LINE, AXIS_LINE, LEAP_DETECTOR) still parse so a recorded chain keeps loading. WAIT and BREAKER are gone
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
-        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, TEST_ALIGN;
+        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, TEST_ALIGN,
+        PATH, NO_GO, TERM_AURA;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -64,6 +65,9 @@ public final class Ap3Node {
                 case "block", "place", "slab", "b" -> BLOCK;
                 case "edge", "edgejump", "edge_jump", "ej" -> EDGE;
                 case "testalign", "test_align", "ta" -> TEST_ALIGN;
+                case "path", "route", "gate", "p" -> PATH;
+                case "nogo", "no_go", "avoid", "blacklist", "keepout" -> NO_GO;
+                case "termaura", "term_aura", "taura", "opento" -> TERM_AURA;
                 default -> null;
             };
         }
@@ -86,6 +90,9 @@ public final class Ap3Node {
                 case EDGE -> "Edge Jump";
                 case BLOCK -> "Block";
                 case TEST_ALIGN -> "Test Align";
+                case PATH -> "Path";
+                case NO_GO -> "No Go";
+                case TERM_AURA -> "Term Aura";
             };
         }
 
@@ -125,6 +132,11 @@ public final class Ap3Node {
                 case WALK, RUN -> 6;
                 // right after a walk in the same box, so the walk is already driving when the jump goes in
                 case JUMP, EDGE, BLOCK -> 7;
+                // A Path node starts / continues the optimised route; No Go is data for the planner and never fires.
+                case PATH -> 6;
+                case NO_GO -> 99;
+                // Opening the terminal is the point of standing here: before a walk carries you past it.
+                case TERM_AURA -> 4;
                 case BOOM -> 8;
                 case LEAP -> 9;
             };
@@ -211,6 +223,22 @@ public final class Ap3Node {
     public String leapIgn;
     /** {@link Type#LEAP_COUNTER}: how many teammates must leap to you. */
     public int leapCount = 1;
+    /**
+     * {@link Type#PATH}: the speed the route must be travelling at when it crosses this node, blocks/tick; negative
+     * means "any". killer560 asked for "a certain position with a certain velocity or range of velocity".
+     */
+    public double minSpeed = -1, maxSpeed = -1;
+    /** {@link Type#PATH}: an optional heading requirement at the crossing (MC yaw of the travel direction). */
+    public boolean hasDir;
+    public double dirDeg;
+    public double dirTolDeg = 15.0;
+    /**
+     * {@link Type#PATH}: the route STOPS here and waits for a terminal / menu to be closed before the next leg -
+     * killer560: "a way for me to add things like on term close to them so it knows it will have to wait for a term
+     * to close and thus lose its speed". The approach is planned to arrive stopped, and the next leg starts from rest.
+     */
+    public boolean termWait;
+
     /** Optional per-node ARGB colour, or null to use the type / uniform colour from the settings. */
     public Integer colour;
 
@@ -422,6 +450,22 @@ public final class Ap3Node {
                     sb.append(" [").append(name).append(']');
                 }
             }
+            case PATH -> {
+                sb.append(precise ? " [exact" : " [box");
+                if (minSpeed >= 0 || maxSpeed >= 0) {
+                    sb.append(String.format(Locale.US, ", speed %s-%s",
+                            minSpeed < 0 ? "any" : fmt(minSpeed), maxSpeed < 0 ? "any" : fmt(maxSpeed)));
+                }
+                if (hasDir) {
+                    sb.append(String.format(Locale.US, ", heading %.0f+-%.0f", dirDeg, dirTolDeg));
+                }
+                if (termWait) {
+                    sb.append(", waits for a term");
+                }
+                sb.append(']');
+            }
+            case NO_GO -> sb.append(" [the route may not enter]");
+            case TERM_AURA -> sb.append(" [opens a term in range]");
             default -> {
             }
         }

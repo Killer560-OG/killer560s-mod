@@ -42,6 +42,9 @@ public final class Ap3Config {
     public static final String KEY_ADD_ALIGN = "add_line";
     public static final String KEY_ADD_AXIS_ALIGN = "add_axisline";
     public static final String KEY_ADD_TEST_ALIGN = "add_testalign";
+    public static final String KEY_ADD_PATH = "add_path";
+    public static final String KEY_ADD_NO_GO = "add_nogo";
+    public static final String KEY_ADD_TERM_AURA = "add_termaura";
     public static final String KEY_ADD_WALK = "add_walk";
     public static final String KEY_ADD_RUN = "add_run";
     public static final String KEY_ADD_LEAP = "add_leap";
@@ -70,7 +73,7 @@ public final class Ap3Config {
 
     public static final List<String> KEYBIND_IDS = List.of(
             KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
-            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_ADD_BLOCK, KEY_ADD_TEST_ALIGN, KEY_LIST, KEY_UNDO,
+            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_ADD_BLOCK, KEY_ADD_TEST_ALIGN, KEY_ADD_PATH, KEY_ADD_NO_GO, KEY_ADD_TERM_AURA, KEY_LIST, KEY_UNDO,
             KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE,
             KEY_FREEZE_STATE, KEY_REWIND_TICK, KEY_FORWARD_TICK);
 
@@ -206,6 +209,22 @@ public final class Ap3Config {
      *  where it has always sat) - the same two knobs Posmsg's waypoints got. */
     private float labelScale = 1f;
     private float labelHeightOffset = 0f;
+    /** Route optimiser: may the plan use jumps? At Skyblock speed a jump is slower (the air's 0.026 input cannot
+     *  sustain a 550-speed run), so the planner only uses them where they actually win - this is the off switch. */
+    private boolean routeAllowJumps = true;
+    /** How many states per tick layer the route search keeps: higher finds more, costs more planning time. */
+    private int routeBeam = 400;
+    /** Longest the route search may think, milliseconds (it runs off the client thread). */
+    private long routeBudgetMs = 1500;
+    /** How close an "exact" Path node has to be hit - what matters is staying on the same side of the block edge. */
+    private double routeExactTolerance = 0.02;
+    /** A Path node marked "term": how long to wait for the terminal screen before giving up on it. */
+    private int routeTermWaitTicks = 60;
+    /** A route that has not finished in this many ticks fails, like every other node's timeout. */
+    private int routeTimeoutTicks = 400;
+    /** Draw the planned route through the world. */
+    private boolean showPlannedPath = true;
+
     /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target (see the constants). */
     private double alignTolerance = DEFAULT_ALIGN_TOLERANCE;
     private AlignMethod alignMethod = AlignMethod.CAMERA;
@@ -251,6 +270,9 @@ public final class Ap3Config {
             case EDGE -> 0xFF22D3EE;
             case BLOCK -> 0xFFB45309;
             case TEST_ALIGN -> 0xFFFFD27F;
+            case PATH -> 0xFFFFB347;
+            case NO_GO -> 0xFFFF3355;
+            case TERM_AURA -> 0xFFA855F7;
         };
     }
 
@@ -327,6 +349,13 @@ public final class Ap3Config {
                 cfg.setDefaultNodeSize(ConfigJson.getDouble(o, "defaultNodeSize", cfg.defaultNodeSize));
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
+                cfg.setRouteAllowJumps(ConfigJson.getBool(o, "routeAllowJumps", cfg.routeAllowJumps));
+                cfg.setRouteBeam(ConfigJson.getInt(o, "routeBeam", cfg.routeBeam));
+                cfg.setRouteBudgetMs(ConfigJson.getInt(o, "routeBudgetMs", (int) cfg.routeBudgetMs));
+                cfg.setRouteExactTolerance(ConfigJson.getDouble(o, "routeExactTolerance", cfg.routeExactTolerance));
+                cfg.setRouteTermWaitTicks(ConfigJson.getInt(o, "routeTermWaitTicks", cfg.routeTermWaitTicks));
+                cfg.setRouteTimeoutTicks(ConfigJson.getInt(o, "routeTimeoutTicks", cfg.routeTimeoutTicks));
+                cfg.setShowPlannedPath(ConfigJson.getBool(o, "showPlannedPath", cfg.showPlannedPath));
                 cfg.setLeapDetectRadius(ConfigJson.getDouble(o, "leapDetectRadius", cfg.leapDetectRadius));
                 JsonObject keys = ConfigJson.getObject(o, "keybinds");
                 if (keys != null) {
@@ -383,6 +412,13 @@ public final class Ap3Config {
             o.addProperty("defaultNodeSize", defaultNodeSize);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
+            o.addProperty("routeAllowJumps", routeAllowJumps);
+            o.addProperty("routeBeam", routeBeam);
+            o.addProperty("routeBudgetMs", routeBudgetMs);
+            o.addProperty("routeExactTolerance", routeExactTolerance);
+            o.addProperty("routeTermWaitTicks", routeTermWaitTicks);
+            o.addProperty("routeTimeoutTicks", routeTimeoutTicks);
+            o.addProperty("showPlannedPath", showPlannedPath);
             o.addProperty("leapDetectRadius", leapDetectRadius);
             JsonObject keys = new JsonObject();
             for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
@@ -407,6 +443,22 @@ public final class Ap3Config {
     public void setEnabled(boolean v) { enabled = v; }
 
     public boolean isChatFeedback() { return chatFeedback; }
+
+    // ---- route optimiser (Path nodes) ----
+    public boolean isRouteAllowJumps() { return routeAllowJumps; }
+    public void setRouteAllowJumps(boolean v) { routeAllowJumps = v; }
+    public int getRouteBeam() { return routeBeam; }
+    public void setRouteBeam(int v) { routeBeam = Math.max(50, Math.min(2000, v)); }
+    public long getRouteBudgetMs() { return routeBudgetMs; }
+    public void setRouteBudgetMs(long v) { routeBudgetMs = Math.max(100, Math.min(10_000, v)); }
+    public double getRouteExactTolerance() { return routeExactTolerance; }
+    public void setRouteExactTolerance(double v) { routeExactTolerance = Math.max(0.001, Math.min(0.2, v)); }
+    public int getRouteTermWaitTicks() { return routeTermWaitTicks; }
+    public void setRouteTermWaitTicks(int v) { routeTermWaitTicks = Math.max(5, Math.min(200, v)); }
+    public int getRouteTimeoutTicks() { return routeTimeoutTicks; }
+    public void setRouteTimeoutTicks(int v) { routeTimeoutTicks = Math.max(40, Math.min(1200, v)); }
+    public boolean isShowPlannedPath() { return showPlannedPath; }
+    public void setShowPlannedPath(boolean v) { showPlannedPath = v; }
     public MessageDetail getMessageDetail() { return messageDetail; }
     public void setMessageDetail(MessageDetail d) { messageDetail = d == null ? MessageDetail.SIMPLE : d; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }

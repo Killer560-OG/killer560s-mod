@@ -43,8 +43,17 @@ final class Ap3RoutePlanner {
         double x, z;
         /** Half sizes of the box; 0 when {@link #exact}. */
         double halfW, halfL;
-        /** "If I use the exact then it needs to be at that exact position" - the feet must land ON the point. */
+        /**
+         * An exact gate - killer560 (2026-09-22): "I care about how close to being on the edge of the block it is.
+         * Not that it is 200 decimals precise to my original location but that it is still either on or off of a
+         * block at nearly identical coordinates". So what is checked is the BLOCK RELATIONSHIP: the hitbox has to
+         * cover the same blocks it covered when the node was placed (same overhang on the same edges), and the feet
+         * have to be within {@link #exactTol} of the point. Hitting 0.02 costs far fewer ticks than chasing 0.001.
+         */
         boolean exact;
+        double exactTol = 0.02;
+        /** Block cells the 0.6-wide hitbox covered at placement; the landing has to cover the same ones. */
+        int cellMinX, cellMaxX, cellMinZ, cellMaxZ;
         double y;
         /** Speed window at the crossing, blocks/tick; negative = no requirement. */
         double minSpeed = -1, maxSpeed = -1;
@@ -55,6 +64,47 @@ final class Ap3RoutePlanner {
         boolean wantsVelocity() {
             return minSpeed >= 0 || maxSpeed >= 0 || hasDir;
         }
+
+        /** Records which blocks the hitbox covers at this gate's own point - call once after setting x/z. */
+        void captureBlocks() {
+            cellMinX = (int) Math.floor(x - HALF_WIDTH);
+            cellMaxX = (int) Math.floor(x + HALF_WIDTH);
+            cellMinZ = (int) Math.floor(z - HALF_WIDTH);
+            cellMaxZ = (int) Math.floor(z + HALF_WIDTH);
+        }
+
+        /** Same blocks under the box as at placement: on the edge stays on the edge, off it stays off. */
+        boolean sameBlocks(double px, double pz) {
+            return (int) Math.floor(px - HALF_WIDTH) == cellMinX && (int) Math.floor(px + HALF_WIDTH) == cellMaxX
+                    && (int) Math.floor(pz - HALF_WIDTH) == cellMinZ && (int) Math.floor(pz + HALF_WIDTH) == cellMaxZ;
+        }
+    }
+
+    /** Half of the player's 0.6-wide collision box: what decides whether you are on or off an edge. */
+    static final double HALF_WIDTH = 0.3;
+
+    /**
+     * The world the route runs through, sampled ahead of planning so the search can run off the client thread. A
+     * position is only usable when every block column the 0.6-wide hitbox touches is walkable: nothing solid in the
+     * body's way and a floor to stand on. Blocks that Breaker Aura is going to break count as air (killer560:
+     * "If a block is selected for breaker aura treat that block as not being there when you go to run through it").
+     */
+    interface Terrain {
+        /** Can the player's box stand here, feet at the route's floor height? */
+        boolean walkable(double x, double z);
+
+        /** Is the body's space clear here even without a floor - i.e. can a jump pass through? */
+        boolean clearAir(double x, double z);
+
+        Terrain OPEN = new Terrain() {
+            public boolean walkable(double x, double z) {
+                return true;
+            }
+
+            public boolean clearAir(double x, double z) {
+                return true;
+            }
+        };
     }
 
     /** A box the route may never enter (walls, drops, "do not step here"). */
@@ -74,8 +124,8 @@ final class Ap3RoutePlanner {
         long budgetMs = 1500;
         /** How close the search must get to an exact gate before the polish takes over. */
         double exactSearch = 0.15;
-        /** The landing tolerance on an exact gate. */
-        double exactTol = 0.001;
+        /** Default landing tolerance on an exact gate when the gate does not set its own. */
+        double exactTol = 0.02;
     }
 
     /** One tick of the answer. */
@@ -110,6 +160,11 @@ final class Ap3RoutePlanner {
 
     static Plan plan(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
                      Ap3DiscretePlanner.Model m, Options o) {
+        return plan(start, gates, blocked, Terrain.OPEN, m, o);
+    }
+
+    static Plan plan(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked, Terrain terrain,
+                     Ap3DiscretePlanner.Model m, Options o) {
         Plan plan = new Plan();
         if (gates.isEmpty()) {
             plan.complete = true;
@@ -117,7 +172,7 @@ final class Ap3RoutePlanner {
         }
         long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
         double top = Math.max(Ap3RouteMath.topSpeed(m, o.allowJump), start.speed());
-        Field field = new Field(start, gates, blocked, o);
+        Field field = new Field(start, gates, blocked, terrain, o);
         Node root = new Node();
         root.s = start.copy();
         root.gate = 0;
@@ -135,7 +190,7 @@ final class Ap3RoutePlanner {
             List<Node> next = new ArrayList<>(Math.min(o.beam * 8, 4096));
             seen.clear();
             for (Node n : layer) {
-                expand(n, gates, blocked, m, o, top, next, seen, field);
+                expand(n, gates, blocked, terrain, m, o, top, next, seen, field);
             }
             if (next.isEmpty()) {
                 break;
@@ -159,8 +214,9 @@ final class Ap3RoutePlanner {
         return partial;
     }
 
-    private static void expand(Node n, List<Gate> gates, List<Blocked> blocked, Ap3DiscretePlanner.Model m,
-                               Options o, double top, List<Node> out, Map<Long, Node> seen, Field field) {
+    private static void expand(Node n, List<Gate> gates, List<Blocked> blocked, Terrain terrain,
+                               Ap3DiscretePlanner.Model m, Options o, double top, List<Node> out,
+                               Map<Long, Node> seen, Field field) {
         Gate target = gates.get(n.gate);
         boolean fine = needsFineControl(n, target, top);
         double[] dirs = directions(n, target, o, fine);
@@ -168,27 +224,31 @@ final class Ap3RoutePlanner {
         for (double dir : dirs) {
             for (Ap3DiscretePlanner.Action a : shapes) {
                 float yaw = (float) (Math.toDegrees(dir) - keyOffset(a));
-                tryStep(n, a, yaw, false, gates, blocked, m, o, top, out, seen, field);
+                tryStep(n, a, yaw, false, gates, blocked, terrain, m, o, top, out, seen, field);
                 if (o.allowJump && n.s.onGround) {
-                    tryStep(n, a, yaw, true, gates, blocked, m, o, top, out, seen, field);
+                    tryStep(n, a, yaw, true, gates, blocked, terrain, m, o, top, out, seen, field);
                 }
             }
         }
         // Coast / sneak-only: no push at all (sneak-only still arms the 0.3x tap for the next tick).
-        tryStep(n, Ap3DiscretePlanner.NONE, n.s.yaw, false, gates, blocked, m, o, top, out, seen, field);
+        tryStep(n, Ap3DiscretePlanner.NONE, n.s.yaw, false, gates, blocked, terrain, m, o, top, out, seen, field);
         if (fine) {
-            tryStep(n, SNEAK_ONLY, n.s.yaw, false, gates, blocked, m, o, top, out, seen, field);
+            tryStep(n, SNEAK_ONLY, n.s.yaw, false, gates, blocked, terrain, m, o, top, out, seen, field);
         }
     }
 
     private static void tryStep(Node n, Ap3DiscretePlanner.Action a, float yaw, boolean jump, List<Gate> gates,
-                                List<Blocked> blocked, Ap3DiscretePlanner.Model m, Options o, double top,
-                                List<Node> out, Map<Long, Node> seen, Field field) {
+                                List<Blocked> blocked, Terrain terrain, Ap3DiscretePlanner.Model m, Options o,
+                                double top, List<Node> out, Map<Long, Node> seen, Field field) {
         Ap3RouteMath.RouteState s = n.s.copy();
         double fromX = s.x;
         double fromZ = s.z;
         Ap3RouteMath.step(s, a, yaw, jump, m);
         if (hits(blocked, fromX, fromZ, s.x, s.z, s.y)) {
+            return;
+        }
+        // The world itself: a wall is a wall, and a hole is only passable while the feet are off the ground.
+        if (s.onGround ? !terrain.walkable(s.x, s.z) : !terrain.clearAir(s.x, s.z)) {
             return;
         }
         int gate = n.gate;
@@ -268,7 +328,7 @@ final class Ap3RoutePlanner {
         final double[] tail;
         final List<Gate> gates;
 
-        Field(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked, Options o) {
+        Field(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked, Terrain terrain, Options o) {
             this.gates = gates;
             double lo_x = start.x, hi_x = start.x, lo_z = start.z, hi_z = start.z;
             for (Gate g : gates) {
@@ -293,6 +353,10 @@ final class Ap3RoutePlanner {
                 for (int j = 0; j < h; j++) {
                     double cx = minX + i * CELL;
                     double cz = minZ + j * CELL;
+                    if (!terrain.clearAir(cx, cz)) {
+                        wall[i * h + j] = true;
+                        continue;
+                    }
                     for (Blocked b : blocked) {
                         if (cx >= b.minX - CELL && cx <= b.maxX + CELL && cz >= b.minZ - CELL && cz <= b.maxZ + CELL) {
                             wall[i * h + j] = true;
@@ -392,6 +456,9 @@ final class Ap3RoutePlanner {
         }
         if (!in) {
             return false;
+        }
+        if (g.exact && !g.sameBlocks(to.x, to.z)) {
+            return false; // right distance, wrong side of a block edge
         }
         return meetsVelocity(g, to);
     }
@@ -538,7 +605,7 @@ final class Ap3RoutePlanner {
         double[] r2 = new double[2];
         double cost = residual(plan, start, gate, m, from, at, y, r);
         double lambda = 1e-3;
-        for (int it = 0; it < 20 && cost > o.exactTol * o.exactTol * 0.25; it++) {
+        for (int it = 0; it < 20 && cost > gate.exactTol * gate.exactTol * 0.25; it++) {
             double[][] jac = new double[2][k];
             for (int j = 0; j < k; j++) {
                 double h = 0.02;
@@ -587,8 +654,17 @@ final class Ap3RoutePlanner {
                 break;
             }
         }
-        if (Math.sqrt(cost) > o.exactTol) {
+        if (Math.sqrt(cost) > gate.exactTol) {
             return false;
+        }
+        Ap3RouteMath.RouteState landed = start.copy();
+        for (int i = 0; i <= at; i++) {
+            Step st = plan.steps[i];
+            float yaw = i >= from ? (float) y[i - from] : st.yaw();
+            Ap3RouteMath.step(landed, st.keys(), yaw, st.jump(), m);
+        }
+        if (!gate.sameBlocks(landed.x, landed.z)) {
+            return false; // close, but it would stand on the other side of the edge
         }
         for (int i = 0; i < k; i++) {
             Step s = plan.steps[from + i];

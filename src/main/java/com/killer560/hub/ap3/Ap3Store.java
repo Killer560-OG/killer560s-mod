@@ -560,6 +560,14 @@ public final class Ap3Store {
         n.leapClass = DungeonClass.byName(ConfigJson.getString(o, "leapClass", null));
         n.leapIgn = cleanString(ConfigJson.getString(o, "leapIgn", null), MAX_IGN);
         n.setLeapCount(ConfigJson.getInt(o, "leapCount", 1));
+        if (type == Ap3Node.Type.PATH) {
+            n.minSpeed = ConfigJson.getDouble(o, "minSpeed", -1);
+            n.maxSpeed = ConfigJson.getDouble(o, "maxSpeed", -1);
+            n.hasDir = ConfigJson.getBool(o, "hasDir", false);
+            n.dirDeg = ConfigJson.getDouble(o, "dirDeg", 0);
+            n.dirTolDeg = ConfigJson.getDouble(o, "dirTolDeg", 15.0);
+            n.termWait = ConfigJson.getBool(o, "termWait", false);
+        }
         if (type == Ap3Node.Type.AXIS_ALIGN) {
             n.wallDir = parseWall(ConfigJson.getString(o, "wall", null));
             if (n.wallDir == null) {
@@ -629,6 +637,14 @@ public final class Ap3Store {
                 o.addProperty("leapIgn", n.leapIgn == null ? "" : n.leapIgn);
             }
             case LEAP_COUNTER -> o.addProperty("leapCount", n.leapCount);
+            case PATH -> {
+                o.addProperty("minSpeed", round(n.minSpeed, 4));
+                o.addProperty("maxSpeed", round(n.maxSpeed, 4));
+                o.addProperty("hasDir", n.hasDir);
+                o.addProperty("dirDeg", round(n.dirDeg, 1));
+                o.addProperty("dirTolDeg", round(n.dirTolDeg, 1));
+                o.addProperty("termWait", n.termWait);
+            }
             default -> {
             }
         }

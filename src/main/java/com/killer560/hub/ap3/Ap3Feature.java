@@ -257,6 +257,12 @@ public final class Ap3Feature {
         public DungeonClass leapClass;
         public String leapIgn;
         public Integer leapCount;
+        /** PATH: the speed window and heading the route must cross this node at, and whether it waits for a term. */
+        public Double minSpeed;
+        public Double maxSpeed;
+        public Double dirDeg;
+        public Double dirTolDeg;
+        public boolean termWait;
 
         void applyTo(Ap3Node node) {
             if (width != null) {
@@ -283,6 +289,14 @@ public final class Ap3Feature {
             }
             if (node.type == Ap3Node.Type.LEAP_COUNTER && leapCount != null) {
                 node.setLeapCount(leapCount);
+            }
+            if (node.type == Ap3Node.Type.PATH) {
+                node.minSpeed = minSpeed == null ? -1 : minSpeed;
+                node.maxSpeed = maxSpeed == null ? -1 : maxSpeed;
+                node.hasDir = dirDeg != null;
+                node.dirDeg = dirDeg == null ? 0 : dirDeg;
+                node.dirTolDeg = dirTolDeg == null ? 15.0 : dirTolDeg;
+                node.termWait = termWait;
             }
         }
     }

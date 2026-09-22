@@ -247,6 +247,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.auction.ListingHelperFeature.register();
         com.killer560.hub.supporters.SupportersFeature.register();
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
+        com.killer560.hub.lavalab.LavaLabFeature.register();
+        com.killer560.hub.lavalab.LavaLabCommands.register();
         HudElementRegistry.register(new EtherwarpHudElement());
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);

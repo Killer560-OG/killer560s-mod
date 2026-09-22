@@ -69,6 +69,11 @@ public final class Ap3Renderer {
                 case WALK, RUN -> renderArrow(ctx, node, c, alpha, thickness);
                 case AXIS_ALIGN -> renderWallSide(ctx, node, c, alpha, thickness);
                 case LOOK, BOOM, BLOCK -> renderLookRay(ctx, node, c, alpha, thickness);
+                case PATH -> {
+                    if (node.hasDir) {
+                        renderArrow(ctx, node, c, alpha, thickness);
+                    }
+                }
                 default -> {
                 }
             }
@@ -82,6 +87,13 @@ public final class Ap3Renderer {
                     renderLabel(ctx, camera, real.x, real.y + height + 0.35 + cfg.getLabelHeightOffset() + lift, real.z,
                             text, cfg.labelColorFor(node, argb), cfg.getLabelScale());
                 }
+            }
+        }
+        if (cfg.isShowPlannedPath()) {
+            // The route the optimiser actually plans to run, tick by tick - not the straight chain line.
+            List<Vec3> path = Ap3RouteRunner.plannedPath(playerPos.y + 0.1);
+            if (path.size() >= 2) {
+                WorldRenderUtils.renderLineStrip(ctx, path, 1.0f, 0.70f, 0.28f, 0.9f, Math.max(1f, thickness));
             }
         }
         if (chainLine.size() >= 2 && cfg.isShowChainLines()) {
@@ -138,6 +150,19 @@ public final class Ap3Renderer {
             case LEAP -> sb.append(node.leapDescription());
             case LEAP_COUNTER -> sb.append('x').append(node.leapCount);
             case AXIS_ALIGN -> sb.append(node.wallDir == null ? "no wall" : node.wallDir.getName());
+            case PATH -> {
+                if (node.precise) {
+                    sb.append("exact");
+                }
+                if (node.maxSpeed >= 0 || node.minSpeed >= 0) {
+                    append(sb, Ap3Node.fmt(Math.max(0, node.minSpeed)) + "-"
+                            + (node.maxSpeed < 0 ? "any" : Ap3Node.fmt(node.maxSpeed)) + " b/t");
+                }
+                if (node.termWait) {
+                    append(sb, "term");
+                }
+            }
+            case NO_GO -> sb.append("no go");
             default -> {
             }
         }

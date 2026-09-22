@@ -79,9 +79,21 @@ public final class TerminalAuraFeature {
             return;
         }
 
-        double range = cfg.getRange();
-        if (range <= 0) {
-            return;
+        if (clickNearest(client, player, cfg.getRange())) {
+            lastClickMs = now;
+        }
+    }
+
+    /**
+     * Clicks the nearest terminal within {@code range}, once, and reports whether the interact went out. Used by the
+     * aura's own tick above and by AP3's Term Aura node - killer560 (2026-09-22): "once I step onto it if there is a
+     * term in my range it will click it to open it once... It should effectively toggle term aura for a packet if
+     * that makes sense. But not actually turn the setting on or off" - so this deliberately does NOT read
+     * {@link TerminalAuraConfig#isEnabled()}, and the caller owns the retry.
+     */
+    public static boolean clickNearest(Minecraft client, Player player, double range) {
+        if (client.level == null || client.gameMode == null || range <= 0) {
+            return false;
         }
         Vec3 eyes = player.getEyePosition();
         double rangeSqr = range * range;
@@ -102,13 +114,13 @@ public final class TerminalAuraFeature {
             // anything is sent or lastClickMs moves, so a denied tick costs nothing and we simply try the
             // same stand again next tick.
             if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
-                return;
+                return false;
             }
             client.gameMode.interact(player, stand, new EntityHitResult(stand, hit), InteractionHand.MAIN_HAND);
             player.swing(InteractionHand.MAIN_HAND);
-            lastClickMs = now;
             LOGGER.debug("[TerminalAura] Opened terminal entity {}", stand.getId());
-            return; // one per pass, so the delay actually paces them
+            return true; // one per pass, so the delay actually paces them
         }
+        return false;
     }
 }

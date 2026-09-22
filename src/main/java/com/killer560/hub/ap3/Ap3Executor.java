@@ -360,6 +360,7 @@ public final class Ap3Executor {
         holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
+        Ap3RouteRunner.stop();
         restoreSlotOnStop(Minecraft.getInstance().player);
         preAimed = null;
         preAimPrevSlot = -1;
@@ -769,6 +770,10 @@ public final class Ap3Executor {
             applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
             preAim(player); // last: may turn you toward a Block / Boom box you enter next tick
+            if (activeNode == null && queue.isEmpty() && chain != null) {
+                // Walking up to a route: plan it in the background so stepping on the first Path node moves at once.
+                Ap3RouteRunner.prePlan(client, player, chain.nodes());
+            }
         } catch (Exception e) {
             LOGGER.error("[AP3] Node error", e);
             stop("internal error (see log)");
@@ -792,6 +797,9 @@ public final class Ap3Executor {
         Vec3 pos = player.position();
         boolean handsOn = !Ap3FreezeState.isFrozen() && physicalMovementKeyDown(client);
         for (Ap3Node node : chain.nodes()) {
+            if (node.type == Ap3Node.Type.NO_GO || Ap3RouteRunner.owns(node)) {
+                continue; // No Go is planner data; a Path node the route is already driving must not re-queue
+            }
             boolean in = node.contains(pos);
             if (nodeBlocked(node, in)) {
                 // a correction cancelled this node: it re-arms only after a second outside its box
@@ -985,6 +993,9 @@ public final class Ap3Executor {
         }
         switch (node.type) {
             case ALIGN, TEST_ALIGN -> tickAlign(client, player, node);
+            case PATH -> tickPath(client, player, node);
+            case NO_GO -> finishNode(); // planner data only - it never drives anything
+            case TERM_AURA -> tickTermAura(client, player, node);
             case AXIS_ALIGN -> tickAxisAlign(client, player, node);
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
@@ -1250,6 +1261,79 @@ public final class Ap3Executor {
                 ModChat.dim(" (" + model + ")"));
     }
 
+    // ---- Path: the optimised route (see Ap3RouteRunner) -----------------------------------------------------------
+
+    private static void tickPath(Minecraft client, LocalPlayer player, Ap3Node node) {
+        if (step == Step.PREP) {
+            step = Step.DO;
+        }
+        if (stepTicks > Ap3Config.getInstance().getRouteTimeoutTicks()) {
+            Ap3RouteRunner.stop();
+            failNode("route #" + number(node) + " ran out of time");
+            return;
+        }
+        boolean running = Ap3RouteRunner.tick(client, player, node, s -> driveRouteStep(player, s));
+        if (!running) {
+            finishNode();
+        }
+    }
+
+    /** One planned tick: the real yaw turns onto the plan's yaw, then its key combination goes in (plus the jump). */
+    private static void driveRouteStep(LocalPlayer player, Ap3RoutePlanner.Step s) {
+        float delta = Mth.wrapDegrees(s.yaw() - player.getYRot());
+        if (Math.abs(delta) > 1e-4f) {
+            player.setYRot(player.getYRot() + delta);
+            RouteRotation.rebase();
+        }
+        if (s.jump()) {
+            wantJump = true;
+        }
+        Ap3DiscretePlanner.Action a = s.keys();
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(),
+                modelFor(player, false), lastSneakSent);
+    }
+
+    // ---- Term Aura: one click at the node, retried a couple of ticks later ----------------------------------------
+
+    /** killer560 (2026-09-22): "click it to open it once. If it doesn't open then it should click again 2 packets
+     *  later" - so the retry is two ticks apart, and the node gives up after a few rather than spamming interacts. */
+    private static final int TERM_AURA_TRIES = 3;
+    private static final int TERM_AURA_GAP = 2;
+    private static int termAuraTries;
+    private static int termAuraGap;
+
+    private static void tickTermAura(Minecraft client, LocalPlayer player, Ap3Node node) {
+        if (step == Step.PREP) {
+            step = Step.DO;
+            termAuraTries = 0;
+            termAuraGap = 0;
+        }
+        if (client.screen != null) {
+            finishNode(); // it opened - that was the whole job
+            return;
+        }
+        if (termAuraGap > 0) {
+            termAuraGap--;
+            return;
+        }
+        if (termAuraTries >= TERM_AURA_TRIES) {
+            finishNode();
+            return;
+        }
+        double range = com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance().getRange();
+        boolean sent = com.killer560.hub.terminalaura.TerminalAuraFeature.clickNearest(client, player, range);
+        termAuraTries++;
+        if (!sent && termAuraTries == 1) {
+            if (Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.text("Term Aura "), ModChat.value("#" + number(node)),
+                        ModChat.dim(" - no terminal in range"));
+            }
+            finishNode();
+            return;
+        }
+        termAuraGap = TERM_AURA_GAP;
+    }
+
     /** Restarts a node's dev clock on the first tick AP3 controls the movement (it was started on box entry). */
     private static void startAlignClock(Ap3Node node) {
         if (alignEntered.containsKey(node)) {
@@ -1477,6 +1561,11 @@ public final class Ap3Executor {
     }
 
     /** Everything the planner needs to know about what the game will do with a key, read from the player now. */
+    /** The movement model for the route planner: the same one an align uses, with the yaw free to be steered. */
+    static Ap3DiscretePlanner.Model routeModel(LocalPlayer player) {
+        return modelFor(player, true);
+    }
+
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
         Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
         double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);

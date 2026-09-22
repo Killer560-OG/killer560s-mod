@@ -73,6 +73,9 @@ public final class Ap3Commands {
         ADD_ALIGN("add_line", "Add Align Node", "/ap3 add align [precise] [w<n> l<n>]"),
         ADD_AXIS_ALIGN("add_axisline", "Add Axis Align Node", "/ap3 add axisalign [precise]"),
         ADD_TEST_ALIGN("add_testalign", "Add Test Align Node", "/ap3 add testalign [precise] [w<n> l<n>]"),
+        ADD_PATH("add_path", "Add Path Node", "/ap3 add path [exact] [speed:<min>-<max>] [dir:<deg>] [term]"),
+        ADD_NO_GO("add_nogo", "Add No Go Node", "/ap3 add nogo [w<n> l<n>]"),
+        ADD_TERM_AURA("add_termaura", "Add Term Aura Node", "/ap3 add termaura"),
         /** "(No Turn)" because that IS the point of AP3's walk: "it does not actually make my character face that
          *  way, but it will move that way" (killer560). Also keeps the label distinct from Auto Routes' walk node. */
         ADD_WALK("add_walk", "Add Walk (No Turn) Node", "/ap3 add walk [w<n> l<n>]"),
@@ -129,10 +132,12 @@ public final class Ap3Commands {
     //      axisalign and whatnot and show them as options, same for the mods to them.") ----
 
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
-    private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "testalign", "walk", "run", "leap",
+    private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "testalign", "path", "nogo", "termaura", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
+    /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
+    private static final List<String> PATH_MODS = List.of("exact", "speed:", "dir:", "dirtol:", "term");
 
     private static final SuggestionProvider<FabricClientCommandSource> TYPE_SUGGEST =
             (ctx, b) -> suggestTokens(b, TYPE_WORDS);
@@ -147,6 +152,8 @@ public final class Ap3Commands {
                 opts.addAll(List.of("default", "class", "ign", "mage", "archer", "bers", "tank", "healer"));
             } else if (t == Ap3Node.Type.LEAP_COUNTER) {
                 opts.addAll(List.of("1", "2", "3", "4"));
+            } else if (t == Ap3Node.Type.PATH) {
+                opts.addAll(PATH_MODS);
             }
         } catch (Exception ignored) {
             // no type yet - just offer the common modifiers
@@ -414,6 +421,9 @@ public final class Ap3Commands {
             case ADD_ALIGN -> add(Ap3Node.Type.ALIGN);
             case ADD_AXIS_ALIGN -> add(Ap3Node.Type.AXIS_ALIGN);
             case ADD_TEST_ALIGN -> add(Ap3Node.Type.TEST_ALIGN);
+            case ADD_PATH -> add(Ap3Node.Type.PATH);
+            case ADD_NO_GO -> add(Ap3Node.Type.NO_GO);
+            case ADD_TERM_AURA -> add(Ap3Node.Type.TERM_AURA);
             case ADD_WALK -> add(Ap3Node.Type.WALK);
             case ADD_RUN -> add(Ap3Node.Type.RUN);
             case ADD_LEAP -> add(Ap3Node.Type.LEAP);
@@ -545,6 +555,25 @@ public final class Ap3Commands {
                     spec.jumpMod = Ap3Node.JumpMod.EDGE;
                 } else if (t.equals("precise") || t.equals("exact")) {
                     spec.precise = true;
+                } else if (type == Ap3Node.Type.PATH && t.equals("term")) {
+                    spec.termWait = true;
+                } else if (type == Ap3Node.Type.PATH && (t.startsWith("speed:") || t.startsWith("speed="))) {
+                    // speed:0.2-0.45, speed:-0.3 (at most), speed:0.4- (at least) - blocks per tick
+                    String v = t.substring(6);
+                    int dash = v.indexOf('-', v.startsWith("-") ? 1 : 0);
+                    if (dash < 0) {
+                        spec.minSpeed = Double.parseDouble(v);
+                        spec.maxSpeed = spec.minSpeed;
+                    } else {
+                        String lo = v.substring(0, dash).trim();
+                        String hi = v.substring(dash + 1).trim();
+                        spec.minSpeed = lo.isEmpty() ? null : Double.parseDouble(lo);
+                        spec.maxSpeed = hi.isEmpty() ? null : Double.parseDouble(hi);
+                    }
+                } else if (type == Ap3Node.Type.PATH && (t.startsWith("dir:") || t.startsWith("dir="))) {
+                    spec.dirDeg = Double.parseDouble(t.substring(4));
+                } else if (type == Ap3Node.Type.PATH && (t.startsWith("dirtol:") || t.startsWith("dirtol="))) {
+                    spec.dirTolDeg = Double.parseDouble(t.substring(7));
                 } else if (t.startsWith("wait:") || t.startsWith("wait=")) {
                     spec.waitMs = clampWait(Integer.parseInt(t.substring(5)));
                 } else if (t.startsWith("width:") || t.startsWith("width=")) {
@@ -741,7 +770,8 @@ public final class Ap3Commands {
     }
 
     public static boolean setPrecise(int index, boolean on) {
-        return edit(index, "precise " + (on ? "on" : "off"), n -> n.type().isAlign(),
+        return edit(index, "precise " + (on ? "on" : "off"),
+                n -> n.type().isAlign() || n.type() == Ap3Node.Type.PATH,
                 "precise applies to Align and Axis Align nodes", n -> n.precise = on);
     }
 
