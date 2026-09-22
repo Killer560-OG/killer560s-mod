@@ -197,6 +197,7 @@ final class Ap3RouteRunner {
             if (drifted) {
                 LOGGER.info("[AP3 route] {} blocks off the plan - re-planning{}",
                         String.format(Locale.US, "%.2f", off), lost ? " (lost - holding still)" : "");
+                logDisagreement(player);
             }
         }
         if (!planning && (drifted || stepIndex - lastPlanStep >= REPLAN_EVERY)) {
@@ -403,6 +404,37 @@ final class Ap3RouteRunner {
         }, "killer560smod-ap3-route");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /**
+     * Where the plan and the game came apart: the ground the planner believes in at his real position, at the one it
+     * expected, and at every quarter block between - so a stop against something the plan thought was open says which
+     * cell is wrong rather than leaving it to be guessed at.
+     */
+    private static void logDisagreement(LocalPlayer player) {
+        Ap3RoutePlanner.Terrain t = snapshot;
+        if (t == null || predicted == null || !Ap3Config.getInstance().isAlignTimerDev()) {
+            return;
+        }
+        double x0 = player.getX();
+        double z0 = player.getZ();
+        double dx = predicted.x - x0;
+        double dz = predicted.z - z0;
+        int steps = (int) Math.max(1, Math.round(Math.hypot(dx, dz) / 0.25));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i <= steps; i++) {
+            double t2 = (double) i / steps;
+            double x = x0 + dx * t2;
+            double z = z0 + dz * t2;
+            double f = t.floorAt(x, z);
+            sb.append(Double.isNaN(f) ? "X" : String.format(Locale.US, "%.2f", f));
+            sb.append(t.bodyClear(x, z, Double.isNaN(f) ? player.getY() : f) ? " " : "! ");
+        }
+        LOGGER.info("[AP3 route] disagreement: he is at ({}, {}) y {} onGround {}, plan said ({}, {}); ground he -> plan: {}",
+                String.format(Locale.US, "%.3f", x0), String.format(Locale.US, "%.3f", z0),
+                String.format(Locale.US, "%.3f", player.getY()), player.onGround(),
+                String.format(Locale.US, "%.3f", predicted.x), String.format(Locale.US, "%.3f", predicted.z),
+                sb.toString().trim());
     }
 
     /**
