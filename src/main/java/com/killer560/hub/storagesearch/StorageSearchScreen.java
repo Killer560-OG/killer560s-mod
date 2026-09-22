@@ -63,7 +63,12 @@ public class StorageSearchScreen extends Screen {
         String current = searchBox != null ? searchBox.getValue() : initialQuery;
         // Sort/source sit on the search row rather than the header strip - four buttons crammed next to the
         // title stopped fitting once killer560 asked for sorting (2026-09-21).
-        int sortW = 96;
+        // Wide enough for the longest "Sort: ..." label (killer560, 2026-09-21: "make the sort button a little bit
+        // bigger to fully encompass the text").
+        int sortW = 16;
+        for (StorageSearchConfig.SortMode m : StorageSearchConfig.SortMode.values()) {
+            sortW = Math.max(sortW, this.font.width("Sort: " + m.label()) + 12);
+        }
         int sourceW = 84;
         int boxW = Math.max(80, panelW - 12 - sortW - sourceW - 8);
         searchBox = new EditBox(this.font, panelX + 6, panelY + 36, boxW, 18, Component.literal("Search"));
@@ -104,6 +109,11 @@ public class StorageSearchScreen extends Screen {
         }).bounds(panelX + panelW - bw * 2 - 10, panelY + 6, bw, 18).build();
         addRenderableWidget(loreButton);
         addRenderableWidget(invButton);
+        int scanW = this.font.width("Scan All") + 16;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Scan All"), btn -> {
+            onClose();
+            StorageScanAll.start();
+        }).bounds(panelX + panelW - bw * 2 - 14 - scanW, panelY + 6, scanW, 18).build());
 
         setInitialFocus(searchBox);
         refilter();
@@ -263,6 +273,8 @@ public class StorageSearchScreen extends Screen {
         int nameMax = w - 23 - countW - 12;
         if (e.rarityRgb() >= 0) {
             graphics.text(this.font, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, 0xFF000000 | e.rarityRgb(), false);
+        } else if (!e.name().equals(e.stack().getHoverName().getString())) {
+            graphics.text(this.font, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, 0xFFFFFFFF, false);
         } else if (this.font.width(e.stack().getHoverName()) <= nameMax) {
             graphics.text(this.font, e.stack().getHoverName(), textX, y + 3, 0xFFFFFFFF, false);
         } else {

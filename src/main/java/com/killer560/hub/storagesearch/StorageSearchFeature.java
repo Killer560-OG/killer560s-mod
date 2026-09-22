@@ -194,7 +194,10 @@ public final class StorageSearchFeature {
                 setPending(PendingKind.INVENTORY, null, -1, entry.inventorySlot(), null);
                 client.setScreenAndShow(new InventoryScreen(client.player));
             }
-            case ISLAND_CHEST -> openChestResult(client, cfg, entry);
+            case ISLAND_CHEST -> {
+                openChestResult(client, cfg, entry);
+                markDuplicateChests(cfg, entry, allResults);
+            }
             case WARDROBE, PETS, EQUIPMENT -> openExtraResult(client, entry);
             default -> openStorageResult(client, cfg, entry, allResults);
         }
@@ -216,6 +219,33 @@ public final class StorageSearchFeature {
                 ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
                 ModChat.dim(" (" + (int) Math.sqrt(distance) + " blocks away)"));
         client.setScreen(null);
+    }
+
+    /** "If something exists on my island as the exact same item in multiple areas, then highlight all chests it may
+     *  be in" (killer560, 2026-09-21): every other island-chest result for the same item (same Skyblock id, or the
+     *  same name when it has none) gets the same world box. */
+    private static void markDuplicateChests(StorageSearchConfig cfg, StorageSearchIndex.Entry entry,
+                                            List<StorageSearchIndex.Entry> allResults) {
+        if (!cfg.isChestEsp() || allResults == null) {
+            return;
+        }
+        int extra = 0;
+        for (StorageSearchIndex.Entry other : allResults) {
+            if (other == entry || other.type() != StorageSearchIndex.SourceType.ISLAND_CHEST || other.chestPos() == null
+                    || other.chestPos().equals(entry.chestPos())) {
+                continue;
+            }
+            boolean same = !entry.idLower().isEmpty() ? entry.idLower().equals(other.idLower())
+                    : entry.nameLower().equals(other.nameLower());
+            if (same) {
+                StorageSearchEsp.mark(other.chestPos(), cfg.getEspSeconds() * 1000L);
+                extra++;
+            }
+        }
+        if (extra > 0) {
+            ModChat.send(CHAT_PREFIX, ModChat.dim("Also in "), ModChat.value(extra + " more chest" + (extra == 1 ? "" : "s")),
+                    ModChat.dim(" - all marked."));
+        }
     }
 
     /** Wardrobe and Pets both have a real Hypixel command; the equipment menu doesn't, so that one only arms the

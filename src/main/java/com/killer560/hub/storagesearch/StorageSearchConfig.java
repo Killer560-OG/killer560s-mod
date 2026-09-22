@@ -93,7 +93,7 @@ public final class StorageSearchConfig {
     private boolean espThroughWalls = true;
     private int espSeconds = 30;
     /** Wardrobe / equipment / pets menus (see {@link StorageSearchExtraCache}) - off by default, same reasoning. */
-    private boolean searchExtras = false;
+    private boolean searchExtras = true;
     /** "if i search for an item and it is in one backpack then only show that backpack on the menu" - on, because
      *  it only ever happens as a direct result of him clicking a search result, and the grid's Back button undoes
      *  it in one click. */
@@ -162,7 +162,9 @@ public final class StorageSearchConfig {
                 if (obj.has("espSeconds")) {
                     cfg.setEspSeconds(obj.get("espSeconds").getAsInt());
                 }
-                if (obj.has("searchExtras")) {
+                // Wardrobe / pets default ON now (killer560, 2026-09-21: "it isn't working with things like wardrobe or
+                // pets") - the source was off by default. Files saved before switch it on once (extrasOnV1).
+                if (obj.has("searchExtras") && obj.has("extrasOnV1")) {
                     cfg.searchExtras = obj.get("searchExtras").getAsBoolean();
                 }
                 if (obj.has("focusSingleStorage")) {
@@ -209,6 +211,7 @@ public final class StorageSearchConfig {
             obj.addProperty("espThroughWalls", espThroughWalls);
             obj.addProperty("espSeconds", espSeconds);
             obj.addProperty("searchExtras", searchExtras);
+            obj.addProperty("extrasOnV1", true);
             obj.addProperty("focusSingleStorage", focusSingleStorage);
             obj.addProperty("sortMode", sortMode.name());
             obj.addProperty("sourceFilter", sourceFilter.name());

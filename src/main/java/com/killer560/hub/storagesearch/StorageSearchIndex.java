@@ -305,6 +305,17 @@ public final class StorageSearchIndex {
             }
         } catch (Exception ignored) {
         }
+        // Enchanted books by their enchant (killer560, 2026-09-21: "for enchanted books instead of labeling them
+        // enchanted book label them whatever the enchant is"): the first lore line is the enchant ("Sharpness VII").
+        if (stack.getItem() == Items.ENCHANTED_BOOK && name.equalsIgnoreCase("Enchanted Book") && itemLore != null) {
+            for (Component line : itemLore.lines()) {
+                String l = line.getString().trim();
+                if (!l.isEmpty()) {
+                    name = l;
+                    break;
+                }
+            }
+        }
         return new Entry(stack, name, name.toLowerCase(Locale.ROOT), id.toLowerCase(Locale.ROOT),
                 lore.toString().toLowerCase(Locale.ROOT), rarityRgb, type, key, number, contentIndex, invSlot,
                 location, updated, upperBound, chestPos);
