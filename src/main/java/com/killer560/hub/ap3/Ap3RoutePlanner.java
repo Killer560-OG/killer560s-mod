@@ -86,6 +86,12 @@ final class Ap3RoutePlanner {
         }
     }
 
+    /**
+     * How much height a sprint jump gains, for deciding whether the heuristic's grid is connected upwards. A jump
+     * peaks at 1.252 blocks, and you have to land ON the ledge rather than brush it, so this is a little under.
+     */
+    static final double JUMP_CLIMB = 1.2;
+
     /** How far past an exact gate's point to aim when the landing came down on the wrong side of a block edge. */
     private static final double EDGE_NUDGE = 0.004;
 
@@ -497,11 +503,14 @@ final class Ap3RoutePlanner {
             w = (int) Math.ceil((hi_x + pad - minX) / CELL) + 1;
             h = (int) Math.ceil((hi_z + pad - minZ) / CELL) + 1;
             boolean[] wall = new boolean[w * h];
+            float[] floor = new float[w * h];
             for (int i = 0; i < w; i++) {
                 for (int j = 0; j < h; j++) {
                     double cx = minX + i * CELL;
                     double cz = minZ + j * CELL;
-                    if (Double.isNaN(terrain.floorAt(cx, cz))) {
+                    double f = terrain.floorAt(cx, cz);
+                    floor[i * h + j] = (float) f;
+                    if (Double.isNaN(f)) {
                         wall[i * h + j] = true;
                         continue;
                     }
@@ -513,9 +522,10 @@ final class Ap3RoutePlanner {
                     }
                 }
             }
+            double climb = o.allowJump ? JUMP_CLIMB : Ap3RouteCollide.MAX_UP_STEP;
             dist = new float[gates.size()][];
             for (int g = 0; g < gates.size(); g++) {
-                dist[g] = flood(wall, gates.get(g));
+                dist[g] = flood(wall, floor, climb, gates.get(g));
             }
             tail = new double[gates.size() + 1];
             tail[gates.size()] = 0;
@@ -526,7 +536,7 @@ final class Ap3RoutePlanner {
         }
 
         /** Dijkstra out from a gate's box over the open cells (8-connected, true diagonal cost). */
-        private float[] flood(boolean[] wall, Gate g) {
+        private float[] flood(boolean[] wall, float[] floor, double climb, Gate g) {
             float[] d = new float[w * h];
             java.util.Arrays.fill(d, Float.POSITIVE_INFINITY);
             java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
@@ -557,6 +567,14 @@ final class Ap3RoutePlanner {
                         int ni = ci + di;
                         int nj = cj + dj;
                         if (ni < 0 || nj < 0 || ni >= w || nj >= h || wall[ni * h + nj]) {
+                            continue;
+                        }
+                        // The field measures the way TO the gate, so the player travels neighbour -> cur. He may
+                        // drop any distance, but he may only rise what he can walk or jump up: without this the
+                        // field is flat, and the cheapest way to close the distance to a gate at the top of a
+                        // staircase is to jump OFF the staircase and sprint along the floor below it - which is
+                        // exactly what killer560's route did on 2026-09-22, a near-180 and a jump back down.
+                        if (floor[cur] - floor[ni * h + nj] > climb) {
                             continue;
                         }
                         float step = (float) ((di != 0 && dj != 0 ? 1.41421356 : 1.0) * CELL);

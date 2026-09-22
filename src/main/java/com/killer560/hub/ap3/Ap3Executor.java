@@ -1672,6 +1672,13 @@ public final class Ap3Executor {
         if (pushFriction < 1e-6 || !player.onGround()) {
             return;
         }
+        if (player.horizontalCollision) {
+            // A wall (or a stair riser) zeroes the collided axis, so v_now says nothing about how hard the press
+            // pushed. Reading it anyway is what dragged the scale 0.909 -> 0.705 in one tick at the top of
+            // killer560's staircase on 2026-09-22 (model 0.59104, "actual" 0.00006) and then mis-drove everything
+            // after it. There is no measurement on a tick the world ate - so do not take one.
+            return;
+        }
         Vec3 v = player.getDeltaMovement();
         double actualX = v.x / pushFriction - pushBeforeX;
         double actualZ = v.z / pushFriction - pushBeforeZ;
