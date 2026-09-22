@@ -56,6 +56,8 @@ public class DungeonTab extends FolderTab {
         // here, joining Auto Terminals; the legit build has neither tab at all, not just a
         // disabled-looking one (matching SecretsConfig#isMasterEnabled's own gate underneath).
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // First in this block, so it sits right after the normal Secrets folder.
+            tabs.add(new CheatSecretsTab());
             tabs.add(new AutoTerminalTab());
             // Auto Puzzles came here when the Puzzle Solvers category was first dissolved (killer560,
             // 2026-09-20), and stayed here - deliberately separate from the Puzzle Solvers folder above -

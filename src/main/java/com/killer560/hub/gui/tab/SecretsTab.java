@@ -36,12 +36,8 @@ public class SecretsTab extends FolderTab {
                 new SecretWaypointsTab(),
                 new EtherwarpTab()
         ));
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            tabs.add(new SecretAuraTab());
-            tabs.add(new SecretTriggerbotTab());
-            tabs.add(new LeverAuraTab());
-            tabs.add(new FullBlockTab());
-        }
+        // The cheat sections (Secret Aura, Lever Aura, Secret Triggerbot, Full Block) moved to their own red
+        // "Secrets" folder right after this one - CheatSecretsTab (2026-09-21).
         return tabs;
     }
 }
