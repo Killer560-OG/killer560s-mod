@@ -935,6 +935,15 @@ public final class Ap3Executor {
         // ...and drop the grace window with it. Click-skipping a LEAP used to leave 205 ticks of grace
         // running, which silently made the next LOOK node uninterruptible by the mouse (2026-09-16 review).
         cameraGraceTicks = 0;
+        if (activeNode != null && activeNode.jumpMod != Ap3Node.JumpMod.NONE) {
+            // The jump / edge modifier: the node has done its part (a walk is now held, an align has landed) -
+            // arm the jump exactly like a JUMP / EDGE node would.
+            if (activeNode.jumpMod == Ap3Node.JumpMod.EDGE) {
+                edgeArmedTicks = EDGE_WAIT_TICKS;
+            } else {
+                jumpPendingTicks = JUMP_WAIT_TICKS;
+            }
+        }
         if (activeNode != null && activeNode.waitAfterMs > 0) {
             // "/ap3 add walk wait:1000 waits 1000ms after that node" - the next queued node waits that long; a
             // held walk keeps going meanwhile.

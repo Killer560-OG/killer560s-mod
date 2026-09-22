@@ -193,6 +193,11 @@ public final class Ap3Node {
     public int waitAfterMs;
     /** Modifier ({@code close}): this node fires only on a manual left click or after a terminal / GUI closes. */
     public boolean closeGate;
+    /** Modifier on ANY node (killer560, 2026-09-21: "/ap3 add run edge ... should run at the right degree then jump
+     *  at the edge"): once this node has done its thing, jump (JUMP) or jump at the edge (EDGE). */
+    public JumpMod jumpMod = JumpMod.NONE;
+
+    public enum JumpMod { NONE, JUMP, EDGE }
     /** {@link Type#LEAP}. */
     public LeapMode leapMode = LeapMode.DEFAULT;
     public DungeonClass leapClass;
@@ -414,6 +419,9 @@ public final class Ap3Node {
         if (closeGate) {
             sb.append(" close");
         }
+        if (jumpMod != JumpMod.NONE) {
+            sb.append(jumpMod == JumpMod.EDGE ? " edge" : " jump");
+        }
         sb.append(String.format(Locale.US, " @ %.2f, %.1f, %.2f", x, y, z));
         return sb.toString();
     }
@@ -439,6 +447,7 @@ public final class Ap3Node {
         n.wallDir = wallDir;
         n.waitAfterMs = waitAfterMs;
         n.closeGate = closeGate;
+        n.jumpMod = jumpMod;
         n.leapMode = leapMode;
         n.leapClass = leapClass;
         n.leapIgn = leapIgn;

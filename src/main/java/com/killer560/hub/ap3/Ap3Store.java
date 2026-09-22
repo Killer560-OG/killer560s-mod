@@ -551,6 +551,7 @@ public final class Ap3Store {
         n.precise = ConfigJson.getBool(o, "precise", false);
         n.setWaitAfterMs(ConfigJson.getInt(o, "waitAfterMs", 0));
         n.closeGate = ConfigJson.getBool(o, "close", false);
+        n.jumpMod = ConfigJson.getEnum(o, "jump", Ap3Node.JumpMod.class, Ap3Node.JumpMod.NONE);
         n.leapMode = ConfigJson.getEnum(o, "leapMode", Ap3Node.LeapMode.class, Ap3Node.LeapMode.DEFAULT);
         n.leapClass = DungeonClass.byName(ConfigJson.getString(o, "leapClass", null));
         n.leapIgn = cleanString(ConfigJson.getString(o, "leapIgn", null), MAX_IGN);
@@ -609,6 +610,9 @@ public final class Ap3Store {
         }
         if (n.closeGate) {
             o.addProperty("close", true);
+        }
+        if (n.jumpMod != Ap3Node.JumpMod.NONE) {
+            o.addProperty("jump", n.jumpMod.name());
         }
         switch (n.type) {
             case AXIS_ALIGN -> o.addProperty("wall", n.wallDir == null ? "" : n.wallDir.getName());

@@ -248,6 +248,7 @@ public final class Ap3Feature {
         public Double length;
         public Integer waitMs;
         public boolean close;
+        public Ap3Node.JumpMod jumpMod;
         public boolean precise;
         public Ap3Node.LeapMode leapMode;
         public DungeonClass leapClass;
@@ -265,6 +266,9 @@ public final class Ap3Feature {
                 node.setWaitAfterMs(waitMs);
             }
             node.closeGate = close;
+            if (jumpMod != null) {
+                node.jumpMod = jumpMod;
+            }
             node.precise = precise;
             if (node.type == Ap3Node.Type.LEAP) {
                 node.leapMode = leapMode == null ? Ap3Node.LeapMode.DEFAULT : leapMode;

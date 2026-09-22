@@ -130,7 +130,7 @@ public final class Ap3Commands {
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
-    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise");
+    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
 
     private static final SuggestionProvider<FabricClientCommandSource> TYPE_SUGGEST =
             (ctx, b) -> suggestTokens(b, TYPE_WORDS);
@@ -535,6 +535,10 @@ public final class Ap3Commands {
             try {
                 if (t.equals("close")) {
                     spec.close = true;
+                } else if (t.equals("jump") && type != Ap3Node.Type.JUMP && type != Ap3Node.Type.EDGE) {
+                    spec.jumpMod = Ap3Node.JumpMod.JUMP;
+                } else if ((t.equals("edge") || t.equals("edgejump")) && type != Ap3Node.Type.JUMP && type != Ap3Node.Type.EDGE) {
+                    spec.jumpMod = Ap3Node.JumpMod.EDGE;
                 } else if (t.equals("precise") || t.equals("exact")) {
                     spec.precise = true;
                 } else if (t.startsWith("wait:") || t.startsWith("wait=")) {
@@ -944,6 +948,9 @@ public final class Ap3Commands {
         }
         if (node.closeGate()) {
             sb.append(" close");
+        }
+        if (node.jumpMod != Ap3Node.JumpMod.NONE) {
+            sb.append(node.jumpMod == Ap3Node.JumpMod.EDGE ? " edge" : " jump");
         }
         return sb.append(" @ ").append(fmt(node.x())).append(", ").append(fmt(node.y())).append(", ").append(fmt(node.z())).toString();
     }
