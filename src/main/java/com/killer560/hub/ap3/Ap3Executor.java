@@ -1023,6 +1023,7 @@ public final class Ap3Executor {
             }
             step = Step.DO;
             alignModelReset();
+            startAlignClock(node);
             if (method == Ap3Config.AlignMethod.SENT_YAW) {
                 // The sent yaw is the keys' frame for the whole align: take it over now (seeded from the live yaw).
                 engageYawLock(player);
@@ -1052,9 +1053,13 @@ public final class Ap3Executor {
             double[] rest = coastRest(player, ex, ez);
             if (Math.max(Math.abs(rest[0]), Math.abs(rest[1])) <= alignTolerance) {
                 clearMovement();
-                reportAlignTimer(node, -rest[0], -rest[1], null);
-                if (cfg.isAlignTimerDev()) {
+                long[] entered = alignEntered.remove(node);
+                if (entered != null && cfg.isAlignTimerDev()) {
                     fastCheckNode = node;
+                    fastCheckStart = entered;
+                    fastCheckPredX = -rest[0];
+                    fastCheckPredZ = -rest[1];
+                    fastCheckHandover = tickCounter - entered[0];
                     fastCheckTicks = 0;
                 }
                 finishNode();
@@ -1095,7 +1100,14 @@ public final class Ap3Executor {
      * an axis align the wall axis is marked: that axis is set by the wall and is the only one it aligns.
      */
     private static void reportAlignTimer(Ap3Node node, double offX, double offZ, Direction.Axis wallAxis) {
-        long[] entered = alignEntered.remove(node);
+        reportAlignTimer(node, alignEntered.remove(node), offX, offZ, wallAxis, null);
+    }
+
+    /** {@code entered} = {tick, ms} of the first tick AP3 had control (see {@link #startAlignClock}); the report is
+     *  made on the tick he is at rest on the point, so the count is control-to-rest (killer560, 2026-09-21: "from the
+     *  first tick of movement control till it rests at the desired area"). */
+    private static void reportAlignTimer(Ap3Node node, long[] entered, double offX, double offZ,
+                                         Direction.Axis wallAxis, String note) {
         if (entered == null || !Ap3Config.getInstance().isAlignTimerDev()) {
             return;
         }
@@ -1104,8 +1116,8 @@ public final class Ap3Executor {
         String xTag = wallAxis == Direction.Axis.X ? " (wall)" : "";
         String zTag = wallAxis == Direction.Axis.Z ? " (wall)" : "";
         String offs = String.format(Locale.US, "X off %+.4f%s, Z off %+.4f%s", offX, xTag, offZ, zTag);
-        String model = String.format(Locale.US, "%s, worst miss %.5f, server corrections %d",
-                wallAxis != null ? "wall push" : Ap3Config.getInstance().getAlignMethod().label, alignWorstMiss, alignCorrections);
+        String model = String.format(Locale.US, "%s, worst miss %.5f, server corrections %d%s",
+                wallAxis != null ? "wall" : "planner", alignWorstMiss, alignCorrections, note == null ? "" : ", " + note);
         LOGGER.info("[AP3 dev] {} #{} took {} ({} ticks) - {} ({})", node.type.label(), number(node),
                 String.format(Locale.US, "%.2fs", seconds), ticks, offs, model);
         ModChat.send("AP3 dev", ModChat.text(node.type.label() + " "), ModChat.value("#" + number(node)),
@@ -1114,6 +1126,13 @@ public final class Ap3Executor {
                 ModChat.text("X off "), ModChat.value(String.format(Locale.US, "%+.4f", offX)), ModChat.dim(xTag + ", "),
                 ModChat.text("Z off "), ModChat.value(String.format(Locale.US, "%+.4f", offZ)), ModChat.dim(zTag),
                 ModChat.dim(" (" + model + ")"));
+    }
+
+    /** Restarts a node's dev clock on the first tick AP3 controls the movement (it was started on box entry). */
+    private static void startAlignClock(Ap3Node node) {
+        if (alignEntered.containsKey(node)) {
+            alignEntered.put(node, new long[]{tickCounter, System.currentTimeMillis()});
+        }
     }
 
     // ---- the movement model's bookkeeping (per align) ----
@@ -1353,22 +1372,26 @@ public final class Ap3Executor {
     private static Ap3Node fastCheckNode;
     private static int fastCheckTicks;
 
+    private static long[] fastCheckStart;
+    private static double fastCheckPredX, fastCheckPredZ;
+    private static long fastCheckHandover;
+
     private static void tickFastCheck(LocalPlayer player) {
         if (fastCheckNode == null) {
             return;
         }
         Vec3 v = player.getDeltaMovement();
+        String handover = "handed over after " + fastCheckHandover + " ticks";
         if (++fastCheckTicks > 40 || driving) {
-            fastCheckNode = null; // another node moved him: no honest measurement
+            // Another node moved him before he stopped: no honest measurement - say so and give the prediction.
+            reportAlignTimer(fastCheckNode, fastCheckStart, fastCheckPredX, fastCheckPredZ, null,
+                    handover + ", PREDICTED - the next node moved you before you stopped");
+            fastCheckNode = null;
             return;
         }
         if (Ap3AlignMath.horizontalZeroed(v.x, v.z)) {
             Vec3 p = player.position();
-            String offs = String.format(Locale.US, "X off %+.4f, Z off %+.4f", p.x - fastCheckNode.x, p.z - fastCheckNode.z);
-            LOGGER.info("[AP3 dev] Fast Align #{} actually stopped {} ticks later - {}", number(fastCheckNode), fastCheckTicks, offs);
-            ModChat.send("AP3 dev", ModChat.text("Fast Align "), ModChat.value("#" + number(fastCheckNode)),
-                    ModChat.text(" actually stopped: "), ModChat.value(offs),
-                    ModChat.dim(String.format(Locale.US, " (%d ticks after hand-over)", fastCheckTicks)));
+            reportAlignTimer(fastCheckNode, fastCheckStart, p.x - fastCheckNode.x, p.z - fastCheckNode.z, null, handover);
             fastCheckNode = null;
         }
     }
@@ -1642,6 +1665,8 @@ public final class Ap3Executor {
             }
             step = Step.DO;
             alignModelReset();
+            startAlignClock(node);
+            axisKey = null;
         }
         Ap3Config cfg = Ap3Config.getInstance();
         boolean touching = touching(client.level, player, node.wallDir);
@@ -1649,8 +1674,6 @@ public final class Ap3Executor {
         Direction.Axis axis = node.wallDir.getAxis();
         Vec3 vel = player.getDeltaMovement();
         double wallVel = axis == Direction.Axis.X ? vel.x : vel.z;
-        int[] key = nearestKey8(wall.x, wall.z, player.getYRot());
-        boolean straightIn = key[0] == 1 && key[1] == 0;
         boolean stopped = Ap3AlignMath.horizontalZeroed(vel.x, vel.z);
         // The along-wall axis is aligned too (killer560, 2026-09-21: "it isn't doing a very good job on whatever
         // coordinate is tangential to the wall. It never has it to .5 or anything near").
@@ -1668,26 +1691,13 @@ public final class Ap3Executor {
             }
             return;
         }
-        if (touching) {
-            settleTicks = 0;
-            if (stepTicks > cfg.getAlignTimeoutTicks()) {
-                failNode(String.format(Locale.US, "couldn't align along the wall on axis align #%d (%.4f off)", number(node), eT));
-                return;
-            }
-            tickWallSlide(player, wall, tan, eT, vT);
-            return;
-        }
         settleTicks = 0;
         if (stepTicks > cfg.getAlignTimeoutTicks()) {
-            double off = axis == Direction.Axis.X ? pos.x - node.x : pos.z - node.z;
-            failNode(String.format(Locale.US, "couldn't reach the wall on axis align #%d (%s, %.4f off on the wall axis)",
-                    number(node), touching ? "on the wall" : "not on the wall", off));
+            failNode(String.format(Locale.US, "couldn't align on axis align #%d (%s, %.4f off along the wall)",
+                    number(node), touching ? "on the wall" : "not on the wall", eT));
             return;
         }
-        alignPhase = touching ? "leaning on the wall" : "walking into the wall";
-        // Into the wall; sprint on the way in when the key is W (vanilla starts it from the record and the forward
-        // impulse), never once touching.
-        writeDiscrete(player, key[0], key[1], false, straightIn && !touching, player.getYRot(), modelFor(player, false), lastSneakSent);
+        tickWallSlide(player, wall, tan, eT, vT, touching);
     }
 
     /** Most the lean key is tilted off square-on to the wall, degrees. */
@@ -1704,27 +1714,35 @@ public final class Ap3Executor {
      * point, turns the REAL yaw toward the tilt that gives it (bounded, a delta on the live yaw; Freeze View hides
      * it), and presses the key once the yaw is there. Re-solved from the measured state every tick.
      */
-    private static void tickWallSlide(LocalPlayer player, Vec3 wall, Vec3 tan, double eT, double vT) {
+    /** The lean key of the axis align being performed, chosen once when it starts (re-choosing every tick flipped
+     *  keys as the tilt passed 45 degrees and spun him in circles - 2026-09-21 log). */
+    private static int[] axisKey;
+
+    private static void tickWallSlide(LocalPlayer player, Vec3 wall, Vec3 tan, double eT, double vT, boolean touching) {
         if (Float.isNaN(viewYaw) && freezeViewWanted()) {
             viewYaw = player.getYRot();
         }
         Ap3DiscretePlanner.Model m = modelFor(player, true);
         float yaw = player.getYRot();
         float wallYaw = (float) Math.toDegrees(Math.atan2(-wall.x, wall.z));
-        int[] key = LEAN_KEYS[0];
-        float bestOff = Float.MAX_VALUE;
-        for (int[] k : LEAN_KEYS) {
-            float off = Math.abs(Mth.wrapDegrees(yaw + k[2] - wallYaw));
-            if (off < bestOff) {
-                bestOff = off;
-                key = k;
+        if (axisKey == null) {
+            float bestOff = Float.MAX_VALUE;
+            for (int[] k : LEAN_KEYS) {
+                float off = Math.abs(Mth.wrapDegrees(yaw + k[2] - wallYaw));
+                if (off < bestOff) {
+                    bestOff = off;
+                    axisKey = k;
+                }
             }
         }
+        int[] key = axisKey;
         boolean sprintNow = player.isSprinting() && key[0] > 0;
         double eff = Ap3DiscretePlanner.effectiveLength(new Ap3DiscretePlanner.Action(key[0], key[1], false), lastSneakSent, m.sneakMul);
         double a = m.tickSpeed(sprintNow) * eff;
         double f = m.friction();
-        double uMax = a * Math.sin(Math.toRadians(WALL_MAX_TILT));
+        // Off the wall the tilt is kept to 60 so at least half the push still carries him in.
+        double maxTilt = touching ? WALL_MAX_TILT : 60.0;
+        double uMax = a * Math.sin(Math.toRadians(maxTilt));
         double u = solveWallPush(eT, vT, f, uMax);
         // Which way a positive tilt pushes along tan: the direction the key faces at wallYaw + 10 degrees.
         float probe = (float) Math.toRadians(wallYaw + 10f);
@@ -1737,13 +1755,25 @@ public final class Ap3Executor {
             RouteRotation.rebase();
         }
         float tiltNow = Mth.wrapDegrees(player.getYRot() + key[2] - wallYaw);
-        if (Math.abs(tiltNow - tilt) > 2.0) {
+        boolean press;
+        if (Math.abs(tiltNow) > 80f) {
+            press = false; // the key no longer points into the wall
+        } else if (!touching) {
+            press = true; // still has to get to the wall
+        } else {
+            // Mid-turn on the wall: press only if the push at the CURRENT tilt ends nearer the point than coasting -
+            // coasting through a turn is how he slid off the end of a short wall.
+            double uNow = sign * a * Math.sin(Math.toRadians(tiltNow));
+            press = Math.abs(wallRest(vT, uNow, f) - eT) < Math.abs(wallRest(vT, 0.0, f) - eT) - 1e-9;
+        }
+        alignPhase = String.format(Locale.US, "%s tilt %.3f (want %.3f)%s", touching ? "wall" : "in", tiltNow, tilt,
+                press ? "" : " coast");
+        if (!press) {
             clearMovement();
-            alignPhase = String.format(Locale.US, "turning to tilt %.2f", tilt);
             return;
         }
-        alignPhase = String.format(Locale.US, "wall tilt %.3f push %.5f", tiltNow, u);
-        writeDiscrete(player, key[0], key[1], false, false, player.getYRot(), m, lastSneakSent);
+        writeDiscrete(player, key[0], key[1], false, key[0] > 0 && !touching && Math.abs(tiltNow) < 10f,
+                player.getYRot(), m, lastSneakSent);
     }
 
     /** The along-wall push this tick (|u| <= uMax) whose slide, with square-on leaning after it, stops on the point. */
