@@ -79,6 +79,16 @@ final class Ap3RouteRunner {
     private static Ap3DiscretePlanner.Model planModel;
     /** The step index the pending plan begins at (it was planned from the predicted state at that tick). */
     private static volatile int pendingAt;
+    /**
+     * Every request gets a number and a worker only publishes its answer if it is still the newest one. Without this
+     * a pre-plan made while he stood next to the route (they run once a second) could land AFTER the route started
+     * and be adopted - a schedule for standing still, spliced into a run - which is what made the route twitch
+     * forward and stop (killer560, 2026-09-22: "a tiny bit of movement in a random direction then it stops").
+     */
+    private static final java.util.concurrent.atomic.AtomicInteger planSeq = new java.util.concurrent.atomic.AtomicInteger();
+    private static volatile int pendingSeq = -1;
+    /** The sequence the running route is willing to accept (bumped when the route starts, so pre-plans are dropped). */
+    private static int acceptFrom;
     private static int lastPlanStep;
     /** A plan made while walking up to the route, and the node it starts at. */
     private static Ap3RoutePlanner.Plan prePlan;
@@ -149,7 +159,10 @@ final class Ap3RouteRunner {
             return tickTermWait(client, player);
         }
         // A plan that was started earlier lands here; it begins at the tick it was planned for, so it waits for it.
-        Ap3RoutePlanner.Plan fresh = pending;
+        Ap3RoutePlanner.Plan fresh = pendingSeq >= acceptFrom ? pending : null;
+        if (pendingSeq >= 0 && pendingSeq < acceptFrom) {
+            pending = null; // an answer to a question this route never asked (a pre-plan from before it started)
+        }
         if (fresh != null && (plan == null || stepIndex >= pendingAt)) {
             pending = null;
             plan = fresh;
@@ -280,9 +293,11 @@ final class Ap3RouteRunner {
     private static void begin(Minecraft client, LocalPlayer player, Ap3Node first) {
         collectRoute(first);
         if (takePrePlan(first, player)) {
+            acceptFrom = planSeq.get() + 1; // the pre-plan is in hand; ignore any other one still being computed
             // Walked up to it with a plan already in hand: drive that, and correct it from the measured state.
             return;
         }
+        acceptFrom = planSeq.get() + 1; // only answers to THIS route's own requests may drive it
         startPlanning(client, player);
     }
 
@@ -350,10 +365,12 @@ final class Ap3RouteRunner {
         planModel = model;
         pendingAt = at;
         planning = true;
+        final int seq = planSeq.incrementAndGet();
         worker = new Thread(() -> {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
                 pending = p;
+                pendingSeq = seq;
                 if (announce && Ap3Config.getInstance().isChatFeedback()) {
                     ModChat.send("AP3", ModChat.text("Route "),
                             ModChat.value(String.format(Locale.US, "%.2fs", p.ticks / 20.0)),

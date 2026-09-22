@@ -1634,6 +1634,13 @@ public final class Ap3Executor {
      * the game's Toggle Sprint), and the next plan is built knowing that.
      */
     private static boolean sprintRestarts;
+    /**
+     * Evidence for that, not a single reading. One press that happens not to sprint used to flip the flag straight
+     * back off, and the align after it mispredicted again - which is the random 7-tick align among the 3s. It takes
+     * two readings the other way to change its mind now.
+     */
+    private static int sprintEvidence;
+    private static final int SPRINT_EVIDENCE_MAX = 3;
 
     /** Records what the model expects this tick's press to add, so the next tick can measure what it really added. */
     private static void expectPush(LocalPlayer player, double px, double pz, Ap3DiscretePlanner.Model m) {
@@ -1674,15 +1681,22 @@ public final class Ap3Executor {
             return;
         }
         double raw = actual / model;
-        if (pushForward && !pushAssumedSprint && raw > 1.15 && !sprintRestarts) {
-            // A walk-priced press that landed a sprint-sized push: forward restarts the sprint on this setup.
-            sprintRestarts = true;
-            LOGGER.info("[AP3 dev] sprint restarts on a forward press (model {}, actual {}) - planning for it now",
-                    String.format(Locale.US, "%.5f", model), String.format(Locale.US, "%.5f", actual));
-        } else if (pushForward && pushAssumedSprint && raw < 0.85 && sprintRestarts) {
-            sprintRestarts = false;
-            LOGGER.info("[AP3 dev] forward no longer restarts the sprint (model {}, actual {})",
-                    String.format(Locale.US, "%.5f", model), String.format(Locale.US, "%.5f", actual));
+        if (pushForward && (raw > 1.15 || raw < 0.85)) {
+            // A walk-priced press that lands a sprint-sized push says forward restarts the sprint here, and the other
+            // way round says it does not. Two readings the same way to change the answer.
+            int before = sprintEvidence;
+            if (!pushAssumedSprint && raw > 1.15) {
+                sprintEvidence = Math.min(SPRINT_EVIDENCE_MAX, sprintEvidence + 1);
+            } else if (pushAssumedSprint && raw < 0.85) {
+                sprintEvidence = Math.max(-SPRINT_EVIDENCE_MAX, sprintEvidence - 1);
+            }
+            boolean now = sprintEvidence > 0;
+            if (now != sprintRestarts) {
+                sprintRestarts = now;
+                LOGGER.info("[AP3 dev] forward {} restart the sprint (model {}, actual {}, evidence {} -> {})",
+                        now ? "does" : "does not", String.format(Locale.US, "%.5f", model),
+                        String.format(Locale.US, "%.5f", actual), before, sprintEvidence);
+            }
         }
         double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, raw));
         double next = pushScale * (1 - PUSH_SCALE_ALPHA) + ratio * PUSH_SCALE_ALPHA;
