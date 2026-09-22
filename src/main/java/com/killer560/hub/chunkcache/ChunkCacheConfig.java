@@ -25,7 +25,8 @@ public final class ChunkCacheConfig {
 
     private static ChunkCacheConfig instance;
 
-    private boolean enabled = false;
+    /** Default ON (killer560, 2026-09-21: "Default Chunk Cache to on"). */
+    private boolean enabled = true;
     private int maxChunks = DEFAULT_CHUNKS;
 
     private ChunkCacheConfig() {
@@ -43,7 +44,9 @@ public final class ChunkCacheConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+                // One-time switch-on: files written before the default changed saved the old OFF default, so they
+                // come up ON once (marked by defaultOnV1); after that his own choice is kept.
+                cfg.enabled = obj.has("defaultOnV1") ? ConfigJson.getBool(obj, "enabled", true) : true;
                 cfg.setMaxChunks(ConfigJson.getInt(obj, "maxChunks", DEFAULT_CHUNKS));
             } catch (Exception ignored) {
                 // per-key readers above never throw; only an unreadable/non-object file lands here
@@ -58,6 +61,7 @@ public final class ChunkCacheConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("maxChunks", maxChunks);
+            obj.addProperty("defaultOnV1", true);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

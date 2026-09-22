@@ -54,6 +54,10 @@ public final class ItemRarityConfig {
     private Style style = Style.SQUARE;
     /** Percent, {@link #MIN_OPACITY}..{@link #MAX_OPACITY}. */
     private int opacity = 50;
+    /** Outline style only: line thickness in GUI pixels (killer560, 2026-09-21). */
+    private int outlineWidth = 1;
+    public static final int MIN_OUTLINE_WIDTH = 1;
+    public static final int MAX_OUTLINE_WIDTH = 4;
     private boolean showInHotbar = true;
     private boolean skyblockOnly = true;
 
@@ -79,6 +83,7 @@ public final class ItemRarityConfig {
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.SQUARE);
             cfg.opacity = clampOpacity(ConfigJson.getInt(obj, "opacity", 50));
             cfg.showInHotbar = ConfigJson.getBool(obj, "showInHotbar", true);
+            cfg.setOutlineWidth(ConfigJson.getInt(obj, "outlineWidth", 1));
             cfg.skyblockOnly = ConfigJson.getBool(obj, "skyblockOnly", true);
             instance = cfg;
         } catch (Exception e) {
@@ -94,6 +99,7 @@ public final class ItemRarityConfig {
             obj.addProperty("style", style.name());
             obj.addProperty("opacity", opacity);
             obj.addProperty("showInHotbar", showInHotbar);
+            obj.addProperty("outlineWidth", outlineWidth);
             obj.addProperty("skyblockOnly", skyblockOnly);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -118,6 +124,14 @@ public final class ItemRarityConfig {
 
     public void setStyle(Style style) {
         this.style = style == null ? Style.SQUARE : style;
+    }
+
+    public int getOutlineWidth() {
+        return outlineWidth;
+    }
+
+    public void setOutlineWidth(int v) {
+        outlineWidth = Math.max(MIN_OUTLINE_WIDTH, Math.min(MAX_OUTLINE_WIDTH, v));
     }
 
     public int getOpacity() {

@@ -88,6 +88,12 @@ public final class Ap3FreezeState {
             cursor = -1;
             return;
         }
+        if (frozen && stepRan) {
+            stepRan = false;
+            record(player);
+            cursor = history.size() - 1;
+            player.setDeltaMovement(Vec3.ZERO); // the recorded snap keeps the real velocity for the next step/resume
+        }
         if (frozen) {
             // aiStep is skipped, so vanilla no longer moves the hand sway: chase the free camera the way it would.
             player.yBobO = player.yBob;
@@ -121,15 +127,21 @@ public final class Ap3FreezeState {
         if (frozen) {
             unfreeze(player);
         } else {
-            freeze(player);
+            freeze(player, true);
         }
     }
 
-    private static void freeze(LocalPlayer player) {
+    private static void freeze(LocalPlayer player, boolean announce) {
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("Freeze State");
         }
-        record(player); // the tick you froze on is the newest one you can come back to
+        // The tick you froze on is the newest one you can come back to - unless this tick's end already recorded
+        // exactly this state (a key press lands after it), which would make the first rewind a no-op.
+        Vec3 p = player.position();
+        Snap last = history.isEmpty() ? null : history.get(history.size() - 1);
+        if (last == null || last.x != p.x || last.y != p.y || last.z != p.z) {
+            record(player);
+        }
         cursor = history.size() - 1;
         viewYaw = player.getYRot();
         viewPitch = player.getXRot();
@@ -137,13 +149,15 @@ public final class Ap3FreezeState {
         if (onHypixel()) {
             hypixelWarning("Freeze State");
         }
-        ModChat.send("Freeze State", ModChat.good("Frozen"), ModChat.dim(String.format(Locale.US,
-                " - %d ticks remembered. Look around freely; /ap3 add uses where you look. /freezestate again to resume.",
-                history.size())));
+        if (announce) {
+            ModChat.send("Freeze State", ModChat.good("Frozen"));
+        }
     }
 
     private static void unfreeze(LocalPlayer player) {
         frozen = false;
+        pendingForward = 0;
+        stepRan = false;
         if (cursor >= 0 && cursor < history.size()) {
             Snap s = history.get(cursor);
             // Resume the timeline from here: its motion carries on, and the ticks after it no longer happened.
@@ -154,9 +168,15 @@ public final class Ap3FreezeState {
         ModChat.send("Freeze State", ModChat.text("Resumed"));
     }
 
+    /** Forward steps still to simulate (one real game tick each - see {@link #consumeForwardStep}). */
+    private static int pendingForward;
+
     /**
-     * One recorded tick back ({@code dir = -1}) or forward ({@code +1}), {@code count} times. {@code typed}: from the
-     * typed {@code /rewind}; the keys are refused on Hypixel.
+     * Back ({@code dir = -1}): the character goes to the tick before the one it is on now, from the recorded history.
+     * Forward ({@code +1}): PREDICTED, not replayed (killer560, 2026-09-21: "the go forward should predict my
+     * movement and put me there") - the game itself runs exactly one movement tick from the current state (its
+     * velocity, the keys you are holding, gravity), then freezes again; anything recorded after this tick is dropped,
+     * since it is a new timeline. No chat per step. {@code typed}: from /rewind; the keys refuse on Hypixel.
      */
     public static void step(int dir, int count, boolean typed) {
         LocalPlayer player = Minecraft.getInstance().player;
@@ -169,28 +189,42 @@ public final class Ap3FreezeState {
                     + "instant ban. If you really mean it, type /rewind."));
             return;
         }
-        if (history.isEmpty()) {
-            ModChat.send("Freeze State", ModChat.bad("Nothing recorded yet."));
-            return;
-        }
         if (!frozen) {
-            freeze(player);
-        }
-        int target = Mth.clamp(cursor + dir * Math.max(1, count), 0, history.size() - 1);
-        if (target == cursor) {
-            ModChat.send("Freeze State", ModChat.dim(dir < 0 ? "Already at the oldest remembered tick."
-                    : "Already at the newest tick."));
-            return;
+            freeze(player, false);
         }
         if (hypixel) {
             hypixelWarning("/rewind");
         }
-        cursor = target;
-        apply(player, history.get(cursor));
-        int behind = history.size() - 1 - cursor;
-        ModChat.send("Freeze State", ModChat.text("Tick "), ModChat.value("-" + behind),
-                ModChat.dim(String.format(Locale.US, " (%.5f, %.5f, %.5f)", player.getX(), player.getY(), player.getZ())));
+        if (dir > 0) {
+            history.subList(cursor + 1, history.size()).clear();
+            pendingForward += Math.max(1, count);
+            return;
+        }
+        pendingForward = 0;
+        int target = Math.max(0, cursor - Math.max(1, count));
+        if (target != cursor) {
+            cursor = target;
+            apply(player, history.get(cursor));
+        }
     }
+
+    /**
+     * From {@code Ap3FreezeMixin} at the head of a frozen {@code aiStep}: true = let this one tick run (a forward
+     * step). The tick starts from the state the character is on, velocity included; {@link #tick} records the
+     * result and freezes it again.
+     */
+    public static boolean consumeForwardStep(LocalPlayer player) {
+        if (pendingForward <= 0 || cursor < 0 || cursor >= history.size()) {
+            return false;
+        }
+        pendingForward--;
+        Snap s = history.get(cursor);
+        player.setDeltaMovement(s.vx, s.vy, s.vz);
+        stepRan = true;
+        return true;
+    }
+
+    private static boolean stepRan;
 
     /** Puts the character exactly in a recorded tick's state (frozen: no velocity until resumed). */
     private static void apply(LocalPlayer player, Snap s) {

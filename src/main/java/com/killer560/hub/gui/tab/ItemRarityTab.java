@@ -38,9 +38,27 @@ public class ItemRarityTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(styleLabel(cfg), btn -> {
                     cfg.setStyle(cfg.getStyle().next());
                     cfg.save();
-                    btn.setMessage(styleLabel(cfg));
+                    requestRebuild.run(); // Outline Width only shows for the Outline style
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+
+        if (cfg.getStyle() == ItemRarityConfig.Style.OUTLINE) {
+            double span = ItemRarityConfig.MAX_OUTLINE_WIDTH - ItemRarityConfig.MIN_OUTLINE_WIDTH;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, outlineWidthLabel(cfg),
+                    (cfg.getOutlineWidth() - ItemRarityConfig.MIN_OUTLINE_WIDTH) / span) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(outlineWidthLabel(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setOutlineWidth(ItemRarityConfig.MIN_OUTLINE_WIDTH + (int) Math.round(this.value * span));
+                    cfg.save();
+                }
+            });
+            y += 22;
+        }
 
         double opacityNorm = (cfg.getOpacity() - ItemRarityConfig.MIN_OPACITY)
                 / (double) (ItemRarityConfig.MAX_OPACITY - ItemRarityConfig.MIN_OPACITY);
@@ -74,6 +92,10 @@ public class ItemRarityTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
+    }
+
+    private static Component outlineWidthLabel(ItemRarityConfig cfg) {
+        return Component.literal("Outline Width: " + cfg.getOutlineWidth() + "px");
     }
 
     private static Component styleLabel(ItemRarityConfig cfg) {

@@ -20,7 +20,11 @@ public abstract class Ap3FreezeMixin {
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$ap3Freeze(CallbackInfo ci) {
         if (Ap3FreezeState.isFrozen()) {
-            ((LocalPlayer) (Object) this).setDeltaMovement(Vec3.ZERO);
+            LocalPlayer self = (LocalPlayer) (Object) this;
+            if (Ap3FreezeState.consumeForwardStep(self)) {
+                return; // a predicted forward step: this one tick runs for real
+            }
+            self.setDeltaMovement(Vec3.ZERO);
             ci.cancel();
         }
     }

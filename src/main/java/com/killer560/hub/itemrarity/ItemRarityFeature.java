@@ -97,7 +97,13 @@ public final class ItemRarityFeature {
         int alpha = Math.round(cfg.getOpacity() * 2.55f);
         int color = (alpha << 24) | entry.rarity.rgb;
         switch (cfg.getStyle()) {
-            case OUTLINE -> graphics.outline(x, y, 16, 16, color);
+            case OUTLINE -> {
+                // Inset rings, one per pixel of width, so a thicker outline grows inward and never leaves the slot.
+                int w = cfg.getOutlineWidth();
+                for (int i = 0; i < w; i++) {
+                    graphics.outline(x + i, y + i, 16 - 2 * i, 16 - 2 * i, color);
+                }
+            }
             case CIRCLE -> {
                 for (int[] run : CIRCLE_RUNS) {
                     graphics.fill(x + run[2], y + run[0], x + 16 - run[2], y + run[0] + run[1], color);

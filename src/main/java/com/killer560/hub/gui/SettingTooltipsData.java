@@ -913,7 +913,7 @@ final class SettingTooltipsData {
         d.put("p5 lines position", "Draw the Phase 5 lines in a column to the right of the splits, or underneath them.");
 
         // Chunk Cache
-        d.put("chunk cache", "Keeps every chunk you've loaded readable in memory after Minecraft would unload it, so the Interactive Map, secret waypoints and solvers still see rooms you walked away from. Cleared on every world change. A cached chunk is a snapshot - the server sends no block updates for chunks it no longer tracks, so it refreshes when you return. Nothing extra is rendered; it's for reading only. Skyblock only.");
+        d.put("chunk cache", "Keeps every chunk you've loaded readable in memory after Minecraft would unload it, so the Interactive Map, secret waypoints and solvers still see rooms you walked away from. Cleared on every world change. A cached chunk is a snapshot - the server sends no block updates for chunks it no longer tracks, so it refreshes when you return. Nothing extra is rendered; it's for reading only. Skyblock only. Default ON.");
         d.put("max cached chunks", "How many chunks to keep in memory (500-20000). Oldest are dropped first; roughly 6 KB per chunk, so 4000 chunks is about 25 MB.");
         d.put("clear cache", "Throws away every chunk cached for the current world right now. Chunks the game still has loaded are unaffected.");
 
@@ -1441,6 +1441,7 @@ final class SettingTooltipsData {
         d.put("item protection/+ add name", "Adds the typed text to the protected-names list. Any item whose name contains it is protected, so 'Hyperion' covers every Hyperion you own.");
         d.put("item protection/remove", "Takes this name off the protected-names list. Items saved with the Protect Key are not affected.");
         d.put("item rarity backgrounds/style", "Shape drawn behind each item: Square (fills the slot), Circle, or Outline (a thin border). Click to cycle.");
+        d.put("item rarity backgrounds/outline width", "Outline style only: how thick the rarity outline is, 1-4 pixels (default 1). It grows inward, so it never spills out of the slot.");
         d.put("item rarity backgrounds/opacity", "How solid the rarity colour is, 10-100% (default 50).");
         d.put("item rarity backgrounds/skyblock only", "ON (default): only colours items while you're on hypixel.net or p3sim.net, plus any item with a Skyblock item ID. OFF also colours items with a rarity word in their lore on other servers. Separate from the Home tab's Skyblock Only.");
         d.put("leap menu", "Everything Spirit Leap in one place: the custom 4-box leap menu, its Leap Order editor, and the party message sent after you leap.");
@@ -1905,8 +1906,8 @@ final class SettingTooltipsData {
         d.put("ap3/default node size", "The box every new node is placed with: half a block or a whole block. A w/l modifier on /ap3 add still sets its own size.");
         d.put("freeze state/rewind memory", "!! NEVER ON HYPIXEL - INSTANT BAN !! How many ticks of your position Freeze State remembers for stepping back (20 ticks = 1 second). Freeze State (/freezestate) holds your character still while your camera looks around freely, and /ap3 add then uses where your CAMERA looks. The Rewind / Forward 1 Tick keys put your character exactly where it was on that tick. That teleports you: fine in singleplayer or on p3sim, an instant ban on Hypixel. On Hypixel the keys refuse; the typed /rewind still works there, behind a warning, only because you asked for it.");
         d.put("freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes your character in place (no movement, no gravity) while your camera stays free; /ap3 add uses where the camera looks. Press again to resume, carrying on with the motion you had on that tick. Singleplayer / p3sim only.");
-        d.put("rewind 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes you and puts your character exactly where it was one tick earlier. Refused on Hypixel (type /rewind there if you really mean it).");
-        d.put("forward 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! One remembered tick forward again after rewinding. Refused on Hypixel.");
+        d.put("rewind 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes you and puts your character exactly where it was one tick before its current position. Refused on Hypixel (type /rewind there if you really mean it).");
+        d.put("forward 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Predicts one tick ahead: the game runs exactly one movement tick from where you are (your speed, the keys you hold, gravity), then freezes you there. Refused on Hypixel.");
         d.put("freeze state key", "Keybind for /freezestate. Works with AP3 off; never use it on Hypixel.");
         d.put("rewind 1 tick key", "Keybind: one tick back in time. Refused on Hypixel (instant ban).");
         d.put("forward 1 tick key", "Keybind: one tick forward again. Refused on Hypixel (instant ban).");

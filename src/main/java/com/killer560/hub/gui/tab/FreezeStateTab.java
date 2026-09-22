@@ -81,7 +81,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
         String[] help = {
                 "§7/freezestate - freeze / resume. While frozen the camera is free and",
                 "§7/ap3 add uses where the camera looks, not your character's facing.",
-                "§7/rewind [ticks], /rewind forward [ticks] - step through remembered ticks."
+                "§7/rewind [ticks] goes back from where you are; /rewind forward [ticks] predicts ahead."
         };
         for (String line : help) {
             w.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(line), font));
