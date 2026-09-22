@@ -1620,13 +1620,16 @@ public final class Ap3Executor {
     // ---- the measured push scale -------------------------------------------------------------------------------
     /** What the model's push has to be multiplied by to match what the game really did; 1 until something differs. */
     private static double pushScale = 1.0;
-    private static final double PUSH_SCALE_MIN = 0.5;
-    private static final double PUSH_SCALE_MAX = 2.0;
+    /** Only the leftovers after the sprint is accounted for, so the band is tight - a big miss is a sprint, not a scale. */
+    private static final double PUSH_SCALE_MIN = 0.85;
+    private static final double PUSH_SCALE_MAX = 1.2;
     /** Half a tick's evidence at a time: fast enough to catch a sprint flip, slow enough not to chase noise. */
     private static final double PUSH_SCALE_ALPHA = 0.5;
     private static boolean pushPending;
     private static double pushModelX, pushModelZ, pushBeforeX, pushBeforeZ, pushFriction;
     private static boolean pushAssumedSprint, pushForward;
+    /** The scale the model was using when this push was predicted, so the reading can be taken back to raw speed. */
+    private static double pushScaleAtExpect = 1.0;
     /**
      * Whether a forward press RESTARTS a sprint here. It cannot be read from the sprint key: AP3 writes that key's
      * state itself every tick, so {@code keySprint.isDown()} only reports what we just wrote. It is learned instead -
@@ -1657,6 +1660,7 @@ public final class Ap3Executor {
         pushBeforeX = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.x;
         pushBeforeZ = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.z;
         pushFriction = m.friction();
+        pushScaleAtExpect = pushScale;
         pushPending = Math.hypot(px, pz) > 1e-6;
     }
 
@@ -1680,25 +1684,27 @@ public final class Ap3Executor {
         if (model < 1e-6 || actual < 1e-6) {
             return;
         }
-        double raw = actual / model;
-        if (pushForward && (raw > 1.15 || raw < 0.85)) {
-            // A walk-priced press that lands a sprint-sized push says forward restarts the sprint here, and the other
-            // way round says it does not. Two readings the same way to change the answer.
-            int before = sprintEvidence;
-            if (!pushAssumedSprint && raw > 1.15) {
-                sprintEvidence = Math.min(SPRINT_EVIDENCE_MAX, sprintEvidence + 1);
-            } else if (pushAssumedSprint && raw < 0.85) {
-                sprintEvidence = Math.max(-SPRINT_EVIDENCE_MAX, sprintEvidence - 1);
-            }
-            boolean now = sprintEvidence > 0;
-            if (now != sprintRestarts) {
-                sprintRestarts = now;
-                LOGGER.info("[AP3 dev] forward {} restart the sprint (model {}, actual {}, evidence {} -> {})",
-                        now ? "does" : "does not", String.format(Locale.US, "%.5f", model),
-                        String.format(Locale.US, "%.5f", actual), before, sprintEvidence);
-            }
+        // Judge the sprint against the RAW model, not the scaled one. Reading it off the scaled model made the two
+        // corrections chase each other - the scale moved, the sprint flag flipped, the scale moved back - and an
+        // align took 71 ticks (his 2026-09-22 log: scale 0.886 / 1.177 / 0.915 / 0.878 with the flag flipping along).
+        double raw = actual / (model / Math.max(0.01, pushScaleAtExpect));
+        double residual = raw;
+        if (pushForward && !pushAssumedSprint && raw > 1.15 && raw < 1.5) {
+            sprintEvidence = Math.min(SPRINT_EVIDENCE_MAX, sprintEvidence + 1);
+            residual = raw / Ap3AlignMath.SPRINT_MULTIPLIER; // the 1.3 belongs to the sprint, not to the scale
+        } else if (pushForward && pushAssumedSprint && raw > 0.6 && raw < 0.85) {
+            sprintEvidence = Math.max(-SPRINT_EVIDENCE_MAX, sprintEvidence - 1);
+            residual = raw * Ap3AlignMath.SPRINT_MULTIPLIER;
         }
-        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, raw));
+        // Two readings to turn it on, two the other way to turn it off - one odd press must not flip it.
+        boolean now = sprintEvidence >= 2 || (sprintRestarts && sprintEvidence > -2);
+        if (now != sprintRestarts) {
+            sprintRestarts = now;
+            LOGGER.info("[AP3 dev] forward {} restart the sprint (model {}, actual {}, evidence {})",
+                    now ? "does" : "does not", String.format(Locale.US, "%.5f", model),
+                    String.format(Locale.US, "%.5f", actual), sprintEvidence);
+        }
+        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, residual));
         double next = pushScale * (1 - PUSH_SCALE_ALPHA) + ratio * PUSH_SCALE_ALPHA;
         double scaled = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, next));
         if (Math.abs(scaled - pushScale) > 0.01 && Ap3Config.getInstance().isAlignTimerDev()) {
