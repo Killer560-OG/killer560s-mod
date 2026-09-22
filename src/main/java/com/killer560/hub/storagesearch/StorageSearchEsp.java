@@ -48,7 +48,7 @@ public final class StorageSearchEsp {
 
     static void register() {
         RenderType unused = ThroughWalls.LINES;
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(StorageSearchEsp::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(StorageSearchEsp::onWorldRender);
     }
 
     /** Marks a chest for {@code durationMs}. Re-marking the same chest just refreshes its timer. */

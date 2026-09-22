@@ -135,7 +135,7 @@ public final class SecretWaypointsFeature {
     public static void register() {
         SecretWaypointsRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SecretWaypointsFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(SecretWaypointsFeature::onWorldRender);
         // A chest, wither essence or redstone key is taken by right-clicking its block - exactly its waypoint's block.
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (level.isClientSide() && hit != null) {
