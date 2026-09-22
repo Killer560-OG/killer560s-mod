@@ -1446,7 +1446,7 @@ public final class Ap3Executor {
             return;
         }
         boolean holding = freezeViewWanted() && activeNode != null && step == Step.DO
-                && (activeNode.type == Ap3Node.Type.ALIGN || activeNode.type == Ap3Node.Type.FAST_ALIGN);
+                && activeNode.type.isAlign();
         if (!holding) {
             float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
             if (Math.abs(delta) <= ALIGN_YAW_STEP) {
@@ -1652,29 +1652,29 @@ public final class Ap3Executor {
         int[] key = nearestKey8(wall.x, wall.z, player.getYRot());
         boolean straightIn = key[0] == 1 && key[1] == 0;
         boolean stopped = Ap3AlignMath.horizontalZeroed(vel.x, vel.z);
-        if (touching && Math.abs(wallVel) < 1e-9 && stopped) {
-            // Pinned by the block face AND no slide left along it (killer560, 2026-09-21: "it aligns me but doesn't
-            // account that I am still moving and I drift past the wall"). Keep leaning through the settle.
+        // The along-wall axis is aligned too (killer560, 2026-09-21: "it isn't doing a very good job on whatever
+        // coordinate is tangential to the wall. It never has it to .5 or anything near").
+        Vec3 tan = new Vec3(-wall.z, 0.0, wall.x);
+        double eT = (node.x - pos.x) * tan.x + (node.z - pos.z) * tan.z;
+        double vT = vel.x * tan.x + vel.z * tan.z;
+        double tol = cfg.getAlignTolerance();
+        if (touching && Math.abs(wallVel) < 1e-9 && stopped && Math.abs(eT) <= tol) {
+            // Pinned by the block face, stopped, and on the point along it. No keys: a lean at any angle but
+            // square-on would push him along the wall, and nothing moves him off it.
+            clearMovement();
             if (++settleTicks >= SETTLE_TICKS) {
                 reportAlignTimer(node, pos.x - node.x, pos.z - node.z, axis);
                 finishNode();
-                return;
             }
-            writeDiscrete(player, key[0], key[1], false, false, player.getYRot(), modelFor(player, false), lastSneakSent);
             return;
         }
         if (touching) {
-            // On the wall but still sliding along it: the key combination (any of the 17, sneak included) that
-            // leaves the least along-wall speed after this tick while never pulling off the wall - a brake tap
-            // against the slide, leaning in wherever that costs nothing.
             settleTicks = 0;
             if (stepTicks > cfg.getAlignTimeoutTicks()) {
-                failNode(String.format(Locale.US, "couldn't stop the slide on axis align #%d", number(node)));
+                failNode(String.format(Locale.US, "couldn't align along the wall on axis align #%d (%.4f off)", number(node), eT));
                 return;
             }
-            alignPhase = "braking along the wall";
-            Ap3DiscretePlanner.Action brake = brakeAlongWall(player, wall, axis);
-            writeDiscrete(player, brake.fw(), brake.st(), brake.sneak(), false, player.getYRot(), modelFor(player, false), lastSneakSent);
+            tickWallSlide(player, wall, tan, eT, vT);
             return;
         }
         settleTicks = 0;
@@ -1690,45 +1690,93 @@ public final class Ap3Executor {
         writeDiscrete(player, key[0], key[1], false, straightIn && !touching, player.getYRot(), modelFor(player, false), lastSneakSent);
     }
 
-    /** One exact model tick per key combination at the camera yaw; the wall axis is zeroed after it (the collision
-     *  does that). Score: along-wall speed left, then more lean into the wall. Keys whose direction points away
-     *  from the wall are never used. */
-    private static Ap3DiscretePlanner.Action brakeAlongWall(LocalPlayer player, Vec3 wall, Direction.Axis axis) {
-        Ap3DiscretePlanner.Model m = modelFor(player, false);
-        Vec3 vel = player.getDeltaMovement();
+    /** Most the lean key is tilted off square-on to the wall, degrees. */
+    private static final double WALL_MAX_TILT = 75.0;
+    /** The four straight keys: {fw, st, the yaw offset of the direction they push, relative to the facing}. */
+    private static final int[][] LEAN_KEYS = {{1, 0, 0}, {0, 1, -90}, {0, -1, 90}, {-1, 0, 180}};
+
+    /**
+     * On the wall, the along-wall coordinate is steered with ONE straight key that always points into the wall,
+     * tilted by an angle t off square-on: the wall stops the into-wall part (the collision zeroes that axis every
+     * tick, so the wall coordinate stays pinned), and what is left is an along-wall push of exactly
+     * {@code a * sin(t)} - a continuous control from a single real key, not a lattice of taps. Each tick solves, on
+     * vanilla's exact 1-D step (friction and the 0.003 zeroing included), the push that makes the slide stop on the
+     * point, turns the REAL yaw toward the tilt that gives it (bounded, a delta on the live yaw; Freeze View hides
+     * it), and presses the key once the yaw is there. Re-solved from the measured state every tick.
+     */
+    private static void tickWallSlide(LocalPlayer player, Vec3 wall, Vec3 tan, double eT, double vT) {
+        if (Float.isNaN(viewYaw) && freezeViewWanted()) {
+            viewYaw = player.getYRot();
+        }
+        Ap3DiscretePlanner.Model m = modelFor(player, true);
         float yaw = player.getYRot();
-        float r = yaw * Ap3AlignMath.DEG_TO_RAD;
-        double c = Mth.cos(r), sn = Mth.sin(r);
-        Ap3DiscretePlanner.Action best = Ap3DiscretePlanner.NONE;
-        double bestAlong = Double.MAX_VALUE, bestLean = -1;
-        for (Ap3DiscretePlanner.Action a : Ap3DiscretePlanner.ACTIONS) {
-            double lean = 0.0;
-            if (!a.none()) {
-                double norm = Math.sqrt(a.fw() * a.fw() + a.st() * a.st());
-                double dx = (a.st() * c - a.fw() * sn) / norm;
-                double dz = (a.fw() * c + a.st() * sn) / norm;
-                lean = dx * wall.x + dz * wall.z;
-                if (lean < -1e-6) {
-                    continue;
-                }
-            }
-            Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
-            s.vx = vel.x;
-            s.vz = vel.z;
-            s.sprinting = player.isSprinting();
-            s.crouching = lastSneakSent;
-            s.sentYaw = yaw;
-            Ap3DiscretePlanner.step(s, a, yaw, m);
-            double alongX = axis == Direction.Axis.X ? 0.0 : s.vx;
-            double alongZ = axis == Direction.Axis.X ? s.vz : 0.0;
-            double along = Ap3AlignMath.horizontalZeroed(alongX, alongZ) ? 0.0 : Math.abs(alongX + alongZ);
-            if (along < bestAlong - 1e-9 || (Math.abs(along - bestAlong) <= 1e-9 && lean > bestLean)) {
-                bestAlong = along;
-                bestLean = lean;
-                best = a;
+        float wallYaw = (float) Math.toDegrees(Math.atan2(-wall.x, wall.z));
+        int[] key = LEAN_KEYS[0];
+        float bestOff = Float.MAX_VALUE;
+        for (int[] k : LEAN_KEYS) {
+            float off = Math.abs(Mth.wrapDegrees(yaw + k[2] - wallYaw));
+            if (off < bestOff) {
+                bestOff = off;
+                key = k;
             }
         }
-        return best;
+        boolean sprintNow = player.isSprinting() && key[0] > 0;
+        double eff = Ap3DiscretePlanner.effectiveLength(new Ap3DiscretePlanner.Action(key[0], key[1], false), lastSneakSent, m.sneakMul);
+        double a = m.tickSpeed(sprintNow) * eff;
+        double f = m.friction();
+        double uMax = a * Math.sin(Math.toRadians(WALL_MAX_TILT));
+        double u = solveWallPush(eT, vT, f, uMax);
+        // Which way a positive tilt pushes along tan: the direction the key faces at wallYaw + 10 degrees.
+        float probe = (float) Math.toRadians(wallYaw + 10f);
+        double sign = (-Mth.sin(probe) * tan.x + Mth.cos(probe) * tan.z) >= 0 ? 1.0 : -1.0;
+        double tilt = a > 1e-9 ? sign * Math.toDegrees(Math.asin(Mth.clamp(u / a, -1.0, 1.0))) : 0.0;
+        float want = (float) (wallYaw + tilt - key[2]);
+        float delta = Mth.clamp(Mth.wrapDegrees(want - yaw), -(float) ALIGN_YAW_STEP, (float) ALIGN_YAW_STEP);
+        if (Math.abs(delta) > 1e-4f) {
+            player.setYRot(yaw + delta);
+            RouteRotation.rebase();
+        }
+        float tiltNow = Mth.wrapDegrees(player.getYRot() + key[2] - wallYaw);
+        if (Math.abs(tiltNow - tilt) > 2.0) {
+            clearMovement();
+            alignPhase = String.format(Locale.US, "turning to tilt %.2f", tilt);
+            return;
+        }
+        alignPhase = String.format(Locale.US, "wall tilt %.3f push %.5f", tiltNow, u);
+        writeDiscrete(player, key[0], key[1], false, false, player.getYRot(), m, lastSneakSent);
+    }
+
+    /** The along-wall push this tick (|u| <= uMax) whose slide, with square-on leaning after it, stops on the point. */
+    private static double solveWallPush(double e, double v, double f, double uMax) {
+        if (wallRest(v, -uMax, f) >= e) {
+            return -uMax;
+        }
+        if (wallRest(v, uMax, f) <= e) {
+            return uMax;
+        }
+        double lo = -uMax, hi = uMax;
+        for (int i = 0; i < 60; i++) {
+            double mid = (lo + hi) * 0.5;
+            if (wallRest(v, mid, f) < e) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return (lo + hi) * 0.5;
+    }
+
+    /** Vanilla's 1-D slide along the wall: zeroing at tick start (the wall axis is already 0), push, move, friction. */
+    private static double wallRest(double v, double u, double f) {
+        double vv = Math.abs(v) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : v;
+        vv += u;
+        double x = vv;
+        vv *= f;
+        for (int i = 0; i < 400 && Math.abs(vv) >= Ap3AlignMath.ZERO_VELOCITY; i++) {
+            x += vv;
+            vv *= f;
+        }
+        return x;
     }
 
     /** Whether the player's box is pressed against a collidable block on that side (within {@value #WALL_TOUCH}). */
