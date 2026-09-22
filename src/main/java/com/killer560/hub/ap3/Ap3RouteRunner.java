@@ -43,8 +43,14 @@ final class Ap3RouteRunner {
     private static final double BODY_HEIGHT = 1.8;
     /** How far outside the gates the world is sampled, so a route can swing wide around a wall. */
     private static final int SNAP_PAD = 16;
-    /** Off the plan by more than this and it is re-planned from where you really are. */
+    /**
+     * Off the plan by more than this and a fresh plan is started - but the current one keeps driving while it is
+     * computed, re-anchored to the measured position. Dropping it instead made the route stall every few ticks
+     * (killer560, 2026-09-22: "it tried to go somewhere then stops then goes again like once every 4ish ticks").
+     */
     private static final double DRIFT_LIMIT = 0.35;
+    /** Off by THIS much and the schedule is meaningless - hold still until the new one lands. */
+    private static final double LOST_LIMIT = 1.5;
     /**
      * A search takes longer than a tick, so a plan made "from here, now" is already stale when it lands. Every
      * re-plan therefore starts from the state the CURRENT plan says you will be in this many ticks from now, and is
@@ -79,6 +85,8 @@ final class Ap3RouteRunner {
     private static Ap3Node prePlanFor;
     private static long prePlanMs;
     private static int prePlanCooldown;
+    /** Whether this route has already said its planned time in chat. */
+    private static boolean announced;
     private static int waitingForTermTicks;
     private static boolean waitingForTerm;
     private static boolean sawTermScreen;
@@ -94,6 +102,7 @@ final class Ap3RouteRunner {
 
     static void stop() {
         route.clear();
+        announced = false;
         plan = null;
         pending = null;
         planning = false;
@@ -156,21 +165,23 @@ final class Ap3RouteRunner {
         }
         // Drift: the game and the plan disagree (a mob, a slab, a lag spike). Re-plan from where you really are.
         boolean drifted = false;
+        boolean lost = false;
         if (predicted != null) {
             double off = Math.hypot(player.getX() - predicted.x, player.getZ() - predicted.z);
             drifted = off > DRIFT_LIMIT;
+            lost = off > LOST_LIMIT;
             if (drifted) {
-                LOGGER.info("[AP3 route] {} blocks off the plan - re-planning", String.format(Locale.US, "%.2f", off));
+                LOGGER.info("[AP3 route] {} blocks off the plan - re-planning{}",
+                        String.format(Locale.US, "%.2f", off), lost ? " (lost - holding still)" : "");
             }
         }
         if (!planning && (drifted || stepIndex - lastPlanStep >= REPLAN_EVERY)) {
             lastPlanStep = stepIndex;
-            replanAhead(client, player, drifted);
+            replanAhead(client, player);
         }
-        if (drifted) {
-            // The plan was made for somewhere else, so its keys and yaws mean nothing here: hold still until the
-            // re-plan lands rather than driving a schedule for a position we are not in (killer560, 2026-09-22:
-            // "it tends to just spin in circles. It never actually goes anywhere").
+        if (lost) {
+            // Properly lost (a correction, a wall, a leap): the schedule means nothing here, so hold still for the
+            // few ticks the re-plan takes rather than driving keys meant for somewhere else.
             plan = null;
             predicted = null;
             return true;
@@ -199,18 +210,15 @@ final class Ap3RouteRunner {
      * Starts a search from where the plan says you will be {@link #PLAN_LATENCY} ticks from now (or from the measured
      * state when the two have already come apart), so the answer is still current when it arrives.
      */
-    private static void replanAhead(Minecraft client, LocalPlayer player, boolean drifted) {
+    private static void replanAhead(Minecraft client, LocalPlayer player) {
+        // Start from where he REALLY is, carried forward by the steps the current plan will drive in the meantime,
+        // so the new schedule begins exactly where the old one hands over and nothing has to stop.
         Ap3RouteMath.RouteState from = stateOf(player);
         int at = stepIndex;
-        if (!drifted && predicted != null) {
-            Ap3RouteMath.RouteState ahead = predicted.copy();
-            ahead.groundY = from.groundY;
-            for (int i = 0; i < PLAN_LATENCY && stepIndex + i < plan.steps.length; i++) {
-                Ap3RoutePlanner.Step st = plan.steps[stepIndex + i];
-                Ap3RouteMath.step(ahead, st.keys(), st.yaw(), st.jump(), planModel);
-                at = stepIndex + i + 1;
-            }
-            from = ahead;
+        for (int i = 0; i < PLAN_LATENCY && stepIndex + i < plan.steps.length; i++) {
+            Ap3RoutePlanner.Step st = plan.steps[stepIndex + i];
+            Ap3RouteMath.step(from, st.keys(), st.yaw(), st.jump(), planModel);
+            at = stepIndex + i + 1;
         }
         startPlanning(client, player, from, at);
     }
@@ -322,8 +330,9 @@ final class Ap3RouteRunner {
         if (planning || client.level == null) {
             return;
         }
-        // Only the first plan of a route says anything in chat: a re-plan every 20 ticks would be constant spam.
-        final boolean announce = plan == null;
+        // Once per route, not once per plan: it re-plans every 20 ticks, and a paused game re-plans again on resume.
+        final boolean announce = !announced;
+        announced = true;
         List<Ap3RoutePlanner.Gate> gates = new ArrayList<>();
         for (Ap3Node n : route) {
             gates.add(gateFor(n));
