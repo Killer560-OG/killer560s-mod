@@ -28,7 +28,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
 
-**Dungeon: Timers, Score & Boss** - Blessings, Blood Camp †, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
+**Dungeon: Timers, Score & Boss** - Blessings, Blood Camp †, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, Lava Lab, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
 
 **Display & Menus** - Borderless Fullscreen, Fullbright, Held Item Transform, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
 
