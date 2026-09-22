@@ -277,7 +277,8 @@ final class Ap3RoutePlanner {
         Node root = new Node();
         root.s = start.copy();
         root.group = 0;
-        root.f = field.heuristic(start.x, start.z, 0, 0, groups, top);
+        double startLeft = field.heuristic(start.x, start.z, 0, 0, groups, top);
+        root.f = startLeft;
         List<Node> layer = new ArrayList<>();
         layer.add(root);
         Node best = root;
@@ -312,6 +313,15 @@ final class Ap3RoutePlanner {
         }
         plan.gatesReached = gatesBefore(groups, best.group) + Integer.bitCount(best.mask);
         plan.note = plan.note.isEmpty() ? "no route found" : plan.note;
+        if (field.heuristic(best.s.x, best.s.z, best.group, best.mask, groups, top) >= startLeft - 1e-9) {
+            // The search ran out of time without getting anywhere, and the best it has is no closer to the goal than
+            // standing still. Driving that is worse than not driving: killer560's route did exactly this at the top
+            // of a staircase on 2026-09-22 - a near-180 and a sprint back off the stairs, because the partial it was
+            // handed happened to close XZ distance fastest by going downhill. An empty plan tells the runner to hold.
+            plan.note += " (no progress - not driving it)";
+            plan.complete = false;
+            return plan;
+        }
         Plan partial = finish(best, gates, blocked, m, o, terrain, plan);
         partial.complete = false;
         return partial;

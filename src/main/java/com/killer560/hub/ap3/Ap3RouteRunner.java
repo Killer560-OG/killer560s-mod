@@ -179,6 +179,13 @@ final class Ap3RouteRunner {
         if (pendingSeq >= 0 && pendingSeq < acceptFrom) {
             pending = null; // an answer to a question this route never asked (a pre-plan from before it started)
         }
+        if (fresh != null && fresh.steps.length == 0 && !fresh.complete) {
+            // A search that got nowhere. Keep whatever is already being driven rather than replacing it with
+            // nothing, and let the drift check below decide whether to hold still.
+            LOGGER.info("[AP3 route] the re-plan got nowhere ({}) - keeping the current plan", fresh.note);
+            pending = null;
+            fresh = null;
+        }
         if (fresh != null && (plan == null || stepIndex >= pendingAt)) {
             pending = null;
             plan = fresh;

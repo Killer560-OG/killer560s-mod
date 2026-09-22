@@ -143,6 +143,8 @@ final class Ap3RouteMath {
             }
         }
 
+        double inX = 0.0;
+        double inZ = 0.0;
         if (!a.none()) {
             double eff = Ap3DiscretePlanner.effectiveLength(a, s.crouching, m.sneakMul);
             // The air's input is a FLAT 0.02 / 0.026 - it does NOT scale with the movement-speed attribute, which is
@@ -153,8 +155,10 @@ final class Ap3RouteMath {
             double ux = a.st() / norm;
             double uz = a.fw() / norm;
             double mag = speed * eff;
-            vx += mag * (ux * cos - uz * sin);
-            vz += mag * (uz * cos + ux * sin);
+            inX = ux * cos - uz * sin;
+            inZ = uz * cos + ux * sin;
+            vx += mag * inX;
+            vz += mag * inZ;
         }
 
         double height = s.crouching ? Ap3RouteCollide.CROUCH_HEIGHT : Ap3RouteCollide.HEIGHT;
@@ -183,10 +187,33 @@ final class Ap3RouteMath {
 
         s.onGround = r.onGround;
         s.airTicks = r.onGround ? 0 : s.airTicks + 1;
-        s.sprinting = sprintNow;
+        // LocalPlayer.shouldStopRunSprinting: a horizontal collision that is not MINOR drops the sprint, and since
+        // aiStep reads the flag the move set last tick, the loss lands on the tick after the bump. This is most of
+        // what a staircase does to you - every riser deflects the move well off the keys you are holding, so the
+        // push after it is worth 1/1.3 of what it was. Without it the plan expects a sprint it has not got and the
+        // route drifts within three ticks of touching the stairs (killer560's log, 2026-09-22).
+        s.sprinting = sprintNow && !((r.hitX || r.hitZ) && !isCollisionMinor(inX, inZ, r.dx, r.dz));
         s.crouching = a.sneak();
         s.yaw = yaw;
     }
+
+    /**
+     * {@code LocalPlayer.isHorizontalCollisionMinor}: a collision counts as minor - and so keeps the sprint - only
+     * when what you actually moved is within 8 degrees of the direction your keys asked for. Sliding along a wall
+     * you are pressing into at a shallow angle is minor; being turned by a stair riser is not.
+     */
+    static boolean isCollisionMinor(double inX, double inZ, double movedX, double movedZ) {
+        double i2 = inX * inX + inZ * inZ;
+        double m2 = movedX * movedX + movedZ * movedZ;
+        if (i2 < 1.0E-5 || m2 < 1.0E-5) {
+            return false;
+        }
+        double dot = inX * movedX + inZ * movedZ;
+        return Math.acos(Math.max(-1.0, Math.min(1.0, dot / Math.sqrt(i2 * m2)))) < MINOR_COLLISION_ANGLE;
+    }
+
+    /** The 8 degrees {@code LocalPlayer} allows, in radians, exactly as the class constant reads. */
+    static final double MINOR_COLLISION_ANGLE = 0.13962633907794952;
 
     /** Ground speed for these keys at the model's attribute, independent of the model's own onGround flag. */
     static double groundSpeed(Ap3DiscretePlanner.Model m, boolean sprinting) {
