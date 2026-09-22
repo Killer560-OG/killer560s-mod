@@ -48,6 +48,9 @@ final class Ap3FastAlign {
         int ticks;
         double error;
         int presses;
+        /** The whole schedule (full solves only): solve() keeps it for the next tick's warm start. */
+        Ap3DiscretePlanner.Action[] acts;
+        float[] yaws;
     }
 
     /**
@@ -64,12 +67,61 @@ final class Ap3FastAlign {
         lastActs = null;
     }
 
+    private static volatile boolean warmed;
+
+    /**
+     * Runs a few hundred throwaway solves on a background thread at startup so the JIT has compiled the planner before
+     * the first real Test Align (cold, interpreted, the first plan was many times slower). Touches no shared state.
+     */
+    static void warmUpAsync() {
+        if (warmed) {
+            return;
+        }
+        warmed = true;
+        Thread t = new Thread(() -> {
+            try {
+                Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
+                m.baseSpeedAttr = 0.1;
+                m.blockFriction = 0.6f;
+                m.onGround = true;
+                m.sneakMul = 0.3;
+                m.tolerance = 0.001;
+                m.trig = new Ap3DiscretePlanner.Trig() {
+                    public float cos(float r) { return (float) Math.cos(r); }
+                    public float sin(float r) { return (float) Math.sin(r); }
+                };
+                m.yawSteerable = true;
+                m.yawStepCap = 180.0;
+                java.util.Random rnd = new java.util.Random(1);
+                for (int i = 0; i < 400; i++) {
+                    Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
+                    double ang = rnd.nextDouble() * Math.PI * 2;
+                    s.vx = -Math.sin(ang) * 0.15;
+                    s.vz = Math.cos(ang) * 0.15;
+                    s.ex = s.vx * 2 + (rnd.nextDouble() - 0.5) * 0.4;
+                    s.ez = s.vz * 2 + (rnd.nextDouble() - 0.5) * 0.4;
+                    s.sprinting = true;
+                    s.sentYaw = (float) Math.toDegrees(ang);
+                    fullSolve(s, m, 0.001);
+                }
+            } catch (Throwable ignored) {
+                // warm-up only
+            }
+        }, "killer560smod-ap3-warmup");
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
+    }
+
     static Result solve(Ap3DiscretePlanner.State s, Ap3DiscretePlanner.Model m, double tol) {
         Result warm = warmStart(s, m, tol);
         if (warm != null) {
             return warm;
         }
         Result r = fullSolve(s, m, tol);
+        lastActs = r == null ? null : r.acts;
+        lastYaws = r == null ? null : r.yaws;
+        lastTotal = r == null ? 0 : r.ticks;
         return r;
     }
 
@@ -111,7 +163,6 @@ final class Ap3FastAlign {
             r.error = Math.max(Math.abs(s.ex), Math.abs(s.ez));
             return r;
         }
-        lastActs = null;
         for (int total = 1; total <= MAX_TICKS; total++) {
             // Coasting alone lands and stops in this many ticks: pressing anything can only be slower or equal.
             double coast = evaluate(s, m, NO_ACTS, NO_YAWS, total, null);
@@ -123,7 +174,6 @@ final class Ap3FastAlign {
                 r.error = coast;
                 return r;
             }
-            Result best = null;
             for (int k = 1; k <= Math.min(MAX_PRESSES, total); k++) {
                 int combos = pow(ACTS.length, k);
                 for (int c = 0; c < combos; c++) {
@@ -131,29 +181,320 @@ final class Ap3FastAlign {
                     if (acts[k - 1].none()) {
                         continue; // a trailing "nothing" is just a shorter schedule with one more coast tick
                     }
-                    float[] yaws = solveYaws(s, m, acts, total);
+                    float[] yaws = solveCombo(s, m, acts, total, tol);
                     if (yaws == null) {
                         continue;
                     }
                     double err = evaluate(s, m, acts, yaws, total, null);
-                    if (err <= tol && (best == null || err < best.error)) {
-                        best = new Result();
-                        best.action = acts[0];
-                        best.yaw = yaws[0];
-                        best.ticks = total;
-                        best.error = err;
-                        best.presses = k;
-                        lastActs = acts;
-                        lastYaws = yaws;
-                        lastTotal = total;
+                    if (err > tol) {
+                        continue;
                     }
-                }
-                if (best != null) {
-                    return best; // fewest presses at this total is fine - total ticks is what matters
+                    // The first schedule that lands at the fewest ticks is the plan - any other one is no faster.
+                    Result r = new Result();
+                    r.action = acts[0];
+                    r.yaw = yaws[0];
+                    r.ticks = total;
+                    r.error = err;
+                    r.presses = k;
+                    r.acts = acts;
+                    r.yaws = yaws;
+                    return r;
                 }
             }
         }
         return null;
+    }
+
+    // ---- the closed-form model -------------------------------------------------------------------------------------
+    // Between the zeroing checks the vanilla step is LINEAR in each push: a press at tick t of length mag (fixed by the
+    // keys, sprint and sneak - never by the yaw) in world direction u moves you mag * (1 - f^(T-t)) / (1 - f) * u by
+    // tick T and leaves mag * f^(T-t) * u of velocity. So for a given key schedule the end state is
+    //     error    = D - sum a_i u_i        velocity = V0 + sum b_i u_i
+    // with D, V0, a_i, b_i computed from the state in a few steps, and only the directions u_i unknown. Two presses
+    // are then a circle intersection, three a short scan of one angle with the other two exact - microseconds instead
+    // of thousands of simulated schedules. Every answer is still checked on the exact step (evaluate) before use.
+
+    /** Target speed at the end in the closed form - a margin under the check in {@link #evaluate}. */
+    private static final double LIN_REST = REST_SPEED * 0.98;
+    /** A closed-form near miss worth trying on the exact step (where the zeroing can still make it land). */
+    private static final double NEAR_POS = 0.02;
+    private static final double NEAR_SPEED = Ap3AlignMath.ZERO_VELOCITY;
+    private static final int SCAN = 72;
+    private static final double[] SCAN_ANG = new double[SCAN];
+    private static final double[] SCAN_X = new double[SCAN];
+    private static final double[] SCAN_Z = new double[SCAN];
+    static {
+        for (int i = 0; i < SCAN; i++) {
+            double a = i * (2 * Math.PI / SCAN);
+            SCAN_ANG[i] = a;
+            SCAN_X[i] = -Math.sin(a);
+            SCAN_Z[i] = Math.cos(a);
+        }
+    }
+
+    /** The schedule's linear model: pressing slots, their a / b lengths, and D / V0. */
+    private static final class Lin {
+        int n;
+        final int[] slot = new int[MAX_PRESSES];
+        final double[] a = new double[MAX_PRESSES];
+        final double[] b = new double[MAX_PRESSES];
+        double dx, dz, v0x, v0z;
+    }
+
+    private static Lin linearize(Ap3DiscretePlanner.State s, Ap3DiscretePlanner.Model m,
+                                 Ap3DiscretePlanner.Action[] acts, int total) {
+        double f = m.friction();
+        boolean zeroed = Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
+        double vx = zeroed ? 0.0 : s.vx;
+        double vz = zeroed ? 0.0 : s.vz;
+        double fT = Math.pow(f, total);
+        double carry = (1.0 - fT) / (1.0 - f);
+        Lin l = new Lin();
+        l.dx = s.ex - vx * carry;
+        l.dz = s.ez - vz * carry;
+        l.v0x = vx * fT;
+        l.v0z = vz * fT;
+        // Sprint / sneak evolve with the keys alone: a scratch state from rest measures each press's push length.
+        Ap3DiscretePlanner.State sc = s.copy();
+        for (int i = 0; i < acts.length; i++) {
+            sc.vx = 0.0;
+            sc.vz = 0.0;
+            double ex0 = sc.ex;
+            double ez0 = sc.ez;
+            Ap3DiscretePlanner.step(sc, acts[i], 0f, m);
+            if (acts[i].none()) {
+                continue;
+            }
+            double mag = Math.hypot(ex0 - sc.ex, ez0 - sc.ez);
+            double fr = Math.pow(f, total - i);
+            l.slot[l.n] = i;
+            l.a[l.n] = mag * (1.0 - fr) / (1.0 - f);
+            l.b[l.n] = mag * fr;
+            l.n++;
+        }
+        return l;
+    }
+
+    /** World directions (MC yaw of the push, radians) for the pressing slots, or null; then the key yaws. */
+    private static float[] solveCombo(Ap3DiscretePlanner.State s, Ap3DiscretePlanner.Model m,
+                                      Ap3DiscretePlanner.Action[] acts, int total, double tol) {
+        Lin l = linearize(s, m, acts, total);
+        if (l.n == 0) {
+            return null;
+        }
+        // Reach test (triangle inequality) on the position and the speed - most schedules end here.
+        double d = Math.hypot(l.dx, l.dz);
+        double sumA = 0, maxA = 0, sumB = 0;
+        for (int i = 0; i < l.n; i++) {
+            sumA += l.a[i];
+            maxA = Math.max(maxA, l.a[i]);
+            sumB += l.b[i];
+        }
+        if (d > sumA + NEAR_POS || d < 2 * maxA - sumA - NEAR_POS
+                || Math.hypot(l.v0x, l.v0z) > sumB + LIN_REST + NEAR_SPEED) {
+            return null;
+        }
+        double[] th = new double[l.n];
+        double best = Double.MAX_VALUE;
+        double[] bestTh = null;
+        if (l.n == 1) {
+            th[0] = mcAngle(l.dx, l.dz);
+            best = cost(l, th);
+            bestTh = th.clone();
+        } else {
+            // n = 2: the two exact branches. n = 3: scan the first push's direction, the last two exact.
+            int scans = l.n == 3 ? SCAN : 1;
+            for (int q = 0; q < scans; q++) {
+                double rx = l.dx, rz = l.dz;
+                if (l.n == 3) {
+                    th[0] = SCAN_ANG[q];
+                    rx -= l.a[0] * SCAN_X[q];
+                    rz -= l.a[0] * SCAN_Z[q];
+                }
+                int i1 = l.n - 2;
+                int i2 = l.n - 1;
+                for (int branch = -1; branch <= 1; branch += 2) {
+                    if (!twoPush(rx, rz, l.a[i1], l.a[i2], branch, th, i1, i2)) {
+                        continue;
+                    }
+                    double c = cost(l, th);
+                    if (c < best) {
+                        best = c;
+                        bestTh = th.clone();
+                    }
+                }
+            }
+        }
+        if (bestTh == null) {
+            return null;
+        }
+        polish(l, bestTh);
+        double[] res = new double[4];
+        linResid(l, bestTh, res);
+        double posErr = Math.max(Math.abs(res[0]), Math.abs(res[1]));
+        double overSpeed = Math.hypot(res[2], res[3]);
+        if (posErr > NEAR_POS || overSpeed > NEAR_SPEED) {
+            // The closed form is exact apart from vanilla's under-0.003 zeroing, which only matters when the speed gets
+            // near that line - far from landing here, the exact step cannot land either.
+            return null;
+        }
+        boolean linearLands = posErr <= tol && overSpeed == 0.0;
+        float[] yaws = toYaws(s, acts, l, bestTh);
+        if (linearLands && evaluate(s, m, acts, yaws, total, null) <= tol) {
+            return yaws;
+        }
+        // The exact step disagrees (a zeroing inside the schedule, float rounding): a short polish on the step itself.
+        double[] start = new double[acts.length];
+        for (int i = 0; i < acts.length; i++) {
+            start[i] = yaws[i] + keyOffset(acts[i]);
+        }
+        return solveYaws(s, m, acts, total, new double[][]{start});
+    }
+
+    /** Two pushes of lengths a1 / a2 that sum to (rx, rz): branch -1 / +1. False when out of reach. */
+    private static boolean twoPush(double rx, double rz, double a1, double a2, int branch, double[] th, int i1, int i2) {
+        double d = Math.hypot(rx, rz);
+        if (d < 1e-12 || a1 < 1e-12) {
+            return false;
+        }
+        double cosA = (a1 * a1 + d * d - a2 * a2) / (2 * a1 * d);
+        if (cosA > 1.0 + 1e-3 || cosA < -1.0 - 1e-3) {
+            return false;
+        }
+        double alpha = Math.acos(Math.max(-1.0, Math.min(1.0, cosA)));
+        double base = Math.atan2(rz, rx); // standard angle of the remainder
+        double ang = base + branch * alpha;
+        double p1x = a1 * Math.cos(ang);
+        double p1z = a1 * Math.sin(ang);
+        th[i1] = mcAngle(p1x, p1z);
+        th[i2] = mcAngle(rx - p1x, rz - p1z);
+        return true;
+    }
+
+    /** MC yaw (radians) of a world direction: dir(t) = (-sin t, cos t). */
+    private static double mcAngle(double x, double z) {
+        return Math.atan2(-x, z);
+    }
+
+    /** Closed-form residuals: position error, and the end speed over LIN_REST. */
+    private static void linResid(Lin l, double[] th, double[] r) {
+        double ex = l.dx, ez = l.dz, vx = l.v0x, vz = l.v0z;
+        for (int i = 0; i < l.n; i++) {
+            double ux = -Math.sin(th[i]);
+            double uz = Math.cos(th[i]);
+            ex -= l.a[i] * ux;
+            ez -= l.a[i] * uz;
+            vx += l.b[i] * ux;
+            vz += l.b[i] * uz;
+        }
+        double sp = Math.hypot(vx, vz);
+        double over = Math.max(0.0, sp - LIN_REST);
+        r[0] = ex;
+        r[1] = ez;
+        r[2] = sp > 1e-12 ? over * vx / sp : 0.0;
+        r[3] = sp > 1e-12 ? over * vz / sp : 0.0;
+    }
+
+    private static double cost(Lin l, double[] th) {
+        double[] r = new double[4];
+        linResid(l, th, r);
+        return dot(r, r);
+    }
+
+    /** A few Gauss-Newton / LM steps on the closed form (lets the position use its tolerance to shed end speed). */
+    private static void polish(Lin l, double[] th) {
+        int k = l.n;
+        double[] r = new double[4];
+        double[] r2 = new double[4];
+        linResid(l, th, r);
+        double c = dot(r, r);
+        double lambda = 1e-3;
+        for (int it = 0; it < 12 && c > 1e-16; it++) {
+            double[][] jac = new double[4][k];
+            for (int j = 0; j < k; j++) {
+                double h = 1e-6;
+                th[j] += h;
+                linResid(l, th, r2);
+                th[j] -= h;
+                for (int q = 0; q < 4; q++) {
+                    jac[q][j] = (r2[q] - r[q]) / h;
+                }
+            }
+            double[][] a = new double[k][k];
+            double[] g = new double[k];
+            for (int i = 0; i < k; i++) {
+                for (int j = 0; j < k; j++) {
+                    double sum = 0;
+                    for (int q = 0; q < 4; q++) {
+                        sum += jac[q][i] * jac[q][j];
+                    }
+                    a[i][j] = sum;
+                }
+                double sum = 0;
+                for (int q = 0; q < 4; q++) {
+                    sum += jac[q][i] * r[q];
+                }
+                g[i] = -sum;
+            }
+            boolean improved = false;
+            for (int tries = 0; tries < 5 && !improved; tries++) {
+                double[][] aa = new double[k][k];
+                for (int i = 0; i < k; i++) {
+                    System.arraycopy(a[i], 0, aa[i], 0, k);
+                    aa[i][i] += lambda * (a[i][i] + 1e-12);
+                }
+                double[] dy = solveLinear(aa, g.clone());
+                if (dy == null) {
+                    lambda *= 10;
+                    continue;
+                }
+                double[] nt = new double[k];
+                for (int i = 0; i < k; i++) {
+                    nt[i] = th[i] + Math.max(-1.0, Math.min(1.0, dy[i]));
+                }
+                linResid(l, nt, r2);
+                double nc = dot(r2, r2);
+                if (nc < c) {
+                    System.arraycopy(nt, 0, th, 0, k);
+                    System.arraycopy(r2, 0, r, 0, 4);
+                    c = nc;
+                    lambda = Math.max(1e-9, lambda / 5);
+                    improved = true;
+                } else {
+                    lambda *= 8;
+                }
+            }
+            if (!improved) {
+                break;
+            }
+        }
+    }
+
+    /** Push directions -> the yaw each press goes out at (a nothing-tick keeps the previous yaw: no needless turn). */
+    private static float[] toYaws(Ap3DiscretePlanner.State s, Ap3DiscretePlanner.Action[] acts, Lin l, double[] th) {
+        float[] yaws = new float[acts.length];
+        float prev = s.sentYaw;
+        int j = 0;
+        for (int i = 0; i < acts.length; i++) {
+            if (j < l.n && l.slot[j] == i) {
+                double want = Math.toDegrees(th[j]) - keyOffset(acts[i]);
+                // nearest equivalent to the running yaw, so the turn is the short way (never wrapped to 0-360 itself)
+                prev = (float) (prev + wrap(want - prev));
+                j++;
+            }
+            yaws[i] = prev;
+        }
+        return yaws;
+    }
+
+    private static double wrap(double deg) {
+        double w = deg % 360.0;
+        if (w >= 180.0) {
+            w -= 360.0;
+        } else if (w < -180.0) {
+            w += 360.0;
+        }
+        return w;
     }
 
     /**
@@ -187,17 +528,8 @@ final class Ap3FastAlign {
 
     /** Levenberg-Marquardt over the k yaws from a few starting guesses; null when nothing converges. */
     private static float[] solveYaws(Ap3DiscretePlanner.State s, Ap3DiscretePlanner.Model m,
-                                     Ap3DiscretePlanner.Action[] acts, int total) {
+                                     Ap3DiscretePlanner.Action[] acts, int total, double[][] starts) {
         int k = acts.length;
-        double toTarget = Math.toDegrees(Math.atan2(-s.ex, s.ez));
-        double against = Math.toDegrees(Math.atan2(s.vx, -s.vz)); // opposite the velocity
-        double[][] starts = new double[4][k];
-        for (int i = 0; i < k; i++) {
-            starts[0][i] = toTarget;
-            starts[1][i] = against;
-            starts[2][i] = i == 0 ? toTarget : against;
-            starts[3][i] = i == 0 ? against : toTarget;
-        }
         float[] bestYaws = null;
         double bestCost = Double.MAX_VALUE;
         double[] r = new double[4];

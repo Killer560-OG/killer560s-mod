@@ -107,6 +107,8 @@ public final class Ap3Feature {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "ap3_force_dungeon"),
                 (graphics, deltaTracker) -> drawForceDungeonReminder(graphics));
+        // Test Align's planner, compiled by the JIT in the background so the first one in a session is not the slow one.
+        Ap3FastAlign.warmUpAsync();
         LOGGER.info("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
