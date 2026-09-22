@@ -1764,7 +1764,9 @@ public final class Ap3Executor {
     }
 
     /** Every client tick, last (from Ap3Feature, like tickStrafe): holds the freeze while a Camera Planner align runs,
-     *  otherwise glides the real yaw back under the view and lets go. */
+     *  otherwise glides the real yaw back under the view and lets go. A driving node must be in the holding list or
+     *  this glide turns the real yaw up to 30 degrees a tick UNDER it: a running route then walks off at an angle to
+     *  its own plan (killer560, 2026-09-22: the route veered and stopped, drifting a block within four ticks). */
     static void tickView(Minecraft client) {
         LocalPlayer player = client.player;
         tickBlockWatch(client);
@@ -1782,6 +1784,7 @@ public final class Ap3Executor {
         }
         boolean holding = freezeViewWanted() && (holdDir != null
                 || (activeNode != null && step == Step.DO && activeNode.type.isAlign())
+                || (activeNode != null && activeNode.type == Ap3Node.Type.PATH)
                 || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK || activeNode.type == Ap3Node.Type.BOOM))
                 || preAimed != null);
         if (!holding) {
