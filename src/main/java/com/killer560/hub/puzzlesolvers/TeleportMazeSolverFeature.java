@@ -317,8 +317,14 @@ public final class TeleportMazeSolverFeature {
         }
         BlockPos target = best;
         if (cfg.isShowTracer() && target != null) {
-            SolverEspRender.renderLineStrip(context, List.of(client.player.getEyePosition(),
-                    new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)), 0.33f, 1.0f, 1.0f, 1f, 2f);
+            // Start a little IN FRONT of the camera, not at the eye (killer560, 2026-09-21: "the line that is supposed to
+            // take me to the tp pads ... doesn't really show up"): a line that begins exactly at the camera runs straight
+            // away from the viewer and collapses to a dot, so it only flickered into view at odd angles. Starting it
+            // half a block along the view direction makes it a proper line from the crosshair to the pad.
+            var camera = client.gameRenderer.getMainCamera();
+            Vec3 start = camera.position().add(Vec3.directionFromRotation(camera.xRot(), camera.yRot()).scale(0.5));
+            SolverEspRender.renderLineStrip(context, List.of(start,
+                    new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)), 0.33f, 1.0f, 1.0f, 1f, 3f);
         }
     }
 
