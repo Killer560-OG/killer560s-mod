@@ -841,7 +841,7 @@ public final class LiveMapFeature {
      *  -201..-9 dungeon footprint) mapped to corner cell (10,10) and solvers could "match" whatever room
      *  was identified there. @return the player's current room cell index, or -1 when there's no
      *  player, the player is in boss, or the player is outside the dungeon grid footprint. */
-    static int currentRoomIndex() {
+    public static int currentRoomIndex() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || isInBoss()) {
             return -1;

@@ -56,6 +56,7 @@ public class AccountSwitcherScreen extends Screen {
     private long universalHintUntil;
     /** Pixels the account list is scrolled down (killer560, 2026-09-21: "make the swap accounts page scrollable"). */
     private int scroll;
+    private static final int ROW_H = 22;
     private int maxScroll;
 
     public AccountSwitcherScreen(Screen parent) {
@@ -77,7 +78,7 @@ public class AccountSwitcherScreen extends Screen {
         }
         this.banStatuses = SharedBanStatusStore.load();
 
-        int rowHeight = 22;
+        int rowHeight = ROW_H;
         int buttonWidth = 200;
         int copyWidth = 60;
         int proxyWidth = 70;
@@ -107,7 +108,7 @@ public class AccountSwitcherScreen extends Screen {
         int i = 0;
         for (PrismAccount account : this.accounts) {
             int y = startY + i * rowHeight - this.scroll;
-            if (y < startY || y + 20 > listBottom) {
+            if (y < startY || y + rowHeight > listBottom) {
                 i++;
                 continue;
             }
@@ -167,7 +168,7 @@ public class AccountSwitcherScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (this.maxScroll > 0 && scrollY != 0) {
-            int next = Math.max(0, Math.min(this.maxScroll, this.scroll - (int) Math.signum(scrollY) * 22));
+            int next = Math.max(0, Math.min(this.maxScroll, this.scroll - (int) Math.signum(scrollY) * ROW_H));
             if (next != this.scroll) {
                 this.scroll = next;
                 this.rebuildWidgets();

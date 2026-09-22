@@ -618,7 +618,9 @@ final class Ap3DiscretePlanner {
                 fine = two;
             }
             JointResult keys = new JointResult();
-            keysFineSearch(s, m, KEYS_FINE_DEPTH, 0, null, keys);
+            if (fine == null || !fine.reaches || fine.ticks > 1) { // nothing beats a one-tick landing - skip the 59k-leaf search
+                keysFineSearch(s, m, KEYS_FINE_DEPTH, 0, null, keys);
+            }
             if (keys.restErr <= m.tolerance) {
                 Plan kp = new Plan();
                 kp.action = keys.first == null ? NONE : keys.first;

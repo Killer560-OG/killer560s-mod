@@ -73,11 +73,19 @@ public final class Ap3FreezeState {
 
     /** The yaw {@code /ap3 add} records: the free camera's while frozen, else the player's own. */
     static float placementYaw(LocalPlayer player) {
-        return frozen ? viewYaw : player.getYRot();
+        if (frozen) {
+            return viewYaw;
+        }
+        float view = Ap3Executor.frozenViewYaw(); // AP3's freecam view while a walk / align turns the real yaw
+        return Float.isNaN(view) ? player.getYRot() : view;
     }
 
     static float placementPitch(LocalPlayer player) {
-        return frozen ? viewPitch : player.getXRot();
+        if (frozen) {
+            return viewPitch;
+        }
+        float view = Ap3Executor.frozenViewPitch();
+        return Float.isNaN(view) ? player.getXRot() : view;
     }
 
     private static void tick(Minecraft client) {

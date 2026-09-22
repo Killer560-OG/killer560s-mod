@@ -307,7 +307,8 @@ public final class Ap3Executor {
     /** True while AP3 is doing something: performing a node, holding a walk, or holding triggered nodes in the
      *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
-        return activeNode != null || holdDir != null || !queue.isEmpty();
+        return activeNode != null || holdDir != null || !queue.isEmpty()
+                || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump;
     }
 
     /** True while an area's nodes are armed (you are in a boss area that has nodes). */
@@ -359,9 +360,13 @@ public final class Ap3Executor {
         holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
+        restoreSlotOnStop(Minecraft.getInstance().player);
         preAimed = null;
         preAimPrevSlot = -1;
         endAim(Minecraft.getInstance().player);
+        placedGraceTicks = 0;
+        placedBlocking = false;
+        blockWatchPos = null;
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
         releaseKeys();
@@ -631,6 +636,8 @@ public final class Ap3Executor {
         }
         holdDir = null;
         queue.clear();
+        jumpPendingTicks = 0;
+        edgeArmedTicks = 0;
         clearMovement();
         releaseKeys();
     }
@@ -707,7 +714,8 @@ public final class Ap3Executor {
         }
         if (testMode) {
             // Polled every tick so the snapshot stays fresh; only a press while something is going on is a takeover.
-            boolean pressed = anyNewButton(client);
+            // (Frozen: the step keys are presses too, and never a takeover.)
+            boolean pressed = anyNewButton(client) && !Ap3FreezeState.isFrozen();
             if (pressed && busy && client.screen == null) {
                 stop("you took control (test mode)");
                 return;
@@ -742,7 +750,9 @@ public final class Ap3Executor {
             if (waitUntilMs > 0L) {
                 if (System.currentTimeMillis() < waitUntilMs) {
                     reportQueued();
+                    applyJumps(player);
                     applyHold(player);
+                    preAim(player);
                     applyFallbackKeys(client);
                     return;
                 }
@@ -780,7 +790,7 @@ public final class Ap3Executor {
             return;
         }
         Vec3 pos = player.position();
-        boolean handsOn = physicalMovementKeyDown(client);
+        boolean handsOn = !Ap3FreezeState.isFrozen() && physicalMovementKeyDown(client);
         for (Ap3Node node : chain.nodes()) {
             boolean in = node.contains(pos);
             if (nodeBlocked(node, in)) {
@@ -919,6 +929,9 @@ public final class Ap3Executor {
             // "keep me walking until i hit a different node" - this is that node, whatever it is. A WALK / RUN
             // replaces the hold with its own instead; a JUMP / EDGE jumps without ending it.
             holdDir = null;
+            // ...and a jump / edge armed by the walk's modifier belongs to that walk, not to this node.
+            jumpPendingTicks = 0;
+            edgeArmedTicks = 0;
         }
         step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
         LOGGER.info("[AP3] Node #{} {}", number(node), node.describe());
@@ -2168,7 +2181,10 @@ public final class Ap3Executor {
         if (blockWatchPos == null || client.level == null || client.player == null) {
             return;
         }
-        if (++blockWatchTicks > 60 && placedGraceTicks <= 0) {
+        if (placedGraceTicks > 0) {
+            placedGraceTicks--;
+        }
+        if (++blockWatchTicks > 60 && placedGraceTicks <= 0 && !placedBlocking) {
             blockWatchPos = null;
             return;
         }
@@ -2232,9 +2248,8 @@ public final class Ap3Executor {
         if (preAimed != null && tickCounter - preAimTick > 2 && activeNode != preAimed) {
             cancelPreAim(player);
         }
-        if (chain == null || preAimed != null || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK
-                || activeNode.type == Ap3Node.Type.BOOM))) {
-            return;
+        if (chain == null || preAimed != null || activeNode != null) {
+            return; // never turn you under an align / look / anything in progress - only in free walking
         }
         Vec3 pos = player.position();
         Vec3 v = player.getDeltaMovement();
@@ -2281,11 +2296,27 @@ public final class Ap3Executor {
 
     /** The node the pre-aim was for has started: true (once) when it can use its item this very tick. */
     private static boolean takePreAim(Ap3Node node, LocalPlayer player) {
-        if (preAimed != node) {
+        if (preAimed == null) {
+            return false;
+        }
+        if (preAimed != node || tickCounter - preAimTick > 2) {
+            // Pre-aimed for another node, or too long ago: undo it (pitch, slot) so the fresh aim starts clean.
+            cancelPreAim(player);
             return false;
         }
         preAimed = null;
-        return tickCounter - preAimTick <= 2;
+        return true;
+    }
+
+    /** stop() mid Block / pre-aim: put back the item you held (a Block node swaps it). */
+    private static void restoreSlotOnStop(LocalPlayer player) {
+        int back = preAimPrevSlot >= 0 ? preAimPrevSlot
+                : (activeNode != null && activeNode.type == Ap3Node.Type.BLOCK ? blockPrevSlot : -1);
+        if (player != null && back >= 0 && player.getInventory().getSelectedSlot() != back) {
+            player.getInventory().setSelectedSlot(back);
+            player.connection.send(new ServerboundSetCarriedItemPacket(back));
+        }
+        blockPrevSlot = -1;
     }
 
     private static void cancelPreAim(LocalPlayer player) {
@@ -2300,6 +2331,9 @@ public final class Ap3Executor {
     }
 
     private static void beginAim(LocalPlayer player) {
+        if (aiming) {
+            return; // already aimed: keep the pitch / view to return to from the FIRST aim
+        }
         aimPrevPitch = player.getXRot();
         aiming = true;
         if (freezeViewWanted()) {
@@ -2360,7 +2394,19 @@ public final class Ap3Executor {
         }
         // Where the eye will be on the tick the use goes out.
         Vec3 v = player.getDeltaMovement();
-        Vec3 eye = player.getEyePosition().add(v.x, 0.0, v.z);
+        double dx = v.x;
+        double dz = v.z;
+        if (driving) {
+            Ap3DiscretePlanner.Model m = modelFor(player, false);
+            boolean diagonal = (wantForward || wantBackward) && (wantLeft || wantRight);
+            double push = m.tickSpeed(wantSprint || player.isSprinting()) * (diagonal ? 1.0 : Ap3AlignMath.INPUT_SCALE);
+            double len = Math.sqrt(driveX * driveX + driveZ * driveZ);
+            if (len > 1e-6) {
+                dx += driveX / len * push;
+                dz += driveZ / len * push;
+            }
+        }
+        Vec3 eye = player.getEyePosition().add(dx, 0.0, dz);
         BlockHitResult ref = rayAt(player, eye, node.yaw, node.pitch);
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
         // Fallback when nothing lines up exactly (killer560: "it slows down way too much now. It needs to keep moving
@@ -2771,10 +2817,8 @@ public final class Ap3Executor {
         if (placedGraceTicks > 0 || ahead) {
             // A Block node's block is in the way (or just vanished from in front of you): no keys, like a player who
             // stops when they hit something - see placedBlocking. killer560 (2026-09-22): running into the placed chest
-            // by hand never flagged; only AP3's walk, which kept holding W into it, did.
-            if (placedGraceTicks > 0) {
-                placedGraceTicks--;
-            }
+            // by hand never flagged; only AP3's walk, which kept holding W into it, did. (The grace counts down in
+            // tickBlockWatch.)
             clearMovement();
             return;
         }

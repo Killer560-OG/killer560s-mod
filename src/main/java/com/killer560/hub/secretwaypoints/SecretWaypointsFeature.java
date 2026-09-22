@@ -200,8 +200,10 @@ public final class SecretWaypointsFeature {
             }
         }
         for (var gone : NEAR_ITEMS.entrySet()) {
-            if (!items.containsKey(gone.getKey()) && player.position().distanceToSqr(gone.getValue()) <= 36.0) {
-                markCollected(BlockPos.containing(gone.getValue()), Kind.ITEM, 5.0);
+            // Only an item that vanished right next to YOU (pickup range) - one a teammate grabbed a few blocks away,
+            // or that merged / despawned, must not hide your waypoint - and only a waypoint right where it lay.
+            if (!items.containsKey(gone.getKey()) && player.position().distanceToSqr(gone.getValue()) <= 2.25) {
+                markCollected(BlockPos.containing(gone.getValue()), Kind.ITEM, 2.5);
             }
         }
         NEAR_ITEMS.clear();
@@ -301,15 +303,15 @@ public final class SecretWaypointsFeature {
         // Only the room you are in (killer560, 2026-09-21: "only show the waypoints for the room I am currently in
         // and remove the render distance option"). Rooms spanning several tiles are listed once per tile, so the
         // name decides and duplicate positions are skipped.
-        RoomEntry current = LiveMapFeature.currentRoomEntry();
-        if (current == null) {
+        // The exact room INSTANCE you stand in, not its name - a run can hold two rooms of the same template.
+        int currentIdx = LiveMapFeature.currentRoomIndex();
+        if (currentIdx < 0) {
             return;
         }
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
             RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
-            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name)
-                    || !entry.name.equals(current.name)) {
+            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name) || room[0] != currentIdx) {
                 continue;
             }
             int clayX = room[1];
