@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -264,6 +265,13 @@ final class Ap3RoutePlanner {
         String note = "";
         /** Where each gate is crossed (index into steps). */
         int[] gateTick = new int[0];
+        /**
+         * Why an incomplete plan is incomplete, in the terms that tell the two cases apart: a gate the heuristic
+         * cannot reach at all is a world problem (nothing connects the start to it), whereas a gate it CAN reach
+         * with the search still running out of layers is a budget problem. Guessing at which from the outside cost
+         * two rounds of testing on 2026-09-22.
+         */
+        String diagnosis = "";
     }
 
     // ---- the search --------------------------------------------------------------------------------------------
@@ -375,11 +383,13 @@ final class Ap3RoutePlanner {
         Node best = root;
         Map<Long, Node> seen = new HashMap<>();
 
+        int layersSearched = 0;
         for (int tick = 0; tick < o.maxTicks && !layer.isEmpty(); tick++) {
             if (System.nanoTime() > deadline) {
                 plan.note = "time budget";
                 break;
             }
+            layersSearched = tick + 1;
             List<Node> next = new ArrayList<>(Math.min(o.beam * 8, 4096));
             seen.clear();
             for (Node n : layer) {
@@ -414,6 +424,21 @@ final class Ap3RoutePlanner {
         }
         plan.gatesReached = gatesBefore(groups, best.group) + Integer.bitCount(best.mask);
         plan.note = plan.note.isEmpty() ? "no route found" : plan.note;
+        // Which gates the heuristic can even see a way to, from where he is standing now.
+        StringBuilder reach = new StringBuilder();
+        for (int gi = 0; gi < gates.size(); gi++) {
+            Gate gate = gates.get(gi);
+            double fieldDist = field.at(gi, start.x, start.z);
+            double straight = Math.hypot(gate.x - start.x, gate.z - start.z);
+            boolean walled = fieldDist > straight * 4 + 8;
+            reach.append(gi == 0 ? "" : ", ").append("g").append(gi + 1).append(' ')
+                    .append(walled ? "NO WAY THERE" : String.format(Locale.US, "%.0f blocks round", fieldDist));
+        }
+        plan.diagnosis = String.format(Locale.US,
+                "reached %d/%d gates, best was %d ticks in and still %.1f blocks out; %d layers searched; %s",
+                plan.gatesReached, gates.size(), best.ticks,
+                field.heuristic(best.s.x, best.s.z, best.group, best.mask, groups, top) * top,
+                layersSearched, reach);
         if (field.heuristic(best.s.x, best.s.z, best.group, best.mask, groups, top) >= startLeft - 1e-9) {
             // The search ran out of time without getting anywhere, and the best it has is no closer to the goal than
             // standing still. Driving that is worse than not driving: killer560's route did exactly this at the top

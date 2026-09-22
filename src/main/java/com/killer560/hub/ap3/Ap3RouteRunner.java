@@ -434,6 +434,11 @@ final class Ap3RouteRunner {
                         p.ticks, p.gateTick.length, p.complete ? "" : " INCOMPLETE - " + p.note,
                         String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
                         String.format(Locale.US, "%.4f", Math.hypot(start.vx, start.vz)), at);
+                if (!p.complete && !p.diagnosis.isEmpty()) {
+                    // Why it could not finish, in terms that separate "nothing connects these two places" from
+                    // "the search ran out of room". Without this the two look identical from outside.
+                    LOGGER.info("[AP3 route] why: {}", p.diagnosis);
+                }
             } catch (Throwable t) {
                 LOGGER.warn("[AP3 route] planning failed", t);
                 pending = null;
