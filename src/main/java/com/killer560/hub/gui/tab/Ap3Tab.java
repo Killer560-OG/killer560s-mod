@@ -162,6 +162,18 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // per axis, still counts as landed (0.0005 = the exact 3-decimal coordinate).
         header(w, contentX, y, contentWidth, "Align");
         toggle(w, contentX, y, "Freeze View (Freecam)", cfg::isAlignFreezeView, cfg::setAlignFreezeView, null);
+        w.add(SettingsButtonWidget.builder(defaultSizeText(cfg), btn -> {
+                    cfg.setDefaultNodeSize(cfg.getDefaultNodeSize() >= 1.0 ? 0.5 : 1.0);
+                    cfg.save();
+                    btn.setMessage(defaultSizeText(cfg));
+                }).bounds(contentX, y[0], BTN_W, 20).build());
+        y[0] += 24;
+
+        // Freeze State: sim / singleplayer tool - the tooltip carries the Hypixel ban warning.
+        header(w, contentX, y, contentWidth, "Freeze State");
+        w.add(slider(contentX, y[0], BTN_W, rewindText(cfg), Ap3Config.MIN_REWIND_TICKS, Ap3Config.MAX_REWIND_TICKS,
+                cfg.getRewindTicks(), 20, v -> cfg.setRewindTicks((int) Math.round(v)), () -> rewindText(cfg), cfg::save));
+        y[0] += 24;
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         header(w, contentX, y, contentWidth, "Stopwatch");
@@ -360,6 +372,15 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private static Component labelColorModeText(Ap3Config cfg) {
         return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
+    }
+
+    private static Component defaultSizeText(Ap3Config cfg) {
+        return Component.literal("Default Node Size: \u00a76" + (cfg.getDefaultNodeSize() >= 1.0 ? "1 block" : "0.5 block"));
+    }
+
+    private static Component rewindText(Ap3Config cfg) {
+        return Component.literal(String.format(Locale.US, "Rewind Memory: %d ticks (%.1fs)", cfg.getRewindTicks(),
+                cfg.getRewindTicks() / 20.0));
     }
 
     private static Component labelScaleText(Ap3Config cfg) {

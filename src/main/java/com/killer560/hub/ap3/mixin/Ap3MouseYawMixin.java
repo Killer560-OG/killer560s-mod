@@ -1,6 +1,7 @@
 package com.killer560.hub.ap3.mixin;
 
 import com.killer560.hub.ap3.Ap3Executor;
+import com.killer560.hub.ap3.Ap3FreezeState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,6 +22,20 @@ public abstract class Ap3MouseYawMixin {
         if ((Object) this != Minecraft.getInstance().player) {
             return yawDelta;
         }
+        if (Ap3FreezeState.isFrozen()) {
+            Ap3FreezeState.turnView((float) yawDelta * 0.15f, 0f);
+            return 0.0;
+        }
         return Ap3Executor.onMouseYaw((float) yawDelta * 0.15f) ? 0.0 : yawDelta;
+    }
+
+    /** Freeze State: the pitch part of a mouse turn moves the free camera, not the frozen character. */
+    @ModifyVariable(method = "turn", at = @At("HEAD"), argsOnly = true, ordinal = 1, require = 0)
+    private double killer560smod$ap3MousePitch(double pitchDelta) {
+        if ((Object) this != Minecraft.getInstance().player || !Ap3FreezeState.isFrozen()) {
+            return pitchDelta;
+        }
+        Ap3FreezeState.turnView(0f, (float) pitchDelta * 0.15f);
+        return 0.0;
     }
 }

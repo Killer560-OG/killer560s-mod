@@ -60,11 +60,15 @@ public final class Ap3Config {
     public static final String KEY_TEST_MODE = "testmode";
     /** Re-places the LAST node at your position/look (the key-shaped half of {@code /ap3 replace <n>}). */
     public static final String KEY_REPLACE_LAST = "replace_last";
+    public static final String KEY_FREEZE_STATE = "freezestate";
+    public static final String KEY_REWIND_TICK = "rewind_tick";
+    public static final String KEY_FORWARD_TICK = "forward_tick";
 
     public static final List<String> KEYBIND_IDS = List.of(
             KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
             KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_LIST, KEY_UNDO,
-            KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE);
+            KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE,
+            KEY_FREEZE_STATE, KEY_REWIND_TICK, KEY_FORWARD_TICK);
 
     public static final float MIN_THICKNESS = 1f;
     public static final float MAX_THICKNESS = 8f;
@@ -178,6 +182,11 @@ public final class Ap3Config {
     /** Camera Planner only: his screen keeps the view he had while the real yaw does the planner's turns
      *  (killer560, 2026-09-21: "do the same freecam style we used for walk nodes"). */
     private boolean alignFreezeView = true;
+    /** Freeze State: how many ticks of position history are kept for stepping back (20 ticks = 1 second). */
+    private int rewindTicks = DEFAULT_REWIND_TICKS;
+    /** The box every newly placed node gets (killer560, 2026-09-21: "a default size option so I can set the default
+     *  nodes to .5 of a block or 1 block"); w/l modifiers on the add command still override it. */
+    private double defaultNodeSize = 0.5;
     private int alignTimeoutTicks = 100;
     /** WALK / RUN: no progress toward the end of the travel for this many ticks and the chain gives up. */
     private int moveTimeoutTicks = 100;
@@ -276,6 +285,8 @@ public final class Ap3Config {
                 // now, so whatever was cycled to during that test is dropped once.
                 cfg.alignMethod = ConfigJson.getEnum(o, "alignMethodV2", AlignMethod.class, cfg.alignMethod);
                 cfg.alignFreezeView = ConfigJson.getBool(o, "alignFreezeView", cfg.alignFreezeView);
+                cfg.setRewindTicks(ConfigJson.getInt(o, "rewindTicks", cfg.rewindTicks));
+                cfg.setDefaultNodeSize(ConfigJson.getDouble(o, "defaultNodeSize", cfg.defaultNodeSize));
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
                 cfg.setLeapDetectRadius(ConfigJson.getDouble(o, "leapDetectRadius", cfg.leapDetectRadius));
@@ -326,6 +337,8 @@ public final class Ap3Config {
             o.addProperty("alignToleranceExact", alignTolerance);
             o.addProperty("alignMethodV2", alignMethod.name());
             o.addProperty("alignFreezeView", alignFreezeView);
+            o.addProperty("rewindTicks", rewindTicks);
+            o.addProperty("defaultNodeSize", defaultNodeSize);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
             o.addProperty("leapDetectRadius", leapDetectRadius);
@@ -484,6 +497,16 @@ public final class Ap3Config {
     public void setAlignMethod(AlignMethod m) { alignMethod = m == null ? AlignMethod.CAMERA : m; }
 
     public boolean isAlignFreezeView() { return alignFreezeView; }
+
+    public static final int DEFAULT_REWIND_TICKS = 200;
+    public static final int MIN_REWIND_TICKS = 20;
+    public static final int MAX_REWIND_TICKS = 2400;
+    public int getRewindTicks() { return rewindTicks; }
+    public void setRewindTicks(int v) { rewindTicks = Math.max(MIN_REWIND_TICKS, Math.min(MAX_REWIND_TICKS, v)); }
+
+    public double getDefaultNodeSize() { return defaultNodeSize; }
+    /** Only the two sizes he asked for: half a block or a whole block. */
+    public void setDefaultNodeSize(double v) { defaultNodeSize = v >= 0.75 ? 1.0 : 0.5; }
     public void setAlignFreezeView(boolean v) { alignFreezeView = v; }
 
     /** Fixed, not a setting (killer560: "Remove the sliders as a whole and keep them fixed"). */

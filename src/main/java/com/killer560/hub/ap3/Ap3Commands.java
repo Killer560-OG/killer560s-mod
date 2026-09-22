@@ -95,7 +95,12 @@ public final class Ap3Commands {
         /** "Stop AP3", not "Stop Chain": there is no running sequence to stop any more - this ends the node being
          *  performed, the held walk and everything queued, and releases every key. */
         STOP("stop", "Stop AP3", "/ap3 stop"),
-        TEST_MODE("testmode", "Test Mode", "/ap3 testmode");
+        TEST_MODE("testmode", "Test Mode", "/ap3 testmode"),
+        /** Freeze State (Ap3FreezeState): these three work without AP3 switched on and outside Skyblock - they are
+         *  for placing nodes in singleplayer / p3sim. The two step keys refuse on Hypixel (type /rewind there). */
+        FREEZE_STATE("freezestate", "Freeze State", "/freezestate"),
+        REWIND_TICK("rewind_tick", "Rewind 1 Tick", "/rewind [ticks]"),
+        FORWARD_TICK("forward_tick", "Forward 1 Tick", "/rewind forward [ticks]");
 
         public final String id;
         public final String label;
@@ -170,6 +175,36 @@ public final class Ap3Commands {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
     public static void register() {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Freeze State. The typed /rewind is the only way to step on Hypixel (the keys refuse there) and every
+            // use there prints the ban warning first - see Ap3FreezeState.
+            ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+                dispatcher.register(ClientCommands.literal("freezestate").executes(context -> {
+                    Ap3FreezeState.toggle();
+                    return 1;
+                }));
+                dispatcher.register(ClientCommands.literal("rewind")
+                        .executes(context -> {
+                            Ap3FreezeState.step(-1, 1, true);
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("ticks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, Ap3Config.MAX_REWIND_TICKS))
+                                .executes(context -> {
+                                    Ap3FreezeState.step(-1, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "ticks"), true);
+                                    return 1;
+                                }))
+                        .then(ClientCommands.literal("forward")
+                                .executes(context -> {
+                                    Ap3FreezeState.step(1, 1, true);
+                                    return 1;
+                                })
+                                .then(ClientCommands.argument("ticks", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, Ap3Config.MAX_REWIND_TICKS))
+                                        .executes(context -> {
+                                            Ap3FreezeState.step(1, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "ticks"), true);
+                                            return 1;
+                                        }))));
+            });
+        }
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("ap3")
                         .executes(context -> {
@@ -321,6 +356,21 @@ public final class Ap3Commands {
 
     /** Runs {@code action} with the shared gating ({@link #ready()}) and exception fence. Never throws. */
     public static void run(Action action) {
+        if (action == Action.FREEZE_STATE || action == Action.REWIND_TICK || action == Action.FORWARD_TICK) {
+            if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                return;
+            }
+            try {
+                switch (action) {
+                    case FREEZE_STATE -> Ap3FreezeState.toggle();
+                    case REWIND_TICK -> Ap3FreezeState.step(-1, 1, false);
+                    default -> Ap3FreezeState.step(1, 1, false);
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[AP3] freeze state action failed", e);
+            }
+            return;
+        }
         if (action == Action.STOP) {
             // Stopping must work at ANY time - even with the toggle off or outside Skyblock, if something is somehow
             // still moving the player, this is the panic button. Only the cheat-jar check applies.
@@ -376,6 +426,9 @@ public final class Ap3Commands {
             case RELOAD -> reload();
             case STOP -> stopChain();
             case TEST_MODE -> toggleTestMode();
+            case FREEZE_STATE, REWIND_TICK, FORWARD_TICK -> {
+                // handled in run() before the AP3 readiness check
+            }
         }
     }
 

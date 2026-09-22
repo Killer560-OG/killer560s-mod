@@ -1,6 +1,7 @@
 package com.killer560.hub.ap3.mixin;
 
 import com.killer560.hub.ap3.Ap3Executor;
+import com.killer560.hub.ap3.Ap3FreezeState;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,9 +27,18 @@ public abstract class Ap3ViewYawMixin {
     @Inject(method = "getViewYRot", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$ap3FrozenView(float partialTick, CallbackInfoReturnable<Float> cir) {
         Ap3Executor.onViewMixinApplied();
-        float yaw = Ap3Executor.frozenViewYaw();
+        // Freeze State's free camera first, then the align/walk view freeze.
+        float yaw = Ap3FreezeState.isFrozen() ? Ap3FreezeState.viewYaw() : Ap3Executor.frozenViewYaw();
         if (!Float.isNaN(yaw) && !((LocalPlayer) (Object) this).isPassenger()) {
             cir.setReturnValue(yaw);
+        }
+    }
+
+    /** Freeze State only: the free camera's pitch (the align/walk freeze never touches pitch). */
+    @Inject(method = "getViewXRot", at = @At("HEAD"), cancellable = true, require = 0)
+    private void killer560smod$ap3FrozenPitch(float partialTick, CallbackInfoReturnable<Float> cir) {
+        if (Ap3FreezeState.isFrozen() && !((LocalPlayer) (Object) this).isPassenger()) {
+            cir.setReturnValue(Ap3FreezeState.viewPitch());
         }
     }
 }

@@ -487,8 +487,8 @@ public final class Ap3Feature {
         }
         if (look) {
             // Stored yaw is DATA (Rotation 360 rule) - wrapped for the file, never written back to the player.
-            probe.yaw = Mth.wrapDegrees(player.getYRot());
-            probe.pitch = Mth.clamp(player.getXRot(), -90f, 90f);
+            probe.yaw = Mth.wrapDegrees(Ap3FreezeState.placementYaw(player));
+            probe.pitch = Mth.clamp(Ap3FreezeState.placementPitch(player), -90f, 90f);
         }
         node.x = probe.x;
         node.y = probe.y;
@@ -592,8 +592,10 @@ public final class Ap3Feature {
         // Stored yaw is DATA (wrapped for readability in the file); it is never written back to the player.
         Ap3Node node = new Ap3Node(type,
                 precise ? pos.x : Ap3Node.snapCentre(pos.x), Ap3Node.snapY(pos.y), precise ? pos.z : Ap3Node.snapCentre(pos.z),
-                Mth.wrapDegrees(player.getYRot()), Mth.clamp(player.getXRot(), -90f, 90f));
+                Mth.wrapDegrees(Ap3FreezeState.placementYaw(player)), Mth.clamp(Ap3FreezeState.placementPitch(player), -90f, 90f));
         node.precise = precise;
+        node.setWidth(cfg.getDefaultNodeSize());
+        node.setLength(cfg.getDefaultNodeSize());
         if (type == Ap3Node.Type.AXIS_ALIGN) {
             // killer560: "Cannot be placed unless you are actually touching a wall. Must be very precise." - the
             // wall is what makes that axis exact, so there has to be one to lean on.
@@ -660,6 +662,9 @@ public final class Ap3Feature {
             // Force Dungeon never survives a world change (nor a restart - it is not saved): a test switch that was
             // left on cannot follow him into a real run.
             setForceDungeon(false);
+        }
+        if (Ap3FreezeState.isFrozen()) {
+            return; // nothing may drive a frozen character (Freeze State stopped AP3 when it froze)
         }
         if (!cfg.isEnabled()) {
             if (Ap3Executor.isRunning() || Ap3Executor.isArmed()) {

@@ -36,6 +36,7 @@ public final class Ap3Keybinds {
             return;
         }
         ClientTickEvents.END_CLIENT_TICK.register(Ap3Keybinds::tick);
+        Ap3FreezeState.register();
     }
 
     private static void tick(Minecraft client) {
@@ -49,7 +50,10 @@ public final class Ap3Keybinds {
             Ap3Config cfg = Ap3Config.getInstance();
             boolean enabled = cfg.isEnabledRaw();
             for (int i = 0; i < ACTIONS.length; i++) {
-                if (!enabled && ACTIONS[i] != Action.STOP) {
+                Action a = ACTIONS[i];
+                boolean always = a == Action.STOP || a == Action.FREEZE_STATE || a == Action.REWIND_TICK
+                        || a == Action.FORWARD_TICK;
+                if (!enabled && !always) {
                     wasDown[i] = false;
                     continue;
                 }

@@ -1902,6 +1902,14 @@ final class SettingTooltipsData {
         d.put("ap3/test mode", "Dry run: nodes run without waiting on terminals, teammates or close gates, a failed leap is skipped, and ANY key or mouse button stops everything. Never saved.");
         d.put("ap3/force dungeon", "Testing only. Makes AP3 act as if you are in the F7/M7 boss wherever you are - the hub, singleplayer, any server - so you can place, see and test nodes. In a real boss the real phase and section still apply. Never saved: it turns itself off on every restart and world change, and a red reminder sits at the top of the screen while it is on.");
         d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on and you are not in a real boss. Click to cycle P1, P2, S1-S5, P4, P5.");
+        d.put("ap3/default node size", "The box every new node is placed with: half a block or a whole block. A w/l modifier on /ap3 add still sets its own size.");
+        d.put("ap3/rewind memory", "!! NEVER ON HYPIXEL - INSTANT BAN !! How many ticks of your position Freeze State remembers for stepping back (20 ticks = 1 second). Freeze State (/freezestate) holds your character still while your camera looks around freely, and /ap3 add then uses where your CAMERA looks. The Rewind / Forward 1 Tick keys put your character exactly where it was on that tick. That teleports you: fine in singleplayer or on p3sim, an instant ban on Hypixel. On Hypixel the keys refuse; the typed /rewind still works there, behind a warning, only because you asked for it.");
+        d.put("freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes your character in place (no movement, no gravity) while your camera stays free; /ap3 add uses where the camera looks. Press again to resume, carrying on with the motion you had on that tick. Singleplayer / p3sim only.");
+        d.put("rewind 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freezes you and puts your character exactly where it was one tick earlier. Refused on Hypixel (type /rewind there if you really mean it).");
+        d.put("forward 1 tick", "!! NEVER ON HYPIXEL - INSTANT BAN !! One remembered tick forward again after rewinding. Refused on Hypixel.");
+        d.put("freeze state key", "Keybind for /freezestate. Works with AP3 off; never use it on Hypixel.");
+        d.put("rewind 1 tick key", "Keybind: one tick back in time. Refused on Hypixel (instant ban).");
+        d.put("forward 1 tick key", "Keybind: one tick forward again. Refused on Hypixel (instant ban).");
         d.put("ap3/freeze view (freecam)", "While an Align or a Walk/Run node turns your real yaw (what the server and your F5 model see), your screen keeps the view you had and your mouse steers only that view, so looking around never bends the movement. When the node ends your real yaw glides back under the view and nothing on screen moves. Default ON.");
     }
 }
