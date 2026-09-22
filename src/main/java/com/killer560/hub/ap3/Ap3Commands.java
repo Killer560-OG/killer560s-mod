@@ -244,6 +244,14 @@ public final class Ap3Commands {
                         .then(ClientCommands.literal("reload").executes(context -> exec(Action.RELOAD)))
                         .then(ClientCommands.literal("stop").executes(context -> exec(Action.STOP)))
                         .then(ClientCommands.literal("testmode").executes(context -> exec(Action.TEST_MODE)))
+                        // Throw away the saved plans - the route keeps the best one it has ever run, so if the
+                        // world under it has changed this is how you make it look again.
+                        .then(ClientCommands.literal("forget").executes(context -> {
+                            int n = Ap3RouteCache.clear();
+                            ModChat.send(FEATURE, ModChat.good("Forgot " + n + " saved route plan"
+                                    + (n == 1 ? "" : "s") + "."));
+                            return 1;
+                        }))
                         // "/ap3 delete [n]" and "/ap3 remove [n]" are the same command (killer560: "Both delete and
                         // remove must exist and do the same thing"). <n> is the 1-based number "/ap3 list" prints;
                         // with no number the node you stand clearly nearest goes. Converted to 0-based exactly here.

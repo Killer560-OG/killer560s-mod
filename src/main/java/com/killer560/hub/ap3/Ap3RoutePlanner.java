@@ -343,8 +343,12 @@ final class Ap3RoutePlanner {
 
     static Plan plan(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked, Terrain terrain,
                      Ap3DiscretePlanner.Model m, Options o) {
+        // The field is the same for every attempt below - same world, same gates, same start - and on killer560's
+        // course it is a 145x185 grid with a flood per gate. Building it inside search() meant building it three
+        // times over for one plan, which is time the search never got to spend on searching.
+        Field field = new Field(start, gates, blocked, terrain, o);
         if (!o.allowJump || !o.preferRunning) {
-            return search(start, gates, blocked, terrain, m, o);
+            return search(start, gates, blocked, terrain, m, o, field);
         }
         // Running first (see Options.preferRunning). Half the budget is plenty: with jumps off the search either
         // finds the way across quickly or runs out of places to stand and dies on its own.
@@ -363,7 +367,7 @@ final class Ap3RoutePlanner {
             onFoot.allowJump = false;
             onFoot.beam = beams[stage];
             onFoot.budgetMs = Math.max(1, Math.min(o.budgetMs / 4, 250));
-            Plan probe = search(start, gates, blocked, terrain, m, onFoot);
+            Plan probe = search(start, gates, blocked, terrain, m, onFoot, field);
             if (probe.complete) {
                 return probe;
             }
@@ -377,13 +381,13 @@ final class Ap3RoutePlanner {
         long spentMs = (System.nanoTime() - began) / 1_000_000L;
         Options withJumps = o.copy();
         withJumps.budgetMs = Math.max(1, o.budgetMs - spentMs);
-        Plan jumping = search(start, gates, blocked, terrain, m, withJumps);
+        Plan jumping = search(start, gates, blocked, terrain, m, withJumps, field);
         // If neither finishes, hand back whichever got further rather than the later one by default.
         return jumping.complete || jumping.gatesReached >= running.gatesReached ? jumping : running;
     }
 
     private static Plan search(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
-                               Terrain terrain, Ap3DiscretePlanner.Model m, Options o) {
+                               Terrain terrain, Ap3DiscretePlanner.Model m, Options o, Field field) {
         Plan plan = new Plan();
         if (gates.isEmpty()) {
             plan.complete = true;
@@ -391,7 +395,6 @@ final class Ap3RoutePlanner {
         }
         long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
         double top = Math.max(Ap3RouteMath.topSpeed(m, o.allowJump), start.speed());
-        Field field = new Field(start, gates, blocked, terrain, o);
         List<int[]> groups = groupsOf(gates);
         Node root = new Node();
         root.s = start.copy();

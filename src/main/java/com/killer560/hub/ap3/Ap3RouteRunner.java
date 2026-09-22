@@ -409,6 +409,22 @@ final class Ap3RouteRunner {
         if (!gates.isEmpty()) {
             gates.get(gates.size() - 1).mustLand = true; // the route ends standing, not mid-jump
         }
+        // A route he has run before, from about where he is standing now, is answered from what it learned then:
+        // no world scan, no search, and the same path every time. killer560, 2026-09-22: "it should scan and just
+        // save one... that way it will run the exact same every time once it gets the most optimal way."
+        String signature = Ap3RouteCache.signature(route);
+        Ap3RoutePlanner.Plan saved = Ap3RouteCache.lookup(signature, start);
+        if (saved != null) {
+            planStart = start;
+            planModel = Ap3Executor.routeModel(player);
+            pendingAt = at;
+            pending = saved;
+            pendingSeq = planSeq.incrementAndGet();
+            if (announce) {
+                LOGGER.info("[AP3 route] using the saved {}-tick plan for this route", saved.ticks);
+            }
+            return;
+        }
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
         Snap snap = Snap.of(client.level, player, gates, start);
@@ -428,6 +444,8 @@ final class Ap3RouteRunner {
         worker = new Thread(() -> {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
+                // Remember it if it is the best this route has managed, so the next run is instant and identical.
+                Ap3RouteCache.offer(signature, start, p);
                 pending = p;
                 pendingSeq = seq;
                 if (announce && Ap3Config.getInstance().isChatFeedback()) {
