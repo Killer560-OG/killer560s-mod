@@ -1274,6 +1274,7 @@ public final class Ap3Executor {
             failNode("route #" + number(node) + " ran out of time");
             return;
         }
+        observePush(player); // the route learns the real push the same way an align does
         boolean running = Ap3RouteRunner.tick(client, player, node, s -> driveRouteStep(player, s));
         if (!running) {
             finishNode();
@@ -1291,8 +1292,18 @@ public final class Ap3Executor {
             wantJump = true;
         }
         Ap3DiscretePlanner.Action a = s.keys();
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(),
-                modelFor(player, false), lastSneakSent);
+        Ap3DiscretePlanner.Model m = modelFor(player, false);
+        if (!a.none()) {
+            double eff = Ap3DiscretePlanner.effectiveLength(a, lastSneakSent, m.sneakMul);
+            double mag = m.tickSpeed(a.fw() > 0) * eff;
+            double rad = Math.toRadians(player.getYRot());
+            double norm = Math.sqrt(a.fw() * a.fw() + a.st() * a.st());
+            double ux = a.st() / norm;
+            double uz = a.fw() / norm;
+            expectPush(player, mag * (ux * Math.cos(rad) - uz * Math.sin(rad)),
+                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m);
+        }
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(), m, lastSneakSent);
     }
 
     // ---- Term Aura: one click at the node, retried a couple of ticks later ----------------------------------------
@@ -1565,7 +1576,9 @@ public final class Ap3Executor {
     /** Everything the planner needs to know about what the game will do with a key, read from the player now. */
     /** The movement model for the route planner: the same one an align uses, with the yaw free to be steered. */
     static Ap3DiscretePlanner.Model routeModel(LocalPlayer player) {
-        return modelFor(player, true);
+        Ap3DiscretePlanner.Model m = modelFor(player, true);
+        m.sprintKeyHeld = true; // the route presses sprint itself on every forward tick (see driveRouteStep)
+        return m;
     }
 
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
@@ -1582,6 +1595,9 @@ public final class Ap3Executor {
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
+        // His sprint key restarts a sprint the moment a forward key goes in again - see Model.sprintKeyHeld.
+        Minecraft client = Minecraft.getInstance();
+        m.sprintKeyHeld = client.options != null && client.options.keySprint.isDown();
         return m;
     }
 

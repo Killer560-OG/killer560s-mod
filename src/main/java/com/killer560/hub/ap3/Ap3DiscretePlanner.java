@@ -84,6 +84,14 @@ final class Ap3DiscretePlanner {
         boolean yawSteerable = true;
         /** Most the sent yaw moves in one tick, degrees. */
         double yawStepCap = 30.0;
+        /**
+         * Whether a forward press will START a sprint, not just continue one. Vanilla drops sprint on any tick with
+         * no forward impulse, and begins one again the next time forward goes in WITH the sprint key down - and his
+         * key is read from the keyboard every frame, so during a hand-entered align every W after a sneak tap is a
+         * sprinting W. Without this the model expects a 1.0x push and the game gives 1.3x (his 2026-09-22 log:
+         * "model 0.39200, actual 0.50960"), the plan misses by 0.11 a tick, and the align takes 16 ticks instead of 3.
+         */
+        boolean sprintKeyHeld;
 
         double tickSpeed(boolean sprinting) {
             if (onGround) {
@@ -161,7 +169,7 @@ final class Ap3DiscretePlanner {
         boolean zeroed = Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
         double v0x = zeroed ? 0.0 : s.vx;
         double v0z = zeroed ? 0.0 : s.vz;
-        boolean sprintNow = s.sprinting && a.fw > 0;
+        boolean sprintNow = a.fw > 0 && (s.sprinting || m.sprintKeyHeld);
         double vx = v0x, vz = v0z;
         if (!a.none()) {
             double eff = effectiveLength(a, s.crouching, m.sneakMul);
