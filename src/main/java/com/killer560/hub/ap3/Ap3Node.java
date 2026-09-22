@@ -224,6 +224,14 @@ public final class Ap3Node {
     /** {@link Type#LEAP_COUNTER}: how many teammates must leap to you. */
     public int leapCount = 1;
     /**
+     * {@link Type#PATH}: which step of the route this node is - killer560 (2026-09-22): "allow me to do add path one,
+     * add path four etc. so that way it knows what number in the path it should be. It should always default such
+     * that if I don't label it it goes to the lowest number available". Nodes SHARING a number are one step that has
+     * to be done in NO particular order ("select both levers... it just needs to get both"), so a run between two of
+     * them can take both at once.
+     */
+    public int pathIndex = 1;
+    /**
      * {@link Type#PATH}: the speed the route must be travelling at when it crosses this node, blocks/tick; negative
      * means "any". killer560 asked for "a certain position with a certain velocity or range of velocity".
      */
@@ -451,6 +459,7 @@ public final class Ap3Node {
                 }
             }
             case PATH -> {
+                sb.append(' ').append(pathIndex);
                 sb.append(precise ? " [exact" : " [box");
                 if (minSpeed >= 0 || maxSpeed >= 0) {
                     sb.append(String.format(Locale.US, ", speed %s-%s",

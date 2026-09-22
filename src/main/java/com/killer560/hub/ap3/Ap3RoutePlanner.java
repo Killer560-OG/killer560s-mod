@@ -38,8 +38,14 @@ final class Ap3RoutePlanner {
     private Ap3RoutePlanner() {
     }
 
-    /** A point the route must pass through, in order. */
+    /**
+     * A point the route must pass through. Gates run in {@link #group} order, and gates that SHARE a group must all
+     * be reached but in NO particular order - killer560 (2026-09-22): "I should be able to for instance select both
+     * levers... It just needs to get both not in any particular order". One tick can tick off several of them at
+     * once, so two boxes that overlap are satisfied by running through the middle rather than visiting each in turn.
+     */
     static final class Gate {
+        int group;
         double x, z;
         /** Half sizes of the box; 0 when {@link #exact}. */
         double halfW, halfL;
@@ -96,6 +102,16 @@ final class Ap3RoutePlanner {
         /** Is the body's space clear here even without a floor - i.e. can a jump pass through? */
         boolean clearAir(double x, double z);
 
+        /**
+         * Is the only thing holding you up here a block an AP3 Block node is going to place? killer560 (2026-09-22):
+         * "make it always assume that block is going to be a bottom half slab at most. It should be able to get two
+         * walking ticks off of the slab... Do not make it place the block on its own." So the planner may run over
+         * one, but only for {@link Options#slabTicks} ticks before it is gone again.
+         */
+        default boolean placedFloorOnly(double x, double z) {
+            return false;
+        }
+
         Terrain OPEN = new Terrain() {
             public boolean walkable(double x, double z) {
                 return true;
@@ -122,6 +138,8 @@ final class Ap3RoutePlanner {
         int dirs = 16;
         /** Give up after this long and report the best partial route. */
         long budgetMs = 1500;
+        /** How many ticks in a row the route may stand on a block a Block node places (a ghost block is short-lived). */
+        int slabTicks = 2;
         /** How close the search must get to an exact gate before the polish takes over. */
         double exactSearch = 0.15;
         /** Default landing tolerance on an exact gate when the gate does not set its own. */
@@ -148,14 +166,38 @@ final class Ap3RoutePlanner {
 
     private static final class Node {
         Ap3RouteMath.RouteState s;
-        int gate;
+        /** Which group is being worked on, and which of its gates are already ticked off (bit per gate in the group). */
+        int group;
+        int mask;
         int ticks;
         double f;
         Node parent;
         Ap3DiscretePlanner.Action keys;
         float yaw;
         boolean jump;
-        int crossedGateAt = -1;
+        /** Ticks in a row spent standing on a block a Block node will place. */
+        int slabTicks;
+        /** Gates crossed on this tick, as indices into the gate list. */
+        int[] crossed;
+    }
+
+    /** The gates of one group, in the order they appear in the list. */
+    private static List<int[]> groupsOf(List<Gate> gates) {
+        List<int[]> out = new ArrayList<>();
+        int i = 0;
+        while (i < gates.size()) {
+            int g = gates.get(i).group;
+            List<Integer> idx = new ArrayList<>();
+            while (i < gates.size() && gates.get(i).group == g) {
+                idx.add(i++);
+            }
+            int[] arr = new int[idx.size()];
+            for (int k = 0; k < arr.length; k++) {
+                arr[k] = idx.get(k);
+            }
+            out.add(arr);
+        }
+        return out;
     }
 
     static Plan plan(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
@@ -173,10 +215,11 @@ final class Ap3RoutePlanner {
         long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
         double top = Math.max(Ap3RouteMath.topSpeed(m, o.allowJump), start.speed());
         Field field = new Field(start, gates, blocked, terrain, o);
+        List<int[]> groups = groupsOf(gates);
         Node root = new Node();
         root.s = start.copy();
-        root.gate = 0;
-        root.f = field.heuristic(start.x, start.z, 0, top);
+        root.group = 0;
+        root.f = field.heuristic(start.x, start.z, 0, 0, groups, top);
         List<Node> layer = new ArrayList<>();
         layer.add(root);
         Node best = root;
@@ -190,55 +233,77 @@ final class Ap3RoutePlanner {
             List<Node> next = new ArrayList<>(Math.min(o.beam * 8, 4096));
             seen.clear();
             for (Node n : layer) {
-                expand(n, gates, blocked, terrain, m, o, top, next, seen, field);
+                expand(n, gates, groups, blocked, terrain, m, o, top, next, seen, field);
             }
             if (next.isEmpty()) {
                 break;
             }
             // Goal: the last gate is crossed.
             for (Node n : next) {
-                if (n.gate >= gates.size()) {
+                if (n.group >= groups.size()) {
                     return finish(n, gates, blocked, m, o, plan);
                 }
-                if (n.gate > best.gate || (n.gate == best.gate && n.f < best.f)) {
+                if (n.group > best.group || (n.group == best.group
+                        && (Integer.bitCount(n.mask) > Integer.bitCount(best.mask)
+                        || (Integer.bitCount(n.mask) == Integer.bitCount(best.mask) && n.f < best.f)))) {
                     best = n;
                 }
             }
             next.sort((a, b) -> Double.compare(a.f, b.f));
             layer = next.size() > o.beam ? new ArrayList<>(next.subList(0, o.beam)) : next;
         }
-        plan.gatesReached = best.gate;
+        plan.gatesReached = gatesBefore(groups, best.group) + Integer.bitCount(best.mask);
         plan.note = plan.note.isEmpty() ? "no route found" : plan.note;
         Plan partial = finish(best, gates, blocked, m, o, plan);
         partial.complete = false;
         return partial;
     }
 
-    private static void expand(Node n, List<Gate> gates, List<Blocked> blocked, Terrain terrain,
+    private static int gatesBefore(List<int[]> groups, int group) {
+        int n = 0;
+        for (int i = 0; i < Math.min(group, groups.size()); i++) {
+            n += groups.get(i).length;
+        }
+        return n;
+    }
+
+    private static void expand(Node n, List<Gate> gates, List<int[]> groups, List<Blocked> blocked, Terrain terrain,
                                Ap3DiscretePlanner.Model m, Options o, double top, List<Node> out,
                                Map<Long, Node> seen, Field field) {
-        Gate target = gates.get(n.gate);
+        Gate target = gates.get(nextGate(n, groups));
         boolean fine = needsFineControl(n, target, top);
         double[] dirs = directions(n, target, o, fine);
         Ap3DiscretePlanner.Action[] shapes = fine ? FINE_SHAPES : FAST_SHAPES;
         for (double dir : dirs) {
             for (Ap3DiscretePlanner.Action a : shapes) {
                 float yaw = (float) (Math.toDegrees(dir) - keyOffset(a));
-                tryStep(n, a, yaw, false, gates, blocked, terrain, m, o, top, out, seen, field);
+                tryStep(n, a, yaw, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
                 if (o.allowJump && n.s.onGround) {
-                    tryStep(n, a, yaw, true, gates, blocked, terrain, m, o, top, out, seen, field);
+                    tryStep(n, a, yaw, true, gates, groups, blocked, terrain, m, o, top, out, seen, field);
                 }
             }
         }
         // Coast / sneak-only: no push at all (sneak-only still arms the 0.3x tap for the next tick).
-        tryStep(n, Ap3DiscretePlanner.NONE, n.s.yaw, false, gates, blocked, terrain, m, o, top, out, seen, field);
+        tryStep(n, Ap3DiscretePlanner.NONE, n.s.yaw, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
         if (fine) {
-            tryStep(n, SNEAK_ONLY, n.s.yaw, false, gates, blocked, terrain, m, o, top, out, seen, field);
+            tryStep(n, SNEAK_ONLY, n.s.yaw, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
         }
     }
 
+    /** The gate of the current group the search is steering at: the nearest one not yet ticked off. */
+    private static int nextGate(Node n, List<int[]> groups) {
+        int[] g = groups.get(Math.min(n.group, groups.size() - 1));
+        for (int i = 0; i < g.length; i++) {
+            if ((n.mask & (1 << i)) == 0) {
+                return g[i];
+            }
+        }
+        return g[0];
+    }
+
     private static void tryStep(Node n, Ap3DiscretePlanner.Action a, float yaw, boolean jump, List<Gate> gates,
-                                List<Blocked> blocked, Terrain terrain, Ap3DiscretePlanner.Model m, Options o,
+                                List<int[]> groups, List<Blocked> blocked, Terrain terrain,
+                                Ap3DiscretePlanner.Model m, Options o,
                                 double top, List<Node> out, Map<Long, Node> seen, Field field) {
         Ap3RouteMath.RouteState s = n.s.copy();
         double fromX = s.x;
@@ -251,38 +316,61 @@ final class Ap3RoutePlanner {
         if (s.onGround ? !terrain.walkable(s.x, s.z) : !terrain.clearAir(s.x, s.z)) {
             return;
         }
-        int gate = n.gate;
-        int crossed = -1;
-        Gate g = gates.get(gate);
-        if (crosses(g, fromX, fromZ, s, o)) {
-            gate++;
-            crossed = n.ticks;
+        // A Block node's slab is only there for a moment: standing on one for longer is not a route that exists.
+        int slab = 0;
+        if (s.onGround && terrain.placedFloorOnly(s.x, s.z)) {
+            slab = n.slabTicks + 1;
+            if (slab > o.slabTicks) {
+                return;
+            }
+        }
+        // Every gate of the current group this tick reaches is ticked off - one run between two levers can take both.
+        int group = n.group;
+        int mask = n.mask;
+        int[] members = groups.get(Math.min(group, groups.size() - 1));
+        int[] crossed = null;
+        for (int i = 0; i < members.length; i++) {
+            if ((mask & (1 << i)) != 0) {
+                continue;
+            }
+            if (crosses(gates.get(members[i]), fromX, fromZ, s, o)) {
+                mask |= 1 << i;
+                crossed = crossed == null ? new int[]{members[i]} : append(crossed, members[i]);
+            }
+        }
+        if (mask == (1 << members.length) - 1) {
+            group++;
+            mask = 0;
         }
         Node c = new Node();
         c.s = s;
-        c.gate = gate;
+        c.group = group;
+        c.mask = mask;
+        c.slabTicks = slab;
         c.ticks = n.ticks + 1;
         c.parent = n;
         c.keys = a;
         c.yaw = yaw;
         c.jump = jump;
-        c.crossedGateAt = crossed;
-        c.f = c.ticks + field.heuristic(s.x, s.z, gate, top);
-        long key = cell(s, gate);
+        c.crossed = crossed;
+        c.f = c.ticks + field.heuristic(s.x, s.z, group, mask, groups, top);
+        long key = cell(s, group, mask);
         Node old = seen.get(key);
         if (old != null) {
             if (old.f <= c.f) {
                 return;
             }
             old.s = c.s;
-            old.gate = c.gate;
+            old.group = c.group;
+            old.mask = c.mask;
+            old.slabTicks = c.slabTicks;
             old.ticks = c.ticks;
             old.parent = c.parent;
             old.keys = c.keys;
             old.yaw = c.yaw;
             old.jump = c.jump;
             old.f = c.f;
-            old.crossedGateAt = c.crossedGateAt;
+            old.crossed = c.crossed;
             return;
         }
         seen.put(key, c);
@@ -437,11 +525,47 @@ final class Ap3RoutePlanner {
             return d;
         }
 
-        double heuristic(double x, double z, int gate, double top) {
-            if (gate >= gates.size()) {
+        /**
+         * Time left: the nearest gate of the current group that is still open, plus the legs after it. Within a group
+         * only the nearest one counts, which never overestimates (you have to reach at least that one).
+         */
+        double heuristic(double x, double z, int group, int mask, List<int[]> groups, double top) {
+            if (group >= groups.size()) {
                 return 0;
             }
-            return (at(gate, x, z) + tail[gate + 1]) / top;
+            int[] members = groups.get(group);
+            // Every open gate of this step still has to be reached, so the estimate walks them nearest-first rather
+            // than counting only the closest one - counting one would make "not taken either lever yet" look cheaper
+            // than "took one", and the beam would then drop every state that had actually done some of the work.
+            double total = 0;
+            double cx = x, cz = z;
+            int open = 0;
+            for (int i = 0; i < members.length; i++) {
+                if ((mask & (1 << i)) == 0) {
+                    open |= 1 << i;
+                }
+            }
+            int last = members[members.length - 1];
+            while (open != 0) {
+                int bestI = -1;
+                double bestD = Double.MAX_VALUE;
+                for (int i = 0; i < members.length; i++) {
+                    if ((open & (1 << i)) == 0) {
+                        continue;
+                    }
+                    double d = at(members[i], cx, cz);
+                    if (d < bestD) {
+                        bestD = d;
+                        bestI = i;
+                    }
+                }
+                total += bestD;
+                open &= ~(1 << bestI);
+                last = members[bestI];
+                cx = gates.get(last).x;
+                cz = gates.get(last).z;
+            }
+            return (total + tail[last + 1]) / top;
         }
     }
 
@@ -530,15 +654,21 @@ final class Ap3RoutePlanner {
         return true;
     }
 
+    private static int[] append(int[] a, int v) {
+        int[] out = Arrays.copyOf(a, a.length + 1);
+        out[a.length] = v;
+        return out;
+    }
+
     /** Lattice cell for merging: position, velocity, gate progress and whether the feet are down. */
-    private static long cell(Ap3RouteMath.RouteState s, int gate) {
+    private static long cell(Ap3RouteMath.RouteState s, int group, int mask) {
         long x = Math.round(s.x / 0.08);
         long z = Math.round(s.z / 0.08);
         long vx = Math.round(s.vx / 0.02);
         long vz = Math.round(s.vz / 0.02);
         long air = s.onGround ? 0 : 1 + Math.min(15, s.airTicks);
         long h = x * 73856093L ^ z * 19349663L ^ vx * 83492791L ^ vz * 2654435761L;
-        return h * 32L + (gate * 2L + air) % 32L;
+        return h * 2048L + ((group * 64L + mask * 4L + air) % 2048L);
     }
 
     // ---- the answer --------------------------------------------------------------------------------------------
@@ -557,8 +687,13 @@ final class Ap3RoutePlanner {
         for (int i = 0; i < chain.size(); i++) {
             Node n = chain.get(i);
             steps[i] = new Step(n.keys, n.yaw, n.jump);
-            if (n.crossedGateAt >= 0 && gi < gateTick.length) {
-                gateTick[gi++] = i;
+            if (n.crossed != null) {
+                for (int g : n.crossed) {
+                    if (g < gateTick.length) {
+                        gateTick[g] = i; // a tick can tick off several gates of the same group at once
+                        gi++;
+                    }
+                }
             }
         }
         plan.steps = steps;

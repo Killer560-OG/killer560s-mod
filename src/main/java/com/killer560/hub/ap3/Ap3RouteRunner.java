@@ -253,32 +253,38 @@ final class Ap3RouteRunner {
         startPlanning(client, player);
     }
 
-    /** The run of Path nodes this route covers: from {@code first} up to a non-Path node or a terminal stop. */
+    /**
+     * The Path nodes this route covers, in STEP-NUMBER order starting at the one you stepped on. Nodes sharing a
+     * number are one step to be done in any order, so they all come along together; the leg ends after a step that
+     * waits for a terminal.
+     */
     private static void collectRoute(Ap3Node first) {
         Ap3Chain chain = Ap3Feature.currentChain();
         route.clear();
         if (chain == null) {
             route.add(first);
-        } else {
-            boolean started = false;
-            for (Ap3Node n : chain.nodes()) {
-                if (n == first) {
-                    started = true;
-                }
-                if (!started) {
-                    continue;
-                }
-                if (n.type != Ap3Node.Type.PATH) {
-                    break; // the route is the run of Path nodes that starts here
-                }
-                route.add(n);
-                if (n.termWait) {
-                    break; // this leg ends at the terminal; the rest is planned after it closes
-                }
+            return;
+        }
+        List<Ap3Node> paths = new ArrayList<>();
+        for (Ap3Node n : chain.nodes()) {
+            if (n.type == Ap3Node.Type.PATH) {
+                paths.add(n);
             }
-            if (route.isEmpty()) {
-                route.add(first);
+        }
+        paths.sort((a, b) -> Integer.compare(a.pathIndex, b.pathIndex));
+        int from = first.pathIndex;
+        int stopAfter = Integer.MAX_VALUE;
+        for (Ap3Node n : paths) {
+            if (n.pathIndex < from || n.pathIndex > stopAfter) {
+                continue;
             }
+            route.add(n);
+            if (n.termWait) {
+                stopAfter = n.pathIndex; // finish this step's nodes, then stop for the terminal
+            }
+        }
+        if (route.isEmpty()) {
+            route.add(first);
         }
     }
 
@@ -357,6 +363,7 @@ final class Ap3RouteRunner {
         g.hasDir = n.hasDir;
         g.dirDeg = n.dirDeg;
         g.dirTolDeg = n.dirTolDeg;
+        g.group = n.pathIndex;
         return g;
     }
 
@@ -420,10 +427,11 @@ final class Ap3RouteRunner {
         Ap3Chain chain = Ap3Feature.currentChain();
         Ap3Node next = null;
         if (chain != null) {
-            List<Ap3Node> all = chain.nodes();
-            int at = all.indexOf(last);
-            if (at >= 0 && at + 1 < all.size() && all.get(at + 1).type == Ap3Node.Type.PATH) {
-                next = all.get(at + 1);
+            for (Ap3Node n : chain.nodes()) {
+                if (n.type == Ap3Node.Type.PATH && n.pathIndex > last.pathIndex
+                        && (next == null || n.pathIndex < next.pathIndex)) {
+                    next = n; // the next step of the route, after the terminal
+                }
             }
         }
         if (next == null) {
@@ -458,6 +466,8 @@ final class Ap3RouteRunner {
         private final int minX, minZ, w, h;
         private final boolean[] wall;
         private final boolean[] floor;
+        /** Columns whose only floor is a block an AP3 Block node is going to place (see {@link #placedFloorOnly}). */
+        private final boolean[] placed;
 
         private Snap(int minX, int minZ, int w, int h) {
             this.minX = minX;
@@ -466,6 +476,7 @@ final class Ap3RouteRunner {
             this.h = h;
             this.wall = new boolean[w * h];
             this.floor = new boolean[w * h];
+            this.placed = new boolean[w * h];
         }
 
         static Snap of(ClientLevel level, LocalPlayer player, List<Ap3RoutePlanner.Gate> gates,
@@ -499,7 +510,37 @@ final class Ap3RouteRunner {
                     snap.floor[i * h + j] = hasFloor;
                 }
             }
+            snap.addBlockNodes(level, feetY);
             return snap;
+        }
+
+        /**
+         * A Block node puts a block down in front of itself, so the route may run over that spot even though there is
+         * nothing there now - killer560 (2026-09-22): "It should just be able to recognize that... a block is going to
+         * appear at that area. Then it should know that it will be able to run on that block for two ticks". Assumed
+         * to be a bottom slab at most, and never placed by the route itself: the Block node does that.
+         */
+        private void addBlockNodes(ClientLevel level, int feetY) {
+            Ap3Chain chain = Ap3Feature.currentChain();
+            if (chain == null) {
+                return;
+            }
+            for (Ap3Node n : chain.nodes()) {
+                if (n.type != Ap3Node.Type.BLOCK) {
+                    continue;
+                }
+                // Where the node aims: one block along its own facing, at the height its feet were placed at.
+                double rad = Math.toRadians(n.yaw);
+                int bx = Mth.floor(n.x - Math.sin(rad));
+                int bz = Mth.floor(n.z + Math.cos(rad));
+                int i = bx - minX;
+                int j = bz - minZ;
+                if (i < 0 || j < 0 || i >= w || j >= h || floor[i * h + j] || wall[i * h + j]) {
+                    continue; // already solid ground, or a wall: nothing for the Block node to add
+                }
+                floor[i * h + j] = true;
+                placed[i * h + j] = true;
+            }
         }
 
         /** Does this block stop the body - counting anything Breaker Aura is going to remove as already gone? */
@@ -528,6 +569,29 @@ final class Ap3RouteRunner {
         @Override
         public boolean walkable(double x, double z) {
             return check(x, z, true);
+        }
+
+        @Override
+        public boolean placedFloorOnly(double x, double z) {
+            int x0 = Mth.floor(x - HALF_WIDTH);
+            int x1 = Mth.floor(x + HALF_WIDTH);
+            int z0 = Mth.floor(z - HALF_WIDTH);
+            int z1 = Mth.floor(z + HALF_WIDTH);
+            boolean any = false;
+            for (int bx = x0; bx <= x1; bx++) {
+                for (int bz = z0; bz <= z1; bz++) {
+                    int i = bx - minX;
+                    int j = bz - minZ;
+                    if (i < 0 || j < 0 || i >= w || j >= h || !floor[i * h + j]) {
+                        continue;
+                    }
+                    if (!placed[i * h + j]) {
+                        return false; // real ground under part of the box: that is what holds you up
+                    }
+                    any = true;
+                }
+            }
+            return any;
         }
 
         @Override

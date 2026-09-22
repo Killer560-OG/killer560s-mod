@@ -263,6 +263,8 @@ public final class Ap3Feature {
         public Double dirDeg;
         public Double dirTolDeg;
         public boolean termWait;
+        /** PATH: the step number typed after the type, or null to take the lowest one still free. */
+        public Integer pathIndex;
 
         void applyTo(Ap3Node node) {
             if (width != null) {
@@ -291,6 +293,9 @@ public final class Ap3Feature {
                 node.setLeapCount(leapCount);
             }
             if (node.type == Ap3Node.Type.PATH) {
+                if (pathIndex != null) {
+                    node.pathIndex = pathIndex;
+                }
                 node.minSpeed = minSpeed == null ? -1 : minSpeed;
                 node.maxSpeed = maxSpeed == null ? -1 : maxSpeed;
                 node.hasDir = dirDeg != null;
@@ -316,6 +321,9 @@ public final class Ap3Feature {
             return false;
         }
         spec.applyTo(node);
+        if (node.type == Ap3Node.Type.PATH && spec.pathIndex == null) {
+            node.pathIndex = lowestFreePathIndex();
+        }
         if (node.type == Ap3Node.Type.LEAP && node.leapMode == Ap3Node.LeapMode.CLASS && node.leapClass == null) {
             chatBad("Leap class missing (mage / archer / bers / tank / healer).");
             return false;
@@ -325,6 +333,28 @@ public final class Ap3Feature {
             return false;
         }
         return commitNode(node);
+    }
+
+    /**
+     * The step number a new Path node takes when none was typed - killer560 (2026-09-22): "if I had created path one
+     * and three and made a new one without a number it should become two". So: the lowest number not already used.
+     */
+    private static int lowestFreePathIndex() {
+        Ap3Chain chain = currentChain();
+        if (chain == null) {
+            return 1;
+        }
+        java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (Ap3Node n : chain.nodes()) {
+            if (n.type == Ap3Node.Type.PATH) {
+                used.add(n.pathIndex);
+            }
+        }
+        int i = 1;
+        while (used.contains(i)) {
+            i++;
+        }
+        return i;
     }
 
     /** Deletes node {@code index} (0-BASED here; show it to the player as {@code index + 1}). */

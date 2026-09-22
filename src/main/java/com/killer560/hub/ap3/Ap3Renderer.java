@@ -151,6 +151,7 @@ public final class Ap3Renderer {
             case LEAP_COUNTER -> sb.append('x').append(node.leapCount);
             case AXIS_ALIGN -> sb.append(node.wallDir == null ? "no wall" : node.wallDir.getName());
             case PATH -> {
+                sb.append('#').append(node.pathIndex);
                 if (node.precise) {
                     sb.append("exact");
                 }

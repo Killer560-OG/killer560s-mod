@@ -137,7 +137,8 @@ public final class Ap3Commands {
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
-    private static final List<String> PATH_MODS = List.of("exact", "speed:", "dir:", "dirtol:", "term");
+    private static final List<String> PATH_MODS =
+            List.of("1", "2", "3", "4", "exact", "speed:", "dir:", "dirtol:", "term");
 
     private static final SuggestionProvider<FabricClientCommandSource> TYPE_SUGGEST =
             (ctx, b) -> suggestTokens(b, TYPE_WORDS);
@@ -555,6 +556,8 @@ public final class Ap3Commands {
                     spec.jumpMod = Ap3Node.JumpMod.EDGE;
                 } else if (t.equals("precise") || t.equals("exact")) {
                     spec.precise = true;
+                } else if (type == Ap3Node.Type.PATH && parsePathIndex(t) > 0) {
+                    spec.pathIndex = parsePathIndex(t);
                 } else if (type == Ap3Node.Type.PATH && t.equals("term")) {
                     spec.termWait = true;
                 } else if (type == Ap3Node.Type.PATH && (t.startsWith("speed:") || t.startsWith("speed="))) {
@@ -638,6 +641,17 @@ public final class Ap3Commands {
             return null;
         }
         return spec;
+    }
+
+    /** {@code /ap3 add path <n>}'s step number: a figure or the word for it ("one", "four"); 0 when it is neither. */
+    private static int parsePathIndex(String t) {
+        if (t.matches("[0-9]{1,3}")) {
+            return Integer.parseInt(t);
+        }
+        int word = List.of("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+                "nineteen", "twenty").indexOf(t);
+        return word > 0 ? word : 0;
     }
 
     private static int clampWait(int ms) {
