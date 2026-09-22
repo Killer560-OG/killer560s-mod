@@ -100,11 +100,34 @@ final class Ap3RouteMath {
         return new double[]{y, ticks};
     }
 
-    /** One tick of the route model, in place. Ground ticks are exactly {@link Ap3DiscretePlanner#step}'s arithmetic. */
+    /** Endless floor at y = 0: what {@link #topSpeed} and the harness's flat tests stand on. */
+    static final Ap3RouteCollide.Shapes FLAT_GROUND = Ap3RouteCollide.flat(0.0);
+
+    /** One tick of the route model on flat endless ground at y = 0. */
     static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, Ap3DiscretePlanner.Model m) {
-        // aiStep zeroes a horizontal axis under 0.003 before anything else.
+        step(s, a, yaw, jump, m, FLAT_GROUND);
+    }
+
+    /**
+     * One tick of the route model, in place: vanilla's {@code aiStep} + {@code travelInAir} + {@code move}, with the
+     * move itself handed to {@link Ap3RouteCollide} so the player's box is really swept against the world.
+     * <p>
+     * Two things here are easy to get wrong and both were wrong before the collider went in.
+     * <ol>
+     *   <li>The tick's speed and friction come from the onGround flag as it stands BEFORE the move.
+     *       {@code jumpFromGround} does not clear it - only {@code move} does - so a jump tick still accelerates and
+     *       drags at GROUND rates, and only the ticks after it are air ticks.</li>
+     *   <li>Vertical velocity exists on the ground too: a standing tick goes into the move at -0.0784 and has it
+     *       taken away by the floor. That is what makes a step up possible at all, because vanilla only looks for
+     *       one when the move was downwards or you were already standing.</li>
+     * </ol>
+     */
+    static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, Ap3DiscretePlanner.Model m,
+                     Ap3RouteCollide.Shapes world) {
+        // aiStep zeroes ANY axis under 0.003 before anything else - the vertical one included.
         double vx = Math.abs(s.vx) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vx;
         double vz = Math.abs(s.vz) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vz;
+        double vy = Math.abs(s.vy) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vy;
         boolean onGround = s.onGround;
         boolean sprintNow = a.fw() > 0 && (s.sprinting || (m.sprintKeyHeld && !a.sneak() && !s.crouching));
         float rad = yaw * Ap3AlignMath.DEG_TO_RAD;
@@ -113,12 +136,11 @@ final class Ap3RouteMath {
 
         if (jump && onGround) {
             // The jump goes in before the tick's input: upward velocity, and the sprint boost along the facing.
-            s.vy = JUMP_POWER;
+            vy = JUMP_POWER;
             if (sprintNow) {
                 vx += -sin * SPRINT_JUMP_BOOST;
                 vz += cos * SPRINT_JUMP_BOOST;
             }
-            onGround = false;
         }
 
         if (!a.none()) {
@@ -135,26 +157,32 @@ final class Ap3RouteMath {
             vz += mag * (uz * cos + ux * sin);
         }
 
-        s.x += vx;
-        s.z += vz;
+        double height = s.crouching ? Ap3RouteCollide.CROUCH_HEIGHT : Ap3RouteCollide.HEIGHT;
+        Ap3RouteCollide.Result r =
+                Ap3RouteCollide.collide(s.x, s.y, s.z, height, vx, vy, vz, onGround, world,
+                        Ap3RouteCollide.scratch());
+        s.x += r.dx;
+        s.y += r.dy;
+        s.z += r.dz;
+        // Entity.move: a collided axis loses its velocity, and a vertical hit hands the fall to the block below.
+        if (r.hitX) {
+            vx = 0.0;
+        }
+        if (r.hitZ) {
+            vz = 0.0;
+        }
+        if (r.hitY) {
+            vy = 0.0;
+        }
+
+        // travelInAir's tail: horizontal friction and gravity, both at the rate the START of the tick asked for.
         double drag = onGround ? Ap3AlignMath.frictionMultiplier(m.blockFriction, true) : AIR_DRAG;
         s.vx = vx * drag;
         s.vz = vz * drag;
+        s.vy = (vy - GRAVITY) * VERTICAL_DRAG;
 
-        if (!onGround) {
-            s.y += s.vy;
-            s.vy = (s.vy - GRAVITY) * VERTICAL_DRAG;
-            if (s.y <= s.groundY && s.vy < 0) {
-                // Landing: the box stops on the floor (flat ground under the whole route - see the planner's notes).
-                s.y = s.groundY;
-                s.vy = 0.0;
-                onGround = true;
-            }
-            s.airTicks++;
-        } else {
-            s.airTicks = 0;
-        }
-        s.onGround = onGround;
+        s.onGround = r.onGround;
+        s.airTicks = r.onGround ? 0 : s.airTicks + 1;
         s.sprinting = sprintNow;
         s.crouching = a.sneak();
         s.yaw = yaw;
@@ -175,8 +203,6 @@ final class Ap3RouteMath {
         /** Sneak lands a tick late: this is the PREVIOUS tick's sneak key. */
         boolean crouching;
         int airTicks;
-        /** The floor height the jump model lands back on. */
-        double groundY;
         float yaw;
 
         RouteState copy() {
@@ -191,7 +217,6 @@ final class Ap3RouteMath {
             c.sprinting = sprinting;
             c.crouching = crouching;
             c.airTicks = airTicks;
-            c.groundY = groundY;
             c.yaw = yaw;
             return c;
         }

@@ -129,6 +129,16 @@ final class Ap3RouteRunner {
         }
     }
 
+    /**
+     * The world the plan was built against. Everything that carries a state forward - the drift prediction, the
+     * hand-over into a re-plan, the drawn path - has to use it, or a staircase reads as drift the moment the run
+     * leaves flat ground.
+     */
+    private static Ap3RouteCollide.Shapes planWorld() {
+        Ap3RoutePlanner.Terrain t = snapshot;
+        return t == null ? Ap3RouteMath.FLAT_GROUND : t.shapes();
+    }
+
     /** The path the current plan follows, for the renderer; empty when there is nothing planned. */
     static List<Vec3> plannedPath(double y) {
         Ap3RoutePlanner.Plan p = plan;
@@ -140,15 +150,10 @@ final class Ap3RouteRunner {
         Ap3RouteMath.RouteState s = planStart.copy();
         Ap3RoutePlanner.Terrain terrain = snapshot;
         out.add(new Vec3(s.x, s.y + 0.1, s.z));
+        Ap3RouteCollide.Shapes world = terrain == null ? Ap3RouteMath.FLAT_GROUND : terrain.shapes();
         for (Ap3RoutePlanner.Step st : p.steps) {
-            Ap3RouteMath.step(s, st.keys(), st.yaw(), st.jump(), planModel);
-            if (terrain != null && s.onGround) {
-                double floor = terrain.floorAt(s.x, s.z);
-                if (!Double.isNaN(floor)) {
-                    s.y = floor;
-                    s.groundY = floor;
-                }
-            }
+            // The same move the plan was built on, so the drawn line goes up a staircase exactly where the run will.
+            Ap3RouteMath.step(s, st.keys(), st.yaw(), st.jump(), planModel, world);
             out.add(new Vec3(s.x, s.y + 0.1, s.z));
         }
         return out;
@@ -225,7 +230,7 @@ final class Ap3RouteRunner {
                     String.format(Locale.US, "%.4f", player.getDeltaMovement().horizontalDistance()));
         }
         if (predicted != null) {
-            Ap3RouteMath.step(predicted, step.keys(), step.yaw(), step.jump(), planModel);
+            Ap3RouteMath.step(predicted, step.keys(), step.yaw(), step.jump(), planModel, planWorld());
         }
         drive.accept(step);
         return true;
@@ -242,7 +247,7 @@ final class Ap3RouteRunner {
         int at = stepIndex;
         for (int i = 0; i < PLAN_LATENCY && stepIndex + i < plan.steps.length; i++) {
             Ap3RoutePlanner.Step st = plan.steps[stepIndex + i];
-            Ap3RouteMath.step(from, st.keys(), st.yaw(), st.jump(), planModel);
+            Ap3RouteMath.step(from, st.keys(), st.yaw(), st.jump(), planModel, planWorld());
             at = stepIndex + i + 1;
         }
         startPlanning(client, player, from, at);
@@ -531,7 +536,6 @@ final class Ap3RouteRunner {
         s.x = pos.x;
         s.z = pos.z;
         s.y = pos.y;
-        s.groundY = pos.y;
         s.vx = vel.x;
         s.vz = vel.z;
         s.vy = vel.y;
@@ -622,6 +626,13 @@ final class Ap3RouteRunner {
          * his stairs (drift 0.000 for 22 ticks, then 0.409 and the speed collapsing from 0.71 to 0.05).
          */
         private final boolean[] wall;
+        /**
+         * The real collision boxes - what a tick's move is actually swept against. The grids above are only the
+         * coarse read the search's distance heuristic is built from; the physics never looks at them.
+         */
+        private final Ap3RouteCollide.BoxWorld world = new Ap3RouteCollide.BoxWorld();
+        /** Fluid boxes: nothing stops you entering lava, so the route is told to treat it as somewhere it may not be. */
+        private final Ap3RouteCollide.BoxWorld hazards = new Ap3RouteCollide.BoxWorld();
 
         private Snap(double minX, double minZ, int w, int h) {
             this.minX = minX;
@@ -655,8 +666,58 @@ final class Ap3RouteRunner {
                     snap.readCell(level, minX + (i + 0.5) * CELL, minZ + (j + 0.5) * CELL, feetY, i * h + j);
                 }
             }
+            snap.readBoxes(level, feetY);
             snap.addBlockNodes(level, feetY);
             return snap;
+        }
+
+        /**
+         * Every collision box in the route's band, filed by block column. One pass over the blocks, taking each
+         * state's real collision shape - so a stair contributes its two boxes, a slab its one, and a fence its post
+         * and rails. Blocks Breaker Aura is going to break contribute nothing, exactly as they do to the grids.
+         */
+        private void readBoxes(ClientLevel level, int feetY) {
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            int bx0 = Mth.floor(minX);
+            int bx1 = Mth.floor(minX + (w - 1) * CELL);
+            int bz0 = Mth.floor(minZ);
+            int bz1 = Mth.floor(minZ + (h - 1) * CELL);
+            for (int bx = bx0; bx <= bx1; bx++) {
+                for (int bz = bz0; bz <= bz1; bz++) {
+                    for (int y = feetY - BAND_DOWN; y <= feetY + BAND_UP; y++) {
+                        pos.set(bx, y, bz);
+                        if (!level.isLoaded(pos)) {
+                            continue;
+                        }
+                        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+                        if (!state.getFluidState().isEmpty()) {
+                            hazards.add(bx, y, bz, bx + 1.0, y + 1.0, bz + 1.0);
+                            continue;
+                        }
+                        if (BreakerAuraFeature.plannerTreatsAsAir(level, pos)) {
+                            continue;
+                        }
+                        net.minecraft.world.phys.shapes.VoxelShape shape = state.getCollisionShape(level, pos);
+                        if (shape.isEmpty()) {
+                            continue;
+                        }
+                        for (AABB b : shape.toAabbs()) {
+                            world.add(bx + b.minX, y + b.minY, bz + b.minZ,
+                                    bx + b.maxX, y + b.maxY, bz + b.maxZ);
+                        }
+                    }
+                }
+            }
+        }
+
+        @Override
+        public Ap3RouteCollide.Shapes shapes() {
+            return world;
+        }
+
+        @Override
+        public boolean deny(double x, double y, double z) {
+            return !Ap3RouteCollide.free(Ap3RouteCollide.playerBox(x, y, z, BODY_HEIGHT), hazards);
         }
 
         /**
@@ -758,6 +819,10 @@ final class Ap3RouteRunner {
                         floorY[cell] = n.y + 0.5; // a bottom slab at most, on the node's own level
                         headroom[cell] = 3.0;
                         placed[cell] = true;
+                        // ... and give the collider something to stand on, or the move would fall straight through.
+                        double cx = Mth.floor(bx) + dx * CELL;
+                        double cz = Mth.floor(bz) + dz * CELL;
+                        world.add(cx, n.y, cz, cx + CELL, n.y + 0.5, cz + CELL);
                     }
                 }
             }
@@ -818,11 +883,6 @@ final class Ap3RouteRunner {
         }
 
         @Override
-        public boolean clearAir(double x, double z) {
-            return true; // heights decide this now: see bodyClear
-        }
-
-        @Override
         public boolean placedFloorOnly(double x, double z) {
             boolean any = false;
             for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
@@ -841,8 +901,4 @@ final class Ap3RouteRunner {
         }
     }
 
-    /** Unused import guard: the body height is what the snapshot samples. */
-    static AABB bodyBox(double x, double y, double z) {
-        return new AABB(x - HALF_WIDTH, y, z - HALF_WIDTH, x + HALF_WIDTH, y + BODY_HEIGHT, z + HALF_WIDTH);
-    }
 }

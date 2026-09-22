@@ -86,14 +86,18 @@ final class Ap3RoutePlanner {
         }
     }
 
+    /** How far past an exact gate's point to aim when the landing came down on the wrong side of a block edge. */
+    private static final double EDGE_NUDGE = 0.004;
+
+    /** How many ticks before an exact gate the polish may re-aim, widened until one of them lands it. */
+    private static final int[] POLISH_WINDOWS = {3, 6, 10};
+
     /** Half of the player's 0.6-wide collision box: what decides whether you are on or off an edge. */
     static final double HALF_WIDTH = 0.3;
     /** {@code Player.maxUpStep}: this much of a rise is walked up with no jump - a slab or a stair, not a full block. */
-    static final double STEP_UP = 0.6;
+    static final double STEP_UP = Ap3RouteCollide.MAX_UP_STEP;
     /** A gate counts as reached only on its own level, within this much. */
     static final double GATE_Y_TOLERANCE = 1.0;
-    /** How finely a tick's travel is walked when resolving the ground under it (a stair tread is 0.5 wide). */
-    static final double SAMPLE_STEP = 0.25;
 
     /**
      * The world the route runs through, sampled ahead of planning so the search can run off the client thread. A
@@ -102,6 +106,23 @@ final class Ap3RoutePlanner {
      * "If a block is selected for breaker aura treat that block as not being there when you go to run through it").
      */
     interface Terrain {
+        /**
+         * The real collision boxes, which is what a tick's move is actually swept against. Everything else on this
+         * interface is a COARSE read of the same blocks, used only to build the search's distance heuristic - the
+         * physics never consults it, because a height profile is not what the game collides with.
+         */
+        default Ap3RouteCollide.Shapes shapes() {
+            return Ap3RouteMath.FLAT_GROUND;
+        }
+
+        /**
+         * Somewhere the route is not allowed to be even though nothing stops it physically: lava, mainly, whose
+         * bounce costs the whole run. Checked on the position a tick lands at.
+         */
+        default boolean deny(double x, double y, double z) {
+            return false;
+        }
+
         /**
          * The height the feet rest at here, or NaN where there is nowhere to stand. This is what lets a route use
          * stairs: vanilla steps up to {@link #STEP_UP} of a block for free, so a stair or a slab is walked up without
@@ -115,8 +136,6 @@ final class Ap3RoutePlanner {
         /** Can the player's box stand here, feet at the route's floor height? */
         boolean walkable(double x, double z);
 
-        /** Is the body's space clear here even without a floor - i.e. can a jump pass through? */
-        boolean clearAir(double x, double z);
 
         /**
          * Is the only thing holding you up here a block an AP3 Block node is going to place? killer560 (2026-09-22):
@@ -141,9 +160,6 @@ final class Ap3RoutePlanner {
                 return true;
             }
 
-            public boolean clearAir(double x, double z) {
-                return true;
-            }
         };
     }
 
@@ -171,8 +187,13 @@ final class Ap3RoutePlanner {
         double turnCost = 0.25;
         /** How many ticks in a row the route may stand on a block a Block node places (a ghost block is short-lived). */
         int slabTicks = 2;
-        /** How close the search must get to an exact gate before the polish takes over. */
-        double exactSearch = 0.15;
+        /**
+         * How close the search must get to an exact gate before the polish takes over. The polish only re-aims yaws,
+         * so it can redirect the speed that is there but cannot add any: hand it a 0.15 gap at walking pace and it
+         * cannot close it (measured - a 0.146 hand-over polished to 0.055 and no further). 0.10 is inside its reach,
+         * and costs about one extra tick.
+         */
+        double exactSearch = 0.10;
         /** Default landing tolerance on an exact gate when the gate does not set its own. */
         double exactTol = 0.02;
     }
@@ -272,7 +293,7 @@ final class Ap3RoutePlanner {
             // Goal: the last gate is crossed.
             for (Node n : next) {
                 if (n.group >= groups.size()) {
-                    return finish(n, gates, blocked, m, o, plan);
+                    return finish(n, gates, blocked, m, o, terrain, plan);
                 }
                 if (n.group > best.group || (n.group == best.group
                         && (Integer.bitCount(n.mask) > Integer.bitCount(best.mask)
@@ -285,7 +306,7 @@ final class Ap3RoutePlanner {
         }
         plan.gatesReached = gatesBefore(groups, best.group) + Integer.bitCount(best.mask);
         plan.note = plan.note.isEmpty() ? "no route found" : plan.note;
-        Plan partial = finish(best, gates, blocked, m, o, plan);
+        Plan partial = finish(best, gates, blocked, m, o, terrain, plan);
         partial.complete = false;
         return partial;
     }
@@ -340,11 +361,17 @@ final class Ap3RoutePlanner {
         double fromX = s.x;
         double fromZ = s.z;
         boolean wasOnGround = s.onGround;
-        Ap3RouteMath.step(s, a, yaw, jump, m);
+        Ap3RouteMath.step(s, a, yaw, jump, m, terrain.shapes());
         if (hits(blocked, fromX, fromZ, s.x, s.z, s.y)) {
             return;
         }
-        if (!resolveGround(s, terrain, wasOnGround, fromX, fromZ)) {
+        if (terrain.deny(s.x, s.y, s.z)) {
+            return;
+        }
+        // A move the world ate entirely is not a move: it is the search sitting still against a wall, and every
+        // such node looks new to the beam because its keys differ. Drop them rather than paying ticks for nothing.
+        if (wasOnGround && s.onGround && Math.abs(s.x - fromX) < 1.0E-9 && Math.abs(s.z - fromZ) < 1.0E-9
+                && !a.none()) {
             return;
         }
         // A Block node's slab is only there for a moment: standing on one for longer is not a route that exists.
@@ -409,98 +436,6 @@ final class Ap3RoutePlanner {
         out.add(c);
     }
 
-    /**
-     * Puts the tick's new position on the world: walks up a stair, steps off a ledge, lands from a jump, or refuses
-     * the move when a wall or a ceiling is in the way. Vanilla steps up to {@link #STEP_UP} for free, which is what
-     * makes a staircase a ramp rather than a barrier (killer560, 2026-09-22: "make sure it knows to make the line go
-     * diagonally up").
-     */
-    private static boolean resolveGround(Ap3RouteMath.RouteState s, Terrain terrain, boolean wasOnGround,
-                                         double fromX, double fromZ) {
-        double floor = terrain.floorAt(s.x, s.z);
-        if (wasOnGround && s.onGround) {
-            // Walk the tick's travel, not just its end. At his speed a tick crosses a whole stair step, so measuring
-            // the rise end to end read 1.0 - over the 0.6 a player steps up - and the search rejected every way
-            // forward ("planned 0 ticks, 5 gates INCOMPLETE - no route found"). Vanilla steps up per collision along
-            // the way, which is why you run up a staircase at full speed, so the model climbs it sample by sample.
-            double dx = s.x - fromX;
-            double dz = s.z - fromZ;
-            int samples = (int) Math.ceil(Math.hypot(dx, dz) / SAMPLE_STEP);
-            double height = s.groundY;
-            // A tick gains at most STEP_UP of height IN TOTAL - vanilla steps up once per move - so a staircase caps
-            // how far you travel as well as how high you climb. His log: the plan expected 1.35 blocks up a 45 degree
-            // staircase and the game managed 0.94 before the riser stopped it dead (0.71 -> 0.05 blocks/tick).
-            double ceiling = s.groundY + STEP_UP;
-            double prevX = fromX;
-            double prevZ = fromZ;
-            for (int i = 1; i <= Math.max(1, samples); i++) {
-                double t = (double) i / Math.max(1, samples);
-                double sx = fromX + dx * t;
-                double sz = fromZ + dz * t;
-                double f = terrain.floorAt(sx, sz);
-                if (Double.isNaN(f)) {
-                    if (i < Math.max(1, samples)) {
-                        continue; // a gap mid-stride: you are over it, not standing in it
-                    }
-                    s.onGround = false; // walked off the end into nothing: the air model takes over
-                    s.vy = 0.0;
-                    return true;
-                }
-                if (f > ceiling || !terrain.bodyClear(sx, sz, Math.max(f, height))) {
-                    // Stopped against the riser (or a wall): you get as far as the last clear sample and the travel
-                    // into it is lost, exactly as a collision eats it.
-                    if (i == 1) {
-                        return false; // blocked from the start: this move does not exist
-                    }
-                    s.x = prevX;
-                    s.z = prevZ;
-                    double len = Math.hypot(dx, dz);
-                    if (len > 1.0E-9) {
-                        double ux = dx / len;
-                        double uz = dz / len;
-                        double along = s.vx * ux + s.vz * uz;
-                        s.vx -= along * ux; // only what ran into it is lost; a glancing move keeps sliding
-                        s.vz -= along * uz;
-                    }
-                    s.groundY = height;
-                    s.y = height;
-                    return true;
-                }
-                height = f;
-                prevX = sx;
-                prevZ = sz;
-            }
-            if (Double.isNaN(floor)) {
-                s.onGround = false;
-                s.vy = 0.0;
-                return true;
-            }
-            if (height < s.groundY - STEP_UP) {
-                // A real drop at the end of the stride: fall it rather than teleporting down.
-                s.onGround = false;
-                s.vy = 0.0;
-                s.groundY = height;
-                return true;
-            }
-            s.groundY = height;
-            s.y = height;
-            return true;
-        }
-        // Airborne (a jump, or still falling): the body has to fit, and the feet land on whatever is under them.
-        if (!terrain.bodyClear(s.x, s.z, s.y)) {
-            return false;
-        }
-        if (!Double.isNaN(floor)) {
-            s.groundY = floor;
-            if (s.y <= floor + 1.0E-9 && s.vy <= 0) {
-                s.y = floor;
-                s.vy = 0.0;
-                s.onGround = true;
-                s.airTicks = 0;
-            }
-        }
-        return true;
-    }
 
     /** Fine control (sneak, sideways braking, a denser ring) near a gate that asks for a position or a speed. */
     private static boolean needsFineControl(Node n, Gate g, double top) {
@@ -712,6 +647,12 @@ final class Ap3RoutePlanner {
         if (g.exact && !g.sameBlocks(to.x, to.z)) {
             return false; // right distance, wrong side of a block edge
         }
+        if (g.exact && !to.onGround) {
+            // An exact gate is a place to STAND (killer560: "still either on or off of a block"), so passing over it
+            // in mid-air does not count. It also has to be true for the polish to have anything to work with: in the
+            // air a yaw is worth 0.02 a tick, so a crossing 0.15 out cannot be pulled onto the point.
+            return false;
+        }
         return meetsVelocity(g, to);
     }
 
@@ -802,7 +743,7 @@ final class Ap3RoutePlanner {
     // ---- the answer --------------------------------------------------------------------------------------------
 
     private static Plan finish(Node end, List<Gate> gates, List<Blocked> blocked, Ap3DiscretePlanner.Model m,
-                               Options o, Plan plan) {
+                               Options o, Terrain terrain, Plan plan) {
         List<Node> chain = new ArrayList<>();
         for (Node n = end; n != null && n.parent != null; n = n.parent) {
             chain.add(n);
@@ -830,7 +771,7 @@ final class Ap3RoutePlanner {
         plan.gatesReached = Math.max(plan.gatesReached, gi);
         plan.complete = gi >= gates.size();
         if (plan.complete) {
-            refineExact(plan, gates, m, o, chain.isEmpty() ? null : chain.get(0).parent);
+            refineExact(plan, gates, m, o, terrain, chain.isEmpty() ? null : chain.get(0).parent);
         }
         return plan;
     }
@@ -839,7 +780,8 @@ final class Ap3RoutePlanner {
      * An exact gate was searched with a radius; here the yaws of the last few ticks before each crossing are re-solved
      * on the exact step until the feet land ON the point. Only yaws move, so the keys stay the ones the search chose.
      */
-    private static void refineExact(Plan plan, List<Gate> gates, Ap3DiscretePlanner.Model m, Options o, Node rootNode) {
+    private static void refineExact(Plan plan, List<Gate> gates, Ap3DiscretePlanner.Model m, Options o,
+                                    Terrain terrain, Node rootNode) {
         if (rootNode == null) {
             return;
         }
@@ -849,8 +791,21 @@ final class Ap3RoutePlanner {
                 continue;
             }
             int at = plan.gateTick[g];
-            int from = Math.max(0, at - 3);
-            if (!polish(plan, rootNode.s, gate, m, from, at, o)) {
+            // Yaw-only polishing can only redirect what speed there already is, so three ticks of it reaches about
+            // three ticks' worth of travel. When that is not enough - the search may hand over anything up to
+            // Options.exactSearch away - widen the window and try again rather than giving up on the gate.
+            boolean done = false;
+            for (int window : POLISH_WINDOWS) {
+                int from = Math.max(0, at - window);
+                if (polish(plan, rootNode.s, gate, m, terrain, from, at, o)) {
+                    done = true;
+                    break;
+                }
+                if (from == 0) {
+                    break;
+                }
+            }
+            if (!done) {
                 plan.note = plan.note.isEmpty() ? "exact gate " + (g + 1) + " not polished" : plan.note;
             }
         }
@@ -858,7 +813,20 @@ final class Ap3RoutePlanner {
 
     /** Levenberg-Marquardt on the yaws of ticks [from, at] so the feet land on the exact gate at tick {@code at}. */
     private static boolean polish(Plan plan, Ap3RouteMath.RouteState start, Gate gate, Ap3DiscretePlanner.Model m,
-                                  int from, int at, Options o) {
+                                  Terrain terrain, int from, int at, Options o) {
+        return polish(plan, start, gate, m, terrain, from, at, o, gate.x, gate.z, true);
+    }
+
+    /**
+     * {@code tx/tz} is what the yaws are solved against, which is the gate's own point the first time round. An
+     * exact gate normally sits ON a block edge - that is the whole point of it - so landing 0.0002 short of the
+     * point puts the hitbox in the wrong block and {@link Gate#sameBlocks} throws the answer away. When that
+     * happens the target is nudged a hair further from where it landed and solved once more, which costs one extra
+     * solve and lands on the side killer560 asked for.
+     */
+    private static boolean polish(Plan plan, Ap3RouteMath.RouteState start, Gate gate, Ap3DiscretePlanner.Model m,
+                                  Terrain terrain, int from, int at, Options o,
+                                  double tx, double tz, boolean mayNudge) {
         int k = at - from + 1;
         double[] y = new double[k];
         for (int i = 0; i < k; i++) {
@@ -866,14 +834,14 @@ final class Ap3RoutePlanner {
         }
         double[] r = new double[2];
         double[] r2 = new double[2];
-        double cost = residual(plan, start, gate, m, from, at, y, r);
+        double cost = residual(plan, start, tx, tz, m, terrain, from, at, y, r);
         double lambda = 1e-3;
         for (int it = 0; it < 20 && cost > gate.exactTol * gate.exactTol * 0.25; it++) {
             double[][] jac = new double[2][k];
             for (int j = 0; j < k; j++) {
                 double h = 0.02;
                 y[j] += h;
-                residual(plan, start, gate, m, from, at, y, r2);
+                residual(plan, start, tx, tz, m, terrain, from, at, y, r2);
                 y[j] -= h;
                 jac[0][j] = (r2[0] - r[0]) / h;
                 jac[1][j] = (r2[1] - r[1]) / h;
@@ -902,7 +870,7 @@ final class Ap3RoutePlanner {
                 for (int i = 0; i < k; i++) {
                     ny[i] = y[i] + Math.max(-30.0, Math.min(30.0, dy[i]));
                 }
-                double nc = residual(plan, start, gate, m, from, at, ny, r2);
+                double nc = residual(plan, start, tx, tz, m, terrain, from, at, ny, r2);
                 if (nc < cost) {
                     y = ny;
                     System.arraycopy(r2, 0, r, 0, 2);
@@ -920,14 +888,35 @@ final class Ap3RoutePlanner {
         if (Math.sqrt(cost) > gate.exactTol) {
             return false;
         }
+        if (Math.hypot(tx - gate.x, tz - gate.z) + Math.sqrt(cost) > gate.exactTol) {
+            return false; // the nudge plus the miss would take it outside what the gate asked for
+        }
         Ap3RouteMath.RouteState landed = start.copy();
         for (int i = 0; i <= at; i++) {
             Step st = plan.steps[i];
             float yaw = i >= from ? (float) y[i - from] : st.yaw();
-            Ap3RouteMath.step(landed, st.keys(), yaw, st.jump(), m);
+            Ap3RouteMath.step(landed, st.keys(), yaw, st.jump(), m, terrain.shapes());
         }
         if (!gate.sameBlocks(landed.x, landed.z)) {
-            return false; // close, but it would stand on the other side of the edge
+            // Close, but it would stand on the other side of the edge. Aim a hair past the point, away from where
+            // it landed, on whichever axis is on the wrong side.
+            if (!mayNudge) {
+                return false;
+            }
+            double nx = tx;
+            double nz = tz;
+            if ((int) Math.floor(landed.x - HALF_WIDTH) != gate.cellMinX
+                    || (int) Math.floor(landed.x + HALF_WIDTH) != gate.cellMaxX) {
+                nx += Math.copySign(EDGE_NUDGE, gate.x - landed.x);
+            }
+            if ((int) Math.floor(landed.z - HALF_WIDTH) != gate.cellMinZ
+                    || (int) Math.floor(landed.z + HALF_WIDTH) != gate.cellMaxZ) {
+                nz += Math.copySign(EDGE_NUDGE, gate.z - landed.z);
+            }
+            if (nx == tx && nz == tz) {
+                return false;
+            }
+            return polish(plan, start, gate, m, terrain, from, at, o, nx, nz, false);
         }
         for (int i = 0; i < k; i++) {
             Step s = plan.steps[from + i];
@@ -936,16 +925,17 @@ final class Ap3RoutePlanner {
         return true;
     }
 
-    private static double residual(Plan plan, Ap3RouteMath.RouteState start, Gate gate, Ap3DiscretePlanner.Model m,
-                                   int from, int at, double[] y, double[] r) {
+    private static double residual(Plan plan, Ap3RouteMath.RouteState start, double tx, double tz,
+                                   Ap3DiscretePlanner.Model m,
+                                   Terrain terrain, int from, int at, double[] y, double[] r) {
         Ap3RouteMath.RouteState s = start.copy();
         for (int i = 0; i <= at; i++) {
             Step st = plan.steps[i];
             float yaw = i >= from ? (float) y[i - from] : st.yaw();
-            Ap3RouteMath.step(s, st.keys(), yaw, st.jump(), m);
+            Ap3RouteMath.step(s, st.keys(), yaw, st.jump(), m, terrain.shapes());
         }
-        r[0] = s.x - gate.x;
-        r[1] = s.z - gate.z;
+        r[0] = s.x - tx;
+        r[1] = s.z - tz;
         return r[0] * r[0] + r[1] * r[1];
     }
 
