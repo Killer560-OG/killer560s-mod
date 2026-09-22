@@ -1223,7 +1223,8 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m);
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
+                a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
         return true;
     }
@@ -1283,6 +1284,10 @@ public final class Ap3Executor {
 
     /** One planned tick: the real yaw turns onto the plan's yaw, then its key combination goes in (plus the jump). */
     private static void driveRouteStep(LocalPlayer player, Ap3RoutePlanner.Step s) {
+        // Freeze View, same as an align or a walk: the route turns the REAL yaw, his screen keeps the view he had.
+        if (Float.isNaN(viewYaw) && freezeViewWanted()) {
+            viewYaw = player.getYRot();
+        }
         float delta = Mth.wrapDegrees(s.yaw() - player.getYRot());
         if (Math.abs(delta) > 1e-4f) {
             player.setYRot(player.getYRot() + delta);
@@ -1301,7 +1306,7 @@ public final class Ap3Executor {
             double ux = a.st() / norm;
             double uz = a.fw() / norm;
             expectPush(player, mag * (ux * Math.cos(rad) - uz * Math.sin(rad)),
-                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m);
+                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, a.fw() > 0);
         }
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(), m, lastSneakSent);
     }
@@ -1595,9 +1600,8 @@ public final class Ap3Executor {
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
-        // His sprint key restarts a sprint the moment a forward key goes in again - see Model.sprintKeyHeld.
-        Minecraft client = Minecraft.getInstance();
-        m.sprintKeyHeld = client.options != null && client.options.keySprint.isDown();
+        // Learned from the pushes we measured, not read from the key - AP3 overwrites the key itself every tick.
+        m.sprintKeyHeld = sprintRestarts;
         return m;
     }
 
@@ -1622,10 +1626,25 @@ public final class Ap3Executor {
     private static final double PUSH_SCALE_ALPHA = 0.5;
     private static boolean pushPending;
     private static double pushModelX, pushModelZ, pushBeforeX, pushBeforeZ, pushFriction;
+    private static boolean pushAssumedSprint, pushForward;
+    /**
+     * Whether a forward press RESTARTS a sprint here. It cannot be read from the sprint key: AP3 writes that key's
+     * state itself every tick, so {@code keySprint.isDown()} only reports what we just wrote. It is learned instead -
+     * a forward press the model costed as a walk that lands 1.3x harder means the sprint came back (his key held, or
+     * the game's Toggle Sprint), and the next plan is built knowing that.
+     */
+    private static boolean sprintRestarts;
 
     /** Records what the model expects this tick's press to add, so the next tick can measure what it really added. */
     private static void expectPush(LocalPlayer player, double px, double pz, Ap3DiscretePlanner.Model m) {
+        expectPush(player, px, pz, m, false, false);
+    }
+
+    private static void expectPush(LocalPlayer player, double px, double pz, Ap3DiscretePlanner.Model m,
+                                   boolean forward, boolean assumedSprint) {
         Vec3 v = player.getDeltaMovement();
+        pushForward = forward;
+        pushAssumedSprint = assumedSprint;
         pushModelX = px;
         pushModelZ = pz;
         pushBeforeX = Ap3AlignMath.horizontalZeroed(v.x, v.z) ? 0.0 : v.x;
@@ -1654,7 +1673,18 @@ public final class Ap3Executor {
         if (model < 1e-6 || actual < 1e-6) {
             return;
         }
-        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, actual / model));
+        double raw = actual / model;
+        if (pushForward && !pushAssumedSprint && raw > 1.15 && !sprintRestarts) {
+            // A walk-priced press that landed a sprint-sized push: forward restarts the sprint on this setup.
+            sprintRestarts = true;
+            LOGGER.info("[AP3 dev] sprint restarts on a forward press (model {}, actual {}) - planning for it now",
+                    String.format(Locale.US, "%.5f", model), String.format(Locale.US, "%.5f", actual));
+        } else if (pushForward && pushAssumedSprint && raw < 0.85 && sprintRestarts) {
+            sprintRestarts = false;
+            LOGGER.info("[AP3 dev] forward no longer restarts the sprint (model {}, actual {})",
+                    String.format(Locale.US, "%.5f", model), String.format(Locale.US, "%.5f", actual));
+        }
+        double ratio = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, raw));
         double next = pushScale * (1 - PUSH_SCALE_ALPHA) + ratio * PUSH_SCALE_ALPHA;
         double scaled = Math.max(PUSH_SCALE_MIN, Math.min(PUSH_SCALE_MAX, next));
         if (Math.abs(scaled - pushScale) > 0.01 && Ap3Config.getInstance().isAlignTimerDev()) {
@@ -1847,7 +1877,8 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m);
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
+                a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
     }
 

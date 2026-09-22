@@ -322,6 +322,8 @@ final class Ap3RouteRunner {
         if (planning || client.level == null) {
             return;
         }
+        // Only the first plan of a route says anything in chat: a re-plan every 20 ticks would be constant spam.
+        final boolean announce = plan == null;
         List<Ap3RoutePlanner.Gate> gates = new ArrayList<>();
         for (Ap3Node n : route) {
             gates.add(gateFor(n));
@@ -343,16 +345,16 @@ final class Ap3RouteRunner {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
                 pending = p;
-                LOGGER.info("[AP3 route] planned {} ticks, {} gates{}, from ({}, {}) v {} splicing at step {}",
-                        p.ticks, p.gateTick.length, p.complete ? "" : " INCOMPLETE - " + p.note,
-                        String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
-                        String.format(Locale.US, "%.4f", Math.hypot(start.vx, start.vz)), at);
-                if (Ap3Config.getInstance().isChatFeedback()) {
+                if (announce && Ap3Config.getInstance().isChatFeedback()) {
                     ModChat.send("AP3", ModChat.text("Route "),
                             ModChat.value(String.format(Locale.US, "%.2fs", p.ticks / 20.0)),
                             ModChat.dim(" (" + p.ticks + " ticks, " + jumpsIn(p) + " jumps"
                                     + (p.complete ? "" : ", INCOMPLETE - " + p.note) + ")"));
                 }
+                LOGGER.info("[AP3 route] planned {} ticks, {} gates{}, from ({}, {}) v {} splicing at step {}",
+                        p.ticks, p.gateTick.length, p.complete ? "" : " INCOMPLETE - " + p.note,
+                        String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
+                        String.format(Locale.US, "%.4f", Math.hypot(start.vx, start.vz)), at);
             } catch (Throwable t) {
                 LOGGER.warn("[AP3 route] planning failed", t);
                 pending = null;
