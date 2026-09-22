@@ -925,11 +925,17 @@ public final class Ap3Executor {
         settleTicks = 0;
         swapSent = false;
         gateSawScreen = false;
+        if (preAimed != null && preAimed != node) {
+            cancelPreAim(player); // turned for a Block / Boom that this node beat to it
+        }
         if (!node.type.isMover() && !node.type.keepsHold()) {
             // "keep me walking until i hit a different node" - this is that node, whatever it is. A WALK / RUN
             // replaces the hold with its own instead; a JUMP / EDGE jumps without ending it.
             holdDir = null;
-            // ...and a jump / edge armed by the walk's modifier belongs to that walk, not to this node.
+        }
+        if (!node.type.keepsHold()) {
+            // A jump / edge armed by a walk's modifier belongs to that walk - it ends here (a new WALK / RUN re-arms its
+            // own from its modifier when it finishes).
             jumpPendingTicks = 0;
             edgeArmedTicks = 0;
         }
@@ -2248,8 +2254,15 @@ public final class Ap3Executor {
         if (preAimed != null && tickCounter - preAimTick > 2 && activeNode != preAimed) {
             cancelPreAim(player);
         }
-        if (chain == null || preAimed != null || activeNode != null) {
-            return; // never turn you under an align / look / anything in progress - only in free walking
+        if (preAimed == null && preAimPrevSlot >= 0 && activeNode == null) {
+            retrySlotBack(player); // a cancel whose swap-back the gate refused
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (chain == null || preAimed != null || activeNode != null || holdDir == null || mc.screen != null
+                || physicalMovementKeyDown(mc)) {
+            // Only while an AP3 walk is carrying you: never when AP3 is idle, under a node in progress, with a
+            // screen open or with your own keys down (a node you walk into by hand doesn't fire anyway).
+            return;
         }
         Vec3 pos = player.position();
         Vec3 v = player.getDeltaMovement();
@@ -2268,21 +2281,22 @@ public final class Ap3Executor {
         Vec3 next = new Vec3(pos.x + dx, pos.y + v.y, pos.z + dz);
         for (Ap3Node node : chain.nodes()) {
             if ((node.type != Ap3Node.Type.BLOCK && node.type != Ap3Node.Type.BOOM) || inside.contains(node)
-                    || node.contains(pos) || !node.contains(next) || queue.contains(node)) {
+                    || node.contains(pos) || !node.contains(next) || queue.contains(node) || node.closeGate) {
                 continue;
             }
             int slot = node.type == Ap3Node.Type.BLOCK ? findBlockSlot(player) : ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
             if (slot < 0) {
                 return; // the node itself will report it when you enter
             }
-            preAimPrevSlot = player.getInventory().getSelectedSlot();
-            if (slot != preAimPrevSlot) {
+            int held = player.getInventory().getSelectedSlot();
+            if (slot != held) {
                 if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
                     return;
                 }
                 player.getInventory().setSelectedSlot(slot);
                 player.connection.send(new ServerboundSetCarriedItemPacket(slot));
             }
+            preAimPrevSlot = held;
             beginAim(player);
             aimAt(player, node);
             if (holdDir != null) {
@@ -2322,12 +2336,23 @@ public final class Ap3Executor {
     private static void cancelPreAim(LocalPlayer player) {
         preAimed = null;
         endAim(player);
-        if (player != null && preAimPrevSlot >= 0 && player.getInventory().getSelectedSlot() != preAimPrevSlot
-                && ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+        retrySlotBack(player);
+    }
+
+    /** Puts back the slot a pre-aim swapped away from; if the gate refuses this tick, preAim retries next tick. */
+    private static void retrySlotBack(LocalPlayer player) {
+        if (player == null || preAimPrevSlot < 0) {
+            return;
+        }
+        if (player.getInventory().getSelectedSlot() == preAimPrevSlot) {
+            preAimPrevSlot = -1;
+            return;
+        }
+        if (ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
             player.getInventory().setSelectedSlot(preAimPrevSlot);
             player.connection.send(new ServerboundSetCarriedItemPacket(preAimPrevSlot));
+            preAimPrevSlot = -1;
         }
-        preAimPrevSlot = -1;
     }
 
     private static void beginAim(LocalPlayer player) {
@@ -2396,14 +2421,14 @@ public final class Ap3Executor {
         Vec3 v = player.getDeltaMovement();
         double dx = v.x;
         double dz = v.z;
-        if (driving) {
+        {
+            // The held walk pushes along holdDir next tick (on the AIM step inside tickNode 'driving' is still false).
             Ap3DiscretePlanner.Model m = modelFor(player, false);
-            boolean diagonal = (wantForward || wantBackward) && (wantLeft || wantRight);
-            double push = m.tickSpeed(wantSprint || player.isSprinting()) * (diagonal ? 1.0 : Ap3AlignMath.INPUT_SCALE);
-            double len = Math.sqrt(driveX * driveX + driveZ * driveZ);
+            double push = m.tickSpeed(holdSprint || player.isSprinting());
+            double len = Math.sqrt(holdDir.x * holdDir.x + holdDir.z * holdDir.z);
             if (len > 1e-6) {
-                dx += driveX / len * push;
-                dz += driveZ / len * push;
+                dx += holdDir.x / len * push;
+                dz += holdDir.z / len * push;
             }
         }
         Vec3 eye = player.getEyePosition().add(dx, 0.0, dz);
@@ -2466,8 +2491,8 @@ public final class Ap3Executor {
 
     /** While aimed, the held walk presses the chosen keys (or nothing) instead of turning to its own angle. */
     private static boolean applyAimedHold(LocalPlayer player) {
-        if (!aimLock) {
-            return false;
+        if (!aimLock || (aimNode != activeNode && aimNode != preAimed)) {
+            return false; // no aim, or a stale one left from a node that never ran - walk normally
         }
         if (aimKey == null) {
             clearMovement();

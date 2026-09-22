@@ -202,7 +202,8 @@ public final class SecretWaypointsFeature {
         for (var gone : NEAR_ITEMS.entrySet()) {
             // Only an item that vanished right next to YOU (pickup range) - one a teammate grabbed a few blocks away,
             // or that merged / despawned, must not hide your waypoint - and only a waypoint right where it lay.
-            if (!items.containsKey(gone.getKey()) && player.position().distanceToSqr(gone.getValue()) <= 2.25) {
+            if (!items.containsKey(gone.getKey())
+                    && player.getBoundingBox().inflate(3.0, 1.5, 3.0).contains(gone.getValue())) {
                 markCollected(BlockPos.containing(gone.getValue()), Kind.ITEM, 2.5);
             }
         }
@@ -311,7 +312,7 @@ public final class SecretWaypointsFeature {
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
             RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
-            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name) || room[0] != currentIdx) {
+            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name) || !roomHasCell(room[0], currentIdx)) {
                 continue;
             }
             int clayX = room[1];
@@ -323,6 +324,22 @@ public final class SecretWaypointsFeature {
             addGroup(entry.secretCoords.bat, clayX, clayZ, rotation, cfg.getBatColor(), Kind.BAT, "bat", cfg, seen);
             addGroup(entry.secretCoords.redstoneKey, clayX, clayZ, rotation, cfg.getRedstoneKeyColor(), Kind.ITEM, "key", cfg, seen);
         }
+    }
+
+    /** Whether {@code cell} is one of the tiles of the room whose main tile is {@code mainIdx} (2x2, L and 1x4 rooms). */
+    private static boolean roomHasCell(int mainIdx, int cell) {
+        if (mainIdx == cell) {
+            return true;
+        }
+        int[] cells = LiveMapFeature.roomCellIndices(mainIdx);
+        if (cells != null) {
+            for (int c : cells) {
+                if (c == cell) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static void addGroup(List<RoomEntry.Pos> positions, int clayX, int clayZ, int rotation, int argb,
