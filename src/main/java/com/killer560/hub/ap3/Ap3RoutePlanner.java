@@ -427,6 +427,12 @@ final class Ap3RoutePlanner {
             double dz = s.z - fromZ;
             int samples = (int) Math.ceil(Math.hypot(dx, dz) / SAMPLE_STEP);
             double height = s.groundY;
+            // A tick gains at most STEP_UP of height IN TOTAL - vanilla steps up once per move - so a staircase caps
+            // how far you travel as well as how high you climb. His log: the plan expected 1.35 blocks up a 45 degree
+            // staircase and the game managed 0.94 before the riser stopped it dead (0.71 -> 0.05 blocks/tick).
+            double ceiling = s.groundY + STEP_UP;
+            double prevX = fromX;
+            double prevZ = fromZ;
             for (int i = 1; i <= Math.max(1, samples); i++) {
                 double t = (double) i / Math.max(1, samples);
                 double sx = fromX + dx * t;
@@ -440,13 +446,29 @@ final class Ap3RoutePlanner {
                     s.vy = 0.0;
                     return true;
                 }
-                if (f - height > STEP_UP) {
-                    return false; // a real step up too tall to walk: jump it or go round
-                }
-                if (!terrain.bodyClear(sx, sz, Math.max(f, height))) {
-                    return false; // head would be in a block on the way
+                if (f > ceiling || !terrain.bodyClear(sx, sz, Math.max(f, height))) {
+                    // Stopped against the riser (or a wall): you get as far as the last clear sample and the travel
+                    // into it is lost, exactly as a collision eats it.
+                    if (i == 1) {
+                        return false; // blocked from the start: this move does not exist
+                    }
+                    s.x = prevX;
+                    s.z = prevZ;
+                    double len = Math.hypot(dx, dz);
+                    if (len > 1.0E-9) {
+                        double ux = dx / len;
+                        double uz = dz / len;
+                        double along = s.vx * ux + s.vz * uz;
+                        s.vx -= along * ux; // only what ran into it is lost; a glancing move keeps sliding
+                        s.vz -= along * uz;
+                    }
+                    s.groundY = height;
+                    s.y = height;
+                    return true;
                 }
                 height = f;
+                prevX = sx;
+                prevZ = sz;
             }
             if (Double.isNaN(floor)) {
                 s.onGround = false;

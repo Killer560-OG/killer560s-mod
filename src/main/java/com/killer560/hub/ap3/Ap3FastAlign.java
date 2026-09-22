@@ -1,7 +1,7 @@
 package com.killer560.hub.ap3;
 
 /**
- * Test Align's planner - killer560 (2026-09-22): "one more attempt at making a faster align node. I want it as close
+ * Fast Align's planner - killer560 (2026-09-22): "one more attempt at making a faster align node. I want it as close
  * to .001 of precision or more as possible but the sole focus is making it as fast as possible to align without doing
  * the lag stuff. Really work hard on this, take new approaches."
  * <p>
@@ -76,7 +76,7 @@ final class Ap3FastAlign {
 
     /**
      * Runs a few hundred throwaway solves on a background thread at startup so the JIT has compiled the planner before
-     * the first real Test Align (cold, interpreted, the first plan was many times slower). Touches no shared state.
+     * the first real Fast Align (cold, interpreted, the first plan was many times slower). Touches no shared state.
      */
     static void warmUpAsync() {
         if (warmed) {

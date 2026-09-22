@@ -40,7 +40,7 @@ public final class Ap3Node {
      *  (LINE, AXIS_LINE, LEAP_DETECTOR) still parse so a recorded chain keeps loading. WAIT and BREAKER are gone
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
-        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, TEST_ALIGN,
+        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, FAST_ALIGN,
         PATH, NO_GO, TERM_AURA;
 
         public static Type parse(String s) {
@@ -49,8 +49,7 @@ public final class Ap3Node {
             }
             String key = s.trim().toLowerCase(Locale.ROOT).replace('-', '_');
             return switch (key) {
-                // "fastalign" etc.: Fast Align was removed 2026-09-21; nodes saved as one load as a plain Align.
-                case "align", "line", "l", "a", "fastalign", "fast_align", "fast", "fa" -> ALIGN;
+                case "align", "line", "l", "a" -> ALIGN;
                 case "axisalign", "axis_align", "axisline", "axis_line", "axis", "al", "aa", "wall" -> AXIS_ALIGN;
                 case "walk", "w" -> WALK;
                 case "run", "r", "sprint" -> RUN;
@@ -64,7 +63,9 @@ public final class Ap3Node {
                 case "jump", "j" -> JUMP;
                 case "block", "place", "slab", "b" -> BLOCK;
                 case "edge", "edgejump", "edge_jump", "ej" -> EDGE;
-                case "testalign", "test_align", "ta" -> TEST_ALIGN;
+                // Named Test Align while it was being tried out; "fastalign" also parsed to a plain Align between
+                // the old Fast Align being removed (2026-09-21) and this one taking the name, so both words land here.
+                case "fastalign", "fast_align", "fast", "fa", "testalign", "test_align", "ta" -> FAST_ALIGN;
                 case "path", "route", "gate", "p" -> PATH;
                 case "nogo", "no_go", "avoid", "blacklist", "keepout" -> NO_GO;
                 case "termaura", "term_aura", "taura", "opento" -> TERM_AURA;
@@ -89,7 +90,7 @@ public final class Ap3Node {
                 case JUMP -> "Jump";
                 case EDGE -> "Edge Jump";
                 case BLOCK -> "Block";
-                case TEST_ALIGN -> "Test Align";
+                case FAST_ALIGN -> "Fast Align";
                 case PATH -> "Path";
                 case NO_GO -> "No Go";
                 case TERM_AURA -> "Term Aura";
@@ -98,7 +99,7 @@ public final class Ap3Node {
 
         /** The two alignment nodes - the ones that END a held walk. */
         public boolean isAlign() {
-            return this == ALIGN || this == AXIS_ALIGN || this == TEST_ALIGN;
+            return this == ALIGN || this == AXIS_ALIGN || this == FAST_ALIGN;
         }
 
         /** Nodes that fire WITHOUT ending a held walk (killer560, 2026-09-21: "make both things that can go after
@@ -125,7 +126,7 @@ public final class Ap3Node {
             return switch (this) {
                 case STOPWATCH -> 0;
                 case STOP -> 1;
-                case ALIGN, AXIS_ALIGN, TEST_ALIGN -> 2;
+                case ALIGN, AXIS_ALIGN, FAST_ALIGN -> 2;
                 case LOOK -> 3;
                 case TERMINAL -> 4;
                 case LEAP_COUNTER -> 5;

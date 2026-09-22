@@ -992,7 +992,7 @@ public final class Ap3Executor {
             return;
         }
         switch (node.type) {
-            case ALIGN, TEST_ALIGN -> tickAlign(client, player, node);
+            case ALIGN, FAST_ALIGN -> tickAlign(client, player, node);
             case PATH -> tickPath(client, player, node);
             case NO_GO -> finishNode(); // planner data only - it never drives anything
             case TERM_AURA -> tickTermAura(client, player, node);
@@ -1115,8 +1115,8 @@ public final class Ap3Executor {
         double ez = node.z - pos.z;
         double err = Math.max(Math.abs(ex), Math.abs(ez));
         Ap3Config cfg = Ap3Config.getInstance();
-        boolean fast = node.type == Ap3Node.Type.TEST_ALIGN;
-        // Test Align always steers the real (camera) yaw - its planner snaps it freely, one delta per tick.
+        boolean fast = node.type == Ap3Node.Type.FAST_ALIGN;
+        // Fast Align always steers the real (camera) yaw - its planner snaps it freely, one delta per tick.
         Ap3Config.AlignMethod method = fast ? Ap3Config.AlignMethod.CAMERA : cfg.getAlignMethod();
         alignTolerance = fast ? Math.min(cfg.getAlignTolerance(), 0.001) : cfg.getAlignTolerance();
         if (step == Step.PREP) {
@@ -1182,7 +1182,7 @@ public final class Ap3Executor {
     }
 
     /**
-     * Test Align (killer560, 2026-09-22: "one more attempt at making a faster align node... the sole focus is making it
+     * Fast Align (killer560, 2026-09-22: "one more attempt at making a faster align node... the sole focus is making it
      * as fast as possible"): {@link Ap3FastAlign} plans the fewest ticks until you are AT REST on the point - the last
      * presses brake (any key combo, sneak included, at any yaw) instead of coasting down to vanilla's 0.003 zeroing line.
      * Its first press goes out at its yaw, reached with ONE delta on the live running yaw (never wrapped or clamped to
@@ -1204,7 +1204,7 @@ public final class Ap3Executor {
         if (r == null) {
             return false;
         }
-        alignPhase = String.format(Locale.US, "test align %d press(es), rest in %d, %.1e", r.presses, r.ticks, r.error);
+        alignPhase = String.format(Locale.US, "fast align %d press(es), rest in %d, %.1e", r.presses, r.ticks, r.error);
         if (Float.isNaN(viewYaw) && freezeViewWanted()) {
             viewYaw = player.getYRot();
         }

@@ -72,7 +72,7 @@ public final class Ap3Commands {
     public enum Action {
         ADD_ALIGN("add_line", "Add Align Node", "/ap3 add align [precise] [w<n> l<n>]"),
         ADD_AXIS_ALIGN("add_axisline", "Add Axis Align Node", "/ap3 add axisalign [precise]"),
-        ADD_TEST_ALIGN("add_testalign", "Add Test Align Node", "/ap3 add testalign [precise] [w<n> l<n>]"),
+        ADD_FAST_ALIGN("add_testalign", "Add Fast Align Node", "/ap3 add fastalign [precise] [w<n> l<n>]"),
         ADD_PATH("add_path", "Add Path Node", "/ap3 add path [exact] [speed:<min>-<max>] [dir:<deg>] [term]"),
         ADD_NO_GO("add_nogo", "Add No Go Node", "/ap3 add nogo [w<n> l<n>]"),
         ADD_TERM_AURA("add_termaura", "Add Term Aura Node", "/ap3 add termaura"),
@@ -132,7 +132,7 @@ public final class Ap3Commands {
     //      axisalign and whatnot and show them as options, same for the mods to them.") ----
 
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
-    private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "testalign", "path", "nogo", "termaura", "walk", "run", "leap",
+    private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "fastalign", "path", "nogo", "termaura", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
@@ -421,7 +421,7 @@ public final class Ap3Commands {
         switch (action) {
             case ADD_ALIGN -> add(Ap3Node.Type.ALIGN);
             case ADD_AXIS_ALIGN -> add(Ap3Node.Type.AXIS_ALIGN);
-            case ADD_TEST_ALIGN -> add(Ap3Node.Type.TEST_ALIGN);
+            case ADD_FAST_ALIGN -> add(Ap3Node.Type.FAST_ALIGN);
             case ADD_PATH -> add(Ap3Node.Type.PATH);
             case ADD_NO_GO -> add(Ap3Node.Type.NO_GO);
             case ADD_TERM_AURA -> add(Ap3Node.Type.TERM_AURA);
