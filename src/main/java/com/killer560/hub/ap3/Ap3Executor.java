@@ -753,8 +753,8 @@ public final class Ap3Executor {
             if (activeNode != null) {
                 tickNode(client, player);
             }
+            applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
-            applyJumps(player);
         } catch (Exception e) {
             LOGGER.error("[AP3] Node error", e);
             stop("internal error (see log)");
@@ -2284,7 +2284,12 @@ public final class Ap3Executor {
         float yaw = player.getYRot();
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
         float target;
-        if (Ap3Config.getInstance().isStrafe45()) {
+        // In the air, and on the tick a jump goes in, face the walk and hold W only (killer560, 2026-09-21: "the run
+        // needs to be readjusted whenever falling/in the air, it always pulls the way of the strafe"). Vanilla's
+        // sprint-jump boost (Player.jumpFromGround) pushes 0.2 along the FACING, which during a 45 degree strafe is
+        // 45 degrees off the walk - that is the pull. Straight-on, the boost and the air control both go along it.
+        boolean airborne = !player.onGround() || wantJump;
+        if (Ap3Config.getInstance().isStrafe45() && !airborne) {
             // W+A moves at yaw - 45, W+D at yaw + 45: whichever side is the shorter turn.
             float wa = walkYaw + 45f;
             float wd = walkYaw - 45f;

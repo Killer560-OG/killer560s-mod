@@ -96,6 +96,15 @@ public final class SolverEspRender {
         poseStack.popPose();
     }
 
+    /** A solver waypoint in the shared Waypoint Style - an outline, or a translucent full block. */
+    public static void renderWaypoint(LevelRenderContext context, AABB box, float r, float g, float b, float thickness) {
+        if (SolverEspConfig.getInstance().getWaypointStyle() == SolverEspConfig.WaypointStyle.FULL) {
+            renderFilledBox(context, box, r, g, b, 0.45f);
+        } else {
+            renderOutlineBox(context, box, r, g, b, 1f, thickness);
+        }
+    }
+
     public static void renderFilledBox(LevelRenderContext context, AABB box, float r, float g, float b, float a) {
         if (!throughWalls()) {
             WorldRenderUtils.renderFilledBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a);

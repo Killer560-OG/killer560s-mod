@@ -35,6 +35,23 @@ public final class SolverEspConfig {
     // Default ON: this IS the behaviour killer560 asked for, and every solver that uses it is itself
     // disabled by default, so a fresh install still draws nothing until a solver is turned on.
     private boolean throughWalls = true;
+    /** How waypoint-style solver highlights are drawn (killer560, 2026-09-21: "for anything using waypoints in
+     *  puzzle solvers add an option for full block and an option for outline"). */
+    private WaypointStyle waypointStyle = WaypointStyle.OUTLINE;
+
+    public enum WaypointStyle {
+        OUTLINE("Outline"), FULL("Full Block");
+
+        public final String label;
+
+        WaypointStyle(String label) {
+            this.label = label;
+        }
+
+        public WaypointStyle next() {
+            return this == OUTLINE ? FULL : OUTLINE;
+        }
+    }
 
     private SolverEspConfig() {
     }
@@ -56,6 +73,7 @@ public final class SolverEspConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SolverEspConfig cfg = new SolverEspConfig();
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", true);
+            cfg.waypointStyle = ConfigJson.getEnum(obj, "waypointStyle", WaypointStyle.class, WaypointStyle.OUTLINE);
             instance = cfg;
         } catch (Exception e) {
             instance = new SolverEspConfig();
@@ -67,9 +85,18 @@ public final class SolverEspConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("throughWalls", throughWalls);
+            obj.addProperty("waypointStyle", waypointStyle.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    public WaypointStyle getWaypointStyle() {
+        return waypointStyle;
+    }
+
+    public void setWaypointStyle(WaypointStyle s) {
+        waypointStyle = s == null ? WaypointStyle.OUTLINE : s;
     }
 
     public boolean isThroughWalls() {

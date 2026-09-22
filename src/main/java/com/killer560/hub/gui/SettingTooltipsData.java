@@ -1616,6 +1616,7 @@ final class SettingTooltipsData {
         d.put("starred mob hitboxes/wither highlight", "Highlights the real F7/M7 wither bosses at any range, but only while you can actually see them. Not an ESP - it never draws through walls.");
         d.put("dungeon esp/wither style", "How the wither highlight is drawn: Glow Hitbox (vanilla outline) or Hitbox Fill (filled box). Click to cycle.");
         d.put("starred mob hitboxes/wither style", "How the wither highlight is drawn: Glow Hitbox (vanilla outline) or Hitbox Fill (filled box). Click to cycle.");
+        d.put("solver highlights/waypoint style", "How puzzle solver waypoints are drawn: Outline (the block's edges) or Full Block (a see-through filled block). Applies to Creeper Beams, Boulder, Ice Path, Quiz, Weirdos and Teleport Maze; Blaze and Tic Tac Toe keep their own fill/outline setting.");
         d.put("solver highlights/through walls", "Draws every puzzle and boss solver's highlight through blocks, so you can see the answer before you can see the spot. Applies to all solvers at once.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
         d.put("chat keybinds", "Keys, or mouse buttons, that send a command or chat message you type in, only while no menu or chat is open.");
@@ -1791,7 +1792,7 @@ final class SettingTooltipsData {
         d.put("score calculator/bonus kill alerts", "Party-chat messages sent when you personally get credit for a mimic, prince or bat bonus-score kill. Each sends at most once per run and never if a party mate's mod already announced the same kill.");
         d.put("score calculator/send 270 now", "Sends the 270 party message immediately, regardless of your current score. Does not affect the automatic 270 alert above.");
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, regardless of your current score. Does not affect the automatic 300 alert above.");
-        d.put("trail/trail", "Drops one cosmetic square per tick at your feet: amber while grounded, blue while airborne, nothing while you're standing still. Purely visual, no gameplay effect.");
+        d.put("trail/trail", "Drops one cosmetic square per tick at your feet: green while grounded, blue while airborne, nothing while you're standing still. Purely visual, no gameplay effect.");
         d.put("trail/length", "How many squares the trail keeps before the oldest one drops off, from 1 to 100.");
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the trail squares are.");

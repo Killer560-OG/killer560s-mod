@@ -101,7 +101,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Team Melody HUD — live Melody terminal progress for every teammate in P3, from teammates on this mod, Odin users (via the bridge) and your own read-only tracker, which also shares your progress
 - Teammate rooms on the map — rooms and doors your teammates found show on the dungeon map before you reach them, dimmed until you see them yourself (display only, never used by pathfinding)
 - Command Shortcuts — /f0-/f7, /m1-/m7, /basic /hot /burning /fiery /infernal and /kuudra <tier>, each individually toggleable
-- Trail — a square dropped behind you each tick, orange on the ground and blue in the air, with adjustable length, size, opacity and fade
+- Trail — a square dropped behind you each tick, green on the ground and blue in the air, with adjustable length, size, opacity and fade
 - Inventory Theme — re-skins chest and inventory menus in the mod's orange theme, with opacity and accent colour settings
 - Mod conflict warnings — one chat warning per session if Skyblocker's terminal solver or Devonian's Party Finder Overview is doing the same job as ours
 - Item Browser — a NEU-style full-height panel listing the complete Skyblock item catalog with real icons beside any inventory screen; adjustable column count (3-20), scale, horizontal/vertical fill order and left/center/right anchoring, hover lore with tier/category/NPC sell price, and a left-click craft and obtain popup. Shares its search box with Inventory Search

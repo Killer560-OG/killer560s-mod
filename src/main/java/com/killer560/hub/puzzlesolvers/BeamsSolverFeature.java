@@ -44,7 +44,7 @@ public final class BeamsSolverFeature {
     private record CandidatePair(int x1, int y1, int z1, int x2, int y2, int z2) {
     }
 
-    private record ActivePair(BlockPos a, BlockPos b, int colorIndex) {
+    private record ActivePair(BlockPos a, BlockPos b, int colorIndex, boolean misaligned) {
     }
 
     private static final float[][] COLORS = {
@@ -53,7 +53,7 @@ public final class BeamsSolverFeature {
             {0.9f, 0.4f, 0.9f}, // light purple
             {0.0f, 0.6f, 0.6f}, // dark aqua
             {1.0f, 1.0f, 0.2f}, // yellow
-            {0.7f, 0.1f, 0.1f}, // dark red
+            {0.2f, 0.5f, 1.0f}, // blue (was dark red - red now only means a misaligned pair)
             {1.0f, 1.0f, 1.0f}, // white
             {0.5f, 0.0f, 0.5f}, // dark purple
     };
@@ -69,7 +69,9 @@ public final class BeamsSolverFeature {
     public static List<BlockPos[]> getActivePairs() {
         List<BlockPos[]> out = new ArrayList<>();
         for (ActivePair pair : activePairs) {
-            out.add(new BlockPos[]{pair.a(), pair.b()});
+            if (!pair.misaligned()) {
+                out.add(new BlockPos[]{pair.a(), pair.b()});
+            }
         }
         return out;
     }
@@ -155,11 +157,25 @@ public final class BeamsSolverFeature {
             CandidatePair candidate = CANDIDATES.get(i);
             BlockPos a = realPos(candidate.x1(), candidate.y1(), candidate.z1(), clayAndRotation);
             BlockPos b = realPos(candidate.x2(), candidate.y2(), candidate.z2(), clayAndRotation);
-            if (level.getBlockState(a).is(Blocks.SEA_LANTERN) && level.getBlockState(b).is(Blocks.SEA_LANTERN)) {
-                found.add(new ActivePair(a, b, i % COLORS.length));
+            boolean litA = level.getBlockState(a).is(Blocks.SEA_LANTERN);
+            boolean litB = level.getBlockState(b).is(Blocks.SEA_LANTERN);
+            if (litA && litB) {
+                found.add(new ActivePair(a, b, i % COLORS.length, false));
+            } else if (litA != litB && (usedUp(level, a) || usedUp(level, b))) {
+                // Misaligned (killer560, 2026-09-21: "if I misshoot something and they are not aligned properly, then
+                // the blocks and line they make should be red"): one lantern of this solution pair was used up
+                // with the WRONG partner (it turned to prismarine) while its right partner is still lit - that
+                // lantern can no longer be finished correctly. Red box on both, red line.
+                found.add(new ActivePair(a, b, i % COLORS.length, true));
             }
         }
         activePairs = found;
+    }
+
+    /** A lantern that has been connected already turns into prismarine. */
+    private static boolean usedUp(Level level, BlockPos pos) {
+        var state = level.getBlockState(pos);
+        return state.is(Blocks.PRISMARINE) || state.is(Blocks.PRISMARINE_BRICKS) || state.is(Blocks.DARK_PRISMARINE);
     }
 
     private static BlockPos realPos(int x, int y, int z, int[] clayAndRotation) {
@@ -180,10 +196,10 @@ public final class BeamsSolverFeature {
             return;
         }
         for (ActivePair pair : activePairs) {
-            float[] color = COLORS[pair.colorIndex()];
-            SolverEspRender.renderOutlineBox(context, new AABB(pair.a()), color[0], color[1], color[2], 1f, 2f);
-            SolverEspRender.renderOutlineBox(context, new AABB(pair.b()), color[0], color[1], color[2], 1f, 2f);
-            if (cfg.isShowTracer()) {
+            float[] color = pair.misaligned() ? new float[]{1.0f, 0.15f, 0.15f} : COLORS[pair.colorIndex()];
+            SolverEspRender.renderWaypoint(context, new AABB(pair.a()), color[0], color[1], color[2], 2f);
+            SolverEspRender.renderWaypoint(context, new AABB(pair.b()), color[0], color[1], color[2], 2f);
+            if (cfg.isShowTracer() || pair.misaligned()) {
                 List<Vec3> line = List.of(
                         new Vec3(pair.a().getX() + 0.5, pair.a().getY() + 0.5, pair.a().getZ() + 0.5),
                         new Vec3(pair.b().getX() + 0.5, pair.b().getY() + 0.5, pair.b().getZ() + 0.5));

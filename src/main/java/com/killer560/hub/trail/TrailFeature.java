@@ -41,7 +41,8 @@ public final class TrailFeature {
      *  out tiny idle jitter (looking around, sub-pixel physics settling) so it doesn't spam squares. */
     private static final double STILL_EPSILON_SQ = 0.02 * 0.02;
 
-    private static final float[] GROUNDED_RGB = rgbToFloats(MainMenuTheme.ORANGE);
+    /** Green while grounded (killer560, 2026-09-21: "make the on ground color green instead of orange"). */
+    private static final float[] GROUNDED_RGB = rgbToFloats(0x55FF55);
     private static final float[] AIRBORNE_RGB = rgbToFloats(AIRBORNE_BLUE);
 
     // Fixed-capacity ring buffer, sized to the max possible length regardless of the current setting -

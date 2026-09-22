@@ -208,7 +208,7 @@ public final class QuizSolverFeature {
                 continue;
             }
             BlockPos below = option.blockPos.below();
-            SolverEspRender.renderFilledBox(context, new AABB(below), 0.2f, 1.0f, 0.3f, 0.5f);
+            SolverEspRender.renderWaypoint(context, new AABB(below), 0.2f, 1.0f, 0.3f, 2f);
         }
     }
 

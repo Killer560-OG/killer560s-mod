@@ -27,8 +27,17 @@ public class SolverHighlightsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Through Walls", cfg.isThroughWalls()));
                 }).bounds(contentX, contentY, contentWidth, 20).build());
+        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
+                    cfg.setWaypointStyle(cfg.getWaypointStyle().next());
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
+                }).bounds(contentX, contentY + 24, contentWidth, 20).build());
 
         return widgets;
+    }
+
+    private static Component styleText(SolverEspConfig cfg) {
+        return Component.literal("Waypoint Style: \u00a76" + cfg.getWaypointStyle().label);
     }
 
     private static Component onOff(String label, boolean value) {

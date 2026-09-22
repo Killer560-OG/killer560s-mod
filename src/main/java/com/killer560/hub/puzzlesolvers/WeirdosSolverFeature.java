@@ -199,11 +199,11 @@ public final class WeirdosSolverFeature {
         }
         // killer560, 2026-09-20: "make it a filled box rather than an outline".
         if (correctPos != null) {
-            SolverEspRender.renderFilledBox(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 0.5f);
+            SolverEspRender.renderWaypoint(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 2f);
         }
         if (cfg.isShowWrongChests()) {
             for (BlockPos pos : wrongPositions) {
-                SolverEspRender.renderFilledBox(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 0.5f);
+                SolverEspRender.renderWaypoint(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 2f);
             }
         }
     }

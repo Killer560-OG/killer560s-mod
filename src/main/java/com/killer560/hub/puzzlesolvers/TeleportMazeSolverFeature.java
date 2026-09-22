@@ -303,14 +303,14 @@ public final class TeleportMazeSolverFeature {
             AABB box = shape.isEmpty() ? new AABB(pad) : shape.bounds().move(pad);
             if (correctPortals.contains(pad)) {
                 if (correctPortals.size() == 1) {
-                    SolverEspRender.renderFilledBox(context, box, 0.33f, 1.0f, 0.33f, 0.5f);
+                    SolverEspRender.renderWaypoint(context, box, 0.33f, 1.0f, 0.33f, 2f);
                 } else {
-                    SolverEspRender.renderFilledBox(context, box, 1.0f, 0.67f, 0.0f, 0.5f);
+                    SolverEspRender.renderWaypoint(context, box, 1.0f, 0.67f, 0.0f, 2f);
                 }
             } else if (visited.contains(pad)) {
-                SolverEspRender.renderFilledBox(context, box, 1.0f, 0.33f, 0.33f, 0.5f);
+                SolverEspRender.renderWaypoint(context, box, 1.0f, 0.33f, 0.33f, 2f);
             } else {
-                SolverEspRender.renderFilledBox(context, box, 1.0f, 1.0f, 1.0f, 0.5f);
+                SolverEspRender.renderWaypoint(context, box, 1.0f, 1.0f, 1.0f, 2f);
             }
         }
         BlockPos target = best;
