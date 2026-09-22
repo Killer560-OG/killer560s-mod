@@ -42,7 +42,13 @@ final class Ap3RouteRunner {
     private static final double HALF_WIDTH = 0.3;
     private static final double BODY_HEIGHT = 1.8;
     /** How far outside the gates the world is sampled, so a route can swing wide around a wall. */
-    private static final int SNAP_PAD = 16;
+    /**
+     * How far past the route the world snapshot reaches. It must be at least the planner's scanPad, or the
+     * heuristic would be offering ways round through blocks the collider cannot see.
+     */
+    private static int snapPad() {
+        return (int) Math.ceil(Ap3Config.getInstance().getRouteScanPad()) + 2;
+    }
     /**
      * Off the plan by more than this and a fresh plan is started - but the current one keeps driving while it is
      * computed, re-anchored to the measured position. Dropping it instead made the route stall every few ticks
@@ -410,6 +416,7 @@ final class Ap3RouteRunner {
         Ap3RoutePlanner.Options options = new Ap3RoutePlanner.Options();
         Ap3Config cfg = Ap3Config.getInstance();
         options.allowJump = cfg.isRouteAllowJumps();
+        options.scanPad = cfg.getRouteScanPad();
         options.beam = cfg.getRouteBeam();
         // The first plan may think; a re-plan may not - every millisecond it spends is a tick the route is coasting.
         options.budgetMs = plan == null ? cfg.getRouteBudgetMs() : Math.min(cfg.getRouteBudgetMs(), 300);
@@ -696,19 +703,37 @@ final class Ap3RouteRunner {
                 loz = Math.min(loz, g.z);
                 hiz = Math.max(hiz, g.z);
             }
-            double minX = Math.floor(lox) - SNAP_PAD;
-            double minZ = Math.floor(loz) - SNAP_PAD;
-            int w = (int) Math.ceil((Math.ceil(hix) + SNAP_PAD - minX) / CELL) + 1;
-            int h = (int) Math.ceil((Math.ceil(hiz) + SNAP_PAD - minZ) / CELL) + 1;
+            double minX = Math.floor(lox) - snapPad();
+            double minZ = Math.floor(loz) - snapPad();
+            int w = (int) Math.ceil((Math.ceil(hix) + snapPad() - minX) / CELL) + 1;
+            int h = (int) Math.ceil((Math.ceil(hiz) + snapPad() - minZ) / CELL) + 1;
             Snap snap = new Snap(minX, minZ, w, h);
+            // The band has to cover the NODES as well as his feet. It used to sit 6 up and 8 down from wherever he
+            // was standing, so a node five or seven blocks above him - killer560's course has both - was simply not
+            // in the snapshot, and a route to it could not be planned through geometry nobody had read.
+            double loY = start.y;
+            double hiY = start.y;
+            for (Ap3RoutePlanner.Gate g : gates) {
+                loY = Math.min(loY, g.y);
+                hiY = Math.max(hiY, g.y);
+            }
             int feetY = Mth.floor(start.y);
+            int bandLo = Mth.floor(loY) - BAND_DOWN;
+            int bandHi = Mth.floor(hiY) + BAND_UP;
+            long t0 = System.nanoTime();
             for (int i = 0; i < w; i++) {
                 for (int j = 0; j < h; j++) {
-                    snap.readCell(level, minX + (i + 0.5) * CELL, minZ + (j + 0.5) * CELL, feetY, i * h + j);
+                    snap.readCell(level, minX + (i + 0.5) * CELL, minZ + (j + 0.5) * CELL, feetY, bandLo, bandHi,
+                            i * h + j);
                 }
             }
-            snap.readBoxes(level, feetY);
+            snap.readBoxes(level, bandLo, bandHi);
             snap.addBlockNodes(level, feetY);
+            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            if (ms > 20 && Ap3Config.getInstance().isAlignTimerDev()) {
+                // This runs on the client thread, so it is a stutter if it grows. Worth seeing before he feels it.
+                LOGGER.info("[AP3 route] world snapshot {}x{} cells, y {}..{} took {} ms", w, h, bandLo, bandHi, ms);
+            }
             return snap;
         }
 
@@ -717,7 +742,7 @@ final class Ap3RouteRunner {
          * state's real collision shape - so a stair contributes its two boxes, a slab its one, and a fence its post
          * and rails. Blocks Breaker Aura is going to break contribute nothing, exactly as they do to the grids.
          */
-        private void readBoxes(ClientLevel level, int feetY) {
+        private void readBoxes(ClientLevel level, int bandLo, int bandHi) {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             int bx0 = Mth.floor(minX);
             int bx1 = Mth.floor(minX + (w - 1) * CELL);
@@ -725,7 +750,7 @@ final class Ap3RouteRunner {
             int bz1 = Mth.floor(minZ + (h - 1) * CELL);
             for (int bx = bx0; bx <= bx1; bx++) {
                 for (int bz = bz0; bz <= bz1; bz++) {
-                    for (int y = feetY - BAND_DOWN; y <= feetY + BAND_UP; y++) {
+                    for (int y = bandLo; y <= bandHi; y++) {
                         pos.set(bx, y, bz);
                         if (!level.isLoaded(pos)) {
                             continue;
@@ -766,11 +791,14 @@ final class Ap3RouteRunner {
          * for the body above it. The height is read from the collision boxes that actually cover this spot, so half
          * slabs, stairs and carpets give their real height rather than their block's outline.
          */
-        private void readCell(ClientLevel level, double x, double z, int feetY, int cell) {
+        private void readCell(ClientLevel level, double x, double z, int feetY, int bandLo, int bandHi, int cell) {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             int bx = Mth.floor(x);
             int bz = Mth.floor(z);
-            for (int y = feetY + BAND_UP; y >= feetY - BAND_DOWN; y--) {
+            // From the top of the band down, but never starting more than BAND_UP above HIS feet: the first
+            // standable surface from the top is what this cell reports, and starting higher would report a ledge
+            // far overhead in place of the floor he is walking on.
+            for (int y = Math.min(bandHi, feetY + BAND_UP); y >= bandLo; y--) {
                 pos.set(bx, y, bz);
                 if (!level.isLoaded(pos)) {
                     continue;

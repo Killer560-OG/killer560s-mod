@@ -95,6 +95,13 @@ final class Ap3RoutePlanner {
         }
     }
 
+    /**
+     * What a block of unexplained height under an overhang costs the heuristic, in blocks of distance. Large on
+     * purpose: it has to outweigh any way round the grid could offer, or standing under a platform still looks
+     * like the cheapest place to be.
+     */
+    private static final double UNDER_PENALTY = 64.0;
+
     /** The eight directions a jump may reach across a hole in the heuristic's grid. */
     private static final int[] STEP_I = {1, 1, 1, 0, 0, -1, -1, -1};
     private static final int[] STEP_J = {1, 0, -1, 1, -1, 1, 0, -1};
@@ -209,6 +216,18 @@ final class Ap3RoutePlanner {
          * just spin in circles"). Small enough that it only breaks ties, never enough to buy a slower route.
          */
         double turnCost = 0.25;
+        /**
+         * How far past the route's own bounding box the world is read and the heuristic grid is built.
+         * <p>
+         * killer560 (2026-09-22): "it runs and jumps straight at it instead of taking a detour to go up a few
+         * blocks... you also need to increase how much it scans up to a point". At 12 blocks the stairs up to a
+         * platform 14 blocks off to one side were simply outside the grid, so the field had no way up to offer and
+         * the search did the only thing left - walk under the node. With the pad past them the same route plans in
+         * 190 ms instead of failing in 1350, because a heuristic that knows the way is worth far more than the
+         * cells it costs.
+         */
+        double scanPad = 32.0;
+
         /** How many ticks in a row the route may stand on a block a Block node places (a ghost block is short-lived). */
         int slabTicks = 2;
         /**
@@ -237,6 +256,7 @@ final class Ap3RoutePlanner {
             c.slabTicks = slabTicks;
             c.exactSearch = exactSearch;
             c.exactTol = exactTol;
+            c.scanPad = scanPad;
             c.preferRunning = preferRunning;
             return c;
         }
@@ -376,7 +396,7 @@ final class Ap3RoutePlanner {
         Node root = new Node();
         root.s = start.copy();
         root.group = 0;
-        double startLeft = field.heuristic(start.x, start.z, 0, 0, groups, top);
+        double startLeft = field.heuristic(start.x, start.z, start.y, 0, 0, groups, top);
         root.f = startLeft;
         List<Node> layer = new ArrayList<>();
         layer.add(root);
@@ -437,9 +457,9 @@ final class Ap3RoutePlanner {
         plan.diagnosis = String.format(Locale.US,
                 "reached %d/%d gates, best was %d ticks in and still %.1f blocks out; %d layers searched; %s",
                 plan.gatesReached, gates.size(), best.ticks,
-                field.heuristic(best.s.x, best.s.z, best.group, best.mask, groups, top) * top,
+                field.heuristic(best.s.x, best.s.z, best.s.y, best.group, best.mask, groups, top) * top,
                 layersSearched, reach);
-        if (field.heuristic(best.s.x, best.s.z, best.group, best.mask, groups, top) >= startLeft - 1e-9) {
+        if (field.heuristic(best.s.x, best.s.z, best.s.y, best.group, best.mask, groups, top) >= startLeft - 1e-9) {
             // The search ran out of time without getting anywhere, and the best it has is no closer to the goal than
             // standing still. Driving that is worse than not driving: killer560's route did exactly this at the top
             // of a staircase on 2026-09-22 - a near-180 and a sprint back off the stairs, because the partial it was
@@ -637,7 +657,7 @@ final class Ap3RoutePlanner {
         // jumps made the beam drop every jumping state in favour of running ones that could not finish: a 5-block
         // gap at speed 550 has to be jumped, and it went from crossing every time to INCOMPLETE every time. The
         // preference belongs where the answer is chosen, not where the search is cut.
-        c.f = c.ticks + field.heuristic(s.x, s.z, group, mask, groups, top)
+        c.f = c.ticks + field.heuristic(s.x, s.z, s.y, group, mask, groups, top)
                 + o.turnCost * Math.abs(wrap(yaw - n.s.yaw)) / 180.0;
         long key = cell(s, group, mask);
         Node old = seen.get(key);
@@ -713,6 +733,8 @@ final class Ap3RoutePlanner {
         final int w, h;
         /** Distance to each gate's box, per cell; NaN where blocked or unreachable. */
         final float[][] dist;
+        /** The surface height this grid believes each cell has - one per column, which is the whole difficulty. */
+        float[] surface;
         /** Distance from gate i-1's centre on to the end, walked through the fields. */
         final double[] tail;
         final List<Gate> gates;
@@ -732,7 +754,7 @@ final class Ap3RoutePlanner {
                 lo_z = Math.min(lo_z, b.minZ);
                 hi_z = Math.max(hi_z, b.maxZ);
             }
-            double pad = 12.0; // room to walk around the outside of everything
+            double pad = o.scanPad; // room to walk around the outside of everything
             minX = lo_x - pad;
             minZ = lo_z - pad;
             w = (int) Math.ceil((hi_x + pad - minX) / CELL) + 1;
@@ -758,6 +780,7 @@ final class Ap3RoutePlanner {
                 }
             }
             double climb = o.allowJump ? JUMP_CLIMB : Ap3RouteCollide.MAX_UP_STEP;
+            surface = floor;
             dist = new float[gates.size()][];
             for (int g = 0; g < gates.size(); g++) {
                 dist[g] = flood(wall, floor, climb, gates.get(g));
@@ -775,16 +798,35 @@ final class Ap3RoutePlanner {
             float[] d = new float[w * h];
             java.util.Arrays.fill(d, Float.POSITIVE_INFINITY);
             java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
-            for (int i = 0; i < w; i++) {
-                for (int j = 0; j < h; j++) {
-                    double cx = minX + i * CELL;
-                    double cz = minZ + j * CELL;
-                    if (wall[i * h + j]) {
-                        continue;
-                    }
-                    if (Math.abs(cx - g.x) <= g.halfW + CELL && Math.abs(cz - g.z) <= g.halfL + CELL) {
-                        d[i * h + j] = 0f;
-                        queue.add(i * h + j);
+            // Seed at the gate - but only where the ground is actually AT the gate's height. The field measures XZ
+            // only, so seeding the gate's whole column tells the search that standing directly underneath a node is
+            // zero blocks away from it. killer560, 2026-09-22: "it runs and jumps straight at it instead of taking a
+            // detour to go up a few blocks", and the diagnosis line agreed - "best was 13 ticks in and still 0.0
+            // blocks out" while stood on the floor beneath a platform. With the seeding levelled, the floor under
+            // the platform measures its real distance - the whole way round by the stairs - and the detour becomes
+            // the cheap thing it actually is.
+            boolean seeded = false;
+            for (int pass = 0; pass < 2 && !seeded; pass++) {
+                for (int i = 0; i < w; i++) {
+                    for (int j = 0; j < h; j++) {
+                        int cell = i * h + j;
+                        double cx = minX + i * CELL;
+                        double cz = minZ + j * CELL;
+                        if (wall[cell]) {
+                            continue;
+                        }
+                        if (Math.abs(cx - g.x) > g.halfW + CELL || Math.abs(cz - g.z) > g.halfL + CELL) {
+                            continue;
+                        }
+                        // Second pass drops the height test: if nothing in the gate's column sits at its level -
+                        // a node on a shape this 2.5D grid reads differently, say - an unseeded field would be
+                        // worse than a flat one, so fall back to the old behaviour rather than to nothing.
+                        if (pass == 0 && Math.abs(floor[cell] - g.y) > GATE_Y_TOLERANCE) {
+                            continue;
+                        }
+                        d[cell] = 0f;
+                        queue.add(cell);
+                        seeded = true;
                     }
                 }
             }
@@ -875,18 +917,44 @@ final class Ap3RoutePlanner {
         }
 
         double at(int gate, double x, double z) {
+            return at(gate, x, z, Double.NaN);
+        }
+
+        /**
+         * Distance from here to a gate - with {@code y}, from here ON THE LEVEL HE IS ACTUALLY ON.
+         * <p>
+         * This grid holds one surface per column, so the floor beneath a platform and the platform itself are the
+         * same cell, and a player stood underneath reads as being AT the node on top of it. That is what sent
+         * killer560's route running under a balcony and jumping at the ceiling instead of round to the stairs -
+         * the diagnosis said "13 ticks in and still 0.0 blocks out" while he was on the floor five blocks below.
+         * Being ABOVE the surface is ordinary (he is mid-jump); being well below it means this cell's distance is
+         * somebody else's, so it is charged for the climb it is hiding. The charge is deliberately steeper than any
+         * detour the grid could offer, because the whole point is that walking under the thing must never look
+         * cheaper than walking round to the way up.
+         */
+        double at(int gate, double x, double z, double y) {
             int i = (int) Math.round((x - minX) / CELL);
             int j = (int) Math.round((z - minZ) / CELL);
             if (i < 0 || j < 0 || i >= w || j >= h) {
                 Gate g = gates.get(gate);
                 return Math.hypot(g.x - x, g.z - z);
             }
-            float d = dist[gate][i * h + j];
+            int cell = i * h + j;
+            float d = dist[gate][cell];
+            double out;
             if (Float.isInfinite(d)) {
                 Gate g = gates.get(gate);
-                return Math.hypot(g.x - x, g.z - z); // walled in on the grid: fall back, the step check still rules
+                out = Math.hypot(g.x - x, g.z - z); // walled in on the grid: fall back, the step check still rules
+            } else {
+                out = d;
             }
-            return d;
+            if (!Double.isNaN(y)) {
+                double under = surface[cell] - y;
+                if (under > Ap3RouteCollide.MAX_UP_STEP) {
+                    out += UNDER_PENALTY * under;
+                }
+            }
+            return out;
         }
 
         /**
@@ -894,6 +962,10 @@ final class Ap3RoutePlanner {
          * only the nearest one counts, which never overestimates (you have to reach at least that one).
          */
         double heuristic(double x, double z, int group, int mask, List<int[]> groups, double top) {
+            return heuristic(x, z, Double.NaN, group, mask, groups, top);
+        }
+
+        double heuristic(double x, double z, double y, int group, int mask, List<int[]> groups, double top) {
             if (group >= groups.size()) {
                 return 0;
             }
@@ -917,7 +989,9 @@ final class Ap3RoutePlanner {
                     if ((open & (1 << i)) == 0) {
                         continue;
                     }
-                    double d = at(members[i], cx, cz);
+                    // Only the FIRST hop is measured from where he is standing, so only that one knows his level;
+                    // after it the walk continues from gate to gate, all of them on their own ground.
+                    double d = at(members[i], cx, cz, cx == x && cz == z ? y : Double.NaN);
                     if (d < bestD) {
                         bestD = d;
                         bestI = i;
