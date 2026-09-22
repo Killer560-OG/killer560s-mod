@@ -94,6 +94,15 @@ final class Ap3RoutePlanner {
         }
     }
 
+    /** The eight directions a jump may reach across a hole in the heuristic's grid. */
+    private static final int[] STEP_I = {1, 1, 1, 0, 0, -1, -1, -1};
+    private static final int[] STEP_J = {1, 0, -1, 1, -1, 1, 0, -1};
+    /**
+     * How far a jump may reach across a hole, in half-block cells. Eight cells is four blocks, which is about what a
+     * sprint jump covers at killer560's speed; reaching further would cost the flood more than the guidance is worth.
+     */
+    private static final int JUMP_CELLS = 8;
+
     /**
      * How much height a sprint jump gains, for deciding whether the heuristic's grid is connected upwards. A jump
      * peaks at 1.252 blocks, and you have to land ON the ledge rather than brush it, so this is a little under.
@@ -272,6 +281,8 @@ final class Ap3RoutePlanner {
         boolean jump;
         /** How many jumps this whole path has used - the tie-break that keeps a route on its feet. */
         int jumps;
+        /** Scratch for {@link #cutLayer}. */
+        boolean picked;
         /** Ticks in a row spent standing on a block a Block node will place. */
         int slabTicks;
         /** Gates crossed on this tick, as indices into the gate list. */
@@ -399,7 +410,7 @@ final class Ap3RoutePlanner {
                 return finish(goal, gates, blocked, m, o, terrain, plan);
             }
             next.sort((a, b) -> Double.compare(a.f, b.f));
-            layer = next.size() > o.beam ? new ArrayList<>(next.subList(0, o.beam)) : next;
+            layer = cutLayer(next, o.beam, top);
         }
         plan.gatesReached = gatesBefore(groups, best.group) + Integer.bitCount(best.mask);
         plan.note = plan.note.isEmpty() ? "no route found" : plan.note;
@@ -415,6 +426,84 @@ final class Ap3RoutePlanner {
         Plan partial = finish(best, gates, blocked, m, o, terrain, plan);
         partial.complete = false;
         return partial;
+    }
+
+    /**
+     * Cut a layer to the beam width WITHOUT throwing away every slow state.
+     * <p>
+     * Ranking purely by {@code f} means ranking by speed, because {@code f} is ticks plus distance over top speed:
+     * a state that has deliberately slowed costs more ticks for the same ground and always sorts below a state that
+     * has not. That is fine on open floor and fatal on a short hop. Landing on a pad two blocks deep, one block up
+     * and one block away, needs an approach of about 0.5 blocks a tick where killer560 runs at 1.5 - so every state
+     * that could make the jump was cut, the rest fell in the hole, and the search reported "no route found" having
+     * never tried slowing down. That is his "it just tries to jump towards the node with no regard to it still
+     * being a whole block low": the only approaches it kept were ones going too fast to land.
+     * <p>
+     * So the beam is shared between speed bands, cheapest first within each. The fast band still gets the lion's
+     * share on any tick where nothing else survives, because unused quota is handed back in the second pass.
+     */
+    private static List<Node> cutLayer(List<Node> sorted, int beam, double top) {
+        if (sorted.size() <= beam) {
+            return sorted;
+        }
+        // Most of the beam still goes to the cheapest states, in order. Splitting it evenly between bands instead
+        // cost real quality - a route round a wall went from 26 ticks to 53 - because the best states were being
+        // squeezed out by a reserved share for bands that had nothing useful to offer on that tick. So: keep the
+        // best half outright, and spend the other half on diversity.
+        // A quarter of the beam goes to the cheapest states outright and the rest is shared between bands.
+        // Measured across the pad courses, the gap sweep and the wall detour: at a half the wall detour
+        // failed outright, at nothing it cost 53 ticks instead of 26, and at a quarter every pad course that is
+        // physically possible completes, every runnable gap is run rather than jumped, and the detour costs 34.
+        int keepBest = beam / 4;
+        List<Node> out = new ArrayList<>(beam);
+        for (Node n : sorted) {
+            n.picked = false;
+        }
+        for (int i = 0; i < keepBest && i < sorted.size(); i++) {
+            Node n = sorted.get(i);
+            n.picked = true;
+            out.add(n);
+        }
+        // Speed bands, doubled by whether the state is in the air. Airborne states are the ones a hop between pads
+        // lives or dies on, and on any given tick they are far outnumbered by states still running about on the
+        // floor - so without a reserved share they are cut before the landing they were setting up ever happens.
+        int bands = SPEED_BANDS * 2;
+        int quota = Math.max(1, (beam - keepBest) / bands);
+        int[] taken = new int[bands];
+        for (Node n : sorted) {
+            if (n.picked) {
+                continue;
+            }
+            int band = speedBand(n, top, bands);
+            if (taken[band] < quota) {
+                taken[band]++;
+                n.picked = true;
+                out.add(n);
+                if (out.size() == beam) {
+                    return out;
+                }
+            }
+        }
+        for (Node n : sorted) { // bands with nothing to offer give their room back to the best of the rest
+            if (!n.picked) {
+                out.add(n);
+                if (out.size() == beam) {
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    /** How many speed bands the beam is shared between; doubled again by ground versus air. */
+    private static final int SPEED_BANDS = 4;
+
+    private static int speedBand(Node n, double top, int bands) {
+        int band = 0;
+        if (top > 1.0E-9) {
+            band = Math.max(0, Math.min(SPEED_BANDS - 1, (int) (n.s.speed() / top * SPEED_BANDS)));
+        }
+        return n.s.onGround ? band : band + SPEED_BANDS;
     }
 
     private static int gatesBefore(List<int[]> groups, int group) {
@@ -680,6 +769,19 @@ final class Ap3RoutePlanner {
                 int ci = cur / h;
                 int cj = cur % h;
                 float base = d[cur];
+                // Only cells beside a hole can be jumped to or from, and in open terrain almost none are - so the
+                // reach below costs nothing on ordinary ground.
+                boolean onLip = false;
+                for (int di = -1; di <= 1 && !onLip; di++) {
+                    for (int dj = -1; dj <= 1; dj++) {
+                        int ni = ci + di;
+                        int nj = cj + dj;
+                        if (ni < 0 || nj < 0 || ni >= w || nj >= h || wall[ni * h + nj]) {
+                            onLip = true;
+                            break;
+                        }
+                    }
+                }
                 for (int di = -1; di <= 1; di++) {
                     for (int dj = -1; dj <= 1; dj++) {
                         if (di == 0 && dj == 0) {
@@ -702,6 +804,44 @@ final class Ap3RoutePlanner {
                         if (base + step < d[ni * h + nj] - 1e-4f) {
                             d[ni * h + nj] = base + step;
                             queue.add(ni * h + nj);
+                        }
+                    }
+                }
+                // ...and over a gap. A cell with nothing to stand on is a hole in this grid, and treating it as a
+                // wall means a course built out of pillars and ledges - killer560's, whose ground profiles read
+                // "X X X X X X X X -4.0 -2.5 ... 5.0" - is almost entirely unreachable to the field. It then falls
+                // back to straight-line distance, which is admissible but tells the search nothing, so the search
+                // does the only thing an uninformed search can: it heads straight at the node. That is exactly what
+                // he described - "it just tries to jump towards the node with no regard to it still being a whole
+                // block low" - and it is why 47 plans in one session came back INCOMPLETE.
+                // So: from a cell on the lip of a hole, reach across it to anywhere a jump could actually land.
+                if (!onLip) {
+                    continue;
+                }
+                for (int dir = 0; dir < 8; dir++) {
+                    int si = STEP_I[dir];
+                    int sj = STEP_J[dir];
+                    for (int len = 2; len <= JUMP_CELLS; len++) {
+                        int ni = ci + si * len;
+                        int nj = cj + sj * len;
+                        if (ni < 0 || nj < 0 || ni >= w || nj >= h) {
+                            break;
+                        }
+                        int mid = (ci + si * (len - 1)) * h + (cj + sj * (len - 1));
+                        if (!wall[mid]) {
+                            break; // solid ground all the way: the ordinary neighbours already walked it
+                        }
+                        int at = ni * h + nj;
+                        if (wall[at]) {
+                            continue; // still over the hole - keep reaching
+                        }
+                        if (floor[cur] - floor[at] > JUMP_CLIMB) {
+                            continue; // a jump from there could not gain this much height
+                        }
+                        float step = (float) (Math.hypot(si * len, sj * len) * CELL);
+                        if (base + step < d[at] - 1e-4f) {
+                            d[at] = base + step;
+                            queue.add(at);
                         }
                     }
                 }
