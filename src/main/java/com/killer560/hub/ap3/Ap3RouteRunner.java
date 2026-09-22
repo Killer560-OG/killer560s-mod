@@ -552,6 +552,12 @@ final class Ap3RouteRunner {
         private final double[] headroom;
         /** Cells whose only floor is a block an AP3 Block node is going to place (see {@link #placedFloorOnly}). */
         private final boolean[] placed;
+        /**
+         * Cells that are solid rather than simply empty. Both read as "nowhere to stand", but a hole can be crossed
+         * in the air and a wall cannot - and treating a wall as a hole is what walked a route into one at the top of
+         * his stairs (drift 0.000 for 22 ticks, then 0.409 and the speed collapsing from 0.71 to 0.05).
+         */
+        private final boolean[] wall;
 
         private Snap(double minX, double minZ, int w, int h) {
             this.minX = minX;
@@ -561,6 +567,7 @@ final class Ap3RouteRunner {
             this.floorY = new double[w * h];
             this.headroom = new double[w * h];
             this.placed = new boolean[w * h];
+            this.wall = new boolean[w * h];
             java.util.Arrays.fill(floorY, Double.NaN);
         }
 
@@ -603,7 +610,8 @@ final class Ap3RouteRunner {
                     continue;
                 }
                 if (!level.getBlockState(pos).getFluidState().isEmpty()) {
-                    return; // lava (or water): a bounce costs the whole run, so the route stays out
+                    wall[cell] = true; // lava (or water): a bounce costs the whole run, so the route stays out
+                    return;
                 }
                 double top = topAt(level, pos, x - bx, z - bz);
                 if (Double.isNaN(top)) {
@@ -629,7 +637,8 @@ final class Ap3RouteRunner {
                     head += 1.0;
                 }
                 if (head < BODY_HEIGHT - 0.1) {
-                    return; // no room to stand here
+                    wall[cell] = true; // a surface with no room over it: solid as far as the route is concerned
+                    return;
                 }
                 floorY[cell] = top;
                 headroom[cell] = head;
@@ -723,6 +732,9 @@ final class Ap3RouteRunner {
                     int cell = cellIndex(sx, sz);
                     if (cell < 0) {
                         return false;
+                    }
+                    if (wall[cell]) {
+                        return false; // solid, whatever height you are at
                     }
                     double f = floorY[cell];
                     if (Double.isNaN(f)) {
