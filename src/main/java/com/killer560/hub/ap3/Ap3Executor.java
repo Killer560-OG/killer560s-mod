@@ -2157,15 +2157,41 @@ public final class Ap3Executor {
     private static BlockPos blockWatchPos;
     private static int blockWatchTicks;
     private static String blockWatchLast = "";
+    /** The placed block is solid and you are pressed against it: the walk stops pushing into it (Grim sees your
+     *  keys - holding W into a block the server may not have is a mismatch). */
+    private static boolean placedBlocking;
+    private static boolean placedWasSolid;
+    /** Ticks left to stand still after the placed block vanished next to you, so the server has removed it too. */
+    private static int placedGraceTicks;
 
     private static void tickBlockWatch(Minecraft client) {
         if (blockWatchPos == null || client.level == null || client.player == null) {
             return;
         }
-        if (++blockWatchTicks > 20) {
+        if (++blockWatchTicks > 60 && placedGraceTicks <= 0) {
             blockWatchPos = null;
             return;
         }
+        boolean solid = !client.level.getBlockState(blockWatchPos).getCollisionShape(client.level, blockWatchPos).isEmpty();
+        boolean touching = client.player.getBoundingBox().inflate(0.05).intersects(new net.minecraft.world.phys.AABB(blockWatchPos));
+        if (placedWasSolid && !solid && touching) {
+            // It vanished while you were against it: wait out the server (ping in ticks + 1) before moving into it.
+            int ping = 0;
+            var info = client.getConnection() == null ? null : client.getConnection().getPlayerInfo(client.player.getUUID());
+            if (info != null) {
+                ping = info.getLatency();
+            }
+            placedGraceTicks = Math.min(20, ping / 50 + 2);
+            LOGGER.info("[AP3 dev] Block watch: {} vanished while you were against it - holding {} ticks (ping {} ms)",
+                    blockWatchPos.toShortString(), placedGraceTicks, ping);
+        }
+        placedWasSolid = solid;
+        // Only a block that really stops you counts: taller than a step up above your feet (a slab you run onto is
+        // not) - the walk direction check is done in applyHold.
+        double top = solid ? blockWatchPos.getY()
+                + client.level.getBlockState(blockWatchPos).getCollisionShape(client.level, blockWatchPos).max(net.minecraft.core.Direction.Axis.Y)
+                : 0.0;
+        placedBlocking = solid && touching && top - client.player.getY() > 0.6;
         String now = String.valueOf(client.level.getBlockState(blockWatchPos).getBlock());
         boolean overlaps = client.player.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(blockWatchPos));
         if (!now.equals(blockWatchLast) || overlaps) {
@@ -2483,6 +2509,9 @@ public final class Ap3Executor {
                 // what the client world then shows at that spot over the next second (tickBlockWatch).
                 blockWatchPos = b.getBlockPos().relative(b.getDirection()).immutable();
                 blockWatchTicks = 0;
+                placedWasSolid = false;
+                placedBlocking = false;
+                placedGraceTicks = 0;
                 blockWatchLast = String.valueOf(client.level.getBlockState(blockWatchPos).getBlock());
                 LOGGER.info("[AP3 dev] Block #{} used {} on {} face {} -> place at {} ({}); player at ({}, {}, {}) yaw {} pitch {}; client now shows {}",
                         number(node), player.getMainHandItem().getHoverName().getString(), b.getBlockPos().toShortString(),
@@ -2706,6 +2735,22 @@ public final class Ap3Executor {
      */
     private static void applyHold(LocalPlayer player) {
         if (driving || holdDir == null) {
+            return;
+        }
+        boolean ahead = false;
+        if (placedBlocking && blockWatchPos != null) {
+            double bx = blockWatchPos.getX() + 0.5 - player.getX();
+            double bz = blockWatchPos.getZ() + 0.5 - player.getZ();
+            ahead = bx * holdDir.x + bz * holdDir.z > 0.0;
+        }
+        if (placedGraceTicks > 0 || ahead) {
+            // A Block node's block is in the way (or just vanished from in front of you): no keys, like a player who
+            // stops when they hit something - see placedBlocking. killer560 (2026-09-22): running into the placed chest
+            // by hand never flagged; only AP3's walk, which kept holding W into it, did.
+            if (placedGraceTicks > 0) {
+                placedGraceTicks--;
+            }
+            clearMovement();
             return;
         }
         if (!WALK_USES_SENT_YAW) {
