@@ -58,7 +58,9 @@ public final class QuizSolverFeature {
             onTick();
             logQuizStateIfChanged();
         });
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(QuizSolverFeature::onWorldRender);
+        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
+        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(QuizSolverFeature::onWorldRender);
     }
 
     private static Map<String, List<String>> loadAnswers() {

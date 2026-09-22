@@ -89,7 +89,9 @@ public final class LividSolverFeature {
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(LividSolverFeature::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(LividSolverFeature::tick);
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(LividSolverFeature::onWorldRender);
+        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
+        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(LividSolverFeature::onWorldRender);
     }
 
     private static boolean onFloor5() {

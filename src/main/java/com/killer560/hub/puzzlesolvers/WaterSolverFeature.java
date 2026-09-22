@@ -99,7 +99,9 @@ public final class WaterSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(WaterSolverFeature::tick);
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WaterSolverFeature::onWorldRender);
+        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
+        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(WaterSolverFeature::onWorldRender);
     }
 
     private static Map<String, Map<String, Map<String, Map<String, List<Double>>>>> loadSolutions() {
@@ -365,7 +367,17 @@ public final class WaterSolverFeature {
         if (cfg.isShowTracer() && !flat.isEmpty()) {
             LeverBlock first = flat.get(0).getKey();
             BlockPos firstPos = leverRealPos(first);
-            SolverEspRender.renderOutlineBox(context, new AABB(firstPos), 0.3f, 1.0f, 0.5f, 1f, 3f);
+            // Just the lever's own hitbox, not the whole block (killer560, 2026-09-21: "shrink the highlight down to
+            // just the levers hitbox"); the full block only if the lever isn't loaded.
+            AABB leverBox = new AABB(firstPos);
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null) {
+                var shape = mc.level.getBlockState(firstPos).getShape(mc.level, firstPos);
+                if (!shape.isEmpty()) {
+                    leverBox = shape.bounds().move(firstPos);
+                }
+            }
+            SolverEspRender.renderWaypoint(context, leverBox, 0.3f, 1.0f, 0.5f, 3f);
             if (flat.size() > 1) {
                 LeverBlock second = flat.get(1).getKey();
                 BlockPos secondPos = leverRealPos(second);

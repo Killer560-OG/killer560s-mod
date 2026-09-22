@@ -56,7 +56,9 @@ public final class TicTacToeSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(TicTacToeSolverFeature::tick);
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TicTacToeSolverFeature::onWorldRender);
+        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
+        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(TicTacToeSolverFeature::onWorldRender);
     }
 
     /** The cell to place in right now (player's turn), or null. */

@@ -96,7 +96,9 @@ public final class WeirdosSolverFeature {
                 reset();
             }
         });
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WeirdosSolverFeature::onWorldRender);
+        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
+        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(WeirdosSolverFeature::onWorldRender);
     }
 
     private static void onMessage(Component message) {
