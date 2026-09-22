@@ -104,7 +104,13 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         int half = (contentWidth - GAP) / 2;
 
         header(w, contentX, y, contentWidth, "AP3");
-        toggle(w, contentX, y, "AP3", cfg::isEnabledRaw, cfg::setEnabled, requestRebuild);
+        // Full width (killer560, 2026-09-21: "make the ap3 on button take up the full width").
+        w.add(SettingsButtonWidget.builder(onOff("AP3", cfg.isEnabledRaw()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabledRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += 24;
         if (!cfg.isEnabledRaw()) {
             return w;
         }
@@ -126,30 +132,26 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
 
         header(w, contentX, y, contentWidth, "Controls");
-        // Stop is never greyed: "must work at any time" - if the executor's isRunning() ever lies, this still fires.
-        w.add(SettingsButtonWidget.builder(Component.literal("\u00a7cStop AP3"), btn -> {
-                    Action.STOP.run();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], half, 20).build());
+        // The Stop AP3 button is gone (killer560, 2026-09-21: "I do not need that"); the Stop AP3 keybind and
+        // /ap3 stop remain. Force Dungeon ("add a force dungeon tab to the ap3 so I can config outside of dungeons")
+        // is session only (Ap3Feature, not the config): off on every launch and world change.
+        boolean forced = safe(Ap3Feature::isForceDungeon);
         w.add(SettingsButtonWidget.builder(onOff("Test Mode", safe(Ap3Executor::isTestMode)), btn -> {
                     Action.TEST_MODE.run();
                     requestRebuild.run();
-                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
-        y[0] += 24;
-        // "add a force dungeon tab to the ap3 so I can config outside of dungeons" - session only (Ap3Feature, not
-        // the config): off on every launch and world change.
-        boolean forced = safe(Ap3Feature::isForceDungeon);
+                }).bounds(contentX, y[0], half, 20).build());
         w.add(SettingsButtonWidget.builder(onOff("Force Dungeon", forced), btn -> {
                     Ap3Feature.setForceDungeon(!Ap3Feature.isForceDungeon());
                     requestRebuild.run();
-                }).bounds(contentX, y[0], half, 20).build());
+                }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
+        y[0] += 24;
         if (forced) {
             w.add(SettingsButtonWidget.builder(forcedAreaText(), btn -> {
                         Ap3Feature.cycleForcedArea();
                         btn.setMessage(forcedAreaText());
-                    }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
+                    }).bounds(contentX, y[0], contentWidth, 20).build());
+            y[0] += 24;
         }
-        y[0] += 24;
 
         header(w, contentX, y, contentWidth, "Movement");
         toggleCell(w, contentX, y[0], half, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45);
@@ -230,32 +232,38 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
      */
     private void buildLabelSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, int half, Runnable rebuild) {
         header(w, x, y, width, "Node Labels");
-        toggle(w, x, y, "Show Node Labels", cfg::isShowLabels, cfg::setShowLabels, rebuild);
+        // Laid out 2026-09-21 (killer560: "adjust the node labels as that section looks funny"): full-width master
+        // switch, then even two-column rows - the old three narrow cells cut their text off.
+        w.add(SettingsButtonWidget.builder(onOff("Show Node Labels", cfg.isShowLabels()), btn -> {
+                    cfg.setShowLabels(!cfg.isShowLabels());
+                    cfg.save();
+                    rebuild.run();
+                }).bounds(x, y[0], width, 20).build());
+        y[0] += 24;
         if (!cfg.isShowLabels()) {
             return;
         }
-        int colW = (width - GAP * 2) / 3;
-        toggleCell(w, x, y[0], colW, "Show Node Numbers", cfg::isShowNodeNumbers, cfg::setShowNodeNumbers);
-        toggleCell(w, x + colW + GAP, y[0], colW, "Show Node Type", cfg::isShowNodeType, cfg::setShowNodeType);
-        toggleCell(w, x + (colW + GAP) * 2, y[0], Math.max(1, width - (colW + GAP) * 2), "Show Node Details",
-                cfg::isShowNodeDetails, cfg::setShowNodeDetails);
+        int right = Math.max(1, width - half - GAP);
+        toggleCell(w, x, y[0], half, "Show Node Numbers", cfg::isShowNodeNumbers, cfg::setShowNodeNumbers);
+        toggleCell(w, x + half + GAP, y[0], right, "Show Node Type", cfg::isShowNodeType, cfg::setShowNodeType);
         y[0] += ROW + GAP;
-
+        toggleCell(w, x, y[0], half, "Show Node Details", cfg::isShowNodeDetails, cfg::setShowNodeDetails);
         // "toggleable for color": the node's own colour (so the number matches its box) or one fixed colour.
         w.add(SettingsButtonWidget.builder(labelColorModeText(cfg), btn -> {
                     cfg.setLabelUseNodeColor(!cfg.isLabelUseNodeColor());
                     cfg.save();
                     rebuild.run();
-                }).bounds(x, y[0], half, 20).build());
+                }).bounds(x + half + GAP, y[0], right, ROW).build());
+        y[0] += ROW + GAP;
         if (!cfg.isLabelUseNodeColor()) {
-            colorButton(w, x + half + GAP, y[0], half, "Fixed Label Color", cfg.getLabelColorArgb(),
+            colorButton(w, x, y[0], width, "Fixed Label Color", cfg.getLabelColorArgb(),
                     Ap3Config.DEFAULT_LABEL_COLOR, cfg::setLabelColorArgb, null);
+            y[0] += 24;
         }
-        y[0] += 24;
 
         w.add(slider(x, y[0], half, labelScaleText(cfg), Ap3Config.MIN_LABEL_SCALE, Ap3Config.MAX_LABEL_SCALE,
                 cfg.getLabelScale(), 0.05, v -> cfg.setLabelScale((float) v), () -> labelScaleText(cfg), cfg::save));
-        w.add(slider(x + half + GAP, y[0], half, labelHeightText(cfg), Ap3Config.MIN_LABEL_HEIGHT, Ap3Config.MAX_LABEL_HEIGHT,
+        w.add(slider(x + half + GAP, y[0], Math.max(1, width - half - GAP), labelHeightText(cfg), Ap3Config.MIN_LABEL_HEIGHT, Ap3Config.MAX_LABEL_HEIGHT,
                 cfg.getLabelHeightOffset(), 0.05, v -> cfg.setLabelHeightOffset((float) v), () -> labelHeightText(cfg), cfg::save));
         y[0] += ROW + GAP;
     }
