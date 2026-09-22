@@ -187,11 +187,30 @@ final class Ap3RouteRunner {
             fresh = null;
         }
         if (fresh != null && (plan == null || stepIndex >= pendingAt)) {
-            pending = null;
-            plan = fresh;
-            stepIndex = 0;
-            lastPlanStep = 0;
-            predicted = planStart == null ? null : planStart.copy();
+            // A re-plan is given at most 300 ms, which IS PLAN_LATENCY ticks, and it is only picked up on the
+            // following client tick - so it routinely lands one tick after the step it was built for. Adopting it
+            // as if it started now anchored `predicted` to a position killer560 had already left, and at 1.08
+            // blocks a tick that is an instant drift bigger than DRIFT_LIMIT. Every re-plan after it was late the
+            // same way, so the route spiralled: a schedule meant for one place, driven from another, until it
+            // turned round and ran off the staircase (2026-09-22, three runs in a row).
+            // So: start the plan at the step that belongs to THIS tick, and measure drift from where he really is.
+            int late = plan == null ? 0 : Math.max(0, stepIndex - pendingAt);
+            if (late >= fresh.steps.length) {
+                LOGGER.info("[AP3 route] the plan arrived {} ticks late - all {} of its steps are in the past,"
+                        + " keeping the current one", late, fresh.steps.length);
+                pending = null;
+                fresh = null;
+            } else {
+                if (late > 0) {
+                    LOGGER.info("[AP3 route] the plan arrived {} tick(s) late - starting it at step {}/{}",
+                            late, late + 1, fresh.steps.length);
+                }
+                pending = null;
+                plan = fresh;
+                stepIndex = late;
+                lastPlanStep = late;
+                predicted = stateOf(player);
+            }
         }
         if (plan == null) {
             return true; // still planning - no keys this tick, the player coasts
@@ -212,7 +231,12 @@ final class Ap3RouteRunner {
                 logDisagreement(player);
             }
         }
-        if (!planning && (drifted || stepIndex - lastPlanStep >= REPLAN_EVERY)) {
+        // The routine re-sync is there to catch the world moving under a plan. When the plan is complete and the
+        // game is following it to within a few hundredths, there is nothing to re-sync and a re-plan only risks
+        // arriving late - so leave a route that is working alone.
+        boolean worthReplanning = drifted || !plan.complete
+                || (predicted != null && Math.hypot(player.getX() - predicted.x, player.getZ() - predicted.z) > 0.05);
+        if (!planning && worthReplanning && (drifted || stepIndex - lastPlanStep >= REPLAN_EVERY)) {
             lastPlanStep = stepIndex;
             replanAhead(client, player);
         }
