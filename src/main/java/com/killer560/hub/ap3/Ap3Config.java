@@ -106,10 +106,9 @@ public final class Ap3Config {
     /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
      *  the discrete planner typically lands far inside it. */
     public static final double DEFAULT_ALIGN_TOLERANCE = 0.001;
-    /** killer560 (2026-09-21): "it can be off a tad more up to +-.1 since we have it so precise already. But I want
-     *  it to be like 3 ticks or so" - the planner takes the fastest landing and, among equally fast ones, the
-     *  closest, so this is a ceiling, not where it aims. */
-    public static final double DEFAULT_FAST_ALIGN_TOLERANCE = 0.1;
+    /** killer560 (2026-09-21): "I want it to be like 3 ticks or so", then "it should be .001 not .1" - the
+     *  planner takes the landing that is at rest soonest within this, and the closest of equally fast ones. */
+    public static final double DEFAULT_FAST_ALIGN_TOLERANCE = 0.001;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;

@@ -161,7 +161,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // Aligns are input-only (no position writes - Hypixel lags those back) and land exactly; this is how far off,
         // per axis, still counts as landed (0.0005 = the exact 3-decimal coordinate).
         header(w, contentX, y, contentWidth, "Align");
-        toggle(w, contentX, y, "Freeze View While Aligning", cfg::isAlignFreezeView, cfg::setAlignFreezeView, null);
+        toggle(w, contentX, y, "Freeze View (Freecam)", cfg::isAlignFreezeView, cfg::setAlignFreezeView, null);
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         header(w, contentX, y, contentWidth, "Stopwatch");

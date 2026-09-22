@@ -1469,8 +1469,8 @@ public final class Ap3Executor {
             releaseView(player, 0f);
             return;
         }
-        boolean holding = freezeViewWanted() && activeNode != null && step == Step.DO
-                && activeNode.type.isAlign();
+        boolean holding = freezeViewWanted() && (holdDir != null
+                || (activeNode != null && step == Step.DO && activeNode.type.isAlign()));
         if (!holding) {
             float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
             if (Math.abs(delta) <= ALIGN_YAW_STEP) {
@@ -2254,6 +2254,10 @@ public final class Ap3Executor {
         if (driving || holdDir == null) {
             return;
         }
+        if (!WALK_USES_SENT_YAW) {
+            applyHoldRealYaw(player);
+            return;
+        }
         if (strafeLockedForHold()) {
             boolean diag = Ap3Config.getInstance().isStrafe45();
             float keyYaw = diag ? serverYaw - strafeSide * STRAFE_ANGLE : serverYaw;
@@ -2266,6 +2270,43 @@ public final class Ap3Executor {
         int octant = Math.round(rel / 45f);
         double r = Math.toRadians(player.getYRot() + octant * 45f);
         writeMove(player, -Math.sin(r), Math.cos(r), holdSprint, (octant & 1) != 0);
+    }
+
+    /** The silent server-side yaw lock for walks: OFF. killer560's 2026-09-21 p3sim test - every walk under it was
+     *  set back 3-3.5 blocks within half a second (and worse when he moved the mouse, which changed the camera frame
+     *  the fractional stick vector was projected into). Hypixel corrected the same idea on aligns. */
+    private static final boolean WALK_USES_SENT_YAW = false;
+
+    /**
+     * The held walk the way the align passed: the REAL yaw turns (bounded wrapped deltas on the live value, never an
+     * assignment) until W+A / W+D - or W with 45 Degree Strafe off - points exactly along the walk, and the keys are
+     * always one of the eight real combinations at that yaw with nothing fractional. Until the turn arrives (1-3
+     * ticks) the nearest of the eight directions is used. Freeze View keeps his screen where it was and his mouse
+     * steers only the view, so moving the crosshair can no longer bend the walk.
+     */
+    private static void applyHoldRealYaw(LocalPlayer player) {
+        if (Float.isNaN(viewYaw) && freezeViewWanted()) {
+            viewYaw = player.getYRot();
+        }
+        float yaw = player.getYRot();
+        float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+        float target;
+        if (Ap3Config.getInstance().isStrafe45()) {
+            // W+A moves at yaw - 45, W+D at yaw + 45: whichever side is the shorter turn.
+            float wa = walkYaw + 45f;
+            float wd = walkYaw - 45f;
+            target = Math.abs(Mth.wrapDegrees(wa - yaw)) <= Math.abs(Mth.wrapDegrees(wd - yaw)) ? wa : wd;
+        } else {
+            target = walkYaw;
+        }
+        float delta = Mth.clamp(Mth.wrapDegrees(target - yaw), -(float) ALIGN_YAW_STEP, (float) ALIGN_YAW_STEP);
+        if (Math.abs(delta) > 1e-4f) {
+            player.setYRot(yaw + delta);
+            RouteRotation.rebase();
+        }
+        int[] key = nearestKey8(holdDir.x, holdDir.z, player.getYRot());
+        boolean sprint = holdSprint && key[0] > 0 && !player.isInWater();
+        writeDiscrete(player, key[0], key[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
     }
 
     /**
@@ -2384,7 +2425,7 @@ public final class Ap3Executor {
             // a tick, still capped) so the wait is 2-3 ticks.
             strafeSmoothing = 0.8f;
         }
-        boolean wanted = holdDir != null && driving && mixinApplied && rotationMixinApplied;
+        boolean wanted = WALK_USES_SENT_YAW && holdDir != null && driving && mixinApplied && rotationMixinApplied;
         boolean strafe45 = Ap3Config.getInstance().isStrafe45();
         if (wanted) {
             if (!strafeLock || strafeReturning) {

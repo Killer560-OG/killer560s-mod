@@ -1879,7 +1879,7 @@ final class SettingTooltipsData {
         d.put("advanced position/show facing", "Adds your yaw and pitch at the same precision. Yaw shows the raw value Minecraft actually holds (it can run past 360 the more you turn), with the everyday 0-360 wrapped value in brackets.");
         d.put("advanced position/show block", "Adds the integer block position (X, Y, Z) you're currently standing on.");
         d.put("advanced position/show velocity", "Adds your current velocity in blocks per tick, X/Y/Z, at the same decimal precision as the coordinates.");
-        d.put("ap3/45 degree strafe", "While a Walk or Run node drives you, the server is always told you face the walk. ON: it is told the 45-degree strafe angle for the walk and sees W plus A or D held, so you sprint diagonally at the real W+A speed. OFF: it is told the walk direction itself and sees W only. Your camera stays free either way; F5 shows the angle the server sees.");
+        d.put("ap3/45 degree strafe", "How a Walk or Run node moves you. ON: your real yaw turns so W plus A or D points exactly along the walk - a diagonal sprint at the real W+A speed. OFF: it turns to face the walk and holds W only. Either way only real key combinations are pressed, and with Freeze View on your screen does not turn.");
         d.put("ap3/choose ap3 config", "Which chains file is in use, from the killer560smod-ap3 folder. Opens a list of every config in the folder to switch to, and a box to create a new empty one. The choice is remembered.");
         d.put("ap3 colors", "Node marker colours in the world - one colour for everything, or one per node type. Click to open or close the section.");
         d.put("uniform node color", "ON: every node marker uses the single Chain Color. OFF: each node type gets its own colour.");
@@ -1902,9 +1902,9 @@ final class SettingTooltipsData {
         d.put("ap3/test mode", "Dry run: nodes run without waiting on terminals, teammates or close gates, a failed leap is skipped, and ANY key or mouse button stops everything. Never saved.");
         d.put("ap3/force dungeon", "Testing only. Makes AP3 act as if you are in the F7/M7 boss wherever you are - the hub, singleplayer, any server - so you can place, see and test nodes. In a real boss the real phase and section still apply. Never saved: it turns itself off on every restart and world change, and a red reminder sits at the top of the screen while it is on.");
         d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on and you are not in a real boss. Click to cycle P1, P2, S1-S5, P4, P5.");
-        d.put("ap3/freeze view while aligning", "Your screen keeps the view you had while the align turns your real yaw underneath (the server, and your model in F5, see the real one). Your mouse keeps steering the view. When the align ends your real yaw glides back under the view, and nothing on screen moves. Default ON.");
+        d.put("ap3/freeze view (freecam)", "While an Align or a Walk/Run node turns your real yaw (what the server and your F5 model see), your screen keeps the view you had and your mouse steers only that view, so looking around never bends the movement. When the node ends your real yaw glides back under the view and nothing on screen moves. Default ON.");
         d.put("ap3 fast align color", "Marker colour for Fast Align nodes.");
-        d.put("add fast align node", "Places a Fast Align: tuned purely for speed. It picks whatever keys, sneaks and turns bring you to a stop soonest, anywhere within 0.1 of the point (and the closest of the equally fast options), then hands over to the next node.");
+        d.put("add fast align node", "Places a Fast Align: tuned for speed. It picks whatever keys, sneaks and turns bring you to a stop on the point soonest (within 0.001), then hands over to the next node.");
         d.put("add fast align node key", "Keybind for /ap3 add fastalign.");
     }
 }
