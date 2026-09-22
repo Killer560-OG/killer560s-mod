@@ -1254,6 +1254,14 @@ public final class Ap3Executor {
         LOGGER.info("[AP3 dev] SERVER CORRECTION #{}{}: delta ({}, {}, {}) blocks", alignCorrections,
                 moving ? " while AP3 was moving you" : (traceActive ? " (align tail)" : ""),
                 String.format(Locale.US, "%.4f", dx), String.format(Locale.US, "%.4f", dy), String.format(Locale.US, "%.4f", dz));
+        LocalPlayer pl = Minecraft.getInstance().player;
+        if (pl != null) {
+            LOGGER.info("[AP3 dev] correction: client was at ({}, {}, {}), yaw {}; server puts you at ({}, {}, {}); last block place {}",
+                    String.format(Locale.US, "%.3f", pl.getX()), String.format(Locale.US, "%.3f", pl.getY()),
+                    String.format(Locale.US, "%.3f", pl.getZ()), String.format(Locale.US, "%.1f", pl.getYRot()),
+                    String.format(Locale.US, "%.3f", pl.getX() + dx), String.format(Locale.US, "%.3f", pl.getY() + dy),
+                    String.format(Locale.US, "%.3f", pl.getZ() + dz), blockWatchPos == null ? "none" : blockWatchPos.toShortString());
+        }
         if (!moving) {
             return;
         }
@@ -1470,6 +1478,7 @@ public final class Ap3Executor {
      *  otherwise glides the real yaw back under the view and lets go. */
     static void tickView(Minecraft client) {
         LocalPlayer player = client.player;
+        tickBlockWatch(client);
         if (Float.isNaN(viewYaw)) {
             return;
         }
@@ -2144,6 +2153,29 @@ public final class Ap3Executor {
     // It does not end a held walk (Type.keepsHold) and swaps back to the slot you had afterwards.
 
     private static int blockPrevSlot = -1;
+    /** Dev diagnostics: the spot the last Block node placed into, watched for a second. */
+    private static BlockPos blockWatchPos;
+    private static int blockWatchTicks;
+    private static String blockWatchLast = "";
+
+    private static void tickBlockWatch(Minecraft client) {
+        if (blockWatchPos == null || client.level == null || client.player == null) {
+            return;
+        }
+        if (++blockWatchTicks > 20) {
+            blockWatchPos = null;
+            return;
+        }
+        String now = String.valueOf(client.level.getBlockState(blockWatchPos).getBlock());
+        boolean overlaps = client.player.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(blockWatchPos));
+        if (!now.equals(blockWatchLast) || overlaps) {
+            LOGGER.info("[AP3 dev] Block watch +{}t: {} now shows {}{}; player at ({}, {}, {})", blockWatchTicks,
+                    blockWatchPos.toShortString(), now, overlaps ? " (your hitbox overlaps it)" : "",
+                    String.format(Locale.US, "%.3f", client.player.getX()), String.format(Locale.US, "%.3f", client.player.getY()),
+                    String.format(Locale.US, "%.3f", client.player.getZ()));
+            blockWatchLast = now;
+        }
+    }
     private static float aimPrevPitch;
     private static boolean aiming;
 
@@ -2447,6 +2479,17 @@ public final class Ap3Executor {
                     return;
                 }
                 net.minecraft.world.InteractionResult r = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
+                // Diagnostics (2026-09-22, chest-placement setback on p3sim): what was placed, where, from where, and
+                // what the client world then shows at that spot over the next second (tickBlockWatch).
+                blockWatchPos = b.getBlockPos().relative(b.getDirection()).immutable();
+                blockWatchTicks = 0;
+                blockWatchLast = String.valueOf(client.level.getBlockState(blockWatchPos).getBlock());
+                LOGGER.info("[AP3 dev] Block #{} used {} on {} face {} -> place at {} ({}); player at ({}, {}, {}) yaw {} pitch {}; client now shows {}",
+                        number(node), player.getMainHandItem().getHoverName().getString(), b.getBlockPos().toShortString(),
+                        b.getDirection(), blockWatchPos.toShortString(), r,
+                        String.format(Locale.US, "%.3f", player.getX()), String.format(Locale.US, "%.3f", player.getY()),
+                        String.format(Locale.US, "%.3f", player.getZ()), String.format(Locale.US, "%.1f", player.getYRot()),
+                        String.format(Locale.US, "%.1f", player.getXRot()), blockWatchLast);
                 if (r.consumesAction()) {
                     player.swing(InteractionHand.MAIN_HAND);
                 }
