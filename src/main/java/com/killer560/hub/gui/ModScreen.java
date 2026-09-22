@@ -509,6 +509,18 @@ public class ModScreen extends Screen {
 
         @Override
         public void setFocused(GuiEventListener guiEventListener) {
+            // Tell the old and new widgets, like vanilla's AbstractContainerEventHandler does. Only storing the
+            // reference meant a clicked EditBox never learned it was focused, so NO text box inside the mod menu
+            // accepted typing (tolerance box, Profiles name, Class Overrides, ...). Fixed 2026-09-21.
+            if (this.focused == guiEventListener) {
+                return;
+            }
+            if (this.focused != null) {
+                this.focused.setFocused(false);
+            }
+            if (guiEventListener != null) {
+                guiEventListener.setFocused(true);
+            }
             this.focused = guiEventListener;
         }
 

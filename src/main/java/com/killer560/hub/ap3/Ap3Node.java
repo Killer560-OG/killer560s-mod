@@ -40,7 +40,7 @@ public final class Ap3Node {
      *  (LINE, AXIS_LINE, LEAP_DETECTOR) still parse so a recorded chain keeps loading. WAIT and BREAKER are gone
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
-        ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH;
+        ALIGN, FAST_ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -49,6 +49,7 @@ public final class Ap3Node {
             String key = s.trim().toLowerCase(Locale.ROOT).replace('-', '_');
             return switch (key) {
                 case "align", "line", "l", "a" -> ALIGN;
+                case "fastalign", "fast_align", "fast", "fa" -> FAST_ALIGN;
                 case "axisalign", "axis_align", "axisline", "axis_line", "axis", "al", "aa", "wall" -> AXIS_ALIGN;
                 case "walk", "w" -> WALK;
                 case "run", "r", "sprint" -> RUN;
@@ -67,6 +68,7 @@ public final class Ap3Node {
         public String label() {
             return switch (this) {
                 case ALIGN -> "Align";
+                case FAST_ALIGN -> "Fast Align";
                 case AXIS_ALIGN -> "Axis Align";
                 case WALK -> "Walk";
                 case RUN -> "Run";
@@ -82,7 +84,7 @@ public final class Ap3Node {
 
         /** The two alignment nodes - the ones that END a held walk. */
         public boolean isAlign() {
-            return this == ALIGN || this == AXIS_ALIGN;
+            return this == ALIGN || this == FAST_ALIGN || this == AXIS_ALIGN;
         }
 
         /** The two movers (they start a held walk that lasts until any other node fires). */
@@ -103,7 +105,7 @@ public final class Ap3Node {
             return switch (this) {
                 case STOPWATCH -> 0;
                 case STOP -> 1;
-                case ALIGN, AXIS_ALIGN -> 2;
+                case ALIGN, FAST_ALIGN, AXIS_ALIGN -> 2;
                 case LOOK -> 3;
                 case TERMINAL -> 4;
                 case LEAP_COUNTER -> 5;
@@ -381,7 +383,7 @@ public final class Ap3Node {
     public String describe() {
         StringBuilder sb = new StringBuilder(type.label());
         switch (type) {
-            case ALIGN -> sb.append(precise ? " [precise]" : " [centre]");
+            case ALIGN, FAST_ALIGN -> sb.append(precise ? " [precise]" : " [centre]");
             case AXIS_ALIGN -> sb.append(" [wall ").append(wallDir == null ? "?" : wallDir.getName())
                     .append(precise ? ", precise]" : "]");
             case WALK, RUN -> sb.append(String.format(Locale.US, " [@ %.0f deg]", yaw));

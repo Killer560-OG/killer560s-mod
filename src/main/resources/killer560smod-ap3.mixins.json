@@ -8,7 +8,9 @@
 		"Ap3RotationSendMixin",
 		"Ap3StrafeImpulseMixin",
 		"Ap3ThirdPersonMixin",
-		"Ap3PositionPacketMixin"
+		"Ap3PositionPacketMixin",
+		"Ap3ViewYawMixin",
+		"Ap3MouseYawMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

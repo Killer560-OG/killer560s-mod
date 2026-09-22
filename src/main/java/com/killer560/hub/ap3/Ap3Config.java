@@ -41,6 +41,7 @@ public final class Ap3Config {
      *  nearest-node delete) so a key bound before the 2026-09-20 rework still works. */
     public static final String KEY_ADD_ALIGN = "add_line";
     public static final String KEY_ADD_AXIS_ALIGN = "add_axisline";
+    public static final String KEY_ADD_FAST_ALIGN = "add_fastalign";
     public static final String KEY_ADD_WALK = "add_walk";
     public static final String KEY_ADD_RUN = "add_run";
     public static final String KEY_ADD_LEAP = "add_leap";
@@ -62,7 +63,7 @@ public final class Ap3Config {
     public static final String KEY_REPLACE_LAST = "replace_last";
 
     public static final List<String> KEYBIND_IDS = List.of(
-            KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
+            KEY_ADD_ALIGN, KEY_ADD_FAST_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
             KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_LIST, KEY_UNDO,
             KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE);
 
@@ -81,13 +82,13 @@ public final class Ap3Config {
      */
     public enum AlignMethod {
         /** RSA-style: the camera yaw only, sent yaw == camera always; discrete keys + sneak taps planned exhaustively
-         *  over a short horizon - as close as a keyboard gets (a few thousandths), nothing hidden. DEFAULT. */
+         *  over a short horizon - as close as a keyboard gets (a few thousandths), nothing hidden. */
         KEYS_SNEAK("Keys + Sneak"),
         /** The two-tap planner steering the yaw the SERVER receives (the strafe lock) while the camera stays put -
          *  exact, but Hypixel corrected it on the first tap in his test. */
         SENT_YAW("Sent-Yaw Planner"),
         /** The same planner turning his REAL camera (bounded deltas on the live yaw) so the sent yaw always equals the
-         *  camera and nothing is hidden - exact, and the one expected to pass. */
+         *  camera - exact, and 8/8 with no corrections on Hypixel (2026-09-21). DEFAULT. */
         CAMERA("Camera Planner");
 
         public final String label;
@@ -105,6 +106,7 @@ public final class Ap3Config {
     /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
      *  the discrete planner typically lands far inside it. */
     public static final double DEFAULT_ALIGN_TOLERANCE = 0.001;
+    public static final double DEFAULT_FAST_ALIGN_TOLERANCE = 0.005;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;
@@ -174,7 +176,13 @@ public final class Ap3Config {
     private float labelHeightOffset = 0f;
     /** Alignment (ALIGN / AXIS_ALIGN) is done within this many blocks of the target (see the constants). */
     private double alignTolerance = DEFAULT_ALIGN_TOLERANCE;
-    private AlignMethod alignMethod = AlignMethod.KEYS_SNEAK;
+    private AlignMethod alignMethod = AlignMethod.CAMERA;
+    /** Fast Align nodes settle within this instead (killer560, 2026-09-21: "defaults to only a precision of +-.005
+     *  but it prioritizes speed"). */
+    private double fastAlignTolerance = DEFAULT_FAST_ALIGN_TOLERANCE;
+    /** Camera Planner only: his screen keeps the view he had while the real yaw does the planner's turns
+     *  (killer560, 2026-09-21: "do the same freecam style we used for walk nodes"). */
+    private boolean alignFreezeView = true;
     private int alignTimeoutTicks = 100;
     /** WALK / RUN: no progress toward the end of the travel for this many ticks and the chain gives up. */
     private int moveTimeoutTicks = 100;
@@ -195,6 +203,7 @@ public final class Ap3Config {
     public static int defaultNodeColor(Ap3Node.Type type) {
         return switch (type) {
             case ALIGN -> 0xFFFFA040;
+            case FAST_ALIGN -> 0xFFFFD080;
             case AXIS_ALIGN -> 0xFFCC6600;
             case WALK -> 0xFFFFFFFF;
             case RUN -> 0xFF55FF55;
@@ -269,7 +278,11 @@ public final class Ap3Config {
                 // Saved under a new key: the previous build's "alignTolerance" was a loose 0.03 default, and aligns must now
                 // land to 3 decimals, so that old value is deliberately ignored once (killer560, 2026-09-21).
                 cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignToleranceExact", cfg.alignTolerance));
-                cfg.alignMethod = ConfigJson.getEnum(o, "alignMethod", AlignMethod.class, cfg.alignMethod);
+                // New key: Camera Planner won the 2026-09-21 Hypixel A/B (8/8 exact, no corrections) and is the default
+                // now, so whatever was cycled to during that test is dropped once.
+                cfg.alignMethod = ConfigJson.getEnum(o, "alignMethodV2", AlignMethod.class, cfg.alignMethod);
+                cfg.setFastAlignTolerance(ConfigJson.getDouble(o, "fastAlignTolerance", cfg.fastAlignTolerance));
+                cfg.alignFreezeView = ConfigJson.getBool(o, "alignFreezeView", cfg.alignFreezeView);
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
                 cfg.setLeapDetectRadius(ConfigJson.getDouble(o, "leapDetectRadius", cfg.leapDetectRadius));
@@ -318,7 +331,9 @@ public final class Ap3Config {
             o.addProperty("labelScale", labelScale);
             o.addProperty("labelHeightOffset", labelHeightOffset);
             o.addProperty("alignToleranceExact", alignTolerance);
-            o.addProperty("alignMethod", alignMethod.name());
+            o.addProperty("alignMethodV2", alignMethod.name());
+            o.addProperty("fastAlignTolerance", fastAlignTolerance);
+            o.addProperty("alignFreezeView", alignFreezeView);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
             o.addProperty("leapDetectRadius", leapDetectRadius);
@@ -471,7 +486,17 @@ public final class Ap3Config {
     // ------------------------------------------------------------------------------------------- executor
 
     public AlignMethod getAlignMethod() { return alignMethod; }
-    public void setAlignMethod(AlignMethod m) { alignMethod = m == null ? AlignMethod.KEYS_SNEAK : m; }
+    public void setAlignMethod(AlignMethod m) { alignMethod = m == null ? AlignMethod.CAMERA : m; }
+
+    public double getFastAlignTolerance() { return fastAlignTolerance; }
+    public void setFastAlignTolerance(double v) {
+        if (Double.isFinite(v)) {
+            fastAlignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 10000.0) / 10000.0));
+        }
+    }
+
+    public boolean isAlignFreezeView() { return alignFreezeView; }
+    public void setAlignFreezeView(boolean v) { alignFreezeView = v; }
 
     public double getAlignTolerance() { return alignTolerance; }
     public void setAlignTolerance(double v) {
@@ -524,6 +549,8 @@ public final class Ap3Config {
     // Typed pairs, one per command, for the UI agent (all delegate to the id map above).
     public int getAddAlignKey() { return getKeybind(KEY_ADD_ALIGN); }
     public void setAddAlignKey(int code) { setKeybind(KEY_ADD_ALIGN, code); }
+    public int getAddFastAlignKey() { return getKeybind(KEY_ADD_FAST_ALIGN); }
+    public void setAddFastAlignKey(int code) { setKeybind(KEY_ADD_FAST_ALIGN, code); }
     public int getAddAxisAlignKey() { return getKeybind(KEY_ADD_AXIS_ALIGN); }
     public void setAddAxisAlignKey(int code) { setKeybind(KEY_ADD_AXIS_ALIGN, code); }
     public int getAddWalkKey() { return getKeybind(KEY_ADD_WALK); }

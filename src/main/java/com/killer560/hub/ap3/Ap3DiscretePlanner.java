@@ -84,6 +84,9 @@ final class Ap3DiscretePlanner {
         boolean yawSteerable = true;
         /** Most the sent yaw moves in one tick, degrees. */
         double yawStepCap = 30.0;
+        /** False for a Fast Align: a slide that already ends inside the tolerance is taken as it is, never refined
+         *  closer at the cost of extra ticks. */
+        boolean refine = true;
 
         double tickSpeed(boolean sprinting) {
             if (onGround) {
@@ -576,7 +579,7 @@ final class Ap3DiscretePlanner {
     static Plan plan(State s, Model m) {
         Plan settle = settlePlan(s, m);
         if (settle != null) {
-            if (settle.restError > REFINE_ABOVE && m.yawSteerable) {
+            if (settle.restError > REFINE_ABOVE && m.yawSteerable && m.refine) {
                 Plan better = oneTapPlan(s, m);
                 if (better == null || !better.reaches) {
                     Plan two = twoTapPlan(s, m);

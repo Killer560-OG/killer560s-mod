@@ -946,7 +946,7 @@ public final class Ap3Executor {
             return;
         }
         switch (node.type) {
-            case ALIGN -> tickAlign(client, player, node);
+            case ALIGN, FAST_ALIGN -> tickAlign(client, player, node);
             case AXIS_ALIGN -> tickAxisAlign(client, player, node);
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
@@ -1010,6 +1010,9 @@ public final class Ap3Executor {
         double err = Math.max(Math.abs(ex), Math.abs(ez));
         Ap3Config cfg = Ap3Config.getInstance();
         Ap3Config.AlignMethod method = cfg.getAlignMethod();
+        boolean fast = node.type == Ap3Node.Type.FAST_ALIGN;
+        alignTolerance = fast ? cfg.getFastAlignTolerance() : cfg.getAlignTolerance();
+        alignFast = fast;
         if (step == Step.PREP) {
             double dist = Math.sqrt(ex * ex + ez * ez);
             if (dist > ALIGN_REACH + node.length / 2.0 + node.width / 2.0) {
@@ -1039,9 +1042,22 @@ public final class Ap3Executor {
             }
             return;
         }
+        if (fast && !driving && stepTicks > 0) {
+            // Fast Align: no keys went in last tick and the slide the player is on already ends inside the tolerance
+            // with no more input - hand over NOW instead of waiting out the friction (3-6 ticks). The next node starts
+            // while he is still gliding; a node that does not move him (look, leap, terminal, stop) lets the glide
+            // finish exactly where predicted, and a walk does not care. The dev line reports where it will stop.
+            double[] rest = coastRest(player, ex, ez);
+            if (Math.max(Math.abs(rest[0]), Math.abs(rest[1])) <= alignTolerance) {
+                clearMovement();
+                reportAlignTimer(node, -rest[0], -rest[1], null);
+                finishNode();
+                return;
+            }
+        }
         // Done: both axes inside the tolerance and no velocity the game will still apply, held SETTLE_TICKS with no
         // input so it is really at rest.
-        if (err <= cfg.getAlignTolerance() && still) {
+        if (err <= alignTolerance && still) {
             clearMovement();
             if (++settleTicks >= SETTLE_TICKS) {
                 reportAlignTimer(node, pos.x - node.x, pos.z - node.z, null);
@@ -1313,11 +1329,113 @@ public final class Ap3Executor {
         m.blockFriction = blockFriction(player);
         m.onGround = player.onGround();
         m.sneakMul = sneakSpeed(player);
-        m.tolerance = Ap3Config.getInstance().getAlignTolerance();
+        m.tolerance = alignTolerance;
+        m.refine = !alignFast;
         m.trig = MTH;
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
         return m;
+    }
+
+    /** The tolerance of the align being performed (Fast Align's own, or Align's) and whether it is a Fast Align;
+     *  set at the top of every align tick, read by {@link #modelFor}. */
+    private static double alignTolerance = Ap3Config.DEFAULT_ALIGN_TOLERANCE;
+    private static boolean alignFast;
+
+    /** Where the current slide ends with no more input, as {ex, ez} (target minus rest position). */
+    private static double[] coastRest(LocalPlayer player, double ex, double ez) {
+        Vec3 vel = player.getDeltaMovement();
+        Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
+        s.ex = ex;
+        s.ez = ez;
+        s.vx = vel.x;
+        s.vz = vel.z;
+        s.sprinting = player.isSprinting();
+        s.crouching = lastSneakSent;
+        s.sentYaw = player.getYRot();
+        Ap3DiscretePlanner.coast(s, modelFor(player, false));
+        return new double[]{s.ex, s.ez};
+    }
+
+    // ---- Camera Planner view freeze ---------------------------------------------------------------------------
+    //
+    // killer560 (2026-09-21): "for that camera change one, do the same freecam style we used for walk nodes so client
+    // side I stay looking the same way." The walk lock's way - sending the server a yaw that is not the player's -
+    // is exactly what Hypixel corrected on the Sent-Yaw Planner, so this is the other way round: the REAL yaw still
+    // makes every turn (physics, packets and F5 model all agree - what passed 8/8), and only the camera is drawn from
+    // a separate running view yaw (mixin/Ap3ViewYawMixin) that his mouse steers instead (mixin/Ap3MouseYawMixin).
+    // When the align ends the real yaw glides back under the view in bounded wrapped steps, then the freeze lets go
+    // with nothing visible changing. Display only: never sent, never used for movement.
+
+    /** The yaw the camera shows instead of the real yaw, or NaN when not frozen. */
+    private static float viewYaw = Float.NaN;
+    private static boolean viewMixinApplied;
+
+    public static void onViewMixinApplied() {
+        viewMixinApplied = true;
+    }
+
+    public static float frozenViewYaw() {
+        return viewYaw;
+    }
+
+    /** A mouse yaw turn (degrees): steers the frozen view instead of the real yaw. False when not frozen. */
+    public static boolean onMouseYaw(float deltaDegrees) {
+        if (Float.isNaN(viewYaw)) {
+            return false;
+        }
+        viewYaw += deltaDegrees;
+        return true;
+    }
+
+    private static boolean freezeViewWanted() {
+        Ap3Config cfg = Ap3Config.getInstance();
+        return viewMixinApplied && cfg.isAlignFreezeView() && cfg.getAlignMethod() == Ap3Config.AlignMethod.CAMERA;
+    }
+
+    /** Every client tick, last (from Ap3Feature, like tickStrafe): holds the freeze while a Camera Planner align runs,
+     *  otherwise glides the real yaw back under the view and lets go. */
+    static void tickView(Minecraft client) {
+        LocalPlayer player = client.player;
+        if (Float.isNaN(viewYaw)) {
+            return;
+        }
+        if (player == null || client.level == null || player.isPassenger()) {
+            viewYaw = Float.NaN;
+            return;
+        }
+        if (RouteRotation.isActive()) {
+            // A LOOK turns the real camera to an absolute angle - show it; the view simply rejoins the real yaw.
+            releaseView(player, 0f);
+            return;
+        }
+        boolean holding = freezeViewWanted() && activeNode != null && step == Step.DO
+                && (activeNode.type == Ap3Node.Type.ALIGN || activeNode.type == Ap3Node.Type.FAST_ALIGN);
+        if (!holding) {
+            float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
+            if (Math.abs(delta) <= ALIGN_YAW_STEP) {
+                releaseView(player, delta);
+                return;
+            }
+            player.setYRot(player.getYRot() + Math.copySign((float) ALIGN_YAW_STEP, delta));
+            RouteRotation.rebase();
+        }
+        // First-person hand sway chases the yaw it is drawn against: follow the view, not the real yaw, the same
+        // half-a-tick chase LocalPlayer.aiStep does (yBobO already holds last tick's value).
+        player.yBob = player.yBobO + (viewYaw - player.yBobO) * 0.5f;
+    }
+
+    /** Adds {@code delta} to the real yaw (wrapped, so it lands on the view modulo 360) and ends the freeze. The hand
+     *  sway is shifted by the same whole turns so it does not spin to catch up. */
+    private static void releaseView(LocalPlayer player, float delta) {
+        if (delta != 0f) {
+            player.setYRot(player.getYRot() + delta);
+            RouteRotation.rebase();
+        }
+        float shift = player.getYRot() - viewYaw;
+        player.yBob += shift;
+        player.yBobO += shift;
+        viewYaw = Float.NaN;
     }
 
     /** Takes the sent yaw over for a Sent-Yaw align (seeded from the live yaw when it is not already ours). */
@@ -1380,8 +1498,11 @@ public final class Ap3Executor {
             frameYaw = serverYaw;
         } else if (cameraMethod) {
             // His real camera turns by a bounded delta on the live running yaw - the same primitive a LOOK uses
-            // (RouteRotation), never an assignment - so the yaw the server receives is the camera, and it is the
-            // frame the keys go out in. He sees the turn; nothing is hidden.
+            // (RouteRotation), never an assignment - so the yaw the server receives is the real yaw, and it is the
+            // frame the keys go out in. With Freeze View on his SCREEN keeps the view he had (see tickView).
+            if (Float.isNaN(viewYaw) && freezeViewWanted()) {
+                viewYaw = player.getYRot();
+            }
             float delta = Mth.clamp(Mth.wrapDegrees(plan.yaw - player.getYRot()), -(float) ALIGN_YAW_STEP, (float) ALIGN_YAW_STEP);
             if (Math.abs(delta) > 1e-4f) {
                 player.setYRot(player.getYRot() + delta);

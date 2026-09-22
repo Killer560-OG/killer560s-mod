@@ -643,6 +643,11 @@ public final class Ap3Feature {
             } catch (Exception e) {
                 LOGGER.error("[AP3] Strafe tick error", e);
             }
+            try {
+                Ap3Executor.tickView(client);
+            } catch (Exception e) {
+                LOGGER.error("[AP3] View tick error", e);
+            }
         }
     }
 
