@@ -1125,6 +1125,15 @@ public final class Ap3Executor {
                 failNode(String.format(Locale.US, "too far from align #%d (%.1f blocks)", number(node), dist));
                 return;
             }
+            // Drop the sprint before planning anything. Vanilla's sprint flag flips around a press in a way the
+            // client cannot pin down (his log: a handful of ticks out by 0.111, exactly 0.48157 - 0.37044), and an
+            // align re-planning against a coin toss took 8-14 ticks instead of 3. One tick with no keys clears the
+            // flag - vanilla drops a sprint the moment there is no forward impulse - and every push after it is a
+            // walk, which is deterministic. It costs one tick and buys the other five back.
+            if (player.isSprinting()) {
+                clearMovement();
+                return;
+            }
             step = Step.DO;
             alignModelReset();
             Ap3FastAlign.reset();
@@ -1191,13 +1200,13 @@ public final class Ap3Executor {
      */
     private static boolean driveFast(LocalPlayer player, double ex, double ez) {
         Vec3 vel = player.getDeltaMovement();
-        Ap3DiscretePlanner.Model m = modelFor(player, true);
+        Ap3DiscretePlanner.Model m = alignModel(player, true);
         Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
         s.ex = ex;
         s.ez = ez;
         s.vx = vel.x;
         s.vz = vel.z;
-        s.sprinting = sprintLikely(player);
+        s.sprinting = player.isSprinting();
         s.crouching = lastSneakSent;
         s.sentYaw = player.getYRot();
         Ap3FastAlign.Result r = Ap3FastAlign.solve(s, m, alignTolerance);
@@ -1223,9 +1232,8 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
-                a.fw() > 0, sprintFor(a));
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), sprintFor(a), frameYaw, m, s.crouching);
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m, a.fw() > 0, false);
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
         return true;
     }
 
@@ -1586,6 +1594,13 @@ public final class Ap3Executor {
         return m;
     }
 
+    /** An align never presses sprint (see tickAlign's PREP), so its model must not expect one either. */
+    private static Ap3DiscretePlanner.Model alignModel(LocalPlayer player, boolean yawSteerable) {
+        Ap3DiscretePlanner.Model m = modelFor(player, yawSteerable);
+        m.sprintKeyHeld = false;
+        return m;
+    }
+
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
         Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
         double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
@@ -1880,13 +1895,13 @@ public final class Ap3Executor {
         Vec3 vel = player.getDeltaMovement();
         boolean sentYawMethod = method == Ap3Config.AlignMethod.SENT_YAW && strafeLock && mixinApplied && rotationMixinApplied;
         boolean cameraMethod = method == Ap3Config.AlignMethod.CAMERA;
-        Ap3DiscretePlanner.Model m = modelFor(player, sentYawMethod || cameraMethod);
+        Ap3DiscretePlanner.Model m = alignModel(player, sentYawMethod || cameraMethod);
         Ap3DiscretePlanner.State s = new Ap3DiscretePlanner.State();
         s.ex = ex;
         s.ez = ez;
         s.vx = vel.x;
         s.vz = vel.z;
-        s.sprinting = sprintLikely(player);
+        s.sprinting = player.isSprinting();
         s.crouching = lastSneakSent; // the multiplier the next travel uses = the shift of the record installed this tick
         s.sentYaw = sentYawMethod ? serverYaw : player.getYRot();
 
@@ -1931,9 +1946,8 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
-                a.fw() > 0, sprintFor(a));
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), sprintFor(a), frameYaw, m, s.crouching);
+        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m, a.fw() > 0, false);
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
     }
 
     /** The nearest of the eight key directions at {@code yaw} to the world direction {@code (dx, dz)}: {fw, st}. */
