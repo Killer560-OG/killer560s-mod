@@ -24,7 +24,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Lag Display, No Fire, Object Hider, Pathfinding †, Player Stats HUD, Quiver Display, Real Time, Screenshot Copy, Trail, Trajectories, Waypoint Routes, Video Browser
 
-**Dungeon: Solvers & Secrets** - Arrow Align †, Auto Close Chest, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver
+**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Auto Close Chest, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
 
@@ -34,7 +34,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Accounts, Home & Profiles** - Account Switcher, HUD Editor, Menu Memory, Profiles, Proxy Client
 
-**Cheat Build Only** - 0 Ping Dungeon Breaker, Auto Croesus, Auto Dialogue / Breaker Aura, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Cheat Utilities, Door Helpers, Fast/Auto Leap, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
+**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Cheat Utilities, Door Helpers, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 
 ## Latest dev build
 

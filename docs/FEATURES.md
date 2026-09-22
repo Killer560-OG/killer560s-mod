@@ -15,7 +15,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Cringe — random one-liner messages for fun
 - Spotify Mod — posts the lyrics of whatever you're playing on Spotify into chat, synced to the song
 - Mod Chat — a genuinely private chat channel between mod users. Messages travel over the mod's own relay server rather than Hypixel's party or guild chat, so players who don't run the mod never see them. Send with `/killer560 chat <message>`; the tab shows who else from your party is connected. Falls back to nothing if the relay is unreachable — it will never quietly post your message in public chat
-- Voice To Text — hold a push-to-talk key, speak, release to send the transcription to chat. Fully offline (Vosk), downloads its small speech model automatically on first use so there's no manual setup. **Untested with a real microphone** - see the New tab
+- Voice To Text — hold a push-to-talk key, speak, release to send the transcription to chat. Fully offline (Vosk), downloads its small speech model automatically on first use. Pick which microphone it records from. **Untested with a real microphone** - see the New tab
 
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
@@ -73,7 +73,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Teammate Highlight — boxes your dungeon party in the world coloured by their class, with optional name and distance labels, a self toggle and a dead-teammate skip; legit mode only shows a teammate you can actually see, the **cheat** build can box through walls
 - Mob ESP — highlights star-tier dungeon mobs by name filter (real vanilla Glowing); legit mode only glows what you can already see via a real raycast, the **cheat** build can glow through walls too
 - Mapping — a data-gathering tool for building future map features ("Dump Held Map Now"); funny map/mimic highlight/class recolor are reserved settings that don't draw anything yet
-- Etherwarp Waypoints — per-run-only reminders for secret etherwarp spots you've marked, never saved to disk
+- Etherwarp Waypoints — mark secret / etherwarp spots for the current run: /ew waypoint add [name] boxes the block you're standing on (centred), /ew waypoint remove deletes the closest, /ew waypoint undo the last, /ew waypoint clear all of them. One toggle turns the whole section on or off; never saved to disk
 - Custom Leap Menu — replaces the Spirit Leap GUI (the real chest and your inventory are hidden) with 4 big name boxes in your Leap Order, colored by class; click a quarter of the screen or press 1-4 to leap (scale 50-400%)
 - Etherwarp Overlay — while holding a real Etherwarp item, highlights exactly where you'd land (green if safe, red if not by default - both colours and Outline / Filled / Filled+Outline style are configurable) using a real voxel raycast. Never moves you — the real server still handles the actual warp
 - Item Protection — lock inventory slots, protect named or starred items (with an optional padlock icon on every protected slot), and block the drop key so a Hyperion can't be dropped, sold, salvaged, traded or anvil-fed by accident; every block says so in chat
@@ -105,14 +105,14 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Inventory Theme — re-skins chest and inventory menus in the mod's orange theme, with opacity and accent colour settings
 - Mod conflict warnings — one chat warning per session if Skyblocker's terminal solver or Devonian's Party Finder Overview is doing the same job as ours
 - Item Browser — a NEU-style full-height panel listing the complete Skyblock item catalog with real icons beside any inventory screen; adjustable column count (3-20), scale, horizontal/vertical fill order and left/center/right anchoring, hover lore with tier/category/NPC sell price, and a left-click craft and obtain popup. Shares its search box with Inventory Search
-- Item Rarity Backgrounds — colors the slot behind every Skyblock item by its rarity (Common through Divine/Special/Ultimate, pets included) in inventories and optionally the hotbar, with Square/Circle/Outline styles and adjustable opacity (visual only)
+- Item Rarity Backgrounds — colors the slot behind every Skyblock item by its rarity (Common through Divine/Special/Ultimate, pets included) in inventories and optionally the hotbar, with Square/Circle/Outline styles (adjustable outline width) and adjustable opacity (visual only)
 - Name Changer — client-side only: change how your own name shows, rename specific players, or randomize everyone else's names (chat, nametags, tab list, GUIs), each with its own colour picker
 - Held Item Transform — resize, move and rotate the held item in each hand, plus No Swing, No Equip animation, No Hand Sway and swing speed (0.05x-4x)
-- Storage Item Search — search every cached ender chest page, backpack and your inventory by name, id or lore; click a result to open that storage with the slot outlined
+- Storage Item Search — search every cached ender chest page, backpack, wardrobe page, pet page, island chest and your inventory by name, id or lore; enchanted books are listed by their enchant. Click a result to open that storage with the item outlined, or - for island chests - to box every chest holding that item. A Scan All button opens every storage, wardrobe and pet page once so all of them are remembered
 - Waypoint Routes — per-area waypoint routes that advance as you reach each point, with keybinds to add/remove/skip, and clipboard import/export in ColeWeight and Skytils formats
 - Custom Mage Beam — replaces the mage beam particles with a clean colored beam (color, real thickness up to a full block, duration, fade)
 - Auto Quiz / Auto Three Weirdos — **cheat build only.** Clicks the solver's answer in Quiz and opens the right chest in Three Weirdos
-- Auto Puzzles (QUOI port) — **cheat build only.** An auto for every other puzzle, each needing its solver on: Auto Blaze, Auto Creeper Beams and Auto Ice Path shoot your shortbow (shared Shoot/Miss cooldowns), Auto Boulder / Auto Water Board / Auto Tic Tac Toe click the right buttons, levers and cells, Auto Teleport Maze faces and walks to the right pad, Auto Ice Fill steps the path with your AOTV, plus an optional Etherwarp Reposition that warps you to each puzzle's standing spots
+- Auto Puzzles (QUOI port) — **cheat build only.** An auto for every other puzzle, each needing its solver on: Auto Blaze, Auto Creeper Beams and Auto Ice Path shoot your shortbow (shared Shoot/Miss cooldowns), Auto Boulder / Auto Water Board / Auto Tic Tac Toe click the right buttons, levers and cells, Auto Teleport Maze faces and walks to the right pad, Auto Ice Fill steps the path with your AOTV (Adaptive mode waits for the server to take each tile, so lag can't make it fail), plus an optional Etherwarp Reposition that warps you to each puzzle's standing spots
 - Auto Dialogue / Breaker Aura — **cheat build only.** Picks NPC dialogue options (never purchases or trades; dungeons only unless "Outside Dungeons" is on), and breaks blocks in your path with the Dungeonbreaker
 - Dungeon Queue — Auto Requeue (sends /instancerequeue at the end of a run after a delay, skipped if a party member leaves or is kicked) and Party Finder Overlay (green/red joinable highlight, member count, and tooltip stats: Catacombs level, secrets, PB for the floor, missing classes), with a live style preview in its settings; "Compact" is now called Party Finder style. Warns once if Devonian's own Party Finder Overview is on, since it replaces ours
 - Inventory HUD — your main inventory drawn as a movable HUD panel (mini/normal, horizontal/vertical, background style, show always / hold key / toggle key)
@@ -141,22 +141,65 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - i4 Leap Out — **cheat build only**, in the Sharp Shooter (i4) tab. Leaps when your i4 device finishes (or on left-click at pre4) to a chosen class, player, or the Melody player with a backup target; Prevent Inputs blocks input during i4 and the leap
 - 0 Ping Dungeon Breaker — **cheat build only.** While holding a real Dungeon Breaker item with charges left, insta-mines the exact block you're looking at the instant you start mining it, instead of waiting on your real connection's ping
 - Dungeon Map — a HUD copy of the real held dungeon map: rooms coloured by type (brown normal, magenta puzzle, orange trap, yellow miniboss, pink fairy, red blood, green entrance, grey unexplored), corridors flush against the rooms, merged multi-tile rooms, sprite checkmarks, and rotated arrows or player heads for you and your party. It shows only what the dungeon map in your hotbar has already revealed — unopened rooms stay grey and unnamed. Every colour is a picker, with a one-click reset back to the real map's own colours
-- Secret Waypoints — real, preloaded per-room secret positions (chests, items, wither skulls, bats, redstone keys) once a room is identified, downloaded from the same public room database NoammAddons itself uses. Drawn through walls (toggleable), as either a full block or the secret's own hitbox, with a render-distance slider so only the secrets near you are built and drawn
+- Secret Waypoints — real, preloaded per-room secret positions (chests, items, wither essence, bats, redstone keys) from the same public room database NoammAddons uses, shown for the room you're in only. NoammAddons' colours by default (chest magenta, item blue, bat green, essence black, key red), each box sized to its object (or a full block), drawn through walls (toggleable), with an optional name label above each one. A waypoint disappears as soon as you take that secret - click the chest/essence/key, pick up the item or kill the bat
 - Auto Close Chest — instantly closes a real secret reward chest ("Chest"/"Large Chest"/"Trapped Chest") the moment it opens in a dungeon, before it's ever shown on screen
 - Blood Camp — tracks the Watcher and his blood mobs in the Blood Room on every floor by their real skull skins, predicting where each mob is about to resettle and showing a real countdown until it's vulnerable again. The **cheat** build additionally has a Trigger Bot (clicks once the countdown expires and you're looking at it, with auto ping-based or manual tick-offset timing) and an Aura that turns to face the predicted spot in advance
 - Cheat Utilities — **cheat build only.** Wither ESP (F7 boss), Secret Aura (auto-clicks chests/levers/essence in reach), Auto GFS (sack refills), Auto Ult (Healer/Tank at the right boss moments), and Auto Chocolate Factory
-- Solver Highlights — one shared switch that draws every puzzle and boss solver's highlight through blocks (ESP-style) instead of only when you have line of sight
+- Solver Highlights — shared settings for every puzzle and boss solver's highlight: draw through blocks (ESP-style), and a Waypoint Style of Outline or Full Block. Highlights are drawn after water, so water behind them no longer hides them
 - Boulder Solver — reads the real Boulder puzzle room's floor pattern and highlights the real stone button to press next, ported from a known 8-pattern solution database. Never clicks for you
 - Quiz Solver — reads the real Oruo the Omniscient trivia question and lettered answer options in chat, looks up the correct answer in a bundled real question database, and highlights that option's floor tile. Never answers for you
 - Ice Fill Solver — identifies each of the real Ice Fill puzzle's 3 floor layouts and draws the real known-safe walking path across all of them. Never walks for you
 - Weirdos Solver — reads the real Three Weirdos NPC dialogue lines and highlights the real correct chest (and, optionally, ruled-out ones) the moment a line gives it away
-- Water Board Solver — identifies the real Water Board layout and shows a real live countdown above every remaining lever click, highlighting the soonest one. Never clicks anything for you
-- Creeper Beams Solver — highlights real currently-connected Sea Lantern pairs with matching colors, updating live as panes are rotated. Never touches anything
+- Water Board Solver — identifies the real Water Board layout and shows a real live countdown above every remaining lever click, highlighting the soonest one. Never clicks anything for you The next lever is highlighted on the lever's own hitbox only
+- Creeper Beams Solver — highlights the currently-connected Sea Lantern pairs in matching colours, live as panes are rotated. A pair turns red only when you've connected one of its lanterns to the wrong partner. Never touches anything
 - Blaze Solver — ranks real blazes in the Lower/Higher Blaze puzzle by HP and highlights the correct next few kill targets in order. Never attacks anything
-- Tic Tac Toe Solver — reads the map item frames on the Tic Tac Toe board and outlines the best move on your turn (minimax), with an optional prediction of your next move. Never clicks for you
-- Teleport Maze Solver — tracks the pads you've used and narrows down the real exit pad from where each teleport makes you face (green = the one, gold = candidates), with a tracer to the best next pad. Never moves you
+- Tic Tac Toe Solver — reads the Tic Tac Toe board and highlights just the button / item frame of the best move on your turn (minimax), as an outline or a fill. The optional prediction only appears when a square is safe to click whatever the bot plays next, so you can spam it. Never clicks for you
+- Teleport Maze Solver — tracks the pads you've used and narrows down the real exit pad from where each teleport makes you face (green = the one, gold = candidates), with a tracer from your crosshair to the best next pad. Never moves you
 - Ice Path Solver — reads the silverfish Ice Path board and draws the shortest push path to the exit, outlining the silverfish's next stop. Never hits the silverfish
-- Livid Solver — identifies the real correct Livid on Floor 5 from the wool color clue, re-checking it twice a second, and highlights it in that Livid's own color with an optional line to it, plus a countdown for its opening invulnerability window. Never attacks anything
+- Livid Solver (its own tab) — identifies the real correct Livid on Floor 5 from the wool color clue, re-checking it twice a second, and highlights it in that Livid's own color with an optional line to it, plus a countdown for its opening invulnerability window. Never attacks anything
+- Architect's First Draft — when a puzzle is failed, posts a line in your chat you can click to get an Architect's First Draft from your sack. **Cheat build:** optionally gets it automatically, only when the PUZZLE FAIL line names you
+
+**AP3 - automated F7/M7 Phase 3 (cheat build only)**
+
+AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phase (P3, sections S1-S4) along a route of *nodes* you place yourself. It only ever presses real keys - W/A/S/D, sneak, sprint, jump - and turns your real view, exactly like a player would; it never writes your position or velocity, and it stops the moment the server corrects your position (two corrections in ten seconds switch AP3 off). Use it on your own risk - it is automation and against Hypixel's rules.
+
+*How it runs*
+- Every node has a small trigger box (0.5 or 1 block by default, or any size with w<n> l<n>). Walking INTO a box fires that node; the ones you are already standing in do not fire again until you leave and come back.
+- Nodes fire one per tick in a fixed priority: Stopwatch, Stop, Align/Axis Align, Look, Terminal, Leap Counter, Walk/Run, Jump/Edge/Block, Boom, Leap. A queued node waits for the one before it.
+- AP3 knows which section you're in and only arms that section's nodes. Force Dungeon (in the tab) lets you place and test nodes anywhere, and Test Mode runs nodes without waiting for terminals or teammates.
+- Freeze View (Freecam): while AP3 turns your real yaw for an align or a walk, your screen keeps the view you had and your mouse moves only the view. Your model in F5 and the server see the real angle.
+- Moving yourself (WASD/space) stops AP3 at once - except inside an Align, which takes your keys over until it has landed.
+
+*Placing nodes* - `/ap3 add <type> [modifiers]`, or a keybind for each type
+- Nodes snap to the nearest half block (a block centre, or the line between two or four blocks) unless you add `precise`; the height is your exact feet height, so nodes on carpet or slabs sit on top.
+- The angle recorded is where you are looking (or where your free camera looks while Freeze State is on).
+- `/ap3 list`, `/ap3 undo`, `/ap3 delete [n]`, `/ap3 replace <n>`, `/ap3 clear`, `/ap3 reload`, `/ap3 stop`, `/ap3 testmode`. Routes are saved per config file in the killer560smod-ap3 folder; Choose AP3 Config switches between them.
+
+*Node types*
+- **Align** - lands you on the node's point to within 0.001 of a block, typically in 6-9 ticks from entering at speed. It plans the fastest landing each tick, mixing turning your real yaw, every key combination and sneak taps, and only counts as done once you have actually stopped.
+- **Axis Align** - for a node placed against a wall: walks you into the wall (which pins that coordinate exactly), then holds one key into the wall at a small angle that steers you along it until you stop exactly on the point, without ever pulling off the wall.
+- **Walk / Run** - keeps you walking (or sprinting) in the direction the node was placed, until any other node fires. Your real yaw snaps so W+A / W+D (45 Degree Strafe on, the faster diagonal) or W points exactly along the walk from the first tick. On the tick a jump goes in it faces straight ahead so the sprint-jump boost follows the walk, then strafes again in the air.
+- **Jump** - jumps on the next tick after you enter it (waiting up to a second for the ground). Does not end a Walk/Run.
+- **Edge Jump** (`edge`) - jumps as late as the game allows when you run off a block: on the one-tick "coyote" window just after your feet leave it. Does not end a Walk/Run.
+- **Block** - places a block (the held block, else a slab, else any block in your hotbar) where you were looking when you placed the node, then swaps back to what you held. The block shows on your screen at once, so you can run across ghost slabs. Does not end a Walk/Run.
+- **Look** - turns your camera to the node's angle client-side only (no rotation is sent).
+- **Boom** - uses a Superboom on the block along the node's angle.
+- **Leap** - opens Spirit Leap and leaps to a class, a player, or your Fast Leap target. **Leap Counter** waits until that many teammates have leapt to you.
+- **Terminal** - waits for the terminal you're at to be done. **Stop** - lets go of every key and waits until you've stopped.
+- **Stopwatch** - the first one starts a timer, the next one stops it and prints the time. Name the starting one (`/ap3 add stopwatch s3`) and, with Send Stopwatch to Party on, the time goes to party chat as "s3 took 12.345s".
+
+*Modifiers* (any node, after the type)
+- `w<n> l<n>` (also `w.5`, `.5x.5`) - the trigger box size. `precise` - no snapping. `wait:<ms>` - hold the next node that long after this one. `close` - only fire on a left click or after a menu closes.
+- `jump` / `edge` - after the node has done its part, jump (or edge-jump). `/ap3 add run edge` runs at the node's angle and jumps at the edge.
+
+*Display*
+- Node boxes with arrows (walk direction), wall markers (axis align) and look rays; labels with number, type and details; a colour per node type (or one colour for all); Show Nodes and Show Node Lines to hide them; Node Messages (None / Simple "Added #3 Walk" / Detailed, which also shows the queue).
+
+*Freeze State* (its own red tab; never use it on Hypixel)
+- `/freezestate` freezes your character in place (no movement, no gravity) while your camera stays free - handy for placing nodes at an exact angle.
+- Rewind 1 Tick / Forward 1 Tick keys: rewind puts you exactly where you were one tick before your current position (Rewind Memory sets how many ticks are kept); forward predicts - the game runs exactly one real tick from where you are.
+- AP3 keeps running while frozen: each forward step runs one AP3 tick, and your own keys and mouse never move the character - only the nodes do.
+- On Hypixel the step keys refuse (it would teleport you - an instant ban); only a typed /rewind works there, behind a large warning.
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
