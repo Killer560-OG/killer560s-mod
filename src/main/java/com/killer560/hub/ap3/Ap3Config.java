@@ -170,6 +170,8 @@ public final class Ap3Config {
     private boolean keybindsSectionOpen = false;
     /** STOPWATCH nodes always print to chat; this also shows the running / last time on the HUD (default OFF). */
     private boolean stopwatchHud = false;
+    /** Post a finished stopwatch to party chat ("s3 took 12.345s") - killer560, 2026-09-21. Off by default. */
+    private boolean stopwatchToParty = false;
     private boolean uniformColor = false;
     /** The mod's own amber, so a uniform-coloured chain matches the menu. */
     public static final int DEFAULT_UNIFORM_COLOR = 0xFFFFA040;
@@ -279,6 +281,7 @@ public final class Ap3Config {
                 cfg.colorsSectionOpen = ConfigJson.getBool(o, "colorsSectionOpen", cfg.colorsSectionOpen);
                 cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
+                cfg.stopwatchToParty = ConfigJson.getBool(o, "stopwatchToParty", cfg.stopwatchToParty);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
@@ -340,6 +343,7 @@ public final class Ap3Config {
             o.addProperty("colorsSectionOpen", colorsSectionOpen);
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
             o.addProperty("stopwatchHud", stopwatchHud);
+            o.addProperty("stopwatchToParty", stopwatchToParty);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("uniformColorArgb", uniformColorArgb);
             o.addProperty("activeColorArgb", activeColorArgb);
@@ -424,6 +428,8 @@ public final class Ap3Config {
     public void setKeybindsSectionOpen(boolean v) { keybindsSectionOpen = v; }
 
     public boolean isStopwatchHud() { return stopwatchHud; }
+    public boolean isStopwatchToParty() { return stopwatchToParty; }
+    public void setStopwatchToParty(boolean v) { stopwatchToParty = v; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }
 
     // ------------------------------------------------------------------------------------------- colours

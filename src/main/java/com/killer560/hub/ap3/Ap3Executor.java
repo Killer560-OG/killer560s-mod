@@ -977,7 +977,7 @@ public final class Ap3Executor {
             case LOOK -> tickLook(player, node);
             case BOOM -> tickBoom(client, player, node);
             case STOPWATCH -> {
-                toggleStopwatch();
+                toggleStopwatch(node);
                 finishNode();
             }
             case JUMP -> {
@@ -2218,17 +2218,31 @@ public final class Ap3Executor {
     // ---- STOPWATCH ------------------------------------------------------------------------------------------
 
     /** First node starts it, the next prints the time (client-side only), the one after starts it again. */
-    private static void toggleStopwatch() {
+    private static void toggleStopwatch(Ap3Node node) {
         long now = System.currentTimeMillis();
         if (stopwatchStartMs == 0L) {
             stopwatchStartMs = now;
-            chat(ModChat.text("Stopwatch "), ModChat.good("started"));
+            // Only the STARTING node's name counts (killer560: "it should only matter for the start one").
+            stopwatchName = node == null ? null : node.name;
+            chat(ModChat.text("Stopwatch " + (stopwatchName == null ? "" : stopwatchName + " ")), ModChat.good("started"));
         } else {
             lastStopwatchMs = now - stopwatchStartMs;
             stopwatchStartMs = 0L;
-            chat(ModChat.text("Stopwatch: "), ModChat.value(formatStopwatch(lastStopwatchMs)));
+            String time = formatStopwatch(lastStopwatchMs);
+            chat(ModChat.text("Stopwatch" + (stopwatchName == null ? "" : " " + stopwatchName) + ": "), ModChat.value(time));
+            if (Ap3Config.getInstance().isStopwatchToParty()) {
+                // "have the option to send in chat to my party my stopwatch s3 took :x"
+                LocalPlayer p = Minecraft.getInstance().player;
+                if (p != null) {
+                    p.connection.sendCommand("pc " + (stopwatchName == null ? "Stopwatch" : stopwatchName) + " took " + time);
+                }
+            }
+            stopwatchName = null;
         }
     }
+
+    /** The name of the node that started the running stopwatch, or null. */
+    private static String stopwatchName;
 
     public static String formatStopwatch(long ms) {
         return String.format(Locale.US, "%.3fs", ms / 1000.0);

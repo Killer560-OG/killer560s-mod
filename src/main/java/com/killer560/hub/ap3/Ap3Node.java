@@ -196,6 +196,9 @@ public final class Ap3Node {
     /** Modifier on ANY node (killer560, 2026-09-21: "/ap3 add run edge ... should run at the right degree then jump
      *  at the edge"): once this node has done its thing, jump (JUMP) or jump at the edge (EDGE). */
     public JumpMod jumpMod = JumpMod.NONE;
+    /** STOPWATCH: an optional name ("s3") - only the node that STARTS the stopwatch matters; the time is reported
+     *  under it (killer560, 2026-09-21). Null = unnamed. */
+    public String name;
 
     public enum JumpMod { NONE, JUMP, EDGE }
     /** {@link Type#LEAP}. */
@@ -407,6 +410,11 @@ public final class Ap3Node {
             case LEAP -> sb.append(" [").append(leapDescription()).append(']');
             case LEAP_COUNTER -> sb.append(" [").append(leapCount).append(leapCount == 1 ? " leap]" : " leaps]");
             case LOOK, BOOM -> sb.append(String.format(Locale.US, " [%.1f / %.1f]", yaw, pitch));
+            case STOPWATCH -> {
+                if (name != null) {
+                    sb.append(" [").append(name).append(']');
+                }
+            }
             default -> {
             }
         }
@@ -448,6 +456,7 @@ public final class Ap3Node {
         n.waitAfterMs = waitAfterMs;
         n.closeGate = closeGate;
         n.jumpMod = jumpMod;
+        n.name = name;
         n.leapMode = leapMode;
         n.leapClass = leapClass;
         n.leapIgn = leapIgn;

@@ -82,7 +82,7 @@ public final class Ap3Commands {
         ADD_STOP("add_stop", "Add Stop Node", "/ap3 add stop"),
         ADD_LOOK("add_look", "Add Look Node", "/ap3 add look"),
         ADD_BOOM("add_boom", "Add Boom Node", "/ap3 add boom"),
-        ADD_STOPWATCH("add_stopwatch", "Add Stopwatch Node", "/ap3 add stopwatch"),
+        ADD_STOPWATCH("add_stopwatch", "Add Stopwatch Node", "/ap3 add stopwatch [name]"),
         ADD_JUMP("add_jump", "Add Jump Node", "/ap3 add jump"),
         ADD_EDGE("add_edge", "Add Edge Jump Node", "/ap3 add edge"),
         LIST("list", "List Chain", "/ap3 list"),
@@ -582,11 +582,15 @@ public final class Ap3Commands {
                     spec.leapCount = Integer.parseInt(t.startsWith("x") ? t.substring(1) : t);
                 } else if (type == Ap3Node.Type.LEAP_COUNTER && t.startsWith("count:")) {
                     spec.leapCount = Integer.parseInt(t.substring(6));
+                } else if (type == Ap3Node.Type.STOPWATCH && raw.matches("[A-Za-z0-9_\\-]{1,16}") && spec.name == null) {
+                    // "/ap3 add stopwatch s3" - the name the time is reported under.
+                    spec.name = raw;
                 } else {
                     ModChat.send(FEATURE, ModChat.bad("Unknown modifier "), ModChat.value(raw),
                             ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, close, precise"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
-                                    + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "") + "."));
+                                    + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
+                                    + (type == Ap3Node.Type.STOPWATCH ? ", a name (one word)" : "") + "."));
                     return null;
                 }
             } catch (NumberFormatException e) {
