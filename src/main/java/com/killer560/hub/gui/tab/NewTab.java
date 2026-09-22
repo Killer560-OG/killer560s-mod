@@ -126,6 +126,7 @@ public class NewTab extends FolderTab {
             tabs.add(new TerminalTriggerbotTab());
             tabs.add(new AutoRoutesTab());
             tabs.add(new Ap3Tab());
+            tabs.add(new FreezeStateTab());
             // Split out of the old "Dungeon Extras" tab 2026-09-20 (killer560: "remove that tab. Make a
             // breaker aura tab itself. make auto dialoug its own category as well") - see BreakerAuraTab,
             // AutoDialogueTab and CustomMageBeamTab (the last one is legit and lives in the normal list
