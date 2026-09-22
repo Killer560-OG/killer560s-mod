@@ -182,6 +182,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggleCell(w, contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), "Show Node Lines",
                 cfg::isShowChainLines, cfg::setShowChainLines);
         y[0] += ROW + GAP;
+        toggleCell(w, contentX, y[0], contentWidth, "Show Nodes", cfg::isShowNodes, cfg::setShowNodes);
+        y[0] += ROW + GAP;
 
         buildLabelSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         if (com.killer560.hub.BuildVariant.DEV_TOOLS) {

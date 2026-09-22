@@ -43,6 +43,9 @@ public final class Ap3Renderer {
             return;
         }
         Ap3Config cfg = Ap3Config.getInstance();
+        if (!cfg.isShowNodes()) {
+            return; // "an option to hide nodes entirely" - boxes, arrows, labels and lines; AP3 itself still runs
+        }
         float thickness = cfg.getThickness();
         double height = cfg.getHeight();
         Camera camera = client.gameRenderer.getMainCamera();

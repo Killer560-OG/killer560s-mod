@@ -175,6 +175,9 @@ public final class Ap3Config {
     /** The line joining consecutive nodes (killer560, 2026-09-21: "an option to hide the lines going from one node to
      *  another"). On by default - it is what was always drawn. */
     private boolean showChainLines = true;
+    /** Draw the nodes at all (killer560, 2026-09-21: "add an option to hide nodes entirely"). Only the drawing -
+     *  nodes still fire. On by default. */
+    private boolean showNodes = true;
     private boolean uniformColor = false;
     /** The mod's own amber, so a uniform-coloured chain matches the menu. */
     public static final int DEFAULT_UNIFORM_COLOR = 0xFFFFA040;
@@ -286,6 +289,7 @@ public final class Ap3Config {
                 cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
                 cfg.stopwatchToParty = ConfigJson.getBool(o, "stopwatchToParty", cfg.stopwatchToParty);
                 cfg.showChainLines = ConfigJson.getBool(o, "showChainLines", cfg.showChainLines);
+                cfg.showNodes = ConfigJson.getBool(o, "showNodes", cfg.showNodes);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
@@ -349,6 +353,7 @@ public final class Ap3Config {
             o.addProperty("stopwatchHud", stopwatchHud);
             o.addProperty("stopwatchToParty", stopwatchToParty);
             o.addProperty("showChainLines", showChainLines);
+            o.addProperty("showNodes", showNodes);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("uniformColorArgb", uniformColorArgb);
             o.addProperty("activeColorArgb", activeColorArgb);
@@ -435,6 +440,8 @@ public final class Ap3Config {
     public boolean isStopwatchHud() { return stopwatchHud; }
     public boolean isStopwatchToParty() { return stopwatchToParty; }
     public boolean isShowChainLines() { return showChainLines; }
+    public boolean isShowNodes() { return showNodes; }
+    public void setShowNodes(boolean v) { showNodes = v; }
     public void setShowChainLines(boolean v) { showChainLines = v; }
     public void setStopwatchToParty(boolean v) { stopwatchToParty = v; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }
