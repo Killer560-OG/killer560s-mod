@@ -609,9 +609,20 @@ final class Ap3RouteRunner {
                 if (Double.isNaN(top)) {
                     continue;
                 }
+                // The air above a HALF-height surface is inside that surface's OWN block, so the scan has to start
+                // above it: starting at floor(top) found the slab / stair itself, reported no headroom and marked
+                // every half-height cell unstandable - which is why the route climbed the back of a stair (top 1.0)
+                // and refused its front (top 0.5).
                 double head = 0;
+                int firstBlock;
+                if (Math.abs(top - Math.round(top)) < 1.0E-6) {
+                    firstBlock = (int) Math.round(top); // flush with a block boundary: the air starts in the next one
+                } else {
+                    firstBlock = (int) Math.floor(top) + 1;
+                    head += firstBlock - top; // whatever is left of the surface's own block is already air
+                }
                 for (int up = 0; up < 3; up++) {
-                    pos.set(bx, (int) Math.floor(top + 1.0E-4) + up, bz);
+                    pos.set(bx, firstBlock + up, bz);
                     if (!Double.isNaN(topAt(level, pos, x - bx, z - bz))) {
                         break;
                     }

@@ -1589,10 +1589,14 @@ public final class Ap3Executor {
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
         Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
         double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        // Whether the sprint boost is IN that number is a question for the attribute, not for isSprinting(): the two
+        // can disagree within a tick, and taking the 1.3 out when it was never there priced a press at 0.73614 that
+        // the game gave 0.49140 - a 1.5x overestimate, and a 0.2 block miss.
+        boolean sprintInAttr = hasSprintModifier(player);
         // pushScale: what the last ticks actually did, divided by what the model said they would (see observePush).
         // It absorbs anything the model cannot see - his own sprint key re-arming sprint mid-align, a speed change,
         // a different floor - so the plan is built on the push the game IS giving rather than the one it should.
-        m.baseSpeedAttr = (player.isSprinting() ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr) * pushScale;
+        m.baseSpeedAttr = (sprintInAttr ? attr / Ap3AlignMath.SPRINT_MULTIPLIER : attr) * pushScale;
         m.blockFriction = blockFriction(player);
         m.onGround = player.onGround();
         m.sneakMul = sneakSpeed(player);
@@ -1619,6 +1623,25 @@ public final class Ap3Executor {
      */
     private static boolean sprintFor(Ap3DiscretePlanner.Action a) {
         return a.fw() > 0; // including a sneaking one: measured at sprint speed x sneak's 0.3
+    }
+
+    /** Vanilla's own "minecraft:sprinting" modifier on the movement speed: present exactly when the 1.3 is applied. */
+    private static boolean hasSprintModifier(LocalPlayer player) {
+        try {
+            net.minecraft.world.entity.ai.attributes.AttributeInstance inst =
+                    player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+            if (inst == null) {
+                return player.isSprinting();
+            }
+            for (net.minecraft.world.entity.ai.attributes.AttributeModifier mod : inst.getModifiers()) {
+                if ("minecraft:sprinting".equals(mod.id().toString())) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Throwable t) {
+            return player.isSprinting();
+        }
     }
 
     private static boolean sprintLikely(LocalPlayer player) {
