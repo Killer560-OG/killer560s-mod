@@ -359,6 +359,8 @@ public final class Ap3Executor {
         holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
+        preAimed = null;
+        preAimPrevSlot = -1;
         endAim(Minecraft.getInstance().player);
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
@@ -756,6 +758,7 @@ public final class Ap3Executor {
             }
             applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
+            preAim(player); // last: may turn you toward a Block / Boom box you enter next tick
         } catch (Exception e) {
             LOGGER.error("[AP3] Node error", e);
             stop("internal error (see log)");
@@ -1481,7 +1484,8 @@ public final class Ap3Executor {
         }
         boolean holding = freezeViewWanted() && (holdDir != null
                 || (activeNode != null && step == Step.DO && activeNode.type.isAlign())
-                || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK || activeNode.type == Ap3Node.Type.BOOM)));
+                || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK || activeNode.type == Ap3Node.Type.BOOM))
+                || preAimed != null);
         if (!holding) {
             float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
             if (Math.abs(delta) <= ALIGN_YAW_STEP) {
@@ -2152,6 +2156,93 @@ public final class Ap3Executor {
      * endAim puts the pitch back (where you moved the frozen view to, if you did). The yaw is left to the walk, which
      * snaps it onto its own angle, or to the view freeze's glide back.
      */
+    /**
+     * Look-ahead for BLOCK / BOOM (killer560, 2026-09-21: "it needs to be placing the block on the first tick I enter
+     * the block node though, so maybe have it so it predicts if I am going to enter so it does the rotation 1 tick
+     * early"). After this tick's input is decided: if the next tick's move - current velocity plus the push of the
+     * keys just chosen - ends inside a Block / Boom box you are not in yet, swap to the item and turn to the node's
+     * angle NOW. The next tick's movement packet then carries both, and the node uses its item on the very tick you
+     * enter (tickBlock / tickBoom skip straight to the use when the pre-aim matches). The held walk's keys are
+     * re-picked for the turned yaw so that one tick still heads the walk's way. A prediction that doesn't come true
+     * is dropped two ticks later (pitch and slot put back).
+     */
+    private static Ap3Node preAimed;
+    private static long preAimTick;
+    private static int preAimPrevSlot = -1;
+
+    private static void preAim(LocalPlayer player) {
+        if (preAimed != null && tickCounter - preAimTick > 2 && activeNode != preAimed) {
+            cancelPreAim(player);
+        }
+        if (chain == null || preAimed != null || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK
+                || activeNode.type == Ap3Node.Type.BOOM))) {
+            return;
+        }
+        Vec3 pos = player.position();
+        Vec3 v = player.getDeltaMovement();
+        double dx = v.x;
+        double dz = v.z;
+        if (driving) {
+            Ap3DiscretePlanner.Model m = modelFor(player, false);
+            boolean diagonal = (wantForward || wantBackward) && (wantLeft || wantRight);
+            double push = m.tickSpeed(wantSprint || player.isSprinting()) * (diagonal ? 1.0 : Ap3AlignMath.INPUT_SCALE);
+            double len = Math.sqrt(driveX * driveX + driveZ * driveZ);
+            if (len > 1e-6) {
+                dx += driveX / len * push;
+                dz += driveZ / len * push;
+            }
+        }
+        Vec3 next = new Vec3(pos.x + dx, pos.y + v.y, pos.z + dz);
+        for (Ap3Node node : chain.nodes()) {
+            if ((node.type != Ap3Node.Type.BLOCK && node.type != Ap3Node.Type.BOOM) || inside.contains(node)
+                    || node.contains(pos) || !node.contains(next) || queue.contains(node)) {
+                continue;
+            }
+            int slot = node.type == Ap3Node.Type.BLOCK ? findBlockSlot(player) : ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
+            if (slot < 0) {
+                return; // the node itself will report it when you enter
+            }
+            preAimPrevSlot = player.getInventory().getSelectedSlot();
+            if (slot != preAimPrevSlot) {
+                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                    return;
+                }
+                player.getInventory().setSelectedSlot(slot);
+                player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+            }
+            beginAim(player);
+            aimAt(player, node);
+            if (holdDir != null && driving) {
+                int[] key = nearestKey8(holdDir.x, holdDir.z, player.getYRot());
+                boolean sprint = holdSprint && key[0] > 0 && !player.isInWater();
+                writeDiscrete(player, key[0], key[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
+            }
+            preAimed = node;
+            preAimTick = tickCounter;
+            return;
+        }
+    }
+
+    /** The node the pre-aim was for has started: true (once) when it can use its item this very tick. */
+    private static boolean takePreAim(Ap3Node node, LocalPlayer player) {
+        if (preAimed != node) {
+            return false;
+        }
+        preAimed = null;
+        return tickCounter - preAimTick <= 2;
+    }
+
+    private static void cancelPreAim(LocalPlayer player) {
+        preAimed = null;
+        endAim(player);
+        if (player != null && preAimPrevSlot >= 0 && player.getInventory().getSelectedSlot() != preAimPrevSlot
+                && ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+            player.getInventory().setSelectedSlot(preAimPrevSlot);
+            player.connection.send(new ServerboundSetCarriedItemPacket(preAimPrevSlot));
+        }
+        preAimPrevSlot = -1;
+    }
+
     private static void beginAim(LocalPlayer player) {
         aimPrevPitch = player.getXRot();
         aiming = true;
@@ -2184,6 +2275,15 @@ public final class Ap3Executor {
     private static void tickBlock(Minecraft client, LocalPlayer player, Ap3Node node) {
         switch (step) {
             case PREP -> {
+                if (takePreAim(node, player)) {
+                    // Swapped and turned last tick by preAim: place on this, the entry tick.
+                    blockPrevSlot = preAimPrevSlot;
+                    preAimPrevSlot = -1;
+                    step = Step.DO;
+                    stepTicks = 0;
+                    tickBlock(client, player, node);
+                    return;
+                }
                 blockPrevSlot = player.getInventory().getSelectedSlot();
                 beginAim(player);
                 step = Step.SWAP;
@@ -2290,6 +2390,13 @@ public final class Ap3Executor {
         switch (step) {
             case PREP -> {
                 boomChatConfirmed = false;
+                if (takePreAim(node, player)) {
+                    preAimPrevSlot = -1;
+                    step = Step.DO;
+                    stepTicks = 0;
+                    tickBoom(client, player, node);
+                    return;
+                }
                 beginAim(player);
                 step = Step.SWAP;
                 stepTicks = 0;
