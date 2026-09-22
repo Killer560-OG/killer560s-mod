@@ -54,7 +54,9 @@ public final class EtherwarpHudElement implements HudElement {
     /** In-game gate used by {@code EtherwarpGuiMixin}: any real menu hides the list, chat does not (killer560:
      *  "dont make it hide the gui if i open chat"), and the HUD editor draws this element itself. */
     public boolean isVisible() {
-        return !HudVisibility.menuOpen();
+        // The HUD list is gone (killer560, 2026-09-21: "remove the hud list option to etherwarp waypoints") - the
+        // box on the block is the feature. Kept registered so saved HUD layouts don't break; it never draws.
+        return false;
     }
 
     @Override

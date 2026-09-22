@@ -32,12 +32,20 @@ public class EtherwarpTab extends BaseTab {
         int y = contentY;
         EtherwarpWaypointsConfig cfg = EtherwarpWaypointsConfig.getInstance();
 
+        // The section toggle (killer560, 2026-09-21: "make a toggle for that section"); the old "Show HUD list"
+        // option is gone with the HUD list itself.
         widgets.add(SettingsButtonWidget.builder(masterText(), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.setHighlightBlocks(!cfg.isHighlightBlocks());
                     cfg.save();
-                    btn.setMessage(masterText());
+                    requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
+        if (!cfg.isHighlightBlocks()) {
+            return widgets;
+        }
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("\u00a77/ew waypoint add [name] | remove | undo | clear"), Minecraft.getInstance().font));
+        y += 16;
 
         List<EtherwarpWaypoint> waypoints = EtherwarpFeature.waypoints();
         if (waypoints.isEmpty()) {
@@ -68,6 +76,6 @@ public class EtherwarpTab extends BaseTab {
     }
 
     private static Component masterText() {
-        return Component.literal("Show HUD list: " + (EtherwarpWaypointsConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
+        return Component.literal("Etherwarp Waypoints: " + (EtherwarpWaypointsConfig.getInstance().isHighlightBlocks() ? "§aON" : "§cOFF"));
     }
 }

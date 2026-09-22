@@ -78,7 +78,12 @@ public final class EtherwarpFeature {
             if (eye.distanceToSqr(w.x + 0.5, w.y + 0.5, w.z + 0.5) > maxSq) {
                 continue;
             }
-            AABB box = new AABB(w.x, w.y, w.z, w.x + 1, w.y + 1, w.z + 1);
+            // The block the waypoint is in - floor, so a centred (x.5) position boxes its own block, not a
+            // block-and-a-half.
+            double bx = Math.floor(w.x);
+            double by = Math.floor(w.y);
+            double bz = Math.floor(w.z);
+            AABB box = new AABB(bx, by, bz, bx + 1, by + 1, bz + 1);
             WorldRenderUtils.renderOutlineBox(context, box, rgb[0], rgb[1], rgb[2], 1f, 2f);
         }
     }
@@ -90,6 +95,54 @@ public final class EtherwarpFeature {
             LOGGER.info("[Etherwarp] New dungeon run detected - cleared waypoint list.");
         }
         wasInDungeon = inDungeonNow;
+    }
+
+    /**
+     * {@code /ew waypoint add [name]} - killer560 (2026-09-21): "instead of being on the block the player is looking
+     * at instead it is the one they are standing on currently, centered on the block if they are off-centered". The
+     * block under your feet, centred. @return a status line.
+     */
+    public static String addAtFeet(String name) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.level == null) {
+            return "\u00a7c[Etherwarp] You need to be in a world to add a waypoint.";
+        }
+        if (!EtherwarpWaypointsConfig.getInstance().isHighlightBlocks()) {
+            return "\u00a7c[Etherwarp] Etherwarp Waypoints is off (Secrets > Etherwarp Waypoints).";
+        }
+        var below = net.minecraft.core.BlockPos.containing(client.player.getX(), client.player.getY() - 0.05, client.player.getZ());
+        String n = name == null || name.isBlank() ? "Waypoint " + (waypoints.size() + 1) : name.trim();
+        waypoints.add(new EtherwarpWaypoint(n, below.getX() + 0.5, below.getY() + 0.5, below.getZ() + 0.5));
+        LOGGER.info("[Etherwarp] Added waypoint \"{}\" at block {}", n, below);
+        return String.format(Locale.US, "[Etherwarp] Added \"%s\" on (%d, %d, %d)", n, below.getX(), below.getY(), below.getZ());
+    }
+
+    /** {@code /ew waypoint remove} - the waypoint closest to you. */
+    public static String removeClosest() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || waypoints.isEmpty()) {
+            return "\u00a7c[Etherwarp] No waypoints to remove.";
+        }
+        EtherwarpWaypoint best = null;
+        double bestSq = Double.MAX_VALUE;
+        for (EtherwarpWaypoint w : waypoints) {
+            double d = client.player.distanceToSqr(w.x, w.y, w.z);
+            if (d < bestSq) {
+                bestSq = d;
+                best = w;
+            }
+        }
+        waypoints.remove(best);
+        return "[Etherwarp] Removed \"" + best.name + "\"";
+    }
+
+    /** {@code /ew waypoint undo} - the last one added. */
+    public static String undo() {
+        if (waypoints.isEmpty()) {
+            return "\u00a7c[Etherwarp] Nothing to undo.";
+        }
+        EtherwarpWaypoint w = waypoints.remove(waypoints.size() - 1);
+        return "[Etherwarp] Undid \"" + w.name + "\"";
     }
 
     /** @return a user-facing status message for the command/GUI to show. */

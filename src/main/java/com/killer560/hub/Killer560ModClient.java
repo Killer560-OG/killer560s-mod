@@ -253,6 +253,41 @@ public class Killer560ModClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(WindowModeFeature::tickApplyOnce);
 
+        // "/ew waypoint add|remove|undo" (killer560, 2026-09-21: "change the command to /ew waypoint add. add in
+        // remove that removes the closest, undo that undoes the last as well").
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal("ew")
+                        .then(ClientCommands.literal("waypoint")
+                                .then(ClientCommands.literal("add")
+                                        .executes(context -> {
+                                            if (blockedBySkyblockOnly()) {
+                                                return 0;
+                                            }
+                                            ModOverlayMessage.show(EtherwarpFeature.addAtFeet(null), 3000);
+                                            return 1;
+                                        })
+                                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                                .executes(context -> {
+                                                    if (blockedBySkyblockOnly()) {
+                                                        return 0;
+                                                    }
+                                                    ModOverlayMessage.show(EtherwarpFeature.addAtFeet(
+                                                            StringArgumentType.getString(context, "name")), 3000);
+                                                    return 1;
+                                                })))
+                                .then(ClientCommands.literal("remove").executes(context -> {
+                                    ModOverlayMessage.show(EtherwarpFeature.removeClosest(), 3000);
+                                    return 1;
+                                }))
+                                .then(ClientCommands.literal("undo").executes(context -> {
+                                    ModOverlayMessage.show(EtherwarpFeature.undo(), 3000);
+                                    return 1;
+                                }))
+                                .then(ClientCommands.literal("clear").executes(context -> {
+                                    EtherwarpFeature.clear();
+                                    ModOverlayMessage.show("[Etherwarp] Cleared all waypoints.", 2500);
+                                    return 1;
+                                })))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("killer560")
                         .executes(context -> {
@@ -296,7 +331,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                                         return 0;
                                                     }
                                                     String name = StringArgumentType.getString(context, "name");
-                                                    ModOverlayMessage.show(EtherwarpFeature.addAtLookTarget(name), 3000);
+                                                    ModOverlayMessage.show(EtherwarpFeature.addAtFeet(name), 3000);
                                                     return 1;
                                                 })))
                                 .then(ClientCommands.literal("clear")

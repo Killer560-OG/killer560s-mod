@@ -467,7 +467,7 @@ final class SettingTooltipsData {
         d.put("extra info overlay", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("mimic room show/hide", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("player-head class recolor", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
-        d.put("show hud list", "Shows the spots you saved this run with /killer560 ew add <name> as an on-screen list with live distance. The list is cleared when a new dungeon run starts and is never saved or sent to anyone. Move it in Edit HUD Positions.");
+        d.put("etherwarp waypoints/etherwarp waypoints", "Turns the whole Etherwarp Waypoints section on or off. /ew waypoint add [name] marks the block you are standing on (centred) with a box; /ew waypoint remove deletes the closest one, /ew waypoint undo the last one, /ew waypoint clear all of them. Waypoints last for the current dungeon run only.");
         d.put("clear all", "Removes every etherwarp waypoint added this run.");
         d.put("tick timers", "Countdown HUD for the F7/M7 boss (Storm, Goldor and Necron phases), started by the bosses' chat lines and counted in server ticks. Move it in the HUD editor. Resets when you leave the dungeon.");
         d.put("necron", "Shows a 3s (60 tick) 'Necron dropping in' countdown after Necron's 'your journey ends now' line in F7/M7 P4.");
