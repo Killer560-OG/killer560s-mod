@@ -902,11 +902,47 @@ final class Ap3RouteRunner {
             int feetY = Mth.floor(start.y);
             int bandLo = Mth.floor(loY) - BAND_DOWN;
             int bandHi = Mth.floor(hiY) + BAND_UP;
+            // What height a column's surface is judged against.
+            //
+            // A column often holds several surfaces and the grid keeps one, so something has to choose. Both
+            // previous rules chose against the player's feet AT THE MOMENT OF PLANNING - "nearest his feet", then
+            // "the highest within a jump of his feet" - and both are wrong in the same way: one transient height
+            // decides the surface for every column on the map, thirty blocks away and nine blocks up included.
+            // Measured on killer560's world, 2026-09-23: a grid built while he stood in a pit at y 112 resolved the
+            // column he starts that route from - where he stands at y 119 - to y 106, and the planner then had no
+            // idea where the ground under his own feet was. The snapshot is also kept and reused, so the height it
+            // was judged against need not even be the one he has now.
+            //
+            // The route knows better than he does. Its start and its nodes are places whose heights are known
+            // exactly, so each column is judged against the nearest of THOSE - which makes the grid a property of
+            // the route rather than of where he happened to be standing, and therefore the same every time.
+            double[] anchorX = new double[gates.size() + 1];
+            double[] anchorZ = new double[gates.size() + 1];
+            double[] anchorY = new double[gates.size() + 1];
+            anchorX[0] = start.x;
+            anchorZ[0] = start.z;
+            anchorY[0] = start.y;
+            for (int k = 0; k < gates.size(); k++) {
+                Ap3RoutePlanner.Gate g = gates.get(k);
+                anchorX[k + 1] = g.x;
+                anchorZ[k + 1] = g.z;
+                anchorY[k + 1] = g.y;
+            }
             long t0 = System.nanoTime();
             for (int i = 0; i < w; i++) {
                 for (int j = 0; j < h; j++) {
-                    snap.readCell(level, minX + (i + 0.5) * CELL, minZ + (j + 0.5) * CELL, feetY, bandLo, bandHi,
-                            i * h + j);
+                    double cx = minX + (i + 0.5) * CELL;
+                    double cz = minZ + (j + 0.5) * CELL;
+                    double refY = anchorY[0];
+                    double nearest = Double.MAX_VALUE;
+                    for (int k = 0; k < anchorX.length; k++) {
+                        double d = (cx - anchorX[k]) * (cx - anchorX[k]) + (cz - anchorZ[k]) * (cz - anchorZ[k]);
+                        if (d < nearest) {
+                            nearest = d;
+                            refY = anchorY[k];
+                        }
+                    }
+                    snap.readCell(level, cx, cz, refY, bandLo, bandHi, i * h + j);
                 }
             }
             snap.readBoxes(level, bandLo, bandHi);
@@ -1075,7 +1111,8 @@ final class Ap3RouteRunner {
          * killer560's ground profiles came back as row after row of X. A roof is not a wall; it is something with a
          * floor under it.
          */
-        private void readCell(ClientLevel level, double x, double z, int feetY, int bandLo, int bandHi, int cell) {
+        private void readCell(ClientLevel level, double x, double z, double feetY, int bandLo, int bandHi,
+                              int cell) {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             int bx = Mth.floor(x);
             int bz = Mth.floor(z);
@@ -1306,7 +1343,7 @@ final class Ap3RouteRunner {
     private static String snapKey = "";
     private static Snap snapKept;
     private static long snapTakenAt;
-    private static double snapX, snapZ;
+    private static double snapX, snapY, snapZ;
     /** How long a scan stays good for, in milliseconds. */
     private static final long SNAP_TTL_MS = 5000;
     /** ...and how far he may have moved since, before it is worth taking another. */
@@ -1322,6 +1359,11 @@ final class Ap3RouteRunner {
         if (Math.hypot(start.x - snapX, start.z - snapZ) > SNAP_MOVED) {
             return null;
         }
+        // Height counts as having moved. Falling into a pit barely changes x and z, and the kept scan's band was
+        // read around the height he was at when it was taken.
+        if (Math.abs(start.y - snapY) > SNAP_MOVED) {
+            return null;
+        }
         return snapKept;
     }
 
@@ -1330,6 +1372,7 @@ final class Ap3RouteRunner {
         snapKept = snap;
         snapTakenAt = System.currentTimeMillis();
         snapX = start.x;
+        snapY = start.y;
         snapZ = start.z;
     }
 

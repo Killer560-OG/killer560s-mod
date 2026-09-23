@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Writes out everything one plan was given - where he was, what the nodes ask for, and every collision box the
@@ -27,6 +28,9 @@ final class Ap3RouteDump {
     }
 
     /** The last few failures, kept side by side so one bad route does not overwrite another. */
+    /** What the four kept captures are OF, so a failure that repeats does not evict the others. */
+    private static final String[] recent = new String[4];
+
     private static int slot;
     private static long lastWrite;
 
@@ -42,6 +46,18 @@ final class Ap3RouteDump {
         if (now - lastWrite < 4000) {
             return;
         }
+        // One failure that keeps happening must not cost us the other three captures. On 2026-09-23 he fell into a
+        // pit and the route retried from down there over and over; each retry took a slot, and within a minute all
+        // four held the same unsolvable attempt - the capture of the failure actually worth looking at was gone.
+        // Same start, same nodes, same reason: it is the same failure, and one copy of it is enough.
+        String fingerprint = String.format(Locale.US, "%.2f,%.2f,%.2f|%d|%s", start.x, start.y, start.z,
+                gates.size(), why);
+        for (String seen : recent) {
+            if (fingerprint.equals(seen)) {
+                return;
+            }
+        }
+        recent[slot % recent.length] = fingerprint;
         lastWrite = now;
         write(start, gates, blocked, snap, m, "ap3-route-failure-" + (slot++ % 4) + ".json", why);
     }

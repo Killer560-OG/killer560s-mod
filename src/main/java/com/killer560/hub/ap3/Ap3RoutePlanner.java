@@ -446,6 +446,12 @@ final class Ap3RoutePlanner {
                                   Terrain terrain, Ap3DiscretePlanner.Model m, Options o, Field field) {
         int[][] configs = {
                 {o.beam * 2, 16, 0},   // on foot, wide: the running answer, given room to be found
+                // Narrow, and therefore DEEP. A beam search spends its budget per layer, so width is bought with
+                // depth, and a route whose payoff is twenty ticks away needs depth above all. Measured on his
+                // two-jump section, 2026-09-23, same world and same terrain: beam 250 solved it in 197 ms while
+                // beam 600 and 1200 both ran 8 seconds and never got past the ledge. Every member here used to be
+                // o.beam or wider, so the one shape that solves this kind of route was the one shape never tried.
+                {Math.max(200, Math.min(300, o.beam / 5)), 16, 1},
                 {o.beam, 16, 1},
                 {o.beam * 2, 24, 1},
                 {o.beam * 3, 32, 1},
@@ -1089,6 +1095,13 @@ final class Ap3RoutePlanner {
         float[] surface;
         /** Distance from gate i-1's centre on to the end, walked through the fields. */
         final double[] tail;
+        /**
+         * Per gate: did the flood reach the START? When it did, the field knows a way, and a floored cell it could
+         * NOT reach is somewhere that way does not go - a pit you can stand in but not get out of. When it did not,
+         * the grid has missed something (a jump longer than JUMP_CELLS, say) and nothing can be concluded from a
+         * cell being unreachable, so the straight-line fallback stays as it was.
+         */
+        final boolean[] startKnown;
         final List<Gate> gates;
 
         Field(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked, Terrain terrain, Options o) {
@@ -1136,6 +1149,12 @@ final class Ap3RoutePlanner {
             dist = new float[gates.size()][];
             for (int g = 0; g < gates.size(); g++) {
                 dist[g] = flood(wall, floor, climb, gates.get(g));
+            }
+            startKnown = new boolean[gates.size()];
+            for (int g = 0; g < gates.size(); g++) {
+                int i = (int) Math.round((start.x - minX) / CELL);
+                int j = (int) Math.round((start.z - minZ) / CELL);
+                startKnown[g] = i >= 0 && j >= 0 && i < w && j < h && !Float.isInfinite(dist[g][i * h + j]);
             }
             tail = new double[gates.size() + 1];
             tail[gates.size()] = 0;
@@ -1195,7 +1214,7 @@ final class Ap3RoutePlanner {
                     for (int dj = -1; dj <= 1; dj++) {
                         int ni = ci + di;
                         int nj = cj + dj;
-                        if (ni < 0 || nj < 0 || ni >= w || nj >= h || wall[ni * h + nj]) {
+                        if (ni < 0 || nj < 0 || ni >= w || nj >= h || hole(wall, floor, cur, ni * h + nj)) {
                             onLip = true;
                             break;
                         }
@@ -1247,7 +1266,7 @@ final class Ap3RoutePlanner {
                             break;
                         }
                         int mid = (ci + si * (len - 1)) * h + (cj + sj * (len - 1));
-                        if (!wall[mid]) {
+                        if (!hole(wall, floor, cur, mid)) {
                             break; // solid ground all the way: the ordinary neighbours already walked it
                         }
                         int at = ni * h + nj;
@@ -1266,6 +1285,22 @@ final class Ap3RoutePlanner {
                 }
             }
             return d;
+        }
+
+        /**
+         * Is this cell, seen from {@code cur}, something a route flies OVER rather than walks through? A cell with
+         * no floor is; so is a cell with a floor too far below {@code cur} to climb back out of.
+         * <p>
+         * Measured on killer560's two-jump section, 2026-09-23 (ap3-route-failure-2.json): between the ledge at
+         * 120 and the node at 121 lies a two-block pit with a floor at 112. Because that floor exists, the pit was
+         * not a hole to this flood, and because 112 -> 121 is not a climb, the flood stopped dead at the node's
+         * edge: every cell on the approach - the pit, the ledge, the gap, the start - read as unreachable and the
+         * search was handed straight-line distance for the whole route. Straight-line distance is shortest from
+         * INSIDE the pit, so every state that overflew the ledge and fell in outranked every state still on a way
+         * up, and from layer 20 the entire beam was down there (traced: 1200 of 1200 kept states "fallen").
+         */
+        private static boolean hole(boolean[] wall, float[] floor, int cur, int cell) {
+            return wall[cell] || floor[cur] - floor[cell] > JUMP_CLIMB;
         }
 
         /**
@@ -1360,6 +1395,14 @@ final class Ap3RoutePlanner {
             if (Float.isInfinite(d)) {
                 Gate g = gates.get(gate);
                 out = Math.hypot(g.x - x, g.z - z); // walled in on the grid: fall back, the step check still rules
+                // ...unless the grid knows the way from the start and this is a floor it never reached: then
+                // standing here is standing in a pit. Straight-line distance is SHORTEST from inside a pit next to
+                // the node, which made killer560's pit a sink for the whole beam (see hole()). Only charged when
+                // the feet are down on it, or within a jump of it: a state flying over the pit is on its way.
+                if (startKnown[gate] && !Float.isNaN(surface[cell]) && !Double.isNaN(y)
+                        && y - surface[cell] < JUMP_CLIMB) {
+                    out += UNDER_PENALTY;
+                }
             } else {
                 out = d;
             }
