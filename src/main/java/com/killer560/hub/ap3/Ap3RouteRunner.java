@@ -65,6 +65,9 @@ final class Ap3RouteRunner {
     private static final int PLAN_LATENCY = 6;
     /** A fresh plan is started this often while running, so the route keeps correcting instead of drifting. */
     private static final int REPLAN_EVERY = 20;
+    /** How often a route with no plan at all may ask for another one. See the plan == null branch in tick(). */
+    private static final int RETRY_EVERY = 20;
+    private static int retryIn;
     /**
      * How long the first plan of a route may take. Long, on purpose: it is found once and then remembered, and it
      * runs off the client thread, so the only cost is the pause before he sets off - which he already sees and
@@ -229,24 +232,26 @@ final class Ap3RouteRunner {
             }
         }
         if (plan == null) {
-            // Nothing to drive. If nobody is working on one either, ask again - a pre-plan that was still in
-            // flight when he stepped on the node used to leave the route here for good: its answer was refused
-            // for being older than this run, and startPlanning() had already returned silently because the worker
-            // was busy. The route then coasted until the node timed out.
-            if (!planning) {
+            // Nothing to drive. If nobody is working on one either, ask again - a pre-plan still in flight when he
+            // stepped on the node used to leave the route here for good.
+            // But not EVERY tick: startPlanning reads the whole world first, which is tens of milliseconds on the
+            // client thread, and when a search fails immediately (as it did when a No Go box sat on his feet) that
+            // became a fresh world scan every single tick and the game locked up. Once every RETRY_EVERY ticks is
+            // plenty - the answer is not going to change in the meantime.
+            if (!planning && --retryIn <= 0) {
+                retryIn = RETRY_EVERY;
                 startPlanning(client, player);
             }
             return true; // still planning - no keys this tick, the player coasts
         }
+        retryIn = 0;
         if (stepIndex >= plan.steps.length) {
             if (!plan.complete) {
                 // A partial that ran out before REPLAN_EVERY could fire. Finishing here would mark the node done
                 // having never reached its last gate, and the rest of the chain would run from the wrong place.
                 plan = null;
                 predicted = null;
-                if (!planning) {
-                    startPlanning(client, player);
-                }
+                retryIn = 0; // the branch above asks for the next one, rate limited
                 return true;
             }
             return finishLeg(client, player);
@@ -437,6 +442,7 @@ final class Ap3RouteRunner {
             gates.get(gates.size() - 1).mustLand = true; // the route ends standing, not mid-jump
         }
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
+        final List<Ap3RoutePlanner.Blocked> blockedHard = noGoZones(player, false);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
         Snap snap = Snap.of(client.level, player, gates, start);
         if (dumpNext) {
@@ -505,6 +511,19 @@ final class Ap3RouteRunner {
         worker = new Thread(() -> {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
+                if (!p.complete && blocked.size() > blockedHard.size()) {
+                    // Keeping out of the chain's other nodes is a preference, not a rule. If it makes the route
+                    // impossible - a node sitting in the only doorway, say - having no route at all is worse than
+                    // running over something, so try again without them. This is the safety net for a change that
+                    // took his whole config out on 2026-09-22 by fencing off the align he was stood on.
+                    Ap3RoutePlanner.Plan relaxed =
+                            Ap3RoutePlanner.plan(start, gates, blockedHard, snap, model, options);
+                    if (relaxed.complete) {
+                        LOGGER.info("[AP3 route] no way round the chain's other nodes - planning through them"
+                                + " instead ({} ticks)", relaxed.ticks);
+                        p = relaxed;
+                    }
+                }
                 // Remember it if it is the best this route has managed, so the next run is instant and identical.
                 Ap3RouteCache.offer(signature, start, p);
                 // Only publish if no newer request has been made since this one started. Writing the plan and its
@@ -657,14 +676,25 @@ final class Ap3RouteRunner {
     }
 
     private static List<Ap3RoutePlanner.Blocked> noGoZones(LocalPlayer player) {
+        return noGoZones(player, true);
+    }
+
+    /**
+     * @param avoidNodes also keep out of chain nodes that crossing would disturb. Passed false for the retry when
+     *                   a route cannot be planned at all with them - see startPlanning.
+     */
+    private static List<Ap3RoutePlanner.Blocked> noGoZones(LocalPlayer player, boolean avoidNodes) {
         List<Ap3RoutePlanner.Blocked> out = new ArrayList<>();
         Ap3Chain chain = Ap3Feature.currentChain();
         if (chain == null) {
             return out;
         }
+        double hereX = player.getX();
+        double hereY = player.getY();
+        double hereZ = player.getZ();
         for (Ap3Node n : chain.nodes()) {
             if (n.type != Ap3Node.Type.NO_GO) {
-                if (disturbedByCrossing(n.type) && !route.contains(n)) {
+                if (avoidNodes && disturbedByCrossing(n.type) && !route.contains(n)) {
                     Ap3RoutePlanner.Blocked b = new Ap3RoutePlanner.Blocked();
                     // Just the node itself, not a margin around it - this is about not standing IN it.
                     b.minX = n.x - n.width / 2.0;
@@ -673,6 +703,16 @@ final class Ap3RouteRunner {
                     b.maxZ = n.z + n.length / 2.0;
                     b.minY = n.y - 0.5;
                     b.maxY = n.y + BODY_HEIGHT;
+                    // ...but never one he is already standing in. A route very often starts ON the align that
+                    // handed over to it, and fencing off the square he is stood on rejects every move he could
+                    // make: the search died in one layer having gone nowhere, every plan came back "no route
+                    // found", and he lost jumping and everything else with it (2026-09-22). A box he is inside
+                    // cannot be avoided, only escaped.
+                    if (hereX >= b.minX - HALF_WIDTH && hereX <= b.maxX + HALF_WIDTH
+                            && hereZ >= b.minZ - HALF_WIDTH && hereZ <= b.maxZ + HALF_WIDTH
+                            && hereY >= b.minY - 1.0 && hereY <= b.maxY) {
+                        continue;
+                    }
                     out.add(b);
                 }
                 continue;

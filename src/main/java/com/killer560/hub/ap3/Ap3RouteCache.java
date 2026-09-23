@@ -36,7 +36,13 @@ final class Ap3RouteCache {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3-route");
 
     /** How far from where a cached plan was planned he may start and still be given it. */
-    private static final double START_TOLERANCE = 0.75;
+    /**
+     * Measured against his own misses: the log showed saved plans sitting 1.00, 1.27 and 1.38 blocks from where he
+     * stepped on, all refused at 0.75. A schedule from a metre away is not perfect - the drift check will correct
+     * it within a few ticks - but it is a great deal better than searching from scratch, and with several
+     * approaches kept per route the near ones win anyway.
+     */
+    private static final double START_TOLERANCE = 1.25;
     /** ...and how differently he may be moving. A schedule assumes the speed it was built for. */
     private static final double SPEED_TOLERANCE = 0.12;
     /** Enough entries for a dungeon's worth of routes without the file growing without end. */
