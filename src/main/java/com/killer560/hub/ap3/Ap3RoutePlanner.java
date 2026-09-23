@@ -316,6 +316,17 @@ final class Ap3RoutePlanner {
         boolean jump;
         /** How many jumps this whole path has used - the tie-break that keeps a route on its feet. */
         int jumps;
+        /**
+         * How many ticks of this path ran into something hard enough to lose the sprint. killer560 (2026-09-22):
+         * "if it does have to jump up a block, it shouldnt walk to the edge most of the time. It should try to jump
+         * early so it doesnt clip the block so it doesnt lose all of its momentum."
+         * <p>
+         * Jumping late and catching the side of the ledge costs the sprint and most of the speed. Usually that also
+         * costs ticks and the search avoids it on its own - but not always, and when the tick count ties it had no
+         * reason to prefer the clean jump. Now it does, and it keeps the speed for whatever comes after the plan
+         * ends, which the tick count inside the plan never sees.
+         */
+        int clips;
         /** Scratch for {@link #cutLayer}. */
         boolean picked;
         /** Ticks in a row spent standing on a block a Block node will place. */
@@ -424,6 +435,7 @@ final class Ap3RoutePlanner {
         long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
         Plan best = null;
         int bestJumps = Integer.MAX_VALUE;
+        int bestClips = Integer.MAX_VALUE;
         Plan fallback = null;
         for (int[] cfg : configs) {
             if (System.nanoTime() > deadline && best != null) {
@@ -444,14 +456,23 @@ final class Ap3RoutePlanner {
                 continue;
             }
             int jumps = 0;
+            int clips = 0;
+            Ap3RouteMath.RouteState sim = start.copy();
             for (Step st : p.steps) {
                 if (st.jump()) {
                     jumps++;
                 }
+                Ap3RouteMath.step(sim, st.keys(), st.yaw(), st.jump(), m, terrain.shapes());
+                if (sim.sprintBlocked) {
+                    clips++;
+                }
             }
-            if (best == null || p.ticks < best.ticks || (p.ticks == best.ticks && jumps < bestJumps)) {
+            if (best == null || p.ticks < best.ticks
+                    || (p.ticks == best.ticks && jumps < bestJumps)
+                    || (p.ticks == best.ticks && jumps == bestJumps && clips < bestClips)) {
                 best = p;
                 bestJumps = jumps;
+                bestClips = clips;
             }
         }
         if (best != null) {
@@ -518,7 +539,7 @@ final class Ap3RoutePlanner {
             Node goal = null;
             for (Node n : next) {
                 if (n.group >= groups.size()) {
-                    if (goal == null || n.jumps < goal.jumps || (n.jumps == goal.jumps && n.f < goal.f)) {
+                    if (goal == null || better(n, goal)) {
                         goal = n;
                     }
                     continue;
@@ -644,6 +665,21 @@ final class Ap3RoutePlanner {
         return n.s.onGround ? band : band + SPEED_BANDS;
     }
 
+    /**
+     * Between two ways of finishing on the same tick: fewer jumps first (running is what he wants where it works),
+     * then fewer ticks spent scraping along things, then the cheaper f. All of these are ties on the only thing the
+     * search actually minimises, so none of them can buy a slower route.
+     */
+    private static boolean better(Node a, Node b) {
+        if (a.jumps != b.jumps) {
+            return a.jumps < b.jumps;
+        }
+        if (a.clips != b.clips) {
+            return a.clips < b.clips;
+        }
+        return a.f < b.f;
+    }
+
     private static int gatesBefore(List<int[]> groups, int group) {
         int n = 0;
         for (int i = 0; i < Math.min(group, groups.size()); i++) {
@@ -745,6 +781,7 @@ final class Ap3RoutePlanner {
         c.yaw = yaw;
         c.jump = jump;
         c.jumps = n.jumps + (jump ? 1 : 0);
+        c.clips = n.clips + (s.sprintBlocked ? 1 : 0);
         c.crossed = crossed;
         // NOTE: the jump preference is deliberately NOT priced in here. f is what the beam prunes by, and charging
         // jumps made the beam drop every jumping state in favour of running ones that could not finish: a 5-block
@@ -764,6 +801,7 @@ final class Ap3RoutePlanner {
             old.slabTicks = c.slabTicks;
             old.ticks = c.ticks;
             old.jumps = c.jumps;
+            old.clips = c.clips;
             old.parent = c.parent;
             old.keys = c.keys;
             old.yaw = c.yaw;

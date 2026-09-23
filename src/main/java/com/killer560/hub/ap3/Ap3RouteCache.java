@@ -41,6 +41,8 @@ final class Ap3RouteCache {
     private static final double SPEED_TOLERANCE = 0.12;
     /** Enough entries for a dungeon's worth of routes without the file growing without end. */
     private static final int MAX_ENTRIES = 64;
+    /** How many different ways of arriving at one route are remembered. */
+    private static final int MAX_PER_ROUTE = 8;
 
     private Ap3RouteCache() {
     }
@@ -49,7 +51,7 @@ final class Ap3RouteCache {
      * Read from the client thread and written from the planning worker, so it cannot be a plain HashMap: a put
      * racing a get can corrupt a bucket, and iterating it to save while another thread puts throws.
      */
-    private static final Map<String, Entry> ENTRIES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, List<Entry>> ENTRIES = new java.util.concurrent.ConcurrentHashMap<>();
     private static boolean loaded;
 
     static final class Entry {
@@ -81,32 +83,67 @@ final class Ap3RouteCache {
         return sb.toString();
     }
 
-    /** The saved plan for this route if it was planned from near enough to here, else null. */
-    static Ap3RoutePlanner.Plan lookup(String signature, Ap3RouteMath.RouteState start) {
-        load();
-        Entry e = ENTRIES.get(signature);
-        if (e == null) {
-            return null;
-        }
+    /** How far an entry is from this start, or NaN when it is not a match at all. */
+    private static double distance(Entry e, Ap3RouteMath.RouteState start) {
         double away = Math.sqrt((start.x - e.startX) * (start.x - e.startX)
                 + (start.y - e.startY) * (start.y - e.startY)
                 + (start.z - e.startZ) * (start.z - e.startZ));
         if (away > START_TOLERANCE) {
-            return null;
+            return Double.NaN;
         }
         // The DIRECTION he is moving matters as much as the speed: a schedule built for someone arriving from the
         // north is wrong from its first tick for someone arriving from the south at the same pace. Comparing only
         // the magnitude handed those plans straight back.
-        double dvx = start.vx - e.startVx;
-        double dvz = start.vz - e.startVz;
-        if (Math.hypot(dvx, dvz) > SPEED_TOLERANCE) {
+        if (Math.hypot(start.vx - e.startVx, start.vz - e.startVz) > SPEED_TOLERANCE) {
+            return Double.NaN;
+        }
+        if (start.onGround != e.onGround || start.sprinting != e.sprinting) {
+            return Double.NaN;
+        }
+        return away;
+    }
+
+    /**
+     * The saved plan for this route if one was planned from near enough to here.
+     * <p>
+     * A route keeps SEVERAL plans, one per way of arriving at it. A plan is a fixed schedule of keys from a
+     * particular state, so it can only be handed back to someone starting from close to that state - and with a
+     * single saved plan per route that meant stepping onto the node a metre off, or at a different speed, threw the
+     * saved work away and searched again. killer560 (2026-09-22): "it doesnt quite feel like it is saving the
+     * movement." It does now: the first few runs fill in the approaches he actually uses, and after that the same
+     * approach gets the same path every time.
+     */
+    static Ap3RoutePlanner.Plan lookup(String signature, Ap3RouteMath.RouteState start) {
+        load();
+        List<Entry> list = ENTRIES.get(signature);
+        if (list == null || list.isEmpty()) {
+            LOGGER.info("[AP3 route] nothing saved for this route yet - searching");
             return null;
         }
-        if (start.onGround != e.onGround || start.sprinting != e.sprinting || start.crouching != e.crouching) {
+        Entry best = null;
+        double bestAway = Double.MAX_VALUE;
+        for (Entry e : list) {
+            double d = distance(e, start);
+            if (!Double.isNaN(d) && d < bestAway) {
+                best = e;
+                bestAway = d;
+            }
+        }
+        if (best == null) {
+            double nearest = Double.MAX_VALUE;
+            for (Entry e : list) {
+                nearest = Math.min(nearest, Math.hypot(start.x - e.startX, start.z - e.startZ));
+            }
+            LOGGER.info("[AP3 route] {} saved plan(s) for this route but none from here (nearest start {} blocks"
+                    + " away, v {}) - searching", list.size(),
+                    String.format(Locale.US, "%.2f", nearest),
+                    String.format(Locale.US, "%.3f", start.speed()));
             return null;
         }
+        LOGGER.info("[AP3 route] using a saved {}-tick plan ({} blocks from where it was planned, {} kept for this"
+                + " route)", best.ticks, String.format(Locale.US, "%.2f", bestAway), list.size());
         Ap3RoutePlanner.Plan p = new Ap3RoutePlanner.Plan();
-        p.steps = e.steps.toArray(new Ap3RoutePlanner.Step[0]);
+        p.steps = best.steps.toArray(new Ap3RoutePlanner.Step[0]);
         p.ticks = p.steps.length;
         p.complete = true;
         p.note = "saved";
@@ -120,9 +157,20 @@ final class Ap3RouteCache {
             return;
         }
         load();
-        Entry old = ENTRIES.get(signature);
+        List<Entry> list = ENTRIES.computeIfAbsent(signature, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        // Replace the entry for THIS approach if this plan beats it; otherwise add a new approach alongside the
+        // ones already known, so a route builds up an answer for each way he arrives at it.
+        Entry old = null;
+        double bestAway = Double.MAX_VALUE;
+        for (Entry candidate : list) {
+            double d = distance(candidate, start);
+            if (!Double.isNaN(d) && d < bestAway) {
+                old = candidate;
+                bestAway = d;
+            }
+        }
         if (old != null && old.ticks <= plan.ticks) {
-            return; // what is saved is at least as quick
+            return; // what is saved for this approach is at least as quick
         }
         Entry e = new Entry();
         e.signature = signature;
@@ -137,9 +185,15 @@ final class Ap3RouteCache {
         e.crouching = start.crouching;
         e.ticks = plan.ticks;
         e.steps = new ArrayList<>(List.of(plan.steps));
-        ENTRIES.put(signature, e);
-        LOGGER.info("[AP3 route] saved a {}-tick plan for this route{}", plan.ticks,
-                old == null ? "" : " (was " + old.ticks + ")");
+        if (old != null) {
+            list.remove(old);
+        }
+        list.add(e);
+        while (list.size() > MAX_PER_ROUTE) {
+            list.remove(0);
+        }
+        LOGGER.info("[AP3 route] saved a {}-tick plan for this route{} - {} approach(es) now known", plan.ticks,
+                old == null ? "" : " (was " + old.ticks + ")", list.size());
         save();
     }
 
@@ -154,7 +208,11 @@ final class Ap3RouteCache {
 
     static int size() {
         load();
-        return ENTRIES.size();
+        int n = 0;
+        for (List<Entry> l : ENTRIES.values()) {
+            n += l.size();
+        }
+        return n;
     }
 
     // ---- on disk -------------------------------------------------------------------------------------------------
@@ -198,7 +256,8 @@ final class Ap3RouteCache {
                                 st.get("yaw").getAsFloat(), st.get("j").getAsBoolean()));
                     }
                     e.ticks = e.steps.size();
-                    ENTRIES.put(e.signature, e);
+                    ENTRIES.computeIfAbsent(e.signature,
+                            k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(e);
                 }
             }
         } catch (Throwable t) {
@@ -214,7 +273,11 @@ final class Ap3RouteCache {
             }
             JsonObject root = new JsonObject();
             JsonArray arr = new JsonArray();
-            for (Entry e : ENTRIES.values()) {
+            List<Entry> flat = new ArrayList<>();
+            for (List<Entry> l : ENTRIES.values()) {
+                flat.addAll(l);
+            }
+            for (Entry e : flat) {
                 JsonObject o = new JsonObject();
                 o.addProperty("sig", e.signature);
                 o.addProperty("x", e.startX);

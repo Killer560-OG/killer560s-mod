@@ -476,7 +476,23 @@ final class Ap3RouteRunner {
         // a tick the route is coasting.
         boolean firstPlan = plan == null;
         options.beam = firstPlan ? Math.min(4000, cfg.getRouteBeam() * 3) : cfg.getRouteBeam();
-        options.budgetMs = firstPlan ? Math.max(cfg.getRouteBudgetMs(), BRUTE_FORCE_MS)
+        // A long route is a bigger problem and needs proportionally more of everything. killer560 (2026-09-22):
+        // "if it is trying to generate a really long route then it runs out of time due to the time budget."
+        // Both the time AND the tick ceiling scale with how far there is to go - 160 ticks is only eight seconds of
+        // running, which a long chain passes without reaching the end, and no amount of budget helps once the
+        // search is not allowed to look far enough ahead.
+        double span = 0;
+        double px = start.x;
+        double pz = start.z;
+        for (Ap3RoutePlanner.Gate g : gates) {
+            span += Math.hypot(g.x - px, g.z - pz);
+            px = g.x;
+            pz = g.z;
+        }
+        double top = Math.max(0.2, Ap3RouteMath.topSpeed(model, options.allowJump));
+        options.maxTicks = (int) Math.max(160, Math.min(900, span / top * 3.0 + 60));
+        long scaled = (long) (BRUTE_FORCE_MS * Math.max(1.0, Math.min(4.0, span / 40.0)));
+        options.budgetMs = firstPlan ? Math.max(cfg.getRouteBudgetMs(), scaled)
                 : Math.min(cfg.getRouteBudgetMs(), 300);
         // The first plan runs a portfolio of differently-shaped searches and keeps the shortest answer, because no
         // single beam setting is best everywhere - see Ap3RoutePlanner.portfolio. It is the plan that gets saved.
@@ -622,7 +638,24 @@ final class Ap3RouteRunner {
         return g;
     }
 
-    /** Every No Go node in the chain becomes a box the route may not enter. */
+    /**
+     * Boxes the route may not enter: every No Go node, and every node of the chain that running back over would
+     * disturb.
+     * <p>
+     * killer560 (2026-09-22): "it needs to recognize if it is trying to run back over another node and if that is
+     * goign to mess with it. Some things are fine like block nodes but others like aligns will cause problems."
+     * An align, an axis align, a leap or a terminal is a place the config expects him to ARRIVE at in its own turn;
+     * a route that happens to cross one on the way somewhere else can set it off or leave him standing in it at the
+     * wrong moment. A Block node, a stopwatch, a look - those do not care, so the route is free to run over them.
+     * Nodes belonging to THIS route are obviously exempt: reaching them is the whole point.
+     */
+    private static boolean disturbedByCrossing(Ap3Node.Type t) {
+        return switch (t) {
+            case ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, LEAP_COUNTER, TERMINAL, BOOM, STOP -> true;
+            default -> false;
+        };
+    }
+
     private static List<Ap3RoutePlanner.Blocked> noGoZones(LocalPlayer player) {
         List<Ap3RoutePlanner.Blocked> out = new ArrayList<>();
         Ap3Chain chain = Ap3Feature.currentChain();
@@ -631,6 +664,17 @@ final class Ap3RouteRunner {
         }
         for (Ap3Node n : chain.nodes()) {
             if (n.type != Ap3Node.Type.NO_GO) {
+                if (disturbedByCrossing(n.type) && !route.contains(n)) {
+                    Ap3RoutePlanner.Blocked b = new Ap3RoutePlanner.Blocked();
+                    // Just the node itself, not a margin around it - this is about not standing IN it.
+                    b.minX = n.x - n.width / 2.0;
+                    b.maxX = n.x + n.width / 2.0;
+                    b.minZ = n.z - n.length / 2.0;
+                    b.maxZ = n.z + n.length / 2.0;
+                    b.minY = n.y - 0.5;
+                    b.maxY = n.y + BODY_HEIGHT;
+                    out.add(b);
+                }
                 continue;
             }
             Ap3RoutePlanner.Blocked b = new Ap3RoutePlanner.Blocked();
