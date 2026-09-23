@@ -1313,15 +1313,18 @@ public final class Ap3Executor {
         Ap3DiscretePlanner.Model m = modelFor(player, false);
         if (!a.none()) {
             double eff = Ap3DiscretePlanner.effectiveLength(a, lastSneakSent, m.sneakMul);
-            double mag = m.tickSpeed(a.fw() > 0) * eff;
+            boolean sprinting = s.sprint() && a.fw() > 0;
+            double mag = m.tickSpeed(sprinting) * eff;
             double rad = Math.toRadians(player.getYRot());
             double norm = Math.sqrt(a.fw() * a.fw() + a.st() * a.st());
             double ux = a.st() / norm;
             double uz = a.fw() / norm;
             expectPush(player, mag * (ux * Math.cos(rad) - uz * Math.sin(rad)),
-                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, a.fw() > 0);
+                    mag * (uz * Math.cos(rad) + ux * Math.sin(rad)), m, a.fw() > 0, sprinting);
         }
-        writeDiscrete(player, a.fw(), a.st(), a.sneak(), a.fw() > 0, player.getYRot(), m, lastSneakSent);
+        // Sprint is whatever the plan asked for on this tick - a walking tick simply does not hold the key.
+        writeDiscrete(player, a.fw(), a.st(), a.sneak(), s.sprint() && a.fw() > 0, player.getYRot(), m,
+                lastSneakSent);
     }
 
     // ---- Term Aura: one click at the node, retried a couple of ticks later ----------------------------------------

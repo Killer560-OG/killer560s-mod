@@ -313,7 +313,8 @@ final class Ap3RouteCache {
                         e.steps.add(new Ap3RoutePlanner.Step(
                                 new Ap3DiscretePlanner.Action(st.get("f").getAsInt(), st.get("s").getAsInt(),
                                         st.get("c").getAsBoolean()),
-                                st.get("yaw").getAsFloat(), st.get("j").getAsBoolean()));
+                                st.get("yaw").getAsFloat(), st.get("j").getAsBoolean(),
+                                !st.has("sp") || st.get("sp").getAsBoolean()));
                     }
                     e.ticks = e.steps.size();
                     ENTRIES.computeIfAbsent(e.signature,
@@ -357,6 +358,7 @@ final class Ap3RouteCache {
                     s.addProperty("c", st.keys().sneak());
                     s.addProperty("yaw", st.yaw());
                     s.addProperty("j", st.jump());
+                    s.addProperty("sp", st.sprint());
                     steps.add(s);
                 }
                 o.add("steps", steps);

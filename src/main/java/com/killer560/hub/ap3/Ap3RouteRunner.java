@@ -172,7 +172,7 @@ final class Ap3RouteRunner {
         Ap3RouteCollide.Shapes world = terrain == null ? Ap3RouteMath.FLAT_GROUND : terrain.shapes();
         for (Ap3RoutePlanner.Step st : p.steps) {
             // The same move the plan was built on, so the drawn line goes up a staircase exactly where the run will.
-            Ap3RouteMath.step(s, st.keys(), st.yaw(), st.jump(), planModel, world);
+            Ap3RouteMath.step(s, st.keys(), st.yaw(), st.jump(), st.sprint(), planModel, world);
             out.add(new Vec3(s.x, s.y + 0.1, s.z));
         }
         return out;
@@ -299,7 +299,7 @@ final class Ap3RouteRunner {
                     String.format(Locale.US, "%.4f", player.getDeltaMovement().horizontalDistance()));
         }
         if (predicted != null) {
-            Ap3RouteMath.step(predicted, step.keys(), step.yaw(), step.jump(), planModel, planWorld());
+            Ap3RouteMath.step(predicted, step.keys(), step.yaw(), step.jump(), step.sprint(), planModel, planWorld());
         }
         drive.accept(step);
         return true;
@@ -316,7 +316,7 @@ final class Ap3RouteRunner {
         int at = stepIndex;
         for (int i = 0; i < PLAN_LATENCY && stepIndex + i < plan.steps.length; i++) {
             Ap3RoutePlanner.Step st = plan.steps[stepIndex + i];
-            Ap3RouteMath.step(from, st.keys(), st.yaw(), st.jump(), planModel, planWorld());
+            Ap3RouteMath.step(from, st.keys(), st.yaw(), st.jump(), st.sprint(), planModel, planWorld());
             at = stepIndex + i + 1;
         }
         startPlanning(client, player, from, at);

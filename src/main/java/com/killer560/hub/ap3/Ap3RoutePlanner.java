@@ -246,6 +246,14 @@ final class Ap3RoutePlanner {
         boolean preferRunning = true;
 
         /**
+         * May the route WALK - hold forward without sprint? killer560 (2026-09-22): "make it so it knows it doesnt
+         * have to sprint. It can walk if it deems that gives it a faster overall time by having better block
+         * placement." Without it the only ways to slow down are coasting and sneaking, so a route that has to
+         * arrive gently at a one-block ledge cannot, and runs into the side of it instead.
+         */
+        boolean allowWalking = true;
+
+        /**
          * Run several differently-shaped searches and keep the shortest answer. Only worth it for a route's FIRST
          * plan, which is the one that gets remembered; a re-plan mid-run has no time for it.
          */
@@ -264,6 +272,7 @@ final class Ap3RoutePlanner {
             c.exactTol = exactTol;
             c.scanPad = scanPad;
             c.preferRunning = preferRunning;
+            c.allowWalking = allowWalking;
             c.portfolio = portfolio;
             return c;
         }
@@ -279,7 +288,15 @@ final class Ap3RoutePlanner {
     }
 
     /** One tick of the answer. */
-    record Step(Ap3DiscretePlanner.Action keys, float yaw, boolean jump) {
+    /**
+     * One tick of the answer: which keys, which way to face, whether to jump, and whether to hold sprint. Sprint is
+     * part of the plan because walking can be worth more than the speed it costs - it is what lets a route arrive
+     * slowly enough to land ON a one-block ledge rather than run into the side of it.
+     */
+    record Step(Ap3DiscretePlanner.Action keys, float yaw, boolean jump, boolean sprint) {
+        Step(Ap3DiscretePlanner.Action keys, float yaw, boolean jump) {
+            this(keys, yaw, jump, true);
+        }
     }
 
     static final class Plan {
@@ -314,6 +331,8 @@ final class Ap3RoutePlanner {
         Ap3DiscretePlanner.Action keys;
         float yaw;
         boolean jump;
+        /** Whether this tick held sprint - false is a deliberate walk, see Step. */
+        boolean sprint = true;
         /** How many jumps this whole path has used - the tie-break that keeps a route on its feet. */
         int jumps;
         /**
@@ -462,7 +481,7 @@ final class Ap3RoutePlanner {
                 if (st.jump()) {
                     jumps++;
                 }
-                Ap3RouteMath.step(sim, st.keys(), st.yaw(), st.jump(), m, terrain.shapes());
+                Ap3RouteMath.step(sim, st.keys(), st.yaw(), st.jump(), st.sprint(), m, terrain.shapes());
                 if (sim.sprintBlocked) {
                     clips++;
                 }
@@ -696,6 +715,7 @@ final class Ap3RoutePlanner {
         double[] dirs = directions(n, target, o, fine);
         Ap3DiscretePlanner.Action[] shapes = fine ? FINE_SHAPES
                 : (canBrakeInAir(n, target, top) ? AIR_BRAKE_SHAPES : FAST_SHAPES);
+        boolean walkToo = o.allowWalking && (fine || nearTarget(n, target, top));
         for (double dir : dirs) {
             for (Ap3DiscretePlanner.Action a : shapes) {
                 float yaw = (float) (Math.toDegrees(dir) - keyOffset(a));
@@ -703,10 +723,27 @@ final class Ap3RoutePlanner {
                 if (o.allowJump && n.s.onGround) {
                     tryStep(n, a, yaw, true, gates, groups, blocked, terrain, m, o, top, out, seen, field);
                 }
+                if (walkToo && a.fw() > 0) {
+                    // The same press without sprint. Only offered where it can earn its branching: closing on the
+                    // gate being aimed at, which is where arriving at the right speed decides whether he lands on
+                    // the ledge or runs into it.
+                    tryStep(n, a, yaw, false, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
+                    if (o.allowJump && n.s.onGround) {
+                        tryStep(n, a, yaw, true, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
+                    }
+                }
             }
         }
         // Coast / sneak-only: no push at all (sneak-only still arms the 0.3x tap for the next tick).
+        // killer560 (2026-09-22): "it should also be able to have no input and effectivley just drift if it thinks
+        // that is most optimal." Coasting on the ground was already here; coasting THROUGH a jump was not, so a
+        // pure ballistic hop - leave the ground and touch nothing until you land - could not be expressed at all.
+        // It is often the cleanest way over a ledge, because air control only bleeds speed you already have.
         tryStep(n, Ap3DiscretePlanner.NONE, n.s.yaw, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
+        if (o.allowJump && n.s.onGround) {
+            tryStep(n, Ap3DiscretePlanner.NONE, n.s.yaw, true, gates, groups, blocked, terrain, m, o, top, out, seen,
+                    field);
+        }
         if (fine) {
             tryStep(n, SNEAK_ONLY, n.s.yaw, false, gates, groups, blocked, terrain, m, o, top, out, seen, field);
         }
@@ -727,11 +764,19 @@ final class Ap3RoutePlanner {
                                 List<int[]> groups, List<Blocked> blocked, Terrain terrain,
                                 Ap3DiscretePlanner.Model m, Options o,
                                 double top, List<Node> out, Map<Long, Node> seen, Field field) {
+        tryStep(n, a, yaw, jump, true, gates, groups, blocked, terrain, m, o, top, out, seen, field);
+    }
+
+    private static void tryStep(Node n, Ap3DiscretePlanner.Action a, float yaw, boolean jump, boolean sprint,
+                                List<Gate> gates,
+                                List<int[]> groups, List<Blocked> blocked, Terrain terrain,
+                                Ap3DiscretePlanner.Model m, Options o,
+                                double top, List<Node> out, Map<Long, Node> seen, Field field) {
         Ap3RouteMath.RouteState s = n.s.copy();
         double fromX = s.x;
         double fromZ = s.z;
         boolean wasOnGround = s.onGround;
-        Ap3RouteMath.step(s, a, yaw, jump, m, terrain.shapes());
+        Ap3RouteMath.step(s, a, yaw, jump, sprint, m, terrain.shapes());
         if (hits(blocked, fromX, fromZ, s.x, s.z, s.y)) {
             return;
         }
@@ -780,6 +825,7 @@ final class Ap3RoutePlanner {
         c.keys = a;
         c.yaw = yaw;
         c.jump = jump;
+        c.sprint = sprint;
         c.jumps = n.jumps + (jump ? 1 : 0);
         c.clips = n.clips + (s.sprintBlocked ? 1 : 0);
         c.crossed = crossed;
@@ -806,6 +852,7 @@ final class Ap3RoutePlanner {
             old.keys = c.keys;
             old.yaw = c.yaw;
             old.jump = c.jump;
+            old.sprint = c.sprint;
             old.f = c.f;
             old.crossed = c.crossed;
             return;
@@ -814,6 +861,16 @@ final class Ap3RoutePlanner {
         out.add(c);
     }
 
+
+    /**
+     * Close enough to the gate that how fast he arrives decides whether he lands on it. Kept deliberately tight:
+     * offering the walking variant of every press doubles the branching wherever it applies, and at top * 16 - some
+     * thirteen blocks - that was enough to push a five-pad course off the end of the beam entirely.
+     */
+    private static boolean nearTarget(Node n, Gate g, double top) {
+        double d = Math.hypot(g.x - n.s.x, g.z - n.s.z);
+        return d < Math.max(3.0, top * 6);
+    }
 
     /**
      * Airborne with the gate close enough that overshooting it is the risk worth spending branching on. A flight is
@@ -1295,7 +1352,7 @@ final class Ap3RoutePlanner {
         int gi = 0;
         for (int i = 0; i < chain.size(); i++) {
             Node n = chain.get(i);
-            steps[i] = new Step(n.keys, n.yaw, n.jump);
+            steps[i] = new Step(n.keys, n.yaw, n.jump, n.sprint);
             if (n.crossed != null) {
                 for (int g : n.crossed) {
                     if (g < gateTick.length) {
@@ -1435,7 +1492,7 @@ final class Ap3RoutePlanner {
         for (int i = 0; i <= at; i++) {
             Step st = plan.steps[i];
             float yaw = i >= from ? (float) y[i - from] : st.yaw();
-            Ap3RouteMath.step(landed, st.keys(), yaw, st.jump(), m, terrain.shapes());
+            Ap3RouteMath.step(landed, st.keys(), yaw, st.jump(), st.sprint(), m, terrain.shapes());
         }
         if (!gate.sameBlocks(landed.x, landed.z)) {
             // Close, but it would stand on the other side of the edge. Aim a hair past the point, away from where
@@ -1460,7 +1517,7 @@ final class Ap3RoutePlanner {
         }
         for (int i = 0; i < k; i++) {
             Step s = plan.steps[from + i];
-            plan.steps[from + i] = new Step(s.keys(), (float) y[i], s.jump());
+            plan.steps[from + i] = new Step(s.keys(), (float) y[i], s.jump(), s.sprint());
         }
         return true;
     }
@@ -1472,7 +1529,7 @@ final class Ap3RoutePlanner {
         for (int i = 0; i <= at; i++) {
             Step st = plan.steps[i];
             float yaw = i >= from ? (float) y[i - from] : st.yaw();
-            Ap3RouteMath.step(s, st.keys(), yaw, st.jump(), m, terrain.shapes());
+            Ap3RouteMath.step(s, st.keys(), yaw, st.jump(), st.sprint(), m, terrain.shapes());
         }
         r[0] = s.x - tx;
         r[1] = s.z - tz;

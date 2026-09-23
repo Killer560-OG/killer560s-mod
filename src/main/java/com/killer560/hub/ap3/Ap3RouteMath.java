@@ -108,6 +108,12 @@ final class Ap3RouteMath {
         step(s, a, yaw, jump, m, FLAT_GROUND);
     }
 
+    /** As below, sprinting if the keys allow it - what every caller wanted before walking was an option. */
+    static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, Ap3DiscretePlanner.Model m,
+                     Ap3RouteCollide.Shapes world) {
+        step(s, a, yaw, jump, true, m, world);
+    }
+
     /**
      * One tick of the route model, in place: vanilla's {@code aiStep} + {@code travelInAir} + {@code move}, with the
      * move itself handed to {@link Ap3RouteCollide} so the player's box is really swept against the world.
@@ -122,8 +128,8 @@ final class Ap3RouteMath {
      *       one when the move was downwards or you were already standing.</li>
      * </ol>
      */
-    static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, Ap3DiscretePlanner.Model m,
-                     Ap3RouteCollide.Shapes world) {
+    static void step(RouteState s, Ap3DiscretePlanner.Action a, float yaw, boolean jump, boolean sprint,
+                     Ap3DiscretePlanner.Model m, Ap3RouteCollide.Shapes world) {
         // aiStep zeroes ANY axis under 0.003 before anything else - the vertical one included.
         double vx = Math.abs(s.vx) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vx;
         double vz = Math.abs(s.vz) < Ap3AlignMath.ZERO_VELOCITY ? 0.0 : s.vz;
@@ -133,7 +139,12 @@ final class Ap3RouteMath {
         // you: the key re-arms it and shouldStopRunSprinting kills it again on the same tick. That is why
         // sprintBlocked has to sit outside sprintKeyHeld - the route holds sprint on every forward tick and still
         // loses it to a riser.
-        boolean sprintNow = a.fw() > 0 && !s.sprintBlocked
+        // Sprint is a CHOICE now, not a consequence. killer560 (2026-09-22): "make it so it knows it doesnt have
+        // to sprint. It can walk if it deems that gives it a faster overall time by having better block
+        // placement." Releasing the sprint key stops the sprint at once (canStartSprinting needs it held), so a
+        // walking tick is simply one where the route does not hold it - and walking is how you arrive slowly
+        // enough to land on a one-block ledge without slamming into its side.
+        boolean sprintNow = sprint && a.fw() > 0 && !s.sprintBlocked
                 && (s.sprinting || (m.sprintKeyHeld && !a.sneak() && !s.crouching));
         float rad = yaw * Ap3AlignMath.DEG_TO_RAD;
         double cos = m.trig.cos(rad);
