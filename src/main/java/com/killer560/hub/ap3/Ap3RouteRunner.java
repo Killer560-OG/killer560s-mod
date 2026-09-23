@@ -940,38 +940,32 @@ final class Ap3RouteRunner {
         double hereY = player.getY();
         double hereZ = player.getZ();
         for (Ap3Node n : chain.nodes()) {
-            if (n.type != Ap3Node.Type.NO_GO) {
-                if (avoidNodes && disturbedByCrossing(n.type) && !route.contains(n)) {
-                    Ap3RoutePlanner.Blocked b = new Ap3RoutePlanner.Blocked();
-                    // Just the node itself, not a margin around it - this is about not standing IN it.
-                    b.minX = n.x - n.width / 2.0;
-                    b.maxX = n.x + n.width / 2.0;
-                    b.minZ = n.z - n.length / 2.0;
-                    b.maxZ = n.z + n.length / 2.0;
-                    b.minY = n.y - 0.5;
-                    b.maxY = n.y + BODY_HEIGHT;
-                    // ...but never one he is already standing in. A route very often starts ON the align that
-                    // handed over to it, and fencing off the square he is stood on rejects every move he could
-                    // make: the search died in one layer having gone nowhere, every plan came back "no route
-                    // found", and he lost jumping and everything else with it (2026-09-22). A box he is inside
-                    // cannot be avoided, only escaped.
-                    if (hereX >= b.minX - HALF_WIDTH && hereX <= b.maxX + HALF_WIDTH
-                            && hereZ >= b.minZ - HALF_WIDTH && hereZ <= b.maxZ + HALF_WIDTH
-                            && hereY >= b.minY - 1.0 && hereY <= b.maxY) {
-                        continue;
-                    }
-                    out.add(b);
-                }
+            // A No Go node is a GHOST BLOCK now, not a forbidden box - see Snap.addGhostBlocks. It is solid
+            // geometry the route may stand on and jump off, so fencing the route out of it would be backwards.
+            if (n.type == Ap3Node.Type.NO_GO) {
                 continue;
             }
-            Ap3RoutePlanner.Blocked b = new Ap3RoutePlanner.Blocked();
-            b.minX = n.x - n.width / 2.0;
-            b.maxX = n.x + n.width / 2.0;
-            b.minZ = n.z - n.length / 2.0;
-            b.maxZ = n.z + n.length / 2.0;
-            b.minY = n.y - 0.5;
-            b.maxY = n.y + BODY_HEIGHT;
-            out.add(b);
+            if (avoidNodes && disturbedByCrossing(n.type) && !route.contains(n)) {
+                Ap3RoutePlanner.Blocked b = new Ap3RoutePlanner.Blocked();
+                // Just the node itself, not a margin around it - this is about not standing IN it.
+                b.minX = n.x - n.width / 2.0;
+                b.maxX = n.x + n.width / 2.0;
+                b.minZ = n.z - n.length / 2.0;
+                b.maxZ = n.z + n.length / 2.0;
+                b.minY = n.y - 0.5;
+                b.maxY = n.y + BODY_HEIGHT;
+                // ...but never one he is already standing in. A route very often starts ON the align that
+                // handed over to it, and fencing off the square he is stood on rejects every move he could
+                // make: the search died in one layer having gone nowhere, every plan came back "no route
+                // found", and he lost jumping and everything else with it (2026-09-22). A box he is inside
+                // cannot be avoided, only escaped.
+                if (hereX >= b.minX - HALF_WIDTH && hereX <= b.maxX + HALF_WIDTH
+                        && hereZ >= b.minZ - HALF_WIDTH && hereZ <= b.maxZ + HALF_WIDTH
+                        && hereY >= b.minY - 1.0 && hereY <= b.maxY) {
+                    continue;
+                }
+                out.add(b);
+            }
         }
         return out;
     }
@@ -1170,6 +1164,7 @@ final class Ap3RouteRunner {
             }
             snap.readBoxes(level, bandLo, bandHi);
             snap.addBlockNodes(level, feetY);
+            snap.addGhostBlocks();
             snap.gateFloors(gates);
             // Index it here, on the client thread, while this Snap is still private to us. BoxWorld built its
             // index lazily on first query, and the first query can come from the planning worker and the renderer
@@ -1438,6 +1433,52 @@ final class Ap3RouteRunner {
          * appear at that area. Then it should know that it will be able to run on that block for two ticks". Assumed
          * to be a bottom slab at most, and never placed by the route itself: the Block node does that.
          */
+        /**
+         * No Go nodes, as GHOST BLOCKS: solid to the route planner, absent from the world.
+         * <p>
+         * killer560 (2026-09-23): "change nogo to me creating ghost blocks that do nothing except tell the ap3 hey
+         * there is a block here even if we cannot see it. That way i can make it hit neos on something even if it
+         * could do it normally."
+         * <p>
+         * It used to be the opposite - a box the route was forbidden to enter - and the difference matters: a
+         * forbidden box is somewhere the search routes AROUND, while a ghost block is something it can stand on,
+         * step up, be stopped by and jump off. A full block on the node's own level, not the half slab a Block
+         * node places, because he is building geometry to move on rather than a ledge to cross.
+         * <p>
+         * Only the planner ever sees these. Nothing is placed, nothing is sent, and the real world is untouched.
+         */
+        private void addGhostBlocks() {
+            Ap3Chain chain = Ap3Feature.currentChain();
+            if (chain == null) {
+                return;
+            }
+            for (Ap3Node n : chain.nodes()) {
+                if (n.type != Ap3Node.Type.NO_GO) {
+                    continue;
+                }
+                double halfW = Math.max(n.width, CELL) / 2.0;
+                double halfL = Math.max(n.length, CELL) / 2.0;
+                int i0 = (int) Math.floor((n.x - halfW - minX) / CELL);
+                int i1 = (int) Math.floor((n.x + halfW - minX) / CELL);
+                int j0 = (int) Math.floor((n.z - halfL - minZ) / CELL);
+                int j1 = (int) Math.floor((n.z + halfL - minZ) / CELL);
+                for (int i = Math.max(0, i0); i <= Math.min(w - 1, i1); i++) {
+                    for (int j = Math.max(0, j0); j <= Math.min(h - 1, j1); j++) {
+                        double cx = minX + i * CELL;
+                        double cz = minZ + j * CELL;
+                        world.add(cx, n.y, cz, cx + CELL, n.y + 1.0, cz + CELL);
+                        int cell = i * h + j;
+                        // Its top is somewhere to stand, unless the real world already puts something higher here.
+                        if (Double.isNaN(floorY[cell]) || floorY[cell] < n.y + 1.0) {
+                            floorY[cell] = n.y + 1.0;
+                            headroom[cell] = Math.max(headroom[cell], BODY_HEIGHT);
+                            wall[cell] = false;
+                        }
+                    }
+                }
+            }
+        }
+
         private void addBlockNodes(ClientLevel level, int feetY) {
             Ap3Chain chain = Ap3Feature.currentChain();
             if (chain == null) {

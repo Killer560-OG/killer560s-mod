@@ -339,19 +339,25 @@ public final class BreakerAuraFeature {
             return;
         }
 
-        // How many go out this cycle. killer560 (2026-09-23): "the breaker aura should be able to break multiple
-        // blocks at once just like quois can." This reverses his earlier rule for LEVERS and CHESTS - "if I have
-        // two levers in my range at once or two chests have it only pick one and then the other on the next tick"
-        // - which is why it is a setting rather than a rewrite: breaking a wall is not clicking a lever, and
-        // several breaks on one tick is a far louder pattern than one. It defaults to 1; he raises it knowingly.
+        // How many go out this cycle, and in what order.
         //
-        // Nearest to the eye first, so a wall comes down from the face he is looking at rather than in scattered
-        // order, and every one still goes through its own reachable-face check and the ActionGate.
+        // killer560 (2026-09-23): "Look at how quoi parses multiple blocks and follow it exactly. I trust them."
+        // So this follows QUOI, and QUOI does NOT break several on one tick. Its DungeonBreaker holds a whole set
+        // of blocks and every tick takes `activeBreakerBlocks.minByOrNull { it.distToCenterSqr(playerPos) }` - the
+        // single nearest one - line-of-sight checks it, sends one START_DESTROY_BLOCK and swings once. Its
+        // AuraManager is built the same way: a queue, `queuedBlocks.firstOrNull()` per tick, and a cooldown after
+        // every packet it sends. Several blocks are how you DESCRIBE the job to it, not how many it does at once.
+        //
+        // Which is also the rule he gave here first, for levers and chests: "have it only pick one and then the
+        // other on the next tick". The setting stays for when he wants otherwise, but it defaults to one, and one
+        // is what following QUOI exactly means.
+        //
+        // Nearest to the PLAYER, as QUOI measures it (distToCenterSqr against the player position, not the eye).
         int allowed = Math.max(1, Math.min(cfg.getBreakerAuraBlocksPerCycle(), available));
-        Vec3 eye = player.getEyePosition();
+        Vec3 feet = player.position();
         List<BlockPos> order = new ArrayList<>(targets);
-        order.sort((a, b) -> Double.compare(Vec3.atCenterOf(a).distanceToSqr(eye),
-                Vec3.atCenterOf(b).distanceToSqr(eye)));
+        order.sort((a, b) -> Double.compare(Vec3.atCenterOf(a).distanceToSqr(feet),
+                Vec3.atCenterOf(b).distanceToSqr(feet)));
         int sent = 0;
         for (BlockPos pos : order) {
             if (sent >= allowed) {
@@ -492,6 +498,12 @@ public final class BreakerAuraFeature {
         Vec3 eye = player.getEyePosition();
         double reachSq = reach * reach;
         for (BlockPos pos : selectedBlocks()) {
+            if (level.isLoaded(pos) && level.getBlockState(pos).isAir()) {
+                // QUOI: `if (level.getBlockState(targetBlock).isAir) { activeBreakerBlocks.remove(targetBlock) }`.
+                // A pick that has been broken stops being a target - but it stays SAVED, because his picks are a
+                // route he runs every time and QUOI's own blocks outlive the run that cleared them.
+                continue;
+            }
             if (RECENT.containsKey(pos)) {
                 continue; // tried a moment ago; give the server time to answer
             }

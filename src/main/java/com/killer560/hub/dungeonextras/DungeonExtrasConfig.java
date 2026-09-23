@@ -59,8 +59,8 @@ public final class DungeonExtrasConfig {
      * every earlier session was built and measured against, not because it is the default he asked for.
      */
     private boolean breakerAuraSelectedOnly = true;
-    /** The pick/unpick key, raw-polled and unbound until he binds it. */
-    private int breakerAuraSelectKey = com.killer560.hub.util.KeyUtil.NONE;
+    /** The pick/unpick key. Semicolon by default - killer560 (2026-09-23): "default the breaker key to ;". */
+    private int breakerAuraSelectKey = org.lwjgl.glfw.GLFW.GLFW_KEY_SEMICOLON;
     /** The blocks he has picked, as "x,y,z" - they have to outlive a restart like every other setting. */
     private final java.util.LinkedHashSet<String> breakerAuraSelected = new java.util.LinkedHashSet<>();
     private int breakerAuraBlocksPerCycle = 1;
