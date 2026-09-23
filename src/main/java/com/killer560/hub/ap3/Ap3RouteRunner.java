@@ -444,7 +444,13 @@ final class Ap3RouteRunner {
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
         final List<Ap3RoutePlanner.Blocked> blockedHard = noGoZones(player, false);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
-        Snap snap = Snap.of(client.level, player, gates, start);
+        String signature = Ap3RouteCache.signature(route);
+        Snap reused = reusableSnapshot(signature, start);
+        if (reused == null) {
+            reused = Snap.of(client.level, player, gates, start);
+            keepSnapshot(signature, reused, start);
+        }
+        final Snap snap = reused;
         if (dumpNext) {
             dumpNext = false;
             Ap3RouteDump.write(start, gates, blocked, snap, model);
@@ -457,7 +463,6 @@ final class Ap3RouteRunner {
         // running against FLAT_GROUND - an endless floor at y = 0 - so the prediction free-fell, drift passed
         // LOST_LIMIT within three ticks and the route stopped dead. The scan is the cheap half anyway; the search
         // is what the cache is really saving.
-        String signature = Ap3RouteCache.signature(route);
         Ap3RoutePlanner.Plan saved = Ap3RouteCache.lookup(signature, start);
         if (saved != null) {
             planStart = start;
@@ -550,6 +555,9 @@ final class Ap3RouteRunner {
                     // Why it could not finish, in terms that separate "nothing connects these two places" from
                     // "the search ran out of room". Without this the two look identical from outside.
                     LOGGER.info("[AP3 route] why: {}", p.diagnosis);
+                    // ...and keep the whole problem - his world, his nodes, his state - so it can be replayed
+                    // offline without him having to catch it by hand.
+                    Ap3RouteDump.writeFailure(start, gates, blocked, snap, model, p.note + " | " + p.diagnosis);
                 }
             } catch (Throwable t) {
                 LOGGER.warn("[AP3 route] planning failed", t);
@@ -1174,4 +1182,52 @@ final class Ap3RouteRunner {
         }
     }
 
+
+    // ---- keeping the world scan ---------------------------------------------------------------------------------
+
+    /**
+     * The last world scan, kept so running the same route again costs nothing. killer560 (2026-09-22): "It should
+     * load in instantly after it has been generated there should be 0 downtime."
+     * <p>
+     * Reading the world is 40-50 ms on the client thread and it happens on EVERY plan - so even when the search
+     * itself is answered from a saved plan, that scan was still being paid, and it is most of what he feels as the
+     * route taking a moment to appear. It is only reused for the same route, from near the same place, within a few
+     * seconds, because the thing it is a picture of can change: a door opens, a crypt goes, Breaker Aura takes a
+     * block. Beyond that it is worth looking again.
+     */
+    private static String snapKey = "";
+    private static Snap snapKept;
+    private static long snapTakenAt;
+    private static double snapX, snapZ;
+    /** How long a scan stays good for, in milliseconds. */
+    private static final long SNAP_TTL_MS = 5000;
+    /** ...and how far he may have moved since, before it is worth taking another. */
+    private static final double SNAP_MOVED = 6.0;
+
+    private static Snap reusableSnapshot(String key, Ap3RouteMath.RouteState start) {
+        if (snapKept == null || !snapKey.equals(key)) {
+            return null;
+        }
+        if (System.currentTimeMillis() - snapTakenAt > SNAP_TTL_MS) {
+            return null;
+        }
+        if (Math.hypot(start.x - snapX, start.z - snapZ) > SNAP_MOVED) {
+            return null;
+        }
+        return snapKept;
+    }
+
+    private static void keepSnapshot(String key, Snap snap, Ap3RouteMath.RouteState start) {
+        snapKey = key;
+        snapKept = snap;
+        snapTakenAt = System.currentTimeMillis();
+        snapX = start.x;
+        snapZ = start.z;
+    }
+
+    /** Throw the kept scan away - the world it pictures is no longer the one we are in. */
+    static void forgetSnapshot() {
+        snapKept = null;
+        snapKey = "";
+    }
 }

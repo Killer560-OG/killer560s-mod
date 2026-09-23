@@ -139,13 +139,18 @@ final class Ap3RouteMath {
         // you: the key re-arms it and shouldStopRunSprinting kills it again on the same tick. That is why
         // sprintBlocked has to sit outside sprintKeyHeld - the route holds sprint on every forward tick and still
         // loses it to a riser.
-        // Sprint is a CHOICE now, not a consequence. killer560 (2026-09-22): "make it so it knows it doesnt have
-        // to sprint. It can walk if it deems that gives it a faster overall time by having better block
-        // placement." Releasing the sprint key stops the sprint at once (canStartSprinting needs it held), so a
-        // walking tick is simply one where the route does not hold it - and walking is how you arrive slowly
-        // enough to land on a one-block ledge without slamming into its side.
-        boolean sprintNow = sprint && a.fw() > 0 && !s.sprintBlocked
-                && (s.sprinting || (m.sprintKeyHeld && !a.sneak() && !s.crouching));
+        // Sprint is a CHOICE now - but only about whether it RESTARTS. killer560 (2026-09-22): "make it so it
+        // knows it doesnt have to sprint. It can walk if it deems that gives it a faster overall time."
+        // The catch, read off LocalPlayer.shouldStopRunSprinting: the sprint KEY is not in the stop condition at
+        // all. Once you are sprinting you keep sprinting until you lose forward impulse, crouch, or hit something.
+        // Letting go of the key does nothing. A first version of this treated a released key as an immediate walk,
+        // which meant the plan walked and the game sprinted - a 30% error every tick, and a route that ran off the
+        // edge it had planned to stop at.
+        // So: a sprint in progress continues on its own terms, and `sprint` decides only whether a new one starts.
+        // To walk, the route has to break the sprint first - a tick without forward, or a sneak tick - and then
+        // not ask for it back. That costs a tick, which is exactly what it costs in the game.
+        boolean sprintNow = a.fw() > 0 && !s.sprintBlocked && !a.sneak() && !s.crouching
+                && (s.sprinting || (sprint && m.sprintKeyHeld));
         float rad = yaw * Ap3AlignMath.DEG_TO_RAD;
         double cos = m.trig.cos(rad);
         double sin = m.trig.sin(rad);

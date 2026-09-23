@@ -26,11 +26,38 @@ final class Ap3RouteDump {
     private Ap3RouteDump() {
     }
 
+    /** The last few failures, kept side by side so one bad route does not overwrite another. */
+    private static int slot;
+    private static long lastWrite;
+
+    /**
+     * Write a dump because a plan could not be finished - automatically, at most one every few seconds, rotating
+     * through a handful of files. killer560 offered to "take a scan of the room" by hand; this saves him the job,
+     * and it captures the failure at the moment it happens rather than the next time he can be bothered.
+     */
+    static void writeFailure(Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates,
+                             List<Ap3RoutePlanner.Blocked> blocked, Ap3RouteRunner.Snap snap,
+                             Ap3DiscretePlanner.Model m, String why) {
+        long now = System.currentTimeMillis();
+        if (now - lastWrite < 4000) {
+            return;
+        }
+        lastWrite = now;
+        write(start, gates, blocked, snap, m, "ap3-route-failure-" + (slot++ % 4) + ".json", why);
+    }
+
     static void write(Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates,
                       List<Ap3RoutePlanner.Blocked> blocked, Ap3RouteRunner.Snap snap,
                       Ap3DiscretePlanner.Model m) {
+        write(start, gates, blocked, snap, m, "ap3-route-dump.json", "");
+    }
+
+    static void write(Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates,
+                      List<Ap3RoutePlanner.Blocked> blocked, Ap3RouteRunner.Snap snap,
+                      Ap3DiscretePlanner.Model m, String name, String why) {
         try {
             JsonObject root = new JsonObject();
+            root.addProperty("why", why);
 
             JsonObject st = new JsonObject();
             st.addProperty("x", start.x);
@@ -97,10 +124,10 @@ final class Ap3RouteDump {
             root.add("boxes", boxes);
 
             Path f = Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("config").resolve("killer560smod").resolve("ap3-route-dump.json");
+                    .resolve("config").resolve("killer560smod").resolve(name);
             Files.createDirectories(f.getParent());
             Files.writeString(f, root.toString(), StandardCharsets.UTF_8);
-            LOGGER.info("[AP3 route] dumped {} boxes and {} gates to {}", boxes.size(), gates.size(), f);
+            LOGGER.info("[AP3 route] dumped {} boxes and {} gates to {}", boxes.size(), gates.size(), f.getFileName());
         } catch (Throwable t) {
             LOGGER.warn("[AP3 route] could not write the dump", t);
         }
