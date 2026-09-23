@@ -582,16 +582,24 @@ final class Ap3RouteRunner {
                     more.budgetMs = options.budgetMs * 4;
                     LOGGER.info("[AP3 route] out of time at {} ms and still {} - trying once more with {} ms",
                             options.budgetMs, p.diagnosis.isEmpty() ? "unfinished" : p.diagnosis, more.budgetMs);
+                    // The SAME constraints - only the clock changes. Retrying with blockedHard here would relax
+                    // the chain's other nodes at the same time, and then a success says nothing about which of the
+                    // two helped; the relaxation above is already the place that decision gets made, on its own.
                     Ap3RoutePlanner.Plan longer =
-                            Ap3RoutePlanner.plan(start, gates, blockedHard, snap, model, more);
+                            Ap3RoutePlanner.plan(start, gates, blocked, snap, model, more);
                     if (longer.complete || longer.gatesReached > p.gatesReached) {
                         LOGGER.info("[AP3 route] the longer search {} ({} ticks)",
                                 longer.complete ? "got there" : "got further but still not there", longer.ticks);
                         p = longer;
                     }
                 }
-                // Remember it if it is the best this route has managed, so the next run is instant and identical.
-                Ap3RouteCache.offer(signature, start, p);
+                // Remember it, so the next run is instant and identical - but only a FIRST plan. A re-plan starts
+                // from wherever he had drifted to halfway along, and lookup only ever asks at the start of a
+                // route, so such an entry can never be matched again. All it does is take a place from an approach
+                // he really uses and push it out of the file.
+                if (firstPlan) {
+                    Ap3RouteCache.offer(signature, start, p);
+                }
                 // Only publish if no newer request has been made since this one started. Writing the plan and its
                 // sequence as two separate fields let a slow worker overwrite a fresher answer and then have its
                 // own discarded for being stale - losing both.
