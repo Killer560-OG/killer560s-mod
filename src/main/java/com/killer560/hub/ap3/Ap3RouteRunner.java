@@ -474,7 +474,12 @@ final class Ap3RouteRunner {
         // running against FLAT_GROUND - an endless floor at y = 0 - so the prediction free-fell, drift passed
         // LOST_LIMIT within three ticks and the route stopped dead. The scan is the cheap half anyway; the search
         // is what the cache is really saving.
-        Ap3RoutePlanner.Plan saved = Ap3RouteCache.lookup(signature, start);
+        // Only a route's FIRST plan may come out of the cache. What is saved is the schedule for the whole route
+        // from its start; a re-plan happens mid-run from wherever he has drifted to, and needs a plan for what is
+        // LEFT. Letting re-plans ask as well is how a plan from 30 blocks away got replayed on 2026-09-22 - it
+        // drifted, asked again, got the same plan, restarted it, and looped off a staircase into lava.
+        boolean firstPlan = plan == null;
+        Ap3RoutePlanner.Plan saved = firstPlan ? Ap3RouteCache.lookup(signature, start) : null;
         if (saved != null) {
             planStart = start;
             planModel = model;
@@ -496,7 +501,6 @@ final class Ap3RouteRunner {
         // on a worker, nothing in the game waits on it, and Ap3RouteCache keeps the answer so the price is paid
         // once and never again. A re-plan mid-run gets the old small budget: there, every millisecond it spends is
         // a tick the route is coasting.
-        boolean firstPlan = plan == null;
         options.beam = firstPlan ? Math.min(4000, cfg.getRouteBeam() * 3) : cfg.getRouteBeam();
         // A long route is a bigger problem and needs proportionally more of everything. killer560 (2026-09-22):
         // "if it is trying to generate a really long route then it runs out of time due to the time budget."

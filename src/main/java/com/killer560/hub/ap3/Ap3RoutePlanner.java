@@ -509,7 +509,11 @@ final class Ap3RoutePlanner {
         //
         // So give each node its own little problem, and come to a stop on every one. That is the shape the search
         // solves reliably, and a route that pauses on a node beats a route that does not exist.
-        Plan oneAtATime = nodeByNode(start, gates, blocked, terrain, m, o);
+        // Its own allowance rather than the portfolio's leftovers - by now there is none left, and this is the
+        // attempt most likely to work. Bounded all the same: without a deadline the recursion below can run for
+        // half a minute on a long route, and a route that is still thinking is a route that is not running.
+        long fallbackBy = System.nanoTime() + Math.max(o.budgetMs, 4000L) * 1_000_000L;
+        Plan oneAtATime = nodeByNode(start, gates, blocked, terrain, m, o, fallbackBy);
         if (oneAtATime != null) {
             return oneAtATime;
         }
@@ -555,7 +559,7 @@ final class Ap3RoutePlanner {
      * each cut point is tried at the height the field believes and at the one above it.
      */
     private static Plan nodeByNode(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
-                                   Terrain terrain, Ap3DiscretePlanner.Model m, Options o) {
+                                   Terrain terrain, Ap3DiscretePlanner.Model m, Options o, long deadline) {
         List<int[]> groups = groupsOf(gates);
         if (groups.isEmpty()) {
             return null;
@@ -571,7 +575,7 @@ final class Ap3RoutePlanner {
                 c.mustLand = true;
                 leg.add(c);
             }
-            List<Step> got = planLeg(at, leg, blocked, terrain, m, o, 0);
+            List<Step> got = planLeg(at, leg, blocked, terrain, m, o, 0, deadline);
             if (got == null) {
                 return null;
             }
@@ -618,12 +622,17 @@ final class Ap3RoutePlanner {
 
     /** One leg, landed on; cut in half and recursed when it will not plan whole. Null when it cannot be done. */
     private static List<Step> planLeg(Ap3RouteMath.RouteState from, List<Gate> leg, List<Blocked> blocked,
-                                      Terrain terrain, Ap3DiscretePlanner.Model m, Options o, int depth) {
+                                      Terrain terrain, Ap3DiscretePlanner.Model m, Options o, int depth,
+                                      long deadline) {
+        long leftMs = (deadline - System.nanoTime()) / 1_000_000L;
+        if (leftMs < 200) {
+            return null;
+        }
         Options lo = o.copy();
         lo.portfolio = false;
         lo.preferRunning = false;
         lo.beam = Math.min(6000, o.beam * 2);
-        lo.budgetMs = Math.max(600, o.budgetMs / 2);
+        lo.budgetMs = Math.max(200, Math.min(leftMs, Math.max(600, o.budgetMs / 2)));
         Field field = new Field(from, leg, blocked, terrain, lo);
         Plan p = search(from, leg, blocked, terrain, m, lo, field);
         if (p.complete) {
@@ -651,7 +660,7 @@ final class Ap3RoutePlanner {
             w.halfL = 0.5;
             w.mustLand = true;
             w.captureBlocks();
-            List<Step> first = planLeg(from, List.of(w), blocked, terrain, m, o, depth + 1);
+            List<Step> first = planLeg(from, List.of(w), blocked, terrain, m, o, depth + 1, deadline);
             if (first == null) {
                 continue;
             }
@@ -659,7 +668,7 @@ final class Ap3RoutePlanner {
             for (Step st : first) {
                 Ap3RouteMath.step(mid, st.keys(), st.yaw(), st.jump(), st.sprint(), m, terrain.shapes());
             }
-            List<Step> rest = planLeg(mid, leg, blocked, terrain, m, o, depth + 1);
+            List<Step> rest = planLeg(mid, leg, blocked, terrain, m, o, depth + 1, deadline);
             if (rest == null) {
                 continue;
             }

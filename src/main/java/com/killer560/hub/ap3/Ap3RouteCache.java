@@ -47,6 +47,8 @@ final class Ap3RouteCache {
     private static final double SPEED_TOLERANCE = 0.12;
     /** Enough entries for a dungeon's worth of routes without the file growing without end. */
     private static final int MAX_ENTRIES = 64;
+    /** How many different ways of arriving at one route are remembered. */
+    private static final int MAX_PER_ROUTE = 8;
 
     private Ap3RouteCache() {
     }
@@ -115,15 +117,16 @@ final class Ap3RouteCache {
      * Make it so after it loads once it keeps that exact pathing no matter what unless I regenerate it. It should
      * auto load."
      * <p>
-     * So a route is answered ONCE. The first time it is run it is searched, hard, and the answer is kept; every run
-     * after that gets that same answer instantly, whatever state he steps on in. When several approaches were
-     * saved before this rule existed, the one planned from nearest to where he is standing wins, so old files still
-     * behave. {@code /ap3 regenerate} is the only thing that changes a route's answer.
+     * So: run the same route the same way and it is never searched again. An APPROACH - a place and a speed to
+     * arrive from - keeps exactly one plan, and once that plan exists it is never replaced, so the route runs
+     * identically every time. {@code /ap3 regenerate} is the only thing that changes it.
      * <p>
-     * The cost of this is that a plan begun from a good way off is a schedule built for somewhere else, and its
-     * first ticks will be wrong. That is what the runner's drift check is for: it corrects small errors and stops
-     * the route on large ones. A wrong start that self-corrects is what he asked for over a route that quietly
-     * becomes a different route.
+     * What it will NOT do is hand back a plan that was built somewhere else. A plan is a fixed schedule of key
+     * presses; replayed from the wrong place it does not go to the node, it repeats the movements that went to the
+     * node from a different start. On 2026-09-22 a version of this handed one back from 30.19 blocks away, and the
+     * route walked sideways off a staircase into lava, drifted, asked again, got the same plan, and looped. So a
+     * saved plan is offered only from where it was planned from ({@link #distance}), and arriving somewhere new
+     * searches once and saves that approach alongside the others.
      */
     static Ap3RoutePlanner.Plan lookup(String signature, Ap3RouteMath.RouteState start) {
         load();
@@ -134,33 +137,26 @@ final class Ap3RouteCache {
         }
         Entry best = null;
         double bestAway = Double.MAX_VALUE;
-        boolean exact = false;
         for (Entry e : list) {
             double d = distance(e, start);
             if (!Double.isNaN(d) && d < bestAway) {
                 best = e;
                 bestAway = d;
-                exact = true;
             }
         }
         if (best == null) {
-            // Not from here - but it is still this route's answer, and this route only gets one.
+            double nearest = Double.MAX_VALUE;
             for (Entry e : list) {
-                double away = Math.sqrt((start.x - e.startX) * (start.x - e.startX)
-                        + (start.y - e.startY) * (start.y - e.startY)
-                        + (start.z - e.startZ) * (start.z - e.startZ));
-                if (away < bestAway) {
-                    best = e;
-                    bestAway = away;
-                }
+                nearest = Math.min(nearest, Math.hypot(start.x - e.startX, start.z - e.startZ));
             }
-        }
-        if (best == null) {
+            LOGGER.info("[AP3 route] {} saved plan(s) for this route but none from here (nearest start {} blocks"
+                            + " away, v {}) - searching", list.size(),
+                    String.format(Locale.US, "%.2f", nearest),
+                    String.format(Locale.US, "%.3f", start.speed()));
             return null;
         }
-        LOGGER.info("[AP3 route] using this route's saved {}-tick plan ({} blocks from where it was planned{})",
-                best.ticks, String.format(Locale.US, "%.2f", bestAway),
-                exact ? "" : ", started differently - the drift check will pull it in");
+        LOGGER.info("[AP3 route] using a saved {}-tick plan ({} blocks from where it was planned, {} approach(es)"
+                + " known for this route)", best.ticks, String.format(Locale.US, "%.2f", bestAway), list.size());
         Ap3RoutePlanner.Plan p = new Ap3RoutePlanner.Plan();
         p.steps = best.steps.toArray(new Ap3RoutePlanner.Step[0]);
         p.ticks = p.steps.length;
@@ -171,11 +167,12 @@ final class Ap3RouteCache {
     }
 
     /**
-     * Keep this plan as the route's answer, if the route has not already got one.
+     * Keep this plan as the answer for the approach it was planned from, if that approach has no answer yet.
      * <p>
-     * Deliberately once and once only - see {@link #lookup}. A route that kept taking new plans on kept CHANGING,
-     * which is the thing he asked to stop: "after it loads once it keeps that exact pathing no matter what unless I
-     * regenerate it". A shorter plan found later is not worth a route that runs differently on Tuesday.
+     * Once an approach has a plan it is never replaced, not even by a shorter one: that is what makes the route run
+     * identically every time, which is what he asked for ("after it loads once it keeps that exact pathing no
+     * matter what unless I regenerate it"). New approaches are still added alongside, because a schedule of keys is
+     * only valid from the state it was built for - see {@link #lookup}.
      */
     static void offer(String signature, Ap3RouteMath.RouteState start, Ap3RoutePlanner.Plan plan) {
         if (plan == null || !plan.complete || plan.steps.length == 0 || signature.isEmpty()) {
@@ -183,8 +180,10 @@ final class Ap3RouteCache {
         }
         load();
         List<Entry> list = ENTRIES.computeIfAbsent(signature, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
-        if (!list.isEmpty()) {
-            return; // settled; /ap3 regenerate is the way to change it
+        for (Entry candidate : list) {
+            if (!Double.isNaN(distance(candidate, start))) {
+                return; // this approach is already settled
+            }
         }
         Entry e = new Entry();
         e.signature = signature;
@@ -200,7 +199,11 @@ final class Ap3RouteCache {
         e.ticks = plan.ticks;
         e.steps = new ArrayList<>(List.of(plan.steps));
         list.add(e);
-        LOGGER.info("[AP3 route] saved this route's {}-tick plan - it will run exactly this from now on", plan.ticks);
+        while (list.size() > MAX_PER_ROUTE) {
+            list.remove(0);
+        }
+        LOGGER.info("[AP3 route] saved a {}-tick plan for this approach - {} approach(es) known for this route,"
+                + " each of which now runs exactly the same every time", plan.ticks, list.size());
         save();
     }
 
