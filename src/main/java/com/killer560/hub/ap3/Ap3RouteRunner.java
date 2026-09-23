@@ -449,6 +449,24 @@ final class Ap3RouteRunner {
         for (Ap3Node n : route) {
             gates.add(gateFor(n));
         }
+        // A gate he is ALREADY STANDING IN is not something to plan for. The first node of a route is the one he
+        // just stepped onto, so its gate sits exactly where he is, and asking the search to reach it costs the
+        // whole route dearly: the same s3 plan, same world, same terrain grid the game itself dumped, measured
+        // 2026-09-23 - with that gate, INCOMPLETE 5 ticks in 8.3 s; without it, COMPLETE 24 ticks in 3.5 s,
+        // replayed to (3.38, 121.000, 83.96) standing on the node. It is the difference between the route working
+        // and not, and it is on every route whose first node is the one he steps on.
+        //
+        // Only when there is nothing left to ask of it: a gate wanting a particular speed or heading is a real
+        // requirement even underfoot, and the last gate is where the route ENDS, which is never free.
+        while (gates.size() > 1) {
+            Ap3RoutePlanner.Gate g = gates.get(0);
+            if (g.wantsVelocity() || g.exact
+                    || Math.abs(start.x - g.x) > g.halfW || Math.abs(start.z - g.z) > g.halfL
+                    || Math.abs(start.y - g.y) > Ap3RoutePlanner.GATE_Y_TOLERANCE) {
+                break;
+            }
+            gates.remove(0);
+        }
         if (!gates.isEmpty()) {
             gates.get(gates.size() - 1).mustLand = true; // the route ends standing, not mid-jump
         }
