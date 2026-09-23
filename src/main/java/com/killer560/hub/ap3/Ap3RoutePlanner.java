@@ -461,6 +461,8 @@ final class Ap3RoutePlanner {
         Plan best = null;
         int bestJumps = Integer.MAX_VALUE;
         int bestClips = Integer.MAX_VALUE;
+        Plan noJump = null;
+        int noJumpClips = Integer.MAX_VALUE;
         Plan fallback = null;
         for (int[] cfg : configs) {
             if (System.nanoTime() > deadline && best != null) {
@@ -492,6 +494,11 @@ final class Ap3RoutePlanner {
                     clips++;
                 }
             }
+            if (jumps == 0 && (noJump == null || p.ticks < noJump.ticks
+                    || (p.ticks == noJump.ticks && clips < noJumpClips))) {
+                noJump = p;
+                noJumpClips = clips;
+            }
             if (best == null || p.ticks < best.ticks
                     || (p.ticks == best.ticks && jumps < bestJumps)
                     || (p.ticks == best.ticks && jumps == bestJumps && clips < bestClips)) {
@@ -499,6 +506,16 @@ final class Ap3RoutePlanner {
                 bestJumps = jumps;
                 bestClips = clips;
             }
+        }
+        // A route that never leaves the ground wins outright, even when a jumping one is a tick or two quicker.
+        // killer560 has asked for this more than once and in the strongest terms he has used about any of it:
+        // "if it is fast enough such that it can cross something like a 3 block gap without jumping then it
+        // always should prioritize that over jumping... 99.999999% of the time just running is faster over gaps it
+        // can cross". Comparing ticks first is what let a jumping plan one tick shorter keep winning, and that
+        // margin is inside the noise of a re-plan anyway. Jumping is for gaps that genuinely cannot be run - if no
+        // jumpless plan was found, `best` still carries one that does.
+        if (noJump != null) {
+            return noJump;
         }
         if (best != null) {
             return best;
