@@ -911,6 +911,7 @@ final class Ap3RouteRunner {
             }
             snap.readBoxes(level, bandLo, bandHi);
             snap.addBlockNodes(level, feetY);
+            snap.gateFloors(gates);
             // Index it here, on the client thread, while this Snap is still private to us. BoxWorld built its
             // index lazily on first query, and the first query can come from the planning worker and the renderer
             // at the same moment - one of them could then see the array published before the columns inside it
@@ -923,6 +924,78 @@ final class Ap3RouteRunner {
                 LOGGER.info("[AP3 route] world snapshot {}x{} cells, y {}..{} took {} ms", w, h, bandLo, bandHi, ms);
             }
             return snap;
+        }
+
+        /**
+         * The coarse surface grid, exactly as the planner sees it: {@code {minX, minZ, w, h, CELL}} followed by
+         * {@code w * h} floor heights in {@code i * h + j} order, NaN where there is nowhere to stand.
+         * <p>
+         * Dumped with a failure so the offline harness can replay the terrain the GAME used rather than rebuilding
+         * its own from the collision boxes. Those two are not the same thing, and on 2026-09-23 the difference hid
+         * a real bug for a day: the harness solved a route in 24 ticks that the game could not solve at all,
+         * because the harness had never run this code and so never saw that the node's own column was being
+         * reported four blocks below the node.
+         */
+        double[] surfaceGrid() {
+            double[] out = new double[5 + floorY.length];
+            out[0] = minX;
+            out[1] = minZ;
+            out[2] = w;
+            out[3] = h;
+            out[4] = CELL;
+            System.arraycopy(floorY, 0, out, 5, floorY.length);
+            return out;
+        }
+
+        /**
+         * Make every column a node covers report the surface that node is actually standing on.
+         * <p>
+         * A node is somewhere he has already stood, so there is ground there by definition - but the coarse read
+         * above has one surface per column and can easily pick a different one, and when it does the route is
+         * being asked to reach a place its own terrain model says does not exist. The heuristic then leads it
+         * somewhere else entirely and `mustLand` can never be satisfied. Measured on killer560's world,
+         * 2026-09-23: his node at y 121 had its column reported at y 117, and the route arrived underneath it
+         * every time, "still 0.0 blocks out" horizontally and two blocks low.
+         * <p>
+         * The node's y IS the answer - it is where his feet were when he placed it - so it is simply written in,
+         * for every cell the node's box covers. Nothing else about the column changes: the real collision boxes
+         * are untouched, so the physics still decides what actually happens when the route gets there.
+         */
+        private void gateFloors(List<Ap3RoutePlanner.Gate> gates) {
+            List<Ap3RouteCollide.Box> hit = new ArrayList<>();
+            for (Ap3RoutePlanner.Gate g : gates) {
+                double halfW = Math.max(g.halfW, Ap3RoutePlanner.HALF_WIDTH);
+                double halfL = Math.max(g.halfL, Ap3RoutePlanner.HALF_WIDTH);
+                int i0 = (int) Math.floor((g.x - halfW - minX) / CELL);
+                int i1 = (int) Math.floor((g.x + halfW - minX) / CELL);
+                int j0 = (int) Math.floor((g.z - halfL - minZ) / CELL);
+                int j1 = (int) Math.floor((g.z + halfL - minZ) / CELL);
+                for (int i = Math.max(0, i0); i <= Math.min(w - 1, i1); i++) {
+                    for (int j = Math.max(0, j0); j <= Math.min(h - 1, j1); j++) {
+                        double cx = minX + (i + 0.5) * CELL;
+                        double cz = minZ + (j + 0.5) * CELL;
+                        // Only where there is really something to stand on at the node's own level. A node he
+                        // placed in mid-air - one he passes THROUGH on a jump - has no floor, and inventing one
+                        // would tell the heuristic there is ground in the middle of a gap.
+                        hit.clear();
+                        boxWorld().collect(cx - 0.01, g.y - 0.6, cz - 0.01, cx + 0.01, g.y + 0.01, cz + 0.01, hit);
+                        double top = Double.NaN;
+                        for (Ap3RouteCollide.Box b : hit) {
+                            if (b.minX <= cx && b.maxX >= cx && b.minZ <= cz && b.maxZ >= cz
+                                    && b.maxY <= g.y + 1.0E-6 && (Double.isNaN(top) || b.maxY > top)) {
+                                top = b.maxY;
+                            }
+                        }
+                        if (Double.isNaN(top)) {
+                            continue;
+                        }
+                        int cell = i * h + j;
+                        floorY[cell] = top;
+                        wall[cell] = false;
+                        headroom[cell] = Math.max(headroom[cell], BODY_HEIGHT);
+                    }
+                }
+            }
         }
 
         /**
@@ -1046,36 +1119,27 @@ final class Ap3RouteRunner {
                 if (head < BODY_HEIGHT - 0.1) {
                     continue; // no room to stand on this one - it is a roof, so keep looking for the floor below
                 }
-                // Which surface this column reports, when it has more than one.
+                // Which surface this column reports, when it has more than one: the one nearest his feet.
+                // Searching from the top would otherwise hand back a balcony three floors up in place of the
+                // ground he is standing on, and Field.at then charges him the whole UNDER_PENALTY for being on
+                // his own floor.
                 //
-                // The rule is: the HIGHEST one he could actually get onto from his own level - within a jump of his
-                // feet - and failing that the highest one at or below him. Not simply the highest (that hands back
-                // a balcony three floors up in place of the ground he is standing on, and Field.at then charges him
-                // the whole UNDER_PENALTY for being on his own floor), and not simply the nearest either.
-                //
-                // "Nearest" was measured wrong on killer560's own world, 2026-09-22. His two-blocks-up section has
-                // a ledge whose columns hold surfaces at BOTH 119 and 120; he stands at 119. Nearest picks 119, the
-                // field leads the route onto 119, and from 119 the node on top is not reachable at all - planning
-                // the last hop from 120 finishes in 12 ticks, from 119 it is impossible. So the route crossed the
-                // gap, landed a block too low, and there was nothing it could do from there. A surface you can step
-                // or jump up to is one you can use, and it is the one that carries on.
-                double reach = feetY + Ap3RoutePlanner.JUMP_CLIMB;
-                boolean haveOne = !Double.isNaN(floorY[cell]);
-                boolean candidateUsable = top <= reach;
-                boolean currentUsable = haveOne && floorY[cell] <= reach;
-                boolean take;
-                if (!haveOne) {
-                    take = true;
-                } else if (currentUsable) {
-                    take = candidateUsable && top > floorY[cell];
-                } else {
-                    // What we have is out of reach; anything reachable beats it, otherwise take the lower one.
-                    take = candidateUsable || top < floorY[cell];
+                // This was briefly "the highest one within a jump of his feet" (2026-09-22). That was wrong in a
+                // way that took a day to see: `feetY` is where he happens to be standing at the moment of
+                // planning, and the rule applied it to EVERY column in the snapshot. So no surface more than 1.2
+                // blocks above him was usable anywhere on the map, and his two-blocks-up node reported the floor
+                // of the pit beneath it instead. His log, 2026-09-23, with the node at y 121 and his feet at 119:
+                //   ground ... (relative heights): 0.0 0.0 0.0 0.0 0.0 X X X X X X X X X 1.0 1.0 1.0 -7.0 -7.0
+                //   -7.0 -2.0 -2.0 -2.0 -2.0
+                // The node's own column reads -2.0, four blocks below the node, so the search was being asked to
+                // land on ground its terrain said was not there: "reached 1/2 gates, best was 11 ticks in and
+                // still 0.0 blocks out" - horizontally on target, never on it. See gateFloors() for what makes a
+                // node's own column tell the truth.
+                if (!Double.isNaN(floorY[cell]) && Math.abs(floorY[cell] - feetY) <= Math.abs(top - feetY)) {
+                    continue;
                 }
-                if (take) {
-                    floorY[cell] = top;
-                    headroom[cell] = head;
-                }
+                floorY[cell] = top;
+                headroom[cell] = head;
                 if (!Double.isNaN(floorY[cell]) && floorY[cell] <= feetY + Ap3RouteCollide.MAX_UP_STEP
                         && floorY[cell] >= feetY - Ap3RouteCollide.MAX_UP_STEP) {
                     break; // standing on it already: nothing further down can be a better answer

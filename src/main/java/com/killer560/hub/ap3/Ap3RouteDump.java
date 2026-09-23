@@ -123,6 +123,14 @@ final class Ap3RouteDump {
             }
             root.add("boxes", boxes);
 
+            // The coarse surface grid the planner actually planned against - see Snap.surfaceGrid().
+            double[] grid = snap.surfaceGrid();
+            JsonArray gr = new JsonArray();
+            for (double v : grid) {
+                gr.add(Double.isNaN(v) ? null : Double.valueOf(v));
+            }
+            root.add("surface", gr);
+
             Path f = Minecraft.getInstance().gameDirectory.toPath()
                     .resolve("config").resolve("killer560smod").resolve(name);
             Files.createDirectories(f.getParent());

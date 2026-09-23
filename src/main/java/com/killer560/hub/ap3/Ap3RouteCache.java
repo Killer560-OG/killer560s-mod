@@ -103,7 +103,17 @@ final class Ap3RouteCache {
         if (Math.hypot(start.vx - e.startVx, start.vz - e.startVz) > SPEED_TOLERANCE) {
             return Double.NaN;
         }
-        if (start.onGround != e.onGround || start.sprinting != e.sprinting) {
+        if (start.onGround != e.onGround) {
+            return Double.NaN;
+        }
+        // Whether the sprint key is down only matters if he is actually moving. Standing on the node it decides
+        // nothing - vanilla drops sprint the moment there is no forward impulse - but comparing it anyway threw
+        // away perfectly good plans. killer560 (2026-09-23): "it still doesnt insta load the route like it should
+        // ... sometimes it does load in the route instantly but most of the time there is delay". His log has the
+        // proof: "1 saved plan(s) for this route but none from here (nearest start 0.00 blocks away, v 0.000)" -
+        // the very same spot at the very same speed, refused, and searched again from scratch.
+        boolean moving = start.speed() > 0.05 || e.startSpeed > 0.05;
+        if (moving && start.sprinting != e.sprinting) {
             return Double.NaN;
         }
         return away;
