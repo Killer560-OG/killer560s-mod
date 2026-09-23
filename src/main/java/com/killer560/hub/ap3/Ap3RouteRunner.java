@@ -553,6 +553,7 @@ final class Ap3RouteRunner {
         planModel = model;
         pendingAt = at;
         planning = true;
+        logProblem(start, gates, blocked, snap, options, firstPlan, model);
         final int seq = planSeq.incrementAndGet();
         worker = new Thread(() -> {
             try {
@@ -588,6 +589,7 @@ final class Ap3RouteRunner {
                                     + (p.complete ? "" : ", INCOMPLETE - " + p.note) + ")"));
                 }
                 logTerrainProfile(snap, start, gates);
+                logPlanShape(p, start, gates, snap, model);
                 LOGGER.info("[AP3 route] planned {} ticks, {} gates{}, from ({}, {}) v {} splicing at step {}",
                         p.ticks, p.gateTick.length,
                         p.complete ? (p.note.isEmpty() ? "" : " (" + p.note + ")") : " INCOMPLETE - " + p.note,
@@ -648,6 +650,104 @@ final class Ap3RouteRunner {
      * half block, or "X" where it thinks nothing can stand. When the route walks into something the plan thought was
      * open, this line says whether the snapshot was wrong or the search was.
      */
+    /**
+     * Everything the search was actually asked, before it is asked: the options, the gates as passed, the no-go
+     * boxes, and - the part that has caught the most bugs - what the terrain believes is underfoot at the start and
+     * at every gate. A route fails for one of four reasons and this tells them apart at a glance: the ground is
+     * wrong, a no-go box is in the way, the budget is too small, or the movement genuinely cannot be done.
+     */
+    private static void logProblem(Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates,
+                                   List<Ap3RoutePlanner.Blocked> blocked, Snap snap,
+                                   Ap3RoutePlanner.Options o, boolean firstPlan, Ap3DiscretePlanner.Model model) {
+        StringBuilder gs = new StringBuilder();
+        for (int i = 0; i < gates.size(); i++) {
+            Ap3RoutePlanner.Gate g = gates.get(i);
+            double floor = snap.floorAt(g.x, g.z);
+            if (gs.length() > 0) {
+                gs.append(", ");
+            }
+            gs.append(String.format(Locale.US, "g%d(%.2f,%.2f,%.2f)%s%s %.1f away floor %s%s", i + 1, g.x, g.y, g.z,
+                    g.mustLand ? " land" : "", g.exact ? " exact" : "",
+                    Math.hypot(g.x - start.x, g.z - start.z),
+                    Double.isNaN(floor) ? "NONE" : String.format(Locale.US, "%.2f", floor),
+                    // The one that has cost the most time: the ground under a node not being the node's own level.
+                    !Double.isNaN(floor) && Math.abs(floor - g.y) > 0.05 ? " <-- FLOOR != NODE" : ""));
+        }
+        double startFloor = snap.floorAt(start.x, start.z);
+        int containing = 0;
+        for (Ap3RoutePlanner.Blocked b : blocked) {
+            if (start.x >= b.minX && start.x <= b.maxX && start.z >= b.minZ && start.z <= b.maxZ
+                    && start.y >= b.minY - 1.0 && start.y <= b.maxY) {
+                containing++;
+            }
+        }
+        LOGGER.info("[AP3 route] asking for: from ({}, {}, {}) v {} onGround {} | floor under start {}{} | {}",
+                String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.y),
+                String.format(Locale.US, "%.2f", start.z),
+                String.format(Locale.US, "%.3f", start.speed()), start.onGround,
+                Double.isNaN(startFloor) ? "NONE" : String.format(Locale.US, "%.2f", startFloor),
+                !Double.isNaN(startFloor) && Math.abs(startFloor - start.y) > 0.6 ? " <-- NOT WHERE HE IS" : "",
+                gs);
+        LOGGER.info("[AP3 route] settings: {} plan, beam {}, budget {} ms, maxTicks {}, dirs {}, portfolio {},"
+                        + " jumps {}, walking {}, scanPad {}, speed attr {} (top {} b/t) | {} no-go box(es){}",
+                firstPlan ? "FIRST" : "re-", o.beam, o.budgetMs, o.maxTicks, o.dirs, o.portfolio, o.allowJump,
+                o.allowWalking, String.format(Locale.US, "%.0f", o.scanPad),
+                String.format(Locale.US, "%.3f", model.baseSpeedAttr),
+                String.format(Locale.US, "%.3f", Ap3RouteMath.topSpeed(model, o.allowJump)),
+                blocked.size(), containing > 0 ? " (" + containing + " CONTAIN THE START - exempted?)" : "");
+    }
+
+    /** What a finished plan actually does, replayed through the physics rather than taken on trust. */
+    private static void logPlanShape(Ap3RoutePlanner.Plan p, Ap3RouteMath.RouteState start,
+                                     List<Ap3RoutePlanner.Gate> gates, Snap snap, Ap3DiscretePlanner.Model model) {
+        if (p.steps.length == 0) {
+            return;
+        }
+        Ap3RouteMath.RouteState r = start.copy();
+        int jumps = 0;
+        int walks = 0;
+        int coasts = 0;
+        int clips = 0;
+        int sneaks = 0;
+        double lowest = start.y;
+        int firstClip = -1;
+        for (int i = 0; i < p.steps.length; i++) {
+            Ap3RoutePlanner.Step st = p.steps[i];
+            if (st.jump()) {
+                jumps++;
+            }
+            if (st.keys().none()) {
+                coasts++;
+            } else if (!st.sprint()) {
+                walks++;
+            }
+            if (st.keys().sneak()) {
+                sneaks++;
+            }
+            Ap3RouteMath.step(r, st.keys(), st.yaw(), st.jump(), st.sprint(), model, snap.shapes());
+            if (r.sprintBlocked) {
+                clips++;
+                if (firstClip < 0) {
+                    firstClip = i;
+                }
+            }
+            lowest = Math.min(lowest, r.y);
+        }
+        Ap3RoutePlanner.Gate last = gates.isEmpty() ? null : gates.get(gates.size() - 1);
+        boolean onIt = last != null && r.onGround && Math.abs(r.y - last.y) < 0.05
+                && Math.abs(r.x - last.x) <= last.halfW + 0.02 && Math.abs(r.z - last.z) <= last.halfL + 0.02;
+        // A clip is the route bumping into the world - killer560, 2026-09-23: "it is still bumping". Counting them
+        // here is what makes "it bumped" a number instead of an impression.
+        LOGGER.info("[AP3 route] the plan: {} ticks | {} jump(s) {} walking {} coasting {} sneaking | {} clip(s){}"
+                        + " | lowest y {} | replay ends ({}, {}, {}) onGround {} {}",
+                p.ticks, jumps, walks, coasts, sneaks, clips,
+                firstClip >= 0 ? " (first at tick " + firstClip + ")" : "",
+                String.format(Locale.US, "%.2f", lowest),
+                String.format(Locale.US, "%.3f", r.x), String.format(Locale.US, "%.3f", r.y),
+                String.format(Locale.US, "%.3f", r.z), r.onGround,
+                last == null ? "" : (onIt ? "ON THE LAST NODE" : "*** NOT ON THE LAST NODE ***"));
+    }
+
     private static void logTerrainProfile(Snap snap, Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates) {
         if (!Ap3Config.getInstance().isAlignTimerDev() || gates.isEmpty()) {
             return;

@@ -117,6 +117,17 @@ final class Ap3RoutePlanner {
      */
     static final double JUMP_CLIMB = 1.2;
 
+    /**
+     * What one BUMP - a collision that gained no height - costs the search, in ticks.
+     * <p>
+     * Climbing collisions are charged nothing at all, and that is not a rounding decision: walking into a step and
+     * rising on to it is how you get up, and every non-zero price tried made the way up unfindable. Measured
+     * 2026-09-23 on LedgeHarness's two inner-edge cases, which go from 20 and 28 ticks to INCOMPLETE and two
+     * blocks low at a charge of 1.5, at 0.25, at 0.10 and even at 0.05. Those climbs are marginal enough that the
+     * beam only just holds them, so nothing may lean on them.
+     */
+    private static final double CLIP_COST = 1.5;
+
     /** How far past an exact gate's point to aim when the landing came down on the wrong side of a block edge. */
     private static final double EDGE_NUDGE = 0.004;
 
@@ -346,6 +357,8 @@ final class Ap3RoutePlanner {
          * ends, which the tick count inside the plan never sees.
          */
         int clips;
+        /** Collisions that gained no height - see where this is counted. Bumps are charged; climbing is not. */
+        int bumps;
         /** Scratch for {@link #cutLayer}. */
         boolean picked;
         /** Ticks in a row spent standing on a block a Block node will place. */
@@ -1015,13 +1028,24 @@ final class Ap3RoutePlanner {
         c.sprint = sprint;
         c.jumps = n.jumps + (jump ? 1 : 0);
         c.clips = n.clips + (s.sprintBlocked ? 1 : 0);
+        // A collision that GAINED height is how you climb: walking into a step and stepping up on to it is the
+        // normal way up, and charging for it priced the way up out of reach - LedgeHarness's two inner-edge cases
+        // went from 20 and 28 ticks to INCOMPLETE, two blocks low. A collision that gained nothing is a bump.
+        c.bumps = n.bumps + (s.sprintBlocked && s.y <= n.s.y + 1.0E-9 ? 1 : 0);
         c.crossed = crossed;
         // NOTE: the jump preference is deliberately NOT priced in here. f is what the beam prunes by, and charging
         // jumps made the beam drop every jumping state in favour of running ones that could not finish: a 5-block
         // gap at speed 550 has to be jumped, and it went from crossing every time to INCOMPLETE every time. The
         // preference belongs where the answer is chosen, not where the search is cut.
+        // Clipping IS priced in, unlike jumping, and for the opposite reason: a jump is sometimes the only way
+        // across, but running into the world is never required - it cancels the sprint and throws the speed away.
+        // killer560, 2026-09-23: "it is still bumping and it isnt using any normal walks to align it better or
+        // jumping earlier to not bump". Small on purpose. A clip already costs real ticks through the speed it
+        // takes, so this only has to break the search's indifference, and a route that genuinely must brush a wall
+        // has to stay findable - which is exactly what charging JUMPS this way destroyed (see above).
         c.f = c.ticks + field.heuristic(s.x, s.z, s.y, group, mask, groups, top)
-                + o.turnCost * Math.abs(wrap(yaw - n.s.yaw)) / 180.0;
+                + o.turnCost * Math.abs(wrap(yaw - n.s.yaw)) / 180.0
+                + c.bumps * CLIP_COST;
         long key = cell(s, group, mask);
         Node old = seen.get(key);
         if (old != null) {
@@ -1035,6 +1059,7 @@ final class Ap3RoutePlanner {
             old.ticks = c.ticks;
             old.jumps = c.jumps;
             old.clips = c.clips;
+            old.bumps = c.bumps;
             old.parent = c.parent;
             old.keys = c.keys;
             old.yaw = c.yaw;

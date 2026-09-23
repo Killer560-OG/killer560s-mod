@@ -155,14 +155,31 @@ final class Ap3RouteCache {
             }
         }
         if (best == null) {
-            double nearest = Double.MAX_VALUE;
+            // Say WHICH test refused, per entry. "None from here" on its own sent me chasing the wrong field for
+            // an evening: the position matched to 0.00 and the speed to 0.000, and the thing actually refusing was
+            // a flag. Anything that rejects a saved plan has to name itself.
+            StringBuilder why = new StringBuilder();
             for (Entry e : list) {
-                nearest = Math.min(nearest, Math.hypot(start.x - e.startX, start.z - e.startZ));
+                double dxyz = Math.sqrt((start.x - e.startX) * (start.x - e.startX)
+                        + (start.y - e.startY) * (start.y - e.startY)
+                        + (start.z - e.startZ) * (start.z - e.startZ));
+                double dv = Math.hypot(start.vx - e.startVx, start.vz - e.startVz);
+                if (why.length() > 0) {
+                    why.append("; ");
+                }
+                why.append(String.format(Locale.US, "[%d ticks: %s%s%s%s]", e.ticks,
+                        dxyz > START_TOLERANCE
+                                ? String.format(Locale.US, "pos %.2f>%.2f ", dxyz, START_TOLERANCE) : "",
+                        dv > SPEED_TOLERANCE
+                                ? String.format(Locale.US, "vel %.3f>%.3f ", dv, SPEED_TOLERANCE) : "",
+                        start.onGround != e.onGround ? "onGround " + e.onGround + "!=" + start.onGround + " " : "",
+                        (start.speed() > 0.05 || e.startSpeed > 0.05) && start.sprinting != e.sprinting
+                                ? "sprint " + e.sprinting + "!=" + start.sprinting + " " : ""));
             }
-            LOGGER.info("[AP3 route] {} saved plan(s) for this route but none from here (nearest start {} blocks"
-                            + " away, v {}) - searching", list.size(),
-                    String.format(Locale.US, "%.2f", nearest),
-                    String.format(Locale.US, "%.3f", start.speed()));
+            LOGGER.info("[AP3 route] {} saved plan(s) for this route, none usable from here (at {} v {} onGround {}"
+                            + " sprint {}) - searching. Refused: {}", list.size(),
+                    String.format(Locale.US, "%.2f,%.2f,%.2f", start.x, start.y, start.z),
+                    String.format(Locale.US, "%.3f", start.speed()), start.onGround, start.sprinting, why);
             return null;
         }
         LOGGER.info("[AP3 route] using a saved {}-tick plan ({} blocks from where it was planned, {} approach(es)"
