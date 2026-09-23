@@ -47,8 +47,14 @@ final class Ap3RouteCache {
     private static final double SPEED_TOLERANCE = 0.12;
     /** Enough entries for a dungeon's worth of routes without the file growing without end. */
     private static final int MAX_ENTRIES = 64;
-    /** How many different ways of arriving at one route are remembered. */
-    private static final int MAX_PER_ROUTE = 8;
+    /**
+     * How many different ways of arriving at one route are remembered.
+     * <p>
+     * Generous on purpose. Every approach that falls off the end is a search he has to sit through again, and he
+     * has been clear that waiting is the thing he minds most: "it still doesnt insta load the route like it
+     * should". A plan is a few hundred bytes; forgetting one to save that is a bad trade.
+     */
+    private static final int MAX_PER_ROUTE = 32;
 
     private Ap3RouteCache() {
     }

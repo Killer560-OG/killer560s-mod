@@ -571,6 +571,25 @@ final class Ap3RouteRunner {
                         p = relaxed;
                     }
                 }
+                // Ran out of clock rather than out of places to go? Then give it more clock. killer560,
+                // 2026-09-23: "it is stopping because it ran out of time", and separately: "I don't care if it
+                // takes me a little bit longer to have to wait for the first run". A first plan is the one that
+                // gets remembered, so this is paid once for the life of the route; every run after it is a cache
+                // hit. Only on the FIRST plan - a re-plan that overran is a route already moving, and making it
+                // wait longer mid-run is worse than the imperfect line it already has.
+                if (firstPlan && !p.complete && p.note.contains("time budget")) {
+                    Ap3RoutePlanner.Options more = options.copy();
+                    more.budgetMs = options.budgetMs * 4;
+                    LOGGER.info("[AP3 route] out of time at {} ms and still {} - trying once more with {} ms",
+                            options.budgetMs, p.diagnosis.isEmpty() ? "unfinished" : p.diagnosis, more.budgetMs);
+                    Ap3RoutePlanner.Plan longer =
+                            Ap3RoutePlanner.plan(start, gates, blockedHard, snap, model, more);
+                    if (longer.complete || longer.gatesReached > p.gatesReached) {
+                        LOGGER.info("[AP3 route] the longer search {} ({} ticks)",
+                                longer.complete ? "got there" : "got further but still not there", longer.ticks);
+                        p = longer;
+                    }
+                }
                 // Remember it if it is the best this route has managed, so the next run is instant and identical.
                 Ap3RouteCache.offer(signature, start, p);
                 // Only publish if no newer request has been made since this one started. Writing the plan and its
