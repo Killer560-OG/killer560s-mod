@@ -30,6 +30,8 @@ final class Ap3RouteDump {
     /** The last few failures, kept side by side so one bad route does not overwrite another. */
     /** What the four kept captures are OF, so a failure that repeats does not evict the others. */
     private static final String[] recent = new String[4];
+    /** How many captures each route has produced, so each keeps its own pair of slots. */
+    private static final java.util.Map<String, Integer> perRoute = new java.util.HashMap<>();
 
     private static int slot;
     private static long lastWrite;
@@ -59,7 +61,16 @@ final class Ap3RouteDump {
         }
         recent[slot % recent.length] = fingerprint;
         lastWrite = now;
-        write(start, gates, blocked, snap, m, "ap3-route-failure-" + (slot++ % 4) + ".json", why);
+        // Named after the ROUTE - its last node - rather than a global slot, so one section's failures cannot
+        // evict another's. On 2026-09-23 four captures of his storm route were overwritten within eight minutes
+        // by his s3 testing, and storm was the one that needed looking at. Two slots each is enough to see a
+        // pattern, and a route is identified by where it ends, which is what makes it that route.
+        Ap3RoutePlanner.Gate last = gates.isEmpty() ? null : gates.get(gates.size() - 1);
+        String where = last == null ? "unknown"
+                : String.format(Locale.US, "%d_%d_%d", Math.round(last.x), Math.round(last.y), Math.round(last.z));
+        int turn = perRoute.merge(where, 1, Integer::sum) % 2;
+        slot++;
+        write(start, gates, blocked, snap, m, "ap3-route-failure-" + where + "-" + turn + ".json", why);
     }
 
     static void write(Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates,

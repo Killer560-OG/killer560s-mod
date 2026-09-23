@@ -74,6 +74,11 @@ final class Ap3RouteRunner {
      * would rather trade for an answer that works.
      */
     private static final long BRUTE_FORCE_MS = 4000;
+    /**
+     * How far he may move while a first search runs before it is worth asking again from where he now is. A little
+     * over a block: the saved plan he wants is keyed to the node he is standing on, and START_TOLERANCE is 1.25.
+     */
+    private static final double REASK_MOVED = 1.5;
     /** How close to the first Path node the pre-plan starts, so the route does not stall on arrival. */
     private static final double PRE_PLAN_RANGE = 12.0;
 
@@ -197,6 +202,29 @@ final class Ap3RouteRunner {
         }
         if (waitingForTerm) {
             return tickTermWait(client, player);
+        }
+        // Still waiting on a first search, and he is no longer where it was asked from? Ask again from here.
+        //
+        // Measured from his log, 2026-09-23. The route began at (74.30, 60.41) while he was still sprinting past,
+        // eleven blocks from its start node - a state nothing was saved for, so a ten-second search began. A
+        // second later he aligned and stepped on the node properly, where a saved plan sat waiting from exactly
+        // that spot, and he got none of it: the route had already begun, so nothing asked the cache again. He
+        // waited four seconds for an answer to a question about somewhere he had left. Afterwards, the very next
+        // request hit the cache "0.00 blocks from where it was planned".
+        //
+        // Only while nothing is being driven yet - once a plan is running, the drift check owns re-planning, and
+        // restarting from here would throw away a route mid-flight.
+        if (plan == null && planning && planStart != null) {
+            Ap3RouteMath.RouteState now = stateOf(player);
+            if (Math.hypot(now.x - planStart.x, now.z - planStart.z) > REASK_MOVED) {
+                LOGGER.info("[AP3 route] moved {} blocks since the search began - asking again from here",
+                        String.format(Locale.US, "%.1f",
+                                Math.hypot(now.x - planStart.x, now.z - planStart.z)));
+                planning = false;
+                pending = null;
+                startPlanning(client, player);
+                return true;
+            }
         }
         // A plan that was started earlier lands here; it begins at the tick it was planned for, so it waits for it.
         Ap3RoutePlanner.Plan fresh = pendingSeq >= acceptFrom ? pending : null;

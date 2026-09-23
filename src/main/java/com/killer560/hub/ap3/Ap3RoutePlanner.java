@@ -469,14 +469,24 @@ final class Ap3RoutePlanner {
                 {o.beam * 2, 24, 1},
                 {o.beam * 3, 32, 1},
         };
-        long slice = Math.max(1, o.budgetMs / configs.length);
         long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
+        // How much a LONG route has to give up in width to reach the depth it needs.
+        //
+        // A beam search spends its budget per layer, and a route cannot be found before the search has simulated
+        // as many ticks as the route takes. Measured on killer560's storm section, 2026-09-23, from his own log:
+        // beam 1200 reached 77 layers in 9519 ms - about 123 ms a layer - on a route that turned out to need 97.
+        // It was not close to being found, and it never would have been at any budget he was willing to wait for.
+        // A layer costs time roughly in proportion to the beam, so the beam that reaches maxTicks is about
+        // beam * (layers reached / layers needed); this errs on the wide side of that and leaves a floor, because
+        // a beam too narrow to hold the alternatives is its own failure.
+        double depthScale = Math.max(0.2, Math.min(1.0, 160.0 / Math.max(1, o.maxTicks)));
         Plan best = null;
         int bestJumps = Integer.MAX_VALUE;
         int bestClips = Integer.MAX_VALUE;
         Plan noJump = null;
         int noJumpClips = Integer.MAX_VALUE;
         Plan fallback = null;
+        int membersLeft = configs.length;
         for (int[] cfg : configs) {
             if (System.nanoTime() > deadline && best != null) {
                 break;
@@ -484,10 +494,13 @@ final class Ap3RoutePlanner {
             Options c = o.copy();
             c.portfolio = false;
             c.preferRunning = false;
-            c.beam = Math.min(6000, cfg[0]);
+            c.beam = Math.max(100, Math.min(6000, (int) Math.round(cfg[0] * depthScale)));
             c.dirs = cfg[1];
             c.allowJump = o.allowJump && cfg[2] == 1;
-            c.budgetMs = slice;
+            // What is LEFT, shared among what is still to come - not a fixed fifth each. With a fixed share a
+            // member that dies in a tenth of its slice hands the leftovers to nobody, and the narrow deep member,
+            // which is the one that solves a long route, was being given a fifth of the budget to do it in.
+            c.budgetMs = Math.max(1, ((deadline - System.nanoTime()) / 1_000_000L) / Math.max(1, membersLeft--));
             Plan p = search(start, gates, blocked, terrain, m, c, field);
             if (!p.complete) {
                 if (fallback == null || p.gatesReached > fallback.gatesReached) {
@@ -670,6 +683,21 @@ final class Ap3RoutePlanner {
         lo.beam = Math.min(6000, o.beam * 2);
         lo.budgetMs = Math.max(200, Math.min(leftMs, Math.max(600, o.budgetMs / 2)));
         Field field = new Field(from, leg, blocked, terrain, lo);
+        // Running first here too. This is the path that answered his storm route, and it was handing back plans
+        // with two and four jumps in them - killer560, 2026-09-23: "then when I did it still jumped the 3 block
+        // gap". The jumpless preference lives in portfolio(), which this never goes through, so a leg that could
+        // be run was being jumped whenever jumping happened to be a tick quicker. Half the leg's allowance is
+        // plenty: with jumps off the search either finds the way across quickly or runs out of places to stand.
+        if (o.allowJump) {
+            Options run = lo.copy();
+            run.allowJump = false;
+            run.budgetMs = Math.max(150, lo.budgetMs / 2);
+            Plan onFoot = search(from, leg, blocked, terrain, m, run,
+                    new Field(from, leg, blocked, terrain, run));
+            if (onFoot.complete) {
+                return List.of(onFoot.steps);
+            }
+        }
         Plan p = search(from, leg, blocked, terrain, m, lo, field);
         if (p.complete) {
             return List.of(p.steps);
