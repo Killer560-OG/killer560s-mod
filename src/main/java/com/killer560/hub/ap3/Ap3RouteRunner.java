@@ -85,6 +85,11 @@ final class Ap3RouteRunner {
     /** The Path nodes this run is driving, in chain order. */
     private static final List<Ap3Node> route = new ArrayList<>();
     private static Ap3RoutePlanner.Plan plan;
+    /**
+     * The node that STARTED this route - the one he stepped on. It is the one gate the search never has to solve,
+     * because entering it is what set the route going in the first place.
+     */
+    private static Ap3Node routeEntry;
     private static int stepIndex;
     private static Thread worker;
     private static volatile Ap3RoutePlanner.Plan pending;
@@ -400,6 +405,7 @@ final class Ap3RouteRunner {
     private static void collectRoute(Ap3Node first) {
         Ap3Chain chain = Ap3Feature.currentChain();
         route.clear();
+        routeEntry = first;
         if (chain == null) {
             route.add(first);
             return;
@@ -449,23 +455,25 @@ final class Ap3RouteRunner {
         for (Ap3Node n : route) {
             gates.add(gateFor(n));
         }
-        // A gate he is ALREADY STANDING IN is not something to plan for. The first node of a route is the one he
-        // just stepped onto, so its gate sits exactly where he is, and asking the search to reach it costs the
-        // whole route dearly: the same s3 plan, same world, same terrain grid the game itself dumped, measured
-        // 2026-09-23 - with that gate, INCOMPLETE 5 ticks in 8.3 s; without it, COMPLETE 24 ticks in 3.5 s,
-        // replayed to (3.38, 121.000, 83.96) standing on the node. It is the difference between the route working
-        // and not, and it is on every route whose first node is the one he steps on.
+        // The gate for the node he STEPPED ON is not something to plan for. Entering it is what started the
+        // route; it is solved by definition, and asking the search to solve it again costs the whole route.
+        // Measured on the real s3 dump with the terrain grid the game itself wrote, same beam and budget: with
+        // that gate, INCOMPLETE 5 ticks in 8.3 s; without it, COMPLETE 24 ticks in 3.5 s, replayed to
+        // (3.38, 121.000, 83.96) standing on the node.
         //
-        // Only when there is nothing left to ask of it: a gate wanting a particular speed or heading is a real
-        // requirement even underfoot, and the last gate is where the route ENDS, which is never free.
-        while (gates.size() > 1) {
+        // Identified by WHICH NODE it is, never by measuring where he is now. Measuring was the first attempt and
+        // it failed the same evening: he stepped on that node standing at (1.50, 94.50) - a metre from its centre,
+        // just outside a 1x1 box - so the gate was kept, and his log went straight back to "INCOMPLETE 5 ticks,
+        // g1 1 blocks round". Where he is standing inside the node he triggered is not the question; that he
+        // triggered it is.
+        //
+        // Kept when there is still something to ask of it: a speed or heading is a real requirement even underfoot,
+        // an exact node is a placement he wants hit, and the last gate is where the route ENDS, never free.
+        if (gates.size() > 1 && routeEntry != null && !route.isEmpty() && route.get(0) == routeEntry) {
             Ap3RoutePlanner.Gate g = gates.get(0);
-            if (g.wantsVelocity() || g.exact
-                    || Math.abs(start.x - g.x) > g.halfW || Math.abs(start.z - g.z) > g.halfL
-                    || Math.abs(start.y - g.y) > Ap3RoutePlanner.GATE_Y_TOLERANCE) {
-                break;
+            if (!g.wantsVelocity() && !g.exact) {
+                gates.remove(0);
             }
-            gates.remove(0);
         }
         if (!gates.isEmpty()) {
             gates.get(gates.size() - 1).mustLand = true; // the route ends standing, not mid-jump
