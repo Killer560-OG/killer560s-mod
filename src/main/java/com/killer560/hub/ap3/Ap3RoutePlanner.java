@@ -497,6 +497,22 @@ final class Ap3RoutePlanner {
         if (best != null) {
             return best;
         }
+        // Nothing could plan it in one go, so stop trying to.
+        //
+        // Measured on killer560's own world, 2026-09-22, from the dump of the route that keeps failing: the gap
+        // ALONE plans in 13 ticks, and the hop onto the node two blocks up plans in 12 - but only from a standing
+        // start on the ledge between them. Asked for both at once the search never finishes, and handing it a
+        // waypoint half way does not help either (tried three, all "reached 1/2 gates, 1.2 blocks out"), because
+        // crossing a waypoint at speed is not the state the second half needs. The beam keeps whatever is quickest
+        // so far, and arriving at that ledge slowly is never quickest so far - it only pays off twenty ticks later,
+        // long after those states have been cut.
+        //
+        // So give each node its own little problem, and come to a stop on every one. That is the shape the search
+        // solves reliably, and a route that pauses on a node beats a route that does not exist.
+        Plan oneAtATime = nodeByNode(start, gates, blocked, terrain, m, o);
+        if (oneAtATime != null) {
+            return oneAtATime;
+        }
         // Nothing finished. Breadth was the wrong answer for this one, so spend everything that is left going DEEP
         // on a single search instead - measured on a pad course that no member of the portfolio could solve in its
         // quarter of the budget but one of them solved comfortably given the lot.
@@ -514,6 +530,145 @@ final class Ap3RoutePlanner {
             }
         }
         return fallback != null ? fallback : new Plan();
+    }
+
+    /** How many times the last resort may cut a leg in half before it admits defeat. */
+    private static final int MAX_SPLITS = 2;
+
+    /**
+     * The last resort: stop trying to plan the route in one piece, and cut it up until each piece is something the
+     * search can actually hold in its head.
+     * <p>
+     * Each node becomes its own leg, planned from the state the previous leg ended in, and every leg has to be
+     * LANDED ON - which is also the point. A leg that still will not plan gets cut in half again at a point the
+     * heuristic picks off its own distance field, and that halfway point is landed on too.
+     * <p>
+     * Measured on killer560's world, 2026-09-22, from the dump of the route that kept failing - one node, ten
+     * blocks away, over a 3-block gap onto a ledge and then up two: the gap alone plans in 13 ticks and the hop
+     * alone in 12, but only from a STANDING START on the ledge, and asked for both at once the search never
+     * finishes. Handing it a waypoint it could cross at speed did not help either (three tried, all "reached 1/2
+     * gates, 1.2 blocks out"). Arriving at that ledge slowly only pays off twenty ticks later, long after the beam,
+     * which keeps whatever is quickest so far, has cut those states.
+     * <p>
+     * The other half of it is WHICH ledge. Those columns carry a surface at 119 and another at 120; from 120 the
+     * hop plans, from 119 the node is not reachable at all. The field only remembers one surface per column, so
+     * each cut point is tried at the height the field believes and at the one above it.
+     */
+    private static Plan nodeByNode(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
+                                   Terrain terrain, Ap3DiscretePlanner.Model m, Options o) {
+        List<int[]> groups = groupsOf(gates);
+        if (groups.isEmpty()) {
+            return null;
+        }
+        Ap3RouteMath.RouteState at = start.copy();
+        List<Step> all = new ArrayList<>();
+        int[] gateTick = new int[gates.size()];
+        for (int[] group : groups) {
+            List<Gate> leg = new ArrayList<>(group.length);
+            for (int idx : group) {
+                Gate c = copyGate(gates.get(idx));
+                c.group = 0;
+                c.mustLand = true;
+                leg.add(c);
+            }
+            List<Step> got = planLeg(at, leg, blocked, terrain, m, o, 0);
+            if (got == null) {
+                return null;
+            }
+            for (Step st : got) {
+                Ap3RouteMath.step(at, st.keys(), st.yaw(), st.jump(), st.sprint(), m, terrain.shapes());
+                all.add(st);
+            }
+            for (int idx : group) {
+                gateTick[idx] = all.size() - 1;
+            }
+        }
+        Plan out = new Plan();
+        out.steps = all.toArray(new Step[0]);
+        out.ticks = out.steps.length;
+        out.complete = true;
+        out.gatesReached = gates.size();
+        out.gateTick = gateTick;
+        out.note = "planned in pieces";
+        return out;
+    }
+
+    private static Gate copyGate(Gate g) {
+        Gate c = new Gate();
+        c.group = g.group;
+        c.x = g.x;
+        c.y = g.y;
+        c.z = g.z;
+        c.halfW = g.halfW;
+        c.halfL = g.halfL;
+        c.exact = g.exact;
+        c.exactTol = g.exactTol;
+        c.cellMinX = g.cellMinX;
+        c.cellMaxX = g.cellMaxX;
+        c.cellMinZ = g.cellMinZ;
+        c.cellMaxZ = g.cellMaxZ;
+        c.minSpeed = g.minSpeed;
+        c.maxSpeed = g.maxSpeed;
+        c.hasDir = g.hasDir;
+        c.dirDeg = g.dirDeg;
+        c.dirTolDeg = g.dirTolDeg;
+        c.mustLand = g.mustLand;
+        return c;
+    }
+
+    /** One leg, landed on; cut in half and recursed when it will not plan whole. Null when it cannot be done. */
+    private static List<Step> planLeg(Ap3RouteMath.RouteState from, List<Gate> leg, List<Blocked> blocked,
+                                      Terrain terrain, Ap3DiscretePlanner.Model m, Options o, int depth) {
+        Options lo = o.copy();
+        lo.portfolio = false;
+        lo.preferRunning = false;
+        lo.beam = Math.min(6000, o.beam * 2);
+        lo.budgetMs = Math.max(600, o.budgetMs / 2);
+        Field field = new Field(from, leg, blocked, terrain, lo);
+        Plan p = search(from, leg, blocked, terrain, m, lo, field);
+        if (p.complete) {
+            return List.of(p.steps);
+        }
+        if (depth >= MAX_SPLITS) {
+            return null;
+        }
+        double[] via = field.waypoint(0, from.x, from.z, 0.5);
+        if (via == null) {
+            return null;
+        }
+        Gate goal = leg.get(leg.size() - 1);
+        // A cut that lands nearly on one end splits nothing and burns the budget twice over.
+        if (Math.hypot(via[0] - from.x, via[2] - from.z) < 2.0
+                || Math.hypot(via[0] - goal.x, via[2] - goal.z) < 2.0) {
+            return null;
+        }
+        for (double y : new double[]{via[1], via[1] + 1.0}) {
+            Gate w = new Gate();
+            w.x = via[0];
+            w.y = y;
+            w.z = via[2];
+            w.halfW = 0.5;
+            w.halfL = 0.5;
+            w.mustLand = true;
+            w.captureBlocks();
+            List<Step> first = planLeg(from, List.of(w), blocked, terrain, m, o, depth + 1);
+            if (first == null) {
+                continue;
+            }
+            Ap3RouteMath.RouteState mid = from.copy();
+            for (Step st : first) {
+                Ap3RouteMath.step(mid, st.keys(), st.yaw(), st.jump(), st.sprint(), m, terrain.shapes());
+            }
+            List<Step> rest = planLeg(mid, leg, blocked, terrain, m, o, depth + 1);
+            if (rest == null) {
+                continue;
+            }
+            List<Step> both = new ArrayList<>(first.size() + rest.size());
+            both.addAll(first);
+            both.addAll(rest);
+            return both;
+        }
+        return null;
     }
 
     private static Plan search(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
@@ -915,7 +1070,7 @@ final class Ap3RoutePlanner {
      * the same fields so the whole tail counts. Divided by the top speed it is a time, in the same units as the ticks
      * already spent, and it never overestimates by more than the grid's own diagonal slack.
      */
-    private static final class Field {
+    static final class Field {
         static final double CELL = 0.5;
         final double minX, minZ;
         final int w, h;
@@ -1102,6 +1257,69 @@ final class Ap3RoutePlanner {
                 }
             }
             return d;
+        }
+
+        /**
+         * A point roughly {@code fraction} of the way along this field's OWN route from (x, z) to the gate, found by
+         * walking downhill through the distance field. It is where the heuristic already believes the route goes, so
+         * it is a sensible place to cut a leg in half.
+         */
+        double[] waypoint(int gate, double x, double z, double fraction) {
+            int i = (int) Math.round((x - minX) / CELL);
+            int j = (int) Math.round((z - minZ) / CELL);
+            if (i < 0 || j < 0 || i >= w || j >= h) {
+                return null;
+            }
+            float from = dist[gate][i * h + j];
+            if (Float.isInfinite(from) || from <= 0) {
+                return null;
+            }
+            double want = from * (1 - fraction);
+            int ci = i;
+            int cj = j;
+            for (int step = 0; step < 8000; step++) {
+                if (dist[gate][ci * h + cj] <= want) {
+                    break;
+                }
+                int bi = -1;
+                int bj = -1;
+                float best = dist[gate][ci * h + cj];
+                // Widen the ring until something lower turns up. One cell is not enough: the flood JUMPS holes
+                // (see JUMP_CELLS), so at the lip of a gap every neighbour is either the gap or further away, and
+                // a walk that only looks one cell out stops dead there. Measured on killer560's route, 2026-09-22:
+                // every fraction from 0.3 to 0.7 came back with the same point, the near lip of his 3-block gap -
+                // which is no use as a place to cut the route in half, because it is before the hard part.
+                for (int r = 1; r <= JUMP_CELLS && bi < 0; r++) {
+                    for (int di = -r; di <= r; di++) {
+                        for (int dj = -r; dj <= r; dj++) {
+                            if (Math.max(Math.abs(di), Math.abs(dj)) != r) {
+                                continue; // only the new edge of the ring
+                            }
+                            int ni = ci + di;
+                            int nj = cj + dj;
+                            if (ni < 0 || nj < 0 || ni >= w || nj >= h || Float.isNaN(surface[ni * h + nj])) {
+                                continue;
+                            }
+                            float d = dist[gate][ni * h + nj];
+                            if (d < best) {
+                                best = d;
+                                bi = ni;
+                                bj = nj;
+                            }
+                        }
+                    }
+                }
+                if (bi < 0) {
+                    break;
+                }
+                ci = bi;
+                cj = bj;
+            }
+            float f = surface[ci * h + cj];
+            if (Float.isNaN(f)) {
+                return null;
+            }
+            return new double[]{minX + ci * CELL, f, minZ + cj * CELL};
         }
 
         double at(int gate, double x, double z) {

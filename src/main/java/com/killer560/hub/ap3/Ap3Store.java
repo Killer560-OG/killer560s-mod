@@ -562,6 +562,8 @@ public final class Ap3Store {
         n.setLeapCount(ConfigJson.getInt(o, "leapCount", 1));
         if (type == Ap3Node.Type.PATH) {
             n.pathIndex = Math.max(1, Math.min(999, ConfigJson.getInt(o, "pathIndex", 1)));
+            n.pathStart = ConfigJson.getBool(o, "pathStart", false);
+            n.pathEnd = ConfigJson.getBool(o, "pathEnd", false);
             n.minSpeed = ConfigJson.getDouble(o, "minSpeed", -1);
             n.maxSpeed = ConfigJson.getDouble(o, "maxSpeed", -1);
             n.hasDir = ConfigJson.getBool(o, "hasDir", false);
@@ -640,6 +642,8 @@ public final class Ap3Store {
             case LEAP_COUNTER -> o.addProperty("leapCount", n.leapCount);
             case PATH -> {
                 o.addProperty("pathIndex", n.pathIndex);
+                o.addProperty("pathStart", n.pathStart);
+                o.addProperty("pathEnd", n.pathEnd);
                 o.addProperty("minSpeed", round(n.minSpeed, 4));
                 o.addProperty("maxSpeed", round(n.maxSpeed, 4));
                 o.addProperty("hasDir", n.hasDir);

@@ -73,7 +73,8 @@ public final class Ap3Commands {
         ADD_ALIGN("add_line", "Add Align Node", "/ap3 add align [precise] [w<n> l<n>]"),
         ADD_AXIS_ALIGN("add_axisline", "Add Axis Align Node", "/ap3 add axisalign [precise]"),
         ADD_FAST_ALIGN("add_testalign", "Add Fast Align Node", "/ap3 add fastalign [precise] [w<n> l<n>]"),
-        ADD_PATH("add_path", "Add Path Node", "/ap3 add path [exact] [speed:<min>-<max>] [dir:<deg>] [term]"),
+        ADD_PATH("add_path", "Add Path Node",
+            "/ap3 add path [start|end] [exact] [speed:<min>-<max>] [dir:<deg>] [term]"),
         ADD_NO_GO("add_nogo", "Add No Go Node", "/ap3 add nogo [w<n> l<n>]"),
         ADD_TERM_AURA("add_termaura", "Add Term Aura Node", "/ap3 add termaura"),
         /** "(No Turn)" because that IS the point of AP3's walk: "it does not actually make my character face that
@@ -138,7 +139,7 @@ public final class Ap3Commands {
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
     private static final List<String> PATH_MODS =
-            List.of("1", "2", "3", "4", "exact", "speed:", "dir:", "dirtol:", "term");
+            List.of("start", "end", "1", "2", "3", "4", "exact", "speed:", "dir:", "dirtol:", "term");
 
     private static final SuggestionProvider<FabricClientCommandSource> TYPE_SUGGEST =
             (ctx, b) -> suggestTokens(b, TYPE_WORDS);
@@ -587,6 +588,10 @@ public final class Ap3Commands {
                     spec.precise = true;
                 } else if (type == Ap3Node.Type.PATH && parsePathIndex(t) > 0) {
                     spec.pathIndex = parsePathIndex(t);
+                } else if (type == Ap3Node.Type.PATH && t.equals("start")) {
+                    spec.pathStart = true;
+                } else if (type == Ap3Node.Type.PATH && t.equals("end")) {
+                    spec.pathEnd = true;
                 } else if (type == Ap3Node.Type.PATH && t.equals("term")) {
                     spec.termWait = true;
                 } else if (type == Ap3Node.Type.PATH && (t.startsWith("speed:") || t.startsWith("speed="))) {

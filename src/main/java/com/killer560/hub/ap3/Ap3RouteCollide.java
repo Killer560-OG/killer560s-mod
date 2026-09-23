@@ -221,6 +221,16 @@ final class Ap3RouteCollide {
                     }
                 }
             }
+            // Sorted by the bottom of the box, so a query can stop as soon as the column climbs past it. A column
+            // in a real dungeon holds every block in the Y band - twenty-odd boxes - while a query is only the
+            // player's 1.8 blocks plus a tick of travel. Scanning all of them made one collide cost microseconds
+            // and a search layer 280 ms on killer560's world, which is why a route his two legs could each be
+            // planned for separately could not be planned end to end.
+            for (Box[] col : cols) {
+                if (col != null && col.length > 1) {
+                    java.util.Arrays.sort(col, (a, b) -> Double.compare(a.minY, b.minY));
+                }
+            }
             columns = cols;
         }
 
@@ -259,7 +269,10 @@ final class Ap3RouteCollide {
                         continue;
                     }
                     for (Box b : in) {
-                        if (b.maxY <= minY || b.minY >= maxY
+                        if (b.minY >= maxY) {
+                            break; // sorted by minY: everything after this one is above the query too
+                        }
+                        if (b.maxY <= minY
                                 || b.maxX <= minX || b.minX >= maxX
                                 || b.maxZ <= minZ || b.minZ >= maxZ) {
                             continue;

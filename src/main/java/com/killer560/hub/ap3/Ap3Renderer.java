@@ -152,6 +152,12 @@ public final class Ap3Renderer {
             case AXIS_ALIGN -> sb.append(node.wallDir == null ? "no wall" : node.wallDir.getName());
             case PATH -> {
                 sb.append('#').append(node.pathIndex);
+                if (node.pathStart) {
+                    sb.append(" start");
+                }
+                if (node.pathEnd) {
+                    sb.append(" end");
+                }
                 if (node.precise) {
                     sb.append("exact");
                 }

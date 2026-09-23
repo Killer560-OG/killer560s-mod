@@ -391,6 +391,11 @@ final class Ap3RouteRunner {
      * The Path nodes this route covers, in STEP-NUMBER order starting at the one you stepped on. Nodes sharing a
      * number are one step to be done in any order, so they all come along together; the leg ends after a step that
      * waits for a terminal.
+     * <p>
+     * Where it STOPS is whichever comes first: a node marked {@code end}, a step that waits for a terminal, or the
+     * last Path node in the chain. killer560 (2026-09-22): "That way it knows which ones I want the line between
+     * incase I have multiple in one section." A chain with no {@code end} marked anywhere runs to the end of the
+     * chain exactly as it always did, so nothing he has already built changes.
      */
     private static void collectRoute(Ap3Node first) {
         Ap3Chain chain = Ap3Feature.currentChain();
@@ -409,11 +414,17 @@ final class Ap3RouteRunner {
         int from = first.pathIndex;
         int stopAfter = Integer.MAX_VALUE;
         for (Ap3Node n : paths) {
+            // The nearest `end` at or after him closes this route. Ends before him belong to routes he is past.
+            if (n.pathEnd && n.pathIndex >= from && n.pathIndex < stopAfter) {
+                stopAfter = n.pathIndex;
+            }
+        }
+        for (Ap3Node n : paths) {
             if (n.pathIndex < from || n.pathIndex > stopAfter) {
                 continue;
             }
             route.add(n);
-            if (n.termWait) {
+            if (n.termWait && n.pathIndex < stopAfter) {
                 stopAfter = n.pathIndex; // finish this step's nodes, then stop for the terminal
             }
         }
@@ -548,7 +559,8 @@ final class Ap3RouteRunner {
                 }
                 logTerrainProfile(snap, start, gates);
                 LOGGER.info("[AP3 route] planned {} ticks, {} gates{}, from ({}, {}) v {} splicing at step {}",
-                        p.ticks, p.gateTick.length, p.complete ? "" : " INCOMPLETE - " + p.note,
+                        p.ticks, p.gateTick.length,
+                        p.complete ? (p.note.isEmpty() ? "" : " (" + p.note + ")") : " INCOMPLETE - " + p.note,
                         String.format(Locale.US, "%.2f", start.x), String.format(Locale.US, "%.2f", start.z),
                         String.format(Locale.US, "%.4f", Math.hypot(start.vx, start.vz)), at);
                 if (!p.complete && !p.diagnosis.isEmpty()) {
@@ -774,6 +786,10 @@ final class Ap3RouteRunner {
         Ap3Node last = route.get(route.size() - 1);
         Ap3Chain chain = Ap3Feature.currentChain();
         Ap3Node next = null;
+        if (last.pathEnd) {
+            stop(); // this route is closed; the next one is its own run
+            return false;
+        }
         if (chain != null) {
             for (Ap3Node n : chain.nodes()) {
                 if (n.type == Ap3Node.Type.PATH && n.pathIndex > last.pathIndex
@@ -1026,17 +1042,41 @@ final class Ap3RouteRunner {
                 if (head < BODY_HEIGHT - 0.1) {
                     continue; // no room to stand on this one - it is a roof, so keep looking for the floor below
                 }
-                // Prefer the surface nearest his feet. Searching from the top would otherwise hand back a balcony
-                // three floors up in place of the ground he is on, and Field.at would then charge him the whole
-                // UNDER_PENALTY for standing on his own floor.
-                if (!Double.isNaN(floorY[cell]) && Math.abs(floorY[cell] - feetY) <= Math.abs(top - feetY)) {
-                    break;
+                // Which surface this column reports, when it has more than one.
+                //
+                // The rule is: the HIGHEST one he could actually get onto from his own level - within a jump of his
+                // feet - and failing that the highest one at or below him. Not simply the highest (that hands back
+                // a balcony three floors up in place of the ground he is standing on, and Field.at then charges him
+                // the whole UNDER_PENALTY for being on his own floor), and not simply the nearest either.
+                //
+                // "Nearest" was measured wrong on killer560's own world, 2026-09-22. His two-blocks-up section has
+                // a ledge whose columns hold surfaces at BOTH 119 and 120; he stands at 119. Nearest picks 119, the
+                // field leads the route onto 119, and from 119 the node on top is not reachable at all - planning
+                // the last hop from 120 finishes in 12 ticks, from 119 it is impossible. So the route crossed the
+                // gap, landed a block too low, and there was nothing it could do from there. A surface you can step
+                // or jump up to is one you can use, and it is the one that carries on.
+                double reach = feetY + Ap3RoutePlanner.JUMP_CLIMB;
+                boolean haveOne = !Double.isNaN(floorY[cell]);
+                boolean candidateUsable = top <= reach;
+                boolean currentUsable = haveOne && floorY[cell] <= reach;
+                boolean take;
+                if (!haveOne) {
+                    take = true;
+                } else if (currentUsable) {
+                    take = candidateUsable && top > floorY[cell];
+                } else {
+                    // What we have is out of reach; anything reachable beats it, otherwise take the lower one.
+                    take = candidateUsable || top < floorY[cell];
                 }
-                floorY[cell] = top;
-                headroom[cell] = head;
-                if (top <= feetY + Ap3RouteCollide.MAX_UP_STEP) {
-                    break; // at or below his own level: nothing lower down can be a better answer
+                if (take) {
+                    floorY[cell] = top;
+                    headroom[cell] = head;
                 }
+                if (!Double.isNaN(floorY[cell]) && floorY[cell] <= feetY + Ap3RouteCollide.MAX_UP_STEP
+                        && floorY[cell] >= feetY - Ap3RouteCollide.MAX_UP_STEP) {
+                    break; // standing on it already: nothing further down can be a better answer
+                }
+                continue;
             }
             if (Double.isNaN(floorY[cell]) && fluid) {
                 wall[cell] = true; // nothing but fluid in this column

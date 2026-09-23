@@ -233,6 +233,18 @@ public final class Ap3Node {
      */
     public int pathIndex = 1;
     /**
+     * {@link Type#PATH}: this node opens a route, and this one closes it. killer560 (2026-09-22): "make it so i
+     * have to do /ap3 add path start and path end. That way it knows which ones are start and end. If i want to add
+     * more I need to delete the end, and replace it. That way it knows which ones I want the line between incase I
+     * have multiple in one section."
+     * <p>
+     * So a section may hold several separate routes, and these are what tell them apart: stepping on any Path node
+     * runs the stretch from the {@code start} at or before it to the {@code end} at or after it, and nothing
+     * outside that. A chain with neither flag set behaves exactly as it always did - every Path node from the one
+     * stepped on to the end of the chain - so nothing he has already built changes.
+     */
+    public boolean pathStart, pathEnd;
+    /**
      * {@link Type#PATH}: the speed the route must be travelling at when it crosses this node, blocks/tick; negative
      * means "any". killer560 asked for "a certain position with a certain velocity or range of velocity".
      */
@@ -461,6 +473,12 @@ public final class Ap3Node {
             }
             case PATH -> {
                 sb.append(' ').append(pathIndex);
+                if (pathStart) {
+                    sb.append(" start");
+                }
+                if (pathEnd) {
+                    sb.append(" end");
+                }
                 sb.append(precise ? " [exact" : " [box");
                 if (minSpeed >= 0 || maxSpeed >= 0) {
                     sb.append(String.format(Locale.US, ", speed %s-%s",

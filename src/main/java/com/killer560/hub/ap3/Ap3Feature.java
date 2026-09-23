@@ -265,6 +265,8 @@ public final class Ap3Feature {
         public boolean termWait;
         /** PATH: the step number typed after the type, or null to take the lowest one still free. */
         public Integer pathIndex;
+        /** PATH: {@code start} and {@code end} - which stretch of the chain is one route. */
+        public boolean pathStart, pathEnd;
 
         void applyTo(Ap3Node node) {
             if (width != null) {
@@ -296,6 +298,8 @@ public final class Ap3Feature {
                 if (pathIndex != null) {
                     node.pathIndex = pathIndex;
                 }
+                node.pathStart = pathStart;
+                node.pathEnd = pathEnd;
                 node.minSpeed = minSpeed == null ? -1 : minSpeed;
                 node.maxSpeed = maxSpeed == null ? -1 : maxSpeed;
                 node.hasDir = dirDeg != null;
