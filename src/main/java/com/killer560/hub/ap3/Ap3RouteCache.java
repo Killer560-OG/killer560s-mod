@@ -45,12 +45,19 @@ final class Ap3RouteCache {
     private Ap3RouteCache() {
     }
 
-    private static final Map<String, Entry> ENTRIES = new HashMap<>();
+    /**
+     * Read from the client thread and written from the planning worker, so it cannot be a plain HashMap: a put
+     * racing a get can corrupt a bucket, and iterating it to save while another thread puts throws.
+     */
+    private static final Map<String, Entry> ENTRIES = new java.util.concurrent.ConcurrentHashMap<>();
     private static boolean loaded;
 
     static final class Entry {
         String signature = "";
         double startX, startY, startZ, startSpeed;
+        /** The velocity it was planned from, not just its magnitude - see lookup(). */
+        double startVx, startVz;
+        boolean onGround, sprinting, crouching;
         int ticks;
         /** Key combination, yaw and jump per tick, exactly as the planner produced them. */
         List<Ap3RoutePlanner.Step> steps = new ArrayList<>();
@@ -84,7 +91,18 @@ final class Ap3RouteCache {
         double away = Math.sqrt((start.x - e.startX) * (start.x - e.startX)
                 + (start.y - e.startY) * (start.y - e.startY)
                 + (start.z - e.startZ) * (start.z - e.startZ));
-        if (away > START_TOLERANCE || Math.abs(start.speed() - e.startSpeed) > SPEED_TOLERANCE) {
+        if (away > START_TOLERANCE) {
+            return null;
+        }
+        // The DIRECTION he is moving matters as much as the speed: a schedule built for someone arriving from the
+        // north is wrong from its first tick for someone arriving from the south at the same pace. Comparing only
+        // the magnitude handed those plans straight back.
+        double dvx = start.vx - e.startVx;
+        double dvz = start.vz - e.startVz;
+        if (Math.hypot(dvx, dvz) > SPEED_TOLERANCE) {
+            return null;
+        }
+        if (start.onGround != e.onGround || start.sprinting != e.sprinting || start.crouching != e.crouching) {
             return null;
         }
         Ap3RoutePlanner.Plan p = new Ap3RoutePlanner.Plan();
@@ -112,6 +130,11 @@ final class Ap3RouteCache {
         e.startY = start.y;
         e.startZ = start.z;
         e.startSpeed = start.speed();
+        e.startVx = start.vx;
+        e.startVz = start.vz;
+        e.onGround = start.onGround;
+        e.sprinting = start.sprinting;
+        e.crouching = start.crouching;
         e.ticks = plan.ticks;
         e.steps = new ArrayList<>(List.of(plan.steps));
         ENTRIES.put(signature, e);
@@ -161,6 +184,11 @@ final class Ap3RouteCache {
                     e.startY = o.get("y").getAsDouble();
                     e.startZ = o.get("z").getAsDouble();
                     e.startSpeed = o.get("v").getAsDouble();
+                    e.startVx = o.has("vx") ? o.get("vx").getAsDouble() : 0;
+                    e.startVz = o.has("vz") ? o.get("vz").getAsDouble() : 0;
+                    e.onGround = !o.has("g") || o.get("g").getAsBoolean();
+                    e.sprinting = o.has("sp") && o.get("sp").getAsBoolean();
+                    e.crouching = o.has("cr") && o.get("cr").getAsBoolean();
                     JsonArray steps = o.getAsJsonArray("steps");
                     for (int k = 0; k < steps.size(); k++) {
                         JsonObject st = steps.get(k).getAsJsonObject();
@@ -193,6 +221,11 @@ final class Ap3RouteCache {
                 o.addProperty("y", e.startY);
                 o.addProperty("z", e.startZ);
                 o.addProperty("v", e.startSpeed);
+                o.addProperty("vx", e.startVx);
+                o.addProperty("vz", e.startVz);
+                o.addProperty("g", e.onGround);
+                o.addProperty("sp", e.sprinting);
+                o.addProperty("cr", e.crouching);
                 JsonArray steps = new JsonArray();
                 for (Ap3RoutePlanner.Step st : e.steps) {
                     JsonObject s = new JsonObject();

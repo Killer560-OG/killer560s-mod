@@ -1223,7 +1223,14 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
+        // Report the push against the velocity `step` actually used. It zeroes a horizontal axis under 0.003
+        // before adding the push, and observePush measures against that same zeroed value - so subtracting the RAW
+        // velocity here reported `push - v` while the measurement reported `push`. That is only wrong on ticks
+        // where the speed is inside the zeroing band, which is precisely the endgame ticks of every align, and it
+        // dragged pushScale by up to 8% on exactly the ticks that decide whether it lands on 0.001.
+        double v0x = Ap3AlignMath.horizontalZeroed(s.vx, s.vz) ? 0.0 : s.vx;
+        double v0z = Ap3AlignMath.horizontalZeroed(s.vx, s.vz) ? 0.0 : s.vz;
+        expectPush(player, pred.vx / m.friction() - v0x, pred.vz / m.friction() - v0z, m,
                 a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
         return true;
@@ -1375,6 +1382,15 @@ public final class Ap3Executor {
     /** Keys + Sneak gave up improving: finish at rest with the achieved error (see driveDiscrete). */
     private static boolean keysBestEffort;
 
+    /**
+     * NOTE, 2026-09-22: a review pointed out that pushScale, sprintRestarts and sprintEvidence survive this reset,
+     * so an align inherits whatever the previous node taught the model - including route ticks, where every
+     * forward press is priced as a sprint even when it is a sneaking one. That is very likely a real source of
+     * first-press error. It is NOT fixed here on purpose: clearing the learned scale changes what every align
+     * starts from, four previous changes to this model each looked better on paper and aligned worse in game, and
+     * there is no way to tell which way this one goes without running it. Try it WITH him watching the tick
+     * counts, not on the strength of the argument.
+     */
     private static void alignModelReset() {
         alignPredValid = false;
         alignWorstMiss = 0.0;
@@ -1907,7 +1923,14 @@ public final class Ap3Executor {
         alignPredX = pos.x + (ex - pred.ex);
         alignPredZ = pos.z + (ez - pred.ez);
         alignPredValid = true;
-        expectPush(player, pred.vx / m.friction() - s.vx, pred.vz / m.friction() - s.vz, m,
+        // Report the push against the velocity `step` actually used. It zeroes a horizontal axis under 0.003
+        // before adding the push, and observePush measures against that same zeroed value - so subtracting the RAW
+        // velocity here reported `push - v` while the measurement reported `push`. That is only wrong on ticks
+        // where the speed is inside the zeroing band, which is precisely the endgame ticks of every align, and it
+        // dragged pushScale by up to 8% on exactly the ticks that decide whether it lands on 0.001.
+        double v0x = Ap3AlignMath.horizontalZeroed(s.vx, s.vz) ? 0.0 : s.vx;
+        double v0z = Ap3AlignMath.horizontalZeroed(s.vx, s.vz) ? 0.0 : s.vz;
+        expectPush(player, pred.vx / m.friction() - v0x, pred.vz / m.friction() - v0z, m,
                 a.fw() > 0, a.fw() > 0 && (s.sprinting || m.sprintKeyHeld));
         writeDiscrete(player, a.fw(), a.st(), a.sneak(), false, frameYaw, m, s.crouching);
     }

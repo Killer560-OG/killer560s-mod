@@ -103,6 +103,8 @@ final class Ap3RouteRunner {
      */
     private static final java.util.concurrent.atomic.AtomicInteger planSeq = new java.util.concurrent.atomic.AtomicInteger();
     private static volatile int pendingSeq = -1;
+    /** Guards the (plan, sequence) pair so a worker cannot publish half of it. */
+    private static final Object PUBLISH = new Object();
     /** The sequence the running route is willing to accept (bumped when the route starts, so pre-plans are dropped). */
     private static int acceptFrom;
     private static int lastPlanStep;
@@ -227,9 +229,26 @@ final class Ap3RouteRunner {
             }
         }
         if (plan == null) {
+            // Nothing to drive. If nobody is working on one either, ask again - a pre-plan that was still in
+            // flight when he stepped on the node used to leave the route here for good: its answer was refused
+            // for being older than this run, and startPlanning() had already returned silently because the worker
+            // was busy. The route then coasted until the node timed out.
+            if (!planning) {
+                startPlanning(client, player);
+            }
             return true; // still planning - no keys this tick, the player coasts
         }
         if (stepIndex >= plan.steps.length) {
+            if (!plan.complete) {
+                // A partial that ran out before REPLAN_EVERY could fire. Finishing here would mark the node done
+                // having never reached its last gate, and the rest of the chain would run from the wrong place.
+                plan = null;
+                predicted = null;
+                if (!planning) {
+                    startPlanning(client, player);
+                }
+                return true;
+            }
             return finishLeg(client, player);
         }
         // Drift: the game and the plan disagree (a mob, a slab, a lag spike). Re-plan from where you really are.
@@ -417,22 +436,6 @@ final class Ap3RouteRunner {
         if (!gates.isEmpty()) {
             gates.get(gates.size() - 1).mustLand = true; // the route ends standing, not mid-jump
         }
-        // A route he has run before, from about where he is standing now, is answered from what it learned then:
-        // no world scan, no search, and the same path every time. killer560, 2026-09-22: "it should scan and just
-        // save one... that way it will run the exact same every time once it gets the most optimal way."
-        String signature = Ap3RouteCache.signature(route);
-        Ap3RoutePlanner.Plan saved = Ap3RouteCache.lookup(signature, start);
-        if (saved != null) {
-            planStart = start;
-            planModel = Ap3Executor.routeModel(player);
-            pendingAt = at;
-            pending = saved;
-            pendingSeq = planSeq.incrementAndGet();
-            if (announce) {
-                LOGGER.info("[AP3 route] using the saved {}-tick plan for this route", saved.ticks);
-            }
-            return;
-        }
         List<Ap3RoutePlanner.Blocked> blocked = noGoZones(player);
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
         Snap snap = Snap.of(client.level, player, gates, start);
@@ -441,6 +444,26 @@ final class Ap3RouteRunner {
             Ap3RouteDump.write(start, gates, blocked, snap, model);
         }
         snapshot = snap;
+        // A route he has run before, from about where he is standing now, is answered from what it learned then -
+        // no search at all. killer560, 2026-09-22: "it should scan and just save one."
+        // The world still has to be read first: every tick of the run is checked against `predicted`, which is
+        // simulated through `snapshot`. Handing back a saved plan before taking the snapshot left that simulation
+        // running against FLAT_GROUND - an endless floor at y = 0 - so the prediction free-fell, drift passed
+        // LOST_LIMIT within three ticks and the route stopped dead. The scan is the cheap half anyway; the search
+        // is what the cache is really saving.
+        String signature = Ap3RouteCache.signature(route);
+        Ap3RoutePlanner.Plan saved = Ap3RouteCache.lookup(signature, start);
+        if (saved != null) {
+            planStart = start;
+            planModel = model;
+            pendingAt = at;
+            pendingSeq = planSeq.incrementAndGet();
+            pending = saved;
+            if (announce) {
+                LOGGER.info("[AP3 route] using the saved {}-tick plan for this route", saved.ticks);
+            }
+            return;
+        }
         Ap3RoutePlanner.Options options = new Ap3RoutePlanner.Options();
         Ap3Config cfg = Ap3Config.getInstance();
         options.allowJump = cfg.isRouteAllowJumps();
@@ -455,6 +478,9 @@ final class Ap3RouteRunner {
         options.beam = firstPlan ? Math.min(4000, cfg.getRouteBeam() * 3) : cfg.getRouteBeam();
         options.budgetMs = firstPlan ? Math.max(cfg.getRouteBudgetMs(), BRUTE_FORCE_MS)
                 : Math.min(cfg.getRouteBudgetMs(), 300);
+        // The first plan runs a portfolio of differently-shaped searches and keeps the shortest answer, because no
+        // single beam setting is best everywhere - see Ap3RoutePlanner.portfolio. It is the plan that gets saved.
+        options.portfolio = firstPlan;
         planStart = start;
         planModel = model;
         pendingAt = at;
@@ -465,8 +491,15 @@ final class Ap3RouteRunner {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
                 // Remember it if it is the best this route has managed, so the next run is instant and identical.
                 Ap3RouteCache.offer(signature, start, p);
-                pending = p;
-                pendingSeq = seq;
+                // Only publish if no newer request has been made since this one started. Writing the plan and its
+                // sequence as two separate fields let a slow worker overwrite a fresher answer and then have its
+                // own discarded for being stale - losing both.
+                synchronized (PUBLISH) {
+                    if (seq >= pendingSeq) {
+                        pending = p;
+                        pendingSeq = seq;
+                    }
+                }
                 if (announce && Ap3Config.getInstance().isChatFeedback()) {
                     ModChat.send("AP3", ModChat.text("Route "),
                             ModChat.value(String.format(Locale.US, "%.2fs", p.ticks / 20.0)),
@@ -766,6 +799,12 @@ final class Ap3RouteRunner {
             }
             snap.readBoxes(level, bandLo, bandHi);
             snap.addBlockNodes(level, feetY);
+            // Index it here, on the client thread, while this Snap is still private to us. BoxWorld built its
+            // index lazily on first query, and the first query can come from the planning worker and the renderer
+            // at the same moment - one of them could then see the array published before the columns inside it
+            // were, read a null column, and conclude there was no floor there.
+            snap.boxWorld().freeze();
+            snap.hazardWorld().freeze();
             long ms = (System.nanoTime() - t0) / 1_000_000L;
             if (ms > 20 && Ap3Config.getInstance().isAlignTimerDev()) {
                 // This runs on the client thread, so it is a stutter if it grows. Worth seeing before he feels it.
@@ -795,7 +834,9 @@ final class Ap3RouteRunner {
                         net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
                         if (!state.getFluidState().isEmpty()) {
                             hazards.add(bx, y, bz, bx + 1.0, y + 1.0, bz + 1.0);
-                            continue;
+                            // ...and fall through. A WATERLOGGED stair, slab, fence or trapdoor has a fluid state
+                            // AND a collision shape; skipping it here made the planner sweep straight through the
+                            // stairs it was supposed to climb.
                         }
                         if (BreakerAuraFeature.plannerTreatsAsAir(level, pos)) {
                             continue;
@@ -822,9 +863,15 @@ final class Ap3RouteRunner {
             return world;
         }
 
+        Ap3RouteCollide.BoxWorld hazardWorld() {
+            return hazards;
+        }
+
         @Override
         public boolean deny(double x, double y, double z) {
-            return !Ap3RouteCollide.free(Ap3RouteCollide.playerBox(x, y, z, BODY_HEIGHT), hazards);
+            // Called once per candidate tick - millions of times per plan - so it borrows the collider's
+            // per-thread scratch rather than allocating a box and a list each time.
+            return Ap3RouteCollide.overlaps(x, y, z, BODY_HEIGHT, hazards);
         }
 
         /**
@@ -832,21 +879,34 @@ final class Ap3RouteRunner {
          * for the body above it. The height is read from the collision boxes that actually cover this spot, so half
          * slabs, stairs and carpets give their real height rather than their block's outline.
          */
+        /**
+         * The surface this column reports, searched downwards from the top of the band.
+         * <p>
+         * It must keep looking past a surface it cannot stand on. It used to give up at the first block top it
+         * found: in a roofed room that is the CEILING, and a ceiling two blocks thick has no headroom, so the whole
+         * column was marked an impassable wall and the floor underneath it was never seen. Every such cell reads
+         * NaN, the heuristic field marks it blocked, the flood reaches nothing, and the search is left with
+         * straight-line distance - which is exactly the "it just runs straight at the node" behaviour, and why
+         * killer560's ground profiles came back as row after row of X. A roof is not a wall; it is something with a
+         * floor under it.
+         */
         private void readCell(ClientLevel level, double x, double z, int feetY, int bandLo, int bandHi, int cell) {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
             int bx = Mth.floor(x);
             int bz = Mth.floor(z);
-            // From the top of the band down, but never starting more than BAND_UP above HIS feet: the first
-            // standable surface from the top is what this cell reports, and starting higher would report a ledge
-            // far overhead in place of the floor he is walking on.
-            for (int y = Math.min(bandHi, feetY + BAND_UP); y >= bandLo; y--) {
+            // Start above his head rather than at his feet: a node on a platform several blocks up needs its own
+            // surface to be findable, and the level test below picks the one he can actually use.
+            boolean fluid = false;
+            for (int y = bandHi; y >= bandLo; y--) {
                 pos.set(bx, y, bz);
                 if (!level.isLoaded(pos)) {
                     continue;
                 }
                 if (!level.getBlockState(pos).getFluidState().isEmpty()) {
-                    wall[cell] = true; // lava (or water): a bounce costs the whole run, so the route stays out
-                    return;
+                    // Lava or water: somewhere the route may not be. Keep the column blocked but go on looking, so
+                    // a pool on a balcony does not blind the floor below it.
+                    fluid = true;
+                    continue;
                 }
                 double top = topAt(level, pos, x - bx, z - bz);
                 if (Double.isNaN(top)) {
@@ -872,12 +932,22 @@ final class Ap3RouteRunner {
                     head += 1.0;
                 }
                 if (head < BODY_HEIGHT - 0.1) {
-                    wall[cell] = true; // a surface with no room over it: solid as far as the route is concerned
-                    return;
+                    continue; // no room to stand on this one - it is a roof, so keep looking for the floor below
+                }
+                // Prefer the surface nearest his feet. Searching from the top would otherwise hand back a balcony
+                // three floors up in place of the ground he is on, and Field.at would then charge him the whole
+                // UNDER_PENALTY for standing on his own floor.
+                if (!Double.isNaN(floorY[cell]) && Math.abs(floorY[cell] - feetY) <= Math.abs(top - feetY)) {
+                    break;
                 }
                 floorY[cell] = top;
                 headroom[cell] = head;
-                return;
+                if (top <= feetY + Ap3RouteCollide.MAX_UP_STEP) {
+                    break; // at or below his own level: nothing lower down can be a better answer
+                }
+            }
+            if (Double.isNaN(floorY[cell]) && fluid) {
+                wall[cell] = true; // nothing but fluid in this column
             }
         }
 
@@ -938,6 +1008,15 @@ final class Ap3RouteRunner {
             }
         }
 
+        /**
+         * Where to sample across the 0.6-wide hitbox. Stepping by 0.25 from -0.3 gave -0.30, -0.05 and +0.20 and
+         * stopped: the +0.30 edge was never looked at, so a hole or a riser in that last tenth of a block on the
+         * positive side was invisible, and asymmetrically so.
+         */
+        private static double[] edges(double c) {
+            return new double[]{c - HALF_WIDTH, c - HALF_WIDTH / 2, c, c + HALF_WIDTH / 2, c + HALF_WIDTH};
+        }
+
         private int cellIndex(double x, double z) {
             int i = (int) Math.floor((x - minX) / CELL);
             int j = (int) Math.floor((z - minZ) / CELL);
@@ -948,8 +1027,8 @@ final class Ap3RouteRunner {
         public double floorAt(double x, double z) {
             // Every cell the 0.6-wide box covers has to hold it up; the feet rest on the highest of them.
             double best = Double.NaN;
-            for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
-                for (double sz = z - HALF_WIDTH; sz <= z + HALF_WIDTH + 1.0E-9; sz += CELL / 2) {
+            for (double sx : edges(x)) {
+                for (double sz : edges(z)) {
                     int cell = cellIndex(sx, sz);
                     if (cell < 0) {
                         return Double.NaN; // outside what was read: not somewhere to plan through
@@ -966,8 +1045,8 @@ final class Ap3RouteRunner {
 
         @Override
         public boolean bodyClear(double x, double z, double y) {
-            for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
-                for (double sz = z - HALF_WIDTH; sz <= z + HALF_WIDTH + 1.0E-9; sz += CELL / 2) {
+            for (double sx : edges(x)) {
+                for (double sz : edges(z)) {
                     int cell = cellIndex(sx, sz);
                     if (cell < 0) {
                         return false;
@@ -995,8 +1074,8 @@ final class Ap3RouteRunner {
         @Override
         public boolean placedFloorOnly(double x, double z) {
             boolean any = false;
-            for (double sx = x - HALF_WIDTH; sx <= x + HALF_WIDTH + 1.0E-9; sx += CELL / 2) {
-                for (double sz = z - HALF_WIDTH; sz <= z + HALF_WIDTH + 1.0E-9; sz += CELL / 2) {
+            for (double sx : edges(x)) {
+                for (double sz : edges(z)) {
                     int cell = cellIndex(sx, sz);
                     if (cell < 0 || Double.isNaN(floorY[cell])) {
                         continue;

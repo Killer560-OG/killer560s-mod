@@ -245,6 +245,12 @@ final class Ap3RoutePlanner {
          */
         boolean preferRunning = true;
 
+        /**
+         * Run several differently-shaped searches and keep the shortest answer. Only worth it for a route's FIRST
+         * plan, which is the one that gets remembered; a re-plan mid-run has no time for it.
+         */
+        boolean portfolio;
+
         Options copy() {
             Options c = new Options();
             c.allowJump = allowJump;
@@ -258,6 +264,7 @@ final class Ap3RoutePlanner {
             c.exactTol = exactTol;
             c.scanPad = scanPad;
             c.preferRunning = preferRunning;
+            c.portfolio = portfolio;
             return c;
         }
         /**
@@ -347,6 +354,9 @@ final class Ap3RoutePlanner {
         // course it is a 145x185 grid with a flood per gate. Building it inside search() meant building it three
         // times over for one plan, which is time the search never got to spend on searching.
         Field field = new Field(start, gates, blocked, terrain, o);
+        if (o.portfolio) {
+            return portfolio(start, gates, blocked, terrain, m, o, field);
+        }
         if (!o.allowJump || !o.preferRunning) {
             return search(start, gates, blocked, terrain, m, o, field);
         }
@@ -384,6 +394,86 @@ final class Ap3RoutePlanner {
         Plan jumping = search(start, gates, blocked, terrain, m, withJumps, field);
         // If neither finishes, hand back whichever got further rather than the later one by default.
         return jumping.complete || jumping.gatesReached >= running.gatesReached ? jumping : running;
+    }
+
+    /**
+     * Several searches, best answer wins. killer560 (2026-09-22): "I really just want it to be 100% be most
+     * optimal... I dont care if it takes me a little bit longer to have to wait for the first run."
+     * <p>
+     * A beam search is not exhaustive, so turning its dials up does NOT monotonically improve it - measured across
+     * twenty scenarios, a beam of 2400 lost a tick on cases a beam of 1200 got right, and one case at beam 1200
+     * beat a beam of 6000 by two ticks. There is no single setting that is best everywhere, and no amount of budget
+     * spent on one setting finds what that setting's pruning throws away. Running a handful of genuinely different
+     * searches and keeping the shortest answer is therefore strictly better than any one of them, which is the only
+     * honest way to get closer to optimal here. It costs what it costs - and it is paid once, because
+     * Ap3RouteCache keeps the result.
+     * <p>
+     * The no-jump search leads so that a route which can be run is found even when a jumping one would be found
+     * sooner; ties then go to whichever uses fewer jumps, which is the preference he asked for, while a strictly
+     * quicker route still wins on its merits.
+     */
+    private static Plan portfolio(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
+                                  Terrain terrain, Ap3DiscretePlanner.Model m, Options o, Field field) {
+        int[][] configs = {
+                {o.beam * 2, 16, 0},   // on foot, wide: the running answer, given room to be found
+                {o.beam, 16, 1},
+                {o.beam * 2, 24, 1},
+                {o.beam * 3, 32, 1},
+        };
+        long slice = Math.max(1, o.budgetMs / configs.length);
+        long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
+        Plan best = null;
+        int bestJumps = Integer.MAX_VALUE;
+        Plan fallback = null;
+        for (int[] cfg : configs) {
+            if (System.nanoTime() > deadline && best != null) {
+                break;
+            }
+            Options c = o.copy();
+            c.portfolio = false;
+            c.preferRunning = false;
+            c.beam = Math.min(6000, cfg[0]);
+            c.dirs = cfg[1];
+            c.allowJump = o.allowJump && cfg[2] == 1;
+            c.budgetMs = slice;
+            Plan p = search(start, gates, blocked, terrain, m, c, field);
+            if (!p.complete) {
+                if (fallback == null || p.gatesReached > fallback.gatesReached) {
+                    fallback = p;
+                }
+                continue;
+            }
+            int jumps = 0;
+            for (Step st : p.steps) {
+                if (st.jump()) {
+                    jumps++;
+                }
+            }
+            if (best == null || p.ticks < best.ticks || (p.ticks == best.ticks && jumps < bestJumps)) {
+                best = p;
+                bestJumps = jumps;
+            }
+        }
+        if (best != null) {
+            return best;
+        }
+        // Nothing finished. Breadth was the wrong answer for this one, so spend everything that is left going DEEP
+        // on a single search instead - measured on a pad course that no member of the portfolio could solve in its
+        // quarter of the budget but one of them solved comfortably given the lot.
+        long left = (deadline - System.nanoTime()) / 1_000_000L;
+        if (left > 50) {
+            Options deep = o.copy();
+            deep.portfolio = false;
+            deep.preferRunning = false;
+            deep.beam = Math.min(6000, o.beam * 3);
+            deep.dirs = 24;
+            deep.budgetMs = left;
+            Plan p = search(start, gates, blocked, terrain, m, deep, field);
+            if (p.complete || fallback == null || p.gatesReached > fallback.gatesReached) {
+                return p;
+            }
+        }
+        return fallback != null ? fallback : new Plan();
     }
 
     private static Plan search(Ap3RouteMath.RouteState start, List<Gate> gates, List<Blocked> blocked,
@@ -1125,6 +1215,23 @@ final class Ap3RoutePlanner {
     }
 
     /** Lattice cell for merging: position, velocity, gate progress and whether the feet are down. */
+    /**
+     * The identity two states are merged on: position and horizontal velocity on a lattice, plus how long the
+     * state has been airborne and which gates it has ticked off.
+     * <p>
+     * KNOWN ISSUE, left deliberately. {@code group * 64 + mask * 4 + air} packs three things into overlapping bit
+     * ranges - air runs to 16 while mask is only given a stride of 4 - so a state that has ticked off a lever can
+     * share a key with one that has not, and tryStep then drops one of them on f alone. That is a real loss of
+     * work. Four separate fixes for it were written and measured against the twenty-scenario optimality audit
+     * (OptimalityAudit in the route harness): exact tags, a splitmix hash, height in the key, air folded into the
+     * hash. EVERY one of them scored worse than this - 16 of 20 optimal with one outright failure, against 18 of
+     * 20 with none - and the failure was on the hardest case in the suite, three one-block hops across one-block
+     * gaps. The aliasing is acting as a state-space reduction that this beam width depends on.
+     * <p>
+     * So it stays until it can be fixed AND measured to be at least neutral. If you change it, run the audit
+     * first; do not fix it on the grounds that it is obviously wrong, because it is obviously wrong and the
+     * obvious fix is worse.
+     */
     private static long cell(Ap3RouteMath.RouteState s, int group, int mask) {
         long x = Math.round(s.x / 0.08);
         long z = Math.round(s.z / 0.08);

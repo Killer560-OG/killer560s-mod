@@ -129,7 +129,7 @@ final class Ap3RouteCollide {
          * hashing, no Long boxing, no allocation per query. Columns outside the built region hold nothing, which is
          * correct for a snapshot taken around the route in the first place.
          */
-        private Box[][] columns;
+        private volatile Box[][] columns;
         private int originX, originZ, width, depth;
         private final List<Box> all = new ArrayList<>();
         void add(Box b) {
@@ -150,7 +150,16 @@ final class Ap3RouteCollide {
             return all;
         }
 
-        private void build() {
+        /**
+         * Index the boxes now rather than on the first query. Call it on the thread that built the world, before
+         * any other thread can reach it: two threads racing into a lazy build could publish the outer array before
+         * the columns inside it, and a reader that saw a null column would decide there was nothing there.
+         */
+        synchronized void freeze() {
+            build();
+        }
+
+        private synchronized void build() {
             if (columns != null) {
                 return;
             }
@@ -541,6 +550,33 @@ final class Ap3RouteCollide {
         double minZ = box.minZ + Math.min(dz, 0.0);
         double maxZ = box.maxZ + Math.max(dz, 0.0);
         world.collect(minX, minY, minZ, maxX, maxY, maxZ, out);
+    }
+
+    /**
+     * Does the player's box at these feet overlap anything in {@code world}? Allocation-free: this is called once
+     * per candidate tick by the route search's hazard test.
+     */
+    static boolean overlaps(double x, double y, double z, double height, Shapes world) {
+        Scratch sc = scratch();
+        List<Box> hits = sc.stepShapes;
+        hits.clear();
+        double minX = x - HALF_WIDTH + EPSILON;
+        double maxX = x + HALF_WIDTH - EPSILON;
+        double minZ = z - HALF_WIDTH + EPSILON;
+        double maxZ = z + HALF_WIDTH - EPSILON;
+        double minY = y + EPSILON;
+        double maxY = y + height - EPSILON;
+        world.collect(minX, minY, minZ, maxX, maxY, maxZ, hits);
+        for (int i = 0; i < hits.size(); i++) {
+            Box b = hits.get(i);
+            if (b.maxX > minX && b.minX < maxX && b.maxY > minY && b.minY < maxY
+                    && b.maxZ > minZ && b.minZ < maxZ) {
+                hits.clear();
+                return true;
+            }
+        }
+        hits.clear();
+        return false;
     }
 
     /** Is the box free here? Used to reject a start or a landing that is inside a block. */

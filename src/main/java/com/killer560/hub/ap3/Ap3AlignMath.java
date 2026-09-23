@@ -155,10 +155,16 @@ final class Ap3AlignMath {
         if (len * len < INPUT_IGNORED_SQR) {
             return new float[]{0f, 0f};
         }
-        if (len > FULL_PRESS) {
-            ux *= FULL_PRESS / len;
-            uz *= FULL_PRESS / len;
-            len = FULL_PRESS;
+        // A STRAIGHT key is worth 0.98, but vanilla's square mapping makes a diagonal worth a full 1.0 -
+        // modifyInputSpeedForSquareMovement divides by max(|ux|, |uz|), which for a 45-degree press is 1/sqrt(2).
+        // Clamping everything to 0.98 left every diagonal 2% short: 0.0026 blocks on a 0.13 push, which is 2.6
+        // times the tolerance the align is trying to hit. effectiveLength() already knew this and returned 1.0;
+        // only this inverse disagreed.
+        double cap = Math.min(1.0, FULL_PRESS / Math.max(Math.abs(ux), Math.abs(uz)) * len);
+        if (len > cap) {
+            ux *= cap / len;
+            uz *= cap / len;
+            len = cap;
         }
         double ax = Math.abs(ux) / len;
         double az = Math.abs(uz) / len;
