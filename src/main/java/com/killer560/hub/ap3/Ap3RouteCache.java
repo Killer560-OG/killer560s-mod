@@ -203,6 +203,60 @@ final class Ap3RouteCache {
         save();
     }
 
+    /**
+     * Forget the saved plans for the route whose Path nodes are nearest the player, and return how many went. -1
+     * when there is no Path node near enough to mean anything.
+     * <p>
+     * The route is identified the same way it always is - by its nodes - so this finds the Path chain he is
+     * standing in and drops just that one, leaving every other route's work alone.
+     */
+    static int forgetNearest() {
+        load();
+        Ap3Chain chain = Ap3Feature.currentChain();
+        net.minecraft.client.player.LocalPlayer player = Minecraft.getInstance().player;
+        if (chain == null || player == null) {
+            return -1;
+        }
+        List<Ap3Node> path = new ArrayList<>();
+        for (Ap3Node n : chain.nodes()) {
+            if (n.type == Ap3Node.Type.PATH) {
+                path.add(n);
+            }
+        }
+        if (path.isEmpty()) {
+            return -1;
+        }
+        double nearest = Double.MAX_VALUE;
+        for (Ap3Node n : path) {
+            nearest = Math.min(nearest, Math.hypot(n.x - player.getX(), n.z - player.getZ()));
+        }
+        if (nearest > NEAR_ENOUGH) {
+            return -1;
+        }
+        path.sort(java.util.Comparator.comparingInt(a -> a.pathIndex));
+        int dropped = 0;
+        // A leg is any run of Path nodes, and each leg has its own signature, so drop every signature that this
+        // chain's nodes can make rather than trying to guess which leg he means.
+        for (int from = 0; from < path.size(); from++) {
+            for (int to = from + 1; to <= path.size(); to++) {
+                List<Ap3Node> leg = path.subList(from, to);
+                List<Entry> gone = ENTRIES.remove(signature(leg));
+                if (gone != null) {
+                    dropped += gone.size();
+                }
+            }
+        }
+        if (dropped > 0) {
+            save();
+        }
+        LOGGER.info("[AP3 route] regenerate: dropped {} saved plan(s) for the route near ({}, {})", dropped,
+                String.format(Locale.US, "%.1f", player.getX()), String.format(Locale.US, "%.1f", player.getZ()));
+        return dropped;
+    }
+
+    /** How close a Path node has to be for /ap3 regenerate to mean that route. */
+    private static final double NEAR_ENOUGH = 12.0;
+
     /** Forget every saved plan - for when the world has changed under them. */
     static int clear() {
         load();

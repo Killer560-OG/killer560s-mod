@@ -255,6 +255,18 @@ public final class Ap3Commands {
                                     + " config/killer560smod/ap3-route-dump.json."));
                             return 1;
                         }))
+                        // Throw away only the saved plans for the route he is standing near, so the next run of
+                        // THAT route searches again. killer560 (2026-09-22): "create a /ap3 regenerate. This should
+                        // work while i am close to a node that has a path. and it will wipe the old path and
+                        // generate a new one next time I am on it."
+                        .then(ClientCommands.literal("regenerate").executes(context -> {
+                            int n = Ap3RouteCache.forgetNearest();
+                            ModChat.send(FEATURE, n < 0
+                                    ? ModChat.bad("No Path node near you.")
+                                    : ModChat.good("Forgot " + n + " saved plan" + (n == 1 ? "" : "s")
+                                            + " for that route - it will be worked out again next time you run it."));
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("forget").executes(context -> {
                             int n = Ap3RouteCache.clear();
                             ModChat.send(FEATURE, ModChat.good("Forgot " + n + " saved route plan"

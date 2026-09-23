@@ -219,6 +219,8 @@ public final class Ap3Config {
     private long routeBudgetMs = 1500;
     /** How far past the route the world is read and the heuristic grid built - see Ap3RoutePlanner.Options.scanPad. */
     private double routeScanPad = 32.0;
+    /** Take the sprint key's real state for an align's model rather than learning it - see Ap3Executor.modelFor. */
+    private boolean alignSprintFromKey = true;
     /** How close an "exact" Path node has to be hit - what matters is staying on the same side of the block edge. */
     private double routeExactTolerance = 0.02;
     /** A Path node marked "term": how long to wait for the terminal screen before giving up on it. */
@@ -356,6 +358,7 @@ public final class Ap3Config {
                 cfg.setRouteBeam(ConfigJson.getInt(o, "routeBeam", cfg.routeBeam));
                 cfg.setRouteBudgetMs(ConfigJson.getInt(o, "routeBudgetMs", (int) cfg.routeBudgetMs));
                 cfg.setRouteScanPad(ConfigJson.getInt(o, "routeScanPad", (int) cfg.routeScanPad));
+                cfg.alignSprintFromKey = ConfigJson.getBool(o, "alignSprintFromKey", cfg.alignSprintFromKey);
                 cfg.setRouteExactTolerance(ConfigJson.getDouble(o, "routeExactTolerance", cfg.routeExactTolerance));
                 cfg.setRouteTermWaitTicks(ConfigJson.getInt(o, "routeTermWaitTicks", cfg.routeTermWaitTicks));
                 cfg.setRouteTimeoutTicks(ConfigJson.getInt(o, "routeTimeoutTicks", cfg.routeTimeoutTicks));
@@ -420,6 +423,7 @@ public final class Ap3Config {
             o.addProperty("routeBeam", routeBeam);
             o.addProperty("routeBudgetMs", routeBudgetMs);
             o.addProperty("routeScanPad", routeScanPad);
+            o.addProperty("alignSprintFromKey", alignSprintFromKey);
             o.addProperty("routeExactTolerance", routeExactTolerance);
             o.addProperty("routeTermWaitTicks", routeTermWaitTicks);
             o.addProperty("routeTimeoutTicks", routeTimeoutTicks);
@@ -456,6 +460,8 @@ public final class Ap3Config {
     public void setRouteBeam(int v) { routeBeam = Math.max(50, Math.min(2000, v)); }
     public long getRouteBudgetMs() { return routeBudgetMs; }
     public void setRouteBudgetMs(long v) { routeBudgetMs = Math.max(100, Math.min(10_000, v)); }
+    public boolean isAlignSprintFromKey() { return alignSprintFromKey; }
+    public void setAlignSprintFromKey(boolean v) { alignSprintFromKey = v; }
     public double getRouteScanPad() { return routeScanPad; }
     public void setRouteScanPad(double v) { routeScanPad = Math.max(8, Math.min(64, v)); }
     public double getRouteExactTolerance() { return routeExactTolerance; }

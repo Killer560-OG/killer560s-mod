@@ -1624,7 +1624,16 @@ public final class Ap3Executor {
         m.yawSteerable = yawSteerable;
         m.yawStepCap = ALIGN_YAW_STEP;
         // Learned from the pushes we measured, not read from the key - AP3 overwrites the key itself every tick.
-        m.sprintKeyHeld = sprintRestarts;
+        // Whether a forward press will be a SPRINTING one. Learned from evidence by default (sprintRestarts),
+        // because AP3 writes the sprint key itself on the fallback path and reading it there only reports what we
+        // just wrote. When the input mixin is doing the driving nothing overwrites the mapping, so the key is a
+        // FACT and guessing at it is strictly worse - and a wrong guess is a 30% error in that tick's push, which
+        // is what had a Fast Align oscillating for 59 ticks with the sprint state flapping every tick
+        // (2026-09-22). The switch is here so it can be turned off in-session if it turns out worse in the hand.
+        m.sprintKeyHeld = Ap3Config.getInstance().isAlignSprintFromKey() && !fallbackKeysHeld
+                && Minecraft.getInstance().options != null
+                ? Minecraft.getInstance().options.keySprint.isDown()
+                : sprintRestarts;
         return m;
     }
 
@@ -1671,6 +1680,8 @@ public final class Ap3Executor {
 
     private static void expectPush(LocalPlayer player, double px, double pz, Ap3DiscretePlanner.Model m,
                                    boolean forward, boolean assumedSprint) {
+        predictedSprint = assumedSprint;
+        predictedSprintValid = true;
         Vec3 v = player.getDeltaMovement();
         pushForward = forward;
         pushAssumedSprint = assumedSprint;
@@ -1686,7 +1697,21 @@ public final class Ap3Executor {
      * One tick later: {@code v_now = (v_before + push) * friction}, so the push the game really applied is
      * {@code v_now / friction - v_before}. Its length against the model's is the scale the next plan uses.
      */
+    /** What the last plan expected this tick's sprint to be, so the next tick can say whether it was right. */
+    private static boolean predictedSprint;
+    private static boolean predictedSprintValid;
+
     private static void observePush(LocalPlayer player) {
+        if (predictedSprintValid) {
+            predictedSprintValid = false;
+            if (predictedSprint != player.isSprinting() && Ap3Config.getInstance().isAlignTimerDev()) {
+                // A wrong sprint guess is a 30% error in the tick's push - far and away the biggest thing that can
+                // go wrong in an align, and invisible without this. killer560's 59-tick align on 2026-09-22 had
+                // the sprint column flapping true/false on nearly every tick.
+                LOGGER.info("[AP3 dev] sprint predicted {} but the game says {}", predictedSprint,
+                        player.isSprinting());
+            }
+        }
         if (!pushPending) {
             return;
         }
