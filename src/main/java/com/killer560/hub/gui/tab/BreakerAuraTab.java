@@ -13,7 +13,38 @@ import java.util.List;
  *  out of the old "Dungeon Extras" tab 2026-09-20 per killer560: "Make a breaker aura tab itself" - shares
  *  {@link DungeonExtrasConfig} with {@link CustomMageBeamTab} and {@link AutoDialogueTab}; the config file
  *  itself was not split. */
-public class BreakerAuraTab extends BaseTab {
+public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
+
+    /** Non-zero while the Pick Block key is being captured - same pattern as AbilityKeybindsTab. */
+    private int capturing = 0;
+
+    @Override
+    public boolean isListeningForKey() {
+        return capturing != 0;
+    }
+
+    @Override
+    public void onKeyCaptured(int keyCode) {
+        applyCapture(keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE
+                ? com.killer560.hub.util.KeyUtil.NONE : keyCode);
+    }
+
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    public void onMouseCaptured(int button) {
+        applyCapture(com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int code) {
+        DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        if (capturing == 1) {
+            cfg.setBreakerAuraSelectKey(code);
+        }
+        capturing = 0;
+        cfg.save();
+    }
 
     public BreakerAuraTab() {
         super("Breaker Aura");
@@ -43,6 +74,34 @@ public class BreakerAuraTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
+
+        // The pick key is offered even with the aura OFF: killer560 picks the wall first and switches it on after.
+        widgets.add(SettingsButtonWidget.builder(
+                capturing == 1 ? Component.literal("Press any key...")
+                        : Component.literal("Pick Block Key: "
+                                + CommandKeybindsTab.bindName(cfg.getBreakerAuraSelectKey())),
+                btn -> {
+                    capturing = 1;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(contentX, y, col2W, 18)
+                .build());
+        int picked = cfg.getBreakerAuraSelected().size();
+        widgets.add(SettingsButtonWidget.builder(
+                Component.literal("Clear Picked (" + picked + ")"), btn -> {
+                    com.killer560.hub.dungeonextras.BreakerAuraFeature.clearSelection();
+                    requestRebuild.run();
+                }).bounds(col2bX, y, col2W, 18)
+                .build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Only Picked Blocks", cfg.isBreakerAuraSelectedOnly()),
+                btn -> {
+                    cfg.setBreakerAuraSelectedOnly(!cfg.isBreakerAuraSelectedOnly());
+                    cfg.save();
+                    btn.setMessage(onOff("Only Picked Blocks", cfg.isBreakerAuraSelectedOnly()));
+                }).bounds(contentX, y, contentWidth, 18)
+                .build());
+        y += 22;
 
         if (!cfg.isBreakerAuraEnabledRaw()) {
             return widgets;

@@ -51,6 +51,18 @@ public final class DungeonExtrasConfig {
     private double breakerAuraReach = 4.5;
     /** Kept so old configs still load. killer560 (2026-09-20) asked every aura to take one target per tick, so
      *  Breaker Aura now always breaks exactly one block per cycle and this value is no longer read. */
+    /**
+     * Break only blocks he has PICKED, and nothing else. killer560 (2026-09-23): "For breaker aura it shouldnt
+     * break any block. I should have a keybind to select blocks. If a block is selected it will be broken."
+     * <p>
+     * Off gives back the original behaviour - anything obstructing the path - which is kept because it is what
+     * every earlier session was built and measured against, not because it is the default he asked for.
+     */
+    private boolean breakerAuraSelectedOnly = true;
+    /** The pick/unpick key, raw-polled and unbound until he binds it. */
+    private int breakerAuraSelectKey = com.killer560.hub.util.KeyUtil.NONE;
+    /** The blocks he has picked, as "x,y,z" - they have to outlive a restart like every other setting. */
+    private final java.util.LinkedHashSet<String> breakerAuraSelected = new java.util.LinkedHashSet<>();
     private int breakerAuraBlocksPerCycle = 1;
     private int breakerAuraCooldownTicks = 6;
     private boolean breakerAuraZeroPing = false;
@@ -90,7 +102,18 @@ public final class DungeonExtrasConfig {
                 cfg.autoDialogueOutsideDungeons = bool(o, "autoDialogueOutsideDungeons", cfg.autoDialogueOutsideDungeons);
                 cfg.breakerAuraEnabled = bool(o, "breakerAuraEnabled", cfg.breakerAuraEnabled);
                 cfg.breakerAuraReach = clamp((float) (o.has("breakerAuraReach") ? o.get("breakerAuraReach").getAsDouble() : cfg.breakerAuraReach), 1f, 5.5f);
-                cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 5);
+                cfg.breakerAuraSelectedOnly = bool(o, "breakerAuraSelectedOnly", cfg.breakerAuraSelectedOnly);
+                cfg.breakerAuraSelectKey = o.has("breakerAuraSelectKey")
+                        ? o.get("breakerAuraSelectKey").getAsInt() : cfg.breakerAuraSelectKey;
+                cfg.breakerAuraSelected.clear();
+                if (o.has("breakerAuraSelected") && o.get("breakerAuraSelected").isJsonArray()) {
+                    for (com.google.gson.JsonElement e : o.get("breakerAuraSelected").getAsJsonArray()) {
+                        if (e != null && e.isJsonPrimitive()) {
+                            cfg.breakerAuraSelected.add(e.getAsString());
+                        }
+                    }
+                }
+                cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 8);
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 1, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
@@ -122,6 +145,13 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraEnabled", breakerAuraEnabled);
             o.addProperty("breakerAuraReach", breakerAuraReach);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
+            o.addProperty("breakerAuraSelectedOnly", breakerAuraSelectedOnly);
+            o.addProperty("breakerAuraSelectKey", breakerAuraSelectKey);
+            com.google.gson.JsonArray sel = new com.google.gson.JsonArray();
+            for (String k : breakerAuraSelected) {
+                sel.add(k);
+            }
+            o.add("breakerAuraSelected", sel);
             o.addProperty("breakerAuraCooldownTicks", breakerAuraCooldownTicks);
             o.addProperty("breakerAuraZeroPing", breakerAuraZeroPing);
             o.addProperty("breakerAuraRespectEditMode", breakerAuraRespectEditMode);
@@ -172,6 +202,12 @@ public final class DungeonExtrasConfig {
     public void setAutoDialogueOutsideDungeons(boolean v) { autoDialogueOutsideDungeons = v; }
 
     // ---- Breaker Aura (cheat) ----
+    public boolean isBreakerAuraSelectedOnly() { return breakerAuraSelectedOnly; }
+    public void setBreakerAuraSelectedOnly(boolean v) { breakerAuraSelectedOnly = v; }
+    public int getBreakerAuraSelectKey() { return breakerAuraSelectKey; }
+    public void setBreakerAuraSelectKey(int v) { breakerAuraSelectKey = v; }
+    public java.util.LinkedHashSet<String> getBreakerAuraSelected() { return breakerAuraSelected; }
+
     public boolean isBreakerAuraEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean isBreakerAuraEnabledRaw() { return breakerAuraEnabled; }
     public void setBreakerAuraEnabled(boolean v) { breakerAuraEnabled = v; }

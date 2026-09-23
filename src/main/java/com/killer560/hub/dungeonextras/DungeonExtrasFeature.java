@@ -22,5 +22,6 @@ public final class DungeonExtrasFeature {
             BreakerAuraFeature.onClientTick(client);
         });
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MageBeamFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BreakerAuraFeature::onWorldRender);
     }
 }

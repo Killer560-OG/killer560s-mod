@@ -4,6 +4,7 @@ import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.WorldRenderUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -67,6 +68,8 @@ public final class BreakerAuraFeature {
             Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD, Blocks.OBSIDIAN);
 
     private static final Map<BlockPos, Long> RECENT = new HashMap<>();
+    /** Edge state for the pick key, so holding it toggles once rather than every tick. */
+    private static boolean selectKeyWasDown;
     private static int cooldownTicks = 0;
     private static int lastLoreCharges = -1;
     private static int spentSinceLore = 0;
@@ -103,8 +106,134 @@ public final class BreakerAuraFeature {
         }
     }
 
+    /**
+     * The pick key: look at a block and press it to mark it for breaking; press it again on a marked block to
+     * unmark it. killer560 (2026-09-23): "I should have a keybind to select blocks. If a block is selected it will
+     * be broken... if i press the keybind on a selected block then it unbinds it."
+     * <p>
+     * Polled before every other gate in {@link #onClientTick} so picking works with the aura switched off - you
+     * choose the wall first and turn it on afterwards - and unbound by default like every other key in this mod.
+     * It does nothing while a screen is open, so typing cannot mark blocks.
+     */
+    private static void tickSelectKey(Minecraft client) {
+        DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        int key = cfg.getBreakerAuraSelectKey();
+        if (client.screen != null || client.player == null || client.level == null || client.getWindow() == null) {
+            selectKeyWasDown = false;
+            return;
+        }
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key);
+        boolean pressed = down && !selectKeyWasDown;
+        selectKeyWasDown = down;
+        if (!pressed) {
+            return;
+        }
+        if (!(client.hitResult instanceof BlockHitResult hit)) {
+            ModChat.send("Breaker Aura", ModChat.text("Look at a block to pick it."));
+            return;
+        }
+        BlockPos pos = hit.getBlockPos();
+        if (client.level.getBlockState(pos).isAir()) {
+            return;
+        }
+        Set<String> picked = cfg.getBreakerAuraSelected();
+        String k = key(pos);
+        if (picked.remove(k)) {
+            cfg.save();
+            ModChat.send("Breaker Aura", ModChat.text("Unpicked "),
+                    ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
+                    ModChat.dim(" (" + picked.size() + " picked)"));
+            return;
+        }
+        if (!isValidTarget(client.level, pos)) {
+            ModChat.send("Breaker Aura", ModChat.text("That one cannot be broken - "),
+                    ModChat.value(client.level.getBlockState(pos).getBlock().getName().getString()));
+            return;
+        }
+        picked.add(k);
+        cfg.save();
+        ModChat.send("Breaker Aura", ModChat.text("Picked "),
+                ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
+                ModChat.dim(" (" + picked.size() + " picked)"));
+    }
+
+    /**
+     * Draw the picked blocks, so choosing them is something he can see rather than something he has to remember.
+     * Orange, like the rest of this mod's world markers, and outlined rather than filled so he can still see the
+     * block he picked. Only while Breaker Aura is switched on, or while the pick key is bound and he is in a
+     * dungeon - there is no point drawing a wall he marked three floors ago.
+     */
+    static void onWorldRender(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
+        DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        if (!cfg.isBreakerAuraEnabled() && cfg.getBreakerAuraSelectKey() == com.killer560.hub.util.KeyUtil.NONE) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) {
+            return;
+        }
+        double reachSq = cfg.getBreakerAuraReach() * cfg.getBreakerAuraReach();
+        Vec3 eye = client.player.getEyePosition();
+        for (BlockPos pos : selectedBlocks()) {
+            if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
+                continue;
+            }
+            // Brighter once it is close enough to actually be broken, so the reach is visible too.
+            boolean inReach = Vec3.atCenterOf(pos).distanceToSqr(eye) <= reachSq;
+            AABB box = new AABB(pos).inflate(0.002);
+            WorldRenderUtils.renderOutlineBox(context, box, 1.0f, inReach ? 0.55f : 0.30f, 0.0f,
+                    inReach ? 0.95f : 0.55f, 2.0f);
+        }
+    }
+
+    private static String key(BlockPos pos) {
+        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
+    }
+
+    private static BlockPos parse(String k) {
+        String[] a = k.split(",");
+        if (a.length != 3) {
+            return null;
+        }
+        try {
+            return new BlockPos(Integer.parseInt(a[0].trim()), Integer.parseInt(a[1].trim()),
+                    Integer.parseInt(a[2].trim()));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Every picked block, for the renderer and the planner. */
+    public static List<BlockPos> selectedBlocks() {
+        List<BlockPos> out = new ArrayList<>();
+        for (String k : DungeonExtrasConfig.getInstance().getBreakerAuraSelected()) {
+            BlockPos p = parse(k);
+            if (p != null) {
+                out.add(p);
+            }
+        }
+        return out;
+    }
+
+    /** Forget every pick - the tab's button and {@code /breakeraura clear}. */
+    public static int clearSelection() {
+        Set<String> picked = DungeonExtrasConfig.getInstance().getBreakerAuraSelected();
+        int n = picked.size();
+        picked.clear();
+        DungeonExtrasConfig.getInstance().save();
+        return n;
+    }
+
+    private static boolean isPicked(BlockPos pos) {
+        return DungeonExtrasConfig.getInstance().getBreakerAuraSelected().contains(key(pos));
+    }
+
     static void onClientTick(Minecraft client) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        // Picking comes first: he chooses the wall with the aura off, then turns it on.
+        if (!cfg.isBreakerAuraRespectEditMode() || !isRouteEditModeActive()) {
+            tickSelectKey(client);
+        }
         boolean active = cfg.isBreakerAuraEnabled() && client.player != null && client.level != null
                 && client.gameMode != null && DungeonState.isInDungeon();
         if (active != wasActive) {
@@ -173,9 +302,11 @@ public final class BreakerAuraFeature {
         long now = System.currentTimeMillis();
         RECENT.values().removeIf(t -> now - t > RETRY_MS);
 
-        List<BlockPos> targets = collectPathTargets(player, level, cfg.getBreakerAuraReach(), now);
+        List<BlockPos> targets = cfg.isBreakerAuraSelectedOnly()
+                ? collectPickedTargets(player, level, cfg.getBreakerAuraReach(), now)
+                : collectPathTargets(player, level, cfg.getBreakerAuraReach(), now);
         if (targets.isEmpty()) {
-            skip("no valid blocks in path");
+            skip(cfg.isBreakerAuraSelectedOnly() ? "no picked blocks in reach" : "no valid blocks in path");
             if (autoSwap && swappedFromSlot >= 0 && cfg.isBreakerAuraSwapBack()
                     && ++idleSinceSwapTicks >= cfg.getBreakerAuraSwapBackIdleTicks()) {
                 restoreSlot(client, "nothing left in the path");
@@ -208,42 +339,47 @@ public final class BreakerAuraFeature {
             return;
         }
 
-        // killer560: "if I have two levers in my range at once or two chests have it only pick one and then the other
-        // on the next tick". One block per cycle, nearest to the eye first - the old loop broke up to five in a
-        // single tick, which is the classic aura signature.
+        // How many go out this cycle. killer560 (2026-09-23): "the breaker aura should be able to break multiple
+        // blocks at once just like quois can." This reverses his earlier rule for LEVERS and CHESTS - "if I have
+        // two levers in my range at once or two chests have it only pick one and then the other on the next tick"
+        // - which is why it is a setting rather than a rewrite: breaking a wall is not clicking a lever, and
+        // several breaks on one tick is a far louder pattern than one. It defaults to 1; he raises it knowingly.
+        //
+        // Nearest to the eye first, so a wall comes down from the face he is looking at rather than in scattered
+        // order, and every one still goes through its own reachable-face check and the ActionGate.
+        int allowed = Math.max(1, Math.min(cfg.getBreakerAuraBlocksPerCycle(), available));
         Vec3 eye = player.getEyePosition();
-        BlockPos chosen = null;
-        BlockHitResult chosenHit = null;
-        double bestSq = Double.MAX_VALUE;
-        for (BlockPos pos : targets) {
-            double distSq = Vec3.atCenterOf(pos).distanceToSqr(eye);
-            if (distSq >= bestSq) {
-                continue;
+        List<BlockPos> order = new ArrayList<>(targets);
+        order.sort((a, b) -> Double.compare(Vec3.atCenterOf(a).distanceToSqr(eye),
+                Vec3.atCenterOf(b).distanceToSqr(eye)));
+        int sent = 0;
+        for (BlockPos pos : order) {
+            if (sent >= allowed) {
+                break;
             }
             BlockHitResult hit = hitResult(player, level, pos);
             if (hit == null) {
                 continue;
             }
-            chosen = pos;
-            chosenHit = hit;
-            bestSq = distSq;
+            // Last thing before any state changes: nothing below may run if the gate refuses the tick.
+            if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
+                return;
+            }
+            Block block = level.getBlockState(pos).getBlock();
+            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing());
+            RECENT.put(pos, now);
+            spentSinceLore++;
+            sent++;
+            LOGGER.info("[DungeonExtras] Breaker Aura sent START_DESTROY_BLOCK at {} ({}), charges {} -> {} (local).",
+                    pos, block, charges, charges - spentSinceLore);
         }
-        if (chosen == null) {
-            skip("no reachable face on any block in the path");
+        if (sent == 0) {
+            skip("no reachable face on any block in reach");
             return;
         }
-        // Last thing before any state changes: nothing below may run if the gate refuses the tick.
-        if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
-            return;
-        }
-        Block block = level.getBlockState(chosen).getBlock();
-        breakBlock(invoker, level, chosen, chosenHit.getDirection(), cfg.isBreakerAuraZeroPing());
-        RECENT.put(chosen, now);
-        spentSinceLore++;
+        // One swing however many went out: a hand swings once a tick whatever it is doing.
         player.swing(InteractionHand.MAIN_HAND);
         cooldownTicks = cfg.getBreakerAuraCooldownTicks();
-        LOGGER.info("[DungeonExtras] Breaker Aura sent START_DESTROY_BLOCK at {} ({}), charges {} -> {} (local).",
-                chosen, block, charges, charges - spentSinceLore);
     }
 
     /** True while Auto Routes is in its block-placing edit mode. AP3 has no edit mode to ask about (see notes). */
@@ -346,12 +482,47 @@ public final class BreakerAuraFeature {
     }
 
     /**
+     * The blocks he has PICKED that are in reach and still there - the whole target list when
+     * {@code breakerAuraSelectedOnly} is on. A pick that has already been broken simply stops matching; one out of
+     * reach waits until he is closer, which is the point of picking a wall before you get to it.
+     */
+    private static List<BlockPos> collectPickedTargets(LocalPlayer player, ClientLevel level, double reach,
+                                                       long now) {
+        List<BlockPos> out = new ArrayList<>();
+        Vec3 eye = player.getEyePosition();
+        double reachSq = reach * reach;
+        for (BlockPos pos : selectedBlocks()) {
+            if (RECENT.containsKey(pos)) {
+                continue; // tried a moment ago; give the server time to answer
+            }
+            if (Vec3.atCenterOf(pos).distanceToSqr(eye) > reachSq) {
+                continue;
+            }
+            if (!isValidTarget(level, pos)) {
+                continue;
+            }
+            out.add(pos);
+        }
+        return out;
+    }
+
+    /**
      * Whether a route planner should treat this block as air - killer560 (2026-09-22): "If a block is selected for
      * breaker aura treat that block as not being there when you go to run through it". True only while Breaker Aura
      * is actually on and the block is one it would break.
      */
     public static boolean plannerTreatsAsAir(ClientLevel level, BlockPos pos) {
-        return DungeonExtrasConfig.getInstance().isBreakerAuraEnabled() && isValidTarget(level, pos);
+        DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        if (!cfg.isBreakerAuraEnabled()) {
+            return false;
+        }
+        // Picking changes what this means: only a block he has actually marked is one the route may count on
+        // being gone. Treating every breakable block as air would let a route plan straight through a wall the
+        // aura has been told to leave alone.
+        if (cfg.isBreakerAuraSelectedOnly()) {
+            return isPicked(pos) && isValidTarget(level, pos);
+        }
+        return isValidTarget(level, pos);
     }
 
     private static boolean isValidTarget(ClientLevel level, BlockPos pos) {

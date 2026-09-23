@@ -390,6 +390,48 @@ final class Ap3RouteRunner {
         route.clear(); // it is only a plan: the route is not running yet
     }
 
+    /**
+     * Plan the route NOW, from where he is standing, without waiting for him to get near its first node.
+     * <p>
+     * killer560 (2026-09-23): "have it such that the second a line is complete, even if i am not standing on it,
+     * then it starts calculating. that would help alot if the node is inside of a wall that I plan on using my
+     * breaker aura on but is hard to stand in cause the blocks keep coming back."
+     * <p>
+     * An align finishing is the moment this is worth doing: he is stationary, he is exactly where the route will
+     * start from, and the search has however long it takes him to move. The ordinary pre-plan waits until he is
+     * within {@link #PRE_PLAN_RANGE} of a Path node and cannot help when the node is somewhere he cannot stand.
+     */
+    static void prePlanNow(Minecraft client, LocalPlayer player, List<Ap3Node> nodes, double atX, double atZ) {
+        if (!route.isEmpty() || planning || player == null || client == null) {
+            return;
+        }
+        Ap3Node first = null;
+        double best = Double.MAX_VALUE;
+        for (Ap3Node n : nodes) {
+            if (n.type != Ap3Node.Type.PATH) {
+                continue;
+            }
+            // Nearest to where the ALIGN was, not to him: an align hands over to the Path node sharing its spot,
+            // and by the time this runs he may already have drifted a little off it.
+            double d = Math.hypot(n.x - atX, n.z - atZ);
+            if (d < best) {
+                best = d;
+                first = n;
+            }
+        }
+        if (first == null) {
+            return;
+        }
+        prePlanCooldown = REPLAN_EVERY;
+        prePlanFor = first;
+        prePlanMs = System.currentTimeMillis();
+        LOGGER.info("[AP3 route] align finished - planning {} blocks ahead to Path {} now",
+                String.format(Locale.US, "%.1f", best), first.pathIndex);
+        collectRoute(first);
+        startPlanning(client, player);
+        route.clear(); // it is only a plan: the route is not running yet
+    }
+
     /** The pending pre-plan becomes this run's plan when it was made for this node and is still fresh. */
     private static boolean takePrePlan(Ap3Node first, LocalPlayer player) {
         Ap3RoutePlanner.Plan p = pending;

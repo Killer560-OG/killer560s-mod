@@ -230,6 +230,10 @@ public final class Ap3Executor {
     private static Step step;
     private static int stepTicks;
     private static String stopReason;
+    /** An align has just finished; the route it hands over to is worth planning at once. */
+    private static boolean prePlanAfterAlign;
+    private static double prePlanAfterAlignX, prePlanAfterAlignZ;
+
     private static int cameraGraceTicks;
     private static boolean testMode;
 
@@ -770,7 +774,11 @@ public final class Ap3Executor {
             applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
             preAim(player); // last: may turn you toward a Block / Boom box you enter next tick
-            if (activeNode == null && queue.isEmpty() && chain != null) {
+            if (activeNode == null && chain != null && prePlanAfterAlign) {
+                // The align that just finished is the best possible moment to start the search.
+                prePlanAfterAlign = false;
+                Ap3RouteRunner.prePlanNow(client, player, chain.nodes(), prePlanAfterAlignX, prePlanAfterAlignZ);
+            } else if (activeNode == null && queue.isEmpty() && chain != null) {
                 // Walking up to a route: plan it in the background so stepping on the first Path node moves at once.
                 Ap3RouteRunner.prePlan(client, player, chain.nodes());
             }
@@ -960,6 +968,11 @@ public final class Ap3Executor {
     private static void finishNode() {
         if (activeNode != null && activeNode.type.isAlign()) {
             traceEnd();
+            // An align has just put him exactly where a route would start. Ask for that route now rather than when
+            // he reaches its first node - see Ap3RouteRunner.prePlanNow.
+            prePlanAfterAlignX = activeNode.x;
+            prePlanAfterAlignZ = activeNode.z;
+            prePlanAfterAlign = true;
         }
         // Release the camera as soon as the node is done - a finished LOOK must not keep pulling the view back.
         RouteRotation.clear();
