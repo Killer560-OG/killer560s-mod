@@ -367,8 +367,10 @@ public final class BreakerAuraFeature {
             if (hit == null) {
                 continue;
             }
-            // Last thing before any state changes: nothing below may run if the gate refuses the tick.
-            if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
+            // The shared gate is claimed ONCE for the cycle, not once per block. It allows a single actor per
+            // tick, so asking per block meant every block after the first was refused outright - Blocks Per Cycle
+            // could never do anything but 1 however it was set.
+            if (sent == 0 && !ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
                 return;
             }
             Block block = level.getBlockState(pos).getBlock();
@@ -385,7 +387,11 @@ public final class BreakerAuraFeature {
         }
         // One swing however many went out: a hand swings once a tick whatever it is doing.
         player.swing(InteractionHand.MAIN_HAND);
-        cooldownTicks = cfg.getBreakerAuraCooldownTicks();
+        // MINUS ONE, because the wait is checked on a later tick and that check costs a tick of its own: with the
+        // old arithmetic a cooldown of 1 meant break, skip, break - half the rate the setting says, and half
+        // QUOI's, which has no cooldown in its break loop at all and simply sends one every tick. killer560
+        // (2026-09-23): "right now the breaker aura is just way to slow. It isnt how the other clients feel."
+        cooldownTicks = Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
     }
 
     /** True while Auto Routes is in its block-placing edit mode. AP3 has no edit mode to ask about (see notes). */

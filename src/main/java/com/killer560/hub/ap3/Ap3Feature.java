@@ -681,6 +681,23 @@ public final class Ap3Feature {
         lastAdded = node;
         lastAddedChain = chain;
         store.save();
+        // An `end` node is the moment a route stops being a work in progress. killer560 (2026-09-23): "The second
+        // I build that end node it should start generating a route and then notify me in chat once it finishes."
+        // Planned from the route's OWN first node rather than from where he is standing to place this one - see
+        // Ap3RouteRunner.planWholeRoute - so the answer lands in the cache under the approach he will really use.
+        if (node.type == Ap3Node.Type.PATH && node.pathEnd) {
+            Ap3Node first = null;
+            for (Ap3Node n : chain.nodes()) {
+                if (n.type == Ap3Node.Type.PATH && n.pathIndex <= node.pathIndex
+                        && (first == null || n.pathIndex < first.pathIndex)) {
+                    first = n;
+                }
+            }
+            if (first != null) {
+                Minecraft mc = Minecraft.getInstance();
+                Ap3RouteRunner.planWholeRoute(mc, mc.player, first);
+            }
+        }
         suppressAutoArm(); // you are standing on the node you just placed - it must not fire until you re-enter
         switch (Ap3Config.getInstance().getMessageDetail()) {
             case DETAILED -> chat(ModChat.text("Added "), ModChat.value("#" + chain.nodes().size() + " " + node.describe()),

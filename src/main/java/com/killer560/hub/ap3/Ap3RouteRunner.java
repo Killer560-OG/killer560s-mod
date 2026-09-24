@@ -128,6 +128,8 @@ final class Ap3RouteRunner {
     private static int prePlanCooldown;
     /** Whether this route has already said its planned time in chat. */
     private static boolean announced;
+    /** Set by {@link #planWholeRoute} so the chat line goes out even though nothing is being driven. */
+    private static boolean announceWhenDone;
     private static int waitingForTermTicks;
     private static boolean waitingForTerm;
     private static boolean sawTermScreen;
@@ -432,6 +434,43 @@ final class Ap3RouteRunner {
         route.clear(); // it is only a plan: the route is not running yet
     }
 
+    /**
+     * Plan a route the moment it is finished being built, from ITS OWN first node rather than from wherever he is
+     * standing, and tell him in chat when the answer arrives.
+     * <p>
+     * killer560 (2026-09-23): "The second I build that end node it should start generating a route and then notify
+     * me in chat once it finishes."
+     * <p>
+     * From the route's own start, at rest, because that is the state he will actually run it in - he aligns onto
+     * the first node and goes. A plan is a schedule of keys from one particular state, so planning it from where
+     * he happens to be standing while placing the end node would cache an approach he is never going to use.
+     * Planned this way it lands in the cache under the approach he will use, and stepping on is instant.
+     */
+    static void planWholeRoute(Minecraft client, LocalPlayer player, Ap3Node first) {
+        if (client == null || player == null || first == null || !route.isEmpty() || planning) {
+            return;
+        }
+        collectRoute(first);
+        if (route.isEmpty()) {
+            return;
+        }
+        Ap3RouteMath.RouteState from = new Ap3RouteMath.RouteState();
+        from.x = first.x;
+        from.y = first.y;
+        from.z = first.z;
+        from.onGround = true;
+        announced = false; // this one always says so in chat, however many times he rebuilds the route
+        announceWhenDone = true;
+        prePlanCooldown = REPLAN_EVERY;
+        prePlanFor = first;
+        prePlanMs = System.currentTimeMillis();
+        LOGGER.info("[AP3 route] route finished being built - planning it from its own start ({}, {}, {})",
+                String.format(Locale.US, "%.2f", first.x), String.format(Locale.US, "%.2f", first.y),
+                String.format(Locale.US, "%.2f", first.z));
+        startPlanning(client, player, from, 0);
+        route.clear(); // it is only a plan: the route is not running yet
+    }
+
     /** The pending pre-plan becomes this run's plan when it was made for this node and is still fresh. */
     private static boolean takePrePlan(Ap3Node first, LocalPlayer player) {
         Ap3RoutePlanner.Plan p = pending;
@@ -625,6 +664,7 @@ final class Ap3RouteRunner {
         planning = true;
         logProblem(start, gates, blocked, snap, options, firstPlan, model);
         final int seq = planSeq.incrementAndGet();
+        final long askedAt = System.currentTimeMillis();
         worker = new Thread(() -> {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
@@ -684,6 +724,21 @@ final class Ap3RouteRunner {
                             ModChat.value(String.format(Locale.US, "%.2fs", p.ticks / 20.0)),
                             ModChat.dim(" (" + p.ticks + " ticks, " + jumpsIn(p) + " jumps"
                                     + (p.complete ? "" : ", INCOMPLETE - " + p.note) + ")"));
+                }
+                if (announceWhenDone) {
+                    announceWhenDone = false;
+                    long took = System.currentTimeMillis() - askedAt;
+                    if (p.complete) {
+                        ModChat.send("AP3", ModChat.text("Route ready - "),
+                                ModChat.value(p.ticks + " ticks"),
+                                ModChat.dim(" (" + jumpsIn(p) + " jumps, found in "
+                                        + String.format(Locale.US, "%.1fs", took / 1000.0)
+                                        + "). Step on it and it will run at once."));
+                    } else {
+                        ModChat.send("AP3", ModChat.text("Could not plan that route - "),
+                                ModChat.value(p.note.isEmpty() ? "no route found" : p.note),
+                                ModChat.dim(" (" + String.format(Locale.US, "%.1fs", took / 1000.0) + ")"));
+                    }
                 }
                 logTerrainProfile(snap, start, gates);
                 logPlanShape(p, start, gates, snap, model);
