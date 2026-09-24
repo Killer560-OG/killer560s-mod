@@ -1113,8 +1113,9 @@ final class Ap3RouteRunner {
         Ap3Chain chain = Ap3Feature.currentChain();
         Ap3Node next = null;
         if (last.pathEnd) {
-            stop(); // this route is closed; the next one is its own run
-            return false;
+            // This route is closed; the next one is its own run - but if he has parked a node on the end, that
+            // is what happens next rather than standing still.
+            return stopOrHandOver(last);
         }
         if (chain != null) {
             for (Ap3Node n : chain.nodes()) {
@@ -1134,6 +1135,49 @@ final class Ap3RouteRunner {
         return true;
     }
 
+    /**
+     * A node sitting on this route's end, to carry on with instead of standing still.
+     * <p>
+     * killer560 (2026-09-23): "if i have a run node or something on a path end node then it will instead of
+     * stopping on the path it will just keep doing whatever that secondary node is." A Path end marks where the
+     * ROUTE stops having an opinion, not where he stops moving - so if he has put a Run (or an align, a leap,
+     * anything) on the same spot, that node is what happens next.
+     * <p>
+     * Whichever co-located node has the highest priority wins, the same order the executor's own queue uses, so
+     * two nodes on one spot resolve the way they would if he had walked into them. Path and No Go are skipped -
+     * one is the route's own furniture and the other is planner data - as is anything this route is driving.
+     */
+    private static Ap3Node handOverAt(Ap3Node end) {
+        Ap3Chain chain = Ap3Feature.currentChain();
+        if (chain == null || end == null) {
+            return null;
+        }
+        Vec3 at = new Vec3(end.x, end.y, end.z);
+        Ap3Node best = null;
+        for (Ap3Node n : chain.nodes()) {
+            if (n == end || n.type == Ap3Node.Type.PATH || n.type == Ap3Node.Type.NO_GO || route.contains(n)) {
+                continue;
+            }
+            if (!n.contains(at)) {
+                continue;
+            }
+            if (best == null || n.type.priority() < best.type.priority()) {
+                best = n;
+            }
+        }
+        return best;
+    }
+
+    /** Close the route, then hand over to whatever he parked on its end node. */
+    private static boolean stopOrHandOver(Ap3Node last) {
+        Ap3Node carry = handOverAt(last);
+        stop();
+        if (carry != null) {
+            Ap3Executor.handOver(carry);
+        }
+        return false;
+    }
+
     private static boolean finishLeg(Minecraft client, LocalPlayer player) {
         Ap3Node last = route.isEmpty() ? null : route.get(route.size() - 1);
         if (last != null && last.termWait) {
@@ -1142,8 +1186,7 @@ final class Ap3RouteRunner {
             sawTermScreen = false;
             return true;
         }
-        stop();
-        return false;
+        return stopOrHandOver(last);
     }
 
     // ---- the world snapshot -------------------------------------------------------------------------------------

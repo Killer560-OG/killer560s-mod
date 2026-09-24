@@ -445,6 +445,7 @@ public final class BreakerAuraFeature {
         order.sort((a, b) -> Double.compare(Vec3.atCenterOf(a).distanceToSqr(feet),
                 Vec3.atCenterOf(b).distanceToSqr(feet)));
         int sent = 0;
+        boolean gateRefused = false;
         for (BlockPos pos : order) {
             if (sent >= allowed) {
                 break;
@@ -458,6 +459,7 @@ public final class BreakerAuraFeature {
             // things on the exact same tick." Break rather than return - whatever did go out this tick still has
             // to be swung for and still has to set the cooldown.
             if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
+                gateRefused = true;
                 break;
             }
             Block block = level.getBlockState(pos).getBlock();
@@ -469,7 +471,11 @@ public final class BreakerAuraFeature {
                     pos, block, charges, charges - spentSinceLore);
         }
         if (sent == 0) {
-            skip("no reachable face on any block in reach");
+            // Two very different reasons, and calling them both the same thing sent the last investigation down
+            // the wrong road: the gate handing this tick to a higher-priority actor is throughput, a block with
+            // no reachable face is geometry.
+            skip(gateRefused ? "the action gate gave this tick to something else"
+                    : "no reachable face on any block in reach");
             return;
         }
         // One swing however many went out: a hand swings once a tick whatever it is doing.

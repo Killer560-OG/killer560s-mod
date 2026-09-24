@@ -843,6 +843,27 @@ public final class Ap3Executor {
         }
     }
 
+    /**
+     * Fire a node because the ROUTE arrived on it, not because he walked into it.
+     * <p>
+     * killer560 (2026-09-23): "if i have a run node or something on a path end node then it will instead of
+     * stopping on the path it will just keep doing whatever that secondary node is."
+     * <p>
+     * This deliberately goes round {@link #scanBoxes}'s edge detector, which cannot be relied on here for two
+     * reasons: the route drove him into the box, so the entry edge may already have been spent on an earlier
+     * tick, and entering a box with a movement key physically held parks the node in {@link #unfired} until he
+     * lets go - which he never does, because he is running. The route reaching its end IS the trigger.
+     */
+    static void handOver(Ap3Node node) {
+        if (node == null) {
+            return;
+        }
+        inside.add(node);      // he is standing on it; do not let the edge detector fire it a second time
+        unfired.remove(node);
+        trigger(node);
+        LOGGER.info("[AP3] Route ended on {} - carrying on with it instead of stopping.", node.describe());
+    }
+
     /** Queues a triggered node in priority order. A node already waiting or being performed is not queued again -
      *  stepping out and back in while it waits its turn must not fire it twice. */
     private static void trigger(Ap3Node node) {
