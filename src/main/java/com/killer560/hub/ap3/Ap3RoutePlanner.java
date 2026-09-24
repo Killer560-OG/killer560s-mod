@@ -106,10 +106,15 @@ final class Ap3RoutePlanner {
     private static final int[] STEP_I = {1, 1, 1, 0, 0, -1, -1, -1};
     private static final int[] STEP_J = {1, 0, -1, 1, -1, 1, 0, -1};
     /**
-     * How far a jump may reach across a hole, in half-block cells. Eight cells is four blocks, which is about what a
-     * sprint jump covers at killer560's speed; reaching further would cost the flood more than the guidance is worth.
+     * How far a jump may reach across a hole, in half-block cells. Twenty cells is ten blocks.
+     * <p>
+     * It was eight - four blocks - on the belief that this "is about what a sprint jump covers at killer560's
+     * speed". Measured 2026-09-23, that is out by well over double: at speed 550 a jump travels 11.5 blocks, and
+     * 9.66 of those while still high enough to land ONE BLOCK UP. His neo is a single jump of 7.5 blocks gaining
+     * one, and at four blocks of reach the field could not see across it at all - so the flood never connected,
+     * the search was handed straight-line distance, and it ran off the ledge every time.
      */
-    private static final int JUMP_CELLS = 8;
+    private static final int JUMP_CELLS = 20;
 
     /**
      * How much height a sprint jump gains, for deciding whether the heuristic's grid is connected upwards. A jump
@@ -1071,7 +1076,7 @@ final class Ap3RoutePlanner {
         // jumping earlier to not bump". Small on purpose. A clip already costs real ticks through the speed it
         // takes, so this only has to break the search's indifference, and a route that genuinely must brush a wall
         // has to stay findable - which is exactly what charging JUMPS this way destroyed (see above).
-        c.f = c.ticks + field.heuristic(s.x, s.z, s.y, group, mask, groups, top)
+        c.f = c.ticks + field.heuristic(s.x, s.z, s.y, s.vy, group, mask, groups, top)
                 + o.turnCost * Math.abs(wrap(yaw - n.s.yaw)) / 180.0
                 + c.bumps * CLIP_COST;
         long key = cell(s, group, mask);
@@ -1336,8 +1341,28 @@ final class Ap3RoutePlanner {
                             break;
                         }
                         int mid = (ci + si * (len - 1)) * h + (cj + sj * (len - 1));
-                        if (!hole(wall, floor, cur, mid)) {
-                            break; // solid ground all the way: the ordinary neighbours already walked it
+                        // A jump flies OVER ground; it does not stop at it. Break only when the ground in the way
+                        // is high enough to be flown into.
+                        //
+                        // This used to break at the first cell that was not a hole, on the reasoning that solid
+                        // ground is walked by the ordinary neighbours. That is only true when the walker can
+                        // actually get onto it. Measured on killer560's neo, 2026-09-23: between his node at 121
+                        // and the platform he jumps from at 120 sits a ledge at 122 - two above the platform, so
+                        // unwalkable from it. The flood reached the ledge at len 4 and broke at len 5, so the
+                        // platform eight blocks out was never connected, the field collapsed to straight-line,
+                        // and the search ran off the edge every time at exactly 5 ticks in. The jump he makes
+                        // passes straight over that ledge.
+                        if (!Float.isNaN(floor[mid]) && floor[mid] > floor[cur] + JUMP_CLIMB) {
+                            break; // that is a wall to a jump starting this low, not something to fly over
+                        }
+                        if (!hole(wall, floor, cur, mid)
+                                && floor[mid] <= floor[cur] + Ap3RouteCollide.MAX_UP_STEP) {
+                            // Ordinary ground at his own level: the walking neighbours already handle it, and
+                            // stopping here is what keeps this loop cheap. Without this the scan runs its full
+                            // length in all eight directions from every lip cell on open ground, and the field
+                            // took 7 seconds instead of 2.8 on BalconyHarness - which then lost the search the
+                            // budget it needed and turned a 33-tick answer into no answer at all.
+                            break;
                         }
                         int at = ni * h + nj;
                         if (wall[at]) {
@@ -1453,6 +1478,15 @@ final class Ap3RoutePlanner {
          * cheaper than walking round to the way up.
          */
         double at(int gate, double x, double z, double y) {
+            return at(gate, x, z, y, 0.0);
+        }
+
+        /**
+         * @param vy how fast he is moving vertically. Only used to tell a JUMP from a FALL over a void, which
+         *           height alone cannot do: at the instant he leaves the ledge both are at the same place, and one
+         *           is on its way to the node while the other is on its way to the bottom.
+         */
+        double at(int gate, double x, double z, double y, double vy) {
             int i = (int) Math.round((x - minX) / CELL);
             int j = (int) Math.round((z - minZ) / CELL);
             if (i < 0 || j < 0 || i >= w || j >= h) {
@@ -1471,6 +1505,18 @@ final class Ap3RoutePlanner {
                 // the feet are down on it, or within a jump of it: a state flying over the pit is on its way.
                 if (startKnown[gate] && !Float.isNaN(surface[cell]) && !Double.isNaN(y)
                         && y - surface[cell] < JUMP_CLIMB) {
+                    out += UNDER_PENALTY;
+                }
+                // ...and the same for a cell with NOTHING in it, once he has fallen below the level he is aiming
+                // for. Over a void both penalties above go quiet - there is no surface to be under - so running
+                // off a ledge cost the search nothing at all, while the straight line got shorter the further he
+                // fell. The beam filled with falling states and every plan died five ticks in, on the way down.
+                //
+                // Height is what tells the two apart. A JUMP stays at or above the level it is aiming for until
+                // the moment it lands - that is what jumping is - so an arc across a gap is never charged. A fall
+                // is below it and, over a void, cannot get back up.
+                if (startKnown[gate] && Float.isNaN(surface[cell]) && !Double.isNaN(y) && vy < 0
+                        && y < gates.get(gate).y - Ap3RouteCollide.MAX_UP_STEP) {
                     out += UNDER_PENALTY;
                 }
             } else {
@@ -1493,7 +1539,13 @@ final class Ap3RoutePlanner {
             return heuristic(x, z, Double.NaN, group, mask, groups, top);
         }
 
-        double heuristic(double x, double z, double y, int group, int mask, List<int[]> groups, double top) {
+        double heuristic(double x, double z, double y, int group, int mask, List<int[]> groups,
+                         double top) {
+            return heuristic(x, z, y, 0.0, group, mask, groups, top);
+        }
+
+        double heuristic(double x, double z, double y, double vy, int group, int mask,
+                         List<int[]> groups, double top) {
             if (group >= groups.size()) {
                 return 0;
             }
@@ -1519,7 +1571,8 @@ final class Ap3RoutePlanner {
                     }
                     // Only the FIRST hop is measured from where he is standing, so only that one knows his level;
                     // after it the walk continues from gate to gate, all of them on their own ground.
-                    double d = at(members[i], cx, cz, cx == x && cz == z ? y : Double.NaN);
+                    boolean here = cx == x && cz == z;
+                    double d = at(members[i], cx, cz, here ? y : Double.NaN, here ? vy : 0.0);
                     if (d < bestD) {
                         bestD = d;
                         bestI = i;

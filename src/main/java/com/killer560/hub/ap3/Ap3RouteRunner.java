@@ -79,6 +79,8 @@ final class Ap3RouteRunner {
      * over a block: the saved plan he wants is keyed to the node he is standing on, and START_TOLERANCE is 1.25.
      */
     private static final double REASK_MOVED = 1.5;
+    /** How far from the route's own level a surface may be and still be treated as this route's ground. */
+    private static final double SURFACE_BAND = 4.0;
     /** How close to the first Path node the pre-plan starts, so the route does not stall on arrival. */
     private static final double PRE_PLAN_RANGE = 12.0;
 
@@ -1463,6 +1465,16 @@ final class Ap3RouteRunner {
                 }
                 floorY[cell] = top;
                 headroom[cell] = head;
+                // A surface far outside the route's own height band is not this route's ground - it is a ceiling,
+                // or a balcony three floors up - and calling it THE surface of this column is worse than calling
+                // the column empty. An empty column is a hole the field can fly over; a phantom floor severs it.
+                // Measured on his neo, 2026-09-23: the column three blocks past his ledge reported y 128, eight
+                // above the route, which is not a hole, so the flood stopped there and the whole approach read as
+                // unreachable. The search then got straight-line distance and ran off the edge every time.
+                if (Math.abs(floorY[cell] - feetY) > SURFACE_BAND) {
+                    floorY[cell] = Double.NaN;
+                    headroom[cell] = 0;
+                }
                 if (!Double.isNaN(floorY[cell]) && floorY[cell] <= feetY + Ap3RouteCollide.MAX_UP_STEP
                         && floorY[cell] >= feetY - Ap3RouteCollide.MAX_UP_STEP) {
                     break; // standing on it already: nothing further down can be a better answer
