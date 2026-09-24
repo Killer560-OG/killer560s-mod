@@ -130,6 +130,8 @@ final class Ap3RouteRunner {
     private static boolean announced;
     /** Set by {@link #planWholeRoute} so the chat line goes out even though nothing is being driven. */
     private static boolean announceWhenDone;
+    /** Which Path node that announcement is about - see the chat line in startPlanning. */
+    private static int announceIndex;
     private static int waitingForTermTicks;
     private static boolean waitingForTerm;
     private static boolean sawTermScreen;
@@ -461,6 +463,7 @@ final class Ap3RouteRunner {
         from.onGround = true;
         announced = false; // this one always says so in chat, however many times he rebuilds the route
         announceWhenDone = true;
+        announceIndex = first.pathIndex;
         prePlanCooldown = REPLAN_EVERY;
         prePlanFor = first;
         prePlanMs = System.currentTimeMillis();
@@ -728,16 +731,21 @@ final class Ap3RouteRunner {
                 if (announceWhenDone) {
                     announceWhenDone = false;
                     long took = System.currentTimeMillis() - askedAt;
+                    // Name the route it planned. Announcing a bare "ready" once planned the wrong route of three
+                    // and read as a promise about the one he was about to step on (2026-09-23).
+                    String which = String.format(Locale.US, "Path %d at %.1f, %.1f, %.1f",
+                            announceIndex, start.x, start.y, start.z);
                     if (p.complete) {
                         ModChat.send("AP3", ModChat.text("Route ready - "),
                                 ModChat.value(p.ticks + " ticks"),
-                                ModChat.dim(" (" + jumpsIn(p) + " jumps, found in "
+                                ModChat.dim(" from " + which + " (" + jumpsIn(p) + " jumps, found in "
                                         + String.format(Locale.US, "%.1fs", took / 1000.0)
                                         + "). Step on it and it will run at once."));
                     } else {
-                        ModChat.send("AP3", ModChat.text("Could not plan that route - "),
-                                ModChat.value(p.note.isEmpty() ? "no route found" : p.note),
-                                ModChat.dim(" (" + String.format(Locale.US, "%.1fs", took / 1000.0) + ")"));
+                        ModChat.send("AP3", ModChat.text("Could not plan the route from "),
+                                ModChat.value(which),
+                                ModChat.dim(" - " + (p.note.isEmpty() ? "no route found" : p.note)
+                                        + " (" + String.format(Locale.US, "%.1fs", took / 1000.0) + ")"));
                     }
                 }
                 logTerrainProfile(snap, start, gates);

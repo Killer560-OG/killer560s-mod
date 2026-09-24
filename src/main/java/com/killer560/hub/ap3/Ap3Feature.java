@@ -686,10 +686,21 @@ public final class Ap3Feature {
         // Planned from the route's OWN first node rather than from where he is standing to place this one - see
         // Ap3RouteRunner.planWholeRoute - so the answer lands in the cache under the approach he will really use.
         if (node.type == Ap3Node.Type.PATH && node.pathEnd) {
+            // Which route this `end` closes: the nearest `start` at or before it, and only failing that the
+            // lowest Path node in the chain. Taking the lowest outright was wrong the moment a section held more
+            // than one route, which is the entire reason start and end exist - on 2026-09-23 he closed his third
+            // route and it planned his first, announced it as ready, and then stepping on the third did nothing
+            // because nothing had been planned for it.
             Ap3Node first = null;
             for (Ap3Node n : chain.nodes()) {
-                if (n.type == Ap3Node.Type.PATH && n.pathIndex <= node.pathIndex
-                        && (first == null || n.pathIndex < first.pathIndex)) {
+                if (n.type != Ap3Node.Type.PATH || n.pathIndex > node.pathIndex) {
+                    continue;
+                }
+                if (n.pathStart && (first == null || !first.pathStart || n.pathIndex > first.pathIndex)) {
+                    first = n;
+                } else if (first == null && !n.pathStart) {
+                    first = n;
+                } else if (first != null && !first.pathStart && !n.pathStart && n.pathIndex < first.pathIndex) {
                     first = n;
                 }
             }
