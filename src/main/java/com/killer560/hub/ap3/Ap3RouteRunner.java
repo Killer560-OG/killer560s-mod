@@ -668,6 +668,12 @@ final class Ap3RouteRunner {
         logProblem(start, gates, blocked, snap, options, firstPlan, model);
         final int seq = planSeq.incrementAndGet();
         final long askedAt = System.currentTimeMillis();
+        // Captured per REQUEST, not read from the field when the answer lands. These were statics, and a search
+        // that took 42 seconds came back to find a newer request had since set them: the chat line then named one
+        // route and gave the other's coordinates (2026-09-23). A request's own announcement belongs to it.
+        final boolean tellHim = announceWhenDone;
+        final int tellIndex = announceIndex;
+        announceWhenDone = false;
         worker = new Thread(() -> {
             try {
                 Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
@@ -728,13 +734,12 @@ final class Ap3RouteRunner {
                             ModChat.dim(" (" + p.ticks + " ticks, " + jumpsIn(p) + " jumps"
                                     + (p.complete ? "" : ", INCOMPLETE - " + p.note) + ")"));
                 }
-                if (announceWhenDone) {
-                    announceWhenDone = false;
+                if (tellHim) {
                     long took = System.currentTimeMillis() - askedAt;
                     // Name the route it planned. Announcing a bare "ready" once planned the wrong route of three
                     // and read as a promise about the one he was about to step on (2026-09-23).
                     String which = String.format(Locale.US, "Path %d at %.1f, %.1f, %.1f",
-                            announceIndex, start.x, start.y, start.z);
+                            tellIndex, start.x, start.y, start.z);
                     if (p.complete) {
                         ModChat.send("AP3", ModChat.text("Route ready - "),
                                 ModChat.value(p.ticks + " ticks"),
