@@ -188,7 +188,7 @@ public final class BreakerAuraFeature {
                 continue;
             }
             // Brighter once it is close enough to actually be broken, so the reach is visible too.
-            boolean inReach = Vec3.atCenterOf(pos).distanceToSqr(eye) <= reachSq;
+            boolean inReach = eyeToBlockSq(eye, pos) <= reachSq;
             AABB box = new AABB(pos).inflate(0.002);
             WorldRenderUtils.renderOutlineBox(context, box, 1.0f, inReach ? 0.55f : 0.30f, 0.0f,
                     inReach ? 0.95f : 0.55f, 2.0f);
@@ -231,6 +231,47 @@ public final class BreakerAuraFeature {
         picked.clear();
         DungeonExtrasConfig.getInstance().save();
         return n;
+    }
+
+    /**
+     * Put the breaker in his hand and start the settling window. A slot change cannot be followed by a break on
+     * the same tick - the server has to see the held item change first - so THIS tick is the first tick of the
+     * wait, hence the minus one: a delay of 1 used to mean swap, wait, break, which is two ticks for a setting
+     * of one (the same off-by-one already fixed on the cooldown).
+     */
+    private static void armSwap(LocalPlayer player, DungeonExtrasConfig cfg, int selected, int breakerSlot) {
+        if (swappedFromSlot < 0) {
+            swappedFromSlot = selected;
+        }
+        player.getInventory().setSelectedSlot(breakerSlot);
+        player.connection.send(new ServerboundSetCarriedItemPacket(breakerSlot));
+        swapArmedTicks = Math.max(0, cfg.getBreakerAuraSwapDelayTicks() - 1);
+        LOGGER.info("[DungeonExtras] Breaker Aura swapped {} -> {} for the breaker, first break in {} tick(s).",
+                selected, breakerSlot, swapArmedTicks);
+    }
+
+    /**
+     * Squared distance from the eye to the NEAREST POINT OF THE BLOCK, which is what the server measures a break
+     * against - not the distance to the block's centre, which is what this used to ask for.
+     * <p>
+     * killer560 (2026-09-23): "It is still struggling to break blocks as i run into them. I shouldnt be outmoving
+     * them but I dont know." He was not outmoving them; they were being called out of range while the server would
+     * have allowed them. A centre is up to half a block further away on each axis, so the error grows with every
+     * axis he is offset on - and a wall he runs at is offset on all three, because he is beside it, below it and
+     * approaching it at once.
+     * <p>
+     * Measured on his own picks (the ten-block wall at x 53-56, y 132-133, z 142) walking in along -z at x 54.5
+     * with his feet at y 131: standing four blocks out, the centre test finds 2 of the 10 in reach and this one
+     * finds all 10. That is the whole wall available on the tick he arrives instead of two blocks of it.
+     */
+    private static double eyeToBlockSq(Vec3 eye, BlockPos pos) {
+        double cx = Math.max(pos.getX(), Math.min(eye.x, pos.getX() + 1.0));
+        double cy = Math.max(pos.getY(), Math.min(eye.y, pos.getY() + 1.0));
+        double cz = Math.max(pos.getZ(), Math.min(eye.z, pos.getZ() + 1.0));
+        double dx = eye.x - cx;
+        double dy = eye.y - cy;
+        double dz = eye.z - cz;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private static boolean isPicked(BlockPos pos) {
@@ -327,23 +368,37 @@ public final class BreakerAuraFeature {
         // block actually comes into reach and the break goes out on that tick.
         //
         // Only ever WIDENS what arms the hand. What gets broken is still whatever is inside the real reach.
-        // Widened whenever Auto Swap is on, not only before the swap: once the hand HAS swapped, the remaining
-        // approach ticks still have to count as "something is coming", or they feed the swap-back idle counter and
-        // the hand starts putting the breaker away on the walk in.
-        List<BlockPos> arming = targets;
-        if (targets.isEmpty() && autoSwap) {
-            arming = cfg.isBreakerAuraSelectedOnly()
-                    ? collectPickedTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now)
-                    : collectPathTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now);
-        }
-        if (arming.isEmpty()) {
-            skip(cfg.isBreakerAuraSelectedOnly() ? "no picked blocks in reach" : "no valid blocks in path");
+        // The widened radius decides ONE thing: whether to arm the hand early. It does NOT keep the feature
+        // awake, and it does not count as "something in reach".
+        //
+        // It did both in the first version of this (2026-09-23) and the cost showed up immediately in his log:
+        // 1242 ticks sat in "waiting for a picked block to come into reach", in runs of 380, 357 and 198 ticks -
+        // ten to nineteen seconds at a stretch. His picks are scattered across three parts of the floor and stay
+        // saved between runs, so merely walking within six blocks of any of them held the breaker in his hand and
+        // pulled his hotbar slot back off whatever he had selected. Idle is judged on the real reach, exactly as
+        // it was before, so Swap Back still fires on its own timer.
+        List<BlockPos> approaching = targets.isEmpty() && autoSwap && selected != breakerSlot
+                ? (cfg.isBreakerAuraSelectedOnly()
+                        ? collectPickedTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now)
+                        : collectPathTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now))
+                : targets;
+
+        if (targets.isEmpty()) {
+            skip(approaching.isEmpty()
+                    ? (cfg.isBreakerAuraSelectedOnly() ? "no picked blocks in reach" : "no valid blocks in path")
+                    : "breaker coming to hand, a picked block is nearly in reach");
             // The cooldown is the gap between two breaks, and a tick with nothing to break is part of that gap.
-            // It used to be decremented only past this point, so it FROZE while there was nothing in reach: at a
-            // cooldown of 2 or more, walking up to a fresh wall meant sitting through the leftovers of a gap that
-            // had already elapsed. Harmless at his own setting of 1 (which stores 0), wrong at any other.
+            // It used to be decremented only past this point, so it FROZE while idle: at a cooldown of 2 or more,
+            // walking up to a fresh wall meant sitting out the remains of a gap that had already elapsed.
             if (cooldownTicks > 0) {
                 cooldownTicks--;
+            }
+            // Arm the hand while he is still walking in, so the settling window is spent before he arrives and
+            // the break can go out on the very tick the block comes into reach.
+            if (!approaching.isEmpty() && swapArmedTicks <= 0) {
+                armSwap(player, cfg, selected, breakerSlot);
+            } else if (swapArmedTicks > 0) {
+                swapArmedTicks--;
             }
             if (autoSwap && swappedFromSlot >= 0 && cfg.isBreakerAuraSwapBack()
                     && ++idleSinceSwapTicks >= cfg.getBreakerAuraSwapBackIdleTicks()) {
@@ -356,28 +411,13 @@ public final class BreakerAuraFeature {
 
         if (autoSwap && selected != breakerSlot) {
             if (swapArmedTicks <= 0) {
-                if (swappedFromSlot < 0) {
-                    swappedFromSlot = selected;
-                }
-                player.getInventory().setSelectedSlot(breakerSlot);
-                player.connection.send(new ServerboundSetCarriedItemPacket(breakerSlot));
-                // MINUS ONE, the same off-by-one the cooldown had: THIS tick is the first tick of the wait, so a
-                // delay of 1 meant swap, wait, break - two ticks for a setting of one.
-                swapArmedTicks = Math.max(0, cfg.getBreakerAuraSwapDelayTicks() - 1);
-                LOGGER.info("[DungeonExtras] Breaker Aura swapped {} -> {} for the breaker, first break in {} tick(s).",
-                        selected, breakerSlot, swapArmedTicks);
+                armSwap(player, cfg, selected, breakerSlot);
             }
             return;
         }
         if (swapArmedTicks > 0) {
             // Settling window after a slot change; the break goes out once the server has plausibly seen the swap.
             swapArmedTicks--;
-            return;
-        }
-        if (targets.isEmpty()) {
-            // The hand is ready and waiting - he is walking in and nothing is inside the real reach yet. This is
-            // the tick the pre-arm above bought, and spending it here is the whole point.
-            skip("breaker in hand, waiting for a picked block to come into reach");
             return;
         }
         if (cooldownTicks > 0) {
@@ -522,7 +562,7 @@ public final class BreakerAuraFeature {
                         if (ordered.contains(pos) || RECENT.containsKey(pos)) {
                             continue;
                         }
-                        if (Vec3.atCenterOf(pos).distanceToSqr(eye) > reachSq) {
+                        if (eyeToBlockSq(eye, pos) > reachSq) {
                             continue;
                         }
                         if (!isValidTarget(level, pos)) {
@@ -560,7 +600,7 @@ public final class BreakerAuraFeature {
             if (RECENT.containsKey(pos)) {
                 continue; // tried a moment ago; give the server time to answer
             }
-            if (Vec3.atCenterOf(pos).distanceToSqr(eye) > reachSq) {
+            if (eyeToBlockSq(eye, pos) > reachSq) {
                 continue;
             }
             if (!isValidTarget(level, pos)) {
