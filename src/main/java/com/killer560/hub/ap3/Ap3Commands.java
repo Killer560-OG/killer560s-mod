@@ -276,6 +276,14 @@ public final class Ap3Commands {
                                     + (planning ? " - working it out again now." : " - run it to work it out again.")));
                             return 1;
                         }))
+                        // Ground truth for a movement the planner says cannot be done - see Ap3Trajectory.
+                        .then(ClientCommands.literal("record").executes(context -> {
+                            boolean on = Ap3Trajectory.toggle();
+                            ModChat.send(FEATURE, on
+                                    ? ModChat.good("Recording your movement - run it, then /ap3 record again.")
+                                    : ModChat.good("Recording saved to ap3-trajectory.json."));
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("forget").executes(context -> {
                             int n = Ap3RouteCache.clear();
                             ModChat.send(FEATURE, ModChat.good("Forgot " + n + " saved route plan"

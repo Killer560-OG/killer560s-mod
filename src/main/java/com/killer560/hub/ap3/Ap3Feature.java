@@ -97,6 +97,9 @@ public final class Ap3Feature {
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see API.md). */
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(Ap3Feature::tick);
+        // Recording is deliberately outside the AP3 tick: he may want to record a movement he makes BY HAND,
+        // with the mod driving nothing at all, which is the whole point of it.
+        ClientTickEvents.END_CLIENT_TICK.register(Ap3Trajectory::onClientTick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(Ap3Feature::onRenderFrame);
         ChatObserver.subscribe(Ap3Feature::onChat);
         // Same shape as DungeonAlertsFeature: our own Fabric HUD layer draws the element at the HUD editor's
