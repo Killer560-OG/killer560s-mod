@@ -37,12 +37,7 @@ public final class ManualBreakMonitor {
     private static long windowFrom;
     private static int ticksHeld;
     private static int startCalls;
-    private static int continueCalls;
     private static int refused;
-    /** Has the continueDestroyBlock hook EVER fired? The mixin config requires nothing, so a wrong signature
-     *  fails silently - and a count of zero would then read as a finding about the game rather than about the
-     *  hook. This tells the two apart instead of leaving it to be guessed at. */
-    private static boolean continueHookSeen;
 
     private ManualBreakMonitor() {
     }
@@ -57,14 +52,6 @@ public final class ManualBreakMonitor {
             broken.add(pos.immutable());
         } else {
             refused++;
-        }
-    }
-
-    /** Vanilla is still holding the break down on a block (the every-tick call while the key is held). */
-    public static void onContinueDestroyBlock() {
-        continueHookSeen = true;
-        if (counting()) {
-            continueCalls++;
         }
     }
 
@@ -93,16 +80,13 @@ public final class ManualBreakMonitor {
         // Only worth a line when he was actually breaking something by hand.
         if (ticksHeld > 0 && (startCalls > 0 || !broken.isEmpty())) {
             LOGGER.info("[DungeonExtras] BY HAND over {}s: {} block(s) broken ({} a second, ceiling 20)"
-                            + " | attack held {} tick(s) | {} startDestroy call(s) | continueDestroy {}"
-                            + " | {} refused",
+                            + " | attack held {} tick(s) | {} startDestroy call(s) | {} refused",
                     String.format("%.1f", secs), broken.size(),
-                    String.format("%.1f", broken.size() / secs), ticksHeld, startCalls,
-                    continueHookSeen ? String.valueOf(continueCalls) : "hook never fired - ignore", refused);
+                    String.format("%.1f", broken.size() / secs), ticksHeld, startCalls, refused);
         }
         windowFrom = now;
         ticksHeld = 0;
         startCalls = 0;
-        continueCalls = 0;
         refused = 0;
         broken.clear();
     }

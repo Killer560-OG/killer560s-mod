@@ -7,7 +7,6 @@ import net.minecraft.core.Direction;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -16,6 +15,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>
  * Injected at TAIL so the real call has already happened and its return value is known - this only ever READS.
  * Nothing here sends a packet, cancels anything, or changes what vanilla did.
+ * <p>
+ * There WAS a second hook on continueDestroyBlock. It never fired - the signature is not what it was written
+ * against - and it is gone rather than left in place looking like coverage, which is how the Experimentation
+ * Table shipped unprotected. It is no loss: with a Dungeon Breaker every block goes instantly, so vanilla never
+ * reaches the continue path, and startDestroyBlock alone gives the whole count.
  */
 @Mixin(MultiPlayerGameMode.class)
 public abstract class ManualBreakMixin {
@@ -25,8 +29,4 @@ public abstract class ManualBreakMixin {
         ManualBreakMonitor.onStartDestroyBlock(pos, Boolean.TRUE.equals(cir.getReturnValue()));
     }
 
-    @Inject(method = "continueDestroyBlock", at = @At("TAIL"))
-    private void killer560smod$countManualContinue(BlockPos pos, Direction face, CallbackInfoReturnable<Boolean> cir) {
-        ManualBreakMonitor.onContinueDestroyBlock();
-    }
 }
