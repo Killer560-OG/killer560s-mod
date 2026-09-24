@@ -79,7 +79,17 @@ final class Ap3RouteRunner {
      * over a block: the saved plan he wants is keyed to the node he is standing on, and START_TOLERANCE is 1.25.
      */
     private static final double REASK_MOVED = 1.5;
-    /** How far from the route's own level a surface may be and still be treated as this route's ground. */
+    /**
+     * How far ABOVE the route's own level a surface may be and still be treated as this route's ground.
+     * <p>
+     * Only above. A surface far BELOW is a pit floor, a lower storey, the bottom of a shaft - all real ground that
+     * a route may legitimately fall to or climb from, and the flood already knows it cannot climb back out. A
+     * surface far above is a ceiling, and calling that the column's floor severs the field.
+     * <p>
+     * It was a symmetric band for about an hour on 2026-09-23 and that broke his storm route, whose own profile
+     * runs from -3 to +3 around two anchors at different heights: real ground six blocks from the nearest anchor
+     * was being deleted, and holes appeared in terrain he runs across every day.
+     */
     private static final double SURFACE_BAND = 4.0;
     /** How close to the first Path node the pre-plan starts, so the route does not stall on arrival. */
     private static final double PRE_PLAN_RANGE = 12.0;
@@ -657,7 +667,13 @@ final class Ap3RouteRunner {
         }
         double top = Math.max(0.2, Ap3RouteMath.topSpeed(model, options.allowJump));
         options.maxTicks = (int) Math.max(160, Math.min(900, span / top * 3.0 + 60));
-        long scaled = (long) (BRUTE_FORCE_MS * Math.max(1.0, Math.min(4.0, span / 40.0)));
+        // Up to EIGHT times the base for a long route, and reached sooner - not four. His storm route is 124 blocks and about 130
+        // ticks of movement; measured 2026-09-23 it needs somewhere between 11 and 90 seconds depending on how
+        // the beam falls, and four times 4 s was never going to be enough. A first plan is the one that gets
+        // remembered, so this is paid once for the life of the route - and he has been clear he would rather wait
+        // once than not have the route: "I don't care if it takes me a little bit longer to have to wait for the
+        // first run."
+        long scaled = (long) (BRUTE_FORCE_MS * Math.max(1.0, Math.min(8.0, span / 15.0)));
         options.budgetMs = firstPlan ? Math.max(cfg.getRouteBudgetMs(), scaled)
                 : Math.min(cfg.getRouteBudgetMs(), 300);
         // The first plan runs a portfolio of differently-shaped searches and keeps the shortest answer, because no
@@ -1471,7 +1487,7 @@ final class Ap3RouteRunner {
                 // Measured on his neo, 2026-09-23: the column three blocks past his ledge reported y 128, eight
                 // above the route, which is not a hole, so the flood stopped there and the whole approach read as
                 // unreachable. The search then got straight-line distance and ran off the edge every time.
-                if (Math.abs(floorY[cell] - feetY) > SURFACE_BAND) {
+                if (floorY[cell] - feetY > SURFACE_BAND) {
                     floorY[cell] = Double.NaN;
                     headroom[cell] = 0;
                 }

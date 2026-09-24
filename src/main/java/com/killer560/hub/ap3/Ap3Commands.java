@@ -262,10 +262,18 @@ public final class Ap3Commands {
                         // generate a new one next time I am on it."
                         .then(ClientCommands.literal("regenerate").executes(context -> {
                             int n = Ap3RouteCache.forgetNearest();
-                            ModChat.send(FEATURE, n < 0
-                                    ? ModChat.bad("No Path node near you.")
-                                    : ModChat.good("Forgot " + n + " saved plan" + (n == 1 ? "" : "s")
-                                            + " for that route - it will be worked out again next time you run it."));
+                            if (n < 0) {
+                                ModChat.send(FEATURE, ModChat.bad("No Path node near you."));
+                                return 1;
+                            }
+                            // ...and start working it out NOW, rather than waiting for him to step on it.
+                            // killer560 (2026-09-23): "if i do /ap3 regenerate does that also insta respark the
+                            // pathfinding creation." It does now - same path as finishing an `end` node, so it
+                            // plans from the route's own start and says in chat when it lands.
+                            boolean planning = Ap3RouteCache.replanNearest();
+                            ModChat.send(FEATURE, ModChat.good("Forgot " + n + " saved plan" + (n == 1 ? "" : "s")
+                                    + " for that route"
+                                    + (planning ? " - working it out again now." : " - run it to work it out again.")));
                             return 1;
                         }))
                         .then(ClientCommands.literal("forget").executes(context -> {

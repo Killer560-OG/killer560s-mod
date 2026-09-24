@@ -474,6 +474,7 @@ final class Ap3RoutePlanner {
                 {o.beam * 2, 24, 1},
                 {o.beam * 3, 32, 1},
         };
+
         long deadline = System.nanoTime() + o.budgetMs * 1_000_000L;
         // How much a LONG route has to give up in width to reach the depth it needs.
         //

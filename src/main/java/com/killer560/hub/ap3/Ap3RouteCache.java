@@ -247,6 +247,41 @@ final class Ap3RouteCache {
      * The route is identified the same way it always is - by its nodes - so this finds the Path chain he is
      * standing in and drops just that one, leaving every other route's work alone.
      */
+    /**
+     * Plan the route he is standing in again, straight away. Returns false when there is nothing near enough.
+     * <p>
+     * killer560 (2026-09-23): "if i do /ap3 regenerate does that also insta respark the pathfinding creation."
+     * Forgetting a plan and then waiting for him to step on the node is half an answer - the point of regenerate
+     * is that the old one was wrong, so the new one should be on its way before he gets there.
+     */
+    static boolean replanNearest() {
+        Ap3Chain chain = Ap3Feature.currentChain();
+        Minecraft mc = Minecraft.getInstance();
+        if (chain == null || mc.player == null) {
+            return false;
+        }
+        Ap3Node first = null;
+        double nearest = Double.MAX_VALUE;
+        for (Ap3Node n : chain.nodes()) {
+            if (n.type != Ap3Node.Type.PATH) {
+                continue;
+            }
+            double d = Math.hypot(n.x - mc.player.getX(), n.z - mc.player.getZ());
+            // The route he means is the one he is standing in; its FIRST node is where a plan starts from.
+            if (d < nearest) {
+                nearest = d;
+            }
+            if (first == null || n.pathIndex < first.pathIndex) {
+                first = n;
+            }
+        }
+        if (first == null || nearest > NEAR_ENOUGH) {
+            return false;
+        }
+        Ap3RouteRunner.planWholeRoute(mc, mc.player, first);
+        return true;
+    }
+
     static int forgetNearest() {
         load();
         Ap3Chain chain = Ap3Feature.currentChain();
