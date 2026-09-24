@@ -118,6 +118,24 @@ public final class BreakerAuraFeature {
     private static long censusFrom;
     private static int cTicks, cSent, cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach;
 
+    /** How far ahead of him a block is, along the way he is moving (negative = behind). */
+    private static double ahead(BlockPos pos, Vec3 feet, double dirX, double dirZ) {
+        return (pos.getX() + 0.5 - feet.x) * dirX + (pos.getZ() + 0.5 - feet.z) * dirZ;
+    }
+
+    /**
+     * Is this block in the corridor he is walking down? Half his body (0.3) plus half a block (0.5), rounded up a
+     * little, and it has to be in front of him rather than behind.
+     */
+    private static boolean inTheWay(BlockPos pos, Vec3 feet, double dirX, double dirZ) {
+        double dx = pos.getX() + 0.5 - feet.x;
+        double dz = pos.getZ() + 0.5 - feet.z;
+        if (dx * dirX + dz * dirZ < -0.5) {
+            return false; // behind him
+        }
+        return Math.abs(dx * dirZ - dz * dirX) <= 0.9; // sideways distance from the line he is walking
+    }
+
     private static void census(String bucket) {
         cTicks++;
         switch (bucket) {
@@ -481,12 +499,50 @@ public final class BreakerAuraFeature {
         // other on the next tick". The setting stays for when he wants otherwise, but it defaults to one, and one
         // is what following QUOI exactly means.
         //
-        // Nearest to the PLAYER, as QUOI measures it (distToCenterSqr against the player position, not the eye).
+        // WHAT IS IN HIS WAY first, then QUOI's nearest-first for everything else.
+        //
+        // This is the one honest way left to make it feel faster, and it sends not one extra packet: the rate is
+        // still one block a tick. killer560 (2026-09-23): "it can still break if i run into it. Is there some way
+        // to break it either faster or do more of them at once?" Measured on his own log, a ten-block wall takes
+        // about ten ticks at one a tick, and he covers three blocks in that time - so whether he gets through
+        // without slowing is not about how MANY break, it is about whether the two or three blocking his body
+        // are among the first. Nearest-first does not care about that: on his wall it worked along x from 56 to
+        // 53, so the blocks he was walking into came fifth and sixth.
+        //
+        // The corridor is his own width plus half a block: anything further off his line he would walk past
+        // anyway. Ordered by how far AHEAD they are, so the hole opens at his feet and grows away from him.
+        //
+        // A departure from "look at how quoi parses multiple blocks and follow it exactly" - deliberately, and
+        // only in the order. Which blocks are eligible, and one a tick, are still QUOI's. When he is not moving
+        // there is no way to be in, and this falls back to QUOI's rule exactly.
         int allowed = Math.max(1, Math.min(cfg.getBreakerAuraBlocksPerCycle(), available));
         Vec3 feet = player.position();
+        Vec3 vel = player.getDeltaMovement();
+        double speed = Math.hypot(vel.x, vel.z);
+        final double dirX;
+        final double dirZ;
+        if (speed > 0.05) {
+            dirX = vel.x / speed;
+            dirZ = vel.z / speed;
+        } else {
+            dirX = Double.NaN; // standing still: nothing is "ahead", so QUOI's order stands
+            dirZ = Double.NaN;
+        }
         List<BlockPos> order = new ArrayList<>(targets);
-        order.sort((a, b) -> Double.compare(Vec3.atCenterOf(a).distanceToSqr(feet),
-                Vec3.atCenterOf(b).distanceToSqr(feet)));
+        order.sort((a, b) -> {
+            if (!Double.isNaN(dirX)) {
+                int ia = inTheWay(a, feet, dirX, dirZ) ? 0 : 1;
+                int ib = inTheWay(b, feet, dirX, dirZ) ? 0 : 1;
+                if (ia != ib) {
+                    return Integer.compare(ia, ib);
+                }
+                if (ia == 0) {
+                    return Double.compare(ahead(a, feet, dirX, dirZ), ahead(b, feet, dirX, dirZ));
+                }
+            }
+            return Double.compare(Vec3.atCenterOf(a).distanceToSqr(feet),
+                    Vec3.atCenterOf(b).distanceToSqr(feet));
+        });
         int sent = 0;
         boolean gateRefused = false;
         for (BlockPos pos : order) {
