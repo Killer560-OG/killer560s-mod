@@ -1571,7 +1571,20 @@ final class Ap3RouteRunner {
                     for (int j = Math.max(0, j0); j <= Math.min(h - 1, j1); j++) {
                         double cx = minX + i * CELL;
                         double cz = minZ + j * CELL;
-                        world.add(cx, n.y, cz, cx + CELL, n.y + 1.0, cz + CELL);
+                        // CLIPPED to the node's own box. The cells are half a block and the loop bounds are
+                        // inclusive, so the last one starts at the node's edge and runs half a block past it - on
+                        // +x and on +z both. Measured 2026-09-23 on his own capture: a No Go of x 1.5..4.5,
+                        // z 70.5..72.5 was laid into the world as x 1.5..5.5, z 70.5..73.0. That overhang sealed
+                        // the gap at x > 4.5 that his neo flies through, so the planner was refusing a jump he
+                        // makes every run - it was solving a world with half a block of phantom wall in it.
+                        double x0 = Math.max(cx, n.x - halfW);
+                        double x1 = Math.min(cx + CELL, n.x + halfW);
+                        double z0 = Math.max(cz, n.z - halfL);
+                        double z1 = Math.min(cz + CELL, n.z + halfL);
+                        if (x1 - x0 < 1.0E-6 || z1 - z0 < 1.0E-6) {
+                            continue; // this cell only touches the node's edge; it is not inside it
+                        }
+                        world.add(x0, n.y, z0, x1, n.y + 1.0, z1);
                         int cell = i * h + j;
                         // Its top is somewhere to stand, unless the real world already puts something higher here.
                         if (Double.isNaN(floorY[cell]) || floorY[cell] < n.y + 1.0) {
