@@ -108,6 +108,46 @@ public final class BreakerAuraFeature {
         warnedNoBreakerInHotbar = false;
     }
 
+    // ---- where the ticks go ------------------------------------------------------------------------------------
+    //
+    // killer560 chose to keep one break a tick and get the speed back from the ticks that are being wasted
+    // (2026-09-23), so the first thing needed is to know which ticks those are. The ceiling is 20 a second (the
+    // action gate allows one automated interaction per client tick); his last run managed 6-10. This counts every
+    // tick the aura was live and had something it wanted to break, and says where each one went, once every five
+    // seconds and only while it is actually working.
+    private static long censusFrom;
+    private static int cTicks, cSent, cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach;
+
+    private static void census(String bucket) {
+        cTicks++;
+        switch (bucket) {
+            case "sent" -> cSent++;
+            case "gate" -> cGate++;
+            case "face" -> cNoFace++;
+            case "cooldown" -> cCooldown++;
+            case "swap" -> cSwapWait++;
+            default -> cOutOfReach++;
+        }
+        long now = System.currentTimeMillis();
+        if (censusFrom == 0) {
+            censusFrom = now;
+            return;
+        }
+        if (now - censusFrom < 5_000L) {
+            return;
+        }
+        double secs = (now - censusFrom) / 1000.0;
+        if (cSent > 0 || cGate > 0) {
+            LOGGER.info("[DungeonExtras] Breaker Aura {} tick(s) over {}s: {} sent ({} a second, ceiling 20)"
+                            + " | {} gate gave the tick away | {} no face | {} cooldown | {} waiting on the swap"
+                            + " | {} nothing in reach",
+                    cTicks, String.format("%.1f", secs), cSent, String.format("%.1f", cSent / secs),
+                    cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach);
+        }
+        censusFrom = now;
+        cTicks = cSent = cGate = cNoFace = cCooldown = cSwapWait = cOutOfReach = 0;
+    }
+
     private static void skip(String reason) {
         if (!reason.equals(lastSkipReason)) {
             lastSkipReason = reason;
@@ -393,6 +433,7 @@ public final class BreakerAuraFeature {
             if (cooldownTicks > 0) {
                 cooldownTicks--;
             }
+            census(approaching.isEmpty() ? "reach" : "swap");
             // Arm the hand while he is still walking in, so the settling window is spent before he arrives and
             // the break can go out on the very tick the block comes into reach.
             if (!approaching.isEmpty() && swapArmedTicks <= 0) {
@@ -418,10 +459,12 @@ public final class BreakerAuraFeature {
         if (swapArmedTicks > 0) {
             // Settling window after a slot change; the break goes out once the server has plausibly seen the swap.
             swapArmedTicks--;
+            census("swap");
             return;
         }
         if (cooldownTicks > 0) {
             cooldownTicks--;
+            census("cooldown");
             return;
         }
 
@@ -476,8 +519,10 @@ public final class BreakerAuraFeature {
             // no reachable face is geometry.
             skip(gateRefused ? "the action gate gave this tick to something else"
                     : "no reachable face on any block in reach");
+            census(gateRefused ? "gate" : "face");
             return;
         }
+        census("sent");
         // One swing however many went out: a hand swings once a tick whatever it is doing.
         player.swing(InteractionHand.MAIN_HAND);
         // MINUS ONE, because the wait is checked on a later tick and that check costs a tick of its own: with the
