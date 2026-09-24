@@ -5,6 +5,7 @@
 	"package": "com.killer560.hub.dungeonextras.mixin",
 	"client": [
 		"DungeonExtrasPacketMixin",
+		"ManualBreakMixin",
 		"MultiPlayerGameModeInvoker"
 	],
 	"injectors": {

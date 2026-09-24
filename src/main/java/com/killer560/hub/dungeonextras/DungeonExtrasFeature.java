@@ -20,6 +20,7 @@ public final class DungeonExtrasFeature {
             MageBeamFeature.onClientTick(client);
             AutoDialogueFeature.onClientTick(client);
             BreakerAuraFeature.onClientTick(client);
+            ManualBreakMonitor.onClientTick(client);
         });
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MageBeamFeature::onWorldRender);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BreakerAuraFeature::onWorldRender);
