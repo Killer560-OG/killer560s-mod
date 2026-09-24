@@ -1035,8 +1035,10 @@ final class Ap3RouteRunner {
         double hereY = player.getY();
         double hereZ = player.getZ();
         for (Ap3Node n : chain.nodes()) {
-            // A No Go node is a GHOST BLOCK now, not a forbidden box - see Snap.addGhostBlocks. It is solid
-            // geometry the route may stand on and jump off, so fencing the route out of it would be backwards.
+            // A No Go node is a GHOST BLOCK now, not a forbidden box - see Snap.addGhostBlocks. It goes into
+            // the snapshot as solid geometry the search collides with, which is a stronger and more faithful
+            // statement than a Blocked zone: the route is stopped by it rather than merely penalised for
+            // entering it. It is not somewhere to stand, because nothing is really there.
             if (n.type == Ap3Node.Type.NO_GO) {
                 continue;
             }
@@ -1586,11 +1588,26 @@ final class Ap3RouteRunner {
                         }
                         world.add(x0, n.y, z0, x1, n.y + 1.0, z1);
                         int cell = i * h + j;
-                        // Its top is somewhere to stand, unless the real world already puts something higher here.
+                        // NOT somewhere to stand. A ghost block is solid to the SEARCH and absent from the
+                        // world, so a plan that rests on one cannot be executed - there is nothing under his
+                        // feet to hold him up. This used to raise floorY to the ghost's top, and the planner
+                        // duly walked out along it: 2026-09-23, with his No Go at y 121, the search reported
+                        // "floor under start 122.00" and laid a route across thin air. He fell through on the
+                        // first tick and the plan came apart, drift 0.42 -> 0.98 -> 1.50 -> 1.96 "lost".
+                        //
+                        // What he wanted it for is the opposite of a platform: "tell the ap3 hey there is a
+                        // block here even if we cannot see it. That way i can make it hit neos on something
+                        // even if it could do it normally." The ghost is there to be IN THE WAY, so the route
+                        // is forced around it. So the column becomes one the route cannot be in - the same
+                        // shape the scan gives a column of nothing but fluid - and the solid box added above
+                        // is what makes the search go round it.
+                        //
+                        // Unless real ground already sits at or above the ghost's top, in which case the ghost
+                        // is buried in the floor and changes nothing about where he may walk.
                         if (Double.isNaN(floorY[cell]) || floorY[cell] < n.y + 1.0) {
-                            floorY[cell] = n.y + 1.0;
-                            headroom[cell] = Math.max(headroom[cell], BODY_HEIGHT);
-                            wall[cell] = false;
+                            floorY[cell] = Double.NaN;
+                            headroom[cell] = 0;
+                            wall[cell] = true;
                         }
                     }
                 }
