@@ -158,15 +158,24 @@ final class Ap3RouteRunner {
     }
 
     static void stop() {
+        // A search that is not driving anything survives this. killer560 (2026-09-23): "make sure it keeps
+        // generating the path even if i press escape or open a menu or something." Opening a screen stops the
+        // ROUTE, which is right - nothing should be moving him while he is in a menu - but it used to interrupt
+        // the worker and throw the answer away too, so a first plan he had been waiting thirty seconds for died
+        // because he tabbed out. Only a search whose plan is actually being driven is abandoned here.
+        boolean wasDriving = plan != null;
         route.clear();
         announced = false;
         plan = null;
-        pending = null;
-        planning = false;
         stepIndex = 0;
         waitingForTerm = false;
         waitingForTermTicks = 0;
         sawTermScreen = false;
+        if (!wasDriving && planning) {
+            return; // let the background search finish; its answer is still worth having
+        }
+        pending = null;
+        planning = false;
         Thread t = worker;
         worker = null;
         if (t != null) {
