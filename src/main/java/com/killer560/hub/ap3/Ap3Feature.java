@@ -32,7 +32,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * AP3 - hand-placed node chains that move you through the F7/M7 boss fight, one chain per {@link Ap3Area} (P1, P2,
+ * AP3 - hand-placed node chains that move you through the F7/M7 boss fight, one chain for the whole boss room
+ * ({@link Ap3Area}) (P1, P2,
  * the P3 sections S1-S5, P4, P5). CHEAT BUILD ONLY, default off; every entry point is behind
  * {@link Ap3Config#isEnabled()}.
  * <p>
@@ -72,16 +73,10 @@ public final class Ap3Feature {
      * dungeons to test if I want to." SESSION ONLY, never saved: it is cleared on every world change and starts off
      * on every launch, so it can never be left on going into a real run. While on, AP3's own gates read as "in the
      * F7/M7 boss" wherever he is; the real arena still resolves phase / section from position and chat when he IS
-     * there, otherwise {@link #forcedArea} is the area. Nothing mod-wide changes ({@code SkyblockGate} is untouched
+     * there. Nothing mod-wide changes ({@code SkyblockGate} is untouched
      * for every other feature); the executor, rotation, input and ActionGate rules are exactly as in a real boss.
      */
     private static boolean forceDungeon;
-    /** The area Force Dungeon stands in when position / chat give none (the hub, singleplayer...). */
-    private static Ap3Area forcedArea = Ap3Area.p3(1);
-    /** The cycle order of the Forced Area button: P1, P2, S1-S5, P4, P5. */
-    private static final List<Ap3Area> FORCED_AREAS = List.of(
-            Ap3Area.ofPhase(Phase.P1), Ap3Area.ofPhase(Phase.P2), Ap3Area.p3(1), Ap3Area.p3(2), Ap3Area.p3(3),
-            Ap3Area.p3(4), Ap3Area.p3(5), Ap3Area.ofPhase(Phase.P4), Ap3Area.ofPhase(Phase.P5));
     private static boolean wasLive;
     private static boolean renderFailed;
     private static Ap3Area lastArea;
@@ -124,7 +119,7 @@ public final class Ap3Feature {
      * ours from ever driving at once - and the boss phase is known ({@link #currentPhase()}).
      */
     public static boolean isBossLive() {
-        return currentPhase() != Phase.UNKNOWN;
+        return Floor7Tracker.inF7Boss() || forceDungeon;
     }
 
     // ---- Force Dungeon (session only) ----
@@ -141,16 +136,6 @@ public final class Ap3Feature {
         }
     }
 
-    public static Ap3Area forcedArea() {
-        return forcedArea;
-    }
-
-    /** Next area in P1, P2, S1-S5, P4, P5 order. */
-    public static void cycleForcedArea() {
-        int i = FORCED_AREAS.indexOf(forcedArea);
-        forcedArea = FORCED_AREAS.get((i + 1) % FORCED_AREAS.size());
-    }
-
     /** True while Force Dungeon is what makes AP3 live - he is NOT in a real F7/M7 boss. */
     public static boolean isForcedOnly() {
         return forceDungeon && !Floor7Tracker.inF7Boss();
@@ -163,15 +148,11 @@ public final class Ap3Feature {
      * unless Force Dungeon is on, when the forced area's phase stands in for whatever position / chat cannot give.
      */
     public static Phase currentPhase() {
-        Phase real = Phase.UNKNOWN;
-        if (Floor7Tracker.inF7Boss()) {
-            Phase chat = Floor7Tracker.getPhase();
-            real = chat != Phase.UNKNOWN ? chat : Floor7Tracker.getPhaseAt();
+        if (!Floor7Tracker.inF7Boss()) {
+            return Phase.UNKNOWN;
         }
-        if (real == Phase.UNKNOWN && forceDungeon) {
-            return forcedArea.phase();
-        }
-        return real;
+        Phase chat = Floor7Tracker.getPhase();
+        return chat != Phase.UNKNOWN ? chat : Floor7Tracker.getPhaseAt();
     }
 
     /**
@@ -179,27 +160,18 @@ public final class Ap3Feature {
      * null when not live, or in P3 but outside every section box ({@link #noAreaReason()} says which).
      */
     public static Ap3Area currentArea() {
-        Phase phase = currentPhase();
-        if (phase == Phase.UNKNOWN) {
-            return null;
-        }
-        if (phase != Phase.P3) {
-            return Ap3Area.ofPhase(phase);
-        }
-        int n = currentSectionNumber();
-        return n == 0 ? null : Ap3Area.p3(n);
+        return isBossLive() ? Ap3Area.BOSS : null;
     }
 
     /** Why {@link #currentArea()} is null right now, for chat. */
     static String noAreaReason() {
-        return currentPhase() == Phase.P3
-                ? "In P3 but not inside a section (S1-S5) - stand in one first."
-                : "Not in the F7/M7 boss - AP3 is boss-only (or turn on Force Dungeon in the tab to test anywhere).";
+        return "Not in the F7/M7 boss - AP3 is boss-only (or turn on Force Dungeon in the tab to test anywhere).";
     }
 
-    /** The P3 section you are standing in (1-5), position first, else the chat-tracked stage, else - with Force
-     *  Dungeon on and the forced area a P3 section - that section; 0 when unknown or when the current phase is not
-     *  P3. */
+    /** The P3 section you are standing in (1-5), position first, else the chat-tracked stage; 0 when unknown or when
+     *  the current phase is not P3. This describes WHERE HE IS - it no longer decides which nodes exist, because
+     *  there is one chain for the whole boss room (2026-09-23). Still wanted for a LEAP node's default Fast Leap
+     *  target, which depends on the section he is leaping from. */
     public static int currentSectionNumber() {
         if (currentPhase() != Phase.P3) {
             return 0;
@@ -207,9 +179,6 @@ public final class Ap3Feature {
         Stage at = Floor7Tracker.getStageAt();
         if (at == Stage.UNKNOWN) {
             at = Floor7Tracker.getStage();
-        }
-        if (at == Stage.UNKNOWN && forceDungeon && forcedArea.isP3()) {
-            return forcedArea.section();
         }
         return at.number;
     }
@@ -996,7 +965,7 @@ public final class Ap3Feature {
                 return;
             }
             var font = client.font;
-            String text = "AP3 FORCE DUNGEON - " + (isForcedOnly() ? forcedArea.longLabel() + " (forced)" : "real boss");
+            String text = "AP3 FORCE DUNGEON - " + (isForcedOnly() ? "forced" : "real boss");
             int x = client.getWindow().getGuiScaledWidth() / 2;
             graphics.centeredText(font, text, x, 4, 0xFF000000 | ModChat.BAD);
         } catch (RuntimeException e) {

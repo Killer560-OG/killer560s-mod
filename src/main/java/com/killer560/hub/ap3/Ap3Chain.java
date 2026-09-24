@@ -1,16 +1,15 @@
 package com.killer560.hub.ap3;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
-import com.killer560.hub.fastleap.Floor7Tracker.Phase;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An ordered list of {@link Ap3Node}s for one boss {@link Ap3Area} (a P3 section S1-S5, or a whole phase P1 / P2 /
- * P4 / P5) with an optional class filter, so a different chain can run depending on the class you are playing. An
- * area may have one class-less chain plus one chain per class; {@link Ap3Store#forArea(Ap3Area, DungeonClass)} picks
- * the class chain when it exists and falls back to the class-less one.
+ * An ordered list of {@link Ap3Node}s for one {@link Ap3Area} - the boss room, of which there is one - with an
+ * optional class filter, so a different chain can run depending on the class you are playing. The area may have one
+ * class-less chain plus one chain per class; {@link Ap3Store#forArea(Ap3Area, DungeonClass)} picks the class chain
+ * when it exists and falls back to the class-less one.
  */
 public final class Ap3Chain {
 
@@ -30,14 +29,6 @@ public final class Ap3Chain {
         return area;
     }
 
-    public Phase phase() {
-        return area.phase();
-    }
-
-    /** 1-5 for a P3 chain, 0 for every other phase. */
-    public int section() {
-        return area.section();
-    }
 
     /** null = any class. */
     public DungeonClass classFilter() {

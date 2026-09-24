@@ -1,73 +1,53 @@
 package com.killer560.hub.ap3;
 
-import com.killer560.hub.fastleap.Floor7Tracker.Phase;
-
 import java.util.Locale;
 
 /**
- * Where in the F7/M7 boss fight a chain belongs: a boss phase, plus the terminal section (S1-S5) when that phase is
- * P3. killer560 (2026-09-20): "For ap3 it should work in p1 and p2 and p3 and p4 and p5. Any part of boss phase it
- * should work in." - so a chain is recorded in one area and only ever runs there. P3 keeps its five sections because
- * the sections ARE the structure of P3; the other phases are one arena each, so the phase is the whole identity.
+ * Which set of nodes a chain belongs to. There is exactly one: the boss room.
  * <p>
- * File keys are unchanged for P3 ({@code "S3"}, {@code "S3:MAGE"}) so every chains file written before this existed
- * still loads and still runs in P3; the other phases are keyed {@code "P1"}, {@code "P2"}, {@code "P4"}, {@code "P5"}.
+ * killer560 (2026-09-23): "remove this split by section thing. there should be no sections like storm or p3 or
+ * whatever just boss room is the only split you need from the actual dungeon... it is the thing that hides stuff
+ * outside of the section i am in."
+ * <p>
+ * It used to be a boss phase plus, in P3, the terminal section you stood in (S1-S5), and only that area's nodes were
+ * ever shown or armed. So placing a node meant being inside the right box, every other node in the fight was
+ * invisible while you worked, and standing in P3 outside all five sections meant AP3 refused to do anything at all.
+ * One chain for the whole boss room ends that: everything is visible, everything is armed, and where you happen to
+ * be standing no longer decides what you can see or edit.
+ * <p>
+ * The type survives its one value on purpose - the split he does want, boss room against the dungeon proper, is
+ * another constant here the day AP3 runs outside the boss.
+ * <p>
+ * Chains are keyed {@code "BOSS"} / {@code "BOSS:MAGE"}. Older files keyed by area ({@code "S3"}, {@code "P1"},
+ * {@code "P4:TANK"}) still load: every one of those keys reads as this area, and chains that collide because of it
+ * are merged rather than dropped - see {@code Ap3Store.readChain}.
  */
-public record Ap3Area(Phase phase, int section) {
+public enum Ap3Area {
 
-    public Ap3Area {
-        if (phase == null || phase == Phase.UNKNOWN) {
-            throw new IllegalArgumentException("area needs a boss phase");
-        }
-        if (phase == Phase.P3 ? (section < 1 || section > 5) : section != 0) {
-            throw new IllegalArgumentException("bad section " + section + " for " + phase);
-        }
-    }
+    /** The F7/M7 boss room, end to end: P1 through P5, every section. */
+    BOSS;
 
-    /** P3 section 1-5. */
-    public static Ap3Area p3(int section) {
-        return new Ap3Area(Phase.P3, section);
-    }
-
-    /** A whole non-P3 phase; null for P3 (which needs a section) or UNKNOWN. */
-    public static Ap3Area ofPhase(Phase phase) {
-        if (phase == null || phase == Phase.UNKNOWN || phase == Phase.P3) {
-            return null;
-        }
-        return new Ap3Area(phase, 0);
-    }
-
-    /** Validating factory: null instead of an exception for a bad combination (file input). */
-    public static Ap3Area of(Phase phase, int section) {
-        try {
-            return new Ap3Area(phase, section);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    public boolean isP3() {
-        return phase == Phase.P3;
-    }
-
-    /** Stable file / chat key: {@code "S3"} for P3 sections (the pre-existing form), {@code "P1"} etc. otherwise. */
+    /** Stable file / chat key. */
     public String key() {
-        return isP3() ? "S" + section : phase.name();
+        return "BOSS";
     }
 
-    /** What the player reads: the key is already the shortest honest name ({@code S3}, {@code P1}). */
+    /** What the player reads. */
     public String label() {
-        return key();
+        return "Boss";
     }
 
-    /** Longer form for status lines: {@code "P3 S3"} / {@code "P1"}. */
+    /** Longer form for status lines. */
     public String longLabel() {
-        return isP3() ? "P3 S" + section : phase.name();
+        return "Boss Room";
     }
 
     /**
-     * The area encoded in a chain key ({@code "S3"}, {@code "s3:mage"}, {@code "P1"}, {@code "P4:TANK"}), or null when
-     * it is not one. {@code "P3"} alone is not an area (P3 always needs its section).
+     * The area a chain key names, or null when it is not one.
+     * <p>
+     * Accepts every key the per-area files used - {@code "S1".."S5"}, {@code "P1".."P5"}, with or without a
+     * {@code ":CLASS"} suffix - because they all describe somewhere inside the boss room, which is this area.
+     * Anything else is a typo and is refused rather than quietly swept in here.
      */
     public static Ap3Area parseKey(String key) {
         if (key == null) {
@@ -76,15 +56,13 @@ public record Ap3Area(Phase phase, int section) {
         String t = key.trim().toUpperCase(Locale.ROOT);
         int colon = t.indexOf(':');
         String s = colon < 0 ? t : t.substring(0, colon);
-        if (s.length() != 2 || s.charAt(1) < '1' || s.charAt(1) > '5') {
-            return null;
+        if (s.equals("BOSS")) {
+            return BOSS;
         }
-        int n = s.charAt(1) - '0';
-        if (s.charAt(0) == 'S') {
-            return p3(n);
-        }
-        if (s.charAt(0) == 'P' && n != 3) {
-            return ofPhase(Phase.valueOf("P" + n));
+        // Legacy per-area keys: S1-S5 (P3 sections) and P1-P5 (whole phases).
+        if (s.length() == 2 && (s.charAt(0) == 'S' || s.charAt(0) == 'P')
+                && s.charAt(1) >= '1' && s.charAt(1) <= '5') {
+            return BOSS;
         }
         return null;
     }

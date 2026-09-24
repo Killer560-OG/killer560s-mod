@@ -3,6 +3,7 @@ package com.killer560.hub.ap3;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.autoroutes.RouteRotation;
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.fastleap.Floor7Tracker.Phase;
 import com.killer560.hub.fastleap.FastLeapConfig;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapTarget;
 import com.killer560.hub.fastleap.LeapManager;
@@ -46,7 +47,7 @@ import java.util.UUID;
 
 /**
  * Performs AP3 nodes. CHEAT BUILD ONLY - only ever ticked by {@link Ap3Feature} behind {@link Ap3Config#isEnabled()}
- * and the BOSS-ONLY gate (any boss phase, one node set per {@link Ap3Area}).
+ * and the BOSS-ONLY gate (any boss phase, one node set for the whole boss room - {@link Ap3Area}).
  * <p>
  * <b>Every node is armed on its own; there is no sequence.</b> killer560 (2026-09-20): "if i hit node one, then
  * node two, then node 4, then node 18, they should all fire even though they arent in sequential order. The order
@@ -2333,12 +2334,18 @@ public final class Ap3Executor {
                 return true;
             }
             default -> {
-                // Fast Leap's target for the node's area. P2 has five targets (predev, green, yellow, purple, py)
-                // and S5 none, so neither has a single default - those leaps need a class or IGN.
-                Ap3Area area = chain == null ? null : chain.area();
-                LeapTarget target = area == null ? null : switch (area.phase()) {
+                // Fast Leap's target for WHERE HE IS LEAPING FROM. This used to come off the chain's own area,
+                // which worked while there was a chain per section; with one chain for the whole boss room
+                // (2026-09-23) the chain no longer says where in the fight the node sits, so the live phase and
+                // section do. Same answer as before for any node, and it now follows him through the fight
+                // instead of being fixed when the node was filed.
+                //
+                // P2 has five targets (predev, green, yellow, purple, py) and S5 none, so neither has a single
+                // default - those leaps need a class or IGN.
+                Phase phase = Ap3Feature.currentPhase();
+                LeapTarget target = switch (phase) {
                     case P1 -> LeapTarget.P1;
-                    case P3 -> switch (area.section()) {
+                    case P3 -> switch (Ap3Feature.currentSectionNumber()) {
                         case 1 -> LeapTarget.S1;
                         case 2 -> LeapTarget.S2;
                         case 3 -> LeapTarget.S3;
@@ -2350,8 +2357,10 @@ public final class Ap3Executor {
                     default -> null;
                 };
                 if (target == null) {
-                    leapFailed(node, "Fast Leap has no single " + (area == null ? "area" : area.label())
-                            + " target - give leap #" + number(node) + " a class or IGN");
+                    leapFailed(node, "Fast Leap has no single target where you are"
+                            + (phase == Phase.UNKNOWN ? "" : " (" + phase.name()
+                                    + (phase == Phase.P3 ? " S" + Ap3Feature.currentSectionNumber() : "") + ")")
+                            + " - give leap #" + number(node) + " a class or IGN");
                     return false;
                 }
                 String name = cfg.getTargetName(target);

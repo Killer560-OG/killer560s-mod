@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.ap3.Ap3Area;
 import com.killer560.hub.ap3.Ap3Commands;
 import com.killer560.hub.ap3.Ap3Commands.Action;
 import com.killer560.hub.ap3.Ap3Config;
@@ -145,13 +144,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), 20).build());
         y[0] += 24;
-        if (forced) {
-            w.add(SettingsButtonWidget.builder(forcedAreaText(), btn -> {
-                        Ap3Feature.cycleForcedArea();
-                        btn.setMessage(forcedAreaText());
-                    }).bounds(contentX, y[0], contentWidth, 20).build());
-            y[0] += 24;
-        }
 
         header(w, contentX, y, contentWidth, "Movement");
         toggleCell(w, contentX, y[0], half, "45 Degree Strafe", cfg::isStrafe45, cfg::setStrafe45);
@@ -329,16 +321,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     // ---- text helpers ----
-
-    private static Component forcedAreaText() {
-        String area;
-        try {
-            area = Ap3Feature.forcedArea().label();
-        } catch (Exception e) {
-            area = "?";
-        }
-        return Component.literal("Forced Area: §d" + area);
-    }
 
     private Component keyText(Action action, int key) {
         if (capturing == action) {

@@ -992,8 +992,7 @@ public final class Ap3Commands {
         }
     }
 
-    /** "S1".."S5" / "P1" / "P2" / "P4" / "P5" for the boss area you are standing in (the same answer {@code /ap3 add}
-     *  files a node under), or "this area" when there isn't one yet. */
+    /** The area a node goes into - "Boss", the whole boss room - or "this area" when AP3 is not live. */
     public static String areaName() {
         try {
             Ap3Area area = Ap3Feature.currentArea();

@@ -7,7 +7,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.dungeonclass.DungeonClass;
-import com.killer560.hub.fastleap.Floor7Tracker.Phase;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Direction;
@@ -37,17 +36,18 @@ import java.util.regex.Pattern;
  * the folder has no such file, and left where it was. {@link #listConfigNames()}, {@link #select} and
  * {@link #createConfig} are what the "Choose AP3 Config" screen drives.
  * <p>
- * Layout, chosen so a person can find a section, nudge a node and {@code /ap3 reload}:
+ * Layout, chosen so a person can find a node, nudge it and {@code /ap3 reload}:
  * <pre>
  * { "version": 2,
  *   "chains": {
- *     "S1":      { "phase": "P3", "section": 1, "class": "",     "nodes": [ { "type": "ALIGN", "x": 100.5, "y": 110.0, "z": 60.5, "yaw": -90.0, "pitch": 0.0, "width": 3.0, "length": 3.0 }, ... ] },
- *     "S1:MAGE": { "phase": "P3", "section": 1, "class": "MAGE", "nodes": [ ... ] },
- *     "P1":      { "phase": "P1", "section": 0, "class": "",     "nodes": [ ... ] }
+ *     "BOSS":      { "class": "",     "nodes": [ { "type": "ALIGN", "x": 100.5, "y": 110.0, "z": 60.5, "yaw": -90.0, "pitch": 0.0, "width": 3.0, "length": 3.0 }, ... ] },
+ *     "BOSS:MAGE": { "class": "MAGE", "nodes": [ ... ] }
  *   } }
  * </pre>
- * {@code "phase"} arrived with the any-boss-phase change (2026-09-20); a file without it is a P3-only file from before
- * and every {@code "S<n>"} chain in it loads as P3 section n exactly as it always did.
+ * There is one chain for the whole boss room (2026-09-23, {@link Ap3Area}). A file from before that has a chain per
+ * area - {@code "S1"}, {@code "S3"}, {@code "P1"}, each with {@code "phase"}/{@code "section"} - and every one of
+ * them loads: they all name this area, so their nodes are MERGED into the one chain and the file is rewritten in
+ * the new form on the next save. Their {@code "phase"}/{@code "section"} properties are read past.
  * <p>
  * <b>Version 1 -> 2 (the 2026-09-20 node rework)</b>, applied on load so a chain he already recorded keeps working:
  * {@code LINE} loads as {@code ALIGN}, {@code AXIS_LINE} as {@code AXIS_ALIGN} (its FRONT/LEFT/RIGHT wall turned into
@@ -80,7 +80,8 @@ public final class Ap3Store {
     private static final int FORMAT_VERSION = 2;
 
     // Proportionate caps for a friend's file, not a network input.
-    /** 9 areas (P1, P2, S1-S5, P4, P5) x (1 class-less + 5 classes) = 54 possible chains; headroom for hand edits. */
+    /** 1 area x (1 class-less + 5 classes) = 6 real chains; the rest is headroom for hand edits and for the
+     *  per-area keys an older file still uses before they are merged on load. */
     public static final int MAX_CHAINS = 64;
     public static final int MAX_NODES = 200;
     public static final int MAX_IGN = 16;
@@ -254,7 +255,7 @@ public final class Ap3Store {
     private static JsonObject emptyRoot() {
         JsonObject root = new JsonObject();
         root.addProperty("version", FORMAT_VERSION);
-        root.addProperty("note", "AP3 - one chain per boss area (P1, P2, P3 sections S1-S5, P4, P5), optionally per class, absolute coordinates. "
+        root.addProperty("note", "AP3 - one chain for the whole boss room, optionally per class, absolute coordinates. "
                 + "Node types: ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK. "
                 + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / close. Edit, then /ap3 reload.");
         root.add("chains", new JsonObject());
@@ -299,7 +300,24 @@ public final class Ap3Store {
                         try {
                             Ap3Chain chain = store.readChain(key, chainObj, version);
                             if (chain != null && !chain.isEmpty()) {
-                                store.chains.put(chain.key(), chain);
+                                // MERGED, not replaced. A file written before the boss room became one area has a
+                                // chain per section ("S1", "S3", ...), and they all key to the same chain now, so
+                                // putting them would keep only the last one read and silently lose his work.
+                                Ap3Chain existing = store.chains.get(chain.key());
+                                if (existing == null) {
+                                    store.chains.put(chain.key(), chain);
+                                } else {
+                                    int room = MAX_NODES - existing.nodes().size();
+                                    List<Ap3Node> add = chain.nodes();
+                                    if (add.size() > room) {
+                                        LOGGER.warn("[AP3] {} + {} is past {} nodes - {} were dropped",
+                                                existing.key(), key, MAX_NODES, add.size() - Math.max(0, room));
+                                        add = add.subList(0, Math.max(0, room));
+                                    }
+                                    existing.nodes().addAll(add);
+                                    store.migrationNotes.add(
+                                            "merged \"" + key + "\" into " + existing.key() + " (one chain for the whole boss room)");
+                                }
                             }
                         } catch (Exception e) {
                             LOGGER.warn("[AP3] Skipping unreadable chain \"{}\": {}", key, e.toString());
@@ -446,26 +464,11 @@ public final class Ap3Store {
     // ------------------------------------------------------------------------------------------- codec
 
     private Ap3Chain readChain(String key, JsonObject obj, int version) {
-        // "phase"/"section"/"class" in the object win over the key (a hand-edited key that disagrees is a typo); the
-        // key is the fallback so a file with only keys still loads. No "phase" at all = a file from before AP3 ran
-        // outside P3: its chains are P3 sections, which is what "section" alone always meant.
-        Ap3Area fromKey = Ap3Area.parseKey(key);
-        String phaseName = ConfigJson.getString(obj, "phase", null);
-        Phase phase;
-        if (phaseName != null && !phaseName.isBlank()) {
-            try {
-                phase = Phase.valueOf(phaseName.trim().toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException e) {
-                return null;
-            }
-        } else {
-            phase = fromKey != null ? fromKey.phase() : Phase.P3;
-        }
-        int section = ConfigJson.getInt(obj, "section", fromKey != null ? fromKey.section() : 0);
-        if (phase != Phase.P3) {
-            section = 0; // a stray "section" on a P1/P2/P4/P5 chain is meaningless, not a reason to drop the chain
-        }
-        Ap3Area area = Ap3Area.of(phase, section);
+        // The area is no longer a choice: there is one, the boss room. Any key a per-area file used ("S3",
+        // "P1", "P4:TANK") names somewhere inside it, and the "phase"/"section" properties those files carried
+        // describe where in the fight the nodes sit rather than which chain they belong to, so they are read
+        // past rather than acted on. Chains that collide as a result are merged by the caller.
+        Ap3Area area = Ap3Area.parseKey(key);
         if (area == null) {
             return null;
         }
@@ -596,8 +599,6 @@ public final class Ap3Store {
 
     private static JsonObject writeChain(Ap3Chain chain) {
         JsonObject obj = new JsonObject();
-        obj.addProperty("phase", chain.phase().name());
-        obj.addProperty("section", chain.section());
         obj.addProperty("class", chain.classFilter() == null ? "" : chain.classFilter().name());
         JsonArray nodes = new JsonArray();
         for (Ap3Node n : chain.nodes()) {
