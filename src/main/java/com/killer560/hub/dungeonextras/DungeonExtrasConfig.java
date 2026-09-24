@@ -64,7 +64,11 @@ public final class DungeonExtrasConfig {
     /** The blocks he has picked, as "x,y,z" - they have to outlive a restart like every other setting. */
     private final java.util.LinkedHashSet<String> breakerAuraSelected = new java.util.LinkedHashSet<>();
     private int breakerAuraBlocksPerCycle = 1;
-    private int breakerAuraCooldownTicks = 6;
+    /**
+     * Ticks to wait between breaks, on top of the one-a-tick the gate already enforces. Zero by default now: the
+     * tick is the rate limit, twenty a second, which is what QUOI does and what he asked for.
+     */
+    private int breakerAuraCooldownTicks = 0;
     private boolean breakerAuraZeroPing = false;
     /** killer560: "when I am in the edit mode, the breaker aura will not work ... toggle that in the actual setting." */
     private boolean breakerAuraRespectEditMode = true;
@@ -114,7 +118,7 @@ public final class DungeonExtrasConfig {
                     }
                 }
                 cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 8);
-                cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 1, 20);
+                cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
                 cfg.breakerAuraAutoSwap = bool(o, "breakerAuraAutoSwap", cfg.breakerAuraAutoSwap);

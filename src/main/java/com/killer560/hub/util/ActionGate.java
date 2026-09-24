@@ -165,8 +165,17 @@ public final class ActionGate {
     private static final int COUNT = Actor.values().length;
 
     // Settings (owned + persisted by DungeonExtrasConfig, pushed in on load/save).
-    /** Fixed one-tick floor - see isEnabled()'s comment. Not a setting. */
-    private static final int minSpacingTicks = 1;
+    /**
+     * No wall-clock spacing at all: ONE action per tick is the whole rule, and a tick is 50 ms, so twenty a second
+     * is the ceiling by arithmetic rather than by a timer.
+     * <p>
+     * killer560 (2026-09-23): "make it so there is a max of 20. I dont care about ms delay just that it isnt
+     * multiple things on the exact same tick." It used to add 50-70 ms on top of the per-tick claim, which capped
+     * every automation in the mod at about fourteen a second and made Breaker Aura feel slower than the clients he
+     * compares it to. The per-tick claim below is untouched and is what actually matters: two features can still
+     * never act on the same tick.
+     */
+    private static final int minSpacingTicks = 0;
 
     private static boolean armed = false;
     private static long tick = 0L;
@@ -212,10 +221,14 @@ public final class ActionGate {
 
     // killer560, 2026-09-21, asked where the Action Gate settings should live: "Everything should by default
     // be one tick and be unchangable. Thus it wont need a tab." So there is no setting, no tab and no way to
-    // switch this off - the gate is always on at a one-tick floor. That is the right call: it exists to stop
-    // the mod emitting two interactions in a tick, and a switch to turn that back on is a switch to make
-    // himself detectable. The jitter below stays, because it is not a preference - a flat floor would emit a
-    // perfectly regular click whenever the gate is saturated, which is its own signature.
+    // switch this off - it exists to stop the mod emitting two interactions in a tick, and a switch to turn
+    // that back on is a switch to make himself detectable.
+    //
+    // What it no longer does is add milliseconds. killer560, 2026-09-23: "make it so there is a max of 20. I
+    // dont care about ms delay just that it isnt multiple things on the exact same tick." One action per tick
+    // IS twenty a second, so the ceiling he asked for falls out of the rule itself and needs no timer. The
+    // jitter that used to sit on top bought a little irregularity and cost about six actions a second, which
+    // is what made Breaker Aura feel slower than the clients he compares it against.
     public static boolean isEnabled() {
         return true;
     }

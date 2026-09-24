@@ -367,11 +367,12 @@ public final class BreakerAuraFeature {
             if (hit == null) {
                 continue;
             }
-            // The shared gate is claimed ONCE for the cycle, not once per block. It allows a single actor per
-            // tick, so asking per block meant every block after the first was refused outright - Blocks Per Cycle
-            // could never do anything but 1 however it was set.
-            if (sent == 0 && !ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
-                return;
+            // Claimed per BLOCK, deliberately: the gate allows one actor a tick, so this is what keeps two breaks
+            // off the same tick. killer560 (2026-09-23): "I dont care about ms delay just that it isnt multiple
+            // things on the exact same tick." Break rather than return - whatever did go out this tick still has
+            // to be swung for and still has to set the cooldown.
+            if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
+                break;
             }
             Block block = level.getBlockState(pos).getBlock();
             breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing());
