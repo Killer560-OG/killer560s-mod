@@ -723,7 +723,11 @@ final class Ap3RouteRunner {
                 // gets remembered, so this is paid once for the life of the route; every run after it is a cache
                 // hit. Only on the FIRST plan - a re-plan that overran is a route already moving, and making it
                 // wait longer mid-run is worse than the imperfect line it already has.
-                if (firstPlan && !p.complete && p.note.contains("time budget")) {
+                // ...but not when a gate is simply not connected to him. The flood field covers the whole
+                // snapshot, so a gate it never reached is one no amount of clock will find a way to, and the
+                // retry is then 4x the budget spent re-proving it. Measured on his own run, 2026-09-23: 4 s,
+                // then 16 s, then "could not plan the route" either way.
+                if (firstPlan && !p.complete && p.note.contains("time budget") && !p.unreachable) {
                     Ap3RoutePlanner.Options more = options.copy();
                     more.budgetMs = options.budgetMs * 4;
                     LOGGER.info("[AP3 route] out of time at {} ms and still {} - trying once more with {} ms",
@@ -738,6 +742,10 @@ final class Ap3RouteRunner {
                                 longer.complete ? "got there" : "got further but still not there", longer.ticks);
                         p = longer;
                     }
+                } else if (firstPlan && !p.complete && p.unreachable) {
+                    LOGGER.info("[AP3 route] not retrying with more time - {} (nothing joins him to it, so a longer"
+                            + " search would only prove it again)", p.diagnosis.isEmpty() ? "a gate is unreachable"
+                            : p.diagnosis);
                 }
                 // Remember it, so the next run is instant and identical - but only a FIRST plan. A re-plan starts
                 // from wherever he had drifted to halfway along, and lookup only ever asks at the start of a

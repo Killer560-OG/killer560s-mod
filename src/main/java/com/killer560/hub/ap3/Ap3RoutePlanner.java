@@ -332,6 +332,13 @@ final class Ap3RoutePlanner {
          * two rounds of testing on 2026-09-22.
          */
         String diagnosis = "";
+        /**
+         * At least one gate the flood field never reached at all - its distance came back infinite, meaning no
+         * chain of standable cells joins the start to it. That is the "world problem" above, and it is the one
+         * case where a longer search is provably pointless: the field is flooded over the whole snapshot, so a
+         * gate it cannot reach is not somewhere more clock will find a way to.
+         */
+        boolean unreachable;
     }
 
     // ---- the search --------------------------------------------------------------------------------------------
@@ -818,6 +825,8 @@ final class Ap3RoutePlanner {
             double fieldDist = field.at(gi, start.x, start.z);
             double straight = Math.hypot(gate.x - start.x, gate.z - start.z);
             boolean walled = fieldDist > straight * 4 + 8;
+            // Infinite is categorically different from merely far: the flood never got there at all.
+            plan.unreachable |= Double.isInfinite(fieldDist);
             reach.append(gi == 0 ? "" : ", ").append("g").append(gi + 1).append(' ')
                     .append(walled ? "NO WAY THERE" : String.format(Locale.US, "%.0f blocks round", fieldDist));
         }
