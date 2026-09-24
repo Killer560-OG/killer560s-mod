@@ -56,7 +56,16 @@ public final class BreakerAuraFeature {
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonextras");
     private static final String DUNGEON_BREAKER_SKYBLOCK_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES_PATTERN = Pattern.compile("Charges: (\\d+)/(\\d+)");
-    private static final long RETRY_MS = 1_500L;
+    /**
+     * How long a block that was just attempted is left alone. FOUR ticks, not thirty.
+     * <p>
+     * It was 1500 ms. A break that did not take - the server disagreed, or the packet landed a tick early - then
+     * sat out thirty ticks before being tried again, while he stood in front of a block that was plainly still
+     * there. Neither vanilla nor QUOI has anything like it: QUOI simply re-targets the nearest block that is not
+     * air, every tick, so a failed break is retried immediately. This only exists to stop the same block being
+     * hammered while the server is still answering, and four ticks is enough for that.
+     */
+    private static final long RETRY_MS = 200L;
     private static final double FLOOR_CLEARANCE = 0.1;
 
     private static final Set<Block> BLACKLIST = Set.of(
@@ -545,6 +554,23 @@ public final class BreakerAuraFeature {
         });
         int sent = 0;
         boolean gateRefused = false;
+        // ONE claim for the whole tick, not one per block.
+        //
+        // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
+        // down for a screen, a teleport, a world swap or a higher-priority actor. What changed is that having
+        // won the tick it may now send more than one break on it, up to Blocks Per Cycle.
+        //
+        // killer560 asked for this directly, twice, after the measurements ruled everything else out
+        // (2026-09-24): "If there is 0 other bug then allow it to break multiple at once." It is worth being
+        // plain about what it costs, because he built the gate for exactly this reason: several interaction
+        // packets inside one client tick is not a pattern a hand can produce, and it is visible as such. There
+        // is deliberately nothing here that tries to disguise it - no jitter, no shaped spacing - because
+        // disguising it is a different thing from doing it, and he is choosing the risk with the numbers in
+        // front of him. The default stays 1, which is the human-shaped rate.
+        if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
+            gateRefused = true;
+            order = List.of();
+        }
         for (BlockPos pos : order) {
             if (sent >= allowed) {
                 break;
@@ -552,14 +578,6 @@ public final class BreakerAuraFeature {
             BlockHitResult hit = hitResult(player, level, pos);
             if (hit == null) {
                 continue;
-            }
-            // Claimed per BLOCK, deliberately: the gate allows one actor a tick, so this is what keeps two breaks
-            // off the same tick. killer560 (2026-09-23): "I dont care about ms delay just that it isnt multiple
-            // things on the exact same tick." Break rather than return - whatever did go out this tick still has
-            // to be swung for and still has to set the cooldown.
-            if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
-                gateRefused = true;
-                break;
             }
             Block block = level.getBlockState(pos).getBlock();
             breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing());

@@ -140,6 +140,23 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             }
         });
+        y += 20;
+
+        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, perCycleText(cfg),
+                (cfg.getBreakerAuraBlocksPerCycle() - 1) / 19.0) {
+            @Override
+            protected void updateMessage() {
+                setMessage(perCycleText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setBreakerAuraBlocksPerCycle((int) Math.round(1 + this.value * 19));
+                cfg.save();
+            }
+        });
+        y -= 20;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()), btn -> {
                     cfg.setBreakerAuraRespectEditMode(!cfg.isBreakerAuraRespectEditMode());
                     cfg.save();
@@ -206,6 +223,13 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
     private static Component swapBackText(DungeonExtrasConfig cfg) {
         return Component.literal("Swap Back After: " + cfg.getBreakerAuraSwapBackIdleTicks() + " idle ticks");
+    }
+
+    /** 1 is one block a tick, the rate a hand can produce; anything above it puts that many interaction packets
+     *  in a single tick, which is visible as automation. Said plainly on the control itself rather than buried. */
+    private static Component perCycleText(DungeonExtrasConfig cfg) {
+        int n = cfg.getBreakerAuraBlocksPerCycle();
+        return Component.literal("Blocks Per Tick: " + n + (n == 1 ? " §7(hand-like)" : " §c(obvious automation)"));
     }
 
     private static Component cooldownText(DungeonExtrasConfig cfg) {

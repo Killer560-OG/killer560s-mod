@@ -117,7 +117,7 @@ public final class DungeonExtrasConfig {
                         }
                     }
                 }
-                cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 8);
+                cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 20);
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
