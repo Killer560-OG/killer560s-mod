@@ -231,8 +231,10 @@ public final class EtherwarpHopper {
     /** Same search knobs the Interactive Map uses, with a longer timeout (open-world distances, not one room). */
     private static EtherwarpPathfinder.PathConfig pathConfig() {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
+        // Path Threads was removed from LiveMapConfig (killer560: thread count is no longer a user setting -
+        // see EtherwarpPathfinder.threadsFor); PathConfig no longer carries one at all.
         return new EtherwarpPathfinder.PathConfig(cfg.getYawStep(), cfg.getPitchStep(), cfg.getHWeight(),
-                cfg.getThreads(), Math.max(1500L, cfg.getTimeoutMs() * 3L));
+                Math.max(1500L, cfg.getTimeoutMs() * 3L));
     }
 
     public static void warnNoItem() {

@@ -1,6 +1,6 @@
 package com.killer560.hub.supporters.mixin;
 
-import com.killer560.hub.supporters.SupportersFeature;
+import com.killer560.hub.supporters.PlayerNameDisplay;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.Avatar;
@@ -33,7 +33,7 @@ public abstract class SupportersScaleMixin {
             at = @At("TAIL"), require = 0)
     private void killer560smod$supportersScale(Avatar entity, AvatarRenderState state, float partialTick,
                                                 CallbackInfo ci) {
-        float factor = SupportersFeature.scaleFor(entity.getUUID());
+        float factor = PlayerNameDisplay.scaleFor(entity.getUUID());
         if (factor != 1.0f) {
             state.scale *= factor;
         }

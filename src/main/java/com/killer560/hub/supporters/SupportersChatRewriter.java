@@ -55,12 +55,12 @@ final class SupportersChatRewriter {
         if (!m.find()) {
             return null;
         }
-        SupportersFeature.ChatMatch match = SupportersFeature.findChatSender(m.group(1));
-        if (match == null) {
+        String displayText = PlayerNameDisplay.findChatSender(m.group(1));
+        if (displayText == null) {
             return null;
         }
         try {
-            return splice(message, m.start(1), m.end(1), match.displayText());
+            return splice(message, m.start(1), m.end(1), displayText);
         } catch (RuntimeException e) {
             return null; // never let a cosmetic rewrite break the player's actual chat
         }

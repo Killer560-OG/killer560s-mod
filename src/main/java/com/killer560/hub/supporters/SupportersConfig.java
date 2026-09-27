@@ -12,18 +12,34 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted settings for killer560's item 8.5 ("mod-wide custom IGNs for supporters"). Exactly one real
- * setting - "Toggle Custom Cosmetics" - written to {@code killer560smod-supporters.json} on every change so
- * it survives a restart, same load/save shape as this mod's other {@code XyzConfig} classes.
+ * Persisted settings for the Cosmetics tab's "receive" and "own player model" halves - written to {@code
+ * killer560smod-supporters.json} on every change so they survive a restart, same load/save shape as this
+ * mod's other {@code XyzConfig} classes. Grew from just killer560's original item 8.5 ("mod-wide custom IGNs
+ * for supporters") to also carry the Cosmetics tab's newer, purely-local additions:
+ * <ul>
+ *   <li>{@link #customCosmeticsEnabled} ("Toggle Global Cosmetics" in the tab) - whether to SHOW other
+ *       supporters' shared cosmetics at all.</li>
+ *   <li>{@link #shareIfSupporter} ("Share if Supporter") - whether to automatically PUSH your own Cosmetics
+ *       tab name/scale to the relay once this account is confirmed linked - see {@code SupportersAutoShare}.</li>
+ *   <li>{@link #modelWidth}/{@link #modelHeight}/{@link #modelThickness} - killer560's "allow me to change my
+ *       players... width, height, and thickness" request. These have NO relay equivalent (the supporters
+ *       contract only ever carries a single {@code scale} float) so they are always purely local - see
+ *       {@code com.killer560.hub.supporters.mixin.CosmeticsModelShapeMixin} for exactly how, and why they
+ *       never touch anything the server sees.</li>
+ * </ul>
+ * <b>{@link #customCosmeticsEnabled} ships ON by default</b> - killer560's own explicit spec for that one
+ * setting (item 8.5: "a 'toggle custom cosmetics' setting on by default"), the deliberate exception to this
+ * mod's usual "new features default OFF" rule. {@link #shareIfSupporter} extends that same "share
+ * automatically" spirit to the OUTGOING half (killer560: "if the account is a supporter, its cosmetics should
+ * be shared with others automatically"), so it ships ON too.
  * <p>
- * <b>Ships ON by default</b> - killer560's own explicit spec for this one feature (item 8.5: "a 'toggle
- * custom cosmetics' setting on by default"), the deliberate exception to this mod's usual "new features
- * default OFF" rule. See this feature's staging notes for why.
- * <p>
- * Who is a supporter, their display name and their scale are NOT settings - they come from the relay (see
+ * Who is a supporter and their shared name/scale are NOT settings - they come from the relay (see
  * {@code SUPPORTERS-CONTRACT.md}) and are cached separately in {@link SupportersCache}.
  */
 public final class SupportersConfig {
+
+    public static final float MIN_MODEL_DIMENSION = 0.5f;
+    public static final float MAX_MODEL_DIMENSION = 2.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -33,6 +49,10 @@ public final class SupportersConfig {
     private static volatile int version = 0;
 
     private boolean customCosmeticsEnabled = true;
+    private boolean shareIfSupporter = true;
+    private float modelWidth = 1.0f;
+    private float modelHeight = 1.0f;
+    private float modelThickness = 1.0f;
 
     private SupportersConfig() {
     }
@@ -54,6 +74,10 @@ public final class SupportersConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.customCosmeticsEnabled = ConfigJson.getBool(obj, "customCosmeticsEnabled", true);
+                cfg.shareIfSupporter = ConfigJson.getBool(obj, "shareIfSupporter", true);
+                cfg.modelWidth = clamp(ConfigJson.getFloat(obj, "modelWidth", 1.0f));
+                cfg.modelHeight = clamp(ConfigJson.getFloat(obj, "modelHeight", 1.0f));
+                cfg.modelThickness = clamp(ConfigJson.getFloat(obj, "modelThickness", 1.0f));
             } catch (Exception e) {
                 cfg = new SupportersConfig();
             }
@@ -68,6 +92,10 @@ public final class SupportersConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("customCosmeticsEnabled", customCosmeticsEnabled);
+            obj.addProperty("shareIfSupporter", shareIfSupporter);
+            obj.addProperty("modelWidth", modelWidth);
+            obj.addProperty("modelHeight", modelHeight);
+            obj.addProperty("modelThickness", modelThickness);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -80,5 +108,55 @@ public final class SupportersConfig {
     public void setCustomCosmeticsEnabled(boolean value) {
         this.customCosmeticsEnabled = value;
         version++;
+    }
+
+    public boolean isShareIfSupporter() {
+        return shareIfSupporter;
+    }
+
+    public void setShareIfSupporter(boolean value) {
+        this.shareIfSupporter = value;
+        version++;
+    }
+
+    public float getModelWidth() {
+        return modelWidth;
+    }
+
+    public void setModelWidth(float value) {
+        this.modelWidth = clamp(value);
+        version++;
+    }
+
+    public float getModelHeight() {
+        return modelHeight;
+    }
+
+    public void setModelHeight(float value) {
+        this.modelHeight = clamp(value);
+        version++;
+    }
+
+    public float getModelThickness() {
+        return modelThickness;
+    }
+
+    public void setModelThickness(float value) {
+        this.modelThickness = clamp(value);
+        version++;
+    }
+
+    /** Cosmetics tab's bottom "Reset" button - puts width/height/thickness back to 1.0x. Leaves {@link
+     *  #customCosmeticsEnabled}/{@link #shareIfSupporter} alone - those are feature toggles, not values. */
+    public void resetModelShape() {
+        modelWidth = modelHeight = modelThickness = 1.0f;
+        version++;
+    }
+
+    private static float clamp(float v) {
+        if (Float.isNaN(v)) {
+            return 1.0f;
+        }
+        return v < MIN_MODEL_DIMENSION ? MIN_MODEL_DIMENSION : (v > MAX_MODEL_DIMENSION ? MAX_MODEL_DIMENSION : v);
     }
 }

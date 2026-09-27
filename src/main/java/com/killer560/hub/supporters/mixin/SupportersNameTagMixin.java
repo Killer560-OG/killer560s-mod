@@ -1,6 +1,6 @@
 package com.killer560.hub.supporters.mixin;
 
-import com.killer560.hub.supporters.SupportersFeature;
+import com.killer560.hub.supporters.PlayerNameDisplay;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
@@ -11,7 +11,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Nametag half of killer560's item 8.5 ("supporter custom IGNs"). {@code getNameTag(Entity)} is the single
+ * Nametag half of killer560's item 8.5 ("supporter custom IGNs") - routed through {@link PlayerNameDisplay},
+ * the shared render-site helper, so a local Name Changer rename for this same player still wins (see that
+ * class's doc). {@code getNameTag(Entity)} is the single
  * chokepoint every entity renderer calls to get the Component painted above its head - verified with javap
  * against the 26.1.2 merged jar: declared once on the {@code EntityRenderer} base
  * ({@code (Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/network/chat/Component;}) and NOT overridden by
@@ -29,7 +31,7 @@ public abstract class SupportersNameTagMixin {
         if (!(entity instanceof Player)) {
             return;
         }
-        Component replaced = SupportersFeature.displayNameFor(entity.getUUID());
+        Component replaced = PlayerNameDisplay.displayNameFor(entity.getUUID());
         if (replaced != null) {
             cir.setReturnValue(replaced);
         }

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -913,6 +914,68 @@ final class MapPainter {
             if (w > 1) {
                 graphics.fill(-w + 1, -half + row, w - 1, -half + row + 1, color);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------- etherwarp path
+
+    /** killer560, 2026-09-27: "if i click on a room to etherwarp to it ... it shows a small circle at each
+     *  etherwarp spot that it is going to take to get to the next room, and a line from one spot to another.
+     *  Make it a toggleable section." A small circle at each queued hop
+     *  ({@link com.killer560.hub.livemap.autoclear.ClearExecutor#plannedHopPositions()}), in order, with a line
+     *  joining consecutive hops - same orange {@link com.killer560.hub.livemap.autoclear.ClearNode#toEther}
+     *  already colours the in-world hop markers, just drawn flat on the map instead. Gated on
+     *  {@link LiveMapConfig#isShowEtherwarpPath()}, so it costs nothing when the section is off. */
+    static void drawEtherwarpPath(GuiGraphicsExtractor graphics, LiveMapConfig cfg, float ox, float oy, float ppu) {
+        if (!cfg.isShowEtherwarpPath()) {
+            return;
+        }
+        List<Vec3> hops = com.killer560.hub.livemap.autoclear.ClearExecutor.plannedHopPositions();
+        if (hops.isEmpty()) {
+            return;
+        }
+        final int lineColor = 0xB4FFA500;
+        final int dotColor = 0xFFFFA500;
+        final int dotOutline = 0xFF000000;
+        float prevX = 0f;
+        float prevY = 0f;
+        boolean hasPrev = false;
+        for (Vec3 hop : hops) {
+            float x = ox + (float) worldToUnits(hop.x) * ppu;
+            float y = oy + (float) worldToUnits(hop.z) * ppu;
+            if (hasPrev) {
+                drawLineSegment(graphics, prevX, prevY, x, y, lineColor);
+            }
+            fillCircle(graphics, Math.round(x), Math.round(y), 3, dotColor, dotOutline);
+            prevX = x;
+            prevY = y;
+            hasPrev = true;
+        }
+    }
+
+    /** A small filled circle (scanline fill via {@code fill()} rects - {@code GuiGraphicsExtractor} has no
+     *  round-shape primitive) with a 1px darker ring so it reads against any room colour underneath it. */
+    private static void fillCircle(GuiGraphicsExtractor graphics, int cx, int cy, int radius, int argb, int outlineArgb) {
+        for (int dy = -radius - 1; dy <= radius + 1; dy++) {
+            int outerDx = (int) Math.round(Math.sqrt(Math.max(0, (radius + 1) * (radius + 1) - dy * dy)));
+            graphics.fill(cx - outerDx, cy + dy, cx + outerDx + 1, cy + dy + 1, outlineArgb);
+        }
+        for (int dy = -radius; dy <= radius; dy++) {
+            int dx = (int) Math.round(Math.sqrt(Math.max(0, radius * radius - dy * dy)));
+            graphics.fill(cx - dx, cy + dy, cx + dx + 1, cy + dy + 1, argb);
+        }
+    }
+
+    /** A 1px line between two arbitrary screen points, stepped in ~2px dabs (no arbitrary-angle line primitive
+     *  on {@code GuiGraphicsExtractor} either - {@code horizontalLine}/{@code verticalLine} are axis-only). */
+    private static void drawLineSegment(GuiGraphicsExtractor graphics, float x1, float y1, float x2, float y2, int argb) {
+        double dist = Math.hypot(x2 - x1, y2 - y1);
+        int steps = Math.max(1, (int) Math.ceil(dist / 2.0));
+        for (int i = 0; i <= steps; i++) {
+            float t = i / (float) steps;
+            int px = Math.round(x1 + (x2 - x1) * t);
+            int py = Math.round(y1 + (y2 - y1) * t);
+            graphics.fill(px, py, px + 1, py + 1, argb);
         }
     }
 }

@@ -50,8 +50,22 @@ public final class EtherwarpPathfinder {
     private EtherwarpPathfinder() {
     }
 
-    /** QUOI {@code PathConfig}. */
-    public record PathConfig(float yawStep, float pitchStep, double hWeight, int threads, long timeout) {
+    /** QUOI {@code PathConfig}. killer560: "Remove path threads it should be the minimum amount of threads
+     *  required to reach the end room" - there is no user-set thread count any more (see {@link #threadsFor}),
+     *  so this no longer carries one. */
+    public record PathConfig(float yawStep, float pitchStep, double hWeight, long timeout) {
+    }
+
+    /**
+     * killer560: "Remove path threads it should be the minimum amount of threads required to reach the end
+     * room." Replaces the old 1-16 slider: the search's worker count is sized to how many room-to-room hops
+     * still stand between here and the goal room - one search thread per remaining hop is the minimum that
+     * lets every still-outstanding segment be worked without idling a thread on a segment that isn't reached
+     * yet - capped by the machine's own core count so a long dungeon path never oversubscribes the CPU.
+     */
+    private static int threadsFor(int remainingRoomHops) {
+        int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
+        return Math.max(1, Math.min(cores, remainingRoomHops));
     }
 
     /** QUOI {@code TeleportPathNode}. */
@@ -174,7 +188,8 @@ public final class EtherwarpPathfinder {
         Context ctx = new Context(to, dist, cfg, raycasts, offset, 0.0, -1, layout);
         BlockPos startPos = BlockPos.containing(from);
         ctx.addNode(new Node(from.x, from.y, from.z, startPos, 0.0, distance(startPos, to) / dist, null, 0f, 0f));
-        List<Node> path = find(ctx, cfg.threads());
+        // No room chain here (single search) - nothing to size the worker count against, so use every core.
+        List<Node> path = find(ctx, threadsFor(Runtime.getRuntime().availableProcessors()));
         return path == null ? null : smoothPath(path, dist, withLast);
     }
 
@@ -212,7 +227,8 @@ public final class EtherwarpPathfinder {
             Context ctx = new Context(target, dist, cfg, raycasts, offset, radius, nextRoom, layout);
             startNode.h = distance(startNode.pos, target) / dist;
             ctx.addNode(startNode);
-            List<Node> segment = find(ctx, cfg.threads());
+            // One search thread per room-hop still remaining to the goal room (this segment counts as one).
+            List<Node> segment = find(ctx, threadsFor(roomPath.size() - i));
             if (segment == null) {
                 return null;
             }

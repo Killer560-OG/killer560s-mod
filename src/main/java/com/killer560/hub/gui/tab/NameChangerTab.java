@@ -76,6 +76,25 @@ public class NameChangerTab extends BaseTab {
                 }));
         y += 24;
 
+        // "Fade Color" (killer560, cosmetics tab: "also allow them to fade the color") - a second colour
+        // endpoint that turns the flat single-colour name into a per-letter gradient (NameColor#buildFade).
+        // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM colour
+        // (My Name Color above), since the relay's own contract has no true-colour field to carry it.
+        int fadeToggleW = cfg.isOwnColorFadeEnabled() ? Math.min(100, (contentWidth - gap) / 2) : contentWidth;
+        widgets.add(SettingsButtonWidget.builder(onOff("Fade Color", cfg.isOwnColorFadeEnabled()), btn -> {
+                    cfg.setOwnColorFadeEnabled(!cfg.isOwnColorFadeEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, fadeToggleW, 18).build());
+        if (cfg.isOwnColorFadeEnabled()) {
+            widgets.add(colorButton(contentX + fadeToggleW + gap, y, contentWidth - fadeToggleW - gap,
+                    "Fade To Color", cfg.getOwnColorFadeTo(), argb -> {
+                        cfg.setOwnColorFadeTo(argb);
+                        cfg.save();
+                    }));
+        }
+        y += 24;
+
         if (cfg.isRandomizeOthers()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("§7Every other player gets a stable fake name for this session ("

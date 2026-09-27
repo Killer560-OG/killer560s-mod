@@ -120,6 +120,8 @@ public final class BloodCampFeature {
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
      *  stale and a click would just be a random swing at whatever is still standing there. */
     private static final double TRIGGER_WINDOW_TICKS = 20.0;
+    /** Said once per session, not every tick: his offset setting is being held back to "never early". */
+    private static boolean loggedOffsetClamp;
     /** A gap this long with no move packet means the stand finished its trip and a later packet starts a new
      *  one - see {@link #onMoveEntity}. */
     private static final long RESETTLE_GAP_TICKS = 10L;
@@ -380,10 +382,27 @@ public final class BloodCampFeature {
         BloodMobState triggerData = null;
         double triggerRemaining = 0.0;
         double bestRemaining = Double.MAX_VALUE;
-        // "if i am looking at the right hitbox as the timer expires then it will left click on the mob" - the offset
-        // now ADDS the ping, so a laggy connection fires EARLIER and the packet lands on time. It used to subtract,
-        // which fired the click a full round-trip LATE, the opposite of what this method's own doc promises.
-        double clickAtTicks = cfg.getManualTickOffset() + autoLagOffsetTicks(cfg, client);
+        // NEVER EARLY. killer560 (2026-09-27): "make it so it cannot triggerbot click before the kill
+        // notification timing would go off. Then if my crosshair is looking in a blood mobs spawn hitbox when it
+        // goes to spawn have it click once."
+        //
+        // The window used to OPEN at `manual offset + ping`, both of which lead the prediction, so the click went
+        // out while remainingTicks was still positive - before the moment the kill notification is timed to. That
+        // lead was deliberate once (a laggy connection fires early so the packet lands on time), and he has now
+        // asked for the opposite rule, so the requested offset may only ever DELAY the click, never advance it.
+        //
+        // The cost is explicit and is his to choose: giving up the ping lead means the packet reaches Hypixel
+        // roughly one ping AFTER the moment rather than on it. He asked for "cannot click before", and a click
+        // that lands early is the thing he is ruling out.
+        double requestedOffset = cfg.getManualTickOffset() + autoLagOffsetTicks(cfg, client);
+        double clickAtTicks = Math.min(0.0, requestedOffset);
+        if (requestedOffset > 0.0 && !loggedOffsetClamp) {
+            loggedOffsetClamp = true;
+            LOGGER.info("[BloodCamp] Trigger Bot offset {} tick(s) would fire BEFORE the kill-notification moment"
+                            + " - held to 0. Early clicks are off by request (2026-09-27); a negative offset still"
+                            + " delays normally.",
+                    String.format(Locale.US, "%.1f", requestedOffset));
+        }
         boolean triggerBotUsable = cfg.isTriggerBotEnabled()
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
         double reach = client.player.entityInteractionRange();
@@ -409,6 +428,11 @@ public final class BloodCampFeature {
                 continue;
             }
             dueCount++;
+            // "if my crosshair is looking in a blood mobs spawn hitbox when it goes to spawn have it click once."
+            // aimBox is that spawn hitbox - a 1x2x1 box standing on the predicted spawn point. The stand's own
+            // bounding box is accepted too, so being aimed at the real mob once it exists counts as well; it can
+            // only ever ADD a case he would want, never fire somewhere he is not looking. One click per mob is
+            // enforced by triggerBotClicked above, which is only ever set after a click actually goes out.
             if (!aimedAt(client, aimBox(data.endVector), reach)
                     && !aimedAt(client, entity.getBoundingBox(), reach)) {
                 continue;

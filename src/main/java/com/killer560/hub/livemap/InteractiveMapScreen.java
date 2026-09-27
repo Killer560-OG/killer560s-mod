@@ -148,6 +148,7 @@ public class InteractiveMapScreen extends Screen {
             for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
                 MapPainter.drawReportedRoom(graphics, rr, cfg, ox, oy, ppu);
             }
+            MapPainter.drawEtherwarpPath(graphics, cfg, ox, oy, ppu);
             MapPainter.drawLabels(graphics, font, cfg.getMapRoomLabels(), cfg, ox, oy, ppu);
             for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
                 MapPainter.drawReportedLabel(graphics, font, cfg.getMapRoomLabels(), cfg, rr, ox, oy, ppu);
@@ -319,9 +320,9 @@ public class InteractiveMapScreen extends Screen {
         ty = swatch(graphics, x, ty, cfg.getColorBlood(), "Blood");
         ty = swatch(graphics, x, ty, 0xFF55FF55, "You");
         ty = legendHeader(graphics, "Controls", x, ty + 2);
-        if (cfg.isPathingEnabled()) {
-            ty = control(graphics, x, ty, "LMB", "Teleport");
-        }
+        // killer560: "the entire portion of interactive map is the teleport pathing" - this screen only ever
+        // exists while Interactive Map (and therefore pathing) is on, so LMB always teleports here now.
+        ty = control(graphics, x, ty, "LMB", "Teleport");
         ty = control(graphics, x, ty, "RMB", "Waypoints");
         ty = control(graphics, x, ty, "Scroll", "Zoom");
         ty = control(graphics, x, ty, "Drag", "Pan");
@@ -453,7 +454,7 @@ public class InteractiveMapScreen extends Screen {
         if (button != 0) {
             return;
         }
-        boolean canTeleport = cfg.isPathingEnabled() && com.killer560.hub.secrets.DungeonState.isInDungeon()
+        boolean canTeleport = cfg.isInteractiveMapEnabled() && com.killer560.hub.secrets.DungeonState.isInDungeon()
                 && !LiveMapFeature.isInBoss();
         if (gid >= 0) {
             if (canTeleport) {

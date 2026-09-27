@@ -3,8 +3,8 @@ package com.killer560.hub.supporters;
 /**
  * Client-side mirror of the relay's {@code POST /supporters/me} validation rules
  * (SUPPORTERS-CONTRACT-V2.md: "same rules as before" - max 32 visible characters after stripping {@code &}
- * codes, only {@code &0-9a-fk-or}, the slur filter). Checked by {@code SupportersTab}'s "My Supporter Name"
- * editor before a Save round-trips to the relay, so a stray {@code &} code or an over-length name shows up
+ * codes, only {@code &0-9a-fk-or}, the slur filter). Checked by {@code SupportersAutoShare} before it ever
+ * pushes your Cosmetics tab name to the relay, so a stray {@code &} code or an over-length name is caught
  * instantly instead of via a 400 a network hop away. The relay remains the real authority for all of this -
  * this only saves the common-case round trip; a name that somehow passes here but not the relay still comes
  * back as an inline 400 error same as always.

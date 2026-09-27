@@ -16,9 +16,12 @@ import java.nio.file.Path;
  *  <p>
  *  The whole Interactive Map is cheat-build only as of 2026-09-20 - killer560: "the interactive map is the one where
  *  I click on a room and it etherwarps me to that room. and it can also start my secret route by clicking on it
- *  again and whatnot. That is a cheat." Teleport pathing and Auto Blood Rush, which only run from that screen, were
- *  already cheat-gated. The HUD Dungeon Map stays legit, and on the legit jar it paints only what the vanilla dungeon
- *  map item has revealed (see {@link MapPainter}). */
+ *  again and whatnot. That is a cheat." Auto Blood Rush, which only runs from that screen, is already cheat-gated.
+ *  The HUD Dungeon Map stays legit, and on the legit jar it paints only what the vanilla dungeon map item has
+ *  revealed (see {@link MapPainter}).
+ *  <p>
+ *  killer560, 2026-09-27: "the entire portion of interactive map is the teleport pathing" - Teleport Pathing's old
+ *  separate on/off is gone; {@link #isInteractiveMapEnabled()} is now the only gate its settings need. */
 public final class LiveMapConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -99,23 +102,29 @@ public final class LiveMapConfig {
      *  only ever adds information, never changes what's drawn. */
     private boolean showExtraInfo = true;
 
-    // ---- Teleport pathing (cheat) ----
-    private boolean pathingEnabled = false;
+    // ---- Teleport pathing / automation (cheat) ----
+    // killer560, 2026-09-27: "You do not need teleport pathing. The entire portion of interactive map is the
+    // teleport pathing. Add into interactive map as a whole the settings under the pathing section of it." -
+    // there is no separate on/off for this any more; whatever ran while "Teleport Pathing" was on now just
+    // runs whenever Interactive Map itself (isInteractiveMapEnabled()) is on. The settings below moved under
+    // the Interactive Map tab's own Automation section, unchanged otherwise.
     private int startKeyCode = -1;
     private int lockedDoorKeyCode = -1;
     private boolean faceDoorOnArrival = false;
-    private boolean keepChunksLoaded = false;
+    /** killer560, 2026-09-27: "Keep the keep chunks loaded section on by default." */
+    private boolean keepChunksLoaded = true;
     /** QUOI PathSettings defaults. */
     private float yawStep = 6f;
     private float pitchStep = 7f;
     private double hWeight = 6.7;
-    private int threads = 6;
     private int timeoutMs = 670;
+    /** killer560, 2026-09-27: "it shows a small circle at each etherwarp spot ... and a line from one spot to
+     *  another. Make it a toggleable section." Off by default like every other new toggle. */
+    private boolean showEtherwarpPath = false;
 
     // ---- Auto Blood Rush (cheat) ----
     private boolean bloodRushEnabled = false;
     private int bloodRushKeyCode = -1;
-    private boolean bloodRushClickDoor = false;
     private int bloodRushDoorTimeoutSec = 15;
 
     private LiveMapConfig() {
@@ -176,7 +185,7 @@ public final class LiveMapConfig {
                 cfg.customColorWitherDoor = ConfigJson.getInt(obj, "customColorWitherDoor", 0xFF101010);
 
                 cfg.interactiveMapEnabled = ConfigJson.getBool(obj, "interactiveMapEnabled", false);
-                cfg.openKeyCode = ConfigJson.getInt(obj, "openKeyCode", -1);
+                cfg.openKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "openKeyCode", -1));
                 cfg.closeOnRepress = ConfigJson.getBool(obj, "closeOnRepress", false);
                 cfg.openFromHudClick = ConfigJson.getBool(obj, "openFromHudClick", false);
                 cfg.setMapScale(ConfigJson.getFloat(obj, "mapScale", 5f));
@@ -188,20 +197,20 @@ public final class LiveMapConfig {
                 cfg.setIconScale(ConfigJson.getFloat(obj, "iconScale", 1f));
                 cfg.showExtraInfo = ConfigJson.getBool(obj, "showExtraInfo", true);
 
-                cfg.pathingEnabled = ConfigJson.getBool(obj, "pathingEnabled", false);
-                cfg.startKeyCode = ConfigJson.getInt(obj, "startKeyCode", -1);
-                cfg.lockedDoorKeyCode = ConfigJson.getInt(obj, "lockedDoorKeyCode", -1);
+                cfg.startKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "startKeyCode", -1));
+                cfg.lockedDoorKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lockedDoorKeyCode", -1));
                 cfg.faceDoorOnArrival = ConfigJson.getBool(obj, "faceDoorOnArrival", false);
-                cfg.keepChunksLoaded = ConfigJson.getBool(obj, "keepChunksLoaded", false);
+                // Migration: files saved before 2026-09-27 have an explicit "keepChunksLoaded" (usually false,
+                // the old default) - honour it. A file with no key at all (fresh install) now ships true.
+                cfg.keepChunksLoaded = ConfigJson.getBool(obj, "keepChunksLoaded", true);
                 cfg.yawStep = clamp(ConfigJson.getFloat(obj, "yawStep", 6f), 2f, 10f);
                 cfg.pitchStep = clamp(ConfigJson.getFloat(obj, "pitchStep", 7f), 2f, 10f);
                 cfg.hWeight = Math.max(1.0, Math.min(15.0, ConfigJson.getDouble(obj, "hWeight", 6.7)));
-                cfg.setThreads(ConfigJson.getInt(obj, "threads", 6));
                 cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", 670));
+                cfg.showEtherwarpPath = ConfigJson.getBool(obj, "showEtherwarpPath", false);
 
                 cfg.bloodRushEnabled = ConfigJson.getBool(obj, "bloodRushEnabled", false);
-                cfg.bloodRushKeyCode = ConfigJson.getInt(obj, "bloodRushKeyCode", -1);
-                cfg.bloodRushClickDoor = ConfigJson.getBool(obj, "bloodRushClickDoor", false);
+                cfg.bloodRushKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "bloodRushKeyCode", -1));
                 cfg.setBloodRushDoorTimeoutSec(ConfigJson.getInt(obj, "bloodRushDoorTimeoutSec", 15));
             } catch (Exception ignored) {
                 // per-key readers above never throw; only an unreadable/non-object file lands here
@@ -264,7 +273,6 @@ public final class LiveMapConfig {
             obj.addProperty("iconScale", iconScale);
             obj.addProperty("showExtraInfo", showExtraInfo);
 
-            obj.addProperty("pathingEnabled", pathingEnabled);
             obj.addProperty("startKeyCode", startKeyCode);
             obj.addProperty("lockedDoorKeyCode", lockedDoorKeyCode);
             obj.addProperty("faceDoorOnArrival", faceDoorOnArrival);
@@ -272,12 +280,11 @@ public final class LiveMapConfig {
             obj.addProperty("yawStep", yawStep);
             obj.addProperty("pitchStep", pitchStep);
             obj.addProperty("hWeight", hWeight);
-            obj.addProperty("threads", threads);
             obj.addProperty("timeoutMs", timeoutMs);
+            obj.addProperty("showEtherwarpPath", showEtherwarpPath);
 
             obj.addProperty("bloodRushEnabled", bloodRushEnabled);
             obj.addProperty("bloodRushKeyCode", bloodRushKeyCode);
-            obj.addProperty("bloodRushClickDoor", bloodRushClickDoor);
             obj.addProperty("bloodRushDoorTimeoutSec", bloodRushDoorTimeoutSec);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -595,7 +602,7 @@ public final class LiveMapConfig {
     }
 
     public void setOpenKeyCode(int v) {
-        this.openKeyCode = v;
+        this.openKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(v);
     }
 
     public boolean isCloseOnRepress() {
@@ -680,26 +687,16 @@ public final class LiveMapConfig {
         this.showExtraInfo = v;
     }
 
-    // ---------------------------------------------------------------- teleport pathing (cheat)
-
-    public boolean isPathingEnabled() {
-        return pathingEnabled && cheatGate();
-    }
-
-    public boolean isPathingEnabledRaw() {
-        return pathingEnabled;
-    }
-
-    public void setPathingEnabled(boolean v) {
-        this.pathingEnabled = v;
-    }
+    // ---------------------------------------------------------------- teleport pathing / automation (cheat)
+    // killer560: "the entire portion of interactive map is the teleport pathing" - no separate enabled flag;
+    // every getter below is gated on Interactive Map's own cheatGate() instead of a second toggle.
 
     public int getStartKeyCode() {
         return startKeyCode;
     }
 
     public void setStartKeyCode(int v) {
-        this.startKeyCode = v;
+        this.startKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(v);
     }
 
     public int getLockedDoorKeyCode() {
@@ -707,7 +704,7 @@ public final class LiveMapConfig {
     }
 
     public void setLockedDoorKeyCode(int v) {
-        this.lockedDoorKeyCode = v;
+        this.lockedDoorKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(v);
     }
 
     public boolean isFaceDoorOnArrival() {
@@ -720,7 +717,7 @@ public final class LiveMapConfig {
 
     /** Read off the network thread by the chunk-forget mixin. */
     public boolean isKeepChunksLoaded() {
-        return keepChunksLoaded && (pathingEnabled || bloodRushEnabled) && cheatGate();
+        return keepChunksLoaded && (interactiveMapEnabled || bloodRushEnabled) && cheatGate();
     }
 
     public boolean isKeepChunksLoadedRaw() {
@@ -743,20 +740,24 @@ public final class LiveMapConfig {
         return hWeight;
     }
 
-    public int getThreads() {
-        return threads;
-    }
-
-    public void setThreads(int v) {
-        this.threads = Math.max(1, Math.min(16, v));
-    }
-
     public int getTimeoutMs() {
         return timeoutMs;
     }
 
     public void setTimeoutMs(int v) {
         this.timeoutMs = Math.max(200, Math.min(1000, v));
+    }
+
+    public boolean isShowEtherwarpPath() {
+        return showEtherwarpPath && cheatGate();
+    }
+
+    public boolean isShowEtherwarpPathRaw() {
+        return showEtherwarpPath;
+    }
+
+    public void setShowEtherwarpPath(boolean v) {
+        this.showEtherwarpPath = v;
     }
 
     // ---------------------------------------------------------------- auto blood rush (cheat)
@@ -778,15 +779,7 @@ public final class LiveMapConfig {
     }
 
     public void setBloodRushKeyCode(int v) {
-        this.bloodRushKeyCode = v;
-    }
-
-    public boolean isBloodRushClickDoor() {
-        return bloodRushClickDoor;
-    }
-
-    public void setBloodRushClickDoor(boolean v) {
-        this.bloodRushClickDoor = v;
+        this.bloodRushKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(v);
     }
 
     public int getBloodRushDoorTimeoutSec() {

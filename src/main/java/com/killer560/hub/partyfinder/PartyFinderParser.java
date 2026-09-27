@@ -24,7 +24,15 @@ public final class PartyFinderParser {
 
     private static final Pattern TYPE = Pattern.compile("^Dungeon: (Master Mode )?(The Catacombs)$");
     private static final Pattern FLOOR = Pattern.compile("^Floor: Floor ([IV]+)$");
-    static final Pattern USER_ROLE = Pattern.compile("^ (\\w{1,16}): (Healer|Tank|Mage|Berserk|Archer) \\((\\d+)\\)$");
+    // killer560 9.1: was anchored ^...$ (the whole line had to be EXACTLY " Name: Class (Level)", nothing
+    // after), so anything appended to that line - most notably another mod restyling the same lore (Devonian's
+    // Party Finder Overview tacking its own extra stats on the end every tick; see
+    // DetectedMods#isDevonianPartyFinderOverviewOn, found 2026-09-21 as the cause of "the current style does
+    // not work") - broke the match completely and silently emptied the whole party: no members, "Missing:"
+    // listed every class, no per-player PB, ever. The leading "^ " is kept (real Hypixel lines always start
+    // with exactly one space then the name - that part was never the problem), only the trailing "$" is
+    // dropped and matched with find() instead of matches(), so trailing decoration no longer kills the line.
+    static final Pattern USER_ROLE = Pattern.compile("^ (\\w{1,16}): (Healer|Tank|Mage|Berserk|Archer) \\((\\d+)\\)");
     private static final Pattern LOW_CATA = Pattern.compile("^Requires Catacombs Level \\d+!$");
     private static final Pattern LOW_ROLE = Pattern.compile("^Requires a Class at Level \\d+!$");
     private static final Pattern CANNOT_JOIN = Pattern.compile("^Complete previous floor first!$");
@@ -93,7 +101,7 @@ public final class PartyFinderParser {
                 }
             }
             Matcher m = USER_ROLE.matcher(line);
-            if (m.matches()) {
+            if (m.find()) {
                 DungeonClass role = DungeonClass.from(m.group(2));
                 present.add(role);
                 members.add(new Member(m.group(1), role, parseInt(m.group(3))));

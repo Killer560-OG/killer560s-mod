@@ -1,6 +1,7 @@
 package com.killer560.hub.partyfinder;
 
 import com.google.gson.JsonObject;
+import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig.CompactMode;
 import com.killer560.hub.partyfinder.PartyFinderParser.Party;
 import com.killer560.hub.partyfinder.PartyFinderParser.Status;
@@ -64,6 +65,10 @@ public final class PartyFinderOverlay {
     private static final Party[] parties = new Party[SCAN_SLOTS];
     private static DungeonClass scannedRole;
     private static int ticksUntilRequest = 0;
+    /** killer560 9.1: set once per screen-open (see {@link #tick}) rather than read every tick - it means a
+     *  file read, and it can't change while the menu is already open. See {@link #rewriteTooltip} and
+     *  {@link com.killer560.hub.interop.DetectedMods#isDevonianPartyFinderOverviewOn}. */
+    private static boolean devonianConflict = false;
 
     private PartyFinderOverlay() {
     }
@@ -111,6 +116,7 @@ public final class PartyFinderOverlay {
             clearScan();
             scannedScreen = screen;
             scannedRole = currentRole;
+            devonianConflict = DetectedMods.isDevonianPartyFinderOverviewOn();
         }
 
         boolean changed = false;
@@ -127,7 +133,11 @@ public final class PartyFinderOverlay {
             changed = true;
         }
 
-        if (cfg.isTooltip() && (changed || --ticksUntilRequest <= 0)) {
+        // killer560 9.1: skip when devonianConflict - Devonian has already overwritten every member line with
+        // its own overview text, so PartyFinderParser can't read a single real name out of it (see the
+        // USER_ROLE comment); queuing names nobody will ever match to a rendered line just burns the stats
+        // API's 5-second poll for nothing every time this screen is open.
+        if (cfg.isTooltip() && !devonianConflict && (changed || --ticksUntilRequest <= 0)) {
             ticksUntilRequest = REQUEST_INTERVAL_TICKS;
             Set<String> names = new LinkedHashSet<>();
             for (Party party : parties) {
@@ -147,6 +157,7 @@ public final class PartyFinderOverlay {
         }
         scannedScreen = null;
         scannedRole = null;
+        devonianConflict = false;
         Arrays.fill(scannedStacks, null);
         Arrays.fill(parties, null);
         ticksUntilRequest = 0;
@@ -217,7 +228,14 @@ public final class PartyFinderOverlay {
             return null;
         }
 
-        List<Component> out = new ArrayList<>(lines.size() + 1);
+        List<Component> out = new ArrayList<>(lines.size() + 2);
+        if (devonianConflict) {
+            // killer560 9.1: the join-once chat warning (ModConflictWarnings) is easy to miss or scroll past,
+            // and the menu stays broken for the whole session either way - putting it on every head's own
+            // tooltip means the player actually sees why PBs/secrets never show up, every time they look.
+            out.add(literal("&c⚠ Devonian's Party Finder Overview is on"));
+            out.add(literal("&7It overwrites this menu, so our stats can't show - turn one off."));
+        }
         boolean missingAdded = false;
         for (Component line : lines) {
             String text = line.getString();
@@ -233,7 +251,7 @@ public final class PartyFinderOverlay {
                 continue;
             }
             Matcher m = PartyFinderParser.USER_ROLE.matcher(text);
-            PlayerStats stats = m.matches() ? PartyFinderStatsApi.get(m.group(1)) : null;
+            PlayerStats stats = m.find() ? PartyFinderStatsApi.get(m.group(1)) : null;
             if (stats == null) {
                 out.add(line);
                 continue;

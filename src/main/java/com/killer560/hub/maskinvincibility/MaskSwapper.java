@@ -46,7 +46,10 @@ import java.util.regex.Pattern;
  * another command. killer560's own route is a Hypixel <i>Autopet rule</i> keyed to holding a rod ("throw a rod
  * to swap to phoenix"): select the rod in the hotbar, cast it, and Hypixel's own rule summons Phoenix. This
  * sends no command at all for Phoenix - it is a hotbar select plus one right-click, spaced by the same delay -
- * and stays the default ({@link MaskInvincibilityConfig.PhoenixRoute#ROD}).
+ * and stays the default ({@link MaskInvincibilityConfig.PhoenixRoute#ROD}). The rod itself is found by real
+ * item type ({@link #findRodSlot} - {@code Items.FISHING_ROD}, killer560 9.1), not by a name typed into a
+ * settings-tab text box - every Skyblock rod skin/reforge/rarity is still that one vanilla item underneath,
+ * so there is nothing to configure and nothing that silently stops matching after a rename.
  * <p>
  * <b>The /pets menu (regression fix, 2026-09-21).</b> Unifying the mod's two independent swap flows onto this
  * class dropped {@code i4sensors.I4AutoMask}'s old {@code /pets} walk - the one route that actually works
@@ -439,16 +442,14 @@ public final class MaskSwapper {
             // silently doing nothing is exactly the regression this whole change exists to fix, so fall back to
             // the /pets menu instead of just giving up. That's a second command, so it still owes the floor.
             if (now - lastCommandMs < MIN_COMMAND_GAP_MS) {
-                LOGGER.info("[MaskSwap] No hotbar item matching \"{}\" for Phoenix, and the command floor hasn't "
+                LOGGER.info("[MaskSwap] No fishing rod in the hotbar for Phoenix, and the command floor hasn't "
                                 + "cleared to fall back to /pets ({}ms left) - refusing this attempt, no retry.",
-                        MaskInvincibilityConfig.getInstance().getPhoenixRodName(),
                         MIN_COMMAND_GAP_MS - (now - lastCommandMs));
                 ModChat.send(CHAT, ModChat.bad("No rod for Phoenix, and /pets can't send yet (command floor)."));
                 abort("no rod, floored");
                 return;
             }
-            LOGGER.info("[MaskSwap] No hotbar item matching \"{}\" for Phoenix - falling back to /pets.",
-                    MaskInvincibilityConfig.getInstance().getPhoenixRodName());
+            LOGGER.info("[MaskSwap] No fishing rod in the hotbar for Phoenix - falling back to /pets.");
             ModChat.send(CHAT, ModChat.text("No rod found for Phoenix - falling back to "), ModChat.value("/pets"));
             stage = Stage.SEND_PETS;
             nextActionAtMs = now + stepDelayMs();
@@ -611,18 +612,18 @@ public final class MaskSwapper {
 
     // ------------------------------------------------------------------ helpers
 
+    /**
+     * killer560 9.1: "Remove the rod text section as well it should auto detect the rod." Used to match a
+     * user-typed substring against each hotbar item's display name - fragile (a renamed/reforged rod, or a
+     * typo in the box, silently stopped matching) and needed its own settings-tab text field. The Autopet
+     * "on rod cast" rule triggers off actually casting a real fishing rod, so the base vanilla item type
+     * ({@code Items.FISHING_ROD} - every Skyblock rod skin, reforge and rarity is still that item under the
+     * hood) is the one thing that always identifies it, with nothing to configure.
+     */
     private static int findRodSlot(LocalPlayer player) {
-        String needle = MaskInvincibilityConfig.getInstance().getPhoenixRodName().trim().toLowerCase(Locale.ROOT);
-        if (needle.isEmpty()) {
-            needle = "rod";
-        }
         for (int i = 0; i < 9; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            String name = ChatObserver.strip(stack.getHoverName()).toLowerCase(Locale.ROOT);
-            if (name.contains(needle)) {
+            if (!stack.isEmpty() && stack.is(net.minecraft.world.item.Items.FISHING_ROD)) {
                 return i;
             }
         }

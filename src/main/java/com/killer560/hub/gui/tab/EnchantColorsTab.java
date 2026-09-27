@@ -21,7 +21,11 @@ import java.util.List;
  *  2026-09-20 rewrite: killer560 wanted tier-based colours ("should follow skyhanni where the color is based
  *  off of tier not enchant"), so the old per-enchant override list (add/edit/remove, a filterable page of
  *  colour swatches) is gone - replaced with one picker per SkyHanni tier, which is also just five widgets
- *  instead of a whole paginated editor. */
+ *  instead of a whole paginated editor.
+ *  <p>
+ *  2026-09-27 correction: the tier default colours were actually wrong (see {@code EnchantColorsDefaults}'
+ *  class doc) - fixed, and a "Perfect Chroma" toggle added since SkyHanni's REAL Perfect default is an
+ *  animated rainbow, not a fixed swatch. The static "Perfect" picker only shows while that toggle is off. */
 public class EnchantColorsTab extends BaseTab {
 
     public EnchantColorsTab() {
@@ -107,14 +111,27 @@ public class EnchantColorsTab extends BaseTab {
                         cfg.save();
                     }));
                 }).bounds(contentX, y, half, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Perfect", cfg.getPerfectColor()), btn -> {
-                    Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Perfect Enchant Colour",
-                            cfg.getPerfectColor(), EnchantColorsDefaults.PERFECT, argb -> {
-                        cfg.setPerfectColor(argb);
-                        cfg.save();
-                    }));
-                }).bounds(col2, y, half, 18).build());
+        if (!cfg.isPerfectChroma()) {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Perfect", cfg.getPerfectColor()), btn -> {
+                        Minecraft client = Minecraft.getInstance();
+                        client.setScreen(new ColorPickerScreen(client.screen, "Perfect Enchant Colour",
+                                cfg.getPerfectColor(), EnchantColorsDefaults.PERFECT, argb -> {
+                            cfg.setPerfectColor(argb);
+                            cfg.save();
+                        }));
+                    }).bounds(col2, y, half, 18).build());
+        }
+        y += 22;
+
+        // killer560, 2026-09-27: "make the enchant colors the exact same as skyhanni's" - SkyHanni's real
+        // Perfect default is an animated rainbow, not the fixed swatch above (see EnchantColorsDefaults'
+        // class doc), so that's the default here too. The static "Perfect" swatch only reappears once this
+        // is turned off, same pattern as "Only Known Enchantments" / "Unknown Enchants" above.
+        widgets.add(SettingsButtonWidget.builder(onOff("Perfect Chroma", cfg.isPerfectChroma()), btn -> {
+                    cfg.setPerfectChroma(!cfg.isPerfectChroma());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Bold Perfect", cfg.isPerfectBold()), btn -> {

@@ -89,17 +89,17 @@ public final class ArmourDyeFeature {
      */
     public static ArmourDyeEntry capture(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
-            ModChat.send("Armour Recolour", ModChat.text("Hover an armour piece to add it."));
+            ModChat.send("Armor Recolour", ModChat.text("Hover an armor piece to add it."));
             return null;
         }
         if (!ArmourDye.isArmour(stack)) {
-            ModChat.send("Armour Recolour", ModChat.bad("Not armour: "),
+            ModChat.send("Armor Recolour", ModChat.bad("Not armor: "),
                     ModChat.value(stack.getHoverName().getString()));
             return null;
         }
         String id = ArmourDye.identityOf(stack);
         if (id == null || id.isBlank()) {
-            ModChat.send("Armour Recolour", ModChat.bad("Can't identify that piece - it has no Skyblock id."));
+            ModChat.send("Armor Recolour", ModChat.bad("Can't identify that piece - it has no Skyblock id."));
             return null;
         }
         ArmourDyeConfig cfg = ArmourDyeConfig.getInstance();
@@ -110,7 +110,7 @@ public final class ArmourDyeFeature {
         }
         // Every GUI/keybind mutation saves - the mod's standing "every setting must persist" rule.
         cfg.save();
-        ModChat.send("Armour Recolour",
+        ModChat.send("Armor Recolour",
                 existed ? ModChat.text("Already listed: ") : ModChat.good("Added "),
                 ModChat.value(entry.label),
                 ModChat.dim(" (" + id + ")"),

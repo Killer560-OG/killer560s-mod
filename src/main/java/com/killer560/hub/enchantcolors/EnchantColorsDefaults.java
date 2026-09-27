@@ -10,16 +10,52 @@ import java.util.Set;
  * Ground truth for "colour by tier" - killer560, 2026-09-20: "They should follow skyhanni where the color is
  * based off of tier not enchant." Replaces the old per-enchant colour table entirely.
  * <p>
+ * <b>2026-09-27 correction, killer560: "make the enchant colors the exact same as skyhanni's for the actual
+ * colors."</b> The 2026-09-20 pass got the goodLevel/maxLevel tier MATHS right but the actual default COLOUR
+ * VALUES wrong (they read like a leftover from an earlier legacy-16-colour guess, not SkyHanni's real
+ * defaults). Re-verified from two concrete sources, both dated 2026-09-27:
+ * <ol>
+ *   <li>{@code javap -c -p -constants} against the actually-installed {@code SkyHanni-7.22.0-mc1.21.11.jar}
+ *       (previous doc cited a "SkyHanni-7.48.0-mc26.1.jar" that isn't the jar on this machine - that citation
+ *       was wrong). {@code EnchantParsingConfig}'s constructor bytecode shows the real default {@code
+ *       Property} values: {@code poorEnchantColor = LorenzColor.GRAY}, {@code goodEnchantColor =
+ *       LorenzColor.BLUE}, {@code greatEnchantColor = LorenzColor.GOLD}, {@code perfectEnchantColor =
+ *       LorenzColor.CHROMA}, {@code ultimateEnchantColor = LorenzColor.LIGHT_PURPLE}, {@code
+ *       boldPerfectEnchant = false}. {@code Enchant.getStyle}'s bytecode confirms the tier comparison
+ *       ({@code level >= maxLevel} -&gt; Perfect, etc. - see below) reads exactly these four properties, in
+ *       that order, so there's no advanced-colour override or hidden per-enchant table involved.</li>
+ *   <li>{@code LorenzColor}'s own {@code <clinit>} (same jar) gives each name's literal {@code
+ *       java.awt.Color(r,g,b)} - they are exactly Minecraft's 16 legacy chat colours: GRAY = (170,170,170),
+ *       BLUE = (85,85,255), GOLD = (255,170,0), LIGHT_PURPLE = (255,85,255). CHROMA is NOT a static colour -
+ *       its constructor uses alpha 0 and its {@code toChromaColor}/{@code ChromaManager} path animates a
+ *       cycling rainbow. This mod has no chroma-cycling renderer, so {@link
+ *       com.killer560.hub.enchantcolors.EnchantColorsConfig#isPerfectChroma()} reimplements just the "Perfect
+ *       is an animated rainbow by default" behaviour (see that class and {@code EnchantColorsFeature}), and
+ *       {@link #PERFECT} below is only the STATIC fallback used while that toggle is off - not what SkyHanni
+ *       actually ships.</li>
+ * </ol>
  * {@link #TIERS} (each enchant's {@code goodLevel}/{@code maxLevel}) and {@link #ULTIMATES} are copied
  * straight out of SkyHanni's own repo constants file - not guessed - read from a live SkyHanni install's
- * cache at {@code C:\Users\...\config\skyhanni\repo\constants\Enchants.json} (SkyHanni-7.48.0-mc26.1.jar,
- * 2026-09-20), keyed by its {@code loreName} (lower-cased) so every key here is exactly what Hypixel prints,
- * NOT a guess from the NBT id. That distinction matters: the old table kept its per-enchant colours under
- * id-derived names like "dragon hunter" (from the {@code dragon_hunter} enchant id), but Hypixel actually
- * prints that enchant as "Gravity" - so it could never match and never got recoloured. See
+ * cache at {@code C:\Users\...\config\skyhanni\repo\constants\Enchants.json} (re-checked 2026-09-27 against
+ * the same file), keyed by its {@code loreName} (lower-cased) so every key here is exactly what Hypixel
+ * prints, NOT a guess from the NBT id. That distinction matters: an id-derived guess like "dragon hunter"
+ * (from the {@code dragon_hunter} enchant id) never appears in real lore - Hypixel prints that enchant as
+ * "Gravity" - so it would never match and never get recoloured. See
  * {@link EnchantColorsFeature#ID_TO_LORE_NAME} for the full list of ids whose id and printed name diverge
- * like this (also "Drain"/syphon, "Pyroclasm"/magmarizer, "Woodsplitter"/arcane, and the four mana-vitality
- * enchants).
+ * like this (also "Drain"/syphon, "Pyroclasm"/magmarizer, "Woodsplitter"/arcane).
+ * <p>
+ * <b>2026-09-27 diff against the live {@code Enchants.json}</b> turned up more bugs from the 2026-09-20 pass,
+ * fixed here: {@code forest pledge} was {@code goodLevel 2, maxLevel 6}, the file says {@code 2, 5};
+ * {@code stealth} was {@code 0, 6}, the file says {@code 0, 1}; {@code thorns} was {@code 3, 4}, the file
+ * says {@code 3, 3}. The four mana-vitality-style enchants were keyed under invented names ("hardened
+ * vitality", "strong vitality", "vampiric vitality", "vivacious vitality") that never appear in real lore and
+ * so could never match - renamed to their actual {@code loreName}s ("hardened mana", "strong mana", "mana
+ * vampire", "ferocious mana"; see {@code EnchantColorsFeature#buildIdAliases} - they need no id alias at all,
+ * since {@code hardened_mana} etc. already normalise straight to those names). Two entries with no match
+ * anywhere in the live repo file at all - {@code karma} and {@code petalfall} - are removed rather than kept
+ * on a guessed maximum: per killer560's own rule, "a wrong colour table applied to every enchant is worse
+ * than leaving it," so an unconfirmed enchant is left uncoloured (falls through to Unknown/untouched) instead
+ * of carrying forward a number nothing here can verify.
  * <p>
  * The four-tier split and the "ultimates ignore level entirely" rule are decompiled (javap) from SkyHanni's
  * own {@code Enchant.getStyle}/{@code Enchant$Ultimate.getStyle}
@@ -35,13 +71,21 @@ import java.util.Set;
  */
 public final class EnchantColorsDefaults {
 
-    public static final int POOR = 0xFF808080;
-    public static final int GOOD = 0xFFFFFF55;
-    public static final int GREAT = 0xFF55FF55;
-    public static final int PERFECT = 0xFF55FFFF;
-    /** Also the fallback colour for anything the NBT says is an {@code ultimate_*} id. */
+    /** SkyHanni default: {@code LorenzColor.GRAY} = legacy §7, (170,170,170). */
+    public static final int POOR = 0xFFAAAAAA;
+    /** SkyHanni default: {@code LorenzColor.BLUE} = legacy §9, (85,85,255). */
+    public static final int GOOD = 0xFF5555FF;
+    /** SkyHanni default: {@code LorenzColor.GOLD} = legacy §6, (255,170,0). */
+    public static final int GREAT = 0xFFFFAA00;
+    /** Static fallback only, used while {@code EnchantColorsConfig#isPerfectChroma()} is OFF. SkyHanni's real
+     *  default for Perfect is an animated rainbow (LorenzColor.CHROMA), not a fixed colour - see this class's
+     *  own doc. White was picked as a neutral fallback, not because it's SkyHanni's default - it isn't. */
+    public static final int PERFECT = 0xFFFFFFFF;
+    /** SkyHanni default: {@code LorenzColor.LIGHT_PURPLE} = legacy §d, (255,85,255). Also the fallback colour
+     *  for anything the NBT says is an {@code ultimate_*} id. */
     public static final int ULTIMATE = 0xFFFF55FF;
-    /** Anything not in {@link #TIERS}, when "Only Known Enchantments" is off. Hypixel's own lore blue. */
+    /** Anything not in {@link #TIERS}, when "Only Known Enchantments" is off. Hypixel's own lore blue - not
+     *  a SkyHanni value, since SkyHanni has no equivalent "recognised but untiered" state. */
     public static final int UNKNOWN = 0xFF5555FF;
 
     /** Lore-normalised enchant name -&gt; {goodLevel, maxLevel}. Never mutated - copy before editing. */
@@ -92,7 +136,7 @@ public final class EnchantColorsDefaults {
         t.put("fire protection", new int[]{5, 7});
         t.put("first strike", new int[]{4, 5});
         t.put("flame", new int[]{2, 2});
-        t.put("forest pledge", new int[]{2, 6});
+        t.put("forest pledge", new int[]{2, 5});
         t.put("fortune", new int[]{3, 4});
         t.put("frail", new int[]{5, 7});
         t.put("frost walker", new int[]{2, 2});
@@ -101,12 +145,11 @@ public final class EnchantColorsDefaults {
         t.put("great spook", new int[]{0, 1});
         t.put("green thumb", new int[]{0, 5});
         t.put("growth", new int[]{5, 7});
-        t.put("hardened vitality", new int[]{0, 10});
+        t.put("hardened mana", new int[]{0, 10});
         t.put("harvesting", new int[]{5, 6});
         t.put("ice cold", new int[]{0, 5});
         t.put("impaling", new int[]{5, 5});
         t.put("infinite quiver", new int[]{5, 10});
-        t.put("karma", new int[]{0, 6});
         t.put("knockback", new int[]{2, 2});
         t.put("lapidary", new int[]{0, 5});
         t.put("lethality", new int[]{5, 6});
@@ -117,10 +160,10 @@ public final class EnchantColorsDefaults {
         t.put("lure", new int[]{5, 6});
         t.put("magnet", new int[]{5, 6});
         t.put("mana steal", new int[]{0, 3});
+        t.put("mana vampire", new int[]{0, 10});
         t.put("overload", new int[]{0, 5});
         t.put("paleontologist", new int[]{0, 5});
         t.put("pesterminator", new int[]{0, 6});
-        t.put("petalfall", new int[]{0, 5});
         t.put("piercing", new int[]{1, 1});
         t.put("piscary", new int[]{5, 7});
         t.put("power", new int[]{5, 7});
@@ -150,12 +193,12 @@ public final class EnchantColorsDefaults {
         t.put("smoldering", new int[]{0, 5});
         t.put("snipe", new int[]{3, 4});
         t.put("spiked hook", new int[]{5, 7});
-        t.put("stealth", new int[]{0, 6});
-        t.put("strong vitality", new int[]{0, 10});
+        t.put("stealth", new int[]{0, 1});
+        t.put("strong mana", new int[]{0, 10});
         t.put("sugar rush", new int[]{0, 3});
         t.put("sunder", new int[]{0, 6});
         t.put("tabasco", new int[]{1, 3});
-        t.put("thorns", new int[]{3, 4});
+        t.put("thorns", new int[]{3, 3});
         t.put("thunderbolt", new int[]{5, 7});
         t.put("thunderlord", new int[]{5, 7});
         t.put("tidal", new int[]{0, 3});
@@ -176,11 +219,10 @@ public final class EnchantColorsDefaults {
         t.put("turbo-sunflower", new int[]{0, 7});
         t.put("turbo-warts", new int[]{0, 7});
         t.put("turbo-wheat", new int[]{0, 7});
-        t.put("vampiric vitality", new int[]{0, 10});
         t.put("vampirism", new int[]{5, 6});
         t.put("venomous", new int[]{5, 7});
         t.put("vicious", new int[]{0, 5});
-        t.put("vivacious vitality", new int[]{0, 10});
+        t.put("ferocious mana", new int[]{0, 10});
         t.put("woodsplitter", new int[]{5, 6});
         // ---- Stacking (same tier maths; this mod doesn't render their progress footer)
         t.put("absorb", new int[]{0, 10});

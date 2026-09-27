@@ -1,7 +1,6 @@
 package com.killer560.hub.social;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -10,17 +9,23 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
- * Our own Friends List menu (killer560's 8.7) - opened by {@code /fl} when {@link FriendsListConfig#isEnabled()}
- * is on, or always via {@code /flcustom}. Same black + amber chrome as {@link BestFriendsScreen} /
- * {@code CroesusTrackerScreen}.
+ * Our own Friends List menu (killer560's 8.7, reworked 2026-09-27) - opened by {@code /fl} when
+ * {@link FriendsListConfig#isEnabled()} is on, or always via {@code /flcustom}. Same black + amber chrome as
+ * {@link BestFriendsScreen} / {@code CroesusTrackerScreen}.
  * <p>
- * <b>Online status - honestly limited.</b> This mod has no access to Hypixel's server-side friends/presence
- * API, so "online" can only ever mean "on my own tab list right now" (same server instance as me) - never
- * "online somewhere on Hypixel" the way the real {@code /f list} can tell you. That distinction is shown as
- * "Nearby now" / "Unknown" rather than "Online" / "Offline", so it never claims to know something it can't.
+ * Every row here is a real Hypixel friend, mirrored by {@link FriendsListSync} - this screen never invents a
+ * member of its own. "Add" sends the real {@code /f add <name>}; the "Remove" button on a selected friend
+ * sends the real {@code /f remove <name>}. Neither one edits the list directly - both wait for the next real
+ * {@code /fl} sync to confirm, so what's on screen can never silently diverge from Hypixel's own answer (see
+ * {@link FriendsListSync}'s doc). A manual "Refresh" button re-syncs on demand, rate-limited the same way.
+ * <p>
+ * <b>Online status.</b> When {@link FriendsListSync} could tell Online/Offline apart in the last real
+ * {@code /fl} (see that class's doc on why that isn't guaranteed for every possible real wording), that's
+ * shown directly - the first source of REAL Hypixel presence this mod has ever had, instead of the old
+ * tab-list-only "Nearby now" guess. When it couldn't, this falls back to that same "Nearby now"/"Unknown"
+ * guess (same server instance as you right now) rather than claiming to know something it doesn't.
  */
 public class FriendsListScreen extends Screen {
 
@@ -58,24 +63,32 @@ public class FriendsListScreen extends Screen {
         listW = panelW - 12;
         listH = panelH - 60 - (selected != null ? 44 : 8);
 
-        FriendsListConfig.getInstance().refreshOnlineNames();
+        // One rate-limited sync per open, same as the old refreshOnlineNames() call this replaces - see
+        // FriendsListSync's doc on why this can never spam Hypixel (opening the menu is an explicit click).
+        FriendsListSync.requestSync(true);
 
         int addBtnW = 70;
-        int addBoxW = panelW - 12 - addBtnW - 4;
+        int refreshBtnW = 62;
+        int addBoxW = panelW - 12 - addBtnW - 4 - refreshBtnW - 4;
         addBox = new EditBox(this.font, panelX + 6, panelY + 34, addBoxW, 18, Component.literal("Add by name"));
         addBox.setMaxLength(16);
-        addBox.setHint(Component.literal("Add by name (must be on your tab list)..."));
+        addBox.setHint(Component.literal("Add by name (sends /f add)..."));
         addRenderableWidget(addBox);
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Add"), btn -> addByName())
                 .bounds(panelX + 6 + addBoxW + 4, panelY + 34, addBtnW, 18).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), btn -> {
+                    if (!FriendsListSync.requestSync(false)) {
+                        statusMessage = "Already just synced - give it a moment.";
+                        statusColor = ModChat.DIM;
+                    }
+                }).bounds(panelX + panelW - 6 - refreshBtnW, panelY + 34, refreshBtnW, 18).build());
 
         refresh();
 
         if (selected != null) {
             int barY = panelY + panelH - 40;
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Remove"), btn -> {
-                FriendsListConfig.getInstance().remove(selected.uuid);
-                FriendsListConfig.getInstance().save();
+                FriendsListSync.requestRemove(selected.name);
                 selected = null;
                 scroll = 0;
                 rebuildWidgets();
@@ -86,7 +99,7 @@ public class FriendsListScreen extends Screen {
             noteBox.setHint(Component.literal("Note..."));
             noteBox.setValue(selected.note == null ? "" : selected.note);
             noteBox.setResponder(text -> {
-                FriendsListConfig.getInstance().setNote(selected.uuid, text);
+                FriendsListConfig.getInstance().setNote(selected.name, text);
                 selected.note = text;
             });
             addRenderableWidget(noteBox);
@@ -99,40 +112,30 @@ public class FriendsListScreen extends Screen {
         }
     }
 
+    /** {@link FriendsListConfig#applyRealSync} reuses the SAME {@link FriendsListConfig.Friend} object across
+     *  a re-sync whenever the name matches, so {@link #selected} (taken from an earlier {@link #visible})
+     *  keeps reflecting live updates (a fresh {@code onlineHint}, a re-cased name) without needing to be
+     *  re-fetched here - it only ever goes stale if that friend was actually removed, in which case it just
+     *  keeps showing what it last knew until the player presses "< Back" or "Remove" themselves. */
     private void refresh() {
         visible = FriendsListConfig.getInstance().friends();
     }
 
-    /** Resolves through the shared {@code players.PlayerNames} resolver: an immediate cache/tab-list hit adds
-     *  right away, otherwise a background Mojang lookup adds them automatically if it finds a real account -
-     *  see that class's doc for why a typo/never-existed name just never shows a follow-up message. */
+    /** Sends the real {@code /f add <name>} - Hypixel resolves/validates the name itself, so unlike the old
+     *  local-only list this never needs its own UUID lookup before it can act. */
     private void addByName() {
         String name = addBox == null ? "" : addBox.getValue().trim();
         if (name.isEmpty()) {
             return;
         }
         addBox.setValue("");
-        UUID known = PlayerNames.uuidFor(name);
-        if (known == null) {
-            statusMessage = "Looking up \"" + name + "\" - will add automatically if found.";
+        if (FriendsListSync.requestAdd(name)) {
+            statusMessage = "Sent /f add " + name + " - syncing shortly...";
             statusColor = ModChat.DIM;
+        } else {
+            statusMessage = "Please wait a moment before sending another request.";
+            statusColor = ModChat.BAD;
         }
-        PlayerNames.resolveAsync(name, id -> {
-            if (id == null) {
-                return;
-            }
-            FriendsListConfig cfg = FriendsListConfig.getInstance();
-            FriendsListConfig.Friend added = cfg.add(id, name, "");
-            cfg.save();
-            refresh();
-            if (added == null) {
-                statusMessage = name + " is already on your Friends List.";
-                statusColor = ModChat.DIM;
-            } else {
-                statusMessage = "Added " + name + ".";
-                statusColor = ModChat.GOOD;
-            }
-        });
     }
 
     // ---- interaction -----------------------------------------------------------------------------
@@ -176,6 +179,10 @@ public class FriendsListScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        // A re-sync can land between renders (chat is async to the render loop) - re-read every frame so a
+        // fresh /fl shows up without needing to close and reopen the screen.
+        refresh();
+
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
         graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
         graphics.outline(panelX, panelY, panelW, panelH, BORDER);
@@ -210,14 +217,39 @@ public class FriendsListScreen extends Screen {
         if (!statusMessage.isEmpty()) {
             graphics.text(this.font, statusMessage, panelX + 6, panelY + panelH - (selected != null ? 62 : 20),
                     0xFF000000 | statusColor, false);
+        } else if (selected == null) {
+            graphics.text(this.font, syncStatusLine(), panelX + 6, panelY + panelH - 20, 0xFF000000 | ModChat.DIM, false);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
+    /** Honest sync status per this wave's brief: never claim the list is complete/current when it might not
+     *  be. See {@link FriendsListSync}'s class doc for exactly what "never synced" and "truncated" mean. */
+    private String syncStatusLine() {
+        FriendsListConfig cfg = FriendsListConfig.getInstance();
+        if (!cfg.isEverSynced()) {
+            return "§cNever synced with your real /fl yet - press Refresh, or Hypixel's wording may differ from what this mod expects.";
+        }
+        if (cfg.isLastSyncTruncated()) {
+            return "§6Hypixel's /fl may show more than this - the last sync looked cut short.";
+        }
+        return "§7" + visible.size() + " real friend(s), last synced " + secondsAgo(cfg.getLastSyncedAtMs()) + " ago.";
+    }
+
+    private static String secondsAgo(long epochMs) {
+        if (epochMs <= 0) {
+            return "a while";
+        }
+        long seconds = Math.max(0, (System.currentTimeMillis() - epochMs) / 1000L);
+        return seconds < 60 ? seconds + "s" : (seconds / 60) + "m";
+    }
+
     private void drawList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (visible.isEmpty()) {
-            graphics.text(this.font, "No friends added yet - type a name above and click Add.",
-                    listX + 6, listY + 8, 0xFF000000 | ModChat.DIM, false);
+            String msg = FriendsListConfig.getInstance().isEverSynced()
+                    ? "No friends on your real Hypixel list."
+                    : "Not synced yet - press Refresh above.";
+            graphics.text(this.font, msg, listX + 6, listY + 8, 0xFF000000 | ModChat.DIM, false);
             return;
         }
         FriendsListConfig.Friend hovered = rowAt(mouseX, mouseY);
@@ -233,13 +265,12 @@ public class FriendsListScreen extends Screen {
             } else if (i % 2 == 0) {
                 graphics.fill(listX, rowY, listX + listW - 4, rowY + ROW_H, 0xFF121212);
             }
-            PlayerHeadRenderer.draw(graphics, f.uuid, f.lastKnownName, listX + 3, rowY + (ROW_H - HEAD_SIZE) / 2, HEAD_SIZE);
+            PlayerHeadRenderer.draw(graphics, f.uuid, f.name, listX + 3, rowY + (ROW_H - HEAD_SIZE) / 2, HEAD_SIZE);
             int textY = rowY + (ROW_H - 8) / 2;
-            boolean online = PlayerLookup.isOnlineNow(f.uuid);
-            String status = online ? "§aNearby now" : "§8Unknown";
+            String status = onlineStatusText(f);
             int statusW = this.font.width(status);
             graphics.text(this.font, status, listX + listW - 6 - statusW, textY, 0xFFFFFFFF, false);
-            String name = f.lastKnownName == null || f.lastKnownName.isBlank() ? "?" : f.lastKnownName;
+            String name = f.name == null || f.name.isBlank() ? "?" : f.name;
             int nameX = listX + 3 + HEAD_SIZE + 6;
             String label = name + (f.note != null && !f.note.isBlank() ? "  §7- " + f.note : "");
             int nameSpace = listW - (nameX - listX) - statusW - 10;
@@ -247,16 +278,33 @@ public class FriendsListScreen extends Screen {
         }
     }
 
+    /** Real Hypixel Online/Offline when the last sync could tell (see the class doc), else the old
+     *  same-tab-list-instance guess. */
+    private static String onlineStatusText(FriendsListConfig.Friend f) {
+        if (f.onlineHint != null) {
+            return f.onlineHint ? "§aOnline" : "§8Offline";
+        }
+        return PlayerLookup.isOnlineNow(f.uuid) ? "§aNearby now" : "§8Unknown";
+    }
+
+    /** Same status, spelled out for the detail page rather than a short list-row tag. */
+    private static String detailStatusText(FriendsListConfig.Friend f) {
+        if (f.onlineHint != null) {
+            return f.onlineHint ? "§aOnline right now (from your real /fl)" : "§8Offline (from your real /fl)";
+        }
+        return PlayerLookup.isOnlineNow(f.uuid)
+                ? "§aNearby now (on your tab list) - the last /fl sync didn't say Online/Offline"
+                : "§8Unknown - not on your tab list, and the last /fl sync didn't say Online/Offline";
+    }
+
     private void drawDetail(GuiGraphicsExtractor graphics, FriendsListConfig.Friend f) {
-        PlayerHeadRenderer.draw(graphics, f.uuid, f.lastKnownName, listX + 6, listY + 6, 32);
+        PlayerHeadRenderer.draw(graphics, f.uuid, f.name, listX + 6, listY + 6, 32);
         int textX = listX + 6 + 32 + 10;
-        String name = f.lastKnownName == null || f.lastKnownName.isBlank() ? "?" : f.lastKnownName;
+        String name = f.name == null || f.name.isBlank() ? "?" : f.name;
         graphics.text(this.font, "§l" + name, textX, listY + 6, 0xFFFFFFFF, false);
-        boolean online = PlayerLookup.isOnlineNow(f.uuid);
-        graphics.text(this.font, online ? "§aNearby now (on your tab list)" : "§8Unknown (not on your tab list - this "
-                        + "mod has no way to check Hypixel's own online status)", textX, listY + 18, 0xFFFFFFFF, false);
-        graphics.text(this.font, "§7Added " + formatDate(f.addedAtMs), listX + 6, listY + 46, 0xFFFFFFFF, false);
-        graphics.text(this.font, "§7Edit the note below:", listX + 6, listY + 60, 0xFFFFFFFF, false);
+        graphics.text(this.font, detailStatusText(f), textX, listY + 18, 0xFFFFFFFF, false);
+        graphics.text(this.font, "§7Known since " + formatDate(f.firstSeenAtMs), listX + 6, listY + 46, 0xFFFFFFFF, false);
+        graphics.text(this.font, "§7Edit the note below (local only, never sent anywhere):", listX + 6, listY + 60, 0xFFFFFFFF, false);
     }
 
     private static String formatDate(long epochMs) {

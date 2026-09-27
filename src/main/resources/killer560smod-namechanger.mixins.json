@@ -6,7 +6,8 @@
 	"client": [
 		"NameChangerFontMixin",
 		"NameChangerEditBoxMixin",
-		"NameChangerGuiGraphicsMixin"
+		"NameChangerGuiGraphicsMixin",
+		"IdentityCommandMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

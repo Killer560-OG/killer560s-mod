@@ -3,8 +3,8 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.killer560.hub.petwheel.PetPickerScreen;
 import com.killer560.hub.petwheel.PetWheelConfig;
+import com.killer560.hub.petwheel.PetWheelScreen;
 import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -121,10 +121,42 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             }
         });
+        y += 22;
+
+        // killer560, 2026-09-27: "make a way to have the pictures alot bigger as well" - a second, independent
+        // multiplier that only grows the pet picture itself (see PetWheelConfig#MAX_ICON_SCALE_PCT's doc).
+        int minIcon = PetWheelConfig.MIN_ICON_SCALE_PCT;
+        int maxIcon = PetWheelConfig.MAX_ICON_SCALE_PCT;
+        double iconNorm = (cfg.getIconScalePercent() - minIcon) / (double) (maxIcon - minIcon);
+        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, iconSizeText(cfg), iconNorm) {
+            @Override
+            protected void updateMessage() {
+                setMessage(iconSizeText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setIconScalePercent((int) Math.round(minIcon + this.value * (maxIcon - minIcon)));
+                cfg.save();
+            }
+        });
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Level", cfg.isHideLevel()), btn -> {
+                    cfg.setHideLevel(!cfg.isHideLevel());
+                    cfg.save();
+                    btn.setMessage(onOff("Hide Level", cfg.isHideLevel()));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Name", cfg.isHideName()), btn -> {
+                    cfg.setHideName(!cfg.isHideName());
+                    cfg.save();
+                    btn.setMessage(onOff("Hide Name", cfg.isHideName()));
+                }).bounds(contentX, y, col2W, 18).build());
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets..."), btn ->
-                        Minecraft.getInstance().setScreen(new PetPickerScreen(Minecraft.getInstance().screen)))
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets"), btn ->
+                        Minecraft.getInstance().setScreen(PetWheelScreen.forEdit(Minecraft.getInstance().screen)))
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
@@ -156,6 +188,10 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
 
     private static Component scaleText(PetWheelConfig cfg) {
         return Component.literal("Scale: " + cfg.getScalePercent() + "%");
+    }
+
+    private static Component iconSizeText(PetWheelConfig cfg) {
+        return Component.literal("Icon Size: " + cfg.getIconScalePercent() + "%");
     }
 
     /** Live counts, not an explanatory paragraph - the "in-panel paragraphs are being removed" rule (2026-09-21)

@@ -1,6 +1,6 @@
 package com.killer560.hub.supporters.mixin;
 
-import com.killer560.hub.supporters.SupportersFeature;
+import com.killer560.hub.supporters.PlayerNameDisplay;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
@@ -26,7 +26,7 @@ public abstract class SupportersTabListMixin {
         if (info == null || info.getProfile() == null) {
             return;
         }
-        Component replaced = SupportersFeature.displayNameFor(info.getProfile().id());
+        Component replaced = PlayerNameDisplay.displayNameFor(info.getProfile().id());
         if (replaced != null) {
             cir.setReturnValue(replaced);
         }

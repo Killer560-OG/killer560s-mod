@@ -15,6 +15,7 @@ final class SettingTooltipsData {
         part2(d);
         part3(d);
         mining(d);
+        invSortAndAutoSell(d);
     }
 
     private static void part1(Map<String, String> d) {
@@ -307,20 +308,20 @@ final class SettingTooltipsData {
         d.put("use type colour", "Drops this node's own colour so it goes back to its type's colour (or the uniform colour). Same as /ap3 set <n> colour reset.");
         d.put("delete node", "Removes this node from the chain and goes back to the list. Same as /ap3 delete <n>.");
         d.put("re-place last chain node key", "Keybind that moves the LAST node in this section's chain to where you stand and look - the one you just added. The command form, /ap3 replace <n> [pos|look], takes a number.");
-        d.put("armour recolour", "Client-side armour recolouring, skins and trims (Skyblocker's armour customization, rebuilt for this mod). Changes only what YOU see - nothing is sent to the server and the real item is never touched. Off by default.");
-        d.put("armour recolour/skin inventory icons", "When a piece has a skin, also swap its inventory/hand icon to the matching vanilla item so it doesn't look like two different items in the menu and on your body. Turn it off if you'd rather keep the real icon.");
-        d.put("armour recolour/capture key", "Press this while hovering an armour piece in ANY inventory screen to add it to the list, instead of typing a Skyblock item id. Set to Not Set with Escape.");
-        d.put("armour recolour/add helmet", "Adds the helmet you're wearing right now to the list. Greyed out when that slot is empty or isn't armour.");
-        d.put("armour recolour/add chest", "Adds the chestplate you're wearing right now to the list. Greyed out when that slot is empty or isn't armour.");
-        d.put("armour recolour/add legs", "Adds the leggings you're wearing right now to the list. Greyed out when that slot is empty or isn't armour.");
-        d.put("armour recolour/add boots", "Adds the boots you're wearing right now to the list. Greyed out when that slot is empty or isn't armour.");
-        d.put("armour recolour/colour", "Opens the colour wheel for this piece. Picking a colour also switches Use Colour on. The colour applies on your body, in inventories, in your hand and on dropped items - anywhere vanilla asks for the leather dye tint.");
-        d.put("armour recolour/use colour", "Whether this piece's saved colour is actually applied. Off parks the colour without losing it.");
-        d.put("armour recolour/skin", "Which armour set this piece is painted as - Leather, Copper, Chainmail, Iron, Gold, Diamond, Netherite or Turtle Shell. Custom ID uses the equipment-asset id typed into the config file. None leaves the real look alone.");
-        d.put("armour recolour/trim", "Trim material overlaid on the armour (gold, redstone, amethyst...). Cycles through every material your world has, then back to Off. Needs a Pattern set as well to show up.");
-        d.put("armour recolour/pattern", "Trim pattern overlaid on the armour (sentry, vex, spire...). Cycles through every pattern your world has, then back to Off. Needs a Trim material set as well to show up.");
-        d.put("armour recolour/enabled", "Whether this whole entry is applied. Off parks its colour, skin and trim without deleting them.");
-        d.put("armour recolour/remove", "Deletes this piece's entry entirely. The item itself is not affected - it never was.");
+        d.put("armor recolour", "Client-side armor recolouring, skins and trims (Skyblocker's armor customization, rebuilt for this mod). Changes only what YOU see - nothing is sent to the server and the real item is never touched. Off by default.");
+        d.put("armor recolour/skin inventory icons", "When a piece has a skin, also swap its inventory/hand icon to the matching vanilla item so it doesn't look like two different items in the menu and on your body. Turn it off if you'd rather keep the real icon.");
+        d.put("armor recolour/capture key", "Press this while hovering an armor piece in ANY inventory screen to add it to the list, instead of typing a Skyblock item id. Set to Not Set with Escape.");
+        d.put("armor recolour/add helmet", "Adds the helmet you're wearing right now to the list. Greyed out when that slot is empty or isn't armor.");
+        d.put("armor recolour/add chest", "Adds the chestplate you're wearing right now to the list. Greyed out when that slot is empty or isn't armor.");
+        d.put("armor recolour/add legs", "Adds the leggings you're wearing right now to the list. Greyed out when that slot is empty or isn't armor.");
+        d.put("armor recolour/add boots", "Adds the boots you're wearing right now to the list. Greyed out when that slot is empty or isn't armor.");
+        d.put("armor recolour/colour", "Opens the colour wheel for this piece. Picking a colour also switches Use Colour on. The colour applies on your body, in inventories, in your hand and on dropped items - anywhere vanilla asks for the leather dye tint.");
+        d.put("armor recolour/use colour", "Whether this piece's saved colour is actually applied. Off parks the colour without losing it.");
+        d.put("armor recolour/skin", "Which armor set this piece is painted as - Leather, Copper, Chainmail, Iron, Gold, Diamond, Netherite or Turtle Shell. Custom ID uses the equipment-asset id typed into the config file. None leaves the real look alone.");
+        d.put("armor recolour/trim", "Trim material overlaid on the armor (gold, redstone, amethyst...). Cycles through every material your world has, then back to Off. Needs a Pattern set as well to show up.");
+        d.put("armor recolour/pattern", "Trim pattern overlaid on the armor (sentry, vex, spire...). Cycles through every pattern your world has, then back to Off. Needs a Trim material set as well to show up.");
+        d.put("armor recolour/enabled", "Whether this whole entry is applied. Off parks its colour, skin and trim without deleting them.");
+        d.put("armor recolour/remove", "Deletes this piece's entry entirely. The item itself is not affected - it never was.");
         d.put("scrollable tooltips", "Lets the mouse wheel act on an item tooltip in any inventory or menu: scrolls one that's taller than the screen so the bottom isn't cut off, or nudges a shorter one's position up/down so you can move it out of the way. Off by default.");
         d.put("invert scroll", "Flips the wheel direction for both scrolling and nudging. Normally wheel up shows earlier lines (or nudges the tooltip up) and wheel down does the opposite.");
         d.put("lines per scroll", "How many tooltip lines one wheel notch moves, 1-10 (default 3). Also sets how far one notch nudges a tooltip that already fits.");
@@ -447,6 +448,7 @@ final class SettingTooltipsData {
         d.put("reload chains file key", "Keybind for /ap3 reload.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
         d.put("class overrides", "Sets a player's class by hand for every feature at once: the Leap Menu, Fast Leap's class targeting, AP3 leap nodes and every class-coloured display. Use it when a run has duplicate classes and someone is doing another class's terminal. In the AP3 tab this list is read-only - edit it in Dungeon > Class Overrides.");
+        d.put("class overrides/class selection overlay", "Draws a party bar and the five class boxes' assignments over the real Catacombs class-selection screen. Click a name in the bar to pick it up, then click a class box to assign it there - it writes to the same override table as the rows below.");
         d.put("current party", "You and everyone in your party, in Hypixel's order. Detected is the class the tab list shows; click Override to set a different one.");
         d.put("override", "Click to cycle this player's class override: None, Mage, Tank, Healer, Archer, Berserker. The override wins over the detected class everywhere in the mod, and is saved at once.");
         d.put("remove override", "Forgets this player's override so the mod goes back to the class the tab list shows.");
@@ -1062,17 +1064,18 @@ final class SettingTooltipsData {
         d.put("icon scale", "Size of the player markers on the Interactive Map, 0.5x to 3x.");
         d.put("peek key", "Hold this key to blow the small HUD map up to Peek Scale. Esc clears it.");
         d.put("peek scale", "How much bigger the HUD map gets while the Peek Key is held, 1.25x to 4x.");
-        d.put("close on", "Whether the Interactive Map closes when you let the open key go (Release) or when you press it again (Repress).");
-        d.put("teleport pathing", "Cheat build only. Etherwarp-paths you to a room or door you pick on the Interactive Map.");
-        d.put("start key", "Cheat build only. While the Interactive Map is open, paths you to the start of the room you are in. Esc clears it.");
-        d.put("locked door key", "Cheat build only. While the Interactive Map is open, paths you to the nearest locked (wither) door. Esc clears it.");
+        // killer560, 2026-09-27: "the entire portion of interactive map is the teleport pathing" - no separate
+        // "Teleport Pathing" toggle any more (its settings just sit under Interactive Map's own Automation
+        // header now), and "Path Threads" is gone too - see EtherwarpPathfinder.threadsFor's own doc.
+        d.put("interactive map/map mode", "Whether the Interactive Map stays open until you press the open key again (Toggle) or only while you hold it down (Hold).");
+        d.put("start key", "Cheat build only. While the Interactive Map is open, paths you to the start of the room you are in. Esc clears it; can be bound to a mouse button.");
+        d.put("locked door key", "Cheat build only. While the Interactive Map is open, paths you to the nearest locked (wither) door. Esc clears it; can be bound to a mouse button.");
         d.put("face door on arrival", "Cheat build only. Turns you to look at the door once pathing gets you there.");
-        d.put("keep chunks loaded", "Cheat build only. Holds onto chunks the server unloads so pathing can still route through rooms you have left. Uses the Chunk Cache.");
-        d.put("path threads", "Cheat build only. How many threads the etherwarp pathfinder searches with, 1-16. Higher finds paths faster but costs more CPU.");
+        d.put("keep chunks loaded", "Cheat build only. Holds onto chunks the server unloads so pathing can still route through rooms you have left. Uses the Chunk Cache. On by default.");
         d.put("path timeout", "Cheat build only. How long the pathfinder may search before giving up, 200-1000 ms.");
+        d.put("interactive map/show etherwarp path", "Cheat build only. Draws a small circle at each etherwarp hop your queued path is about to take, with a line joining them in order, while a Teleport route is active.");
         d.put("auto blood rush", "Cheat build only. Etherwarp-rushes you door to door towards blood as soon as it is toggled on.");
-        d.put("blood rush key", "Cheat build only. Toggles Auto Blood Rush on and off. Works with the map open or closed. Esc clears it.");
-        d.put("click door on arrival", "Cheat build only. Clicks the wither door once Blood Rush reaches it, instead of only standing there.");
+        d.put("blood rush key", "Cheat build only. Toggles Auto Blood Rush on and off. Works with the map open or closed. Esc clears it; can be bound to a mouse button.");
         d.put("door timeout", "Cheat build only. How long Blood Rush waits on one door before giving up and picking another, 5-60 seconds.");
 
         // ---- Auto Puzzles (cheat build) ----
@@ -1089,12 +1092,12 @@ final class SettingTooltipsData {
         d.put("ice fill delay", "Cheat build only. Wait in ticks between Auto Ice Fill's movement steps.");
         d.put("etherwarp reposition", "Cheat build only. AOTV-warps you onto each puzzle's standing spot before the auto starts, instead of expecting you to walk there.");
 
-        // ---- Door Helpers (cheat build) ----
-        d.put("auto door opener", "Cheat build only. Right-clicks locked Wither and Blood doors for you during the dungeon clear (not in boss, not while dead). Mode picks how it chooses which door.");
-        d.put("look at door", "Cheat build only. Smoothly turns your camera to the nearest locked Wither door (the Blood door once you have the Blood Key) when you press Key or when a key is picked up. Clear phase only; moving your mouse or opening a menu cancels it.");
-        d.put("in menus", "Cheat build only. Lets Auto Door Opener keep clicking while a GUI (chest, menu) is open. Off by default.");
-        d.put("on key pickup", "Cheat build only. Turns to the right door automatically when you or a teammate picks up a Wither or Blood Key (read from Hypixel's chat message), without pressing the keybind.");
-        d.put("retry delay", "Cheat build only. Minimum wait between Auto Door Opener clicks, 100-2000 ms. A locked door you have no key for keeps getting clicked at this rate.");
+        // ---- Auto Door Opener (cheat build) ----
+        // killer560, 2026-09-27: Look At Door (its own camera-turn feature, and the now-stale "In Menus"/"On Key
+        // Pickup" entries that went with it) is gone; "make it so triggerbot and aura only click the door the
+        // second the key is grabbed ... rename it to auto door opener".
+        d.put("auto door opener", "Cheat build only. The moment you or a teammate picks up a Wither or Blood Key (read from Hypixel's chat), right-clicks a locked door of that type for you once - Mode picks whether it's the nearest one (Aura) or whichever you're looking at (Triggerbot). Not in boss, not while dead.");
+        d.put("retry delay", "Cheat build only. How often Auto Door Opener retries after a key pickup while it hasn't yet found a matching door to click, 100-2000 ms. Stops after one successful click or a few seconds, whichever comes first.");
 
         // ---- Score Calculator ----
         d.put("hud", "Options for what the Score Calculator's HUD element shows. Move the element itself in the HUD editor.");
@@ -1310,7 +1313,7 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cooldown reduction", "Shortens every timer by a flat percentage while you're playing Mage. Detected from your own class, so it turns itself off on any other class - Hypixel never tells the client the real class-level-scaled number, which is why the percentage is yours to set.");
         d.put("ability cooldowns/abilities", "Tick the abilities you want timed. The number after each name is that ability's real cooldown in seconds, taken from SkyHanni's table. Ragnarock Axe is under Rag Axe; Spirit/Bonzo/Phoenix are under Mask Invincibility.");
         d.put("ability timers/name", "What this timer is called on the HUD. Type anything, e.g. Bonzo Mask or Wither Shield.");
-        d.put("armour recolour/add a piece", "Two ways to add a piece: the four buttons take whatever you are wearing right now, or bind the capture key and press it while hovering a piece in any menu.");
+        d.put("armor recolour/add a piece", "Two ways to add a piece: the four buttons take whatever you are wearing right now, or bind the capture key and press it while hovering a piece in any menu.");
         d.put("arrow align", "F7/M7 Phase 3 third device (the arrow item frames). Shows how many clicks each frame still needs, and can block clicks that would turn a finished frame past the answer.");
         d.put("arrow align/scale", "Size of the click-count number drawn on each Arrow Align frame, 0.5x to 3x.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames within Aura Range without you needing to look at them.");
@@ -1346,11 +1349,9 @@ final class SettingTooltipsData {
         d.put("ap3/movement", "Cheat build only. How AP3 moves you between nodes: the 45-degree input speed trick, whether a finished chain rolls straight into the next area's chain, and chat feedback.");
         d.put("auto routes/colour", "The one colour every Auto Routes node marker uses while Uniform Colour is ON.");
         d.put("chat", "Everything that changes chat: translation, typo fixing, emotes, copying messages, voice to text, Spotify and the /cringe and meow replies.");
-        d.put("door helpers/mode", "Cheat build only. Triggerbot (default) clicks only when your crosshair is on a locked Wither/Blood door block within normal reach. Aura clicks the nearest locked door within Range without you aiming at it.");
-        d.put("door helpers/range", "Cheat build only. Aura mode: how close (2.0-6.0 blocks, measured from your eyes to the door) a locked door must be before it gets clicked.");
-        d.put("door helpers/swing hand", "Cheat build only. Plays your arm swing each time Auto Door Opener clicks a door. OFF clicks without swinging.");
-        d.put("door helpers/key", "Cheat build only. Keybind that starts Look At Door. Click, then press a key; Escape clears it. With no key set, only On Key Pickup can trigger it.");
-        d.put("door helpers/speed", "Cheat build only. How fast Look At Door turns your camera, 1 (slow, most human-looking) to 10 (fast). Each turn also adds a little random variation.");
+        d.put("auto door opener/mode", "Cheat build only. Triggerbot (default) clicks only when your crosshair is on a locked Wither/Blood door block within normal reach. Aura clicks the nearest locked door within Range without you aiming at it.");
+        d.put("auto door opener/range", "Cheat build only. Aura mode: how close (2.0-6.0 blocks, measured from your eyes to the door) a locked door must be before it gets clicked.");
+        d.put("auto door opener/swing hand", "Cheat build only. Plays your arm swing each time Auto Door Opener clicks a door. OFF clicks without swinging.");
         d.put("door keys/show tracer", "Draws a line from your eyes to the highlighted key.");
         d.put("dungeon alerts/room cleared", "Alerts when a room's objective (kill/puzzle) is cleared, for every identified room on the map - not just the one you're standing in.");
         d.put("dungeon alerts/secrets done", "Alerts once every secret in a room is found. Can only track the room you're standing in when the last one is found - there's no per-room breakdown to check other rooms with.");
@@ -1733,15 +1734,19 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door color", "Cheat build only. Color of the locked Blood door while you don't have the Blood Key.");
         d.put("wither doors/blood door (key) color", "Cheat build only. Color the Blood door switches to once the Blood Key has been picked up.");
         d.put("wither doors/through walls", "Cheat build only. Draws the highlighted door box(es) through walls instead of only when you can actually see them.");
+        d.put("mask invincibility/spirit", "Whether you actually own Spirit Mask. Controls both its HUD timer row and whether Auto Swap will ever try to put it on - off means never shown, never swapped to.");
+        d.put("mask invincibility/bonzo", "Whether you actually own Bonzo's Mask. Controls both its HUD timer row and whether Auto Swap will ever try to put it on - off means never shown, never swapped to.");
+        d.put("mask invincibility/phoenix", "Whether you actually own a Phoenix Pet. Controls both its HUD timer row and whether Auto Swap will ever try to put it on - off means never shown, never swapped to.");
         d.put("mask invincibility/item icons", "Draws each item's real texture next to its timer, taken from your own inventory when it is there.");
         d.put("mask invincibility/hide mask names", "Shows only the icon and the time, dropping the \"Spirit Mask:\" label. Needs Item Icons on.");
+        d.put("mask invincibility/only in dungeons", "Hides the whole HUD outside a dungeon run, even while the feature is on.");
+        d.put("mask invincibility/boss only", "Hides the whole HUD until the boss fight starts. Stacks with Only In Dungeons rather than requiring it - a boss fight is still a dungeon either way.");
         d.put("mask invincibility/announce in chat", "Prints a client-side line only you can see when a mask or the Phoenix pet pops.");
         d.put("mask invincibility/announce to party", "Types the pop into party chat with /pc so your team sees it. Off by default - this really does send a message.");
+        d.put("mask invincibility/auto swap", "Cheat build only. Automatically requests a swap to Spirit, then Phoenix, then Bonzo (in that order) whenever one is off cooldown, not already worn/out, and owned (see Spirit/Bonzo/Phoenix above).");
         d.put("mask invincibility/swap step delay", "Pause between each step of an automated swap: send /stats, wait for the menu, click the mask, close it. Higher is safer on a laggy server.");
-        d.put("mask invincibility/phoenix rod", "Part of the name of the rod to throw for Phoenix, matched anywhere in a hotbar item's name. Relies on your own Hypixel Autopet rule that summons Phoenix when you hold it.");
         d.put("mask invincibility/return to slot", "Switches back to whatever you were holding once the rod has been thrown.");
-        d.put("mask invincibility/phoenix route", "How an automated swap puts Phoenix out: Rod / Autopet throws your rod and relies on a Hypixel Autopet rule to summon it (no command sent), /pets menu opens /pets and clicks Phoenix directly. Falls back to /pets on its own if no rod is found in your hotbar.");
-        d.put("phoenix rod", "Part of the name of the rod to throw for Phoenix, matched anywhere in a hotbar item's name. Only used by the Rod / Autopet route - relies on your own Hypixel Autopet rule that summons Phoenix when you hold it. If no matching rod is found, the swap falls back to the /pets menu instead of doing nothing.");
+        d.put("mask invincibility/phoenix route", "How an automated swap puts Phoenix out: Rod / Autopet throws your rod and relies on a Hypixel Autopet rule to summon it (no command sent), /pets menu opens /pets and clicks Phoenix directly. The rod itself is auto-detected (any real fishing rod in your hotbar) - falls back to /pets on its own if none is found.");
         d.put("storage search/storage search", "Searches every storage, chest and menu this mod has cached, not just the container that's open. Opens with /search, its own binds, or the Search button in the Storage Overlay.");
         d.put("storage search/open bind 1", "Click, then press the key or mouse button that opens the search. Hold Ctrl/Shift/Alt first for a combination like Ctrl+F. Escape cancels.");
         d.put("storage search/open bind 2", "A second way to open the search. Click, then press a key or mouse button; hold Ctrl/Shift/Alt first for a combination.");
@@ -1829,13 +1834,16 @@ final class SettingTooltipsData {
         d.put("best friends/party time tracker", "Tracks how long you've spent partied with each player (any time, not just dungeons) and how many dungeon runs you've cleared together by floor, forever. Off by default - open with /bestfriends once enabled.");
         d.put("best friends/sort", "Changes how the /bestfriends list is ordered: total time together, total dungeon runs together, or alphabetically by name.");
         d.put("best friends/dungeon only filter", "Hides anyone you've never cleared a dungeon with from the /bestfriends list - toggle off to see everyone you've ever partied with.");
-        d.put("friends list/use our /fl", "When on, typing /fl opens this mod's own Friends List instead of Hypixel's. /flhypixel always reaches Hypixel's list either way, and /flcustom always reaches this one. Off by default so /fl behaves exactly like normal until you turn this on.");
+        d.put("friends list/use our /fl", "When on, typing /fl opens this mod's own Friends List (mirroring your real Hypixel friends, kept in sync via /fl) instead of Hypixel's own menu. /flhypixel always reaches Hypixel's list either way, and /flcustom always reaches this one. Off by default so /fl behaves exactly like normal until you turn this on.");
         d.put("pet wheel/pet wheel", "Turns the whole Pet Wheel feature on. Off by default - nothing in this tab does anything until this is on.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel. Won't open while another screen (a menu, chat, this settings screen) is already open.");
         d.put("pet wheel/mode", "Hold & Release: hold the wheel key, drag over a slice, let go to summon it. Press then Click: press the key to open the wheel, then click a slice.");
         d.put("pet wheel/slices", "How many pets show on the wheel at once (4-12). More pets than this page through with the scroll wheel.");
-        d.put("pet wheel/scale", "How big the wheel draws on screen.");
-        d.put("pet wheel/edit pets", "Choose which of your scanned pets appear on the wheel, and in what order. Open /pets at least once with Pet Wheel turned on so it has pets to show here.");
+        d.put("pet wheel/scale", "How big the whole wheel draws on screen (60-400%).");
+        d.put("pet wheel/icon size", "How big each pet's picture draws inside its slice, on top of Scale above (100-400%) - the wheel grows outward on its own to keep bigger slices from overlapping.");
+        d.put("pet wheel/hide level", "Hides the \"[Lvl N]\" prefix under each pet on the wheel. Independent of Hide Name - both, either, or neither can be on.");
+        d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel. Independent of Hide Level - both, either, or neither can be on.");
+        d.put("pet wheel/edit pets", "Opens the wheel itself to edit it in place: right-click a slot to pick a real pet for it from your /pets menu, left-click one slice then another (or drag one onto another) to swap them. One empty slot past the end lets you add a new one.");
         d.put("auction house/auction house browser", "Turns on the custom Auction House browser (/killer560 ah, /killer560ah, or a keybind). Off by default - real Hypixel /ah is completely untouched unless you also turn on the /ah Override below.");
         d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");
         d.put("auction house/ah override", "When on, typing /ah opens this browser instead of Hypixel's own menu. Hypixel's real /ah is always still reachable with /hypixelah regardless of this setting.");
@@ -1849,7 +1857,16 @@ final class SettingTooltipsData {
         d.put("video browser/zoom", "Sets the page's zoom level at launch (Chromium's device-scale-factor) - takes effect on the next Launch/Relaunch, not live.");
         d.put("video browser/comments scroll guard", "YouTube Shorts only: while a comments panel looks open, Next/Previous's fallback key press is skipped so it can't pull the feed away while you're reading or typing comments. The on-page next/previous button still works normally.");
         d.put("video browser/sign in to youtube", "Opens a normal browser window (own address bar) on the same profile the overlay uses, for the currently selected Site, so you can log into your real account by hand. The mod never sees or stores your password.");
-        d.put("supporters/custom cosmetics", "Shows other supporters' custom names and scale on their nametag, tab list and chat. Turn off to always see everyone's real IGN.");
+        d.put("toggle global cosmetics", "Shows other supporters' custom names and scale on their nametag, tab list and chat. Turn off to always see everyone's real IGN.");
+        d.put("cosmetics/refresh", "Re-checks whether this account is linked to a supporter, and reloads your current scale from the relay.");
+        d.put("cosmetics/scale", "Your player model's uniform size, shared over the relay - only visible (to you or anyone else) once this account is a linked, sharing supporter.");
+        d.put("cosmetics/width", "Stretches your OWN player model side to side (0.5x-2x). Visual only, your own F5 view only - never shared, never touches your hitbox.");
+        d.put("cosmetics/height", "Stretches your OWN player model up and down (0.5x-2x). Visual only, your own F5 view only - never shared, never touches your hitbox.");
+        d.put("cosmetics/thickness", "Stretches your OWN player model front to back (0.5x-2x). Visual only, your own F5 view only - never shared, never touches your hitbox.");
+        d.put("share if supporter", "While linked to a supporter, automatically pushes your Name Changer display name/colour and Cosmetics Scale to the relay so other players with this mod see them too. Off never shares, even if linked.");
+        d.put("copy settings for global cosmetics", "Copies your name and scale as a name=...;scale=... string to your clipboard, for staff to hand to the Discord bot route if the automatic relay share isn't usable.");
+        d.put("reset cosmetics", "Puts your display name, colour, fade and player model shape back to default. Does not turn off Name Changer, Held Item Transform, or Share if Supporter.");
+        d.put("fade color", "Turns your display name into a gradient between two colours instead of one flat colour. Local rendering only - if you're also sharing with Share if Supporter, other players see just the first colour, since the relay can't carry a gradient.");
         d.put("party interop/share dungeon data with party", "Sends the mimic/prince/bat/blood flags, run counters, room secrets, discovered rooms and doors, and M7 dragon events this client works out on its own to the rest of your party over the mod's relay. Needs Mod Chat and Use Mod Relay both on to do anything.");
         d.put("party interop/cross-mod bridge", "Talks to Devonian, NoammAddons and Odin's own party servers so their users and ours share dungeon data both ways. Never connects for a mod you have installed yourself.");
         d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party. Signs in with your Minecraft session the normal Mojang way.");
@@ -1859,9 +1876,6 @@ final class SettingTooltipsData {
         d.put("team melody/team melody hud", "Shows each teammate's Floor 7/M7 Melody terminal progress live during Phase 3 - name, current row, and a small progress bar. Fed by Odin users, our own relay's users, and this mod's own read-only terminal reader.");
         d.put("team melody/share my progress", "Lets your own live Melody terminal progress reach teammates - over our own relay, and to Odin's socket if the Cross-Mod Bridge's Odin toggle is on and connected. Never sent anywhere unless this is on.");
         d.put("team melody/scale", "Resizes the Team Melody HUD - the same value as scrolling on it in the HUD editor.");
-        d.put("supporters/refresh", "Re-checks whether this account is linked to a supporter, and reloads your current name/scale from the relay.");
-        d.put("supporters/save", "Sends your name and scale to the relay. Takes effect on your own client immediately; other players see it within a few minutes.");
-        d.put("supporters/clear", "Removes your custom name so your real IGN shows again. Your scale resets to 1.0 too.");
         d.put("full block/width", "How wide the hitbox is, side to side. Far left is the block's normal size, far right is a full block.");
         d.put("full block/height", "How tall the hitbox is. Far left is the block's normal size, far right is a full block.");
         d.put("full block/length", "How far the hitbox reaches: out from the wall, floor or ceiling for buttons, levers and wall skulls, or front to back for chests and floor skulls. Far left is normal size, far right is a full block.");
@@ -1940,5 +1954,13 @@ final class SettingTooltipsData {
         d.put("mining (wip)/auto commissions", "NOT WIRED YET - see the tab's own text for exactly what real Dwarven Mines commission automation would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
         d.put("mining (wip)/auto nucleus run", "NOT WIRED YET - see the tab's own text for exactly what a real mine-to-Nucleus automation loop would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
         d.put("mining (wip)/auto crystal", "NOT WIRED YET - see the tab's own text for exactly what real Crystal Hollows crystal automation would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
+    }
+
+    /** Auto Inventory Sorter and Auto Sell (killer560, 2026-09-27). Bare (unscoped) keys - both labels are
+     *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
+    private static void invSortAndAutoSell(Map<String, String> d) {
+        d.put("auto inventory sorter", "Master toggle. Save your inventory's current arrangement as a named layout, then apply it any time with /invsort - it clicks your own inventory slots until every managed slot holds the item it's supposed to, matched by Skyblock item id (not just material, so two different items on the same block never get confused). You can't walk while it's running; that releases the instant it finishes or is stopped.");
+        d.put("open layouts folder", "Opens the killer560smod-invsort folder - one json file per saved layout, so a single layout can be shared just by handing over its file.");
+        d.put("auto sell", "Master toggle. Sells items automatically by clicking them in whatever screen is open, but only ones explicitly on your sell list, and never anything on the never-sell list even if it's also on the sell list. Default OFF - also needs /autosell start each time, and refuses unless the open screen's title matches the sell screen pattern shown below.");
     }
 }

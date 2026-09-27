@@ -1,6 +1,7 @@
 package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.util.ActionGate;
+import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -121,6 +122,9 @@ public final class AutoPuzzleUtil {
         }
         float realYaw = player.getYRot();
         float realPitch = player.getXRot();
+        // Held across the swap as well: this one restores the rotation in its finally, but the camera can still
+        // catch the changed value for a frame, which is a flick in the middle of a solve.
+        ViewFreeze.hold(realYaw, realPitch);
         float yaw = realYaw + Mth.wrapDegrees(targetYaw - realYaw);
         float pitch = Mth.clamp(targetPitch, -90f, 90f);
         player.setYRot(yaw);
@@ -134,8 +138,20 @@ public final class AutoPuzzleUtil {
         return true;
     }
 
-    /** Visible camera rotation (QUOI {@code player.rotate(dir)}), unwrapped per this mod's rule. */
+    /**
+     * Visible camera rotation (QUOI {@code player.rotate(dir)}), unwrapped per this mod's rule.
+     * <p>
+     * The REAL yaw and pitch still move - the aim has to be real or the shot misses and the server sees something
+     * the client did not do. What changed (2026-09-27) is that his CAMERA no longer follows it: killer560, "if it
+     * goes to reposition I should have my camera put into a similar free state as ap3 so my vision isn't gonna
+     * give me epileptic attacks as it rotates everywhere."
+     * <p>
+     * {@link ViewFreeze} takes the view at the first rotation of a run and holds it for every one after, while his
+     * mouse keeps steering that held view. It is a LEASE, renewed on each rotation and lapsing by itself shortly
+     * after the solver stops, so a puzzle that is cancelled or throws cannot leave him looking the wrong way.
+     */
     public static void rotateCamera(LocalPlayer player, float targetYaw, float targetPitch) {
+        ViewFreeze.hold(player.getYRot(), player.getXRot());
         float yaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
         player.setYRot(yaw);
         player.setYHeadRot(yaw);

@@ -13,9 +13,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +21,9 @@ import java.util.List;
 /**
  * Auto Blood Rush (cheat): "replicate me pressing the keybind to go to wither doors until blood door opens". Repeats the
  * Interactive Map's Locked Door action: teleport-path ({@link AutoClearUtils#pathToDoor}) to the next locked door,
- * wait there for it to open (optionally clicking it once - door opening itself belongs to Door Helpers), then the
- * next. The next door is the first locked door on the room path toward the Blood door when that door is known (so wither
+ * wait there for it to open (door opening itself belongs to Auto Door Opener - killer560, 2026-09-27: "remove the
+ * click door on arrival setting from auto blood rush"), then the next. The next door is the first locked door on
+ * the room path toward the Blood door when that door is known (so wither
  * doors come first and side doors like Fairy's are skipped), else the closest locked wither door, else the Blood door.
  * Stops when the Blood door opens (chat or block), on movement/click input, death, boss, leaving the dungeon, world
  * change, repeated path failures, or waiting longer than the door timeout. No walking pathfinder.
@@ -40,7 +38,6 @@ public final class BloodRush {
     private static volatile boolean bloodOpenedMessage = false;
     private static int targetDoor = -1;
     private static long targetSinceMs = 0;
-    private static boolean clickedTarget = false;
     private static int pathFailures = 0;
     private static boolean pathStarted = false;
     private static int cooldownTicks = 0;
@@ -177,7 +174,6 @@ public final class BloodRush {
         if (door != targetDoor) {
             targetDoor = door;
             targetSinceMs = now;
-            clickedTarget = false;
             pathFailures = 0;
         }
         if (now - targetSinceMs > cfg.getBloodRushDoorTimeoutSec() * 1000L) {
@@ -193,11 +189,8 @@ public final class BloodRush {
         double dx = player.getX() - (approach.getX() + 0.5);
         double dz = player.getZ() - (approach.getZ() + 0.5);
         if (dx * dx + dz * dz <= 2.5 * 2.5 && Math.abs(player.getY() - (approach.getY() + 1)) <= 2.0) {
-            // Arrived: wait for the door to open (Door Helpers / the player open it; optionally click it once).
-            if (cfg.isBloodRushClickDoor() && !clickedTarget) {
-                clickedTarget = true;
-                clickDoor(client, door);
-            }
+            // Arrived: wait for the door to open. killer560: "remove the click door on arrival setting from
+            // auto blood rush" - opening the door is Auto Door Opener's job now, not Blood Rush's.
             return;
         }
         if (!AutoClearUtils.canPath(layout)) {
@@ -259,20 +252,4 @@ public final class BloodRush {
                 || o.keyJump.isDown() || o.keyAttack.isDown() || o.keyUse.isDown());
     }
 
-    private static void clickDoor(Minecraft client, int door) {
-        if (client.player == null || client.gameMode == null) {
-            return;
-        }
-        BlockPos lock = DungeonLayout.doorBlock(door);
-        BlockPos target = new BlockPos(lock.getX(), 70, lock.getZ());
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 centre = Vec3.atCenterOf(target);
-        if (eye.distanceToSqr(centre) > 4.5 * 4.5) {
-            return;
-        }
-        net.minecraft.core.Direction face = net.minecraft.core.Direction.getApproximateNearest(
-                eye.x - centre.x, eye.y - centre.y, eye.z - centre.z);
-        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, new BlockHitResult(centre, face, target, false));
-        client.player.swing(InteractionHand.MAIN_HAND);
-    }
 }

@@ -24,10 +24,12 @@ import java.util.Map;
  * <p>
  * Two lists are kept, both persisted:
  * <ul>
- *   <li>{@code wheelPets} - the ordered subset actually shown on the wheel, picked in {@link PetPickerScreen}.</li>
+ *   <li>{@code wheelPets} - the ordered subset actually shown on the wheel, picked/rearranged in
+ *   {@link PetWheelScreen}'s edit mode (opened by {@code gui.tab.PetWheelTab}'s "Edit Pets" button).</li>
  *   <li>{@code knownPets} - every pet {@link PetsMenuScanner} has ever read off a real {@code /pets} screen,
- *   insertion-ordered, so the picker has something to choose from even before the wheel itself has been
- *   opened once. Both are keyed by the pet's own item uuid (see {@link PetEntry}), never by name+rarity.</li>
+ *   insertion-ordered, so {@link PetsMenuScanner}'s passive scan (and {@link PetWheelEditor}'s right-click
+ *   pick) both have somewhere to record what a pet's icon/name/level/tier looked like last. Both lists are
+ *   keyed by the pet's own item uuid (see {@link PetEntry}), never by name+rarity.</li>
  * </ul>
  */
 public final class PetWheelConfig {
@@ -43,8 +45,16 @@ public final class PetWheelConfig {
     public static final int MAX_SLICES = 12;
     public static final int DEFAULT_SLICES = 8;
     public static final int MIN_SCALE_PCT = 60;
-    public static final int MAX_SCALE_PCT = 150;
+    /** Raised from 150 (killer560, 2026-09-27: "the scale should also be able to go a decent bit higher"). */
+    public static final int MAX_SCALE_PCT = 400;
     public static final int DEFAULT_SCALE_PCT = 100;
+    /** Icon Size: a second, independent multiplier on top of {@link #scalePercent} that only grows the pet
+     *  picture itself (killer560: "make a way to have the pictures alot bigger as well") - the tile box and
+     *  ring radius both grow to fit it (see {@code PetWheelScreen#layout}), so a huge icon setting can't make
+     *  neighbouring slices overlap. */
+    public static final int MIN_ICON_SCALE_PCT = 100;
+    public static final int MAX_ICON_SCALE_PCT = 400;
+    public static final int DEFAULT_ICON_SCALE_PCT = 100;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -55,8 +65,14 @@ public final class PetWheelConfig {
     private boolean enabled = false;
     private int sliceCount = DEFAULT_SLICES;
     private int scalePercent = DEFAULT_SCALE_PCT;
+    private int iconScalePercent = DEFAULT_ICON_SCALE_PCT;
     private InteractionMode mode = InteractionMode.HOLD_RELEASE;
     private int keyCode = KeyUtil.NONE;
+    /** killer560: "add an option to hide their level and an option to hide the pets name" - two separate
+     *  toggles, independent of each other, affecting only the wheel's own slice label (never the Edit Pets
+     *  lists, which still show the full "[Lvl N] Name" so picking the right pet stays unambiguous there). */
+    private boolean hideLevel = false;
+    private boolean hideName = false;
 
     /** Ordered subset shown on the wheel, keyed by uuid so identity survives a rename/relevel. */
     private final List<PetEntry> wheelPets = new ArrayList<>();
@@ -81,8 +97,11 @@ public final class PetWheelConfig {
                 cfg.enabled = root.has("enabled") && root.get("enabled").getAsBoolean();
                 cfg.sliceCount = clampSlices(getInt(root, "sliceCount", DEFAULT_SLICES));
                 cfg.scalePercent = clampScale(getInt(root, "scalePercent", DEFAULT_SCALE_PCT));
+                cfg.iconScalePercent = clampIconScale(getInt(root, "iconScalePercent", DEFAULT_ICON_SCALE_PCT));
                 cfg.mode = parseMode(root.has("mode") ? root.get("mode").getAsString() : null);
                 cfg.keyCode = KeyUtil.sanitizeBind(getInt(root, "keyCode", KeyUtil.NONE));
+                cfg.hideLevel = root.has("hideLevel") && root.get("hideLevel").getAsBoolean();
+                cfg.hideName = root.has("hideName") && root.get("hideName").getAsBoolean();
                 readPetList(root, "wheelPets", cfg.wheelPets);
                 List<PetEntry> known = new ArrayList<>();
                 readPetList(root, "knownPets", known);
@@ -103,8 +122,11 @@ public final class PetWheelConfig {
             root.addProperty("enabled", enabled);
             root.addProperty("sliceCount", sliceCount);
             root.addProperty("scalePercent", scalePercent);
+            root.addProperty("iconScalePercent", iconScalePercent);
             root.addProperty("mode", mode.name());
             root.addProperty("keyCode", keyCode);
+            root.addProperty("hideLevel", hideLevel);
+            root.addProperty("hideName", hideName);
             root.add("wheelPets", petListToJson(wheelPets));
             root.add("knownPets", petListToJson(new ArrayList<>(knownPets.values())));
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
@@ -136,6 +158,30 @@ public final class PetWheelConfig {
 
     public void setScalePercent(int scalePercent) {
         this.scalePercent = clampScale(scalePercent);
+    }
+
+    public int getIconScalePercent() {
+        return iconScalePercent;
+    }
+
+    public void setIconScalePercent(int iconScalePercent) {
+        this.iconScalePercent = clampIconScale(iconScalePercent);
+    }
+
+    public boolean isHideLevel() {
+        return hideLevel;
+    }
+
+    public void setHideLevel(boolean hideLevel) {
+        this.hideLevel = hideLevel;
+    }
+
+    public boolean isHideName() {
+        return hideName;
+    }
+
+    public void setHideName(boolean hideName) {
+        this.hideName = hideName;
     }
 
     public InteractionMode getMode() {
@@ -200,6 +246,36 @@ public final class PetWheelConfig {
         return true;
     }
 
+    /** killer560's reworked wheel-edit flow: left-click one slice then another (or drag one onto another)
+     *  swaps their pets in place. Both indices must already hold a real pet - the wheel's one trailing empty
+     *  "appendable" slot (see {@link PetWheelScreen}) is never a valid swap partner. @return true if it swapped. */
+    public boolean swapInWheel(int indexA, int indexB) {
+        if (indexA == indexB || indexA < 0 || indexB < 0 || indexA >= wheelPets.size() || indexB >= wheelPets.size()) {
+            return false;
+        }
+        PetEntry a = wheelPets.get(indexA);
+        wheelPets.set(indexA, wheelPets.get(indexB));
+        wheelPets.set(indexB, a);
+        return true;
+    }
+
+    /**
+     * killer560's reworked wheel-edit flow: right-clicking a slot opens the real {@code /pets} menu and
+     * whatever pet is clicked there replaces the pet in that slot. {@code index == wheelPets.size()} is the
+     * wheel's one trailing empty slot (see {@link PetWheelScreen}'s edit-mode layout), which this appends to
+     * rather than replacing; anything past that is out of range and ignored rather than leaving a gap.
+     */
+    public void replaceOrAppendWheelSlot(int index, PetEntry entry) {
+        if (entry == null || index < 0 || index > wheelPets.size()) {
+            return;
+        }
+        if (index == wheelPets.size()) {
+            wheelPets.add(entry);
+        } else {
+            wheelPets.set(index, entry);
+        }
+    }
+
     /**
      * Merges a fresh scan of one pet into {@code knownPets} (see {@link PetEntry#mergedWith}), and refreshes
      * the matching wheel entry too so the wheel's cached name/level/tier/head stay current without needing
@@ -231,6 +307,10 @@ public final class PetWheelConfig {
 
     private static int clampScale(int v) {
         return Math.max(MIN_SCALE_PCT, Math.min(MAX_SCALE_PCT, v));
+    }
+
+    private static int clampIconScale(int v) {
+        return Math.max(MIN_ICON_SCALE_PCT, Math.min(MAX_ICON_SCALE_PCT, v));
     }
 
     private static InteractionMode parseMode(String raw) {

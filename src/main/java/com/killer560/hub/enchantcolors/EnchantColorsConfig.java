@@ -45,6 +45,12 @@ public final class EnchantColorsConfig {
     private int goodColor = EnchantColorsDefaults.GOOD;
     private int greatColor = EnchantColorsDefaults.GREAT;
     private int perfectColor = EnchantColorsDefaults.PERFECT;
+    /** killer560, 2026-09-27: "make the enchant colors the exact same as skyhanni's." SkyHanni's real default
+     *  Perfect colour is {@code LorenzColor.CHROMA} - an animated rainbow, not a fixed colour (decompiled,
+     *  see {@link EnchantColorsDefaults}'s class doc) - so this defaults ON rather than matching a static
+     *  swatch. Turn it off to use {@link #perfectColor} instead, which this mod's colour picker CAN express
+     *  and SkyHanni's animated one can't be reduced to. */
+    private boolean perfectChroma = true;
     /** SkyHanni's own default (boldPerfectEnchant) - kept as a toggle rather than hardcoded, same as Ultimate. */
     private boolean perfectBold = false;
     private boolean ultimateEnabled = true;
@@ -78,6 +84,7 @@ public final class EnchantColorsConfig {
             cfg.goodColor = ConfigJson.getInt(obj, "goodColor", EnchantColorsDefaults.GOOD);
             cfg.greatColor = ConfigJson.getInt(obj, "greatColor", EnchantColorsDefaults.GREAT);
             cfg.perfectColor = ConfigJson.getInt(obj, "perfectColor", EnchantColorsDefaults.PERFECT);
+            cfg.perfectChroma = ConfigJson.getBool(obj, "perfectChroma", true);
             cfg.perfectBold = ConfigJson.getBool(obj, "perfectBold", false);
             cfg.ultimateEnabled = ConfigJson.getBool(obj, "ultimateEnabled", true);
             cfg.ultimateColor = ConfigJson.getInt(obj, "ultimateColor", EnchantColorsDefaults.ULTIMATE);
@@ -100,6 +107,7 @@ public final class EnchantColorsConfig {
             obj.addProperty("goodColor", goodColor);
             obj.addProperty("greatColor", greatColor);
             obj.addProperty("perfectColor", perfectColor);
+            obj.addProperty("perfectChroma", perfectChroma);
             obj.addProperty("perfectBold", perfectBold);
             obj.addProperty("ultimateEnabled", ultimateEnabled);
             obj.addProperty("ultimateColor", ultimateColor);
@@ -172,6 +180,14 @@ public final class EnchantColorsConfig {
 
     public void setPerfectColor(int perfectColor) {
         this.perfectColor = perfectColor;
+    }
+
+    public boolean isPerfectChroma() {
+        return perfectChroma;
+    }
+
+    public void setPerfectChroma(boolean perfectChroma) {
+        this.perfectChroma = perfectChroma;
     }
 
     public boolean isPerfectBold() {

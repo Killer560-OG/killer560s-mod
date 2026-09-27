@@ -27,8 +27,14 @@ public abstract class Ap3ViewYawMixin {
     @Inject(method = "getViewYRot", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$ap3FrozenView(float partialTick, CallbackInfoReturnable<Float> cir) {
         Ap3Executor.onViewMixinApplied();
-        // Freeze State's free camera first, then the align/walk view freeze.
+        // Freeze State's free camera first, then the align/walk view freeze, then anything else holding the
+        // camera - today the auto puzzles, which turn him to aim and would otherwise whip the view around
+        // (killer560, 2026-09-27: "so my vision isn't gonna give me epileptic attacks as it rotates everywhere").
+        // AP3 keeps priority because it is the one actually driving him when both are live.
         float yaw = Ap3FreezeState.isFrozen() ? Ap3FreezeState.viewYaw() : Ap3Executor.frozenViewYaw();
+        if (Float.isNaN(yaw)) {
+            yaw = com.killer560.hub.util.ViewFreeze.viewYaw();
+        }
         if (!Float.isNaN(yaw) && !((LocalPlayer) (Object) this).isPassenger()) {
             cir.setReturnValue(yaw);
         }
@@ -45,6 +51,9 @@ public abstract class Ap3ViewYawMixin {
             return;
         }
         float pitch = Ap3Executor.frozenViewPitch(); // a Block node aiming the real pitch
+        if (Float.isNaN(pitch)) {
+            pitch = com.killer560.hub.util.ViewFreeze.viewPitch(); // the auto puzzles, aiming
+        }
         if (!Float.isNaN(pitch)) {
             cir.setReturnValue(pitch);
         }

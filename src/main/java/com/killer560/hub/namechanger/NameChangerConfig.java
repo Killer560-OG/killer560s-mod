@@ -57,6 +57,10 @@ public final class NameChangerConfig {
     private String ownDisplayName = "";
     /** Picked colour for {@link #ownDisplayName} - see {@link NameColor}. */
     private int ownColor = NameColor.NONE;
+    /** Cosmetics tab "Fade Color" (killer560: "allow them to fade the color") - when on, {@link #ownColor}
+     *  is the gradient's start and {@link #ownColorFadeTo} its end; see {@link NameColor#buildFade}. */
+    private boolean ownColorFadeEnabled = false;
+    private int ownColorFadeTo = NameColor.NONE;
     private boolean mappingsEnabled = true;
     private final List<Mapping> mappings = new ArrayList<>();
     /** Gives every other player (tab list + loaded players) a stable random fake name for this session. */
@@ -94,6 +98,8 @@ public final class NameChangerConfig {
                     cfg.ownDisplayName = migrated.text();
                     cfg.ownColor = migrated.argb();
                 }
+                cfg.ownColorFadeEnabled = ConfigJson.getBool(obj, "ownColorFadeEnabled", false);
+                cfg.ownColorFadeTo = ConfigJson.getInt(obj, "ownColorFadeTo", NameColor.NONE);
                 cfg.mappingsEnabled = ConfigJson.getBool(obj, "mappingsEnabled", true);
                 cfg.randomizeOthers = ConfigJson.getBool(obj, "randomizeOthers", false);
                 JsonArray arr = ConfigJson.getArray(obj, "mappings");
@@ -134,6 +140,8 @@ public final class NameChangerConfig {
             obj.addProperty("ownNameEnabled", ownNameEnabled);
             obj.addProperty("ownDisplayName", ownDisplayName);
             obj.addProperty("ownColor", ownColor);
+            obj.addProperty("ownColorFadeEnabled", ownColorFadeEnabled);
+            obj.addProperty("ownColorFadeTo", ownColorFadeTo);
             obj.addProperty("mappingsEnabled", mappingsEnabled);
             obj.addProperty("randomizeOthers", randomizeOthers);
             JsonArray arr = new JsonArray();
@@ -186,6 +194,24 @@ public final class NameChangerConfig {
         version++;
     }
 
+    public boolean isOwnColorFadeEnabled() {
+        return ownColorFadeEnabled;
+    }
+
+    public void setOwnColorFadeEnabled(boolean ownColorFadeEnabled) {
+        this.ownColorFadeEnabled = ownColorFadeEnabled;
+        version++;
+    }
+
+    public int getOwnColorFadeTo() {
+        return ownColorFadeTo;
+    }
+
+    public void setOwnColorFadeTo(int argb) {
+        this.ownColorFadeTo = argb;
+        version++;
+    }
+
     public boolean isMappingsEnabled() {
         return mappingsEnabled;
     }
@@ -207,6 +233,18 @@ public final class NameChangerConfig {
     /** Live list - call {@link #save()} after editing an entry in place. */
     public List<Mapping> mappings() {
         return mappings;
+    }
+
+    /** Cosmetics tab's bottom "Reset" button: puts the own-name display text/colour/fade back to their
+     *  defaults. Deliberately leaves {@link #ownNameEnabled}/{@link #mappingsEnabled}/{@link
+     *  #randomizeOthers} and the mapping list alone - those are feature toggles and saved data, not cosmetic
+     *  VALUES, same distinction {@link com.killer560.hub.helditem.HeldItemConfig#resetValues} draws. */
+    public void resetOwnNameCosmetics() {
+        ownDisplayName = "";
+        ownColor = NameColor.NONE;
+        ownColorFadeEnabled = false;
+        ownColorFadeTo = NameColor.NONE;
+        version++;
     }
 
     public void addMapping() {

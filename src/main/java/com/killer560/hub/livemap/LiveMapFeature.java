@@ -243,8 +243,9 @@ public final class LiveMapFeature {
         if (WaterSolverConfig.getInstance().isEnabled()) sb.append("Water,");
         if (BeamsSolverConfig.getInstance().isEnabled()) sb.append("Beams,");
         if (BlazeSolverConfig.getInstance().isEnabled()) sb.append("Blaze,");
+        // Teleport Pathing folded into Interactive Map itself (killer560: "the entire portion of interactive
+        // map is the teleport pathing") - no separate flag left to report here.
         if (LiveMapConfig.getInstance().isInteractiveMapEnabled()) sb.append("InteractiveMap,");
-        if (LiveMapConfig.getInstance().isPathingEnabled()) sb.append("Pathing,");
         if (LiveMapConfig.getInstance().isBloodRushEnabled()) sb.append("BloodRush,");
         return sb.length() == 0 ? "" : sb.substring(0, sb.length() - 1);
     }

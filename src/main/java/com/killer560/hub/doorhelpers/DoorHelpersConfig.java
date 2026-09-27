@@ -12,10 +12,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Door Helpers settings (cheat build only) - Auto Door Opener (QUOI {@code AutoDoorOpener.kt}) and Look At
- * Door. Both ship OFF. The effective {@code is...Enabled()} getters are gated on
- * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and {@link com.killer560.hub.util.SkyblockGate};
- * the tab reads the {@code ...Raw()} getters.
+ * Persisted Auto Door Opener settings (cheat build only; QUOI {@code AutoDoorOpener.kt}). Ships OFF. The effective
+ * {@code is...Enabled()} getters are gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and
+ * {@link com.killer560.hub.util.SkyblockGate}; the tab reads the {@code ...Raw()} getters.
+ * <p>
+ * killer560, 2026-09-27: "Remove look at doors as a setting from door helpers. can you make it so triggerbot and
+ * aura only click the door the second the key is grabbed for door helpers. And rename it to auto door opener." -
+ * Look At Door (its own camera-turn feature) is gone entirely, along with its 4 settings below; the whole
+ * former "Door Helpers" tab is just Auto Door Opener now. See {@link AutoDoorOpenerFeature} for the new
+ * fire-on-key-pickup behaviour.
  */
 public final class DoorHelpersConfig {
 
@@ -25,8 +30,6 @@ public final class DoorHelpersConfig {
     public static final double RANGE_MAX = 6.0;
     public static final int RETRY_MIN_MS = 100;
     public static final int RETRY_MAX_MS = 2000;
-    public static final int SPEED_MIN = 1;
-    public static final int SPEED_MAX = 10;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -40,12 +43,6 @@ public final class DoorHelpersConfig {
     private double autoDoorRange = 5.0;
     private int autoDoorRetryDelayMs = 500;
     private boolean autoDoorSwing = false;
-
-    // Look At Door
-    private boolean lookAtDoorEnabled = false;
-    private int lookAtDoorKey = -1;
-    private boolean lookAtDoorOnKeyPickup = false;
-    private int lookAtDoorSpeed = 5;
 
     private DoorHelpersConfig() {
     }
@@ -71,10 +68,6 @@ public final class DoorHelpersConfig {
             cfg.setAutoDoorRange(ConfigJson.getDouble(obj, "autoDoorRange", cfg.autoDoorRange));
             cfg.setAutoDoorRetryDelayMs(ConfigJson.getInt(obj, "autoDoorRetryDelayMs", cfg.autoDoorRetryDelayMs));
             cfg.autoDoorSwing = ConfigJson.getBool(obj, "autoDoorSwing", cfg.autoDoorSwing);
-            cfg.lookAtDoorEnabled = ConfigJson.getBool(obj, "lookAtDoorEnabled", cfg.lookAtDoorEnabled);
-            cfg.lookAtDoorKey = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "lookAtDoorKey", cfg.lookAtDoorKey));
-            cfg.lookAtDoorOnKeyPickup = ConfigJson.getBool(obj, "lookAtDoorOnKeyPickup", cfg.lookAtDoorOnKeyPickup);
-            cfg.setLookAtDoorSpeed(ConfigJson.getInt(obj, "lookAtDoorSpeed", cfg.lookAtDoorSpeed));
             instance = cfg;
         } catch (Exception e) {
             instance = new DoorHelpersConfig();
@@ -90,10 +83,6 @@ public final class DoorHelpersConfig {
             obj.addProperty("autoDoorRange", autoDoorRange);
             obj.addProperty("autoDoorRetryDelayMs", autoDoorRetryDelayMs);
             obj.addProperty("autoDoorSwing", autoDoorSwing);
-            obj.addProperty("lookAtDoorEnabled", lookAtDoorEnabled);
-            obj.addProperty("lookAtDoorKey", lookAtDoorKey);
-            obj.addProperty("lookAtDoorOnKeyPickup", lookAtDoorOnKeyPickup);
-            obj.addProperty("lookAtDoorSpeed", lookAtDoorSpeed);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -146,44 +135,5 @@ public final class DoorHelpersConfig {
 
     public void setAutoDoorSwing(boolean autoDoorSwing) {
         this.autoDoorSwing = autoDoorSwing;
-    }
-
-    // ---- Look At Door ----
-
-    public boolean isLookAtDoorEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && lookAtDoorEnabled
-                && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public boolean isLookAtDoorEnabledRaw() {
-        return lookAtDoorEnabled;
-    }
-
-    public void setLookAtDoorEnabled(boolean lookAtDoorEnabled) {
-        this.lookAtDoorEnabled = lookAtDoorEnabled;
-    }
-
-    public int getLookAtDoorKey() {
-        return lookAtDoorKey;
-    }
-
-    public void setLookAtDoorKey(int lookAtDoorKey) {
-        this.lookAtDoorKey = lookAtDoorKey;
-    }
-
-    public boolean isLookAtDoorOnKeyPickup() {
-        return lookAtDoorOnKeyPickup;
-    }
-
-    public void setLookAtDoorOnKeyPickup(boolean lookAtDoorOnKeyPickup) {
-        this.lookAtDoorOnKeyPickup = lookAtDoorOnKeyPickup;
-    }
-
-    public int getLookAtDoorSpeed() {
-        return lookAtDoorSpeed;
-    }
-
-    public void setLookAtDoorSpeed(int speed) {
-        this.lookAtDoorSpeed = Math.max(SPEED_MIN, Math.min(SPEED_MAX, speed));
     }
 }

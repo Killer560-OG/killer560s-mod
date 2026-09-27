@@ -220,6 +220,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.p4platform.P4PlatformHighlightFeature.register();
         com.killer560.hub.diorite.DioriteGlassFeature.register();
         com.killer560.hub.partyfinder.PartyFinderOverlay.register();
+        com.killer560.hub.dungeonclass.ClassSelectionOverlay.register();
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.inventorytheme.InventoryThemeFeature.register();
@@ -245,6 +246,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.social.BestFriendsTracker.register();
         com.killer560.hub.social.BestFriendsCommands.register();
         com.killer560.hub.social.FriendsListCommands.register();
+        com.killer560.hub.social.FriendsListSync.register();
         com.killer560.hub.petwheel.PetWheelFeature.register();
         com.killer560.hub.auction.AuctionHouseFeature.register();
         com.killer560.hub.auction.BazaarFeature.register();
@@ -252,6 +254,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.supporters.SupportersFeature.register();
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
+        com.killer560.hub.invsort.InventorySorterExecutor.register();
+        com.killer560.hub.invsort.InventorySorterCommands.register();
+        com.killer560.hub.autosell.AutoSellFeature.register();
+        com.killer560.hub.autosell.AutoSellCommands.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);

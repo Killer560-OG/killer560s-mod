@@ -1,7 +1,13 @@
 package com.killer560.hub.interop;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -76,5 +82,48 @@ public final class DetectedMods {
     public static String describe() {
         List<String> names = presentNames();
         return names.isEmpty() ? "none" : String.join(", ", names);
+    }
+
+    /** killer560 9.1 root-cause for "party finder still doesn't show pb's/custom overlay, just the
+     *  highlight": found 2026-09-21 (see {@link ModConflictWarnings}) - when this is on, Devonian rewrites
+     *  every party head's per-member lore line ("name: Class (level)") into its own overview text every
+     *  tick, so {@code PartyFinderParser.USER_ROLE} never matches a real player's line again. Highlight still
+     *  works because it only reads the separate "Requires ..."/"Complete previous floor first!" lines, which
+     *  Devonian's Overview never touches - shared here (not just the one-time join warning) so
+     *  {@link com.killer560.hub.partyfinder.PartyFinderOverlay} can flag the conflict every time the menu is
+     *  open and skip requesting stats it can no longer attach to anyone. */
+    public static boolean isDevonianPartyFinderOverviewOn() {
+        if (!isLoaded(DEVONIAN)) {
+            return false;
+        }
+        JsonObject root = readJson(FabricLoader.getInstance().getConfigDir().resolve("devonianConfig.json"));
+        return bool(child(root, "config"), "partyFinderOverview");
+    }
+
+    private static JsonObject readJson(Path path) {
+        try {
+            if (!Files.exists(path)) {
+                return null;
+            }
+            JsonElement e = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8));
+            return e.isJsonObject() ? e.getAsJsonObject() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static JsonObject child(JsonObject obj, String key) {
+        if (obj == null || !obj.has(key) || !obj.get(key).isJsonObject()) {
+            return null;
+        }
+        return obj.getAsJsonObject(key);
+    }
+
+    private static boolean bool(JsonObject obj, String key) {
+        try {
+            return obj != null && obj.has(key) && obj.get(key).getAsBoolean();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 }

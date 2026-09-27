@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonclass.ClassOverrides;
+import com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -55,6 +56,18 @@ public class ClassOverridesTab extends BaseTab {
         int[] y = {contentY};
 
         // Tab description moved into the "Class Overrides" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
+        // killer560 9.1: "once I click on one of the 5 classes on that main page..." - the in-game party
+        // bar/drag-drop overlay on the real Catacombs class screen reads and writes this same override table,
+        // so its on/off toggle lives right here next to the table it edits.
+        ClassSelectionOverlayConfig overlayCfg = ClassSelectionOverlayConfig.getInstance();
+        w.add(SettingsButtonWidget.builder(
+                        Component.literal("Class Selection Overlay: " + (overlayCfg.isEnabledRaw() ? "§aON" : "§cOFF")), btn -> {
+                    overlayCfg.setEnabled(!overlayCfg.isEnabledRaw());
+                    overlayCfg.save();
+                    btn.setMessage(Component.literal("Class Selection Overlay: " + (overlayCfg.isEnabledRaw() ? "§aON" : "§cOFF")));
+                }).bounds(contentX, y[0], contentWidth, 18).build());
+        y[0] += 22;
+
         Map<String, DungeonClass> overrides = safeAll();
         List<String> party = partyNames();
 

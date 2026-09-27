@@ -1,6 +1,5 @@
 package com.killer560.hub.social;
 
-import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -8,7 +7,6 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.minecraft.client.Minecraft;
 
 import java.util.Locale;
-import java.util.UUID;
 
 /**
  * {@code /fl} - killer560's 8.7 toggle between OUR Friends List and Hypixel's own, per the brief:
@@ -93,43 +91,15 @@ public final class FriendsListCommands {
         }
     }
 
-    /** Resolves through the shared {@code players.PlayerNames} resolver (cache/tab-list immediately, a
-     *  background Mojang lookup if neither already knows the name) rather than requiring the person to be
-     *  on the tab list right now - an upgrade over this package's original tab-list-only stub, now that the
-     *  real resolver exists. A name that never resolves (typo, never existed) simply never gets a second
-     *  callback - see {@code PlayerNames}' own documented failure contract. */
+    /** Sends the real {@code /f add <name>} - see {@link FriendsListSync}'s doc for why this no longer
+     *  resolves a UUID or touches {@link FriendsListConfig} directly at all: Hypixel itself validates the
+     *  name, and the list only ever updates from a real {@code /fl} re-sync afterward. */
     private static int addByName(String name) {
-        UUID known = PlayerNames.uuidFor(name);
-        if (known == null) {
-            // No immediate answer - resolveAsync will still kick off a background Mojang lookup below and
-            // add them automatically if it succeeds, but PlayerNames never calls back on a lookup FAILURE
-            // (typo, never-existed account - see its own doc), so this can't promise a follow-up message.
-            ModChat.send("Friends List", ModChat.dim("Looking up \"" + name + "\" - will add automatically if found."));
-        }
-        PlayerNames.resolveAsync(name, id -> {
-            if (id == null) {
-                return;
-            }
-            FriendsListConfig cfg = FriendsListConfig.getInstance();
-            FriendsListConfig.Friend added = cfg.add(id, name, "");
-            cfg.save();
-            ModChat.send("Friends List", added == null ? ModChat.dim(name + " is already on your list.")
-                    : ModChat.good("Added " + name + "."));
-        });
-        return 1;
+        return FriendsListSync.requestAdd(name) ? 1 : 0;
     }
 
     private static int removeByName(String name) {
-        FriendsListConfig cfg = FriendsListConfig.getInstance();
-        FriendsListConfig.Friend existing = cfg.byName(name);
-        UUID id = existing != null ? existing.uuid : PlayerNames.uuidFor(name);
-        if (id == null || !cfg.remove(id)) {
-            ModChat.send("Friends List", ModChat.bad(name + " isn't on your list."));
-            return 0;
-        }
-        cfg.save();
-        ModChat.send("Friends List", ModChat.good("Removed " + name + "."));
-        return 1;
+        return FriendsListSync.requestRemove(name) ? 1 : 0;
     }
 
     private static int openCustomScreen() {

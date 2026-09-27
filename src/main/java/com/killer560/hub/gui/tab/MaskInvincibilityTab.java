@@ -6,7 +6,6 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -77,25 +76,51 @@ public class MaskInvincibilityTab extends BaseTab {
         }
         y += 22;
 
+        // killer560 9.1: "add an option to only show the invulnerabilites in dungeons, and one for boss only".
+        // Even halves of the tab's real content width, same fix as Announce In Chat/To Party just below.
+        int gateGap = 8;
+        int gateW = (contentWidth - gateGap) / 2;
+        widgets.add(SettingsButtonWidget.builder(onOff("Only In Dungeons", cfg.isOnlyInDungeons()), btn -> {
+                    cfg.setOnlyInDungeons(!cfg.isOnlyInDungeons());
+                    cfg.save();
+                    btn.setMessage(onOff("Only In Dungeons", cfg.isOnlyInDungeons()));
+                }).bounds(contentX, y, gateW, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Boss Only", cfg.isBossOnly()), btn -> {
+                    cfg.setBossOnly(!cfg.isBossOnly());
+                    cfg.save();
+                    btn.setMessage(onOff("Boss Only", cfg.isBossOnly()));
+                }).bounds(contentX + gateW + gateGap, y, gateW, 18).build());
+        y += 22;
+
+        // killer560 9.1: "The announce to party text does not fit its box" - it was squeezed into the same
+        // 108px third column as the short "Phoenix"-style labels while sitting next to "Announce In Chat" in
+        // a 208px box, even though "Announce To Party" is the longer of the two labels. Even halves of the
+        // tab's real content width fit both.
+        int announceGap = 8;
+        int announceW = (contentWidth - announceGap) / 2;
         widgets.add(SettingsButtonWidget.builder(onOff("Announce In Chat", cfg.isAnnounceInChat()), btn -> {
                     cfg.setAnnounceInChat(!cfg.isAnnounceInChat());
                     cfg.save();
                     btn.setMessage(onOff("Announce In Chat", cfg.isAnnounceInChat()));
-                }).bounds(col1, y, 208, 18).build());
+                }).bounds(contentX, y, announceW, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Announce To Party", cfg.isAnnounceToParty()), btn -> {
                     cfg.setAnnounceToParty(!cfg.isAnnounceToParty());
                     cfg.save();
                     btn.setMessage(onOff("Announce To Party", cfg.isAnnounceToParty()));
-                }).bounds(contentX + 216, y, 108, 18).build());
+                }).bounds(contentX + announceW + announceGap, y, announceW, 18).build());
         y += 24;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return widgets;
         }
 
+        // killer560 9.1: "make auto mask its own unique section" - was just the generic red cheat-build
+        // divider every other cheat-only section in this mod also uses; naming it here makes it clear this
+        // whole block (the toggle plus everything below it) is one distinct feature, not a shared bucket.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - Automation", true), Minecraft.getInstance().font));
+                SectionHeaders.header("Cheat Build - Auto Mask", true), Minecraft.getInstance().font));
         y += 14;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isAutoSwapEnabled()), btn -> {
@@ -136,23 +161,15 @@ public class MaskInvincibilityTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 
+        // killer560 9.1: "Remove the rod text section as well it should auto detect the rod." The name-a-rod
+        // text box is gone - MaskSwapper#findRodSlot now finds whatever real fishing rod is in the hotbar on
+        // its own (see its javadoc), and falls back to the /pets menu route by itself if there isn't one.
         if (cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD) {
-            EditBox rod = new EditBox(Minecraft.getInstance().font, contentX, y, 208, 18,
-                    Component.literal("Phoenix Rod"));
-            rod.setMaxLength(64);
-            rod.setHint(Component.literal("Rod name (part of it is enough)"));
-            rod.setValue(cfg.getPhoenixRodName());
-            rod.setResponder(text -> {
-                cfg.setPhoenixRodName(text);
-                cfg.save();
-            });
-            widgets.add(rod);
-
             widgets.add(SettingsButtonWidget.builder(onOff("Return To Slot", cfg.isRodReturnToPreviousSlot()), btn -> {
                         cfg.setRodReturnToPreviousSlot(!cfg.isRodReturnToPreviousSlot());
                         cfg.save();
                         btn.setMessage(onOff("Return To Slot", cfg.isRodReturnToPreviousSlot()));
-                    }).bounds(contentX + 216, y, 108, 18).build());
+                    }).bounds(contentX, y, 220, 18).build());
         }
 
         return widgets;

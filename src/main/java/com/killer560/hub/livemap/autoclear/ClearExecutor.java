@@ -109,8 +109,24 @@ public final class ClearExecutor {
 
     public static EtherwarpPathfinder.PathConfig pathConfig() {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
-        return new EtherwarpPathfinder.PathConfig(cfg.getYawStep(), cfg.getPitchStep(), cfg.getHWeight(), cfg.getThreads(),
+        return new EtherwarpPathfinder.PathConfig(cfg.getYawStep(), cfg.getPitchStep(), cfg.getHWeight(),
                 cfg.getTimeoutMs());
+    }
+
+    /** killer560: "make it so ... it shows a small circle at each etherwarp spot ... and a line from one spot
+     *  to another" - the world positions of the currently queued hops, in order, for
+     *  {@link com.killer560.hub.livemap.MapPainter} to draw on the Interactive Map. Snapshotted (not the live
+     *  list) since it is read from the render thread while {@link #nodes} can be mutated by the tick handler. */
+    public static List<Vec3> plannedHopPositions() {
+        List<ClearNode> current = nodes;
+        if (current == null || current.isEmpty()) {
+            return List.of();
+        }
+        List<Vec3> out = new ArrayList<>(current.size());
+        for (ClearNode node : current) {
+            out.add(node.pos);
+        }
+        return out;
     }
 
     /** QUOI {@code etherPath}: search on a background thread, then run the smoothed path. */
@@ -226,7 +242,9 @@ public final class ClearExecutor {
             return;
         }
         LiveMapConfig cfg = LiveMapConfig.getInstance();
-        if (!externalOwner && !cfg.isPathingEnabled() && !cfg.isBloodRushEnabled() && (nodes != null || pathPending)) {
+        // killer560: "the entire portion of interactive map is the teleport pathing" - there is no separate
+        // pathing toggle any more, so Interactive Map itself being on is what keeps a queued path alive.
+        if (!externalOwner && !cfg.isInteractiveMapEnabled() && !cfg.isBloodRushEnabled() && (nodes != null || pathPending)) {
             cancel();
         }
         doInteract(client);

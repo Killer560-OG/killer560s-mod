@@ -25,7 +25,11 @@ import java.nio.file.Path;
  * <li>Skyblocker's terminal solver drawing over ours (settled 2026-09-21: warn once on join).</li>
  * <li>Devonian's Party Finder Overview rewriting the party items' lore every tick, which replaces our style
  *     and leaves our parser nothing it recognises - found 2026-09-21 as the cause of "the current style does
- *     not work".</li>
+ *     not work". killer560 9.1: this warning alone wasn't enough (a scrollback chat line is easy to miss, and
+ *     the party finder screen stays broken for the rest of the session), so
+ *     {@link com.killer560.hub.partyfinder.PartyFinderOverlay} also checks
+ *     {@link DetectedMods#isDevonianPartyFinderOverviewOn()} live and flags it in the tooltip itself every
+ *     time the menu is open, not just once on join.</li>
  * </ul>
  */
 public final class ModConflictWarnings {
@@ -62,8 +66,7 @@ public final class ModConflictWarnings {
                         "§eSkyblocker's terminal solver is also on and will draw over ours. Turn one of them off."));
             }
             PartyFinderOverlayConfig pf = PartyFinderOverlayConfig.getInstance();
-            if (DetectedMods.isLoaded(DetectedMods.DEVONIAN) && pf.isEnabled() && pf.isTooltip()
-                    && devonianPartyFinderOverviewOn()) {
+            if (pf.isEnabled() && pf.isTooltip() && DetectedMods.isDevonianPartyFinderOverviewOn()) {
                 ModChat.send("Conflicts", Component.literal(
                         "§eDevonian's Party Finder Overview is on and replaces our Dungeon Queue style. Turn one of them off."));
             }
@@ -84,11 +87,6 @@ public final class ModConflictWarnings {
             }
         }
         return false;
-    }
-
-    private static boolean devonianPartyFinderOverviewOn() {
-        JsonObject root = readJson(FabricLoader.getInstance().getConfigDir().resolve("devonianConfig.json"));
-        return bool(child(root, "config"), "partyFinderOverview");
     }
 
     private static JsonObject readJson(Path path) {

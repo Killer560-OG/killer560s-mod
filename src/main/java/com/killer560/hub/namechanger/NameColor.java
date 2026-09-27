@@ -99,6 +99,63 @@ public final class NameColor {
         return new Migrated(text.toString(), argb);
     }
 
+    /**
+     * Cosmetics tab: "allow them to fade the color" (killer560). Builds a per-letter true-RGB gradient from
+     * {@code fromArgb} to {@code toArgb} across {@code plainText}, using vanilla's own {@code §x} hex-colour
+     * extension - ONE {@code §x§R§R§G§G§B§B} prefix per visible character, which {@code StringDecomposer}
+     * (and therefore {@link com.killer560.hub.namechanger.NameReplacer}'s Font-level replace, both the
+     * String and FormattedCharSequence paths) already understands, so this needs no new rendering machinery.
+     * <p>
+     * LOCAL rendering only: {@code SupporterNameValidator} only accepts the 16 plain {@code &0-9a-fk-or}
+     * legacy codes, so a fade like this would be rejected outright by the supporters relay - {@code
+     * SupportersAutoShare} deliberately sends just {@code fromArgb} (via {@link #prefix}) instead of a fade
+     * whenever it pushes your own name to the relay. Your own client still sees the full gradient everywhere
+     * your own name is drawn; other players only ever see your fade if they don't have this mod's Cosmetics
+     * tab pointed at a relay that supports it.
+     */
+    public static String buildFade(String plainText, int fromArgb, int toArgb) {
+        if (plainText == null || plainText.isEmpty()) {
+            return plainText == null ? "" : plainText;
+        }
+        int n = plainText.codePointCount(0, plainText.length());
+        if (n <= 1) {
+            return prefix(fromArgb) + plainText;
+        }
+        StringBuilder sb = new StringBuilder(plainText.length() * 15);
+        int i = 0;
+        int idx = 0;
+        while (i < plainText.length()) {
+            int cp = plainText.codePointAt(i);
+            float t = idx / (float) (n - 1);
+            sb.append(hexPrefix(lerpArgb(fromArgb, toArgb, t)));
+            sb.appendCodePoint(cp);
+            i += Character.charCount(cp);
+            idx++;
+        }
+        return sb.toString();
+    }
+
+    private static int lerpArgb(int from, int to, float t) {
+        int fr = (from >> 16) & 0xFF, fg = (from >> 8) & 0xFF, fb = from & 0xFF;
+        int tr = (to >> 16) & 0xFF, tg = (to >> 8) & 0xFF, tb = to & 0xFF;
+        int r = Math.round(fr + (tr - fr) * t);
+        int g = Math.round(fg + (tg - fg) * t);
+        int b = Math.round(fb + (tb - fb) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /** Vanilla's {@code §x} hex-colour escape: {@code §x} followed by 6 {@code §<hex digit>} pairs, one per
+     *  RGB nibble - the same format Hypixel ranks like MVP++ already use for their own gradient names. */
+    private static String hexPrefix(int argb) {
+        String hex = String.format(Locale.ROOT, "%06x", argb & 0xFFFFFF);
+        StringBuilder sb = new StringBuilder(14);
+        sb.append("§x");
+        for (int i = 0; i < 6; i++) {
+            sb.append('§').append(hex.charAt(i));
+        }
+        return sb.toString();
+    }
+
     /** Human-readable name of the nearest legacy colour, for the settings tab. */
     public static String label(int argb) {
         if (argb == NONE) {

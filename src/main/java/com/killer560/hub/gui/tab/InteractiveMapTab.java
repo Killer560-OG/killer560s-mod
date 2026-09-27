@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.livemap.LiveMapConfig;
+import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -21,6 +22,14 @@ import java.util.List;
  * etherwarps me to that room. and it can also start my secret route by clicking on it again and whatnot. That is a
  * cheat." Clicking a room to teleport is the whole point of the screen, so the tab is only added to {@link NewTab}
  * behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} and gets the red title; the legit jar does not have it at all.
+ * <p>
+ * killer560, 2026-09-27: "You do not need teleport pathing. The entire portion of interactive map is the teleport
+ * pathing. Add into interactive map as a whole the settings under the pathing section of it." - the old separate
+ * "Teleport Pathing" on/off is gone; its settings (start/locked-door keys, face-door-on-arrival, keep chunks
+ * loaded, timeout) now sit directly under this tab's own Automation header, gated only by Interactive Map's own
+ * toggle. "Move auto blood rush into its own section" gave Blood Rush its own header below Automation, and "Remove
+ * path threads it should be the minimum amount of threads required to reach the end room" dropped the old 1-16
+ * slider entirely - see {@code EtherwarpPathfinder.threadsFor}.
  */
 public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
 
@@ -63,10 +72,10 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(LiveMapTab.cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getMapRoomLabels,
                     cfg::setMapRoomLabels, cfg, colB, y, colW));
             y += 20;
-            widgets.add(SettingsButtonWidget.builder(closeOnText(cfg), btn -> {
+            widgets.add(SettingsButtonWidget.builder(mapModeText(cfg), btn -> {
                         cfg.setCloseOnRepress(!cfg.isCloseOnRepress());
                         cfg.save();
-                        btn.setMessage(closeOnText(cfg));
+                        btn.setMessage(mapModeText(cfg));
                     }).bounds(contentX, y, colW, 18).build());
             widgets.add(LiveMapTab.toggle("Open From HUD Click", cfg::isOpenFromHudClick, cfg::setOpenFromHudClick,
                     cfg, colB, y, colW));
@@ -81,19 +90,16 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(LiveMapTab.toggle("Extra Info", cfg::isShowExtraInfo, cfg::setShowExtraInfo,
                     cfg, colB, y, colW));
             y += 24;
-        }
 
-        // ---------------------------------------------------------------- teleport pathing
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Automation", true), Minecraft.getInstance().font));
-        y += 16;
-        widgets.add(SettingsButtonWidget.builder(LiveMapTab.onOff("Teleport Pathing", cfg.isPathingEnabledRaw()), btn -> {
-                    cfg.setPathingEnabled(!cfg.isPathingEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-        if (cfg.isPathingEnabledRaw()) {
+            // ---------------------------------------------------------------- automation (was "Teleport Pathing")
+            // killer560: "the entire portion of interactive map is the teleport pathing" - no on/off of its own
+            // any more; these settings run whenever Interactive Map itself is on.
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    SectionHeaders.header("Automation", true), Minecraft.getInstance().font));
+            y += 16;
+            // killer560: "The button prebound as lmb and rmb should be customizable in settings, those are the
+            // ones currently under start key and locked door key" - both now take a mouse button (see
+            // supportsMouseCapture()/onMouseCaptured below), which needed KeyUtil's mouse-bind encoding first.
             widgets.add(keyButton("Start Key", KeyTarget.START, cfg.getStartKeyCode(), contentX, y, colW));
             widgets.add(keyButton("Locked Door Key", KeyTarget.LOCKED_DOOR, cfg.getLockedDoorKeyCode(), colB, y, colW));
             y += 20;
@@ -102,14 +108,27 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(LiveMapTab.toggle("Keep Chunks Loaded", cfg::isKeepChunksLoadedRaw, cfg::setKeepChunksLoaded,
                     cfg, colB, y, colW));
             y += 20;
-            widgets.add(LiveMapTab.slider("Path Threads", cfg::getThreads, v -> cfg.setThreads((int) Math.round(v)),
-                    1, 16, "", cfg, contentX, y, colW));
+            // "Path Threads" (1-16) is gone - killer560: "Remove path threads it should be the minimum amount of
+            // threads required to reach the end room." The search now sizes its own worker count off the room
+            // path itself (EtherwarpPathfinder.threadsFor), so Path Timeout takes the full row on its own.
             widgets.add(LiveMapTab.slider("Path Timeout", cfg::getTimeoutMs,
-                    v -> cfg.setTimeoutMs((int) (Math.round(v / 50.0) * 50)), 200, 1000, "ms", cfg, colB, y, colW));
+                    v -> cfg.setTimeoutMs((int) (Math.round(v / 50.0) * 50)), 200, 1000, "ms", cfg, contentX, y, contentWidth));
+            y += 24;
+
+            // ---------------------------------------------------------------- etherwarp path preview
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    SectionHeaders.header("Etherwarp Path", true), Minecraft.getInstance().font));
+            y += 16;
+            widgets.add(LiveMapTab.toggle("Show Etherwarp Path", cfg::isShowEtherwarpPathRaw, cfg::setShowEtherwarpPath,
+                    cfg, contentX, y, contentWidth));
             y += 24;
         }
 
-        // ---------------------------------------------------------------- auto blood rush
+        // ---------------------------------------------------------------- auto blood rush (killer560: "Move auto
+        // blood rush into its own section")
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Auto Blood Rush", true), Minecraft.getInstance().font));
+        y += 16;
         widgets.add(SettingsButtonWidget.builder(LiveMapTab.onOff("Auto Blood Rush", cfg.isBloodRushEnabledRaw()), btn -> {
                     cfg.setBloodRushEnabled(!cfg.isBloodRushEnabledRaw());
                     cfg.save();
@@ -118,26 +137,35 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
         y += 24;
         if (cfg.isBloodRushEnabledRaw()) {
             widgets.add(keyButton("Blood Rush Key", KeyTarget.BLOOD_RUSH, cfg.getBloodRushKeyCode(), contentX, y, colW));
-            widgets.add(LiveMapTab.toggle("Click Door on Arrival", cfg::isBloodRushClickDoor, cfg::setBloodRushClickDoor,
-                    cfg, colB, y, colW));
-            y += 20;
+            // "Click Door on Arrival" removed (killer560: "remove the click door on arrival setting from auto
+            // blood rush") - opening the door is Auto Door Opener's job now, so Door Timeout takes the full row.
             widgets.add(LiveMapTab.slider("Door Timeout", cfg::getBloodRushDoorTimeoutSec,
-                    v -> cfg.setBloodRushDoorTimeoutSec((int) Math.round(v)), 5, 60, "s", cfg, contentX, y, colW));
+                    v -> cfg.setBloodRushDoorTimeoutSec((int) Math.round(v)), 5, 60, "s", cfg, colB, y, colW));
             y += 20;
         }
         return widgets;
     }
 
     private AbstractWidget keyButton(String label, KeyTarget target, int code, int x, int y, int w) {
-        Component text = capturing == target ? Component.literal(label + ": Press any key...") : LiveMapTab.keyText(label, code);
+        Component text = capturing == target ? Component.literal(label + ": Press any key...") : keyText(label, code);
         return SettingsButtonWidget.builder(text, btn -> {
                     capturing = target;
                     btn.setMessage(Component.literal(label + ": Press any key..."));
                 }).bounds(x, y, w, 18).build();
     }
 
-    private static Component closeOnText(LiveMapConfig cfg) {
-        return Component.literal("Close On: " + (cfg.isCloseOnRepress() ? "Repress" : "Release"));
+    /** Same shape as {@link LiveMapTab#keyText}, but through {@link KeyUtil#bindDisplayName} so a mouse-button
+     *  code (negative, see {@link KeyUtil#MOUSE_CODE_BASE}) shows "Left Button"/"Right Button"/... instead of
+     *  being mistaken for "Not Set" - {@code LiveMapTab.keyText} only ever handled keyboard codes. */
+    private static Component keyText(String label, int code) {
+        return Component.literal(label + ": §b" + KeyUtil.bindDisplayName(code));
+    }
+
+    private static Component mapModeText(LiveMapConfig cfg) {
+        // killer560, 2026-09-27: "have an option where pressing the button to open the map is off of click and
+        // it stays open until i press it again or hold to keep it open" - already exactly what "Close On"
+        // (Release/Repress) did; relabelled to Hold/Toggle since that is how he actually described the two modes.
+        return Component.literal("Map Mode: " + (cfg.isCloseOnRepress() ? "Toggle" : "Hold"));
     }
 
     @Override
@@ -148,7 +176,24 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
-        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        int code = keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode;
+        applyCapture(cfg, code);
+    }
+
+    /** killer560: "I should be able to set keybinds to mouse buttons as well. Right now i cannot do lmb or rmb
+     *  or the side buttons." - Open/Start/Locked Door/Blood Rush keys all go through the same capture, so this
+     *  is the one place that needed to change for all four. */
+    @Override
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    @Override
+    public void onMouseCaptured(int button) {
+        applyCapture(LiveMapConfig.getInstance(), KeyUtil.codeForMouseButton(button));
+    }
+
+    private void applyCapture(LiveMapConfig cfg, int code) {
         if (capturing != null) {
             switch (capturing) {
                 case OPEN -> cfg.setOpenKeyCode(code);

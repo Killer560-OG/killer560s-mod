@@ -71,7 +71,7 @@ public final class SupportersFeature {
     }
 
     /** Forces an immediate re-fetch of {@code GET /supporters} instead of waiting for the next scheduled
-     *  poll (up to 5 minutes) - called by {@code SupportersTab}'s "My Supporter Name" editor right after a
+     *  poll (up to 5 minutes) - called by {@code com.killer560.hub.gui.tab.CosmeticsTab}'s automatic sharing (via {@code SupportersAutoShare}) right after a
      *  successful save/clear, per SUPPORTERS-CONTRACT-V2.md's self-service section: the relay "bumps the
      *  public list version" immediately, so re-fetching now (rather than waiting) is enough to show the
      *  change on this client's own nametag/tab list/chat straight away. */
@@ -135,6 +135,36 @@ public final class SupportersFeature {
         }
         Resolved r = byUuid.get(id);
         return r == null ? 1.0f : r.scale();
+    }
+
+    /**
+     * Reverse of {@link #displayNameFor}: the real ign of whichever known supporter (cosmetics on, name not
+     * slur-blocked, not self-overridden) currently shows {@code candidateDisplayName} as their cosmetic name.
+     * Used by {@link com.killer560.hub.namechanger.IdentityResolver} for outgoing {@code /party}/{@code
+     * /friend} commands ("party johndoe", where johndoe is someone's shared cosmetic name) - killer560's
+     * "it will need to server side send their real ign" requirement. Local knowledge only: only matches a
+     * supporter whose CURRENT real ign this client already has cached via {@link PlayerNames} - a command
+     * has to go out right now, so this never blocks on a network lookup.
+     */
+    public static String realIgnForDisplayName(String candidateDisplayName) {
+        if (candidateDisplayName == null || candidateDisplayName.isEmpty() || !cosmeticsActive()) {
+            return null;
+        }
+        for (Map.Entry<UUID, Resolved> entry : byUuid.entrySet()) {
+            UUID uuid = entry.getKey();
+            Resolved r = entry.getValue();
+            if (r.displayText() == null || isSelfOverridden(uuid)) {
+                continue;
+            }
+            String plain = net.minecraft.ChatFormatting.stripFormatting(r.displayText());
+            if (plain != null && plain.equalsIgnoreCase(candidateDisplayName)) {
+                String realIgn = PlayerNames.nameFor(uuid);
+                if (realIgn != null) {
+                    return realIgn;
+                }
+            }
+        }
+        return null;
     }
 
     /** Looks for a supporter whose CURRENT resolved ign (never their stored vanity name) case-insensitively

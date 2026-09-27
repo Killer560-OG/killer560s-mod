@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
  * {@code POST}/{@code DELETE /supporters/me}, authenticated exactly the way {@link
  * com.killer560.hub.relay.RelayClient} already authenticates Mod Chat: {@link RelayAuth#authenticate}
  * (Mojang profile keypair signing a relay-issued challenge - no password, API key or Hypixel key). Used by
- * {@code com.killer560.hub.gui.tab.SupportersTab}'s "My Supporter Name" section.
+ * {@code com.killer560.hub.gui.tab.CosmeticsTab} (its own name/scale editor) and {@code SupportersAutoShare} (the automatic "Share if supporter" push).
  * <p>
  * <b>Own {@link HttpClient} and own daemon pool</b>, entirely separate from {@link SupportersFetcher}'s
  * client. {@code SupportersFetcher} deliberately builds its client with NO executor because it calls the
@@ -35,7 +35,7 @@ import java.util.concurrent.Executors;
  * <p>
  * Every public method returns a {@link CompletableFuture} that never completes exceptionally: any failure
  * (timeout, DNS, a relay error, unparsable JSON) is turned into a result record with {@code ok=false} and a
- * short human-readable reason, so {@code SupportersTab} never needs a {@code catch} of its own. Nothing here
+ * short human-readable reason, so callers never need a {@code catch} of their own. Nothing here
  * ever runs on the render thread.
  */
 public final class SupportersSelfService {

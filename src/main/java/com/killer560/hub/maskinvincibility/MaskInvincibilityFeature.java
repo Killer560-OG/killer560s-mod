@@ -2,6 +2,9 @@ package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.itembrowser.SkyblockItemEntry;
+import com.killer560.hub.itembrowser.SkyblockItemRepository;
+import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -141,9 +144,14 @@ public final class MaskInvincibilityFeature {
      * per proc - {@code request} refusing is a normal answer, never something to retry.
      */
     private static void trySwapMask() {
+        // killer560 9.1: "allow them to select which invulnerabilities they actually own" - showSpirit/
+        // showBonzo/showPhoenix were only ever read by the HUD (shown(t) below), so Auto Swap would still
+        // happily try to put on a mask/pet the player told this mod they don't have, wasting the one attempt
+        // per proc on a menu click that can only fail. !shown(type) now skips it here too, the same way an
+        // on-cooldown target is skipped.
         MaskSwapper.Target target = MaskSwapper.pickTarget(MaskSwapper.DEFAULT_ORDER, t -> {
             Type type = Type.of(t);
-            return type == null || cooldownRemaining.getOrDefault(type, 0) > 0;
+            return type == null || cooldownRemaining.getOrDefault(type, 0) > 0 || !shown(type);
         });
         if (target == null) {
             LOGGER.info("[MaskTimers] Auto-swap: nothing in order Spirit > Phoenix > Bonzo is ready and not already on.");
@@ -234,10 +242,28 @@ public final class MaskInvincibilityFeature {
         }
     }
 
-    /** The real item if we have ever seen it, otherwise a plain head - all three are player heads on Hypixel. */
+    /** The real item if we have ever seen it, otherwise a plain head - all three are player heads on Hypixel.
+     *  killer560 9.1: "The spirit mask does not have an icon it is just steves head" - unlike Bonzo's Mask
+     *  and the Phoenix pet, which most players are carrying or wearing already so {@link #refreshIcons()}
+     *  finds a real stack within a second of the HUD turning on, Spirit Mask is the one of the three that is
+     *  often not sitting in the inventory at all (still on cooldown from an earlier run, never picked up this
+     *  session, etc.) - so it fell straight through to the blank-head fallback far more often than the other
+     *  two. Falls back to the real catalog skin ({@link SkyblockItemRepository}/{@link SkyblockItemStackFactory}
+     *  - the same stable-UUID-from-texture head-building the item browser uses, not a random one, so the
+     *  resolve doesn't flash/retry every frame) instead of a blank head whenever the real stack hasn't been
+     *  seen yet. */
     private static ItemStack icon(Type t) {
         ItemStack cached = iconCache.get(t);
-        return cached != null && !cached.isEmpty() ? cached : new ItemStack(Items.PLAYER_HEAD);
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
+        if (t == Type.SPIRIT) {
+            SkyblockItemEntry entry = SkyblockItemRepository.findById("SPIRIT_MASK");
+            if (entry != null && entry.skinValue() != null) {
+                return SkyblockItemStackFactory.build(entry);
+            }
+        }
+        return new ItemStack(Items.PLAYER_HEAD);
     }
 
     private static boolean shown(Type t) {
@@ -282,12 +308,12 @@ public final class MaskInvincibilityFeature {
 
         @Override
         public boolean isRelevantNow() {
-            return MaskInvincibilityConfig.getInstance().isEnabled();
+            return MaskInvincibilityConfig.getInstance().isEnabled() && passesLocationGates();
         }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MaskInvincibilityConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
+            if (!MaskInvincibilityConfig.getInstance().isEnabled() || HudVisibility.hidesHud() || !passesLocationGates()) {
                 return;
             }
             MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
@@ -324,6 +350,17 @@ public final class MaskInvincibilityFeature {
 
         private static int rowHeight() {
             return MaskInvincibilityConfig.getInstance().isShowItemIcons() ? 18 : 12;
+        }
+
+        /** killer560 9.1: "add an option to only show the invulnerabilites in dungeons, and one for boss
+         *  only" - same shape as {@code SecretsFeature}'s own Boss Only gate (a plain "off, or the condition
+         *  holds" OR, not a nested requirement, so Boss Only works even if Only In Dungeons is left off). */
+        private static boolean passesLocationGates() {
+            MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+            if (cfg.isOnlyInDungeons() && !DungeonState.isInDungeon()) {
+                return false;
+            }
+            return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
         }
     }
 }

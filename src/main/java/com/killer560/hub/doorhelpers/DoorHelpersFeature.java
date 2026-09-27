@@ -6,16 +6,19 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Door Helpers (cheat build only): {@link AutoDoorOpenerFeature} (QUOI {@code AutoDoorOpener.kt}) and
- * {@link LookAtDoorFeature}. Owns the shared gating (QUOI {@code Island.Dungeon(inClear = true)} + {@code Dungeon.isDead})
- * and drives {@link DoorScanner} while either feature is on.
+ * Auto Door Opener (cheat build only; QUOI {@code AutoDoorOpener.kt}) - owns the shared gating (QUOI
+ * {@code Island.Dungeon(inClear = true)} + {@code Dungeon.isDead}) and drives {@link DoorScanner} while the
+ * feature is on.
+ * <p>
+ * killer560, 2026-09-27: "Remove look at doors as a setting from door helpers ... And rename it to auto door
+ * opener." This used to also own Look At Door (a separate camera-turn feature); that is gone entirely, so this
+ * class is just {@link AutoDoorOpenerFeature}'s gate now, not a shared umbrella for two features.
  */
 public final class DoorHelpersFeature {
 
@@ -31,34 +34,29 @@ public final class DoorHelpersFeature {
         ClientTickEvents.END_CLIENT_TICK.register(DoorHelpersFeature::onEndTick);
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
-                LookAtDoorFeature.onChat(message.getString());
+                AutoDoorOpenerFeature.onChat(message.getString());
             }
         });
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> LookAtDoorFeature.onFrame());
         LOGGER.info("[DoorHelpers] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     private static void onEndTick(Minecraft client) {
         DoorHelpersConfig cfg = DoorHelpersConfig.getInstance();
-        boolean anyEnabled = cfg.isAutoDoorEnabled() || cfg.isLookAtDoorEnabled();
+        boolean anyEnabled = cfg.isAutoDoorEnabled();
         String gate = gate(client, anyEnabled);
         boolean inClear = gate == null;
         if (wasInClear && !inClear) {
             DoorScanner.reset();
-            LookAtDoorFeature.cancel("left clear (" + gate + ")");
+            AutoDoorOpenerFeature.cancelPending("left clear (" + gate + ")");
         }
         wasInClear = inClear;
         logGate(gate == null ? "active" : gate);
-        LookAtDoorFeature.tickAlways(client, inClear);
         if (!inClear) {
             return;
         }
         DoorScanner.tick(client);
         if (cfg.isAutoDoorEnabled()) {
             AutoDoorOpenerFeature.tick(client, cfg);
-        }
-        if (cfg.isLookAtDoorEnabled()) {
-            LookAtDoorFeature.tick(client, cfg);
         }
     }
 

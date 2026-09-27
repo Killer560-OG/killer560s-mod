@@ -33,9 +33,10 @@ public final class MaskInvincibilityConfig {
     private boolean showPhoenix = true;
     private boolean showItemIcons = false;
     private boolean hideMaskNames = false;
+    private boolean onlyInDungeons = false;
+    private boolean bossOnly = false;
     private boolean autoSwapEnabled = false;
     private int swapStepDelayMs = 350;
-    private String phoenixRodName = "Rod";
     private boolean rodReturnToPreviousSlot = true;
     private PhoenixRoute phoenixRoute = PhoenixRoute.ROD;
 
@@ -76,8 +77,9 @@ public final class MaskInvincibilityConfig {
             cfg.showPhoenix = ConfigJson.getBool(obj, "showPhoenix", true);
             cfg.showItemIcons = ConfigJson.getBool(obj, "showItemIcons", false);
             cfg.hideMaskNames = ConfigJson.getBool(obj, "hideMaskNames", false);
+            cfg.onlyInDungeons = ConfigJson.getBool(obj, "onlyInDungeons", false);
+            cfg.bossOnly = ConfigJson.getBool(obj, "bossOnly", false);
             cfg.swapStepDelayMs = clampDelay(ConfigJson.getInt(obj, "swapStepDelayMs", 350));
-            cfg.phoenixRodName = ConfigJson.getString(obj, "phoenixRodName", "Rod");
             cfg.rodReturnToPreviousSlot = ConfigJson.getBool(obj, "rodReturnToPreviousSlot", true);
             cfg.phoenixRoute = ConfigJson.getEnum(obj, "phoenixRoute", PhoenixRoute.class, PhoenixRoute.ROD);
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to also gate
@@ -105,9 +107,10 @@ public final class MaskInvincibilityConfig {
             obj.addProperty("showPhoenix", showPhoenix);
             obj.addProperty("showItemIcons", showItemIcons);
             obj.addProperty("hideMaskNames", hideMaskNames);
+            obj.addProperty("onlyInDungeons", onlyInDungeons);
+            obj.addProperty("bossOnly", bossOnly);
             obj.addProperty("autoSwapEnabled", autoSwapEnabled);
             obj.addProperty("swapStepDelayMs", swapStepDelayMs);
-            obj.addProperty("phoenixRodName", phoenixRodName);
             obj.addProperty("rodReturnToPreviousSlot", rodReturnToPreviousSlot);
             obj.addProperty("phoenixRoute", phoenixRoute.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -142,6 +145,9 @@ public final class MaskInvincibilityConfig {
         this.announceToParty = announceToParty;
     }
 
+    /** killer560 9.1: "allow them to select which invulnerabilities they actually own" - not just a HUD
+     *  display toggle any more, since a proc timer for a mask you don't have is dead weight either way.
+     *  {@link MaskInvincibilityFeature#trySwapMask()} also skips Auto Swap-ing to a type this is off for. */
     public boolean isShowSpirit() {
         return showSpirit;
     }
@@ -150,6 +156,7 @@ public final class MaskInvincibilityConfig {
         this.showSpirit = showSpirit;
     }
 
+    /** @see #isShowSpirit() */
     public boolean isShowBonzo() {
         return showBonzo;
     }
@@ -158,6 +165,7 @@ public final class MaskInvincibilityConfig {
         this.showBonzo = showBonzo;
     }
 
+    /** @see #isShowSpirit() */
     public boolean isShowPhoenix() {
         return showPhoenix;
     }
@@ -185,6 +193,27 @@ public final class MaskInvincibilityConfig {
         this.hideMaskNames = hideMaskNames;
     }
 
+    /** killer560 9.1: "add an option to only show the invulnerabilites in dungeons". */
+    public boolean isOnlyInDungeons() {
+        return onlyInDungeons;
+    }
+
+    public void setOnlyInDungeons(boolean onlyInDungeons) {
+        this.onlyInDungeons = onlyInDungeons;
+    }
+
+    /** killer560 9.1: "and one for boss only" - same shape as {@code SecretsConfig#isBossOnly()}. Only
+     *  meaningful together with {@link #isOnlyInDungeons()} (a boss fight is still a dungeon), but kept as
+     *  its own independent flag rather than nested under it, the same way Secrets' own Boss Only stands
+     *  alone next to its dungeon gating. */
+    public boolean isBossOnly() {
+        return bossOnly;
+    }
+
+    public void setBossOnly(boolean bossOnly) {
+        this.bossOnly = bossOnly;
+    }
+
     /** Pause between two steps of one automated swap (command -> menu -> click -> close). */
     public int getSwapStepDelayMs() {
         return swapStepDelayMs;
@@ -192,15 +221,6 @@ public final class MaskInvincibilityConfig {
 
     public void setSwapStepDelayMs(int swapStepDelayMs) {
         this.swapStepDelayMs = clampDelay(swapStepDelayMs);
-    }
-
-    /** Hotbar item name (substring, case-insensitive) thrown to trigger the Autopet rule that summons Phoenix. */
-    public String getPhoenixRodName() {
-        return phoenixRodName == null || phoenixRodName.isBlank() ? "Rod" : phoenixRodName;
-    }
-
-    public void setPhoenixRodName(String phoenixRodName) {
-        this.phoenixRodName = phoenixRodName == null ? "" : phoenixRodName;
     }
 
     /** Switch back to the slot you were holding once the rod has been thrown. */

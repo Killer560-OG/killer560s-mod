@@ -6,7 +6,9 @@
 	"client": [
 		"SupportersNameTagMixin",
 		"SupportersTabListMixin",
-		"SupportersScaleMixin"
+		"SupportersScaleMixin",
+		"AvatarRenderStateMarkerMixin",
+		"CosmeticsModelShapeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

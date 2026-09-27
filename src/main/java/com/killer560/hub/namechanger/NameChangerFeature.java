@@ -138,7 +138,7 @@ public final class NameChangerFeature {
         List<NameTable.Entry> entries = new ArrayList<>();
         // Priority order: own name, then manual mappings, then randomized others (first entry wins on duplicates).
         if (cfg.isOwnNameEnabled() && NameTable.isValidName(own) && !cfg.getOwnDisplayName().isEmpty()) {
-            entries.add(new NameTable.Entry(own, styled(cfg.getOwnDisplayName(), cfg.getOwnColor()), false));
+            entries.add(new NameTable.Entry(own, ownStyled(cfg), false));
         }
         if (cfg.isMappingsEnabled()) {
             for (NameChangerConfig.Mapping m : cfg.mappings()) {
@@ -169,6 +169,46 @@ public final class NameChangerFeature {
      *  name itself may still carry {@code &} format codes, which {@link #colorize} converts as before. */
     static String styled(String display, int argb) {
         return NameColor.prefix(argb) + colorize(display);
+    }
+
+    /** Cosmetics tab's own display name specifically - same as {@link #styled}, except when "Fade Color" is
+     *  on, in which case a per-letter gradient ({@link NameColor#buildFade}) is built instead of one flat
+     *  colour. Only your own name can fade; manual per-player renames ({@link NameChangerConfig.Mapping})
+     *  always use {@link #styled} - fading someone else's rename would be surprising for something you
+     *  didn't ask them to look like. Falls back to white -> red when a colour endpoint was never picked, so
+     *  turning Fade on always shows something instead of two identical (invisible) endpoints. */
+    static String ownStyled(NameChangerConfig cfg) {
+        String display = colorize(cfg.getOwnDisplayName());
+        if (!cfg.isOwnColorFadeEnabled()) {
+            return NameColor.prefix(cfg.getOwnColor()) + display;
+        }
+        int from = cfg.getOwnColor() == NameColor.NONE ? 0xFFFFFFFF : cfg.getOwnColor();
+        int to = cfg.getOwnColorFadeTo() == NameColor.NONE ? 0xFFFF5555 : cfg.getOwnColorFadeTo();
+        return NameColor.buildFade(display, from, to);
+    }
+
+    /**
+     * Reverse of the render-time lookup: the styled display text ({@link #styled}) of the first enabled
+     * manual mapping ({@link NameChangerConfig.Mapping}) whose {@code real} IGN case-insensitively equals
+     * {@code currentIgn}, or {@code null}. Public for {@code com.killer560.hub.supporters.PlayerNameDisplay} -
+     * see that class's doc for why a LOCAL rename must win over a supporter's shared cosmetic name for the
+     * same player, which needs "does a mapping exist for this UUID's current real ign" rather than the
+     * forward text-scan {@link NameReplacer} already does for everything else.
+     */
+    public static String mappingDisplayFor(String currentIgn) {
+        if (currentIgn == null || currentIgn.isEmpty()) {
+            return null;
+        }
+        NameChangerConfig cfg = NameChangerConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isMappingsEnabled()) {
+            return null;
+        }
+        for (NameChangerConfig.Mapping m : cfg.mappings()) {
+            if (m.real != null && m.real.equalsIgnoreCase(currentIgn) && m.display != null && !m.display.isEmpty()) {
+                return styled(m.display, m.color);
+            }
+        }
+        return null;
     }
 
     /** Vanilla edit boxes filter out the § sign, so "&" + a format code is accepted too ("&6Cool" -> "§6Cool"). */

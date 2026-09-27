@@ -26,7 +26,16 @@ public abstract class Ap3MouseYawMixin {
             Ap3FreezeState.turnView((float) yawDelta * 0.15f, 0f);
             return 0.0;
         }
-        return Ap3Executor.onMouseYaw((float) yawDelta * 0.15f) ? 0.0 : yawDelta;
+        if (Ap3Executor.onMouseYaw((float) yawDelta * 0.15f)) {
+            return 0.0;
+        }
+        // Whoever else is holding the camera (the auto puzzles) gets steered too, so it is a FREE camera he can
+        // look around with rather than a frozen one he is stuck behind.
+        if (com.killer560.hub.util.ViewFreeze.isHeld()) {
+            com.killer560.hub.util.ViewFreeze.turnView((float) yawDelta * 0.15f, 0f);
+            return 0.0;
+        }
+        return yawDelta;
     }
 
     /** Freeze State: the pitch part of a mouse turn moves the free camera, not the frozen character. */
@@ -39,6 +48,13 @@ public abstract class Ap3MouseYawMixin {
             Ap3FreezeState.turnView(0f, (float) pitchDelta * 0.15f);
             return 0.0;
         }
-        return Ap3Executor.onMousePitch((float) pitchDelta * 0.15f) ? 0.0 : pitchDelta;
+        if (Ap3Executor.onMousePitch((float) pitchDelta * 0.15f)) {
+            return 0.0;
+        }
+        if (com.killer560.hub.util.ViewFreeze.isHeld()) {
+            com.killer560.hub.util.ViewFreeze.turnView(0f, (float) pitchDelta * 0.15f);
+            return 0.0;
+        }
+        return pitchDelta;
     }
 }

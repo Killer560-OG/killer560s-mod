@@ -25,6 +25,7 @@ public final class PetWheelFeature {
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(PetWheelFeature::tick);
         PetSummoner.register();
+        PetWheelEditor.register();
     }
 
     private static void tick(Minecraft client) {

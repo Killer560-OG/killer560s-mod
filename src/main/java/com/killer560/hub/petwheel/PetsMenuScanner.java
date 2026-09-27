@@ -24,7 +24,8 @@ import java.util.regex.Pattern;
 
 /**
  * Passively reads whatever page of the real {@code /pets} menu is currently open into
- * {@link PetWheelConfig#recordSeenPet}, so {@link PetPickerScreen} has real pets to choose from - killer560's
+ * {@link PetWheelConfig#recordSeenPet}, so {@link PetWheelScreen}'s edit mode has real pets to choose from
+ * (via a right-click into the real {@code /pets} menu - see {@link PetWheelEditor}) - killer560's
  * "read his pets the next time he opens /pets" - without this class ever clicking anything itself (that part
  * is {@link PetSummoner}, driven by a wheel selection, not by opening the menu).
  * <p>

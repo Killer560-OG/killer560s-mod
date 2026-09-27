@@ -36,7 +36,7 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
     private boolean capturingKey = false;
 
     public ArmourDyeTab() {
-        super("Armour Recolour");
+        super("Armor Recolour");
     }
 
     @Override
@@ -65,9 +65,9 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Armour Recolour", false), mc.font));
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Armor Recolour", false), mc.font));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("Armour Recolour", cfg.isEnabledRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Armor Recolour", cfg.isEnabledRaw()), btn -> {
             cfg.setEnabled(!cfg.isEnabledRaw());
             if (cfg.isEnabledRaw()) {
                 // Turning it back on clears the session kill-switch, so a one-off render failure isn't permanent.
@@ -89,7 +89,7 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
         // dead for days. Say so rather than let him wonder why his armour never changed (2026-09-16).
         if (cfg.isEnabledRaw() && !ArmourDye.renderHookSeen()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
-                    "§8Render hook hasn't fired yet - look at some armour. If this stays, the mixin didn't apply."), mc.font));
+                    "§8Render hook hasn't fired yet - look at some armor. If this stays, the mixin didn't apply."), mc.font));
             y += 14;
         }
         if (ArmourDye.hasFailed()) {

@@ -40,7 +40,7 @@ public class NewTab extends FolderTab {
                 new BestFriendsTab(),
                 new FriendsListTab(),
                 new PetWheelTab(),
-                new SupportersTab(),
+                new CosmeticsTab(),
                 new TeamMelodyTab(),
                 new MobEspTab(),
                 new TeammatesTab(),
@@ -58,9 +58,7 @@ public class NewTab extends FolderTab {
                 new SpringBootsTab(),
                 new ClassColorsTab(),
                 new RagAxeTab(),
-                new NameChangerTab(),
                 new CroesusTab(),
-                new HeldItemTab(),
                 new ArrowAlignTab(),
                 new StorageSearchTab(),
                 new WaypointRoutesTab(),
@@ -133,6 +131,10 @@ public class NewTab extends FolderTab {
             // above, since Custom Mage Beam has no CHEAT_FEATURES_ENABLED gate of its own).
             tabs.add(new BreakerAuraTab());
             tabs.add(new AutoDialogueTab());
+            // Auto Inventory Sorter + Auto Sell (killer560, 2026-09-27): both automate real container clicks, so
+            // both are cheat-only like everything else in this block.
+            tabs.add(new InventorySorterTab());
+            tabs.add(new AutoSellTab());
         }
         return tabs;
     }
