@@ -237,11 +237,13 @@ public final class ProfileManager {
         }
         try {
             int count = 0;
+            java.util.Set<String> inProfile = new java.util.HashSet<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
                 for (Path file : stream) {
                     if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) {
                         continue;
                     }
+                    inProfile.add(file.getFileName().toString());
                     Path live = CONFIG_DIR.resolve(file.getFileName());
                     if (!copyPreservingSecrets(file, live)) {
                         Files.copy(file, live, StandardCopyOption.REPLACE_EXISTING);
@@ -249,9 +251,36 @@ public final class ProfileManager {
                     count++;
                 }
             }
+            // A setting file the profile does NOT carry is RESET, not left alone.
+            //
+            // killer560 (2026-09-27): "I can type in the profiles tab but when I swap over between them it doesn't
+            // actually adjust my settings. I tried turning leap counter on and saving that and it looks like it
+            // will re-enable the setting but it wwont turn it off if I swap to a variant without leapcounter on."
+            //
+            // That is exactly this loop's absence. Applying a profile only ever copied the files the profile HAD,
+            // so a feature whose config file did not exist when the profile was captured was simply skipped - and
+            // whatever the live file said stayed. Turning something on is a file that exists and gets copied;
+            // turning it off again is a file that is missing and got ignored. Hence "it re-enables but never
+            // disables", and hence a profile that only ever accumulates settings.
+            //
+            // Deleting the live file is the reset: every config in here loads its own defaults when the file is
+            // absent, which is the same path a fresh install takes. profileviewer is the one exception - it holds
+            // his API key (SECRET_FIELDS), a shared profile never carries it, and losing it on every profile
+            // switch would be its own bug.
+            int reset = 0;
+            for (Path live : liveConfigFiles()) {
+                String fileName = live.getFileName().toString();
+                if (inProfile.contains(fileName) || SECRET_FIELDS.containsKey(fileName)) {
+                    continue;
+                }
+                if (Files.deleteIfExists(live)) {
+                    reset++;
+                }
+            }
             Files.writeString(ACTIVE_MARKER, name, StandardCharsets.UTF_8);
             runOnClientThread(ProfileManager::reloadAllConfigs);
-            return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name + "\".");
+            return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name + "\""
+                    + (reset == 0 ? "." : ", and reset " + reset + " the profile didn't cover."));
         } catch (IOException e) {
             return new Result(false, "§cFailed to apply profile: " + e.getMessage());
         }

@@ -1788,22 +1788,19 @@ final class SettingTooltipsData {
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the trail squares are.");
         d.put("trail/fade toward tail", "When on, squares fade out the older they are instead of staying at full opacity for the whole trail length.");
-        d.put("command shortcuts/command shortcuts", "Master switch for every /f0-/f7, /m1-/m7 and Kuudra command shortcut below. Off means none of them are registered at all, so the words are free for another mod or Hypixel itself to use.");
-        d.put("command shortcuts/f0", "Sends /joininstance catacombs_floor_entrance - queues the Catacombs entrance.");
-        d.put("command shortcuts/f1", "Sends /joininstance catacombs_floor_one.");
-        d.put("command shortcuts/f2", "Sends /joininstance catacombs_floor_two.");
-        d.put("command shortcuts/f3", "Sends /joininstance catacombs_floor_three.");
-        d.put("command shortcuts/f4", "Sends /joininstance catacombs_floor_four.");
-        d.put("command shortcuts/f5", "Sends /joininstance catacombs_floor_five.");
-        d.put("command shortcuts/f6", "Sends /joininstance catacombs_floor_six.");
-        d.put("command shortcuts/f7", "Sends /joininstance catacombs_floor_seven.");
-        d.put("command shortcuts/m1", "Sends /joininstance master_catacombs_floor_one.");
-        d.put("command shortcuts/m2", "Sends /joininstance master_catacombs_floor_two.");
-        d.put("command shortcuts/m3", "Sends /joininstance master_catacombs_floor_three.");
-        d.put("command shortcuts/m4", "Sends /joininstance master_catacombs_floor_four.");
-        d.put("command shortcuts/m5", "Sends /joininstance master_catacombs_floor_five.");
-        d.put("command shortcuts/m6", "Sends /joininstance master_catacombs_floor_six.");
-        d.put("command shortcuts/m7", "Sends /joininstance master_catacombs_floor_seven.");
+        d.put("command shortcuts/command shortcuts", "Master switch for every Catacombs, Master Mode and Kuudra command shortcut below. Off means none of them are registered at all, so the words are free for another mod or Hypixel itself to use.");
+        // 2026-09-27 regroup: one toggle per Catacombs floor now covers that floor's Master Mode
+        // shortcut too (killer560: "clump them into groups like catacombs/mastermode as one toggle for
+        // each floor"), and Kuudra's toggles moved onto the same Group-keyed entries - see
+        // CommandShortcutsFeature.Group.
+        d.put("command shortcuts/f0", "Sends /joininstance catacombs_floor_entrance - queues the Catacombs entrance. No Master Mode equivalent (Master Mode starts at floor 1).");
+        d.put("command shortcuts/f1 & m1", "Covers both /f1 (/joininstance catacombs_floor_one) and /m1 (/joininstance master_catacombs_floor_one) - one toggle for both.");
+        d.put("command shortcuts/f2 & m2", "Covers both /f2 (/joininstance catacombs_floor_two) and /m2 (/joininstance master_catacombs_floor_two) - one toggle for both.");
+        d.put("command shortcuts/f3 & m3", "Covers both /f3 (/joininstance catacombs_floor_three) and /m3 (/joininstance master_catacombs_floor_three) - one toggle for both.");
+        d.put("command shortcuts/f4 & m4", "Covers both /f4 (/joininstance catacombs_floor_four) and /m4 (/joininstance master_catacombs_floor_four) - one toggle for both.");
+        d.put("command shortcuts/f5 & m5", "Covers both /f5 (/joininstance catacombs_floor_five) and /m5 (/joininstance master_catacombs_floor_five) - one toggle for both.");
+        d.put("command shortcuts/f6 & m6", "Covers both /f6 (/joininstance catacombs_floor_six) and /m6 (/joininstance master_catacombs_floor_six) - one toggle for both.");
+        d.put("command shortcuts/f7 & m7", "Covers both /f7 (/joininstance catacombs_floor_seven) and /m7 (/joininstance master_catacombs_floor_seven) - one toggle for both.");
         d.put("command shortcuts/basic", "Sends /joininstance kuudra_normal - Hypixel's own internal name for the Basic Kuudra tier.");
         d.put("command shortcuts/hot", "Sends /joininstance kuudra_hot.");
         d.put("command shortcuts/burning", "Sends /joininstance kuudra_burning.");

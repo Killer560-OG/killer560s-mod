@@ -85,7 +85,7 @@ public class CommandShortcutsTab extends BaseTab {
                         btn.setMessage(onOff(g.label, cfg.isGroupOn(g)));
                     }).bounds(contentX, y, toggleW, 18).build());
             widgets.add(new StringWidget(contentX + toggleW + gap, y + 4, textW, 12,
-                    Component.literal("§7" + g.expandsTo()),
+                    Component.literal("§7" + g.aliasList() + " §8(" + g.expandsTo() + ")"),
                     Minecraft.getInstance().font));
             y += 21;
         }

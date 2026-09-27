@@ -131,20 +131,25 @@ public final class CommandShortcutsFeature {
      * {@link Shortcut}s a group's toggle turns on or off.
      */
     public enum Group {
-        CATA_F0("/f0", List.of(Shortcut.F0)),
-        CATA_F1("/f1 + /m1", List.of(Shortcut.F1, Shortcut.M1)),
-        CATA_F2("/f2 + /m2", List.of(Shortcut.F2, Shortcut.M2)),
-        CATA_F3("/f3 + /m3", List.of(Shortcut.F3, Shortcut.M3)),
-        CATA_F4("/f4 + /m4", List.of(Shortcut.F4, Shortcut.M4)),
-        CATA_F5("/f5 + /m5", List.of(Shortcut.F5, Shortcut.M5)),
-        CATA_F6("/f6 + /m6", List.of(Shortcut.F6, Shortcut.M6)),
-        CATA_F7("/f7 + /m7", List.of(Shortcut.F7, Shortcut.M7)),
-        KUUDRA_BASIC("/basic", List.of(Shortcut.KUUDRA_BASIC)),
-        KUUDRA_HOT("/hot", List.of(Shortcut.KUUDRA_HOT)),
-        KUUDRA_BURNING("/burning", List.of(Shortcut.KUUDRA_BURNING)),
-        KUUDRA_FIERY("/fiery", List.of(Shortcut.KUUDRA_FIERY)),
-        KUUDRA_INFERNAL("/infernal", List.of(Shortcut.KUUDRA_INFERNAL));
+        CATA_F0("F0", List.of(Shortcut.F0)),
+        CATA_F1("F1 & M1", List.of(Shortcut.F1, Shortcut.M1)),
+        CATA_F2("F2 & M2", List.of(Shortcut.F2, Shortcut.M2)),
+        CATA_F3("F3 & M3", List.of(Shortcut.F3, Shortcut.M3)),
+        CATA_F4("F4 & M4", List.of(Shortcut.F4, Shortcut.M4)),
+        CATA_F5("F5 & M5", List.of(Shortcut.F5, Shortcut.M5)),
+        CATA_F6("F6 & M6", List.of(Shortcut.F6, Shortcut.M6)),
+        CATA_F7("F7 & M7", List.of(Shortcut.F7, Shortcut.M7)),
+        KUUDRA_BASIC("Basic", List.of(Shortcut.KUUDRA_BASIC)),
+        KUUDRA_HOT("Hot", List.of(Shortcut.KUUDRA_HOT)),
+        KUUDRA_BURNING("Burning", List.of(Shortcut.KUUDRA_BURNING)),
+        KUUDRA_FIERY("Fiery", List.of(Shortcut.KUUDRA_FIERY)),
+        KUUDRA_INFERNAL("Infernal", List.of(Shortcut.KUUDRA_INFERNAL));
 
+        // Deliberately NOT "/f0", "/f1 + /m1", etc: SettingTooltips.key() keeps a label's leading
+        // character(s) verbatim (only §-formatting and a leading ▶/▼ are stripped), so a "/"-prefixed
+        // button label would need its tooltip key written with that same leading slash baked in - easy to
+        // typo and easy to silently break again later. Plain names avoid that trap; the actual /f1, /m1
+        // words still show up in aliasList() next to the toggle.
         public final String label;
         private final List<Shortcut> members;
 
@@ -158,10 +163,15 @@ public final class CommandShortcutsFeature {
             return members;
         }
 
-        /** What the tab shows next to this group's toggle: every member's real {@code /joininstance} line. */
+        /** The actual chat command word(s) this toggle covers, e.g. {@code "/f1, /m1"}. */
+        public String aliasList() {
+            return members.stream().map(m -> "/" + m.literal).collect(Collectors.joining(", "));
+        }
+
+        /** What the tab shows next to this group's toggle: every member's real {@code /joininstance}
+         *  argument, so a collision is easy to trace back to the exact instance id sent. */
         public String expandsTo() {
-            return members.stream().map(m -> "/joininstance " + m.instanceId)
-                    .collect(Collectors.joining(", "));
+            return members.stream().map(m -> m.instanceId).collect(Collectors.joining(", "));
         }
 
         /** The one group whose toggle governs the given shortcut - every {@link Shortcut} belongs to
