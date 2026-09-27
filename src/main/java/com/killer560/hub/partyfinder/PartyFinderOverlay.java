@@ -390,7 +390,14 @@ public final class PartyFinderOverlay {
      *  femboy_recruiter, latinomommy at cata/class 50/45/40/35/30". Fixed sample data, one per dungeon class,
      *  spread across a floor 7 Master Mode party (a mix of S/S+/no PB so the preview shows every PB branch).
      *  Fed through the exact same {@link #memberLine} the real tooltip uses, so the preview can never drift
-     *  from - or paper over a bug in - what actually renders on a Party Finder head. */
+     *  from - or paper over a bug in - what actually renders on a Party Finder head.
+     *  <p>
+     *  killer560 9.1: "make it so each of them but agreencatgirl have a pb that is something funny. Do the
+     *  same for secret averages. Make agreencatgirl's a negative though." aut0balls is the Healer, killer560
+     *  the Tank, agreencatgirl the Archer and latinomommy the Mage (femboy_recruiter keeps its Berserk/NO PB
+     *  slot untouched - he wasn't named). The joke PBs/averages are meme numbers (69, 13:37, 4:20) that could
+     *  never happen on a real floor 7 run; agreencatgirl's are negated so her row reads {@code -4:20} /
+     *  {@code -42.00} as the joke the request asked for. */
     private record PreviewPlayer(String name, DungeonClass role, int level, PlayerStats stats) {
     }
 
@@ -417,16 +424,16 @@ public final class PartyFinderOverlay {
     }
 
     private static final List<PreviewPlayer> PREVIEW_PLAYERS = List.of(
-            new PreviewPlayer("killer560", DungeonClass.HEALER, 50,
-                    previewStats(50, 210_000, 62.4, pbEntry("4:15", "4:02"))),
-            new PreviewPlayer("aut0balls", DungeonClass.TANK, 45,
-                    previewStats(45, 150_000, 55.1, pbEntry("4:40", null))),
-            new PreviewPlayer("agreencatgirl", DungeonClass.MAGE, 40,
-                    previewStats(40, 95_000, 48.3, pbEntry("4:55", null))),
+            new PreviewPlayer("killer560", DungeonClass.TANK, 50,
+                    previewStats(50, 210_000, 133.7, pbEntry(null, "13:37"))),
+            new PreviewPlayer("aut0balls", DungeonClass.HEALER, 45,
+                    previewStats(45, 150_000, 69.0, pbEntry(null, "6:09"))),
+            new PreviewPlayer("agreencatgirl", DungeonClass.ARCHER, 40,
+                    previewStats(40, 95_000, -42.0, pbEntry(null, "-4:20"))),
             new PreviewPlayer("femboy_recruiter", DungeonClass.BERSERK, 35,
                     previewStats(35, 52_000, 39.7, pbEntry(null, null))),
-            new PreviewPlayer("latinomommy", DungeonClass.ARCHER, 30,
-                    previewStats(30, 21_000, 30.2, pbEntry(null, null))));
+            new PreviewPlayer("latinomommy", DungeonClass.MAGE, 30,
+                    previewStats(30, 21_000, 42.0, pbEntry(null, "4:20"))));
 
     private static final Party PREVIEW_PARTY =
             new Party(0, 7, true, List.of(), List.of(), EnumSet.noneOf(Status.class));

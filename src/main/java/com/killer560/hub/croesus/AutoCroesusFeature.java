@@ -1,5 +1,7 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.auction.BazaarApi;
+import com.killer560.hub.auction.BazaarProduct;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestType;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestValue;
 import com.killer560.hub.hud.HudElement;
@@ -72,6 +74,12 @@ public final class AutoCroesusFeature {
     private static final Pattern PAGE_TITLE = Pattern.compile("^\\((\\d+)/(\\d+)\\) Croesus$");
 
     private static final String START_BUTTON_ELEMENT_ID = "croesus_start_button";
+    /** killer560 (2026-09-27): "Read my start croesus button placement and size and make that default for
+     *  all mods going forward." HOUSE DEFAULT for any new mod-drawn overlay button going forward: 110x20,
+     *  default position centered horizontally and {@code guiScaledHeight/2 + 90} vertically (see
+     *  {@link #registerStartButtonElement}'s {@code defaultX}/{@code defaultY} below) - this is the exact,
+     *  already-tuned placement/size to reuse, not a new one to invent per feature. Existing tabs/buttons
+     *  are deliberately left as they are; this only applies to what gets built from here on. */
     private static final int START_BUTTON_WIDTH = 110;
     private static final int START_BUTTON_HEIGHT = 20;
     // Same palette as the Start ETable button, which reuses SettingsButtonWidget's own colours.
@@ -301,6 +309,41 @@ public final class AutoCroesusFeature {
         return element == null ? 1.0f : HudElementRegistry.resolveScale(element);
     }
 
+    /**
+     * The profit floor a second chest must clear before a real Dungeon Chest Key gets spent on it -
+     * killer560 (2026-09-27): "have an option for it to use based off of key insta buy price, buy offer
+     * price, or by set profit. If it has to go off of key price then pull the api data for the key."
+     * <p>
+     * {@link com.killer560.hub.croesus.CroesusConfig.ChestKeyMode#SET_PROFIT} keeps the original fixed
+     * {@link CroesusConfig#getAutoKeyMinProfitK()} number unchanged. The other two modes use the Dungeon
+     * Chest Key's own LIVE Bazaar price instead - pulled straight from {@link BazaarApi}, the same running
+     * Bazaar scan the Bazaar tab/screen already keeps refreshed (per the brief: reuse it, don't fetch
+     * anything new) - so the key only gets spent once a chest's profit is at least what a replacement key
+     * currently costs (insta-buy) or is currently worth (buy-offer). Falls back to the fixed number if the
+     * key isn't in the Bazaar feed yet (still loading, or a fetch failed) - same "prices not ready"
+     * graceful degradation every other Croesus price lookup already has.
+     */
+    private static long keyModeThreshold(CroesusConfig cfg) {
+        Long live = switch (cfg.getChestKeyMode()) {
+            case KEY_INSTA_BUY -> keyBazaarPrice(true);
+            case KEY_BUY_OFFER -> keyBazaarPrice(false);
+            case SET_PROFIT -> null;
+        };
+        return live != null ? live : cfg.getAutoKeyMinProfitK() * 1000L;
+    }
+
+    /** @return the Dungeon Chest Key's live Bazaar insta-buy ({@code instaBuy=true}) or buy-offer price,
+     *  or null if it isn't in the current Bazaar feed yet. */
+    private static Long keyBazaarPrice(boolean instaBuy) {
+        for (BazaarProduct product : BazaarApi.getProducts()) {
+            if (product.productId().equals(DungeonChestValuer.DUNGEON_CHEST_KEY_ID)) {
+                double price = instaBuy ? product.buyPrice() : product.sellPrice();
+                return Math.round(price);
+            }
+        }
+        return null;
+    }
+
     // ---- state machine ---------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
@@ -507,7 +550,7 @@ public final class AutoCroesusFeature {
         }
         CroesusConfig cfg = CroesusConfig.getInstance();
         long minProfit = cfg.getAutoMinProfitK() * 1000L;
-        long keyMinProfit = cfg.getAutoKeyMinProfitK() * 1000L;
+        long keyMinProfit = keyModeThreshold(cfg);
 
         ChestValue target = null;
         for (ChestValue c : chests) {

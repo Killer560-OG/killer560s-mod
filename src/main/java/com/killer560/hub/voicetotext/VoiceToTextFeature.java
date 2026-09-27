@@ -41,10 +41,10 @@ import java.util.zip.ZipInputStream;
  * actually exercise real audio capture or verify the native library loads cleanly under Fabric's own
  * classloader - only that the mod itself still boots fine with the new (large) dependency present.
  * Every Vosk/JNA class reference below is deliberately confined to methods only called after the
- * feature is explicitly enabled AND the push-to-talk key is actually pressed (never at mod init or
- * static class-init time) and wrapped in a broad catch, specifically so a real native-library problem
- * fails as a caught error with a chat message instead of anything worse. Test this specifically before
- * trusting it in a real dungeon run.
+ * feature is explicitly enabled AND it actually starts listening - the push-to-talk key pressed, or (2026-09-27)
+ * Open Mic arming itself - never at mod init or static class-init time, and wrapped in a broad catch,
+ * specifically so a real native-library problem fails as a caught error with a chat message instead of
+ * anything worse. Test this specifically before trusting it in a real dungeon run.
  */
 public final class VoiceToTextFeature {
 
@@ -99,6 +99,7 @@ public final class VoiceToTextFeature {
             // utterance ends and the next one starts on its own via silence detection.
             if (!openMicArmed && state != State.RECORDING && state != State.TRANSCRIBING && state != State.PREPARING_MODEL) {
                 openMicArmed = true;
+                ModOverlayMessage.show("[Voice] Open Mic: listening...", 2000);
                 onKeyPressed(); // reused: preps the speech model on first use, then starts recording
             }
             return;
@@ -156,7 +157,9 @@ public final class VoiceToTextFeature {
             loadedModel = new org.vosk.Model(modelDir.toString());
             state = State.READY;
             Minecraft.getInstance().execute(() -> {
-                ModOverlayMessage.show("§a[Voice] Speech model ready - hold the key again to talk.", 2500);
+                boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
+                ModOverlayMessage.show(openMic ? "§a[Voice] Speech model ready - listening now."
+                        : "§a[Voice] Speech model ready - hold the key again to talk.", 2500);
                 startRecording();
             });
         } catch (Throwable t) {

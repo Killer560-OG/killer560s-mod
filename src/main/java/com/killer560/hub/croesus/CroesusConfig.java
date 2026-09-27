@@ -15,6 +15,30 @@ import java.nio.file.Path;
  *  {@link ChestProfitFeature}, {@link CroesusProfitLog}, {@link AutoCroesusFeature}. Everything ships OFF. */
 public final class CroesusConfig {
 
+    /** What decides whether Auto Croesus spends a real Dungeon Chest Key on a second chest - killer560
+     *  (2026-09-27): "have an option for it to use based off of key insta buy price, buy offer price, or
+     *  by set profit." {@link #SET_PROFIT} is the original, sole behavior ({@link #autoKeyMinProfitK});
+     *  the other two swap that fixed number for the key's own live Bazaar price (see
+     *  {@link AutoCroesusFeature#keyModeThreshold}) - falling back to {@link #autoKeyMinProfitK} if that
+     *  price hasn't loaded yet, same as every other "prices not ready" case in Croesus. */
+    public enum ChestKeyMode {
+        SET_PROFIT("Set Profit"), KEY_INSTA_BUY("Key Insta-Buy"), KEY_BUY_OFFER("Key Buy-Offer");
+
+        public final String label;
+
+        ChestKeyMode(String label) {
+            this.label = label;
+        }
+
+        public ChestKeyMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+
+        public ChestKeyMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-croesus.json");
@@ -42,6 +66,7 @@ public final class CroesusConfig {
     /** Spend a Dungeon Chest Key on a further chest in the same run when it clears {@link #autoKeyMinProfitK}. */
     private boolean autoUseChestKeys = false;
     private int autoKeyMinProfitK = 1_000;
+    private ChestKeyMode chestKeyMode = ChestKeyMode.SET_PROFIT;
     /** Spend a Kismet Feather on a Bedrock chest whose profit is below {@link #autoRerollBelowK}. */
     private boolean autoUseKismets = false;
     private int autoRerollBelowK = 1_000;
@@ -77,6 +102,7 @@ public final class CroesusConfig {
             cfg.autoMaxDelayMs = clamp(ConfigJson.getInt(obj, "autoMaxDelayMs", cfg.autoMaxDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
             cfg.autoUseChestKeys = ConfigJson.getBool(obj, "autoUseChestKeys", cfg.autoUseChestKeys);
             cfg.autoKeyMinProfitK = clamp(ConfigJson.getInt(obj, "autoKeyMinProfitK", cfg.autoKeyMinProfitK), 0, MAX_MIN_PROFIT_K);
+            cfg.chestKeyMode = ConfigJson.getEnum(obj, "chestKeyMode", ChestKeyMode.class, cfg.chestKeyMode);
             cfg.autoUseKismets = ConfigJson.getBool(obj, "autoUseKismets", cfg.autoUseKismets);
             cfg.autoRerollBelowK = clamp(ConfigJson.getInt(obj, "autoRerollBelowK", cfg.autoRerollBelowK), 0, MAX_MIN_PROFIT_K);
             // Same min <= max invariant the setters enforce (a hand-edit could otherwise load min > max).
@@ -106,6 +132,7 @@ public final class CroesusConfig {
             obj.addProperty("autoMaxDelayMs", autoMaxDelayMs);
             obj.addProperty("autoUseChestKeys", autoUseChestKeys);
             obj.addProperty("autoKeyMinProfitK", autoKeyMinProfitK);
+            obj.addProperty("chestKeyMode", chestKeyMode.name());
             obj.addProperty("autoUseKismets", autoUseKismets);
             obj.addProperty("autoRerollBelowK", autoRerollBelowK);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -231,6 +258,14 @@ public final class CroesusConfig {
 
     public void setAutoKeyMinProfitK(int v) {
         this.autoKeyMinProfitK = clamp(v, 0, MAX_MIN_PROFIT_K);
+    }
+
+    public ChestKeyMode getChestKeyMode() {
+        return chestKeyMode;
+    }
+
+    public void setChestKeyMode(ChestKeyMode v) {
+        this.chestKeyMode = v == null ? ChestKeyMode.SET_PROFIT : v;
     }
 
     public boolean isAutoUseKismets() {

@@ -102,6 +102,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.blessings.BlessingsFeature.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
+        // Mining (WIP) tab, 2026-09-27: Profit Per Hour + Nucleus Run Profit trackers. Both purely
+        // observational (never click/move) - see each tracker's own class doc.
+        com.killer560.hub.mining.profit.MiningProfitTracker.register();
+        com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);

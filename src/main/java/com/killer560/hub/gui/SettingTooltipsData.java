@@ -14,6 +14,7 @@ final class SettingTooltipsData {
         part1(d);
         part2(d);
         part3(d);
+        mining(d);
     }
 
     private static void part1(Map<String, String> d) {
@@ -598,8 +599,8 @@ final class SettingTooltipsData {
         d.put("auto swap", "Cheat build only, Skyblock only. When a mask or Phoenix pops, swaps you onto the next one in the order Spirit, Phoenix, Bonzo: runs /stats and clicks the mask in your inventory, or throws your rod so Hypixel's Autopet rule summons Phoenix. One attempt per pop, never retried.");
         d.put("mod chat", "Lets you send tagged messages with /killer560 chat <message>; other mod users see them as a highlighted overlay. Non-mod users still see the raw line.");
         d.put("channel", "Which Hypixel chat Mod Chat messages go through: PARTY or GUILD. Everyone in that party or guild sees them.");
-        d.put("voice to text", "Hold the Push-to-Talk key, speak, then release. Your speech is turned into text on your own PC and sent to party or guild chat. English only. The first use downloads a ~40MB speech model. Not yet tested with a real microphone.");
-        d.put("push-to-talk key", "Key to hold while speaking; releasing it sends the message. No key is set by default, so nothing happens until you pick one. Click, then press a key; Esc clears it.");
+        d.put("voice to text", "Turns your speech into text on your own PC and sends it to party or guild chat, either by holding a Push To Talk key or listening continuously in Open Mic (see Mode below). English only. The first use downloads a ~40MB speech model. Not yet tested with a real microphone.");
+        d.put("push-to-talk key", "Push To Talk mode only. Key to hold while speaking; releasing it sends the message. No key is set by default, so nothing happens until you pick one. Click, then press a key; Esc clears it.");
         d.put("solver", "Shows the solution for this puzzle or device. Visual only, never clicks for you.");
         d.put("aim marker color", "Colour of the i4 Solver's aim dots (default neon yellow). Hit targets are always orange and remaining targets purple.");
         d.put("auto i4", "Cheat build only. F7/M7 P3, 4th device (i4): while you stand on the device holding your bow, aims at and shoots each target as it lights up. Re-shoots a target that is still lit 1s later, and stops once your device completes.");
@@ -1520,6 +1521,7 @@ final class SettingTooltipsData {
         d.put("video browser/next", "Keybind that skips to the next Short. Works in-game only (no menu open). Press Esc while binding to clear.");
         d.put("video browser/previous", "Keybind that goes back to the previous Short. Works in-game only (no menu open). Press Esc while binding to clear.");
         d.put("video browser/mute", "Keybind that mutes or unmutes the Shorts video. Works in-game only (no menu open). Press Esc while binding to clear.");
+        d.put("video browser/reset to default size", "Puts the Size slider back to its default (60% of height). Margin, Opacity and the other settings are left alone.");
         d.put("simon says/style", "How the Simon Says button highlights are drawn: Filled, Outline, or Filled+Outline (see-through box with edges).");
         d.put("simon says/scale", "Size of the order numbers drawn on the Simon Says buttons, 0.25x to 3x. Only shown while Show Numbers is ON.");
         d.put("simon says/prevent misclicks", "Blocks clicks on Simon Says buttons that aren't the next correct one. Hold Shift to click anyway. The start button is never blocked.");
@@ -1550,6 +1552,7 @@ final class SettingTooltipsData {
         d.put("chat/translate", "Translates the chat you type into another language before it's sent. Pick the language inside.");
         d.put("translate/language", "The language your outgoing chat is translated into. Click to open a searchable list. Picking one also turns Chat Translate on, same as typing /translate <language>. English means no translation. /language opens this picker directly.");
         d.put("translate/search", "Type part of a language name to filter the list, then click a language to select it and turn Chat Translate on.");
+        d.put("voice to text/mode", "Open Mic listens the whole time it's enabled and sends each thing you say as soon as you pause. Push To Talk (the default) only listens while the key below is held. Click to switch.");
         d.put("voice to text/microphone", "Which microphone Voice To Text records from. Click to cycle System Default and every input device that can record; the list refreshes on each click. If the chosen one is unplugged it falls back to the default.");
         d.put("voice to text/send to", "Where transcribed speech goes: Party (/pc) or Guild (/gc) chat. It is sent right away with no confirm step.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws an orange line from it to the one after. OFF hides both and leaves only the countdowns.");
@@ -1913,5 +1916,22 @@ final class SettingTooltipsData {
         d.put("rewind 1 tick key", "Keybind: one tick back in time. Refused on Hypixel (instant ban).");
         d.put("forward 1 tick key", "Keybind: one tick forward again. Refused on Hypixel (instant ban).");
         d.put("ap3/freeze view (freecam)", "While an Align or a Walk/Run node turns your real yaw (what the server and your F5 model see), your screen keeps the view you had and your mouse steers only that view, so looking around never bends the movement. When the node ends your real yaw glides back under the view and nothing on screen moves. Default ON.");
+    }
+
+    /** Mining (WIP) tab, 2026-09-27 - scoped under "mining (wip)/" (the top-level tab name passed to
+     *  {@link SettingTooltips#describe}) so these never override an unrelated tab's same-worded button
+     *  (e.g. Waypoint Routes' own "Remove Last", Interactive Map's own "Map Scale"). */
+    private static void mining(Map<String, String> d) {
+        d.put("mining (wip)/profit per hour tracker", "Tracks items gained in your inventory/armor/off-hand and their live Bazaar/AH value over time, showing Coins/Hour. Never clicks or moves anything - purely reads your own inventory. Off by default.");
+        d.put("mining (wip)/mining islands only", "ON (default): the active clock only runs on Dwarven Mines, Glacite Tunnels, Crystal Hollows, Gold Mine or Deep Caverns. OFF: runs anywhere on Skyblock/p3sim.");
+        d.put("mining (wip)/nucleus run profit tracker", "Counts completed Crystal Nucleus runs from Hypixel's own loot-bundle chat message and prices what it lists (Bazaar/AH), only while you're in Crystal Hollows. The run count is exact; per-item coin value is best-effort (unrecognised/unpriced items are skipped, not guessed at). Off by default.");
+        d.put("mining (wip)/crystal hollows map", "A top-down map centred on the Crystal Nucleus's real fixed coordinate, showing your live position and your saved waypoints. Off by default.");
+        d.put("mining (wip)/open map", "Opens the full Crystal Hollows map screen. Left-click sets a travel target (distance + compass bearing shown), right-click clears it, scroll to zoom, drag to pan. Never teleports or moves you.");
+        d.put("mining (wip)/map scale", "Zoom multiplier for the Crystal Hollows map, 0.5x-4x.");
+        d.put("mining (wip)/add waypoint here", "Saves your current position as a Crystal Hollows waypoint, shown on the map and click-able there to set it as your travel target.");
+        d.put("mining (wip)/remove last", "Removes the most recently added Crystal Hollows waypoint. Shows how many are saved.");
+        d.put("mining (wip)/auto commissions", "NOT WIRED YET - see the tab's own text for exactly what real Dwarven Mines commission automation would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
+        d.put("mining (wip)/auto nucleus run", "NOT WIRED YET - see the tab's own text for exactly what a real mine-to-Nucleus automation loop would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
+        d.put("mining (wip)/auto crystal", "NOT WIRED YET - see the tab's own text for exactly what real Crystal Hollows crystal automation would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
     }
 }
