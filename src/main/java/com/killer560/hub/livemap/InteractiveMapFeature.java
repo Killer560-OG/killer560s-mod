@@ -130,6 +130,27 @@ public final class InteractiveMapFeature {
                 || PartyTracker.isDead(client.player.getGameProfile().name());
     }
 
+    /**
+     * What clicking a room on the map does, and what the Start key does - ONE action, because killer560 asked for
+     * exactly that (2026-09-27): "The path / teleport should be the same as the start. How it works is if I click
+     * on a room I am not in then it pathfinds to it. If I click on a room I am in then it'll do secrets in that
+     * room."
+     * <p>
+     * Auto Routes claims the click only for the room he is already standing in, where it runs that room's own
+     * route - which is what doing its secrets means. Every other room falls through to pathing there. The Start
+     * key is simply this with the CURRENT room, so it always lands on the second half.
+     */
+    static void activateRoom(DungeonLayout layout, int room, int tile) {
+        if (room < 0) {
+            ModChat.send(CHAT, ModChat.bad("That room is unknown"));
+            return;
+        }
+        if (com.killer560.hub.autoroutes.AutoRoutesFeature.onMapRoomClicked(layout, room)) {
+            return;
+        }
+        AutoClearUtils.pathToRoom(layout, room, tile, 0);
+    }
+
     static void pathToCurrentRoomStart() {
         DungeonLayout layout = DungeonLayout.capture();
         int room = layout.currentRoom();
@@ -137,7 +158,7 @@ public final class InteractiveMapFeature {
             ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
             return;
         }
-        AutoClearUtils.pathToRoom(layout, room, layout.tiles(room)[0], 1);
+        activateRoom(layout, room, layout.tiles(room)[0]);
     }
 
     static void pathToLockedDoor() {

@@ -445,51 +445,33 @@ public class InteractiveMapScreen extends Screen {
         }
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         int gid = LiveMapFeature.groupIdAt(cell);
-        if (button == 1) {
-            if (gid >= 0) {
-                toggleWaypoints(LiveMapFeature.groupsView().get(gid));
-            }
-            return;
-        }
+        // LEFT CLICK ONLY. The right-click "toggle this room's waypoints" is gone - killer560 (2026-09-27):
+        // "Remove the hardcoded. The toggle waypoint shouldn't exist." Secret waypoints are their own feature
+        // with their own settings; having the map silently flip them per room was a second, hidden way to
+        // control something that already has an obvious one.
         if (button != 0) {
             return;
         }
         boolean canTeleport = cfg.isInteractiveMapEnabled() && com.killer560.hub.secrets.DungeonState.isInDungeon()
                 && !LiveMapFeature.isInBoss();
         if (gid >= 0) {
-            if (canTeleport) {
-                DungeonLayout layout = DungeonLayout.capture();
-                int room = layout.roomOfCell(cell);
-                int gx = cell % LiveMapFeature.GRID;
-                int gz = cell / LiveMapFeature.GRID;
-                int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : LiveMapFeature.groupsView().get(gid).mainIdx;
-                // Clicking the room you are already standing in means "take me back to the start of my
-                // route here", not "path me to this room's own spot" (killer560, 2026-09-16). Auto Routes
-                // only claims the click for that exact case; every other room falls straight through.
-                if (com.killer560.hub.autoroutes.AutoRoutesFeature.onMapRoomClicked(layout, room)) {
-                    return;
-                }
-                AutoClearUtils.pathToRoom(layout, room, tile, 0);
-            } else {
-                toggleWaypoints(LiveMapFeature.groupsView().get(gid));
+            if (!canTeleport) {
+                // Used to quietly fall back to toggling waypoints, which is why clicking a room sometimes did
+                // something entirely unrelated to what the click means. Say why instead.
+                ModChat.send(InteractiveMapFeature.CHAT, ModChat.dim(LiveMapFeature.isInBoss()
+                        ? "Not during the boss." : "Interactive Map is off, or you are not in a dungeon."));
+                return;
             }
+            DungeonLayout layout = DungeonLayout.capture();
+            int room = layout.roomOfCell(cell);
+            int gx = cell % LiveMapFeature.GRID;
+            int gz = cell / LiveMapFeature.GRID;
+            int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : LiveMapFeature.groupsView().get(gid).mainIdx;
+            InteractiveMapFeature.activateRoom(layout, room, tile);
         } else if (canTeleport && MapPainter.isDoorCell(cell)) {
             DungeonLayout layout = DungeonLayout.capture();
             AutoClearUtils.pathToDoor(layout, cell, cfg.isFaceDoorOnArrival());
         }
-    }
-
-    private static void toggleWaypoints(LiveMapFeature.RoomGroup group) {
-        if (group.entry == null || group.entry.name == null) {
-            return;
-        }
-        if (group.entry.secretCoords == null) {
-            ModChat.send(InteractiveMapFeature.CHAT, ModChat.dim("No waypoints for "), ModChat.value(group.entry.name));
-            return;
-        }
-        boolean shown = SecretWaypointsFeature.toggleRoom(group.entry.name);
-        ModChat.send(InteractiveMapFeature.CHAT, ModChat.value(group.entry.name), ModChat.dim(" waypoints "),
-                shown ? ModChat.good("shown") : ModChat.bad("hidden"));
     }
 
 }
