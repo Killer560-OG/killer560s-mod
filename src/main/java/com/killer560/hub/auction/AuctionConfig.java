@@ -15,7 +15,11 @@ import java.nio.file.Path;
  * Persisted settings for killer560's item 8.1 - the custom Auction House browser, Bazaar browser, and
  * "Create BIN Auction" Listing Helper (see {@link AuctionHouseFeature}, {@code BazaarFeature},
  * {@code ListingHelperFeature}). One config file for all three sub-features since they're one requested
- * item and share the "New tab, OFF by default" rule together. Every field here survives a restart.
+ * item, living in the New tab together. Every field here survives a restart.
+ * <p>
+ * Auction House and Bazaar ship ON by default (killer560, 2026-09-27: "Turn auction house and bazaar
+ * settings on by default"); the Listing Helper and the {@code /ah} command override stay OFF, unrelated
+ * asks with their own reasoning below.
  */
 public final class AuctionConfig {
 
@@ -62,8 +66,9 @@ public final class AuctionConfig {
 
     private static AuctionConfig instance;
 
-    private boolean ahEnabled = false;
-    private boolean bazaarEnabled = false;
+    // killer560, 2026-09-27: "Turn auction house and bazaar settings on by default."
+    private boolean ahEnabled = true;
+    private boolean bazaarEnabled = true;
     private boolean listingHelperEnabled = false;
     /** killer560's item 8.1: "/ah replacement toggle" - OFF by default, real Hypixel /ah always still
      *  reachable via the explicit {@code /hypixelah} command regardless of this. */

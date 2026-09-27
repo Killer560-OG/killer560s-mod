@@ -5,8 +5,6 @@ import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.splittimers.SplitTimersConfig;
-import com.killer560.hub.splittimers.SplitTimersFeature;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -23,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Secrets-found display and run-time tracking - backs the Secrets HUD and Time HUD.
+ * Secrets-found display and run-time tracking - backs the Secrets HUD.
  * <ul>
  * <li>Secrets: read from the TAB LIST (player-info display names), not the sidebar - see
  * {@link #updateSecretsCount()}.
@@ -125,8 +123,7 @@ public final class DungeonInfoFeature {
         wasInDungeon = inDungeonNow;
 
         DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-        String gates = "secretsHud=" + cfg.isSecretsHudEnabled() + " timeTracker=" + cfg.isTimeTrackerEnabled()
-                + " inDungeon=" + inDungeonNow;
+        String gates = "secretsHud=" + cfg.isSecretsHudEnabled() + " inDungeon=" + inDungeonNow;
         if (!gates.equals(lastLoggedGates)) {
             LOGGER.info("[DungeonInfo] Gates changed: {}", gates);
             lastLoggedGates = gates;
@@ -223,8 +220,10 @@ public final class DungeonInfoFeature {
     }
 
     /** Client-side elapsed time for the current (or most recently finished) run - real wall-clock
-     *  elapsed time, so it includes any lag/freeze along the way. */
-    public static String elapsedTimeText() {
+     *  elapsed time, so it includes any lag/freeze along the way. Only used for the run-timer-stopped
+     *  log line now that the Time HUD (its only display) is gone (killer560, 2026-09-27: "remove the
+     *  time hud those are things that should be in the splits section"). */
+    private static String elapsedTimeText() {
         if (runStartAtMs == 0) {
             return "No run yet";
         }
@@ -238,7 +237,7 @@ public final class DungeonInfoFeature {
      *  {@link #elapsedTimeText()} while wall-clock time keeps counting regardless - the difference
      *  between the two IS the time lost to lag, which is what "without lag" means here. Only ever reads
      *  game time sampled from the run's own world (see {@link #lastInDungeonGameTime}). */
-    public static String elapsedTimeWithoutLagText() {
+    private static String elapsedTimeWithoutLagText() {
         if (runStartGameTime < 0) {
             return "No run yet";
         }
@@ -249,14 +248,6 @@ public final class DungeonInfoFeature {
 
     private static String formatSeconds(long totalSeconds) {
         return String.format(Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60);
-    }
-
-    public static void sendTime() {
-        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-        String message = cfg.isSendTimeWithoutLag()
-                ? String.format(Locale.US, "Time: %s (%s without lag)", elapsedTimeText(), elapsedTimeWithoutLagText())
-                : "Time: " + elapsedTimeText();
-        com.killer560.hub.translate.TranslateFeature.sendGenerated(message, "pc");
     }
 
     /** Secrets HUD - per-run and (optionally) per-room secrets found. Keeps the old "dungeon_info" HUD id
@@ -313,78 +304,6 @@ public final class DungeonInfoFeature {
             if (cfg.isShowPerRoomSecrets()) {
                 String roomText = roomSecretsFound >= 0 ? ("Room: " + roomSecretsFound) : "Room: ?";
                 graphics.text(Minecraft.getInstance().font, roomText, x, lineY, 0xFFAAAAAA, false);
-            }
-        }
-    }
-
-    /** Time HUD - run elapsed/no-lag timer, plus (optionally) the Split Timers feature's own "current
-     *  segment" readout via its public getters - this HUD does not parse split lines itself. */
-    public static final class TimeHudElement implements HudElement {
-        @Override
-        public String id() {
-            return "dungeon_time_hud";
-        }
-
-        @Override
-        public String displayName() {
-            return "Time HUD";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 300;
-        }
-
-        @Override
-        public int width() {
-            return 150;
-        }
-
-        @Override
-        public int height() {
-            return currentSplitLine() != null ? 36 : 24;
-        }
-
-        @Override
-        public boolean isRelevantNow() {
-            return DungeonInfoConfig.getInstance().isTimeTrackerEnabled() && DungeonState.isInDungeon();
-        }
-
-        /** The Split Timers feature's own current-segment name/elapsed - read via its two public getters
-         *  ({@code getCurrentSegmentLabel}/{@code getCurrentSegmentStartedAtMs}), never re-derived from chat
-         *  here. Null when the toggle is off, Split Timers itself is disabled, or no segment is running. */
-        private static String currentSplitLine() {
-            if (!DungeonInfoConfig.getInstance().isShowCurrentSplit() || !SplitTimersConfig.getInstance().isEnabled()) {
-                return null;
-            }
-            String label = SplitTimersFeature.getCurrentSegmentLabel();
-            long startedAt = SplitTimersFeature.getCurrentSegmentStartedAtMs();
-            if (label == null || startedAt <= 0) {
-                return null;
-            }
-            long elapsedSec = Math.max(0, (System.currentTimeMillis() - startedAt) / 1000);
-            return "Split: " + label + " " + formatSeconds(elapsedSec);
-        }
-
-        @Override
-        public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-            if (!cfg.isTimeTrackerEnabled() || !DungeonState.isInDungeon() || HudVisibility.hidesHud() || runStartAtMs <= 0) {
-                return;
-            }
-            int lineY = y;
-            graphics.text(Minecraft.getInstance().font, "Time: " + elapsedTimeText(), x, lineY, 0xFFFFFFFF, false);
-            lineY += 12;
-            graphics.text(Minecraft.getInstance().font, "No Lag: " + elapsedTimeWithoutLagText(), x, lineY, 0xFFAAAAAA, false);
-            lineY += 12;
-            String splitLine = currentSplitLine();
-            if (splitLine != null) {
-                graphics.text(Minecraft.getInstance().font, splitLine, x, lineY, 0xFFAAAAAA, false);
             }
         }
     }

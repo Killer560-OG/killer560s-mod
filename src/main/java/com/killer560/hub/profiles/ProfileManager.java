@@ -335,6 +335,9 @@ public final class ProfileManager {
                 com.killer560.hub.dvd.DvdConfig::load,
                 com.killer560.hub.emotes.ChatEmoteConfig::load,
                 com.killer560.hub.etherwarp.EtherwarpWaypointsConfig::load,
+                // Real saved waypoint data (2026-09-27, room-relative rewrite), not just a setting - same
+                // reason com.killer560.hub.routes.RouteStore::load is in this list for Waypoint Routes.
+                com.killer560.hub.etherwarp.EtherwarpWaypointsStore::load,
                 com.killer560.hub.etherwarpoverlay.EtherwarpOverlayConfig::load,
                 com.killer560.hub.experiments.ExperimentsConfig::load,
                 com.killer560.hub.fastleap.FastLeapConfig::load,
@@ -353,7 +356,6 @@ public final class ProfileManager {
                 com.killer560.hub.leapmenu.LeapMenuConfig::load,
                 com.killer560.hub.leapmessage.LeapMessageConfig::load,
                 com.killer560.hub.livemap.LiveMapConfig::load,
-                com.killer560.hub.lavalab.LavaLabConfig::load,
                 com.killer560.hub.loadoutkeybinds.LoadoutKeybindsConfig::load,
                 com.killer560.hub.mainmenu.MainMenuThemeConfig::load,
                 com.killer560.hub.mapping.MappingConfig::load,

@@ -215,6 +215,7 @@ public final class BreakerAuraFeature {
         Set<String> picked = cfg.getBreakerAuraSelected();
         String k = key(pos);
         if (picked.remove(k)) {
+            selectedVersion++;
             cfg.save();
             ModChat.send("Breaker Aura", ModChat.text("Unpicked "),
                     ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
@@ -227,6 +228,7 @@ public final class BreakerAuraFeature {
             return;
         }
         picked.add(k);
+        selectedVersion++;
         cfg.save();
         ModChat.send("Breaker Aura", ModChat.text("Picked "),
                 ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
@@ -279,16 +281,35 @@ public final class BreakerAuraFeature {
         }
     }
 
+    // onWorldRender calls selectedBlocks() every frame and the planner calls it every tick, but the picked-block
+    // Set only changes on a pick, an unpick, a clear or a config reload - so re-parsing every "x,y,z" string every
+    // frame was pure waste (found in the 2026-09-27 FPS pass).
+    //
+    // Invalidated on an explicit VERSION counter, bumped at all three mutation sites, plus the Set's identity for a
+    // config reload swapping the instance. It was identity + SIZE, which is almost right and quietly wrong: an
+    // unpick followed by a pick leaves the size where it started, so the stale list would have survived and the
+    // renderer would have drawn the old blocks while the aura broke the new ones. A counter cannot miss that.
+    private static Set<String> selectedBlocksCacheSource;
+    private static int selectedBlocksCacheVersion = -1;
+    private static int selectedVersion;
+    private static List<BlockPos> selectedBlocksCache = List.of();
+
     /** Every picked block, for the renderer and the planner. */
     public static List<BlockPos> selectedBlocks() {
-        List<BlockPos> out = new ArrayList<>();
-        for (String k : DungeonExtrasConfig.getInstance().getBreakerAuraSelected()) {
-            BlockPos p = parse(k);
-            if (p != null) {
-                out.add(p);
+        Set<String> selected = DungeonExtrasConfig.getInstance().getBreakerAuraSelected();
+        if (selected != selectedBlocksCacheSource || selectedVersion != selectedBlocksCacheVersion) {
+            List<BlockPos> out = new ArrayList<>();
+            for (String k : selected) {
+                BlockPos p = parse(k);
+                if (p != null) {
+                    out.add(p);
+                }
             }
+            selectedBlocksCache = out;
+            selectedBlocksCacheSource = selected;
+            selectedBlocksCacheVersion = selectedVersion;
         }
-        return out;
+        return selectedBlocksCache;
     }
 
     /** Forget every pick - the tab's button and {@code /breakeraura clear}. */
@@ -296,6 +317,7 @@ public final class BreakerAuraFeature {
         Set<String> picked = DungeonExtrasConfig.getInstance().getBreakerAuraSelected();
         int n = picked.size();
         picked.clear();
+        selectedVersion++;
         DungeonExtrasConfig.getInstance().save();
         return n;
     }
@@ -580,6 +602,9 @@ public final class BreakerAuraFeature {
                 continue;
             }
             Block block = level.getBlockState(pos).getBlock();
+            // Say so before sending, so the outbound probe files this under OURS rather than under whatever other
+            // mod happens to be running - see ForeignBreakerProbe.
+            ForeignBreakerProbe.ours();
             breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing());
             RECENT.put(pos, now);
             spentSinceLore++;

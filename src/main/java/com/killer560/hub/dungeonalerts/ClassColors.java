@@ -42,6 +42,18 @@ public final class ClassColors {
     private static int tickCounter = 0;
     private static String lastLogged = "";
 
+    /** One player's cached nametag {@link Component}, plus the class it was built for - see
+     *  {@link #onWorldRender}'s FPS fix comment. */
+    private record NametagEntry(DungeonClass clazz, Component text) {
+    }
+
+    // FPS fix: the nametag Component (nested literal/Style/TextColor allocations) only actually depends on
+    // the player's name and resolved class, neither of which changes within a dungeon run except on an
+    // actual class swap/reroll - but onWorldRender used to rebuild it from scratch for every teammate every
+    // single frame of every dungeon run. Cached per name, rebuilt only when that player's resolved class
+    // changes.
+    private static final Map<String, NametagEntry> NAMETAG_CACHE = new HashMap<>();
+
     private ClassColors() {
     }
 
@@ -189,8 +201,15 @@ public final class ClassColors {
             Vec3 pos = player.getPosition(partial);
             double distance = pos.distanceTo(self);
             float scale = (float) Math.max(distance * 0.12, 1.0);
-            Component text = Component.literal("[" + clazz.displayName().charAt(0) + "] ").withStyle(ChatFormatting.YELLOW)
-                    .append(Component.literal(name).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(clazz.color() & 0xFFFFFF))));
+            NametagEntry cachedTag = NAMETAG_CACHE.get(name);
+            Component text;
+            if (cachedTag != null && cachedTag.clazz() == clazz) {
+                text = cachedTag.text();
+            } else {
+                text = Component.literal("[" + clazz.displayName().charAt(0) + "] ").withStyle(ChatFormatting.YELLOW)
+                        .append(Component.literal(name).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(clazz.color() & 0xFFFFFF))));
+                NAMETAG_CACHE.put(name, new NametagEntry(clazz, text));
+            }
             DungeonAlertsFeature.renderWorldText(context, text, pos.x,
                     pos.y + player.getBbHeight() + 0.7 + distance * 0.015, pos.z, scale);
         }

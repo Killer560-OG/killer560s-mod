@@ -179,6 +179,12 @@ public final class ItemProtectFeature {
         ContainerScreenPositionAccessor accessor = (ContainerScreenPositionAccessor) screen;
         int leftPos = accessor.killer560smod$getLeftPos();
         int topPos = accessor.killer560smod$getTopPos();
+        // killer560 (2026-09-27: "dont make it show through tooltips") - this whole pass runs from
+        // ScreenEvents.afterExtract, i.e. after the vanilla tooltip is already drawn, so the lock icon used
+        // to paint right on top of it. The hovered slot is the only one that can have a tooltip open, so
+        // skipping just that slot's icon keeps the marker under every tooltip without touching the timing
+        // of the slot-lock/peek markers (which are meant to sit on top of the item, per the class doc above).
+        Slot hoveredSlot = ((AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
 
         for (Slot slot : screen.getMenu().slots) {
             int x = leftPos + slot.x;
@@ -192,7 +198,7 @@ public final class ItemProtectFeature {
                 if (drawProtected) {
                     graphics.outline(x - 1, y - 1, 18, 18, cfg.getProtectedColor());
                 }
-                if (drawProtectedIcon) {
+                if (drawProtectedIcon && slot != hoveredSlot) {
                     drawSmallLock(graphics, x, y, cfg.getProtectedColor());
                 }
             }

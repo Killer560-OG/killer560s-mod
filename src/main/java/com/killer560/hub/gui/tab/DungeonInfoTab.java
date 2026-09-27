@@ -12,10 +12,12 @@ import java.util.List;
 
 /** Secrets HUD settings - per-run and per-room secrets-found count. Reorg 2026-09-21 (killer560's
  *  secret/score/time HUD split): this tab used to also hold the run timer, mimic/prince/bat kill alerts and
- *  the manual 270/300 messages - the timer moved to {@link TimeHudTab}, and the alert/message settings moved
- *  to {@link ScoreCalculatorTab} (killer560: "a score hud that has all the send messages"). Secret-collected
- *  SOUND settings are NOT here - they already live in the "Secrets" folder ({@link SecretSoundTab}, moved
- *  there 2026-09-21 from {@code DungeonAlertsTab}) - see that tab, not this one, for that toggle. */
+ *  the manual 270/300 messages - the alert/message settings moved to {@link ScoreCalculatorTab} (killer560:
+ *  "a score hud that has all the send messages"). The run timer got its own Time HUD tab in that same split,
+ *  then was removed outright 2026-09-27 (killer560: "remove the time hud those are things that should be in
+ *  the splits section") - see {@code SplitTimersTab} for that. Secret-collected SOUND settings are NOT here -
+ *  they already live in the "Secrets" folder ({@link SecretSoundTab}, moved there 2026-09-21 from
+ *  {@code DungeonAlertsTab}) - see that tab, not this one, for that toggle. */
 public class DungeonInfoTab extends BaseTab {
 
     public DungeonInfoTab() {

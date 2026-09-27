@@ -8,10 +8,8 @@ import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.pathfinding.AutoSoulRunner;
 import com.killer560.hub.pathfinding.FairySoulStore;
 import com.killer560.hub.pathfinding.FairySoulsFeature;
-import com.killer560.hub.pathfinding.IslandDetector;
 import com.killer560.hub.pathfinding.NavigationManager;
 import com.killer560.hub.pathfinding.PathfindingConfig;
-import com.killer560.hub.pathfinding.ProfileTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -23,14 +21,18 @@ import java.util.Locale;
 
 /** Pathfinding + Fairy Souls settings - see {@link com.killer560.hub.pathfinding.PathfindingFeature}. The
  *  cheat-only "Auto Fairy Souls" walking/clicking logic lives in {@link AutoFairySoulsTab} (split out
- *  2026-09-21, see its own javadoc); this tab only ever shows or tracks, never moves the player. */
+ *  2026-09-21, see its own javadoc); this tab only ever shows or tracks, never moves the player.
+ *  <p>
+ *  Renamed to "Fairy Souls" 2026-09-27 (killer560: "we are going to change pathfinding alot... change the
+ *  tab to be called fairy souls") ahead of a pathfinding rework; also dropped the island/profile text line
+ *  and the "Guide Me Now" button per that same request. */
 public class PathfindingTab extends BaseTab {
 
     private boolean confirmResetIsland = false;
     private boolean confirmResetProfile = false;
 
     public PathfindingTab() {
-        super("Pathfinding");
+        super("Fairy Souls");
     }
 
     @Override
@@ -52,12 +54,6 @@ public class PathfindingTab extends BaseTab {
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
-
-        String island = IslandDetector.islandName();
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§7Island: §6"
-                + (island.isEmpty() ? "unknown" : island) + "§7   Profile: §6" + ProfileTracker.displayName()),
-                client.font));
-        y += 16;
 
         // ---------------------------------------------------------------- display
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Display", false), client.font));
@@ -193,11 +189,7 @@ public class PathfindingTab extends BaseTab {
                         cfg.setAutoStartOnIsland(!cfg.isAutoStartOnIsland());
                         cfg.save();
                         btn.setMessage(onOff("Start On Island Join", cfg.isAutoStartOnIsland()));
-                    }).bounds(contentX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Guide Me Now"), btn -> {
-                        FairySoulsFeature.start(cfg.getSoulMode());
-                        requestRebuild.run();
-                    }).bounds(col2bX, y, col2W, 18).build());
+                    }).bounds(contentX, y, contentWidth, 18).build());
             y += 20;
 
             int[] counts = FairySoulsFeature.islandCounts();

@@ -34,7 +34,6 @@ public class NewTab extends FolderTab {
                 new EnchantColorsTab(),
                 new AbilityTimersTab(),
                 new DungeonInfoTab(),
-                new TimeHudTab(),
                 new TrailTab(),
                 new CommandShortcutsTab(),
                 new InventoryThemeTab(),

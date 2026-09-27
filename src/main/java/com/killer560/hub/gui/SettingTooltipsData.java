@@ -341,10 +341,7 @@ final class SettingTooltipsData {
         d.put("key", "Key this entry uses. Click, then press a key; Escape clears it.");
         d.put("duration", "How long this lasts. Ability Timers: countdown length (+5s per click, wraps at 300s). Custom Mage Beam: Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer's countdown right now so you can check how it looks on the HUD.");
-        d.put("secrets hud", "Shows your team's Secrets Found count and percentage (read from the tab list) while in a dungeon. It is part of the 'Dungeon Info (Secrets/Time)' HUD element, which you move in the HUD editor.");
-        d.put("run time hud", "Shows the current or last run's time on the Dungeon Info HUD: real time since the mod detected you in the dungeon, plus a 'No Lag' time counted from server ticks.");
-        d.put("include \"without lag\"", "Adds the server-tick 'without lag' time to the message sent by Send Time.");
-        d.put("send time", "Sends the current or last run's time to party chat.");
+        d.put("secrets hud", "Shows your team's Secrets Found count and percentage (read from the tab list) while in a dungeon. Move it in the HUD editor.");
         d.put("mimic killed msg", "Sends the message below to party chat when the Mimic dies (F6/F7, outside the boss). Once per run.");
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when Hypixel says 'A Prince falls. +1 Bonus Score'. Dungeons only, once per run.");
@@ -772,7 +769,6 @@ final class SettingTooltipsData {
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("skull range", "How close a Wither Essence skull must be for Secret Aura to click it, in blocks (2.1-4.7).");
         d.put("click cooldown", "Secret Aura's minimum time between clicks, in ms; a secret must also stay in range this long before its first click (100-2000).");
-        d.put("pause while holding", "Type item names or Skyblock IDs separated by commas; Secret Aura pauses while your held item matches any of them (not case-sensitive, partial match).");
         d.put("auto gfs", "Cheat build only. In dungeons, runs /gfs to refill the chosen items from your sacks when you run low. Never with a menu open; commands are 3s apart.");
         d.put("spirit leaps", "Lets Auto GFS refill Spirit Leaps (up to 16).");
         d.put("superboom tnt", "Lets Auto GFS refill Superboom TNT (up to 64).");
@@ -932,7 +928,6 @@ final class SettingTooltipsData {
         d.put("soul waypoints", "Boxes every missing Fairy Soul within 96 blocks.");
         d.put("soul counter hud", "Shows found/total for this island on the HUD (drag it in the HUD editor).");
         d.put("start on island join", "Starts guiding automatically when you arrive on an island with missing souls.");
-        d.put("guide me now", "Starts guiding to the missing souls on this island right now.");
         d.put("mark island found", "Logs every soul on this island as found.");
         d.put("reset this island", "Clears the found-soul log for this island on this profile. Click twice to confirm.");
         d.put("reset found souls (profile)", "Clears the found-soul log for every island on this profile. Click twice to confirm.");
@@ -1166,7 +1161,6 @@ final class SettingTooltipsData {
         d.put("click again to reset", "Confirm step: click a second time within 3 seconds to wipe the profit totals. It goes back to normal on its own if you don't.");
         d.put("status", "Whether Discord Rich Presence is actually connected right now. Read-only - if it says not connected, the Discord desktop app probably isn't running.");
         d.put("what to show", "Which details of what you are doing get sent to your Discord profile.");
-        d.put("current run time", "This run's elapsed time at the moment this page was opened: real time plus the 'without lag' server-tick time. Read-only; reopen the page to refresh it.");
         d.put("score milestone messages", "Manual party messages for hitting 270 and 300, each sent only by its own Send Now button.");
         d.put("terminals to solve", "Which of the six F7 terminal types the solver draws highlights for. Each one can be turned off on its own.");
         d.put("terminals to auto-click", "Cheat build only. Which terminal types get clicked automatically. Each still needs its solver on in Terminal Solver.");
@@ -1215,7 +1209,6 @@ final class SettingTooltipsData {
         d.put("show protected key", "Hold this key in any inventory screen to outline every protected item (including starred items, if Auto-Protect Starred is on) in Highlight Color.");
         d.put("item id fallback", "Lets items with no Skyblock UUID be protected by their item ID instead - which protects every copy of that item, not just the one you hovered.");
         d.put("new/highlight color", "Opens a color picker for the outline drawn on protected items while the Show Protected key is held.");
-        d.put("clear saved items", "Forgets every item added with the protect key. Typed names are kept.");
         d.put("auto-protect starred", "Treats any dungeon-starred item as protected without listing it, using the item's star data (with the visible star symbols as a backup). Works even with Protect Item OFF.");
         d.put("prevent hotbar drops", "Swallows the drop key while you're holding a protected or locked item, so a mistimed Q in a boss fight can't throw your weapon.");
         d.put("confirm to force", "Makes the first blocked drop a warning instead of a wall: press drop again within 3 seconds to drop it anyway.");
@@ -1328,20 +1321,18 @@ final class SettingTooltipsData {
         d.put("blessings", "Reads the five dungeon blessing levels (Power, Time, Wisdom, Stone, Life) out of the tab list footer, and can show them on a HUD or announce each level up. Levels only - no source gives a blessing stat table.");
         d.put("blessings hud", "Draws one line per blessing you have picked up. Only shown inside a dungeon; move it in the HUD editor (element: Blessings).");
         d.put("roman numerals", "Writes blessing levels as V instead of 5.");
-        d.put("shown blessings", "Which of the five blessings may appear on the HUD and be announced. One you turn off here is ignored everywhere.");
-        d.put("blessings/power", "Show and announce Blessing of Power.");
-        d.put("blessings/time", "Show and announce Blessing of Time.");
-        d.put("blessings/wisdom", "Show and announce Blessing of Wisdom.");
-        d.put("blessings/stone", "Show and announce Blessing of Stone.");
-        d.put("blessings/life", "Show and announce Blessing of Life.");
+        d.put("shown blessings", "Which of the five blessings may appear on the HUD. One you turn off here is ignored everywhere.");
+        d.put("blessings/power", "Show Blessing of Power.");
+        d.put("blessings/time", "Show Blessing of Time.");
+        d.put("blessings/wisdom", "Show Blessing of Wisdom.");
+        d.put("blessings/stone", "Show Blessing of Stone.");
+        d.put("blessings/life", "Show Blessing of Life.");
         d.put("blessings/colors", "Text colour of each blessing's HUD line. The defaults match the colours Hypixel uses for them in the tab list footer.");
         d.put("blessings/power color", "Colour of the Power line on the Blessings HUD (default dark red).");
         d.put("blessings/time color", "Colour of the Time line on the Blessings HUD (default gold).");
         d.put("blessings/wisdom color", "Colour of the Wisdom line on the Blessings HUD (default aqua).");
         d.put("blessings/stone color", "Colour of the Stone line on the Blessings HUD (default grey).");
         d.put("blessings/life color", "Colour of the Life line on the Blessings HUD (default dark green).");
-        d.put("blessings/announce in chat", "Posts a client-side line only you can see each time a blessing level goes up.");
-        d.put("blessings/announce in party", "Also sends the new level to party chat with /pc - once per blessing per run, so a five-blessing pickup can't spam the party.");
         d.put("cheat utils", "Cheat build only. Secret Aura (auto-interacts with dungeon secrets), plus the shared Action Gate pacing used by every cheat automation in the mod. Auto GFS, Auto Ult and Auto Chocolate Factory each moved to their own tab 2026-09-20.");
         d.put("click translate", "Adds a click action to chat messages that translates them into the language set below.");
         d.put("auto correct", "Fixes common typing mistakes in the chat messages you send, before they leave your client.");
@@ -1443,8 +1434,6 @@ final class SettingTooltipsData {
         d.put("inventory search/search bar scale", "Resizes the floating search bar. Only used when the Item Browser panel is not already providing its own search box.");
         d.put("item protection/marker", "How a locked slot is marked: Outline, Lock Icon (a small padlock), or Outline + Icon.");
         d.put("item protection/highlight color", "Colour of the outline drawn on protected items while the Show Protected Key is held (default aqua).");
-        d.put("item protection/item name", "Type part of an item name here, then click + Add Name. Upper/lower case doesn't matter.");
-        d.put("item protection/+ add name", "Adds the typed text to the protected-names list. Any item whose name contains it is protected, so 'Hyperion' covers every Hyperion you own.");
         d.put("item protection/remove", "Takes this name off the protected-names list. Items saved with the Protect Key are not affected.");
         d.put("item rarity backgrounds/style", "Shape drawn behind each item: Square (fills the slot), Circle, or Outline (a thin border). Click to cycle.");
         d.put("item rarity backgrounds/outline width", "Outline style only: how thick the rarity outline is, 1-4 pixels (default 1). It grows inward, so it never spills out of the slot.");
@@ -1474,8 +1463,8 @@ final class SettingTooltipsData {
         d.put("p3 nav/color", "Colour of the boxes on this row: the section gate, the terminals, or the devices.");
         d.put("party commands/help", "!help makes your client post the list of commands you have turned on into party chat. The message is sent from your account.");
         d.put("party commands/kick offline", "!kickoffline runs /p kickoffline, removing every offline member from the party.");
-        d.put("pathfinding/chat feedback", "Prints a chat line when a route starts, finishes or is cancelled. OFF routes silently.");
-        d.put("pathfinding/text scale", "Size of the destination label drawn above the target, 0.5x to 3x.");
+        d.put("fairy souls/chat feedback", "Prints a chat line when a route starts, finishes or is cancelled. OFF routes silently.");
+        d.put("fairy souls/text scale", "Size of the destination label drawn above the target, 0.5x to 3x.");
         d.put("nothing to stop", "Nothing is navigating right now, so there is nothing to cancel.");
         d.put("stop auto fairy souls", "Cheat build only. Stops the automatic fairy soul run immediately.");
         d.put("sure? reset island", "Click once more to clear this island's found-soul log for this profile.");
@@ -1717,7 +1706,6 @@ final class SettingTooltipsData {
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("secret aura/skull range", "How close a Wither Essence skull must be for Secret Aura to click it, in blocks (2.1-4.7).");
         d.put("secret aura/click cooldown", "Secret Aura's minimum time between clicks, in ms; a secret must also stay in range this long before its first click (100-2000).");
-        d.put("secret aura/pause while holding", "Type item names or Skyblock IDs separated by commas; Secret Aura pauses while your held item matches any of them (not case-sensitive, partial match).");
         d.put("lever aura/min delay", "Shortest random wait between Lever Aura flicks, in ms (50-2000). Raising it past Max Delay pushes Max Delay up.");
         d.put("lever aura/max delay", "Longest random wait between Lever Aura flicks, in ms (50-2000). Lowering it below Min Delay pulls Min Delay down.");
         d.put("stat bars", "Renamed from Player Stats. Hides the vanilla hearts/hunger/armor/air bars and shows your own Health/Mana/Defense as a HUD line read from the action bar; the real action bar itself is left unchanged.");
@@ -1792,9 +1780,6 @@ final class SettingTooltipsData {
         d.put("party commands/discord", "!odin / !od (Odin's own triggers, kept for parity) and !killer560 / !k560 (this mod's own) reply with this mod's Discord invite link.");
         d.put("secrets hud/secrets hud", "Shows secrets found this run (read from the tab list) as a small movable HUD. Only draws while you're inside a dungeon.");
         d.put("secrets hud/per-room secrets", "Adds a second HUD line showing secrets found since you walked into the room you're currently standing in. Needs Live Map to have identified that room first.");
-        d.put("time hud/time hud", "Shows the run's elapsed time (and, if enabled, the no-lag elapsed time) as a small movable HUD.");
-        d.put("time hud/include \"without lag\"", "Also includes the no-lag elapsed time in the message sent by Send Time.");
-        d.put("time hud/show current split", "Adds a line mirroring Split Timers' own current segment name and how long it's been running. Needs Split Timers enabled too - this doesn't track splits on its own; the full breakdown is Split Timers' own HUD.");
         d.put("score calculator/bonus kill alerts", "Party-chat messages sent when you personally get credit for a mimic, prince or bat bonus-score kill. Each sends at most once per run and never if a party mate's mod already announced the same kill.");
         d.put("score calculator/send 270 now", "Sends the 270 party message immediately, regardless of your current score. Does not affect the automatic 270 alert above.");
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, regardless of your current score. Does not affect the automatic 300 alert above.");

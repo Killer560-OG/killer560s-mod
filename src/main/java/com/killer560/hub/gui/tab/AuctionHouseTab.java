@@ -5,9 +5,7 @@ import com.killer560.hub.auction.AuctionHouseApi;
 import com.killer560.hub.auction.AuctionHouseFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -73,21 +71,7 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(statusText()), Minecraft.getInstance().font));
-
         return widgets;
-    }
-
-    private static String statusText() {
-        int count = AuctionHouseApi.getListings().size();
-        String base = "§7Cached BIN listings: " + (count > 0 ? String.valueOf(count) : "none yet");
-        if (AuctionHouseApi.isScanning()) {
-            int pct = AuctionHouseApi.getScanProgressPercent();
-            base += " (scanning" + (pct >= 0 ? " " + pct + "%" : "") + ")";
-        } else if (AuctionHouseApi.getLastScanError() != null) {
-            base += " §c(last scan failed: " + AuctionHouseApi.getLastScanError() + ")";
-        }
-        return base;
     }
 
     private static Component onOff(String label, boolean value) {

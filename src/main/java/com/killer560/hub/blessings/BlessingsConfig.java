@@ -30,8 +30,6 @@ public final class BlessingsConfig {
 
     private boolean hud = false;
     private boolean romanNumerals = false;
-    private boolean announceChat = false;
-    private boolean announceParty = false;
     /** Which blessings appear on the HUD / in announcements. Power and Time default on (NoammAddons'
      *  {@code BlessingDisplay.kt} defaults: Power true, Time true, the other three false) - the whole HUD is
      *  still OFF until "Blessings HUD" is switched on. */
@@ -65,8 +63,6 @@ public final class BlessingsConfig {
         if (obj != null) {
             cfg.hud = ConfigJson.getBool(obj, "hud", false);
             cfg.romanNumerals = ConfigJson.getBool(obj, "romanNumerals", false);
-            cfg.announceChat = ConfigJson.getBool(obj, "announceChat", false);
-            cfg.announceParty = ConfigJson.getBool(obj, "announceParty", false);
             for (Blessing blessing : Blessing.values()) {
                 cfg.shown.put(blessing, ConfigJson.getBool(obj, showKey(blessing), cfg.isShownRaw(blessing)));
                 cfg.colors.put(blessing, ConfigJson.getInt(obj, colorKey(blessing), blessing.defaultColor()));
@@ -81,8 +77,6 @@ public final class BlessingsConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("hud", hud);
             obj.addProperty("romanNumerals", romanNumerals);
-            obj.addProperty("announceChat", announceChat);
-            obj.addProperty("announceParty", announceParty);
             for (Blessing blessing : Blessing.values()) {
                 obj.addProperty(showKey(blessing), isShownRaw(blessing));
                 obj.addProperty(colorKey(blessing), getColor(blessing));
@@ -120,32 +114,8 @@ public final class BlessingsConfig {
         romanNumerals = v;
     }
 
-    public boolean isAnnounceChatEnabled() {
-        return announceChat && SkyblockGate.allows();
-    }
-
-    public boolean getAnnounceChatRaw() {
-        return announceChat;
-    }
-
-    public void setAnnounceChat(boolean v) {
-        announceChat = v;
-    }
-
-    public boolean isAnnouncePartyEnabled() {
-        return announceParty && SkyblockGate.allows();
-    }
-
-    public boolean getAnnouncePartyRaw() {
-        return announceParty;
-    }
-
-    public void setAnnounceParty(boolean v) {
-        announceParty = v;
-    }
-
-    /** Whether this blessing is shown at all (HUD line + announcements). Not Skyblock-gated on its own - the
-     *  callers ({@link #isHudEnabled()} / {@link #isAnnounceChatEnabled()}) already are. */
+    /** Whether this blessing is shown at all (HUD line). Not Skyblock-gated on its own - the
+     *  caller ({@link #isHudEnabled()}) already is. */
     public boolean isShown(Blessing blessing) {
         return isShownRaw(blessing);
     }

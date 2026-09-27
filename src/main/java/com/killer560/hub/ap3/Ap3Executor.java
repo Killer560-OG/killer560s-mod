@@ -673,8 +673,17 @@ public final class Ap3Executor {
 
     /**
      * Call at the END of every client tick while AP3 is enabled and the boss gate is open (the feature applies both
-     * first). {@code current} is the node set of the area you stand in (null between sections); {@code arrival} is
-     * true on the tick the area changed.
+     * first). {@code current} is the node set for the boss room (null when AP3 is not live); {@code arrival} is true
+     * on the tick the area changed - which, since the boss room became ONE area (2026-09-23), means entering or
+     * leaving the boss rather than crossing between sections.
+     * <p>
+     * That change fixed a bug worth recording, because the mechanism is not obvious. An arrival re-arms WITHOUT
+     * seeding ({@code arm(current, !arrival, player)}), so every box he is standing in fires again on the next
+     * tick. While each P3 section was its own area, crossing a section boundary was an arrival - so a STOPWATCH
+     * sitting inside a FAST_ALIGN at the END of a section fired once on entry and again on the re-arm, which is
+     * killer560's "it proc's the stopwatch twice" (2026-09-27), and swapping the chain is the "lag for a minor
+     * second" he saw with it. A stopwatch in any other fast align never sat on a boundary, which is exactly why
+     * that one behaved. One area for the whole room means no mid-fight arrival, so it cannot happen again.
      */
     static void tick(Minecraft client, Ap3Chain current, boolean arrival) {
         tickCounter++;

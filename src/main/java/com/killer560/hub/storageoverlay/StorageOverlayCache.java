@@ -63,6 +63,20 @@ public final class StorageOverlayCache {
      *  contents. */
     private final Set<String> knownOnly = new HashSet<>();
 
+    /** One key's last-decoded {@link #get} result, plus the exact blob string it was decoded from - see
+     *  {@link #get}'s FPS fix comment. */
+    private record DecodedEntry(String blob, List<ItemStack> items) {
+    }
+
+    /** FPS fix: {@link #get} used to Base64-decode, gzip-decompress and {@code ItemStack.CODEC}-parse
+     *  every call, and it is called for every known storage every single frame the overlay grid (or its
+     *  own change-detection in {@code StorageOverlayFeature#captureIfChanged}) is on screen - real,
+     *  measurable per-frame decompression+parsing work for data that only actually changes when a page is
+     *  re-opened with different contents. Keyed on the same composite key as {@link #encoded}; valid only
+     *  while that key's blob string is unchanged, so a {@link #put} (which stores a new blob) invalidates
+     *  itself automatically with no separate bookkeeping. */
+    private final Map<String, DecodedEntry> decodedCache = new HashMap<>();
+
     private StorageOverlayCache() {
     }
 
@@ -171,6 +185,10 @@ public final class StorageOverlayCache {
         if (blob == null) {
             return null;
         }
+        DecodedEntry cached = decodedCache.get(key);
+        if (cached != null && cached.blob().equals(blob)) {
+            return new ArrayList<>(cached.items());
+        }
         RegistryAccess registryAccess = registryAccess();
         if (registryAccess == null) {
             return null;
@@ -190,7 +208,8 @@ public final class StorageOverlayCache {
                 }
                 result.add(ItemStack.CODEC.parse(ops, tag).result().orElse(ItemStack.EMPTY));
             }
-            return result;
+            decodedCache.put(key, new DecodedEntry(blob, result));
+            return new ArrayList<>(result);
         } catch (Exception e) {
             LOGGER.error("Failed to decode storage \"{}\"", key, e);
             return null;

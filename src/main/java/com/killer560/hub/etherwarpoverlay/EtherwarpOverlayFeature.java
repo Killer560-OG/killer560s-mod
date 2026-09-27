@@ -1,5 +1,6 @@
 package com.killer560.hub.etherwarpoverlay;
 
+import com.killer560.hub.armourdye.mixin.CustomDataTagAccessor;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -160,12 +161,22 @@ public final class EtherwarpOverlayFeature {
         return (shape.isEmpty() ? new AABB(0, 0, 0, 1, 1, 1) : shape.bounds()).move(pos);
     }
 
+    /**
+     * Reads whatever is in the main hand every frame, so {@code CustomData#copyTag}'s full NBT deep copy here
+     * was a real per-frame cost for EVERY held item with a CUSTOM_DATA component (i.e. almost every Skyblock
+     * item), not just Etherwarp ones. Reads the live backing tag instead via the same read-only
+     * {@link CustomDataTagAccessor} mixin Armour Recolour already uses for the identical reason - see that
+     * mixin's own doc comment. Never mutates the returned tag.
+     */
     private static CompoundTag getEtherwarpData(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = ((CustomDataTagAccessor) (Object) data).killer560smod$getTag();
+        if (tag == null) {
+            return null;
+        }
         boolean isEtherItem = tag.getIntOr("ethermerge", 0) == 1
                 || ETHERWARP_CONDUIT_ID.equals(tag.contains("id") ? tag.getStringOr("id", null) : null);
         return isEtherItem ? tag : null;

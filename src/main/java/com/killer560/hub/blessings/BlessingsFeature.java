@@ -9,8 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Dungeon Blessings tracker - the run's Power/Time/Wisdom/Stone/Life levels on a movable HUD, with an optional
- * client-chat announcement and an optional once-per-blessing party message. Default OFF ({@link BlessingsConfig}).
+ * Dungeon Blessings tracker - the run's Power/Time/Wisdom/Stone/Life levels on a movable HUD. Default OFF
+ * ({@link BlessingsConfig}). Used to also have an optional client-chat announcement and an optional
+ * once-per-blessing party message; removed 2026-09-27 (killer560: "remove the announcments tab in blessings").
  * <ul>
  * <li>Parsing: {@link BlessingTracker} - the existing tab-list packet hook, no new mixin, same footer strings
  * NoammAddons ({@code DungeonListener.kt} / {@code enums/Blessing.kt}) and Devonian
@@ -35,7 +36,7 @@ public final class BlessingsFeature {
     public static void register() {
         BlessingsConfig.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(BlessingsFeature::tick);
-        LOGGER.info("[Blessings] Registered (HUD + announcements default OFF)");
+        LOGGER.info("[Blessings] Registered (HUD default OFF)");
     }
 
     private static void tick(Minecraft client) {

@@ -1,13 +1,17 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.secretwaypoints.SecretWaypointsConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 /** Secret Waypoints settings - see
  *  {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature}'s class doc for the real room
@@ -65,8 +69,41 @@ public class SecretWaypointsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Names", cfg.isShowNames()));
                 }).bounds(contentX, y, 220, 18).build());
+        y += 26;
+
+        // Per-type colours (killer560, 2026-09-27: "You can choose the color for levers" - and there was no
+        // colour picker for any of the other five either until now, same gap EtherwarpOverlayTab/MobEspTab's
+        // colorButton already closed for their own features).
+        int gap = 8;
+        int colW = (contentWidth - gap) / 2;
+        int col2X = contentX + colW + gap;
+        widgets.add(colorButton(contentX, y, colW, "Chest Color", cfg.getChestColor(),
+                SecretWaypointsConfig.DEFAULT_CHEST_COLOR, cfg::setChestColor));
+        widgets.add(colorButton(col2X, y, colW, "Item Color", cfg.getItemColor(),
+                SecretWaypointsConfig.DEFAULT_ITEM_COLOR, cfg::setItemColor));
+        y += 22;
+        widgets.add(colorButton(contentX, y, colW, "Wither Essence Color", cfg.getWitherColor(),
+                SecretWaypointsConfig.DEFAULT_WITHER_COLOR, cfg::setWitherColor));
+        widgets.add(colorButton(col2X, y, colW, "Bat Color", cfg.getBatColor(),
+                SecretWaypointsConfig.DEFAULT_BAT_COLOR, cfg::setBatColor));
+        y += 22;
+        widgets.add(colorButton(contentX, y, colW, "Redstone Key Color", cfg.getRedstoneKeyColor(),
+                SecretWaypointsConfig.DEFAULT_REDSTONE_KEY_COLOR, cfg::setRedstoneKeyColor));
+        widgets.add(colorButton(col2X, y, colW, "Lever Color", cfg.getLeverColor(),
+                SecretWaypointsConfig.DEFAULT_LEVER_COLOR, cfg::setLeverColor));
 
         return widgets;
+    }
+
+    private static AbstractWidget colorButton(int x, int y, int width, String name, int current, int defaultColor,
+                                              IntConsumer setter) {
+        return SettingsButtonWidget.builder(ColorSwatch.label(name, current), btn -> {
+            Minecraft client = Minecraft.getInstance();
+            client.setScreen(new ColorPickerScreen(client.screen, name, current, defaultColor, argb -> {
+                setter.accept(argb);
+                SecretWaypointsConfig.getInstance().save();
+            }));
+        }).bounds(x, y, width, 18).build();
     }
 
     private static Component styleText(SecretWaypointsConfig cfg) {

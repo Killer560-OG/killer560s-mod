@@ -1,17 +1,12 @@
 package com.killer560.hub.etherwarp;
 
 import com.killer560.hub.hud.HudElement;
-import com.killer560.hub.hud.HudVisibility;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 
-import java.util.Locale;
-
-/** Draggable HUD list of this run's etherwarp/secret-spot bookmarks - name + live distance. Posmsg used
- *  to have a matching list; it was replaced with real in-world rings (2026-09-16, see
- *  {@code PosmsgRenderer}), so this one could get the same treatment via {@code WorldRenderUtils}. */
+/** Draggable HUD list of etherwarp/secret-spot bookmarks saved for the room you're currently standing in -
+ *  name + room-order number. Posmsg used to have a matching list; it was replaced with real in-world rings
+ *  (2026-09-16, see {@code PosmsgRenderer}), so this one could get the same treatment via
+ *  {@code WorldRenderUtils}. */
 public final class EtherwarpHudElement implements HudElement {
 
     private static final int COLOR = 0xFFCC6600;
@@ -43,7 +38,7 @@ public final class EtherwarpHudElement implements HudElement {
 
     @Override
     public int height() {
-        return 12 * Math.max(1, EtherwarpFeature.waypoints().size());
+        return 12 * Math.max(1, EtherwarpFeature.waypointsHere().size());
     }
 
     @Override
@@ -64,14 +59,15 @@ public final class EtherwarpHudElement implements HudElement {
         if (!EtherwarpWaypointsConfig.getInstance().isEnabled()) {
             return;
         }
-        Minecraft client = Minecraft.getInstance();
-        Player player = client.player;
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         int lineY = y;
-        for (EtherwarpWaypoint waypoint : EtherwarpFeature.waypoints()) {
+        // Room-relative storage (2026-09-27) means a waypoint only has a real position while you're
+        // standing in the room it belongs to - see EtherwarpFeature.waypointsHere() - so this preview (the
+        // HUD editor is the only thing that still calls render() for this element; see isVisible() above)
+        // shows the room-order number instead of a live distance.
+        for (EtherwarpWaypoint waypoint : EtherwarpFeature.waypointsHere()) {
             graphics.fill(x, lineY + 1, x + 8, lineY + 9, COLOR);
-            String distanceText = player == null ? "" : String.format(Locale.US, " (%.0fm)",
-                    player.position().distanceTo(new Vec3(waypoint.x, waypoint.y, waypoint.z)));
-            graphics.text(client.font, waypoint.name + distanceText, x + 12, lineY, 0xFFFFFFFF, false);
+            graphics.text(client.font, "#" + waypoint.order + " " + waypoint.name, x + 12, lineY, 0xFFFFFFFF, false);
             lineY += 12;
         }
     }

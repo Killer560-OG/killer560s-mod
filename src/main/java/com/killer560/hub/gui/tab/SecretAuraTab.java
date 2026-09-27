@@ -6,7 +6,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -71,15 +70,6 @@ public class SecretAuraTab extends BaseTab {
                 norm(cfg.getAuraCooldownMs(), CheatUtilsConfig.MIN_AURA_COOLDOWN_MS, CheatUtilsConfig.MAX_AURA_COOLDOWN_MS),
                 v -> cfg.setAuraCooldownMs(denorm(v, CheatUtilsConfig.MIN_AURA_COOLDOWN_MS, CheatUtilsConfig.MAX_AURA_COOLDOWN_MS)));
         y[0] += 24;
-        EditBox pause = new EditBox(Minecraft.getInstance().font, contentX, y[0], BTN_W, 18, Component.literal("Pause while holding"));
-        pause.setMaxLength(200);
-        pause.setValue(cfg.getAuraPauseHolding());
-        pause.setResponder(text -> {
-            cfg.setAuraPauseHolding(text);
-            cfg.save();
-        });
-        w.add(pause);
-        y[0] += 26;
 
         return w;
     }

@@ -6,6 +6,7 @@
 	"client": [
 		"DungeonExtrasPacketMixin",
 		"ManualBreakMixin",
+		"OutboundBreakMixin",
 		"MultiPlayerGameModeInvoker"
 	],
 	"injectors": {

@@ -1,14 +1,10 @@
 package com.killer560.hub.blessings;
 
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.ModChat;
-import com.killer560.hub.util.SkyblockGate;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.regex.Matcher;
 
@@ -31,10 +27,6 @@ import java.util.regex.Matcher;
 public final class BlessingTracker {
 
     private static final Map<Blessing, Integer> LEVELS = new EnumMap<>(Blessing.class);
-    /** Party message is sent at most once per blessing per run (killer560's "once per blessing" rule). */
-    private static final EnumSet<Blessing> PARTY_SENT = EnumSet.noneOf(Blessing.class);
-    /** False until the first dungeon footer of this world was parsed; that parse only seeds levels. */
-    private static boolean primed = false;
 
     private BlessingTracker() {
     }
@@ -63,13 +55,7 @@ public final class BlessingTracker {
                 continue;
             }
             LEVELS.put(blessing, level);
-            if (primed && level > previous) {
-                announce(blessing, level);
-            }
         }
-        // Only after the whole footer is parsed: the first parse of a world seeds every level silently,
-        // so joining a run in progress can't announce (and /pc) five blessings in one tick.
-        primed = true;
     }
 
     public static int level(Blessing blessing) {
@@ -90,31 +76,5 @@ public final class BlessingTracker {
      *  {@code WorldChangeEvent}). */
     public static void reset() {
         LEVELS.clear();
-        PARTY_SENT.clear();
-        primed = false;
-    }
-
-    private static void announce(Blessing blessing, int level) {
-        BlessingsConfig cfg = BlessingsConfig.getInstance();
-        if (!cfg.isShown(blessing)) {
-            return;
-        }
-        if (cfg.isAnnounceChatEnabled()) {
-            ModChat.send("Blessings", ModChat.text("Blessing of "), ModChat.value(blessing.displayName()),
-                    ModChat.text(" "), ModChat.value(Blessing.toRoman(level)),
-                    ModChat.dim(" (" + level + ")"));
-        }
-        if (cfg.isAnnouncePartyEnabled() && PARTY_SENT.add(blessing)) {
-            sendPartyMessage("Blessing of " + blessing.displayName() + " " + Blessing.toRoman(level));
-        }
-    }
-
-    /** {@code /pc <message>} the same way {@code partycommands/PartyCommandsFeature#partyChat} sends it. */
-    private static void sendPartyMessage(String message) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !SkyblockGate.allows()) {
-            return;
-        }
-        client.player.connection.sendCommand("pc " + message);
     }
 }

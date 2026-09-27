@@ -11,7 +11,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Draws the ring on the ground for every configured Posmsg waypoint - killer560, 2026-09-16: "Remove
@@ -35,6 +37,16 @@ public final class PosmsgRenderer {
     private static final double GROUND_OFFSET = 0.05;
     /** Past this the ring is drawn but the label isn't - a room full of labels is unreadable. */
     private static final double LABEL_DISTANCE = 40.0;
+
+    /** One entry's ring, cached by the coordinates/radius it was built from - see {@link #ring}. */
+    private record CachedRing(double x, double y, double z, double radius, List<Vec3> points) {
+    }
+
+    // FPS fix: the ring never changes shape between edits in the tab (its x/y/z/radius are stable for the
+    // whole time a waypoint is armed), but render() used to rebuild all 49 Vec3 points every single frame for
+    // the entire F7/M7 boss fight for every showRadius waypoint. Cached per entry id, rebuilt only when the
+    // entry's own coordinates/radius actually changed since the last frame.
+    private static final Map<String, CachedRing> RING_CACHE = new HashMap<>();
 
     private PosmsgRenderer() {
     }
@@ -72,13 +84,19 @@ public final class PosmsgRenderer {
 
     /** A closed horizontal circle at {@code entry.y + yOffset}, first point repeated to close the loop. */
     private static List<Vec3> ring(PosmsgEntry entry, double yOffset) {
-        List<Vec3> points = new ArrayList<>(SEGMENTS + 1);
         double y = entry.y + yOffset;
+        CachedRing cached = RING_CACHE.get(entry.id);
+        if (cached != null && cached.x() == entry.x && cached.y() == y
+                && cached.z() == entry.z && cached.radius() == entry.radius) {
+            return cached.points();
+        }
+        List<Vec3> points = new ArrayList<>(SEGMENTS + 1);
         for (int i = 0; i <= SEGMENTS; i++) {
             double angle = (Math.PI * 2 * i) / SEGMENTS;
             points.add(new Vec3(entry.x + Math.cos(angle) * entry.radius, y,
                     entry.z + Math.sin(angle) * entry.radius));
         }
+        RING_CACHE.put(entry.id, new CachedRing(entry.x, y, entry.z, entry.radius, points));
         return points;
     }
 

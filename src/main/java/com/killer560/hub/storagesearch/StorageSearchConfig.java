@@ -85,9 +85,10 @@ public final class StorageSearchConfig {
     private boolean searchLore = false;
     private boolean includeInventory = true;
     private boolean openOnClick = true;
-    /** Island chests (see {@link IslandChestCache}) - off by default: it adds a per-opened-chest cache file and an
-     *  on-demand chunk scan, neither of which should start happening behind his back. */
-    private boolean searchChests = false;
+    /** Island chests (see {@link IslandChestCache}) - on by default (killer560, 2026-09-27: "for storage search
+     *  by default have the chest stuff on"). Still gated behind the master {@link #enabled} toggle, which stays
+     *  off by default, so nothing actually scans or caches chests until Storage Search itself is turned on. */
+    private boolean searchChests = true;
     private int chestRadius = 8;
     private boolean chestEsp = true;
     private boolean espThroughWalls = true;

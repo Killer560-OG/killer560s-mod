@@ -42,12 +42,27 @@ public final class SecretWaypointsConfig {
     private int renderDistance = 64;
     // NoammAddons' DungeonWaypoints defaults (killer560, 2026-09-21: "I would like the colors by default to match
     // noamm's coloring style"): chest MAGENTA, item its favoriteColor (0,134,255), bat GREEN, essence BLACK, key RED.
-    private int chestColor = 0xFFFF00FF;
-    private int itemColor = 0xFF0086FF;
-    private int witherColor = 0xFF000000;
-    private int batColor = 0xFF00FF00;
-    private int redstoneKeyColor = 0xFFFF0000;
-    /** Draw the secret's name (Chest, Item, Bat, Wither Essence, Redstone Key) above its waypoint. */
+    // Superseded 2026-09-27 (killer560: "change chest colors to be green and bats to be a brown") - chest takes the
+    // green bats gave up, bats move to brown. See the colorPassV2 migration below for existing configs. Exposed as
+    // public constants so the GUI's color pickers can offer a real "Set Default" (same reason
+    // EtherwarpOverlayConfig.DEFAULT_SAFE_COLOR/DEFAULT_FAILED_COLOR exist).
+    public static final int DEFAULT_CHEST_COLOR = 0xFF00FF00;
+    public static final int DEFAULT_ITEM_COLOR = 0xFF0086FF;
+    public static final int DEFAULT_WITHER_COLOR = 0xFF000000;
+    public static final int DEFAULT_BAT_COLOR = 0xFF8B4513;
+    public static final int DEFAULT_REDSTONE_KEY_COLOR = 0xFFFF0000;
+    private int chestColor = DEFAULT_CHEST_COLOR;
+    private int itemColor = DEFAULT_ITEM_COLOR;
+    private int witherColor = DEFAULT_WITHER_COLOR;
+    private int batColor = DEFAULT_BAT_COLOR;
+    private int redstoneKeyColor = DEFAULT_REDSTONE_KEY_COLOR;
+    /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during clear...
+     *  You can choose the color for levers." No NoammAddons precedent for this one (levers aren't in its secret
+     *  waypoint set at all - see {@link SecretWaypointsFeature}'s lever-scan note), so the default is just a colour
+     *  that doesn't collide with any of the five above. */
+    public static final int DEFAULT_LEVER_COLOR = 0xFFFFA500;
+    private int leverColor = DEFAULT_LEVER_COLOR;
+    /** Draw the secret's name (Chest, Item, Bat, Wither Essence, Redstone Key, Lever) above its waypoint. */
     private boolean showNames = false;
 
     private SecretWaypointsConfig() {
@@ -81,6 +96,7 @@ public final class SecretWaypointsConfig {
             cfg.witherColor = ConfigJson.getInt(obj, "witherColor", cfg.witherColor);
             cfg.batColor = ConfigJson.getInt(obj, "batColor", cfg.batColor);
             cfg.redstoneKeyColor = ConfigJson.getInt(obj, "redstoneKeyColor", cfg.redstoneKeyColor);
+            cfg.leverColor = ConfigJson.getInt(obj, "leverColor", cfg.leverColor);
             if (!obj.has("noammDefaultsV1")) {
                 // One-time: older files saved the old colours and the Full Block size as plain values, so they are
                 // moved onto the new defaults once (colours match NoammAddons, boxes sized to the object).
@@ -91,6 +107,17 @@ public final class SecretWaypointsConfig {
                 cfg.batColor = fresh.batColor;
                 cfg.redstoneKeyColor = fresh.redstoneKeyColor;
                 cfg.boxSize = BoxSize.HITBOX;
+            } else if (!obj.has("colorPassV2")) {
+                // One-time, 2026-09-27 (killer560: "change chest colors to be green and bats to be a brown"): a
+                // config that already went through the noammDefaultsV1 migration above still has the OLD chest
+                // (magenta) and bat (green) colours on disk. Only move a value that is still exactly the old
+                // default onto the new one - a colour the picker was already used to change is left alone.
+                if (cfg.chestColor == 0xFFFF00FF) {
+                    cfg.chestColor = 0xFF00FF00;
+                }
+                if (cfg.batColor == 0xFF00FF00) {
+                    cfg.batColor = 0xFF8B4513;
+                }
             }
             instance = cfg;
         } catch (Exception e) {
@@ -110,11 +137,13 @@ public final class SecretWaypointsConfig {
             obj.addProperty("renderDistance", renderDistance);
             obj.addProperty("showNames", showNames);
             obj.addProperty("noammDefaultsV1", true);
+            obj.addProperty("colorPassV2", true);
             obj.addProperty("chestColor", chestColor);
             obj.addProperty("itemColor", itemColor);
             obj.addProperty("witherColor", witherColor);
             obj.addProperty("batColor", batColor);
             obj.addProperty("redstoneKeyColor", redstoneKeyColor);
+            obj.addProperty("leverColor", leverColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -178,19 +207,48 @@ public final class SecretWaypointsConfig {
         return chestColor;
     }
 
+    public void setChestColor(int argb) {
+        chestColor = argb;
+    }
+
     public int getItemColor() {
         return itemColor;
+    }
+
+    public void setItemColor(int argb) {
+        itemColor = argb;
     }
 
     public int getWitherColor() {
         return witherColor;
     }
 
+    public void setWitherColor(int argb) {
+        witherColor = argb;
+    }
+
     public int getBatColor() {
         return batColor;
     }
 
+    public void setBatColor(int argb) {
+        batColor = argb;
+    }
+
     public int getRedstoneKeyColor() {
         return redstoneKeyColor;
+    }
+
+    public void setRedstoneKeyColor(int argb) {
+        redstoneKeyColor = argb;
+    }
+
+    /** killer560, 2026-09-27: "You can choose the color for levers." */
+    public int getLeverColor() {
+        return leverColor;
+    }
+
+    public void setLeverColor(int argb) {
+        leverColor = argb;
     }
 }

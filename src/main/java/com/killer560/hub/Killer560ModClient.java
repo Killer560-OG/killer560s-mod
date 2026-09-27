@@ -118,7 +118,6 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new AbilityTimersFeature.TimersHudElement());
         DungeonInfoFeature.register();
         HudElementRegistry.register(new DungeonInfoFeature.SecretsHudElement());
-        HudElementRegistry.register(new DungeonInfoFeature.TimeHudElement());
         MobEspFeature.register();
         com.killer560.hub.teammates.TeammatesFeature.register();
         SimonSaysFeature.register();
@@ -247,8 +246,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.auction.ListingHelperFeature.register();
         com.killer560.hub.supporters.SupportersFeature.register();
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
-        com.killer560.hub.lavalab.LavaLabFeature.register();
-        com.killer560.hub.lavalab.LavaLabCommands.register();
         HudElementRegistry.register(new EtherwarpHudElement());
 
         ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
@@ -265,7 +262,10 @@ public class Killer560ModClient implements ClientModInitializer {
                                             if (blockedBySkyblockOnly()) {
                                                 return 0;
                                             }
-                                            ModOverlayMessage.show(EtherwarpFeature.addAtFeet(null), 3000);
+                                            // killer560, 2026-09-27: "Do not pop up the hud when they are
+                                            // added." addAtFeet still logs and returns a status string (see
+                                            // its own doc) - it just isn't shown here any more.
+                                            EtherwarpFeature.addAtFeet(null);
                                             return 1;
                                         })
                                         .then(ClientCommands.argument("name", StringArgumentType.greedyString())
@@ -273,8 +273,8 @@ public class Killer560ModClient implements ClientModInitializer {
                                                     if (blockedBySkyblockOnly()) {
                                                         return 0;
                                                     }
-                                                    ModOverlayMessage.show(EtherwarpFeature.addAtFeet(
-                                                            StringArgumentType.getString(context, "name")), 3000);
+                                                    EtherwarpFeature.addAtFeet(
+                                                            StringArgumentType.getString(context, "name"));
                                                     return 1;
                                                 })))
                                 .then(ClientCommands.literal("remove").executes(context -> {
@@ -286,8 +286,9 @@ public class Killer560ModClient implements ClientModInitializer {
                                     return 1;
                                 }))
                                 .then(ClientCommands.literal("clear").executes(context -> {
-                                    EtherwarpFeature.clear();
-                                    ModOverlayMessage.show("[Etherwarp] Cleared all waypoints.", 2500);
+                                    // killer560, 2026-09-27: "If i do clear it should only clear the ones in
+                                    // the room I am in" - clearCurrentRoom() both does that and says how many.
+                                    ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
                                     return 1;
                                 })))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -332,14 +333,17 @@ public class Killer560ModClient implements ClientModInitializer {
                                                     if (blockedBySkyblockOnly()) {
                                                         return 0;
                                                     }
+                                                    // killer560, 2026-09-27: "Do not pop up the hud when they
+                                                    // are added."
                                                     String name = StringArgumentType.getString(context, "name");
-                                                    ModOverlayMessage.show(EtherwarpFeature.addAtFeet(name), 3000);
+                                                    EtherwarpFeature.addAtFeet(name);
                                                     return 1;
                                                 })))
                                 .then(ClientCommands.literal("clear")
                                         .executes(context -> {
-                                            EtherwarpFeature.clear();
-                                            ModOverlayMessage.show("[Etherwarp] Cleared all waypoints.", 2500);
+                                            // killer560, 2026-09-27: "If i do clear it should only clear the
+                                            // ones in the room I am in."
+                                            ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
                                             return 1;
                                         })))
                         // "/killer560 chat <message>" - killer560's "custom chat" request. See

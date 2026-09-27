@@ -9,7 +9,6 @@ import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -176,17 +175,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(contentX, y, half, 18).build());
             y += 22;
 
-            EditBox nameField = new EditBox(mc.font, contentX, y, half, 18, Component.literal("Item name"));
-            nameField.setMaxLength(60);
-            nameField.setHint(Component.literal("Item name, e.g. Hyperion"));
-            widgets.add(nameField);
-            widgets.add(SettingsButtonWidget.builder(Component.literal("+ Add Name"), btn -> {
-                        cfg.addProtectedName(nameField.getValue());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(col2, y, half, 18).build());
-            y += 22;
-
             for (String name : new ArrayList<>(cfg.getProtectedNames())) {
                 widgets.add(new StringWidget(contentX, y, half, 12, Component.literal("§f" + name), mc.font));
                 widgets.add(SettingsButtonWidget.builder(Component.literal("§cRemove"), btn -> {
@@ -200,13 +188,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
             int savedItems = cfg.getProtectedKeys().size();
             widgets.add(new StringWidget(contentX, y, half, 12,
                     Component.literal("§7Items saved by ID: §f" + savedItems), mc.font));
-            if (savedItems > 0) {
-                widgets.add(SettingsButtonWidget.builder(Component.literal("§cClear Saved Items"), btn -> {
-                            cfg.getProtectedKeys().clear();
-                            cfg.save();
-                            requestRebuild.run();
-                        }).bounds(col2, y - 2, half, 16).build());
-            }
             y += 22;
         }
 

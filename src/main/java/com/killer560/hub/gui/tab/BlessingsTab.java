@@ -18,8 +18,11 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Blessings settings - the dungeon blessing tracker's HUD, which blessings it shows, and its announcements
- * (see {@link BlessingsFeature}). Everything defaults OFF.
+ * Blessings settings - the dungeon blessing tracker's HUD and which blessings it shows (see
+ * {@link BlessingsFeature}). Everything defaults OFF.
+ * <p>
+ * Removed 2026-09-27 (killer560: "remove the announcments tab in blessings") - this used to also have an
+ * "Announcements" section (chat/party announce toggles); that section and its settings are gone.
  */
 public class BlessingsTab extends BaseTab {
 
@@ -76,12 +79,6 @@ public class BlessingsTab extends BaseTab {
             y += 22;
         }
         y += 6;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Announcements", false), mc.font));
-        y += 16;
-        widgets.add(toggle(contentX, y, colW, "Announce In Chat", cfg::getAnnounceChatRaw, cfg::setAnnounceChat));
-        widgets.add(toggle(col2X, y, colW, "Announce In Party", cfg::getAnnouncePartyRaw, cfg::setAnnounceParty));
-        y += 22;
 
         // "Levels only - no source gives a blessing stat table" already lives in the tab's own tooltip.
         return widgets;

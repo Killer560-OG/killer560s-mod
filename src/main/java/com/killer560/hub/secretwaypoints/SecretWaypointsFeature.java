@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +35,14 @@ import java.util.List;
  * whole batch.
  *
  * <h2>Mimic detection</h2>
- * Removed 2026-09-20 at killer560's request (change 62). Nothing else in the repo consumed it - the only
- * other references were this feature's own config flag and its button in {@code SecretWaypointsTab}. It was
- * also a hidden cost of its own: the trapped-chest count walked a whole room's 33x33x41 block volume
- * (~45k {@code getBlockState} calls) once a second for every identified room within 48 blocks.
+ * The ROOM-WIDE trapped-chest count this heading used to describe was removed 2026-09-20 at killer560's
+ * request (change 62) - it walked a whole room's 33x33x41 block volume (~45k {@code getBlockState} calls)
+ * once a second for every identified room within 48 blocks just to produce a number nothing consumed. What
+ * replaced it 2026-09-27 is much narrower and cheap by comparison: "if a chest is ever a mimic then it
+ * should be red on the cheat version. You can tell because it will be a trapped chest." That only ever
+ * checks the world block at a secret CHEST's own already-known position (see {@link #addGroup}'s
+ * {@code isMimic} call) - one lookup per chest secret in the current room, not a volume scan - and only on
+ * the cheat build ({@code BuildVariant.CHEAT_FEATURES_ENABLED}).
  */
 public final class SecretWaypointsFeature {
 
@@ -45,21 +50,31 @@ public final class SecretWaypointsFeature {
     enum Kind {
         /** Vanilla chest block shape: 14/16 wide and deep, 14/16 tall, inset 1/16. */
         CHEST,
-        /** A dropped item (secret item, wither essence, redstone key): 0.25 cube on the floor. */
+        /** A dropped item (secret item, redstone key): 0.25 cube on the floor. */
         ITEM,
         /** A secret bat: 0.5 wide and deep, 0.9 tall. */
-        BAT
+        BAT,
+        /** killer560, 2026-09-27: "the wither essence one is too small and should be the size of a Minecraft
+         *  skull" - a floor {@code SkullBlock}'s real shape ({@code Block.box(4,0,4,12,8,12)}), not the small
+         *  dropped-item cube every other ITEM secret uses. */
+        WITHER,
+        /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
+         *  clear" - see the lever scan in {@link #rebuild}. Not part of the room database (NoammAddons has no
+         *  lever secret coords), so these are found live rather than preloaded from a room's known positions. */
+        LEVER
     }
 
     /** The name shown with Show Names on. */
     private static String labelFor(Kind kind, String group) {
         return switch (group) {
-            case "wither" -> "Wither Essence";
             case "key" -> "Redstone Key";
+            case "lever" -> "Lever";
             default -> switch (kind) {
                 case CHEST -> "Chest";
                 case BAT -> "Bat";
                 case ITEM -> "Item";
+                case WITHER -> "Wither Essence";
+                case LEVER -> "Lever";
             };
         };
     }
@@ -320,9 +335,68 @@ public final class SecretWaypointsFeature {
             int rotation = room[3];
             addGroup(entry.secretCoords.chest, clayX, clayZ, rotation, cfg.getChestColor(), Kind.CHEST, "chest", cfg, seen);
             addGroup(entry.secretCoords.item, clayX, clayZ, rotation, cfg.getItemColor(), Kind.ITEM, "item", cfg, seen);
-            addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.ITEM, "wither", cfg, seen);
+            addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.WITHER, "wither", cfg, seen);
             addGroup(entry.secretCoords.bat, clayX, clayZ, rotation, cfg.getBatColor(), Kind.BAT, "bat", cfg, seen);
             addGroup(entry.secretCoords.redstoneKey, clayX, clayZ, rotation, cfg.getRedstoneKeyColor(), Kind.ITEM, "key", cfg, seen);
+        }
+        // killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
+        // clear." Not in the room database, so scanned live - see scanLevers' own doc. "Only during clear" needs
+        // no extra check here: currentRoomIndex() (the caller's currentIdx, above) is already -1 in boss, which
+        // returned out of this method before this point was ever reached.
+        scanLevers(cfg, currentIdx, seen);
+    }
+
+    /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
+     *  clear... You can choose the color for levers." NoammAddons' room database has no lever secret coords at
+     *  all (levers aren't one of its five secret types), so unlike every other group in {@link #rebuild} these
+     *  can't be looked up - they're found by scanning the room's own real footprint for actual
+     *  {@code minecraft:lever} blocks.
+     *  <p>
+     *  Cost: the removed mimic-chest check (see this class's own doc above) walked a whole room's 33x33x41
+     *  volume once a second and that was flagged as expensive only because it ran for EVERY identified room
+     *  within range at once; this walks the exact same shape of volume but only for the ONE room
+     *  {@link #rebuild} already narrowed everything else down to, on the same once-a-second/8-block cache. Same
+     *  fixed floor-relative Y band as that removed check: dungeon room floors sit at y=68 (see
+     *  {@code LiveMapFeature.classifyDoor}, which reads the door-colour block one above it) and 41 levels
+     *  covers every normal and tall room without deriving a per-room ceiling. */
+    private static final int LEVER_SCAN_MIN_Y = 68;
+    private static final int LEVER_SCAN_MAX_Y = 108;
+
+    private static void scanLevers(SecretWaypointsConfig cfg, int currentIdx, java.util.Set<BlockPos> seen) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            return;
+        }
+        int[] bounds = LiveMapFeature.roomWorldBounds(currentIdx);
+        if (bounds == null) {
+            return;
+        }
+        int argb = cfg.getLeverColor();
+        float a = ((argb >> 24) & 0xFF) / 255f;
+        float r = ((argb >> 16) & 0xFF) / 255f;
+        float g = ((argb >> 8) & 0xFF) / 255f;
+        float b = (argb & 0xFF) / 255f;
+        if (a <= 0f) {
+            a = 1f;
+        }
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = bounds[0]; x <= bounds[2]; x++) {
+            for (int z = bounds[1]; z <= bounds[3]; z++) {
+                for (int y = LEVER_SCAN_MIN_Y; y <= LEVER_SCAN_MAX_Y; y++) {
+                    pos.set(x, y, z);
+                    if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).getBlock() != Blocks.LEVER) {
+                        continue;
+                    }
+                    BlockPos real = pos.immutable();
+                    if (!seen.add(real)) {
+                        continue;
+                    }
+                    AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
+                    CACHED.add(new Waypoint(box,
+                            (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
+                            r, g, b, a, real, Kind.LEVER, "Lever"));
+                }
+            }
         }
     }
 
@@ -359,11 +433,33 @@ public final class SecretWaypointsFeature {
             if (COLLECTED.contains(real) || !seen.add(real)) {
                 continue;
             }
+            float wr = r;
+            float wg = g;
+            float wb = b;
+            // killer560, 2026-09-27: "if a chest is ever a mimic then it should be red on the cheat version.
+            // You can tell because it will be a trapped chest." A real secret chest is always a plain
+            // minecraft:chest; a Mimic disguises itself as the SAME secret position but as a trapped chest
+            // block, which the room database's own hash-based room identification already treats as
+            // cosmetic variance (see RoomDatabase.IGNORED_CORE_BLOCKS) - i.e. it can't tell them apart
+            // either, so this has to be a live world check, same as every other cheat-build detector in this
+            // mod. Cheat-only: knowing a chest is a monster before it attacks you is exactly the kind of
+            // information advantage the rest of this mod's cheat features are already gated on.
+            if (kind == Kind.CHEST && com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && isMimic(real)) {
+                wr = 1f;
+                wg = 0f;
+                wb = 0f;
+            }
             AABB box = boxFor(real, kind, cfg.getBoxSize());
             CACHED.add(new Waypoint(box,
                     (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
-                    r, g, b, a, real, kind, labelFor(kind, group)));
+                    wr, wg, wb, a, real, kind, labelFor(kind, group)));
         }
+    }
+
+    /** See the mimic note in {@link #addGroup}. */
+    private static boolean isMimic(BlockPos pos) {
+        var level = Minecraft.getInstance().level;
+        return level != null && level.isLoaded(pos) && level.getBlockState(pos).getBlock() == Blocks.TRAPPED_CHEST;
     }
 
     /** killer560 (change 62): full-block waypoint vs hitbox-only waypoint. The HITBOX numbers are the real
@@ -379,6 +475,14 @@ public final class SecretWaypointsFeature {
             case CHEST -> new AABB(x + 0.0625, y, z + 0.0625, x + 0.9375, y + 0.875, z + 0.9375);
             case ITEM -> new AABB(x + 0.375, y, z + 0.375, x + 0.625, y + 0.25, z + 0.625);
             case BAT -> new AABB(x + 0.25, y, z + 0.25, x + 0.75, y + 0.9, z + 0.75);
+            // killer560, 2026-09-27: "the wither essence one is too small and should be the size of a
+            // Minecraft skull" - vanilla's real floor SkullBlock shape (Block.box(4,0,4,12,8,12), i.e.
+            // 8/16 wide and deep, 8/16 tall), not the small dropped-item cube ITEM uses.
+            case WITHER -> new AABB(x + 0.25, y, z + 0.25, x + 0.75, y + 0.5, z + 0.75);
+            // No vanilla footprint to copy (a lever's real hitbox depends on which face it's mounted on
+            // and is thin either way) - close to ITEM's box but a little larger, closer to how big a lever
+            // actually reads on screen.
+            case LEVER -> new AABB(x + 0.3125, y, z + 0.3125, x + 0.6875, y + 0.375, z + 0.6875);
         };
     }
 

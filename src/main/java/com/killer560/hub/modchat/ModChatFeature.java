@@ -85,7 +85,10 @@ public final class ModChatFeature {
             return "§c[ModChat] Mod Chat is off - turn it on in the New tab.";
         }
         if (!RelayEndpoint.isUsable(cfg.getRelayUrl())) {
-            return "§c[ModChat] No relay address set - nothing was sent. Set one in the New tab.";
+            // Should never actually happen - the relay is live and its address is hardcoded in
+            // RelayEndpoint.DEFAULT_BASE_URL, not something the player sets. Defensive only (e.g. a
+            // corrupted build), so this doesn't send them looking for a settings field that doesn't exist.
+            return "§c[ModChat] Relay address invalid - nothing was sent. This is a bug, not a setting to fix.";
         }
         if (!RelayClient.sendChat(message)) {
             // Never "well, send it over party chat instead" - that is the leak he reported.

@@ -11,14 +11,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Draws the Secrets HUD and Time HUD ({@code DungeonInfoFeature.SecretsHudElement}/{@code TimeHudElement})
- *  at the same point in the render pass every other always-on overlay in this mod uses. Split into two
- *  elements 2026-09-21 (previously one combined "Dungeon Info" element) so each is separately movable and
- *  toggleable, per killer560's secrets/score/time HUD split - both still draw from this one mixin. */
+/** Draws the Secrets HUD ({@code DungeonInfoFeature.SecretsHudElement}) at the same point in the render
+ *  pass every other always-on overlay in this mod uses. Used to also draw a Time HUD element here (split
+ *  out 2026-09-21 from one combined "Dungeon Info" element); the Time HUD was removed 2026-09-27
+ *  (killer560: "remove the time hud those are things that should be in the splits section"). */
 @Mixin(Gui.class)
 public abstract class DungeonInfoGuiMixin {
 
-    private static final String[] ELEMENT_IDS = {"dungeon_info", "dungeon_time_hud"};
+    private static final String[] ELEMENT_IDS = {"dungeon_info"};
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$drawDungeonInfo(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {

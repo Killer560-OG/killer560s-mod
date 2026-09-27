@@ -16,6 +16,7 @@ import net.minecraft.world.item.component.ResolvableProfile;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Builds a real, representative {@link ItemStack} for a {@link SkyblockItemEntry} so the item browser
@@ -94,7 +95,33 @@ public final class SkyblockItemStackFactory {
     private SkyblockItemStackFactory() {
     }
 
+    /** Only the fields {@link #build} actually reads - the cache key, so a real Hypixel content update
+     *  that changes an item's skin/material (a background {@code SkyblockItemRepository} refresh can swap
+     *  the whole catalog in mid-session) still invalidates correctly even though the {@code entry.id()} it
+     *  came from didn't change. */
+    private record VisualKey(String skinValue, String skinSignature, String material, String itemModel) {
+    }
+
+    /** FPS fix: the item browser panel and craft/obtain popup call this once per visible grid cell every
+     *  single frame they're open, and for the ~2,800 of 5,655 catalog items that are skin-based this built
+     *  a fresh {@code GameProfile}/{@code PropertyMap}/{@code UUID.randomUUID()} every time - real per-frame
+     *  allocation (and a {@code SecureRandom} call) for a result that is a pure function of the entry's own
+     *  visual fields. The random profile UUID was never shown to the player (only the skin texture
+     *  renders), so reusing the same built stack across frames changes nothing visible. */
+    private static final Map<VisualKey, ItemStack> BUILD_CACHE = new ConcurrentHashMap<>();
+
     public static ItemStack build(SkyblockItemEntry entry) {
+        VisualKey key = new VisualKey(entry.skinValue(), entry.skinSignature(), entry.material(), entry.itemModel());
+        ItemStack cached = BUILD_CACHE.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        ItemStack stack = buildUncached(entry);
+        BUILD_CACHE.put(key, stack);
+        return stack;
+    }
+
+    private static ItemStack buildUncached(SkyblockItemEntry entry) {
         if (entry.skinValue() != null) {
             ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
             Multimap<String, Property> backing = HashMultimap.create();
