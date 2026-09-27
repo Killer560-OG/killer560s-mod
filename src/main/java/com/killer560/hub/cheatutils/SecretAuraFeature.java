@@ -192,6 +192,21 @@ public final class SecretAuraFeature {
         if (bestPos == null || now - lastClickMs < cfg.getAuraCooldownMs()) {
             return;
         }
+        // STANDS DOWN WHILE THE INTERACTIVE MAP IS TRAVELLING. killer560 (2026-09-27): "For the aura make those
+        // turn off while using the interactive map... if the etherwarp is pathinding to a start node it cannot
+        // hit a random node halfway through my secret route and start doing the secret route midway through it
+        // should only start from the start node."
+        //
+        // Auto Routes already refuses to START anywhere but a start node after a map teleport (its
+        // mapArrivalGuard), but this aura is not Auto Routes - it grabs whatever secret comes into range, so
+        // etherwarping ACROSS a room would have it collecting on the way past and leaving the route half done
+        // from the middle. isBusy() covers the whole trip: searching, queued, executing, and the completion sync.
+        // Placed here rather than at the top of the tick so the bookkeeping above still runs and nothing is
+        // mis-remembered as attempted while it is held back.
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
+                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()) {
+            return;
+        }
         // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
         // tick costs nothing - the same (nearest) secret is simply re-picked next tick.
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_AURA)) {
