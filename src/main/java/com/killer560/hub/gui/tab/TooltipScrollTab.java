@@ -4,8 +4,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.tooltipscroll.TooltipScrollConfig;
 import com.killer560.hub.tooltipscroll.TooltipScrollFeature;
-import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -15,29 +13,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Scrollable Tooltips settings - see {@link com.killer560.hub.tooltipscroll.TooltipScrollFeature}.
- *  Everything ships OFF. */
-public class TooltipScrollTab extends BaseTab implements KeyCaptureTab {
-
-    private boolean capturingModifier = false;
+ *  Everything ships OFF.
+ *  <p>
+ *  2026-09-27 rework, killer560: "remove hold a key to scroll." The modifier-key capture row is gone along
+ *  with the setting itself - this tab no longer needs {@code KeyCaptureTab} at all, since Capture Key was
+ *  the only keybind it ever had. */
+public class TooltipScrollTab extends BaseTab {
 
     public TooltipScrollTab() {
         super("Scrollable Tooltips");
-    }
-
-    @Override
-    public boolean isListeningForKey() {
-        return capturingModifier;
-    }
-
-    @Override
-    public void onKeyCaptured(int keyCode) {
-        if (!capturingModifier) {
-            return;
-        }
-        TooltipScrollConfig cfg = TooltipScrollConfig.getInstance();
-        cfg.setModifierKey(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
-        capturingModifier = false;
-        cfg.save();
     }
 
     @Override
@@ -76,28 +60,12 @@ public class TooltipScrollTab extends BaseTab implements KeyCaptureTab {
             y += 14;
         }
 
-        int half = (contentWidth - 8) / 2;
-        int col2 = contentX + half + 8;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Hold a Key to Scroll", cfg.isRequireModifier()), btn -> {
-                    cfg.setRequireModifier(!cfg.isRequireModifier());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.builder(onOff("Invert Scroll", cfg.isInvert()), btn -> {
                     cfg.setInvert(!cfg.isInvert());
                     cfg.save();
                     btn.setMessage(onOff("Invert Scroll", cfg.isInvert()));
-                }).bounds(col2, y, half, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
-
-        if (cfg.isRequireModifier()) {
-            widgets.add(SettingsButtonWidget.builder(keyLabel("Scroll Key", cfg.getModifierKey(), capturingModifier), btn -> {
-                        capturingModifier = true;
-                        btn.setMessage(Component.literal("Press any key..."));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 22;
-        }
 
         int min = TooltipScrollConfig.MIN_LINES_PER_SCROLL;
         int max = TooltipScrollConfig.MAX_LINES_PER_SCROLL;
@@ -118,16 +86,6 @@ public class TooltipScrollTab extends BaseTab implements KeyCaptureTab {
         y += 26;
 
         return widgets;
-    }
-
-    private static Component keyLabel(String label, int key, boolean listening) {
-        if (listening) {
-            return Component.literal("Press any key...");
-        }
-        String name = key == KeyUtil.NONE
-                ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
-        return Component.literal(label + ": " + name);
     }
 
     private static Component onOff(String label, boolean value) {

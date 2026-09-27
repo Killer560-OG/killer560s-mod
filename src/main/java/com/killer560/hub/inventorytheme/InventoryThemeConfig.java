@@ -41,6 +41,10 @@ public final class InventoryThemeConfig {
     private float backgroundOpacity = 0.85f;
     private boolean useCustomAccent = false;
     private int customAccentColor = THEME_ACCENT;
+    /** killer560: "Add a setting to hide the effects in your inventory" - independent of {@link #enabled}
+     *  (the reskin itself), so it keeps working with the reskin off. OFF by default so nothing changes
+     *  for anyone until they turn it on. */
+    private boolean hidePotionEffects = false;
 
     private InventoryThemeConfig() {
     }
@@ -65,6 +69,7 @@ public final class InventoryThemeConfig {
                 cfg.backgroundOpacity = clampOpacity(ConfigJson.getFloat(obj, "backgroundOpacity", cfg.backgroundOpacity));
                 cfg.useCustomAccent = ConfigJson.getBool(obj, "useCustomAccent", cfg.useCustomAccent);
                 cfg.customAccentColor = ConfigJson.getInt(obj, "customAccentColor", cfg.customAccentColor);
+                cfg.hidePotionEffects = ConfigJson.getBool(obj, "hidePotionEffects", cfg.hidePotionEffects);
             }
         } catch (Exception ignored) {
             // Unparseable file: keep defaults for this session (per-key reads above handle single bad keys).
@@ -81,6 +86,7 @@ public final class InventoryThemeConfig {
             obj.addProperty("backgroundOpacity", backgroundOpacity);
             obj.addProperty("useCustomAccent", useCustomAccent);
             obj.addProperty("customAccentColor", customAccentColor);
+            obj.addProperty("hidePotionEffects", hidePotionEffects);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -129,6 +135,15 @@ public final class InventoryThemeConfig {
 
     public void setCustomAccentColor(int customAccentColor) {
         this.customAccentColor = customAccentColor;
+    }
+
+    /** Same mod-wide "Skyblock Only" gate every other feature's gated getter respects. */
+    public boolean isHidePotionEffects() {
+        return hidePotionEffects && SkyblockGate.allows();
+    }
+
+    public void setHidePotionEffects(boolean hidePotionEffects) {
+        this.hidePotionEffects = hidePotionEffects;
     }
 
     /** The color everything this feature draws (panel outline, slot backdrops, hover highlight, title

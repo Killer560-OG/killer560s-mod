@@ -1,8 +1,6 @@
 package com.killer560.hub.tooltipscroll;
 
-import com.killer560.hub.util.KeyUtil;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -64,6 +62,19 @@ import java.util.List;
  * either way. {@link #renderHookSeen()} and {@link #scrollHookSeen()} are exposed separately (rather than
  * one merged flag) so the tab can say exactly which half of the pipeline - render or input - has or hasn't
  * fired, in case the mixins themselves are still the problem after this change.
+ * <p>
+ * <b>2026-09-27 rework, killer560:</b> "if it cannot be scrolled because everything is already on screen,
+ * then just move the position of the actual tooltip itself up or down" and "remove hold a key to scroll."
+ * Two changes:
+ * <ul>
+ *   <li>{@link #onMouseScrolled} no longer gives up when {@link #scrollable} is false. A tooltip that
+ *       already fits has nothing to line-scroll, but the wheel now moves the WHOLE tooltip's screen position
+ *       instead via {@link #nudgeOffset} - the same translate-the-whole-box mechanism {@link #pixelOffsetFor}
+ *       already uses for overflow, just driven directly by the wheel rather than by how much content is
+ *       hidden. Resets with the hovered item, same as {@link #offset}.</li>
+ *   <li>The modifier-key gate ({@code TooltipScrollConfig.requireModifier}/{@code modifierKey}) is gone -
+ *       see that class's own doc. The wheel now always acts on a hovered tooltip.</li>
+ * </ul>
  */
 public final class TooltipScrollFeature {
 
@@ -80,13 +91,30 @@ public final class TooltipScrollFeature {
      *  maxOffset} the last line's bottom edge lands exactly at the bottom of the available space, never past
      *  it, so at least the tail of the tooltip is always reachable. */
     private static int maxOffset;
-    /** Whether the tooltip drawn last frame was taller than the screen. killer560's "only engage when the
-     *  tooltip actually overflows": while this is false the wheel is never consumed, so a short tooltip
-     *  behaves exactly as it does today. */
+    /** Whether the tooltip drawn last frame was taller than the screen - i.e. whether the wheel should
+     *  line-scroll it ({@link #offset}) or nudge its position instead ({@link #nudgeOffset}, 2026-09-27). The
+     *  wheel is consumed either way; this only picks which of the two it drives. */
     private static boolean scrollable;
     /** The hovered stack the current {@link #offset} belongs to; weak so a cached stack can never pin an
      *  item (or its whole container) in memory. */
     private static WeakReference<ItemStack> hovered = new WeakReference<>(null);
+
+    /** killer560, 2026-09-27: "if it cannot be scrolled because everything is already on screen, then just
+     *  move the position of the actual tooltip itself up or down." Pixels the whole tooltip is nudged by
+     *  when it does NOT overflow - independent of {@link #offset}, which only ever moves while {@link
+     *  #scrollable} is true. Positive nudges the tooltip UP the screen (see {@link #onMouseScrolled}), same
+     *  sign convention {@link #pixelOffsetFor} already uses for the translate. Reset to 0 whenever the
+     *  hovered item changes, same as {@link #offset}. */
+    private static int nudgeOffset;
+    /** How far {@link #nudgeOffset} is allowed to push the tooltip in either direction, recomputed every
+     *  render from the actual available space so a nudge can never be clamped so far it leaves nothing of
+     *  the tooltip on screen. Starts at a sane fallback for the (rare) case a scroll arrives before the first
+     *  render has measured anything. */
+    private static int maxNudge = 200;
+    /** Pixels one wheel notch nudges the tooltip by, per {@link TooltipScrollConfig#getLinesPerScroll()} -
+     *  reusing that setting rather than adding a second one, since it already means "how far one notch
+     *  moves" for the line-scroll case. 10px is roughly one vanilla tooltip text line. */
+    private static final int NUDGE_PX_PER_LINE = 10;
 
     /** Set the first time {@link #pixelOffsetFor} is actually called by the render mixin, regardless of
      *  whether the feature is enabled - i.e. "is {@code TooltipScrollGraphicsMixin} applying at all". The
@@ -140,6 +168,7 @@ public final class TooltipScrollFeature {
         offset = 0;
         maxOffset = 0;
         scrollable = false;
+        nudgeOffset = 0;
     }
 
     // ---------------------------------------------------------------- the wheel
@@ -148,25 +177,35 @@ public final class TooltipScrollFeature {
     public static boolean onMouseScrolled(double scrollY) {
         scrollHookSeen = true;
         TooltipScrollConfig cfg = TooltipScrollConfig.getInstance();
-        // Not enabled, nothing hovered, or a tooltip that already fits: hand the wheel straight back so it
-        // keeps doing whatever it normally does (hotbar slot, another mod's scrollable list, bundles).
-        if (!cfg.isEnabled() || !scrollable || hovered.get() == null || scrollY == 0.0) {
+        // Not enabled or nothing hovered: hand the wheel straight back so it keeps doing whatever it
+        // normally does (hotbar slot, another mod's scrollable list, bundles). Unlike before 2026-09-27 this
+        // no longer bails out just because the tooltip fits - see the nudge branch below.
+        if (!cfg.isEnabled() || hovered.get() == null || scrollY == 0.0) {
             return false;
         }
-        if (cfg.isRequireModifier()) {
-            Minecraft client = Minecraft.getInstance();
-            if (!KeyUtil.isKeyDown(client.getWindow(), cfg.getModifierKey())) {
-                return false;
+
+        if (scrollable) {
+            // Wheel up shows earlier lines, matching every other scroll surface in the game.
+            int direction = scrollY > 0 ? -1 : 1;
+            if (cfg.isInvert()) {
+                direction = -direction;
             }
+            offset = clamp(offset + direction * cfg.getLinesPerScroll(), 0, maxOffset);
+        } else {
+            // killer560, 2026-09-27: "if it cannot be scrolled because everything is already on screen, then
+            // just move the position of the actual tooltip itself up or down." Wheel up nudges the tooltip UP
+            // the screen - the same physical direction as the wheel motion - which is the opposite sign from
+            // the line-scroll branch above (there, "up" reveals earlier CONTENT by scrolling the view down
+            // through it; here there is no content to reveal, only a box to relocate).
+            int direction = scrollY > 0 ? 1 : -1;
+            if (cfg.isInvert()) {
+                direction = -direction;
+            }
+            nudgeOffset = clamp(nudgeOffset + direction * cfg.getLinesPerScroll() * NUDGE_PX_PER_LINE,
+                    -maxNudge, maxNudge);
         }
-        // Wheel up shows earlier lines, matching every other scroll surface in the game.
-        int direction = scrollY > 0 ? -1 : 1;
-        if (cfg.isInvert()) {
-            direction = -direction;
-        }
-        offset = clamp(offset + direction * cfg.getLinesPerScroll(), 0, maxOffset);
         // Consumed even when already clamped at an end, so the wheel can't "fall through" to the container
-        // the moment you hit the top or bottom of a long tooltip.
+        // the moment you hit the top/bottom of a long tooltip or the limit of a nudge.
         return true;
     }
 
@@ -174,13 +213,17 @@ public final class TooltipScrollFeature {
 
     /**
      * How many pixels {@link com.killer560.hub.tooltipscroll.mixin.TooltipScrollGraphicsMixin} should
-     * translate the ENTIRE tooltip render up by (0 = don't touch it - feature off, nothing hovered, or the
-     * tooltip already fits, in which case the mixin must not push/pop at all).
+     * translate the ENTIRE tooltip render up by (0 = don't touch it - feature off or nothing hovered, in
+     * which case the mixin must not push/pop at all). When the tooltip overflows this is the line-scroll
+     * {@link #offset}; when it fits, it's the manual {@link #nudgeOffset} instead - see that field's doc.
      */
     public static int pixelOffsetFor(GuiGraphicsExtractor graphics, Font font, List<ClientTooltipComponent> components) {
         renderHookSeen = true;
         TooltipScrollConfig cfg = TooltipScrollConfig.getInstance();
-        if (!cfg.isEnabled() || font == null || components == null || components.size() < 2 || hovered.get() == null) {
+        // Unlike before 2026-09-27 a single-component tooltip is no longer skipped here - it can never
+        // overflow, but killer560 asked for even a fitting tooltip to be nudgeable, and a one-line tooltip is
+        // exactly that case.
+        if (!cfg.isEnabled() || font == null || components == null || components.isEmpty() || hovered.get() == null) {
             scrollable = false;
             maxOffset = 0;
             return 0;
@@ -206,14 +249,26 @@ public final class TooltipScrollFeature {
         int total = prefix[n];
 
         int available = graphics.guiHeight() - VERTICAL_CHROME;
+        // Recomputed every render so a nudge picked up on one screen (e.g. a tiny GUI scale) can never clamp
+        // to a bound that was actually measured somewhere else. Floored rather than left at 0 so a scroll
+        // that arrives between renders (there always was at least one by the time a scroll can fire) still
+        // has some room to work with.
+        maxNudge = Math.max(40, available);
         int overflow = total - available;
         if (available < 10 || overflow <= 0) {
             scrollable = false;
             maxOffset = 0;
             offset = 0;
-            return 0;
+            // killer560, 2026-09-27: "if it cannot be scrolled because everything is already on screen, then
+            // just move the position of the actual tooltip itself up or down." Nothing to line-scroll, so the
+            // wheel-driven nudge (see onMouseScrolled) is what gets rendered instead of a flat "don't touch it".
+            nudgeOffset = clamp(nudgeOffset, -maxNudge, maxNudge);
+            return nudgeOffset;
         }
         scrollable = true;
+        // Can't both overflow and be manually nudged - once a tooltip overflows it goes back to a clean,
+        // un-nudged line-scroll position rather than compounding the two behaviours.
+        nudgeOffset = 0;
 
         // Smallest line count whose prefix height already covers the overflow: translating by exactly that
         // many pixels puts the last line's bottom edge at (or just past) the bottom of the available space,

@@ -35,6 +35,16 @@ public class InventoryThemeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
+        // killer560: "Add a setting to hide the effects in your inventory" - independent of the reskin
+        // above (it keeps working with Inventory Theme off), so it's placed here rather than below the
+        // enabled-gate return.
+        widgets.add(SettingsButtonWidget.builder(hideEffectsText(cfg), btn -> {
+                    cfg.setHidePotionEffects(!cfg.isHidePotionEffects());
+                    cfg.save();
+                    btn.setMessage(hideEffectsText(cfg));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         if (!cfg.isEnabled()) {
             return widgets;
         }
@@ -89,6 +99,10 @@ public class InventoryThemeTab extends BaseTab {
 
     private static Component enabledText(InventoryThemeConfig cfg) {
         return Component.literal("Inventory Theme: " + (cfg.isEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component hideEffectsText(InventoryThemeConfig cfg) {
+        return Component.literal("Hide Potion Effects: " + (cfg.isHidePotionEffects() ? "§aON" : "§cOFF"));
     }
 
     private static Component scopeText(InventoryThemeConfig cfg) {

@@ -20,10 +20,12 @@ import java.util.regex.Pattern;
  * than pasting the actual invisible glyphs, so the source stays legible and unambiguous) - without
  * anchoring to the specific icon codepoint, a plain "current/max" pattern can't tell health apart from
  * mana at all, since both share the exact same shape (a real mistake caught and fixed before this ever
- * built). This only ever READS the real overlay text via {@code ClientReceiveMessageEvents.MODIFY_GAME}
- * and always returns it unchanged - unlike Odin's own version (which can also hide parts of the real
- * action bar), this deliberately never rewrites what Hypixel actually shows, only adds its own separate
- * HUD line, to avoid any risk of a regex mistake eating real text the player needs to see.
+ * built). Reads the real overlay text via {@code ClientReceiveMessageEvents.MODIFY_GAME} and, once a
+ * line has matched at least one of the three icon-anchored patterns below (i.e. it's confirmed to be the
+ * real stat line, not some other action-bar use like an ability name), drops that one line - see
+ * {@link #onModifyGameMessage} - the same "replace it, don't just add to it" treatment
+ * {@link #registerVanillaSuppression()} already gives the vanilla hearts/hunger/armour/air bars. Any
+ * action-bar text that doesn't match a pattern is left completely alone.
  * <p>
  * Renamed "Player Stats" -&gt; "Stat Bars" (killer560, 2026-09-21) and given the ability to hide the
  * vanilla hearts/hunger/armour/air bars it sits alongside - see {@link #registerVanillaSuppression()},
@@ -128,6 +130,16 @@ public final class PlayerStatsFeature {
             lastDiagLogMs = nowMs;
             LOGGER.info("[PlayerStats] Action bar raw=\"{}\" -> health={} mana={} defense={}", raw, health, mana, defense);
         }
+        // Real bug found and fixed (2026-09-27), killer560: "it didn't hide the text that the server
+        // normally has. It does show its own text though." This class doc used to say the real overlay
+        // is "always returned unchanged" - that was the bug, not a design choice: Stat Bars is meant to
+        // REPLACE this exact line (same as it already replaces the vanilla hearts/hunger/armour/air bars
+        // via registerVanillaSuppression()), so once we've actually read the numbers off it, the real
+        // line itself is dropped. Only for a line that matched at least one of the three patterns - an
+        // action bar showing something else entirely (an ability name, a warning) is never touched.
+        if (healthHit || manaHit || defenseHit) {
+            return Component.empty();
+        }
         return message;
     }
 
@@ -136,6 +148,22 @@ public final class PlayerStatsFeature {
     private static String lastLoggedHits = null;
 
     public static final class StatsHudElement implements HudElement {
+
+        // Real bug found and fixed (2026-09-27), killer560: "Stat bars is hiding the normal stuff but it
+        // didn't create the bars." render() below only ever called graphics.text(...) - there was no bar-
+        // drawing code at all, on any path, so no setting or render layer could have made one appear.
+        // These four constants and drawBar()/fraction() below are the missing piece. Health = red (matches
+        // the §c used in the text line), mana = blue (matches §b) - defense has no bar since the action bar
+        // never gives a max defense to compute a fraction against, only a text value.
+        private static final int BAR_WIDTH = 200;
+        private static final int BAR_HEIGHT = 4;
+        private static final int BAR_GAP = 2;
+        private static final int TEXT_HEIGHT = 10;
+        private static final int HEALTH_BAR_BG = 0xFF550000;
+        private static final int HEALTH_BAR_FILL = 0xFFFF5555;
+        private static final int MANA_BAR_BG = 0xFF002A55;
+        private static final int MANA_BAR_FILL = 0xFF55AAFF;
+
         @Override
         public String id() {
             return "player_stats";
@@ -166,7 +194,16 @@ public final class PlayerStatsFeature {
 
         @Override
         public int height() {
-            return 12;
+            // Same live-config sizing InventoryHudFeature's own width()/height() already use, so the HUD
+            // editor's drag box and the on-screen clamp both track whichever of Show Text/Show Bar (and
+            // which stats) are actually on right now.
+            PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
+            int barRows = cfg.isShowBar() ? (cfg.isShowHealth() ? 1 : 0) + (cfg.isShowMana() ? 1 : 0) : 0;
+            int h = barRows * (BAR_HEIGHT + BAR_GAP);
+            if (cfg.isShowText()) {
+                h += TEXT_HEIGHT;
+            }
+            return Math.max(h, 1);
         }
 
         @Override
@@ -180,20 +217,54 @@ public final class PlayerStatsFeature {
             if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
-            StringBuilder text = new StringBuilder();
-            if (cfg.isShowHealth() && health != null) {
-                text.append("§cHP: §f").append(health).append("  ");
+            int rowY = y;
+            if (cfg.isShowBar()) {
+                if (cfg.isShowHealth() && health != null) {
+                    rowY = drawBar(graphics, x, rowY, HEALTH_BAR_BG, HEALTH_BAR_FILL, fraction(health));
+                }
+                if (cfg.isShowMana() && mana != null) {
+                    rowY = drawBar(graphics, x, rowY, MANA_BAR_BG, MANA_BAR_FILL, fraction(mana));
+                }
             }
-            if (cfg.isShowMana() && mana != null) {
-                text.append("§bMP: §f").append(mana).append("  ");
+            if (cfg.isShowText()) {
+                StringBuilder text = new StringBuilder();
+                if (cfg.isShowHealth() && health != null) {
+                    text.append("§cHP: §f").append(health).append("  ");
+                }
+                if (cfg.isShowMana() && mana != null) {
+                    text.append("§bMP: §f").append(mana).append("  ");
+                }
+                if (cfg.isShowDefense() && defense != null) {
+                    text.append("§aDEF: §f").append(defense);
+                }
+                if (!text.isEmpty()) {
+                    graphics.text(Minecraft.getInstance().font, text.toString(), x, rowY, 0xFFFFFFFF, false);
+                }
             }
-            if (cfg.isShowDefense() && defense != null) {
-                text.append("§aDEF: §f").append(defense);
+        }
+
+        /** Draws one background+fill bar at (x, y). @return the y the next row should draw at. */
+        private static int drawBar(GuiGraphicsExtractor graphics, int x, int y, int bg, int fill, float fraction) {
+            graphics.fill(x, y, x + BAR_WIDTH, y + BAR_HEIGHT, bg);
+            int filledWidth = Math.round(BAR_WIDTH * fraction);
+            if (filledWidth > 0) {
+                graphics.fill(x, y, x + filledWidth, y + BAR_HEIGHT, fill);
             }
-            if (text.isEmpty()) {
-                return;
+            return y + BAR_HEIGHT + BAR_GAP;
+        }
+
+        /** Parses a "current/max" string (commas allowed, same as {@link PlayerStatsFeature#HEALTH_REGEX}/
+         *  {@link PlayerStatsFeature#MANA_REGEX} capture) into current/max clamped to [0, 1]. Never throws
+         *  mid-frame - an unparsable value just draws an empty bar. */
+        private static float fraction(String currentOverMax) {
+            try {
+                int slash = currentOverMax.indexOf('/');
+                long current = Long.parseLong(currentOverMax.substring(0, slash).replace(",", ""));
+                long max = Long.parseLong(currentOverMax.substring(slash + 1).replace(",", ""));
+                return max <= 0 ? 0f : Math.max(0f, Math.min(1f, (float) current / max));
+            } catch (RuntimeException e) {
+                return 0f;
             }
-            graphics.text(Minecraft.getInstance().font, text.toString(), x, y, 0xFFFFFFFF, false);
         }
     }
 }

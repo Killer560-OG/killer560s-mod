@@ -172,11 +172,29 @@ public class CroesusTab extends BaseTab {
                         }).bounds(contentX + half + GAP, y, half, 18).build());
                 y += 22;
                 if (cfg.isAutoUseChestKeys()) {
-                    widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, keyProfitText(),
+                    // killer560 (2026-09-27): "have an option for it to use based off of key insta buy
+                    // price, buy offer price, or by set profit." Left-click cycles forward, right-click
+                    // back (same repo-wide rule as every other cycling button - see SettingsButtonWidget).
+                    widgets.add(SettingsButtonWidget.builder(chestKeyModeText(cfg), btn -> {
+                                cfg.setChestKeyMode(cfg.getChestKeyMode().next());
+                                cfg.save();
+                                btn.setMessage(chestKeyModeText(cfg));
+                                requestRebuild.run();
+                            }).secondaryPress(btn -> {
+                                cfg.setChestKeyMode(cfg.getChestKeyMode().previous());
+                                cfg.save();
+                                btn.setMessage(chestKeyModeText(cfg));
+                                requestRebuild.run();
+                            }).bounds(contentX, y, contentWidth, 18).build());
+                    y += 22;
+                    // Still shown (and still saved) in the two key-price modes - it's the fallback threshold
+                    // used until the key's live Bazaar price has actually loaded (see
+                    // AutoCroesusFeature#keyModeThreshold), not just the Set Profit mode's own value.
+                    widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, keyProfitText(cfg),
                             cfg.getAutoKeyMinProfitK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {
                         @Override
                         protected void updateMessage() {
-                            setMessage(keyProfitText());
+                            setMessage(keyProfitText(cfg));
                         }
 
                         @Override
@@ -227,9 +245,14 @@ public class CroesusTab extends BaseTab {
         return Component.literal("Min Profit: " + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getAutoMinProfitK() * 1000L));
     }
 
-    private static Component keyProfitText() {
+    private static Component keyProfitText(CroesusConfig cfg) {
+        String suffix = cfg.getChestKeyMode() == CroesusConfig.ChestKeyMode.SET_PROFIT ? "" : " §7(fallback)";
         return Component.literal("Chest Key Min Profit: "
-                + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getAutoKeyMinProfitK() * 1000L));
+                + DungeonChestValuer.formatCoins(cfg.getAutoKeyMinProfitK() * 1000L) + suffix);
+    }
+
+    private static Component chestKeyModeText(CroesusConfig cfg) {
+        return Component.literal("Use Key Based On: §6" + cfg.getChestKeyMode().label);
     }
 
     private static Component rerollBelowText() {

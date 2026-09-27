@@ -34,4 +34,19 @@ public abstract class InventoryThemeSlotMixin {
         }
         InventoryThemeFeature.drawSlotBackdrop(graphics, self, slot);
     }
+
+    /** killer560: "remove the offhand slot ... for now." A HEAD-cancel of the WHOLE method, same narrow
+     *  single-slot scope {@code TerminalSolverSlotMixin}/{@code StorageOverlaySlotMixin} use for their
+     *  own per-slot hides - cancelling here also skips {@link #killer560smod$drawSlotBackdrop} above
+     *  (it's later in the same method), so no orphan backdrop square is left behind either. The slot
+     *  itself is untouched - still fully functional, just not drawn - matching this feature's
+     *  visual-re-skin-only, never-touch-mechanics rule. */
+    @Inject(method = "extractSlot", at = @At("HEAD"), cancellable = true, require = 0)
+    private void killer560smod$hideOffhandSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        if (InventoryThemeFeature.shouldTheme(self) && InventoryThemeFeature.isOffhandSlot(slot)
+                && !InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+            ci.cancel();
+        }
+    }
 }

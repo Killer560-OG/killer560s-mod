@@ -104,6 +104,16 @@ public class ItemBrowserTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
+        // killer560 (2026-09-27): "make a whole new setting just like skyhanni that shows the items value
+        // on its tooltip" - a SEPARATE toggle from the panel itself (works anywhere in the game, not just
+        // while this panel is open) - see ItemValueTooltipMixin.
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Item Value (Tooltip)", cfg.isShowItemValue()), btn -> {
+                    cfg.setShowItemValue(!cfg.isShowItemValue());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Item Value (Tooltip)", cfg.isShowItemValue()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 26;
+
         int itemCount = SkyblockItemRepository.getItems().size();
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Real item catalog: " + (itemCount > 0 ? itemCount + " items loaded" : "not loaded yet")

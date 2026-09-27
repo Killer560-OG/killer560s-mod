@@ -39,6 +39,33 @@ public final class ItemBrowserConfig {
         }
     }
 
+    /** Sort order for the panel's item grid - killer560 (2026-09-21... request logged 2026-09-27): "make
+     *  a button at the bottom of it in my inventory to sort by things like value, a-z, ect." Value comes
+     *  from {@link SkyblockItemValue} (the mod's existing Bazaar/AH price data, same source the new
+     *  tooltip setting uses) - an item with no known price always sorts to the end of a value-sorted
+     *  list, in both directions, rather than being placed arbitrarily. */
+    public enum SortMode {
+        CATALOG("Default"), AZ("A-Z"), ZA("Z-A"), VALUE_HIGH_LOW("Value: High-Low"), VALUE_LOW_HIGH("Value: Low-High");
+
+        private final String label;
+
+        SortMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public SortMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+
+        public SortMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-itembrowser.json");
@@ -60,6 +87,11 @@ public final class ItemBrowserConfig {
      *  and always fills the full available screen height. */
     private boolean horizontal = true;
     private HorizontalAlign align = HorizontalAlign.RIGHT;
+    private SortMode sortMode = SortMode.CATALOG;
+    /** SkyHanni-style "Item Value" tooltip line - killer560 (2026-09-27): "make a whole new setting just
+     *  like skyhanni that shows the items value on its tooltip". Off by default like every other new
+     *  tooltip-altering feature in this mod (EnchantColorsTooltipMixin etc.). */
+    private boolean showItemValue = false;
 
     private ItemBrowserConfig() {
     }
@@ -86,6 +118,8 @@ public final class ItemBrowserConfig {
             cfg.setScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.horizontal = ConfigJson.getBool(obj, "horizontal", true);
             cfg.align = ConfigJson.getEnum(obj, "align", HorizontalAlign.class, HorizontalAlign.RIGHT);
+            cfg.sortMode = ConfigJson.getEnum(obj, "sortMode", SortMode.class, SortMode.CATALOG);
+            cfg.showItemValue = ConfigJson.getBool(obj, "showItemValue", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new ItemBrowserConfig();
@@ -101,6 +135,8 @@ public final class ItemBrowserConfig {
             obj.addProperty("scale", scale);
             obj.addProperty("horizontal", horizontal);
             obj.addProperty("align", align.name());
+            obj.addProperty("sortMode", sortMode.name());
+            obj.addProperty("showItemValue", showItemValue);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -144,5 +180,21 @@ public final class ItemBrowserConfig {
 
     public void setAlign(HorizontalAlign align) {
         this.align = align == null ? HorizontalAlign.RIGHT : align;
+    }
+
+    public SortMode getSortMode() {
+        return sortMode;
+    }
+
+    public void setSortMode(SortMode sortMode) {
+        this.sortMode = sortMode == null ? SortMode.CATALOG : sortMode;
+    }
+
+    public boolean isShowItemValue() {
+        return showItemValue;
+    }
+
+    public void setShowItemValue(boolean showItemValue) {
+        this.showItemValue = showItemValue;
     }
 }

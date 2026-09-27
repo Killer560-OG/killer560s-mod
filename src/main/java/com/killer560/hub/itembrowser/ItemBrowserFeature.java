@@ -53,6 +53,10 @@ public final class ItemBrowserFeature {
 
     private static final int CELL_SIZE = 18;
     private static final int HEADER_HEIGHT = 20;
+    /** killer560 (2026-09-27): "make a button at the bottom of it in my inventory to sort by things like
+     *  value, a-z, ect." - the sort button's own row, reserved below the item grid the same way
+     *  HEADER_HEIGHT is reserved above it. */
+    private static final int FOOTER_HEIGHT = 20;
     private static final int PADDING = 4;
     /** Real screen-space margins the panel's full-height box is measured between. */
     private static final int TOP_MARGIN = 20;
@@ -64,6 +68,7 @@ public final class ItemBrowserFeature {
     /** Cache for {@link #filteredItemsCached} - see the class doc's per-frame-cost note. */
     private static String cachedQuery = null;
     private static List<SkyblockItemEntry> cachedSourceRef = null;
+    private static ItemBrowserConfig.SortMode cachedSortMode = null;
     private static List<SkyblockItemEntry> cachedFiltered = List.of();
 
     /** Real screen bounds of the shared search header from the most recent render, used by the click
@@ -115,7 +120,10 @@ public final class ItemBrowserFeature {
                 return false;
             }
             ItemBrowserConfig cfg = ItemBrowserConfig.getInstance();
-            if (!cfg.isEnabled() || event.button() != 0) {
+            // The sort button (right at the panel's bottom) responds to both buttons - left cycles the
+            // mode forward, right goes back one, same repo-wide rule every other cycling button follows
+            // (see SettingsButtonWidget). Everything else in the panel stays left-click only, unchanged.
+            if (!cfg.isEnabled() || (event.button() != 0 && event.button() != 1)) {
                 return true;
             }
             PanelLayout layout = layout(containerScreen, cfg);
@@ -123,6 +131,14 @@ public final class ItemBrowserFeature {
                 return true;
             }
             double localY = (event.y() - layout.screenY()) / layout.scale();
+            if (localY >= footerLocalY(layout)) {
+                cfg.setSortMode(event.button() == 1 ? cfg.getSortMode().previous() : cfg.getSortMode().next());
+                cfg.save();
+                return false;
+            }
+            if (event.button() != 0) {
+                return true; // right-click anywhere else in the panel is a no-op, same as before
+            }
             if (localY < HEADER_HEIGHT) {
                 InventorySearchFeature.setListening(true);
                 return false;
@@ -148,27 +164,60 @@ public final class ItemBrowserFeature {
                 render(containerScreen, graphics, mouseX, mouseY));
     }
 
-    /** Re-filters the real item catalog only when the query text or the catalog reference itself
-     *  changed (a background {@link SkyblockItemRepository#refreshAsync} replaces that reference) -
-     *  per the brief's "watch per-frame cost" note, this used to re-run a full stream filter over the
-     *  ~5,655-item catalog on every single frame regardless of whether the query had moved at all. */
+    /** Re-filters (and re-sorts) the real item catalog only when the query text, the catalog reference
+     *  itself (a background {@link SkyblockItemRepository#refreshAsync} replaces that reference), or the
+     *  sort mode actually changed - per the brief's "watch per-frame cost" note, this used to re-run a
+     *  full stream filter over the ~5,655-item catalog on every single frame regardless of whether
+     *  anything had moved at all. */
     private static List<SkyblockItemEntry> filteredItemsCached() {
         String query = InventorySearchFeature.getQuery();
         List<SkyblockItemEntry> all = SkyblockItemRepository.getItems();
-        if (query.equals(cachedQuery) && all == cachedSourceRef) {
+        ItemBrowserConfig.SortMode sortMode = ItemBrowserConfig.getInstance().getSortMode();
+        if (query.equals(cachedQuery) && all == cachedSourceRef && sortMode == cachedSortMode) {
             return cachedFiltered;
         }
         cachedQuery = query;
         cachedSourceRef = all;
+        cachedSortMode = sortMode;
+        List<SkyblockItemEntry> filtered;
         if (query.isBlank()) {
-            cachedFiltered = all;
+            filtered = new ArrayList<>(all);
         } else {
             String needle = query.toLowerCase(Locale.ROOT);
-            cachedFiltered = all.stream()
+            filtered = all.stream()
                     .filter(item -> item.name().toLowerCase(Locale.ROOT).contains(needle))
                     .collect(Collectors.toList());
         }
+        sort(filtered, sortMode);
+        cachedFiltered = filtered;
         return cachedFiltered;
+    }
+
+    /** killer560 (2026-09-27): "make a button... to sort by things like value, a-z, ect." Value comes
+     *  from {@link SkyblockItemValue} (same source the tooltip setting below uses) - an item with no
+     *  known price always sorts to the end of a value sort, in either direction, rather than landing at
+     *  an arbitrary spot among the priced ones. {@link ItemBrowserConfig.SortMode#CATALOG} is a no-op:
+     *  {@code filtered} is already in catalog order at this point. */
+    private static void sort(List<SkyblockItemEntry> filtered, ItemBrowserConfig.SortMode sortMode) {
+        java.util.Comparator<SkyblockItemEntry> byNameAz =
+                java.util.Comparator.comparing((SkyblockItemEntry e) -> e.name().toLowerCase(Locale.ROOT));
+        // Built separately (not one comparator plus .reversed()) so an unpriced item stays LAST in BOTH
+        // directions - reversing a nullsLast comparator whole would flip it to sort first instead.
+        java.util.Comparator<SkyblockItemEntry> byValueHighLow = java.util.Comparator.comparing(
+                (SkyblockItemEntry e) -> SkyblockItemValue.getValue(e.id()),
+                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()));
+        java.util.Comparator<SkyblockItemEntry> byValueLowHigh = java.util.Comparator.comparing(
+                (SkyblockItemEntry e) -> SkyblockItemValue.getValue(e.id()),
+                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
+        switch (sortMode) {
+            case AZ -> filtered.sort(byNameAz);
+            case ZA -> filtered.sort(byNameAz.reversed());
+            case VALUE_HIGH_LOW -> filtered.sort(byValueHighLow);
+            case VALUE_LOW_HIGH -> filtered.sort(byValueLowHigh);
+            case CATALOG -> {
+                // No-op - already in catalog order.
+            }
+        }
     }
 
     /** Pure function of the screen size and current settings (no dependency on the previous frame), so
@@ -178,9 +227,9 @@ public final class ItemBrowserFeature {
         int columns = cfg.getColumns();
         int availableScreenHeight = Math.max(CELL_SIZE, screen.height - TOP_MARGIN - BOTTOM_MARGIN);
         int localAvailableHeight = (int) (availableScreenHeight / scale);
-        int rows = Math.max(1, (localAvailableHeight - HEADER_HEIGHT - PADDING * 2) / CELL_SIZE);
+        int rows = Math.max(1, (localAvailableHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING * 2) / CELL_SIZE);
         int localWidth = columns * CELL_SIZE + PADDING * 2;
-        int localHeight = HEADER_HEIGHT + rows * CELL_SIZE + PADDING * 2;
+        int localHeight = HEADER_HEIGHT + rows * CELL_SIZE + PADDING * 2 + FOOTER_HEIGHT;
         int screenW = Math.round(localWidth * scale);
         int screenH = Math.round(localHeight * scale);
         int screenX = switch (cfg.getAlign()) {
@@ -196,6 +245,12 @@ public final class ItemBrowserFeature {
      *  column-major actually looks like on screen. */
     private static int cellToLocalIndex(PanelLayout layout, ItemBrowserConfig cfg, int col, int row) {
         return cfg.isHorizontal() ? row * layout.columns() + col : col * layout.rows() + row;
+    }
+
+    /** Local Y where the sort button's footer strip starts - right after the item grid, mirroring how
+     *  {@link #HEADER_HEIGHT} reserves the search header above it. */
+    private static int footerLocalY(PanelLayout layout) {
+        return HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2;
     }
 
     private static SkyblockItemEntry entryAt(PanelLayout layout, ItemBrowserConfig cfg, double mouseX, double mouseY) {
@@ -237,7 +292,7 @@ public final class ItemBrowserFeature {
         double localMouseY = (mouseY - layout.screenY()) / layout.scale();
 
         int localWidth = layout.columns() * CELL_SIZE + PADDING * 2;
-        int localHeight = HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2;
+        int localHeight = HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2 + FOOTER_HEIGHT;
 
         graphics.pose().pushMatrix();
         SkyblockItemEntry hoveredEntry = null;
@@ -286,6 +341,16 @@ public final class ItemBrowserFeature {
             if (filtered.isEmpty()) {
                 graphics.text(Minecraft.getInstance().font, "§7No matches", gridX, gridY + 4, 0xFFAAAAAA, false);
             }
+
+            // killer560 (2026-09-27): "make a button at the bottom of it... to sort by things like value,
+            // a-z, ect." Same dark/amber theme as every other control - left-click cycles the mode
+            // forward, right-click back (see the click handler above).
+            int footerY = footerLocalY(layout);
+            boolean footerHovered = localMouseY >= footerY && localMouseY < footerY + FOOTER_HEIGHT
+                    && localMouseX >= 0 && localMouseX < localWidth;
+            graphics.fill(1, footerY, localWidth - 1, footerY + FOOTER_HEIGHT - 1, footerHovered ? 0x33CC6600 : 0x33000000);
+            graphics.centeredText(Minecraft.getInstance().font, "Sort: " + cfg.getSortMode().label(),
+                    localWidth / 2, footerY + (FOOTER_HEIGHT - 8) / 2, 0xFFFFFFFF);
         } finally {
             graphics.pose().popMatrix();
         }

@@ -41,6 +41,13 @@ public final class PlayerStatsConfig {
     private boolean hideVanillaAir = true;
     /** Un-hides the vanilla heart bar while in The Rift, where hearts mean something different. */
     private boolean showHeartsInRift = true;
+    // --- Real bug found and fixed (2026-09-27), killer560: "it didn't create the bars ... I should have
+    // an option to hide or show the text and the bar when the bars are working as well." The HUD element
+    // only ever drew text (see PlayerStatsFeature.StatsHudElement) - these two independently control
+    // whether that text line and the new proportional bars each draw. Both default ON so, once fixed,
+    // the feature actually looks like "Stat Bars" out of the box for anyone who already had it enabled. ---
+    private boolean showText = true;
+    private boolean showBar = true;
 
     private PlayerStatsConfig() {
     }
@@ -70,6 +77,8 @@ public final class PlayerStatsConfig {
             cfg.hideVanillaArmour = ConfigJson.getBool(obj, "hideVanillaArmour", true);
             cfg.hideVanillaAir = ConfigJson.getBool(obj, "hideVanillaAir", true);
             cfg.showHeartsInRift = ConfigJson.getBool(obj, "showHeartsInRift", true);
+            cfg.showText = ConfigJson.getBool(obj, "showText", true);
+            cfg.showBar = ConfigJson.getBool(obj, "showBar", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new PlayerStatsConfig();
@@ -89,6 +98,8 @@ public final class PlayerStatsConfig {
             obj.addProperty("hideVanillaArmour", hideVanillaArmour);
             obj.addProperty("hideVanillaAir", hideVanillaAir);
             obj.addProperty("showHeartsInRift", showHeartsInRift);
+            obj.addProperty("showText", showText);
+            obj.addProperty("showBar", showBar);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -165,5 +176,23 @@ public final class PlayerStatsConfig {
 
     public void setShowHeartsInRift(boolean value) {
         this.showHeartsInRift = value;
+    }
+
+    /** Whether the "HP: x/y  MP: x/y  DEF: x" text line draws. */
+    public boolean isShowText() {
+        return showText;
+    }
+
+    public void setShowText(boolean value) {
+        this.showText = value;
+    }
+
+    /** Whether the proportional health/mana bars draw. */
+    public boolean isShowBar() {
+        return showBar;
+    }
+
+    public void setShowBar(boolean value) {
+        this.showBar = value;
     }
 }

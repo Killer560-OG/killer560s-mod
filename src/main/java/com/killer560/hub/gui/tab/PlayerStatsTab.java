@@ -59,6 +59,20 @@ public class PlayerStatsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Defense", cfg.isShowDefense()));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        // killer560: "I should have an option to hide or show the text and the bar when the bars are
+        // working as well" - independent of which of Health/Mana/Defense above are on.
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Text", cfg.isShowText()), btn -> {
+                    cfg.setShowText(!cfg.isShowText());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Text", cfg.isShowText()));
+                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Bar", cfg.isShowBar()), btn -> {
+                    cfg.setShowBar(!cfg.isShowBar());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Bar", cfg.isShowBar()));
+                }).bounds(col2, y, half, 18).build());
         y += 26;
 
         // ---------------- Hide Vanilla Bars ----------------

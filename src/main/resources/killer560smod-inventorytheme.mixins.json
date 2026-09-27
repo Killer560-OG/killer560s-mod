@@ -5,12 +5,15 @@
 	"package": "com.killer560.hub.inventorytheme.mixin",
 	"client": [
 		"InventoryThemeGeometryAccessor",
+		"InventoryThemeImageButtonSpritesAccessor",
 		"InventoryThemeContainerBackgroundMixin",
 		"InventoryThemeInventoryBackgroundMixin",
 		"InventoryThemeSlotMixin",
 		"InventoryThemeHighlightMixin",
 		"InventoryThemeContainerLabelsMixin",
-		"InventoryThemeInventoryLabelsMixin"
+		"InventoryThemeInventoryLabelsMixin",
+		"InventoryThemeRecipeBookVisibilityMixin",
+		"InventoryThemeHideEffectsMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

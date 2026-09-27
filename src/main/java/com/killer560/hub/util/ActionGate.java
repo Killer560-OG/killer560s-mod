@@ -149,7 +149,15 @@ public final class ActionGate {
         /** Pet Wheel clicking a slot in the real /pets menu after a wheel selection. */
         PET_WHEEL_MENU(Kind.SCREEN),
         /** Pet Wheel sending the /pets command itself. */
-        PET_WHEEL_CMD(Kind.COMMAND);
+        PET_WHEEL_CMD(Kind.COMMAND),
+        /** Auto Inventory Sorter clicking slots in the player's own inventory screen to apply a saved layout
+         *  (killer560: "I should be able to save item locations in my inventory and have them sorted there"). A
+         *  convenience, not a race-losing action - sits with the shop/farm automation at the bottom. */
+        INVENTORY_SORTER(Kind.SCREEN),
+        /** Auto Sell clicking sellable items in whatever NPC screen is open (killer560: "add an auto sell feature
+         *  you can refrence quoi for it" - QUOI's own source has no auto-sell module to port; see
+         *  {@code autosell.AutoSellFeature}'s class doc). Same "no one dies if this is a tick late" bucket. */
+        AUTO_SELL(Kind.SCREEN);
 
         private final Kind kind;
 
