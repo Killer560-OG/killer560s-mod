@@ -41,7 +41,7 @@ import java.util.Locale;
  * Unlike the dungeon's Interactive Map, clicking here never teleports or moves you: Crystal Hollows is open
  * 3D cave terrain, not the dungeon's fixed 11x11 room grid {@code livemap.autoclear} pathfinds over, so
  * there is no safe way to auto-walk there without real terrain pathfinding this mod does not have for CH
- * (see {@code mining.MiningAutomationConfig}'s class doc). A compass/distance readout is something this CAN
+ * (the planned-work list in MiningWipTab records why). A compass/distance readout is something this CAN
  * do correctly today, so that's what it does - not gated behind the cheat build, since nothing here sends
  * an interaction or moves the player.
  */

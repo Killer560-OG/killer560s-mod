@@ -26,15 +26,15 @@ public class MiningWipTab extends FolderTab {
         // Added 2026-09-27 per killer560's mining feature request (verbatim: "auto commissions auto nuc
         // run interactive map for ch auto crystal crystal hollows map. Profit per hour tracker nuc run
         // profit tracker"). See each tab's own class doc for what is actually wired vs setting-only.
+        // Only things that actually WORK get a tab. killer560 (2026-09-27): "there should be another like
+        // planned mining stuff tab that also is just things coming soon. Make sure all of that is under that
+        // original tab not two separate ones." Auto Commissions / Auto Nucleus Run / Auto Crystal briefly had a
+        // tab each, which meant coming-soon work lived in two places at once - three stub tabs whose only content
+        // was "NOT WIRED YET", plus the Planned page. They are lines on the Planned page now, where the rest of
+        // the not-yet-built mining work already lives.
         tabs.add(new MiningProfitTab());
         tabs.add(new NucleusRunProfitTab());
         tabs.add(new CrystalHollowsMapTab());
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            // NOT WIRED - settings only, see each tab's own class doc for exactly why.
-            tabs.add(new AutoCommissionsTab());
-            tabs.add(new AutoNucleusRunTab());
-            tabs.add(new AutoCrystalTab());
-        }
         tabs.add(new PlannedTab());
         return tabs;
     }
@@ -45,9 +45,14 @@ public class MiningWipTab extends FolderTab {
         /** Cheat-build-only plans, listed separately so the legit jar's roadmap never names them
          *  (killer560, 2026-09-16: "If you are on the legit version it shouldnt mention cheat things at all"). */
         private static final String[] PLANNED_CHEAT = {
-                // "Auto Crystal Nucleus runs" moved out of this parking-lot list 2026-09-27: it now has real
-                // tabs (Auto Nucleus Run / Auto Crystal) that say plainly they are NOT wired yet and exactly
-                // what real automation would still need, instead of one vague roadmap line.
+                // These briefly had a tab each, holding nothing but a red "NOT WIRED YET" label. That put
+                // coming-soon work in two places at once, so they are back here as what they are - planned.
+                // The blockers are real and worth keeping written down rather than rediscovering:
+                "Auto Commissions - needs Dwarven Mines terrain pathfinding (AP3 and autoclear only path the"
+                        + " dungeon's fixed room grid) and commission-objective parsing",
+                "Auto Crystal - needs a reliable way to tell a real crystal block from terrain; there is none"
+                        + " in this mod yet",
+                "Auto Nucleus Run - needs both of the above, plus Nucleus combat and looting",
         };
 
         private static final String[] PLANNED = {

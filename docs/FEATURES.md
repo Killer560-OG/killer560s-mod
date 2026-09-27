@@ -218,7 +218,7 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 - Interactive Crystal Hollows Map — the same map, clickable: pick a spot or a waypoint and it shows live distance and compass bearing to it. It never moves you
 - Profit Per Hour Tracker — watches what your inventory actually gains and prices it from the mod's existing market data, against a clock that pauses rather than resets
 - Nucleus Run Profit Tracker — the same, per nucleus run, detecting the end of a run from Hypixel's own loot-bundle chat block. Run count is exact; per-item coin value is best effort, and lines it can't price are skipped rather than guessed at
-- Auto Commissions / Auto Nucleus Run / Auto Crystal — **settings only, not wired to anything yet.** Each tab says so. Real automation needs Dwarven Mines terrain pathfinding and a reliable way to identify a crystal block, neither of which exists in this mod yet
+- Planned — one page inside the Mining tab listing everything still to come, including Auto Commissions, Auto Crystal and Auto Nucleus Run. Those three briefly had a settings tab each containing nothing but a "not wired yet" label, which put coming-soon work in two places at once; they are lines on this page now, each with the actual blocker written down — Dwarven Mines terrain pathfinding (the mod only paths the dungeon's fixed room grid) and a reliable way to tell a crystal block from terrain
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen

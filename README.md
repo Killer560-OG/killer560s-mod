@@ -36,7 +36,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Accounts, Home & Profiles** - Account Switcher, HUD Editor, Menu Memory, Profiles, Proxy Client
 
-**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Kick, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Sell, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Mining automation (Auto Commissions / Nucleus Run / Crystal - settings only, not wired), Secret Triggerbot, Terminal Aura, Terminal Triggerbot
+**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Kick, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Sell, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 
 ## Latest dev build
 

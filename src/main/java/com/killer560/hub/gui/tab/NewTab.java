@@ -86,6 +86,7 @@ public class NewTab extends FolderTab {
                 new PlayerStatsTab(),
                 new SlotBindsTab(),
                 new PartyCommandsTab(),
+                new AutoKickTab(),
                 new DoorKeysTab(),
                 new WitherDoorsTab(),
                 new TrajectoriesTab(),

@@ -538,6 +538,22 @@ public final class SplitTimersFeature {
         return current < 0 ? 0L : run.timeMs[current];
     }
 
+    /** For {@code autokick.AutoKickFeature}'s per-floor target-time check: the real wall-clock moment
+     *  THIS run's clock started - the first split line that actually fired (Odin: the phase the first
+     *  split's own name describes only starts once that line is seen, same clock every HUD row and
+     *  chat announcement already runs off). 0 if no run is in progress right now (splits empty, or the
+     *  first split hasn't fired yet). */
+    public static long getRunStartedAtMs() {
+        int first = firstRecorded();
+        return first < 0 ? 0L : run.timeMs[first];
+    }
+
+    /** Milliseconds elapsed since {@link #getRunStartedAtMs()}, or 0 if no run is in progress. */
+    public static long getElapsedMs() {
+        long startedAt = getRunStartedAtMs();
+        return startedAt <= 0L ? 0L : System.currentTimeMillis() - startedAt;
+    }
+
     /** The plain (formatting-stripped) name of the split segment currently in progress - e.g. "Terminals"
      *  from Goldor's "Who dares trespass" line until "The Core entrance is opening!" - the one
      *  {@link #getCurrentSegmentStartedAtMs()}'s timestamp belongs to. Null if no segment is running.

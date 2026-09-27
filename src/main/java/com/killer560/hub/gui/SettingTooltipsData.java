@@ -16,6 +16,7 @@ final class SettingTooltipsData {
         part3(d);
         mining(d);
         invSortAndAutoSell(d);
+        autoKick(d);
     }
 
     private static void part1(Map<String, String> d) {
@@ -1951,9 +1952,6 @@ final class SettingTooltipsData {
         d.put("mining (wip)/map scale", "Zoom multiplier for the Crystal Hollows map, 0.5x-4x.");
         d.put("mining (wip)/add waypoint here", "Saves your current position as a Crystal Hollows waypoint, shown on the map and click-able there to set it as your travel target.");
         d.put("mining (wip)/remove last", "Removes the most recently added Crystal Hollows waypoint. Shows how many are saved.");
-        d.put("mining (wip)/auto commissions", "NOT WIRED YET - see the tab's own text for exactly what real Dwarven Mines commission automation would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
-        d.put("mining (wip)/auto nucleus run", "NOT WIRED YET - see the tab's own text for exactly what a real mine-to-Nucleus automation loop would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
-        d.put("mining (wip)/auto crystal", "NOT WIRED YET - see the tab's own text for exactly what real Crystal Hollows crystal automation would still need. Saved and cheat-gated, but turning it on does nothing in-game.");
     }
 
     /** Auto Inventory Sorter and Auto Sell (killer560, 2026-09-27). Bare (unscoped) keys - both labels are
@@ -1962,5 +1960,18 @@ final class SettingTooltipsData {
         d.put("auto inventory sorter", "Master toggle. Save your inventory's current arrangement as a named layout, then apply it any time with /invsort - it clicks your own inventory slots until every managed slot holds the item it's supposed to, matched by Skyblock item id (not just material, so two different items on the same block never get confused). You can't walk while it's running; that releases the instant it finishes or is stopped.");
         d.put("open layouts folder", "Opens the killer560smod-invsort folder - one json file per saved layout, so a single layout can be shared just by handing over its file.");
         d.put("auto sell", "Master toggle. Sells items automatically by clicking them in whatever screen is open, but only ones explicitly on your sell list, and never anything on the never-sell list even if it's also on the sell list. Default OFF - also needs /autosell start each time, and refuses unless the open screen's title matches the sell screen pattern shown below.");
+    }
+
+    /** Auto Kick (killer560, 2026-09-27 - "create auto kick. I really Like Odins."). Scoped to "auto kick/"
+     *  (the sub-tab's own name) per the 2026-09-16 collision rule - "Action Mode" and the per-floor labels
+     *  are generic enough other tabs could plausibly reuse them later. */
+    private static void autoKick(Map<String, String> d) {
+        d.put("auto kick", "Master toggle, default OFF. Once ON, warns (or kicks) once the CURRENT run's elapsed time passes the target you set for its floor below. Never acts outside a dungeon, never targets yourself, and never fires more than once per run.");
+        d.put("auto kick/action mode", "What happens once a floor's target time is missed. Warn Only (default) only prints a chat message - no command is ever sent. Kick All removes every current teammate. Kick Specific removes only the names typed below. Click to cycle forward, right-click to cycle back.");
+        d.put("auto kick/specific members", "Comma-separated IGNs for Kick Specific. Only names that are actually in your party right now are ever kicked - a stale or misspelled name here is just ignored.");
+        for (com.killer560.hub.autokick.AutoKickConfig.Floor f : com.killer560.hub.autokick.AutoKickConfig.Floor.values()) {
+            d.put("auto kick/" + f.label().toLowerCase(java.util.Locale.ROOT), "Seconds after this run's clock starts before Auto Kick considers " + f.label()
+                    + " missed. Drag to 0 (Disabled) to leave this floor alone. Ships at 0 for every floor - there's no verified 'normal' clear time for a group this mod could safely guess at, so set your own.");
+        }
     }
 }
