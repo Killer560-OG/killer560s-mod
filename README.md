@@ -16,25 +16,27 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Chat** - Auto Correct, Auto Meow, Chat Commands, Chat Emotes, Chat Keybinds, Click Translate, Command Auto Correct, Command Shortcuts, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
 
-**Social & Supporters** - Best Friends, Friends List, Name Changer, Profile Viewer, Supporter Names
+**Social & Supporters** - Best Friends, Cosmetics (name changer, name colour/fade, player model, held item transform, supporter sharing), Friends List, Profile Viewer
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
-**Items, Inventory & Trading** - Armor Recolour, Auction House Browser, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Listing Helper, Loadout Keybinds, Pet Wheel, Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
+**Items, Inventory & Trading** - Armor Recolour, Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
 
-**HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Lag Display, No Fire, Object Hider, Pathfinding †, Player Stats HUD, Quiver Display, Real Time, Screenshot Copy, Trail, Trajectories, Waypoint Routes, Video Browser
+**HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, No Fire, Object Hider, Pathfinding †, Performance HUD, Player Stats HUD, Quiver Display, Real Time, Screenshot Copy, Trail, Trajectories, Waypoint Routes, Video Browser
 
 **Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Auto Close Chest, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver
 
-**Dungeon: Map, Leap & Party** - Chunk Cache, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
+**Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
 
 **Dungeon: Timers, Score & Boss** - Blessings, Blood Camp †, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
 
-**Display & Menus** - Borderless Fullscreen, Fullbright, Held Item Transform, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
+**Mining (WIP)** - Crystal Hollows Map, Interactive Crystal Hollows Map, Nucleus Run Profit Tracker, Profit Per Hour Tracker
+
+**Display & Menus** - Borderless Fullscreen, Fullbright, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
 
 **Accounts, Home & Profiles** - Account Switcher, HUD Editor, Menu Memory, Profiles, Proxy Client
 
-**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Cheat Utilities, Door Helpers, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
+**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Kick, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Sell, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Mining automation (Auto Commissions / Nucleus Run / Crystal - settings only, not wired), Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 
 ## Latest dev build
 

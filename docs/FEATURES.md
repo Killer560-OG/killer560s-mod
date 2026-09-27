@@ -17,12 +17,17 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Mod Chat — a genuinely private chat channel between mod users. Messages travel over the mod's own relay server rather than Hypixel's party or guild chat, so players who don't run the mod never see them. Send with `/killer560 chat <message>`; the tab shows who else from your party is connected. Falls back to nothing if the relay is unreachable — it will never quietly post your message in public chat
 - Voice To Text — hold a push-to-talk key, speak, release to send the transcription to chat. Fully offline (Vosk), downloads its small speech model automatically on first use. Pick which microphone it records from. **Untested with a real microphone** - see the New tab
 
+- Cosmetics — one tab for everything about how *you* look: the in-game name changer (with a colour, or a per-letter fade), your player model's scale/width/height/thickness, the held-item transform, and whether your cosmetics are shared with other people running the mod when your account is linked as a supporter. Everything here is local rendering only — it never touches your hitbox, collision or reach, and anything *sent* to Hypixel (party invites, friend adds) always uses your real IGN, so renaming yourself can't break being partied or friended. If a nickname collides with a real account's name, chat asks which one you meant instead of guessing. There's a reset at the bottom
+- Auto Inventory Sorter — save the exact slot each item should live in as a named layout, then apply it later with a command. Layouts are one file each so you can hand one to a friend. Items are matched by their Skyblock item id rather than material, so two different items that share a vanilla material don't get confused. Your movement keys are held off while it's sorting, so you can't walk away mid-sort. **Cheat build only**
+- Item Value Tooltip — adds an item's coin value to its tooltip anywhere in the game, from the same Bazaar-first/lowest-BIN price data the Croesus tools already use. Items with no known price simply get no line rather than a guess
+
 **Hud Elements**
 - GIF Player — plays a GIF (with optional audio) as a HUD overlay
 - DVD — the classic bouncing DVD logo screensaver on your screen
 - Video Browser (was YT Shorts) — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System / Amber theme option. Also plays normal YouTube, TikTok, Instagram Reels, Twitch or any URL; an edit mode to drag-move and resize the window; a zoom setting; a DVD-style bouncing placement; and a YouTube comments guard so next/previous does not fire while comments are open. **Untested** - see the New tab
 
 **Helpers**
+- Performance HUD — your real ping to the server (read from the tab list, not a local estimate) and the server's TPS. Previously called Lag Display; the "server lag" readout was replaced with a real TPS figure and the text bar at the bottom removed
 - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
 - Player Stats HUD — reads real Health/Mana/Defense from the real action bar and shows them as their own always-on-screen HUD line, without touching the real action bar itself
 - Experimentation Table Solver — solves Chronomatron, Ultrasequencer, and Superpairs in a highlight-only "Solver Only" mode (you click, it just shows you the answer). The **cheat** build additionally has a fully autonomous mode that clicks for you - see [Which jar do I download?](#installing) below.
@@ -159,6 +164,9 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Livid Solver (its own tab) — identifies the real correct Livid on Floor 5 from the wool color clue, re-checking it twice a second, and highlights it in that Livid's own color with an optional line to it, plus a countdown for its opening invulnerability window. Never attacks anything
 - Architect's First Draft — when a puzzle is failed (its own fail line, whatever that puzzle's wording is - e.g. "PUZZLE FAIL! ...", or Quiz's Oruo announcing a wrong answer), posts a line in your chat you can click to get an Architect's First Draft from your sack. **Cheat build:** optionally gets it automatically, only when the fail line names you
 
+- Class Selection Overlay — on the class-selection screen, a bar across the top showing every party member and the class they're currently on, and a faint class-name watermark in each of the five boxes with whoever is assigned to it written over the top. Click a name then a box to assign. The screen is found by its contents rather than by slot positions, because no layout for those five icons is documented anywhere. Assignments write through the same Class Overrides store the settings tab edits, so every class-coloured display in the mod agrees with it
+- Auto Sell — sells items from a list you build, with a never-sell list that always wins; there is no "sell everything else" fallback, so an empty list sells nothing. It uses a real shift-click, so if it ever misidentifies the screen it moves the item rather than selling it, and it only ever touches your own inventory slots. **Cheat build only**, off by default
+
 **AP3 - automated F7/M7 Phase 3 (cheat build only)**
 
 AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phase (P3, sections S1-S4) along a route of *nodes* you place yourself. It only ever presses real keys - W/A/S/D, sneak, sprint, jump - and turns your real view, exactly like a player would; it never writes your position or velocity, and it stops the moment the server corrects your position (two corrections in ten seconds switch AP3 off). Use it on your own risk - it is automation and against Hypixel's rules.
@@ -204,6 +212,13 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 - Rewind 1 Tick / Forward 1 Tick keys: rewind puts you exactly where you were one tick before your current position (Rewind Memory sets how many ticks are kept); forward predicts - the game runs exactly one real tick from where you are.
 - AP3 keeps running while frozen: each forward step runs one AP3 tick, and your own keys and mouse never move the character - only the nodes do.
 - On Hypixel the step keys refuse (it would teleport you - an instant ban); only a typed /rewind works there, behind a large warning.
+
+**Mining (WIP)**
+- Crystal Hollows Map — a map of the Crystal Hollows with the Nucleus at its real fixed coordinate, your live position, and waypoints you add yourself. The five zone shapes are deliberately *not* drawn: their per-lobby boundaries couldn't be confirmed from any citable source, so the live zone name from the scoreboard is shown instead of an invented outline
+- Interactive Crystal Hollows Map — the same map, clickable: pick a spot or a waypoint and it shows live distance and compass bearing to it. It never moves you
+- Profit Per Hour Tracker — watches what your inventory actually gains and prices it from the mod's existing market data, against a clock that pauses rather than resets
+- Nucleus Run Profit Tracker — the same, per nucleus run, detecting the end of a run from Hypixel's own loot-bundle chat block. Run count is exact; per-item coin value is best effort, and lines it can't price are skipped rather than guessed at
+- Auto Commissions / Auto Nucleus Run / Auto Crystal — **settings only, not wired to anything yet.** Each tab says so. Real automation needs Dwarven Mines terrain pathfinding and a reliable way to identify a crystal block, neither of which exists in this mod yet
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
