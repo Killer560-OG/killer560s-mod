@@ -4,7 +4,9 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.puzzlesolvers.BlazeSolverConfig;
 import com.killer560.hub.puzzlesolvers.BlazeSolverFeature;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
+import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -31,6 +33,20 @@ import java.util.List;
  * extra {@code missCooldownMs} on top of the arrow's travel time before trying again in case that shot missed.
  * Now the wait after a shot is just the travel time itself (or the target dying), then the Shoot cooldown alone
  * paces the next attempt, hit or miss.
+ * <p>
+ * killer560, 2026-09-27, two more Blaze-specific requests:
+ * <ul>
+ *   <li>"have an option for auto secret ... it needs to pathfind to the secret once it finishes doing the puzzle
+ *   if the puzzle is done and you have auto higher lower on" ("Higher or Lower" is the puzzle's own in-game name
+ *   for this Blaze-shooting room). Once every blaze is dead, {@link #tickSecret} walks (Interactive-Map-gated,
+ *   {@link AutoPuzzleUtil#pathIfMapOn}) to the nearest secret this room's real database entry
+ *   ({@link RoomEntry#secretCoords}) actually knows about, then auras it itself if it's a chest - never
+ *   {@code SecretAuraFeature}, same reasoning as Auto Boulder.</li>
+ *   <li>"for blaze by default can you have my characters head face more towards the middle when put into the
+ *   freecam view" - {@link #seedDefaultView} pre-seeds {@link ViewFreeze}'s held view (before anything else in
+ *   this room gets a chance to seed it from wherever the player happened to be looking) to face the room's own
+ *   horizontal centre, using {@link LiveMapFeature#roomWorldBounds}.</li>
+ * </ul>
  */
 final class AutoBlaze {
 
@@ -44,8 +60,14 @@ final class AutoBlaze {
             new BlockPos(24, 62, 14), new BlockPos(9, 45, 18), new BlockPos(10, 68, 23),
             new BlockPos(24, 29, 16), new BlockPos(13, 50, 8), new BlockPos(24, 48, 17)
     };
+    private static final double AURA_REACH_SQ = 36.0;
+    private static final long SECRET_WALK_TIMEOUT_MS = 20_000L; // these rooms are tall - the pathfinder needs longer
+    private static final int MAX_AURA_ATTEMPTS = 3;
 
     private record BlazeHitbox(AABB aabb, boolean isTarget) {
+    }
+
+    private record SecretCandidate(RoomEntry.Pos relative, boolean chest) {
     }
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Blaze", "Blaze Solver");
@@ -58,6 +80,16 @@ final class AutoBlaze {
     private static boolean wasInRoom = false;
     private static int lastBlazeCount = 0;
     private static boolean noShortbowLogged = false;
+
+    private enum SecretStage { NONE, FIND, WALK, AURA, DONE }
+
+    private static SecretStage secretStage = SecretStage.NONE;
+    private static BlockPos secretReal = null;
+    private static boolean secretIsChest = false;
+    private static int secretAuraAttempts = 0;
+    private static long secretLegStartMs = 0L;
+    private static boolean noSecretWarned = false;
+    private static boolean secretMapOffWarned = false;
 
     private AutoBlaze() {
     }
@@ -85,14 +117,24 @@ final class AutoBlaze {
             return;
         }
         LocalPlayer player = client.player;
+        // killer560, 2026-09-27: "have my character's head face more towards the middle when put into the freecam
+        // view" - seed the held view BEFORE the first rotation of this run gets a chance to anchor it to wherever
+        // the player happened to be looking (ViewFreeze.hold is a no-op past the first call of a run).
+        seedDefaultView(player);
         if (blazes.isEmpty()) {
             if (lastBlazeCount > 0) {
                 LOGGER.info("[AutoPuzzles] Blaze: all blazes dead - done");
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
                 REPOSITION.cancel(client);
                 AutoReposition.releaseSneak(client);
+                if (cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
+                    secretStage = SecretStage.FIND;
+                }
             }
             lastBlazeCount = 0;
+            if (secretStage != SecretStage.NONE && secretStage != SecretStage.DONE) {
+                tickSecret(client, player);
+            }
             return;
         }
         lastBlazeCount = blazes.size();
@@ -298,6 +340,145 @@ final class AutoBlaze {
         return v * v;
     }
 
+    /** Room-centre yaw/pitch, seeded into {@link ViewFreeze} only on the FIRST hold of a run (see its own doc) -
+     *  calling this every tick is harmless, it only actually moves anything the very first time. */
+    private static void seedDefaultView(LocalPlayer player) {
+        if (ViewFreeze.isHeld()) {
+            return;
+        }
+        int idx = LiveMapFeature.currentRoomIndex();
+        int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
+        if (bounds == null) {
+            return;
+        }
+        double centerX = (bounds[0] + bounds[2]) / 2.0;
+        double centerZ = (bounds[1] + bounds[3]) / 2.0;
+        Vec3 eye = player.getEyePosition();
+        float[] dir = AutoPuzzleUtil.direction(eye, new Vec3(centerX, eye.y, centerZ));
+        ViewFreeze.hold(dir[0], dir[1]);
+    }
+
+    // ------------------------------------------------------------------ Auto Secret (killer560, 2026-09-27)
+
+    private static void tickSecret(Minecraft client, LocalPlayer player) {
+        if (client.screen != null) {
+            return;
+        }
+        switch (secretStage) {
+            case FIND -> findSecret(player);
+            case WALK -> walkToSecret(client, player);
+            case AURA -> auraSecret(client, player);
+            default -> {
+            }
+        }
+    }
+
+    private static void findSecret(LocalPlayer player) {
+        RoomEntry entry = LiveMapFeature.currentRoomEntry();
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        if (entry == null || cr == null) {
+            return; // room identity/rotation not known yet - retry next tick
+        }
+        List<SecretCandidate> candidates = new ArrayList<>();
+        if (entry.secretCoords != null) {
+            addCandidates(candidates, entry.secretCoords.chest, true);
+            addCandidates(candidates, entry.secretCoords.item, false);
+            addCandidates(candidates, entry.secretCoords.wither, false);
+            addCandidates(candidates, entry.secretCoords.bat, false);
+        }
+        if (candidates.isEmpty()) {
+            if (!noSecretWarned) {
+                noSecretWarned = true;
+                LOGGER.warn("[AutoPuzzles] Blaze: no secret coordinates known for this room in the room database "
+                        + "- Auto Secret can't find one, stopping for this room visit");
+                ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Blaze: "),
+                        ModChat.bad("no secret position known"), ModChat.text(" for this room."));
+            }
+            secretStage = SecretStage.DONE;
+            return;
+        }
+        BlockPos bestReal = null;
+        boolean bestIsChest = false;
+        double bestDistSq = Double.MAX_VALUE;
+        for (SecretCandidate c : candidates) {
+            BlockPos real = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(c.relative(), cr[0], cr[1], cr[2]);
+            double distSq = player.position().distanceToSqr(Vec3.atCenterOf(real));
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                bestReal = real;
+                bestIsChest = c.chest();
+            }
+        }
+        secretReal = bestReal;
+        secretIsChest = bestIsChest;
+        secretLegStartMs = System.currentTimeMillis();
+        secretStage = SecretStage.WALK;
+        LOGGER.info("[AutoPuzzles] Blaze: nearest known secret at {} (chest={}) - walking there", secretReal, secretIsChest);
+    }
+
+    private static void addCandidates(List<SecretCandidate> out, List<RoomEntry.Pos> src, boolean chest) {
+        if (src == null) {
+            return;
+        }
+        for (RoomEntry.Pos p : src) {
+            out.add(new SecretCandidate(p, chest));
+        }
+    }
+
+    private static void walkToSecret(Minecraft client, LocalPlayer player) {
+        if (secretReal == null) {
+            secretStage = SecretStage.DONE;
+            return;
+        }
+        if (AutoPuzzleUtil.at(player, secretReal)) {
+            secretMapOffWarned = false;
+            secretStage = secretIsChest ? SecretStage.AURA : SecretStage.DONE;
+            return;
+        }
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            return; // already walking there
+        }
+        if (System.currentTimeMillis() - secretLegStartMs > SECRET_WALK_TIMEOUT_MS) {
+            LOGGER.warn("[AutoPuzzles] Blaze: walk to the secret at {} timed out - giving up for this room", secretReal);
+            secretStage = SecretStage.DONE;
+            return;
+        }
+        if (!AutoPuzzleUtil.pathIfMapOn(secretReal, null) && !secretMapOffWarned) {
+            secretMapOffWarned = true;
+            LOGGER.info("[AutoPuzzles] Blaze: Interactive Map is off - can't walk to the secret");
+            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Secret needs "), ModChat.value("Interactive Map"),
+                    ModChat.text(" on to walk to it."));
+        }
+    }
+
+    private static void auraSecret(Minecraft client, LocalPlayer player) {
+        if (secretAuraAttempts >= MAX_AURA_ATTEMPTS) {
+            secretStage = SecretStage.DONE;
+            return;
+        }
+        BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
+        if (target == null) {
+            target = secretReal;
+        }
+        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(target));
+        if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
+            secretAuraAttempts++;
+            return;
+        }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return; // gate held this tick back - not burnt, retried next tick
+        }
+        secretAuraAttempts++;
+        if (!AutoPuzzleUtil.interactBlock(client, target)) {
+            LOGGER.warn("[AutoPuzzles] Blaze: no clickable shape at {} (attempt {}/{})", target, secretAuraAttempts, MAX_AURA_ATTEMPTS);
+            return;
+        }
+        LOGGER.info("[AutoPuzzles] Blaze: aura'd secret chest at {}", target);
+        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Higher/Lower: aura'd the "), ModChat.good("secret"),
+                ModChat.text("."));
+        secretStage = SecretStage.DONE;
+    }
+
     private static void reset(Minecraft client) {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
@@ -307,5 +488,12 @@ final class AutoBlaze {
         currentSpot = 0;
         lastBlazeCount = 0;
         noShortbowLogged = false;
+        secretStage = SecretStage.NONE;
+        secretReal = null;
+        secretIsChest = false;
+        secretAuraAttempts = 0;
+        secretLegStartMs = 0L;
+        noSecretWarned = false;
+        secretMapOffWarned = false;
     }
 }

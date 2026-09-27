@@ -3,6 +3,7 @@ package com.killer560.hub.itembrowser;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.mojang.authlib.GameProfile;
+import com.killer560.hub.interop.DetectedMods;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.core.component.DataComponents;
@@ -146,7 +147,14 @@ public final class SkyblockItemStackFactory {
         Item base = resolveMaterialItem(entry.material());
         ItemStack stack = new ItemStack(base);
 
-        if (entry.itemModel() != null) {
+        // killer560, 2026-09-27: "if I am using pack disabler mod... make sure it doesn't use the
+        // serverside texturepack for items." A real item_model override only renders Hypixel's actual
+        // model while Hypixel's own resource pack is loaded - with a pack disabler (see DetectedMods)
+        // active, that pack never loads, so tagging item_model anyway would just show whatever (likely
+        // broken/missing) model that id resolves to under the default pack instead of a clean vanilla
+        // item. Skipping the tag entirely falls back to the plain base item below, which always renders
+        // correctly with or without a resource pack.
+        if (entry.itemModel() != null && !DetectedMods.isPackDisablerActive()) {
             Identifier modelId = Identifier.tryParse(entry.itemModel());
             if (modelId != null) {
                 stack.set(DataComponents.ITEM_MODEL, modelId);

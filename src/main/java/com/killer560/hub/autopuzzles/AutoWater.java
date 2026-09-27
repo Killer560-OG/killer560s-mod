@@ -25,6 +25,13 @@ import org.slf4j.LoggerFactory;
  * wherever you stand as long as the lever is within reach (distance squared &lt;= 30). Safety additions: a 2-tick gap
  * between clicks, a timed (non-zero) click never fires before the water lever was opened, and if a click isn't
  * counted by the solver the auto stops for this room rather than re-flipping the lever.
+ * <p>
+ * killer560, 2026-09-27: "if i enter the room then it will auto etherwarp pathfind to the start area." On a fresh
+ * room visit (once, before any lever logic) this walks you to {@code AutoClearUtils}'s own "Water Board" room
+ * spot (relative 15,58,9 - the same doorway-side spot "Interactive Map" itself already uses to walk a player
+ * INTO this room), via {@link AutoPuzzleUtil#pathIfMapOn} - so it only runs while Interactive Map is on, the same
+ * engine every other auto-walk in this mod already depends on. This is separate from "Etherwarp Reposition"
+ * above (a short in-room blink onto one lever), so it works even with that toggle off.
  */
 final class AutoWater {
 
@@ -32,6 +39,8 @@ final class AutoWater {
     private static final String ROOM = "Water Board";
     private static final double REACH_SQ = 30.0;
     private static final long CLICK_GAP_TICKS = 2;
+    /** AutoClearUtils' own "Water Board" room override - the doorway-side spot, not a guess. */
+    private static final int[] START_SPOT_RELATIVE = com.killer560.hub.livemap.autoclear.AutoClearUtils.roomOverride(ROOM);
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Water Board", "Water Board Solver");
     private static final AutoReposition REPOSITION = new AutoReposition("Water");
@@ -42,6 +51,8 @@ final class AutoWater {
     private static boolean stoppedThisRoom = false;
     private static boolean wasInRoom = false;
     private static String lastWaitLog = null;
+    /** Whether the one-shot "walk to the start area" has been attempted for this room visit yet. */
+    private static boolean startAreaAttempted = false;
 
     private AutoWater() {
     }
@@ -64,11 +75,30 @@ final class AutoWater {
             return;
         }
         wasInRoom = true;
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        if (!startAreaAttempted && cr != null && client.screen == null) {
+            // Pure navigation, no solver data involved - tried once per room visit regardless of the solver/GUARD
+            // state below, same as walking OUT of Boulder/Teleport Maze doesn't wait on their solvers either.
+            BlockPos start = START_SPOT_RELATIVE == null ? null
+                    : PuzzleCoords.real(START_SPOT_RELATIVE[0], START_SPOT_RELATIVE[1], START_SPOT_RELATIVE[2], cr);
+            if (start == null) {
+                startAreaAttempted = true; // no known spot for this room name - nothing to walk to, don't retry forever
+            } else if (AutoPuzzleUtil.at(client.player, start)) {
+                startAreaAttempted = true;
+            } else if (AutoPuzzleUtil.pathIfMapOn(start, null)) {
+                startAreaAttempted = true;
+                LOGGER.info("[AutoPuzzles] Water: entered room - etherwarp pathing to start area {}", start);
+            }
+            // else: Interactive Map is off, or another path is already running - leave startAreaAttempted false
+            // and just try again next tick; cheap to check.
+        }
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            return; // still walking to the start area (ours or someone else's) - the levers can wait
+        }
         if (!GUARD.solverOn(WaterSolverConfig.getInstance().isEnabled()) || stoppedThisRoom || !GUARD.fresh()) {
             return;
         }
         LocalPlayer player = client.player;
-        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null || player.getY() != 59.0 || client.screen != null || atChest) {
             return;
         }
@@ -162,5 +192,6 @@ final class AutoWater {
         atChest = false;
         stoppedThisRoom = false;
         lastWaitLog = null;
+        startAreaAttempted = false;
     }
 }

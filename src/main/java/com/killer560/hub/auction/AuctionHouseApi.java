@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.croesus.DungeonChestValuer;
+import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
@@ -53,14 +54,26 @@ import java.util.zip.GZIPOutputStream;
  * {@code totalPages}, {@code totalAuctions}, {@code lastUpdated}, and an {@code auctions} array; each
  * auction has (real fields actually used below) {@code uuid}, {@code auctioneer} (both 32-char hex,
  * WITHOUT dashes), {@code item_name}, {@code tier}, {@code category}, {@code starting_bid}, {@code end}
- * (epoch millis), {@code bin} (true = buy-it-now, what this mod only ever shows), {@code claimed}, and
- * {@code item_bytes} (base64 gzip-compressed real Minecraft item NBT).
+ * (epoch millis), {@code bin} (true = buy-it-now, false = a normal bid auction - killer560, 2026-09-27:
+ * "toggle between auctions and bins", so both are now kept, see {@link AuctionListing}), {@code bids}
+ * (array of placed bids, each with a real {@code amount} - used only for {@link AuctionListing#highestBid}
+ * on a bid auction), {@code claimed}, and {@code item_bytes} (base64 gzip-compressed real Minecraft item
+ * NBT).
  * <p>
  * <b>Pacing</b>: per the brief, this pages through the (dozens of pages, tens of thousands of listings)
  * scan slowly and sequentially on one dedicated background thread - never concurrently and never on the
  * render/client-tick thread - with a real {@link #PAGE_DELAY_MS} pause between each page fetch, unlike
  * {@code HypixelMarketPrices}'s own concurrent-batch approach. A full scan is slow (well under the
- * {@link #AUTO_RESCAN_MINUTES}-minute schedule) but never blocks anything else.
+ * {@link #AUTO_RESCAN_MINUTES}-minute schedule) but never blocks anything else. killer560, 2026-09-27:
+ * "make sure it auto rescans the ah and bazaar fairly often by default" - {@link #AUTO_RESCAN_MINUTES} (5)
+ * was already the schedule this class used; what was missing was starting the loop at all before he ever
+ * opened the browser. {@link AuctionHouseFeature#tick} now calls {@link #ensureAutoScanStarted()} every
+ * tick once the feature is on and he's in a world, same as {@code BazaarApi}/{@code BazaarFeature}, so the
+ * first scan is already warm the first time he opens the panel rather than starting cold. 5 minutes was
+ * picked over the RNG Meter feed's own default (10 minutes, user-configurable down to 1 - see
+ * {@code RngMeterConfig}) as a middle ground: frequent enough that prices don't go stale for long, without
+ * re-paging the entire multi-thousand-listing AH more often than that on every client that has this on by
+ * default.
  * <p>
  * <b>Icons</b>: a listing scanned live decodes its own real {@code item_bytes} via
  * {@link LegacyItems#decodeBase64} - the exact real item (skin, reforge, stars, enchants). A listing that
@@ -68,7 +81,11 @@ import java.util.zip.GZIPOutputStream;
  * icon from {@link SkyblockItemRepository}/{@link SkyblockItemStackFactory} by its cached
  * {@code skyblockId} - a catalog-accurate approximation, not the exact real item, exactly per the brief's
  * "reuse SkyblockItemRepository and SkyblockItemStackFactory for item names, icons and tiers" instruction
- * for anything that isn't a fresh live decode.
+ * for anything that isn't a fresh live decode. A live decode also falls back to that same catalog icon
+ * (see {@link #iconForCachedId}) when {@link DetectedMods#isPackDisablerActive()} is true: the real decoded
+ * item can carry Hypixel's own {@code item_model} tag, which (like the catalog path's own tagging - see
+ * {@link SkyblockItemStackFactory}) only renders correctly while Hypixel's server resource pack is
+ * actually loaded.
  */
 public final class AuctionHouseApi {
 
@@ -212,7 +229,7 @@ public final class AuctionHouseApi {
         }
         listings = List.copyOf(collected);
         saveToDisk(listings);
-        LOGGER.info("[AuctionHouse] Scan finished: {} BIN listings across {} pages.", collected.size(), totalPages);
+        LOGGER.info("[AuctionHouse] Scan finished: {} listings (BIN + auction) across {} pages.", collected.size(), totalPages);
     }
 
     private static void collectPage(JsonObject page, List<AuctionListing> out) {
@@ -234,9 +251,10 @@ public final class AuctionHouseApi {
     }
 
     private static AuctionListing decode(JsonObject a, long now) {
-        if (!a.has("bin") || !a.get("bin").getAsBoolean()) {
-            return null;
-        }
+        // killer560, 2026-09-27: "toggle between auctions and bins" - non-BIN (pure-bid) auctions used to
+        // be dropped here entirely; both kinds are kept now, with AuctionHouseScreen's mode toggle filtering
+        // which half it shows (see AuctionListing's class doc).
+        boolean bin = a.has("bin") && a.get("bin").getAsBoolean();
         if (a.has("claimed") && a.get("claimed").getAsBoolean()) {
             return null;
         }
@@ -256,6 +274,17 @@ public final class AuctionHouseApi {
         String tier = a.has("tier") ? a.get("tier").getAsString() : null;
         String category = a.has("category") ? a.get("category").getAsString() : null;
         long startingBid = a.has("starting_bid") ? a.get("starting_bid").getAsLong() : 0L;
+        long highestBid = 0L;
+        if (!bin && a.has("bids") && a.get("bids").isJsonArray()) {
+            for (JsonElement bidEl : a.getAsJsonArray("bids")) {
+                if (bidEl.isJsonObject() && bidEl.getAsJsonObject().has("amount")) {
+                    long amt = bidEl.getAsJsonObject().get("amount").getAsLong();
+                    if (amt > highestBid) {
+                        highestBid = amt;
+                    }
+                }
+            }
+        }
 
         ItemStack icon = ItemStack.EMPTY;
         String skyblockId = "";
@@ -274,14 +303,20 @@ public final class AuctionHouseApi {
                 ultimateTier = tierOut[0];
             }
         }
+        if (!icon.isEmpty() && !skyblockId.isEmpty() && DetectedMods.isPackDisablerActive()) {
+            // See the class doc's "Icons" section - the real decoded item's own item_model tag only
+            // renders correctly with Hypixel's pack loaded, so swap to the same pack-safe catalog icon the
+            // disk-cache path already uses rather than showing a broken model.
+            icon = iconForCachedId(skyblockId);
+        }
         if (icon.isEmpty()) {
             // Decode failure never drops the listing - it just shows without a real icon/lore/enchant
             // info until (if ever) a later scan of the same auction succeeds.
             icon = new ItemStack(Items.PAPER);
         }
         int petLevel = parsePetLevel(itemName);
-        return new AuctionListing(uuid, auctioneer, itemName, skyblockId, tier, category, startingBid, end,
-                petLevel, ultimateName, ultimateTier, lore, icon);
+        return new AuctionListing(uuid, auctioneer, itemName, skyblockId, tier, category, startingBid, bin,
+                highestBid, end, petLevel, ultimateName, ultimateTier, lore, icon);
     }
 
     /** {@code "[Lvl 100] Golden Dragon"} -&gt; 100. -1 when the name has no pet-level prefix. */
@@ -383,10 +418,14 @@ public final class AuctionHouseApi {
                 UUID auctioneer = parseFlexibleUuid(getStr(o, "auctioneer"));
                 String skyblockId = getStr(o, "skyblockId");
                 ItemStack icon = iconForCachedId(skyblockId);
+                // "bin" defaults true for a cache file written before the Auctions/BINs toggle existed -
+                // every listing that old cache ever held was BIN-only anyway (see decode()'s history).
                 cached.add(new AuctionListing(uuid, auctioneer, getStr(o, "itemName"), skyblockId,
                         o.has("tier") ? o.get("tier").getAsString() : null,
                         o.has("category") ? o.get("category").getAsString() : null,
                         o.has("startingBid") ? o.get("startingBid").getAsLong() : 0L,
+                        o.has("bin") ? o.get("bin").getAsBoolean() : true,
+                        o.has("highestBid") ? o.get("highestBid").getAsLong() : 0L,
                         o.has("end") ? o.get("end").getAsLong() : 0L,
                         o.has("petLevel") ? o.get("petLevel").getAsInt() : -1,
                         o.has("ultimateEnchantName") ? o.get("ultimateEnchantName").getAsString() : null,
@@ -430,6 +469,8 @@ public final class AuctionHouseApi {
                     o.addProperty("category", l.category());
                 }
                 o.addProperty("startingBid", l.startingBid());
+                o.addProperty("bin", l.bin());
+                o.addProperty("highestBid", l.highestBid());
                 o.addProperty("end", l.end());
                 o.addProperty("petLevel", l.petLevel());
                 if (l.ultimateEnchantName() != null) {

@@ -36,6 +36,14 @@ public class AutoPuzzlesTab extends BaseTab {
         // toggle and slider advances by the same ROW_STEP, and each group gets a small header instead of a bare
         // 6px gap that only showed up as an odd hole when a group's options were hidden.
 
+        // killer560, 2026-09-27: "Add an overall toggle to this section as well." Every auto below stays gated on
+        // its own toggle too - this one just cuts the whole section off at once.
+        y = toggle(widgets, contentX, y, contentWidth, "Enable Auto Puzzles", cfg.getAutoPuzzlesMasterEnabledRaw(),
+                () -> cfg.setAutoPuzzlesMasterEnabled(!cfg.getAutoPuzzlesMasterEnabledRaw()), cfg, requestRebuild);
+        if (!cfg.getAutoPuzzlesMasterEnabledRaw()) {
+            return widgets;
+        }
+
         y = header(widgets, contentX, y, contentWidth, "Chat Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Quiz", cfg.isAutoQuizEnabled(),
                 () -> cfg.setAutoQuizEnabled(!cfg.isAutoQuizEnabled()), cfg, requestRebuild);
@@ -66,6 +74,14 @@ public class AutoPuzzlesTab extends BaseTab {
         y = header(widgets, contentX, y, contentWidth, "Bow Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Blaze", cfg.isAutoBlazeEnabled(),
                 () -> cfg.setAutoBlazeEnabled(!cfg.isAutoBlazeEnabled()), cfg, requestRebuild);
+        if (cfg.isAutoBlazeEnabled()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Auto Secret", cfg.getAutoBlazeSecretEnabledRaw()), btn -> {
+                        cfg.setAutoBlazeSecretEnabled(!cfg.getAutoBlazeSecretEnabledRaw());
+                        cfg.save();
+                        btn.setMessage(onOff("Auto Secret", cfg.getAutoBlazeSecretEnabledRaw()));
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += ROW_STEP;
+        }
         y = toggle(widgets, contentX, y, contentWidth, "Auto Creeper Beams", cfg.isAutoBeamsEnabled(),
                 () -> cfg.setAutoBeamsEnabled(!cfg.isAutoBeamsEnabled()), cfg, requestRebuild);
         y = toggle(widgets, contentX, y, contentWidth, "Auto Ice Path", cfg.isAutoIcePathEnabled(),
@@ -85,7 +101,7 @@ public class AutoPuzzlesTab extends BaseTab {
         y = toggle(widgets, contentX, y, contentWidth, "Auto Boulder", cfg.isAutoBoulderEnabled(),
                 () -> cfg.setAutoBoulderEnabled(!cfg.isAutoBoulderEnabled()), cfg, requestRebuild);
         if (cfg.isAutoBoulderEnabled()) {
-            widgets.add(delaySlider(contentX, y, contentWidth, "Boulder Click Delay", cfg.getBoulderDelayMs(), ms -> {
+            widgets.add(delaySlider(contentX, y, contentWidth, "Boulder Chest Wait", cfg.getBoulderDelayMs(), ms -> {
                 cfg.setBoulderDelayMs(ms);
                 cfg.save();
             }));
@@ -95,6 +111,14 @@ public class AutoPuzzlesTab extends BaseTab {
                 () -> cfg.setAutoWaterEnabled(!cfg.isAutoWaterEnabled()), cfg, requestRebuild);
         y = toggle(widgets, contentX, y, contentWidth, "Auto Tic Tac Toe", cfg.isAutoTicTacToeEnabled(),
                 () -> cfg.setAutoTicTacToeEnabled(!cfg.isAutoTicTacToeEnabled()), cfg, requestRebuild);
+        if (cfg.isAutoTicTacToeEnabled()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Aura Chest", cfg.getTicTacToeAuraChestEnabledRaw()), btn -> {
+                        cfg.setTicTacToeAuraChestEnabled(!cfg.getTicTacToeAuraChestEnabledRaw());
+                        cfg.save();
+                        btn.setMessage(onOff("Aura Chest", cfg.getTicTacToeAuraChestEnabledRaw()));
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += ROW_STEP;
+        }
 
         // ---- movement puzzles ----
         y = header(widgets, contentX, y, contentWidth, "Movement Puzzles");

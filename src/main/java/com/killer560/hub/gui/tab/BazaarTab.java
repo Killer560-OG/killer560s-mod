@@ -53,9 +53,15 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("/bz Override", cfg.isOverrideBzCommand()), btn -> {
+                    cfg.setOverrideBzCommand(!cfg.isOverrideBzCommand());
+                    cfg.save();
+                    btn.setMessage(onOff("/bz Override", cfg.isOverrideBzCommand()));
+                }).bounds(contentX, y, colW, 18).build());
+
         widgets.add(SettingsButtonWidget.builder(Component.literal(BazaarApi.isRefreshing() ? "Refreshing..." : "Refresh Now"),
                         btn -> BazaarApi.refreshAsync())
-                .bounds(contentX, y, contentWidth, 18).build());
+                .bounds(colBX, y, colW, 18).build());
         y += 26;
 
         int count = BazaarApi.getProducts().size();

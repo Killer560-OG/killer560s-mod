@@ -1080,16 +1080,19 @@ final class SettingTooltipsData {
         d.put("door timeout", "Cheat build only. How long Blood Rush waits on one door before giving up and picking another, 5-60 seconds.");
 
         // ---- Auto Puzzles (cheat build) ----
+        d.put("enable auto puzzles", "Cheat build only. Master switch for the whole Auto Puzzles section - every auto below still needs its own toggle on too, this just cuts all of them off at once.");
         d.put("auto blaze", "Cheat build only. Shoots the Higher/Lower blazes in order with your held shortbow. Needs the Blaze solver on.");
+        d.put("auto secret", "Cheat build only. Once every blaze is dead, walks (needs Interactive Map on) to the nearest secret this room's database has on record and auras it if it's a chest - even with Secret Aura off.");
         d.put("auto creeper beams", "Cheat build only. Shoots the two matching creeper-beam lanterns with your held shortbow. Needs the Creeper Beams solver on.");
         d.put("auto ice path", "Cheat build only. Shoots the silverfish along the solved ice path with your held shortbow. Needs the Ice Path solver on.");
-        d.put("auto boulder", "Cheat build only. Clicks the Boulder push blocks in solution order. Needs the Boulder solver on.");
-        d.put("auto water board", "Cheat build only. Flips the Water Board levers in the solved order. Needs the Water Board solver on.");
-        d.put("auto tic tac toe", "Cheat build only. Shoots the best Tic Tac Toe square on your turn. Needs the Tic Tac Toe solver on.");
-        d.put("auto teleport maze", "Cheat build only. Walks the Teleport Maze pads towards the exit. Needs the Teleport Maze solver on.");
+        d.put("auto boulder", "Cheat build only. On entering the room, walks (needs Interactive Map on) to the standing spot beside this room's secret chest, waits there, auras the chest itself - even with Secret Aura off - then walks back out to the door so you can etherwarp again. No longer clicks the floor buttons (the Boulder solver still highlights those for you to click by hand).");
+        d.put("auto water board", "Cheat build only. On entering the room, etherwarp-paths (needs Interactive Map on) to the puzzle's start area, then flips the levers in the solved order. Needs the Water Board solver on.");
+        d.put("auto tic tac toe", "Cheat build only. Walks (needs Interactive Map on) to the room's play spot, then interacts the best Tic Tac Toe square on your turn. Needs the Tic Tac Toe solver on.");
+        d.put("aura chest", "Cheat build only. After the first move, walks to this room's known secret chest and auras it - even with Secret Aura off - then walks back to keep playing. Off by default.");
+        d.put("auto teleport maze", "Cheat build only. Walks the Teleport Maze pads towards the exit. Needs the Teleport Maze solver on. Once you land on the final pad, also auras the nearest secret chest there, walks to the exit pad, then walks out through the door so you can etherwarp again.");
         d.put("auto ice fill", "Cheat build only. Walks the Ice Fill path for you. Needs the Ice Fill solver on.");
         d.put("shoot cooldown", "Cheat build only. Minimum wait between bow shots for the bow puzzles (Blaze, Creeper Beams, Ice Path) - the only pacing between shots now, hit or miss.");
-        d.put("boulder click delay", "Cheat build only. Wait between Auto Boulder's clicks.");
+        d.put("boulder chest wait", "Cheat build only. How long Auto Boulder waits at the standing spot before it auras the chest.");
         d.put("ice fill delay", "Cheat build only. Wait in ticks between Auto Ice Fill's movement steps.");
         d.put("etherwarp reposition", "Cheat build only. AOTV-warps you onto each puzzle's standing spot before the auto starts, instead of expecting you to walk there.");
 
@@ -1851,6 +1854,7 @@ final class SettingTooltipsData {
         d.put("auction house/listing helper", "While you're on Hypixel's own Create BIN Auction menu, shows the lowest current BIN among similar listings plus a rough estimated value, and a button to copy lowest-minus-one-coin to your clipboard. Never clicks or types into Hypixel's menu for you.");
         d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser (/killer560bz or a keybind). Off by default.");
         d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz.");
+        d.put("bazaar/bz override", "When on, typing /bz (with no item name) opens this browser instead of Hypixel's own menu. /bz <item name> and Hypixel's real /bz are always still reachable with /hypixelbz regardless of this setting.");
         d.put("video browser/site", "Which site opens in the companion window. All of them share one profile, so signing into YouTube, TikTok, Instagram or Twitch here doesn't affect being signed into the others.");
         d.put("video browser/set url", "Any site's normal URL (a scheme is added automatically if you leave it off). Used only when Site is set to Custom URL.");
         d.put("video browser/placement", "Anchored uses the Position/Size/Margin settings below. Custom is whatever rect Edit Window last saved. DVD Bounce makes the window itself bounce around Minecraft's screen like the mod's DVD feature.");

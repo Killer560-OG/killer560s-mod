@@ -205,17 +205,10 @@ public final class ItemProtectFeature {
         }
     }
 
-    /** A 6x7 padlock in the slot's TOP-LEFT corner - the opposite corner to the slot-lock marker and to
+    /** A padlock in the slot's TOP-LEFT corner - the opposite corner to the slot-lock marker and to
      *  vanilla's stack count, so a protected stack still shows its number. */
     private static void drawSmallLock(GuiGraphicsExtractor graphics, int x, int y, int color) {
-        int shadow = 0xFF000000;
-        graphics.fill(x, y, x + 7, y + 8, shadow);
-        // shackle: two posts + a cap
-        graphics.fill(x + 2, y + 1, x + 3, y + 3, color);
-        graphics.fill(x + 4, y + 1, x + 5, y + 3, color);
-        graphics.fill(x + 2, y + 1, x + 5, y + 2, color);
-        // body
-        graphics.fill(x + 1, y + 3, x + 6, y + 7, color);
+        drawPadlock(graphics, x, y, color, 7, 8);
     }
 
     private static void drawLockMarker(GuiGraphicsExtractor graphics, int x, int y, int color,
@@ -226,15 +219,65 @@ public final class ItemProtectFeature {
         if (style == ItemProtectConfig.LockStyle.OUTLINE) {
             return;
         }
-        // A tiny padlock drawn from fills in the slot's bottom-right corner - no texture asset needed, so
-        // this whole feature stays code-only. Black backing first so it reads on a light item.
+        drawPadlock(graphics, x + 9, y + 8, color, 8, 9);
+    }
+
+    /**
+     * killer560, 2026-09-27: "for item protection change the lock icon to better fit the mod." The old
+     * marker was two equal-width rectangle "posts" under a flat square cap - at slot size it read as a
+     * plain bracket, not a recognizable padlock. This is a real padlock silhouette instead - a tapered,
+     * corner-inset shackle, a beveled body (lighter top-left edge, darker bottom-right edge, the same
+     * flat-shading trick as this mod's other hand-drawn icons) and a keyhole - while staying exactly what
+     * it was: pure {@code fill()} calls, no texture asset, so this feature stays as portable as the rest of
+     * it (see the class doc's "no texture asset needed"). Shared by both markers above so Slot Lock and
+     * Protect Item visually match; each still uses its own configured color (killer560's lock/protected
+     * colors are deliberately NOT part of the mod-wide orange theme sweep - they're meaningful, user-picked
+     * status colors, same reasoning as the solver's green/red world highlights).
+     *
+     * @param w icon width in pixels, {@code h} icon height - Protect Item's corner icon draws smaller than
+     *          Slot Lock's (it has to leave the stack count visible in the opposite corner).
+     */
+    private static void drawPadlock(GuiGraphicsExtractor graphics, int x, int y, int color, int w, int h) {
         int shadow = 0xFF000000;
-        graphics.fill(x + 9, y + 8, x + 17, y + 17, shadow);
-        // shackle: two posts + a cap
-        graphics.fill(x + 11, y + 9, x + 12, y + 12, color);
-        graphics.fill(x + 14, y + 9, x + 15, y + 12, color);
-        graphics.fill(x + 11, y + 9, x + 15, y + 10, color);
-        // body
-        graphics.fill(x + 10, y + 12, x + 16, y + 16, color);
+        int highlight = shade(color, 1.4f);
+        int shadowEdge = shade(color, 0.55f);
+
+        // Backing plate, 1px bigger than the icon all round so it still reads on a light item.
+        graphics.fill(x - 1, y - 1, x + w + 1, y + h + 1, shadow);
+
+        // Shackle: tapered posts under a cap inset 1px on each side - the fake curve that tells this apart
+        // from the old dead-square bracket at a glance.
+        int postW = Math.max(1, w / 4);
+        int shackleH = Math.max(2, h * 2 / 5);
+        graphics.fill(x + postW, y, x + w - postW, y + 1, color);
+        graphics.fill(x, y + 1, x + postW + 1, y + shackleH, color);
+        graphics.fill(x + w - postW - 1, y + 1, x + w, y + shackleH, color);
+
+        // Body, beveled for a little depth instead of one flat color.
+        int bodyTop = y + shackleH;
+        graphics.fill(x, bodyTop, x + w, y + h, color);
+        graphics.fill(x, bodyTop, x + 1, y + h, highlight);
+        graphics.fill(x, bodyTop, x + w, bodyTop + 1, highlight);
+        graphics.fill(x + w - 1, bodyTop, x + w, y + h, shadowEdge);
+        graphics.fill(x, y + h - 1, x + w, y + h, shadowEdge);
+
+        // Keyhole.
+        int keyX = x + w / 2;
+        int keyY = bodyTop + Math.max(1, (h - shackleH) / 2);
+        graphics.fill(keyX, keyY, keyX + 1, keyY + 1, shadow);
+    }
+
+    /** Multiplies each RGB channel of an ARGB color by {@code factor} (clamped to a valid byte), keeping
+     *  the alpha channel untouched - {@code factor > 1} lightens, {@code factor < 1} darkens. */
+    private static int shade(int argb, float factor) {
+        int a = argb & 0xFF000000;
+        int r = clampChannel(Math.round(((argb >> 16) & 0xFF) * factor));
+        int g = clampChannel(Math.round(((argb >> 8) & 0xFF) * factor));
+        int b = clampChannel(Math.round((argb & 0xFF) * factor));
+        return a | (r << 16) | (g << 8) | b;
+    }
+
+    private static int clampChannel(int v) {
+        return Math.max(0, Math.min(255, v));
     }
 }

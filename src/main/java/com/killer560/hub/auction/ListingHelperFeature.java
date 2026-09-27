@@ -162,6 +162,13 @@ public final class ListingHelperFeature {
             if (!id.equals(l.skyblockId())) {
                 continue;
             }
+            // killer560, 2026-09-27: AuctionHouseApi now also scans normal bid auctions (see
+            // AuctionListing's class doc) for the Auctions/BINs toggle - this feature's own doc promises
+            // "lowest BIN among similar CURRENT listings", so a bid auction's starting_bid (which is NOT a
+            // buy-it-now price) must never be counted here.
+            if (!l.bin()) {
+                continue;
+            }
             int score = 100;
             // "No reforge" on both sides still counts as a match (both empty strings compare equal) -
             // only an actual difference costs points.

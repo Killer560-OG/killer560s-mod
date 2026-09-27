@@ -71,6 +71,31 @@ public final class AuctionConfig {
         }
     }
 
+    /** killer560, 2026-09-27: "make the ah viewer have an option to toggle between auctions and bins" -
+     *  which half of {@code AuctionHouseApi}'s scanned listings {@code AuctionHouseScreen} shows. BIN is the
+     *  default so an upgrade from an older config (missing this key) keeps showing exactly what it always
+     *  showed before this existed. */
+    public enum ListingMode {
+        BIN("BINs"),
+        AUCTION("Auctions");
+
+        public final String label;
+
+        ListingMode(String label) {
+            this.label = label;
+        }
+
+        public ListingMode next() {
+            ListingMode[] all = values();
+            return all[(ordinal() + 1) % all.length];
+        }
+
+        public ListingMode previous() {
+            ListingMode[] all = values();
+            return all[(all.length + ordinal() - 1) % all.length];
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-auction.json");
 
@@ -83,13 +108,27 @@ public final class AuctionConfig {
     /** killer560's item 8.1: "/ah replacement toggle" - OFF by default, real Hypixel /ah always still
      *  reachable via the explicit {@code /hypixelah} command regardless of this. */
     private boolean overrideAhCommand = false;
+    /** killer560, 2026-09-27: "have a bz override like it does for ah" - same reasoning, same default,
+     *  mirrors {@link #overrideAhCommand} exactly. Real Hypixel /bz always still reachable via
+     *  {@code /hypixelbz} regardless of this. */
+    private boolean overrideBzCommand = false;
     private int openAhKeyCode = -1;
     private int openBazaarKeyCode = -1;
-    private SortMode lastSort = SortMode.ENDING_SOONEST;
+    // killer560, 2026-09-27: "have it default to low to high price."
+    private SortMode lastSort = SortMode.PRICE_LOW;
     /** Last-picked rarity filter, uppercase Hypixel tier name (e.g. "LEGENDARY"), or "" for Any. */
     private String lastRarityFilter = "";
     private int lastMinPetLevel = 0;
     private BazaarSortMode lastBazaarSort = BazaarSortMode.VOLUME_HIGH;
+    /** killer560, 2026-09-27: "toggle between auctions and bins" - which half of the scan {@code
+     *  AuctionHouseScreen} shows. See {@link ListingMode}. */
+    private ListingMode lastListingMode = ListingMode.BIN;
+    /** Last-picked AH category rail filter (Hypixel's own real {@code category} string, e.g. "weapon"),
+     *  or "" for "All" - see {@code AuctionHouseScreen}'s category rail. */
+    private String lastCategoryFilter = "";
+    /** Last-picked Bazaar category rail filter (from the shared item catalog's {@code category} field),
+     *  or "" for "All" - see {@code BazaarScreen}'s category rail. */
+    private String lastBazaarCategoryFilter = "";
 
     private AuctionConfig() {
     }
@@ -110,12 +149,16 @@ public final class AuctionConfig {
                 cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", false);
                 cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
                 cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
+                cfg.overrideBzCommand = ConfigJson.getBool(obj, "overrideBzCommand", false);
                 cfg.openAhKeyCode = ConfigJson.getInt(obj, "openAhKeyCode", -1);
                 cfg.openBazaarKeyCode = ConfigJson.getInt(obj, "openBazaarKeyCode", -1);
-                cfg.lastSort = ConfigJson.getEnum(obj, "lastSort", SortMode.class, SortMode.ENDING_SOONEST);
+                cfg.lastSort = ConfigJson.getEnum(obj, "lastSort", SortMode.class, SortMode.PRICE_LOW);
                 cfg.lastRarityFilter = ConfigJson.getString(obj, "lastRarityFilter", "");
                 cfg.lastMinPetLevel = ConfigJson.getInt(obj, "lastMinPetLevel", 0);
                 cfg.lastBazaarSort = ConfigJson.getEnum(obj, "lastBazaarSort", BazaarSortMode.class, BazaarSortMode.VOLUME_HIGH);
+                cfg.lastListingMode = ConfigJson.getEnum(obj, "lastListingMode", ListingMode.class, ListingMode.BIN);
+                cfg.lastCategoryFilter = ConfigJson.getString(obj, "lastCategoryFilter", "");
+                cfg.lastBazaarCategoryFilter = ConfigJson.getString(obj, "lastBazaarCategoryFilter", "");
             } catch (Exception ignored) {
                 // Keep defaults for this session on a malformed file - never throw out of a config load.
             }
@@ -131,12 +174,16 @@ public final class AuctionConfig {
             obj.addProperty("bazaarEnabled", bazaarEnabled);
             obj.addProperty("listingHelperEnabled", listingHelperEnabled);
             obj.addProperty("overrideAhCommand", overrideAhCommand);
+            obj.addProperty("overrideBzCommand", overrideBzCommand);
             obj.addProperty("openAhKeyCode", openAhKeyCode);
             obj.addProperty("openBazaarKeyCode", openBazaarKeyCode);
             obj.addProperty("lastSort", lastSort.name());
             obj.addProperty("lastRarityFilter", lastRarityFilter);
             obj.addProperty("lastMinPetLevel", lastMinPetLevel);
             obj.addProperty("lastBazaarSort", lastBazaarSort.name());
+            obj.addProperty("lastListingMode", lastListingMode.name());
+            obj.addProperty("lastCategoryFilter", lastCategoryFilter);
+            obj.addProperty("lastBazaarCategoryFilter", lastBazaarCategoryFilter);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -188,6 +235,14 @@ public final class AuctionConfig {
         overrideAhCommand = v;
     }
 
+    public synchronized boolean isOverrideBzCommand() {
+        return overrideBzCommand;
+    }
+
+    public synchronized void setOverrideBzCommand(boolean v) {
+        overrideBzCommand = v;
+    }
+
     public synchronized int getOpenAhKeyCode() {
         return openAhKeyCode;
     }
@@ -209,7 +264,7 @@ public final class AuctionConfig {
     }
 
     public synchronized void setLastSort(SortMode v) {
-        lastSort = v == null ? SortMode.ENDING_SOONEST : v;
+        lastSort = v == null ? SortMode.PRICE_LOW : v;
     }
 
     public synchronized String getLastRarityFilter() {
@@ -234,5 +289,29 @@ public final class AuctionConfig {
 
     public synchronized void setLastBazaarSort(BazaarSortMode v) {
         lastBazaarSort = v == null ? BazaarSortMode.VOLUME_HIGH : v;
+    }
+
+    public synchronized ListingMode getLastListingMode() {
+        return lastListingMode;
+    }
+
+    public synchronized void setLastListingMode(ListingMode v) {
+        lastListingMode = v == null ? ListingMode.BIN : v;
+    }
+
+    public synchronized String getLastCategoryFilter() {
+        return lastCategoryFilter;
+    }
+
+    public synchronized void setLastCategoryFilter(String v) {
+        lastCategoryFilter = v == null ? "" : v;
+    }
+
+    public synchronized String getLastBazaarCategoryFilter() {
+        return lastBazaarCategoryFilter;
+    }
+
+    public synchronized void setLastBazaarCategoryFilter(String v) {
+        lastBazaarCategoryFilter = v == null ? "" : v;
     }
 }

@@ -37,6 +37,10 @@ public final class AutoPuzzlesConfig {
 
     private static AutoPuzzlesConfig instance;
 
+    // killer560, 2026-09-27: "Add an overall toggle to this section as well." One master switch for the whole
+    // Auto Puzzles section, on top of (not instead of) each individual auto's own toggle - see #cheat below.
+    private boolean autoPuzzlesMasterEnabled = false;
+
     private boolean autoQuizEnabled = false;
     private int quizDelayMs = 250;
     private boolean autoWeirdosEnabled = false;
@@ -62,6 +66,13 @@ public final class AutoPuzzlesConfig {
      *  adjusting to server lag"): each hop waits for the server to confirm the tile you are on. Off by default. */
     private boolean iceFillAdaptive = false;
 
+    // killer560, 2026-09-27: "have an option for auto secret" (Higher/Lower Blaze) - pathfinds to the room's known
+    // secret once the blazes are all dead, only when Auto Blaze is also on. See AutoBlaze.
+    private boolean autoBlazeSecretEnabled = false;
+    // killer560, 2026-09-27: Auto Tic Tac Toe "walk towards that chest and get close enough to aura it as an
+    // option as well" - only when Auto Tic Tac Toe is also on. See AutoTicTacToe.
+    private boolean ticTacToeAuraChestEnabled = false;
+
     private AutoPuzzlesConfig() {
     }
 
@@ -80,6 +91,7 @@ public final class AutoPuzzlesConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             AutoPuzzlesConfig cfg = new AutoPuzzlesConfig();
+            cfg.autoPuzzlesMasterEnabled = ConfigJson.getBool(obj, "autoPuzzlesMasterEnabled", false);
             cfg.autoQuizEnabled = ConfigJson.getBool(obj, "autoQuizEnabled", false);
             cfg.quizDelayMs = clampDelay(ConfigJson.getInt(obj, "quizDelayMs", cfg.quizDelayMs));
             cfg.autoWeirdosEnabled = ConfigJson.getBool(obj, "autoWeirdosEnabled", false);
@@ -99,6 +111,8 @@ public final class AutoPuzzlesConfig {
             cfg.iceFillAdaptive = ConfigJson.getBool(obj, "iceFillAdaptive", false);
             cfg.iceFillDelayTicks = clamp(ConfigJson.getInt(obj, "iceFillDelayTicks", cfg.iceFillDelayTicks),
                     ICE_FILL_DELAY_MIN, ICE_FILL_DELAY_MAX);
+            cfg.autoBlazeSecretEnabled = ConfigJson.getBool(obj, "autoBlazeSecretEnabled", false);
+            cfg.ticTacToeAuraChestEnabled = ConfigJson.getBool(obj, "ticTacToeAuraChestEnabled", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new AutoPuzzlesConfig();
@@ -109,6 +123,7 @@ public final class AutoPuzzlesConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("autoPuzzlesMasterEnabled", autoPuzzlesMasterEnabled);
             obj.addProperty("autoQuizEnabled", autoQuizEnabled);
             obj.addProperty("quizDelayMs", quizDelayMs);
             obj.addProperty("autoWeirdosEnabled", autoWeirdosEnabled);
@@ -127,6 +142,8 @@ public final class AutoPuzzlesConfig {
             obj.addProperty("autoIceFillEnabled", autoIceFillEnabled);
             obj.addProperty("iceFillDelayTicks", iceFillDelayTicks);
             obj.addProperty("iceFillAdaptive", iceFillAdaptive);
+            obj.addProperty("autoBlazeSecretEnabled", autoBlazeSecretEnabled);
+            obj.addProperty("ticTacToeAuraChestEnabled", ticTacToeAuraChestEnabled);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -140,15 +157,36 @@ public final class AutoPuzzlesConfig {
         return Math.max(min, Math.min(max, v));
     }
 
-    private static boolean cheat(boolean raw) {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && raw && com.killer560.hub.util.SkyblockGate.allows();
+    /** Not static any more - needs this instance's own {@link #autoPuzzlesMasterEnabled} (item 6, 2026-09-27). */
+    private boolean cheat(boolean raw) {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoPuzzlesMasterEnabled && raw
+                && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    // ---- master toggle ----
+
+    /** "Add an overall toggle to this section as well" (killer560, 2026-09-27) - every individual auto below is
+     *  additionally gated on this being on, same {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED}
+     *  gate as the rest of the section. */
+    public boolean isAutoPuzzlesMasterEnabled() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoPuzzlesMasterEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean getAutoPuzzlesMasterEnabledRaw() {
+        return autoPuzzlesMasterEnabled;
+    }
+
+    public void setAutoPuzzlesMasterEnabled(boolean enabled) {
+        this.autoPuzzlesMasterEnabled = enabled;
     }
 
     // ---- Quiz / Three Weirdos ----
 
-    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real automation. */
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and the master toggle - real automation. */
     public boolean isAutoQuizEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoQuizEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoPuzzlesMasterEnabled && autoQuizEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoQuizEnabled(boolean enabled) {
@@ -163,9 +201,10 @@ public final class AutoPuzzlesConfig {
         this.quizDelayMs = clampDelay(ms);
     }
 
-    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real automation. */
+    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and the master toggle - real automation. */
     public boolean isAutoWeirdosEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoWeirdosEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoPuzzlesMasterEnabled && autoWeirdosEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoWeirdosEnabled(boolean enabled) {
@@ -219,6 +258,19 @@ public final class AutoPuzzlesConfig {
         this.autoIcePathEnabled = enabled;
     }
 
+    /** "have an option for auto secret" (killer560, 2026-09-27) - only meaningful with Auto Blaze itself on. */
+    public boolean isAutoBlazeSecretEnabled() {
+        return isAutoBlazeEnabled() && autoBlazeSecretEnabled;
+    }
+
+    public boolean getAutoBlazeSecretEnabledRaw() {
+        return autoBlazeSecretEnabled;
+    }
+
+    public void setAutoBlazeSecretEnabled(boolean enabled) {
+        this.autoBlazeSecretEnabled = enabled;
+    }
+
     public int getShootCooldownMs() {
         return shootCooldownMs;
     }
@@ -250,6 +302,10 @@ public final class AutoPuzzlesConfig {
         this.autoBoulderEnabled = enabled;
     }
 
+    /** Repurposed (killer560, 2026-09-27 redo - see {@code AutoBoulder}'s class doc): no longer a gap between
+     *  floor-button clicks (Auto Boulder doesn't click the floor any more), now how long it waits at the standing
+     *  spot against the oak logs before it auras the chest ("run up against the oak logs... and wait there a
+     *  second"). Same persisted field/slider so the setting isn't silently reset for anyone who had tuned it. */
     public int getBoulderDelayMs() {
         return boulderDelayMs;
     }
@@ -272,6 +328,20 @@ public final class AutoPuzzlesConfig {
 
     public void setAutoTicTacToeEnabled(boolean enabled) {
         this.autoTicTacToeEnabled = enabled;
+    }
+
+    /** "walk towards that chest and get close enough to aura it as an option as well" (killer560, 2026-09-27) -
+     *  only meaningful with Auto Tic Tac Toe itself on. */
+    public boolean isTicTacToeAuraChestEnabled() {
+        return isAutoTicTacToeEnabled() && ticTacToeAuraChestEnabled;
+    }
+
+    public boolean getTicTacToeAuraChestEnabledRaw() {
+        return ticTacToeAuraChestEnabled;
+    }
+
+    public void setTicTacToeAuraChestEnabled(boolean enabled) {
+        this.ticTacToeAuraChestEnabled = enabled;
     }
 
     // ---- movement puzzles (Teleport Maze / Ice Fill) ----

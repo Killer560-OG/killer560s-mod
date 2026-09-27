@@ -319,6 +319,7 @@ public final class ProfileManager {
         Runnable[] loaders = {
                 com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig::load,
                 com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
+                com.killer560.hub.autokick.AutoKickConfig::load,
                 com.killer560.hub.autoclosechest.AutoCloseChestConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,

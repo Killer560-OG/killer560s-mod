@@ -99,8 +99,17 @@ public final class AuctionHouseFeature {
 
     private static void tick(Minecraft client) {
         AuctionConfig cfg = AuctionConfig.getInstance();
+        if (!cfg.isAhEnabled() || client.player == null) {
+            keyWasDown = false;
+            return;
+        }
+        // killer560, 2026-09-27: "make sure it auto rescans the ah and bazaar fairly often by default" -
+        // start AuctionHouseApi's own background scan/schedule loop the moment the feature is actually
+        // usable, not only the first time he opens the browser screen. ensureAutoScanStarted() is a no-op
+        // after its first real call (see AuctionHouseApi), so this is cheap to call every tick.
+        AuctionHouseApi.ensureAutoScanStarted();
         int code = cfg.getOpenAhKeyCode();
-        if (!cfg.isAhEnabled() || code < 0 || client.player == null || client.getWindow() == null) {
+        if (code < 0 || client.getWindow() == null) {
             keyWasDown = false;
             return;
         }
@@ -114,15 +123,27 @@ public final class AuctionHouseFeature {
     // ---------------------------------------------------------------- shared filter/sort (used by the screen)
 
     public static List<AuctionListing> filterAndSort(List<AuctionListing> all, String query, String rarityFilter,
-                                                       int minPetLevel, AuctionConfig.SortMode sort) {
+                                                       int minPetLevel, AuctionConfig.SortMode sort,
+                                                       AuctionConfig.ListingMode mode, String categoryFilter) {
         String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         String rarity = rarityFilter == null ? "" : rarityFilter.toUpperCase(Locale.ROOT);
+        String category = categoryFilter == null ? "" : categoryFilter;
         List<AuctionListing> out = new ArrayList<>();
         for (AuctionListing l : all) {
+            // killer560, 2026-09-27: "toggle between auctions and bins."
+            if (mode == AuctionConfig.ListingMode.BIN && !l.bin()) {
+                continue;
+            }
+            if (mode == AuctionConfig.ListingMode.AUCTION && l.bin()) {
+                continue;
+            }
             if (!q.isEmpty() && !matchesSearch(l, q)) {
                 continue;
             }
             if (!rarity.isEmpty() && !rarity.equals(l.tier() == null ? "" : l.tier().toUpperCase(Locale.ROOT))) {
+                continue;
+            }
+            if (!category.isEmpty() && !category.equalsIgnoreCase(l.category() == null ? "" : l.category())) {
                 continue;
             }
             if (minPetLevel > 0 && (!l.isPet() || l.petLevel() < minPetLevel)) {
@@ -155,8 +176,10 @@ public final class AuctionHouseFeature {
 
     private static Comparator<AuctionListing> comparatorFor(AuctionConfig.SortMode mode) {
         return switch (mode) {
-            case PRICE_LOW -> Comparator.comparingLong(AuctionListing::startingBid);
-            case PRICE_HIGH -> Comparator.comparingLong(AuctionListing::startingBid).reversed();
+            // currentPrice() is startingBid for a BIN or a bid auction with no bids yet, and the current
+            // highest bid for one that has bids - see AuctionListing#currentPrice.
+            case PRICE_LOW -> Comparator.comparingLong(AuctionListing::currentPrice);
+            case PRICE_HIGH -> Comparator.comparingLong(AuctionListing::currentPrice).reversed();
             case ENDING_SOONEST -> Comparator.comparingLong(AuctionListing::end);
             case ULTIMATE_ENCHANT -> Comparator
                     .comparingInt((AuctionListing l) -> l.hasUltimateEnchant() ? 0 : 1)

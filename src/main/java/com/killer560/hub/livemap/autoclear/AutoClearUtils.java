@@ -43,6 +43,19 @@ public final class AutoClearUtils {
     private AutoClearUtils() {
     }
 
+    /**
+     * The room-relative standing spot {@link #pathToRoom} uses for this room's own tile core (by name), e.g.
+     * {@code {15, 68, -2}} for Boulder / Teleport Maze - the doorway-side spot just outside the puzzle floor,
+     * not the puzzle interior. Exposed read-only for {@code autopuzzles} (killer560, 2026-09-27: Auto Boulder /
+     * Auto Teleport Maze walking back out to etherwarp again re-uses this exact spot rather than a second,
+     * separately-guessed coordinate for "the exit").
+     * @return a copy of the override, or null if this room has none (a plain floor room needs no special anchor).
+     */
+    public static int[] roomOverride(String roomName) {
+        int[] found = ROOM_OVERRIDES.get(roomName);
+        return found == null ? null : found.clone();
+    }
+
     /** QUOI {@code canPath}: on ground, not in a maze/boulder room, not past the trap's start line. */
     public static boolean canPath(DungeonLayout layout) {
         LocalPlayer player = Minecraft.getInstance().player;

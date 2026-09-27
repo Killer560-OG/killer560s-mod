@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * One real, live Hypixel Auction House BIN (buy-it-now) listing, as returned by the keyless
- * {@code https://api.hypixel.net/skyblock/auctions} endpoint (see {@link AuctionHouseApi} for the exact
- * shape and why that path, not {@code /v2/skyblock/auctions}). Non-BIN (pure-bid) auctions are never
- * turned into one of these - {@link AuctionHouseApi} filters them out while scanning, since killer560's
- * item 8.1 only asked for "Custom AH search/sell menu" browsing of BIN listings.
+ * One real, live Hypixel Auction House listing - either a BIN (buy-it-now) or a normal bid auction, as
+ * returned by the keyless {@code https://api.hypixel.net/skyblock/auctions} endpoint (see
+ * {@link AuctionHouseApi} for the exact shape and why that path, not {@code /v2/skyblock/auctions}).
+ * <p>
+ * killer560, 2026-09-27: "make the ah viewer have an option to toggle between auctions and bins" - both
+ * kinds are scanned and kept now (see {@link #bin}); {@code AuctionHouseScreen}'s mode toggle just filters
+ * which half of this same list it shows, via {@link com.killer560.hub.auction.AuctionConfig.ListingMode}.
  * <p>
  * {@code icon} is either the real decoded item (built by {@link AuctionHouseApi} from the listing's own
  * real {@code item_bytes} NBT via {@link com.killer560.hub.profileviewer.item.LegacyItems#decodeBase64}
@@ -34,6 +36,12 @@ public record AuctionListing(
         String tier,
         String category,
         long startingBid,
+        /** True for a BIN (buy-it-now) listing, false for a normal bid auction. */
+        boolean bin,
+        /** Highest real bid placed so far on a non-BIN auction (the max of Hypixel's own real
+         *  {@code bids[].amount} entries), or 0 if it's a BIN or has no bids yet - see
+         *  {@link AuctionHouseApi#decode}. Always 0 for a BIN listing. */
+        long highestBid,
         /** Real auction end time, epoch millis. */
         long end,
         /** Real pet level parsed from the listing's own {@code [Lvl N]} name prefix, or -1 if this isn't
@@ -55,5 +63,14 @@ public record AuctionListing(
 
     public boolean hasUltimateEnchant() {
         return ultimateEnchantName != null;
+    }
+
+    /** What the listing actually costs to act on right now: the current highest bid for a bid auction
+     *  that already has one, otherwise the starting bid (which IS the BIN price for a BIN listing, and
+     *  the opening bid for a fresh bid auction with no bids yet). Used for the "Price" sort/display in
+     *  both modes so a bid auction with active bids sorts and shows by what it'd actually cost to win it,
+     *  not its stale opening number. */
+    public long currentPrice() {
+        return highestBid > 0 ? highestBid : startingBid;
     }
 }

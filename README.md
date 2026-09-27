@@ -28,7 +28,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
 
-**Dungeon: Timers, Score & Boss** - Blessings, Blood Camp †, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
+**Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp †, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
 
 **Mining (WIP)** - Crystal Hollows Map, Interactive Crystal Hollows Map, Nucleus Run Profit Tracker, Profit Per Hour Tracker
 
@@ -36,7 +36,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Accounts, Home & Profiles** - Account Switcher, HUD Editor, Menu Memory, Profiles, Proxy Client
 
-**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Kick, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Sell, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
+**Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Croesus, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Sell, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 
 ## Latest dev build
 

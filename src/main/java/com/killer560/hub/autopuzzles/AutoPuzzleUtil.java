@@ -410,6 +410,63 @@ public final class AutoPuzzleUtil {
                 || b instanceof NetherPortalBlock || b instanceof CandleBlock;
     }
 
+    // ------------------------------------------------------------------ Interactive Map pathing (killer560, 2026-09-27)
+
+    /**
+     * Kicks off an Interactive-Map-powered walk to {@code target}, reusing {@code livemap.autoclear.ClearExecutor}
+     * exactly the way "Interactive Map" itself already walks a player into/out of a room
+     * ({@code AutoClearUtils.pathToRoom}/{@code pathToDoor} - same {@code ClearExecutor.etherPath} call). Gated on
+     * Interactive Map being ON (killer560, Auto Boulder: "if you are using interactive map it needs to walk to
+     * this if auto boulder is on") - with it off, {@code ClearExecutor}'s own tick handler cancels any queued path
+     * the very next tick regardless of who queued it, so this declines instead of fighting that.
+     * <p>
+     * {@code onArrive} runs once the walk is server-confirmed complete (same completion callback
+     * {@code AutoClearUtils.pathToDoor}'s "face the door on arrival" uses) - NOT merely once nodes are queued.
+     * @return true once a walk is queued (or the player was already there, which runs {@code onArrive} at once);
+     * false if nothing was started this tick (Interactive Map off, or already pathing) - callers should just try
+     * again on a later tick rather than treat false as a failure.
+     */
+    public static boolean pathIfMapOn(BlockPos target, Runnable onArrive) {
+        if (!com.killer560.hub.livemap.LiveMapConfig.getInstance().isInteractiveMapEnabled()) {
+            return false;
+        }
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            return false;
+        }
+        com.killer560.hub.livemap.autoclear.ClearExecutor.etherPath(target, onArrive);
+        return true;
+    }
+
+    // ------------------------------------------------------------------ chest secrets (killer560, 2026-09-27)
+
+    /**
+     * Nearest CHEST/TRAPPED_CHEST within {@code rangeSq} of the player's eyes, or null. Same block-type scan
+     * {@link com.killer560.hub.cheatutils.SecretAuraFeature} uses, but self-contained: this is for autos (Boulder /
+     * Teleport Maze / Tic Tac Toe / Higher-Lower) that must aura a chest of their own "even if secret aura is off"
+     * (killer560, Auto Boulder). Never depends on Secret Aura being enabled or on its done-tracking.
+     */
+    public static BlockPos nearestChest(Minecraft client, LocalPlayer player, double rangeSq) {
+        Vec3 eye = player.getEyePosition();
+        double range = Math.sqrt(rangeSq);
+        BlockPos min = BlockPos.containing(eye.x - range, eye.y - range, eye.z - range);
+        BlockPos max = BlockPos.containing(eye.x + range, eye.y + range, eye.z + range);
+        BlockPos best = null;
+        double bestDistSq = rangeSq;
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            Block block = client.level.getBlockState(pos).getBlock();
+            if (block != net.minecraft.world.level.block.Blocks.CHEST
+                    && block != net.minecraft.world.level.block.Blocks.TRAPPED_CHEST) {
+                continue;
+            }
+            double distSq = eye.distanceToSqr(Vec3.atCenterOf(pos));
+            if (distSq <= bestDistSq) {
+                bestDistSq = distSq;
+                best = pos.immutable();
+            }
+        }
+        return best;
+    }
+
     // ------------------------------------------------------------------ block interact
 
     /** Claims this client tick's single automated interaction for the puzzle autos.

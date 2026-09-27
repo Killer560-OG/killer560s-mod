@@ -149,8 +149,12 @@ public final class BazaarApi {
 
         SkyblockItemEntry catalogEntry = SkyblockItemRepository.findById(id);
         String displayName = catalogEntry != null ? catalogEntry.name() : titleCase(id);
+        // SkyblockItemStackFactory itself already goes catalog-icon-safe when a pack disabler is detected
+        // (see its own doc) - nothing extra needed here for killer560's pack-disabler ask.
         ItemStack icon = catalogEntry != null ? SkyblockItemStackFactory.build(catalogEntry) : new ItemStack(Items.PAPER);
-        return new BazaarProduct(id, displayName, buy, sell, buyVol, sellVol, icon);
+        String category = catalogEntry != null ? catalogEntry.category() : null;
+        String tier = catalogEntry != null ? catalogEntry.tier() : null;
+        return new BazaarProduct(id, displayName, buy, sell, buyVol, sellVol, category, tier, icon);
     }
 
     private static String titleCase(String raw) {

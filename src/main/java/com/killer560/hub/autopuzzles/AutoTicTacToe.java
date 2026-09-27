@@ -1,7 +1,13 @@
 package com.killer560.hub.autopuzzles;
 
+import com.killer560.hub.livemap.LiveMapFeature;
+import com.killer560.hub.livemap.autoclear.AutoClearUtils;
+import com.killer560.hub.livemap.autoclear.ClearExecutor;
+import com.killer560.hub.puzzlesolvers.PuzzleCoords;
 import com.killer560.hub.puzzlesolvers.TicTacToeSolverConfig;
 import com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature;
+import com.killer560.hub.roomdatabase.RoomEntry;
+import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -9,11 +15,34 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * Auto Tic Tac Toe - port of QUOI {@code TicTacToeSolver.kt}'s {@code auto}: whenever the solver has a best move and
  * it is within reach (eye distance squared &lt;= 30), interact that board cell, at most every 500ms. QUOI re-clicks
  * every 500ms until the board changes; this caps it at 3 attempts per move (safety addition) and never clicks while
  * sneaking or with a screen open.
+ * <p>
+ * killer560, 2026-09-27: "have it pathfind to the room, have it aura the first click for the puzzle, then walk
+ * towards that chest and get close enough to aura it as an option as well. Same secret concept. Then have it walk
+ * back over and do the tictactoe again."
+ * <ul>
+ *   <li>"Pathfind to the room": on a fresh visit, walks (Interactive-Map-gated) to {@code AutoClearUtils}'s own
+ *   "Tic Tac Toe" room spot (relative 11,68,16 - the same spot "Interactive Map" already uses to walk a player
+ *   INTO this room), same one-shot pattern as Auto Water Board's "start area" walk.</li>
+ *   <li>"Aura the first click" is just the existing per-move click logic below, unchanged - it already no-rotate
+ *   interacts every move, first included.</li>
+ *   <li>"Walk towards that chest and get close enough to aura it as an option" ({@link AutoPuzzlesConfig#isTicTacToeAuraChestEnabled()},
+ *   default off): after the FIRST successful placement of a fresh room visit, walks to the nearest secret this
+ *   room's real database entry ({@link RoomEntry#secretCoords}) knows about, auras it if it's a chest (its own
+ *   deliberate interact - never {@code SecretAuraFeature}), then walks back to the room spot above so clicking can
+ *   resume ("walk back over and do the tictactoe again" - nothing further needed for that: the click logic below
+ *   simply keeps going once the trip is over, for as many rounds as the room actually needs).</li>
+ * </ul>
+ * <b>Not implemented</b> - "walk out of the room once it is done": this codebase has no verified doorway/exit
+ * coordinate for the Tic Tac Toe room (unlike Boulder/Teleport Maze, which both have one in
+ * {@code AutoClearUtils.ROOM_OVERRIDES}); inventing one would risk walking into a wall or a void gap, so this was
+ * left out rather than guessed - see the mod-wide honesty rule on puzzle coordinates.
  */
 final class AutoTicTacToe {
 
@@ -22,6 +51,11 @@ final class AutoTicTacToe {
     private static final double REACH_SQ = 30.0;
     private static final long CLICK_GAP_MS = 500L;
     private static final int MAX_ATTEMPTS = 3;
+    private static final double AURA_REACH_SQ = 36.0;
+    private static final long WALK_TIMEOUT_MS = 15_000L;
+    private static final int MAX_AURA_ATTEMPTS = 3;
+    /** AutoClearUtils' own "Tic Tac Toe" room spot - the interior standing spot, not a guess. */
+    private static final int[] ROOM_SPOT_RELATIVE = AutoClearUtils.roomOverride(ROOM);
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Tic Tac Toe", "Tic Tac Toe Solver");
 
@@ -29,6 +63,17 @@ final class AutoTicTacToe {
     private static int attempts = 0;
     private static long lastClickMs = 0L;
     private static boolean wasInRoom = false;
+    private static boolean roomSpotAttempted = false;
+    private static int totalPlaced = 0;
+
+    private enum ChestStage { NONE, WALK_TO_CHEST, AURA, WALK_BACK, DONE }
+
+    private static ChestStage chestStage = ChestStage.NONE;
+    private static BlockPos chestReal = null;
+    private static long chestLegStartMs = 0L;
+    private static int chestAuraAttempts = 0;
+    private static boolean noChestWarned = false;
+    private static boolean chestMapOffWarned = false;
 
     private AutoTicTacToe() {
     }
@@ -51,6 +96,26 @@ final class AutoTicTacToe {
             return;
         }
         wasInRoom = true;
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        if (!roomSpotAttempted && cr != null && client.screen == null) {
+            // Pure navigation, tried once per room visit regardless of solver/GUARD state below - same one-shot
+            // pattern as Auto Water Board's "start area" walk.
+            BlockPos spot = ROOM_SPOT_RELATIVE == null ? null
+                    : PuzzleCoords.real(ROOM_SPOT_RELATIVE[0], ROOM_SPOT_RELATIVE[1], ROOM_SPOT_RELATIVE[2], cr);
+            if (spot == null || AutoPuzzleUtil.at(client.player, spot)) {
+                roomSpotAttempted = true;
+            } else if (AutoPuzzleUtil.pathIfMapOn(spot, null)) {
+                roomSpotAttempted = true;
+                LOGGER.info("[AutoPuzzles] TicTacToe: entered room - etherwarp pathing to the room spot {}", spot);
+            }
+        }
+        if (chestStage != ChestStage.NONE && chestStage != ChestStage.DONE) {
+            tickChest(client, client.player, cr);
+            return; // the click logic below waits its turn until the side trip is over
+        }
+        if (ClearExecutor.isBusy()) {
+            return; // walking (room spot, or our own chest trip's ClearExecutor leg)
+        }
         if (!GUARD.solverOn(TicTacToeSolverConfig.getInstance().isEnabled()) || best == null || !GUARD.fresh()) {
             return;
         }
@@ -79,11 +144,133 @@ final class AutoTicTacToe {
             return;
         }
         LOGGER.info("[AutoPuzzles] TicTacToe: placed at {} (attempt {})", best, attempts);
+        totalPlaced++;
+        if (totalPlaced == 1 && cfg.isTicTacToeAuraChestEnabled()) {
+            chestStage = ChestStage.WALK_TO_CHEST;
+            chestLegStartMs = now;
+            chestAuraAttempts = 0;
+        }
+    }
+
+    // ------------------------------------------------------------------ chest side trip
+
+    private static void tickChest(Minecraft client, LocalPlayer player, int[] cr) {
+        if (client.screen != null) {
+            return;
+        }
+        switch (chestStage) {
+            case WALK_TO_CHEST -> {
+                if (chestReal == null && !findChest(cr)) {
+                    return; // no room identity yet, or gave up (chestStage already moved to DONE)
+                }
+                if (chestStage != ChestStage.WALK_TO_CHEST) {
+                    return; // findChest gave up this tick
+                }
+                walkChestLeg(player, chestReal, ChestStage.AURA, "the chest");
+            }
+            case AURA -> auraChest(client, player);
+            case WALK_BACK -> {
+                BlockPos spot = ROOM_SPOT_RELATIVE == null || cr == null ? null
+                        : PuzzleCoords.real(ROOM_SPOT_RELATIVE[0], ROOM_SPOT_RELATIVE[1], ROOM_SPOT_RELATIVE[2], cr);
+                walkChestLeg(player, spot, ChestStage.DONE, "the room spot");
+            }
+            default -> {
+            }
+        }
+    }
+
+    /** @return false if it isn't resolved yet and the caller should just retry next tick. */
+    private static boolean findChest(int[] cr) {
+        RoomEntry entry = LiveMapFeature.currentRoomEntry();
+        if (entry == null || cr == null) {
+            return false;
+        }
+        List<RoomEntry.Pos> chests = entry.secretCoords == null ? null : entry.secretCoords.chest;
+        if (chests == null || chests.isEmpty()) {
+            if (!noChestWarned) {
+                noChestWarned = true;
+                LOGGER.warn("[AutoPuzzles] TicTacToe: no chest secret coordinates known for this room - skipping the chest trip");
+                ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe: "),
+                        ModChat.bad("no chest position known"), ModChat.text(" for this room."));
+            }
+            chestStage = ChestStage.DONE;
+            return false;
+        }
+        RoomEntry.Pos nearest = chests.get(0);
+        chestReal = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(nearest, cr[0], cr[1], cr[2]);
+        chestLegStartMs = System.currentTimeMillis();
+        return true;
+    }
+
+    private static void walkChestLeg(LocalPlayer player, BlockPos target, ChestStage nextStage, String label) {
+        if (target == null) {
+            chestStage = nextStage;
+            chestLegStartMs = System.currentTimeMillis();
+            return;
+        }
+        if (AutoPuzzleUtil.at(player, target)) {
+            chestMapOffWarned = false;
+            chestStage = nextStage;
+            chestLegStartMs = System.currentTimeMillis();
+            return;
+        }
+        if (ClearExecutor.isBusy()) {
+            return;
+        }
+        if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {
+            LOGGER.warn("[AutoPuzzles] TicTacToe: walk to {} timed out - continuing anyway", label);
+            chestStage = nextStage;
+            chestLegStartMs = System.currentTimeMillis();
+            return;
+        }
+        if (!AutoPuzzleUtil.pathIfMapOn(target, null) && !chestMapOffWarned) {
+            chestMapOffWarned = true;
+            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe needs "), ModChat.value("Interactive Map"),
+                    ModChat.text(" on to walk to " + label + "."));
+        }
+    }
+
+    private static void auraChest(Minecraft client, LocalPlayer player) {
+        if (chestAuraAttempts >= MAX_AURA_ATTEMPTS) {
+            chestStage = ChestStage.WALK_BACK;
+            chestLegStartMs = System.currentTimeMillis();
+            return;
+        }
+        BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
+        if (target == null) {
+            target = chestReal;
+        }
+        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(target));
+        if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
+            chestAuraAttempts++;
+            return;
+        }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
+            return;
+        }
+        chestAuraAttempts++;
+        if (!AutoPuzzleUtil.interactBlock(client, target)) {
+            LOGGER.warn("[AutoPuzzles] TicTacToe: no clickable shape at {} (attempt {}/{})", target, chestAuraAttempts, MAX_AURA_ATTEMPTS);
+            return;
+        }
+        LOGGER.info("[AutoPuzzles] TicTacToe: aura'd chest at {}", target);
+        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: aura'd the "), ModChat.good("secret chest"),
+                ModChat.text("."));
+        chestStage = ChestStage.WALK_BACK;
+        chestLegStartMs = System.currentTimeMillis();
     }
 
     private static void reset() {
         attemptPos = null;
         attempts = 0;
         lastClickMs = 0L;
+        roomSpotAttempted = false;
+        totalPlaced = 0;
+        chestStage = ChestStage.NONE;
+        chestReal = null;
+        chestLegStartMs = 0L;
+        chestAuraAttempts = 0;
+        noChestWarned = false;
+        chestMapOffWarned = false;
     }
 }

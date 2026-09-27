@@ -35,6 +35,14 @@ public final class DetectedMods {
     public static final String QUOI = "quoi";
     public static final String SKYBLOCKER = "skyblocker";
     public static final String SECRET_ROUTES = "secretroutesmod";
+    /** Noamm's real "PackDisabler" mod (its own real {@code fabric.mod.json} description: "a fabric mod to
+     *  remove the official custom skyblock texturepack from hypixel skyblock") - confirmed present in
+     *  killer560's own "26.1.2 (Mod Only Test)" and "26.1.2 (Legit Test)" instances. NOT one of the
+     *  dungeon-party mods above (not in {@link #NAMES}/{@link #presentNames()}, so it never shows in the
+     *  Interop tab's list) - this is the one real, reliably-detectable "pack disabler mod" for killer560's
+     *  item 8.1 ask ("if I am using pack disabler mod... don't use the serverside texturepack for items");
+     *  see {@link com.killer560.hub.itembrowser.SkyblockItemStackFactory} for where this is actually used. */
+    public static final String PACK_DISABLER = "packdisabler";
 
     private static final Map<String, String> NAMES = new LinkedHashMap<>();
 
@@ -82,6 +90,14 @@ public final class DetectedMods {
     public static String describe() {
         List<String> names = presentNames();
         return names.isEmpty() ? "none" : String.join(", ", names);
+    }
+
+    /** True if a mod that strips Hypixel's own server resource pack is installed - see
+     *  {@link #PACK_DISABLER}'s doc. When this is on, anything that builds an item icon should prefer the
+     *  plain vanilla appearance over one tagged with Hypixel's own {@code item_model} override, since that
+     *  override only renders correctly while Hypixel's pack is actually loaded. */
+    public static boolean isPackDisablerActive() {
+        return isLoaded(PACK_DISABLER);
     }
 
     /** killer560 9.1 root-cause for "party finder still doesn't show pb's/custom overlay, just the
