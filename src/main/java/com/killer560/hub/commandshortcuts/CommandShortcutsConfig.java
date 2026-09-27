@@ -17,14 +17,26 @@ import java.util.Locale;
  * Persisted Command Shortcuts settings (killer560's item 8.3: "/f7, /m7, /infernal, every cata and Kuudra
  * tier"). Unlike most toggle sets in this mod, every shortcut here defaults ON - these are pure client-side
  * chat aliases that just re-send the real Hypixel join command (see {@link CommandShortcutsFeature}), they
- * never act in the world, so there is nothing to hide behind an opt-in. The per-shortcut toggles exist purely
- * so a single alias that turns out to collide with another mod's (or a future vanilla) command of the same
- * name can be switched off without losing every other one - see {@link CommandShortcutsFeature} class doc for
- * why turning one off only takes effect the next time the client (re)builds its command dispatcher (i.e. next
- * world join), not instantly.
+ * never act in the world, so there is nothing to hide behind an opt-in.
  * <p>
- * Same {@code EnumMap} + one JSON key per entry pattern as {@code partycommands.PartyCommandsConfig}, so a
- * hand-edited or renamed key only resets that one shortcut instead of the whole file.
+ * <b>2026-09-27 regroup</b> (killer560: "clump them into groups like catacombs/mastermode as one toggle
+ * for each floor. Same for kuudra.") - the settings tab used to show one toggle per
+ * {@link CommandShortcutsFeature.Shortcut} (20 rows total). Now there is one toggle per
+ * {@link CommandShortcutsFeature.Group} instead - each Catacombs floor's toggle (F1-F7) covers BOTH that
+ * floor's normal Catacombs shortcut AND its Master Mode shortcut together (F0 has no Master Mode, so its
+ * group is just itself); Kuudra already had exactly one shortcut per tier, so its grouping is unchanged
+ * in substance, just moved onto the same {@code Group}-keyed storage as everything else. The individual
+ * {@code /f1}, {@code /m1}, etc. commands themselves are untouched - only how they're enabled/displayed
+ * changed; see {@link CommandShortcutsFeature.Group#members()}.
+ * <p>
+ * <b>Migrating old configs.</b> Earlier versions of this file stored one boolean per {@code Shortcut}
+ * under {@code "shortcut.<name>"}. On load, if the new {@code "group.<name>"} key isn't present yet (first
+ * load after this update), that group instead reads its OLD member keys rather than just resetting to the
+ * default-true: a group comes back on only if EVERY one of its old member shortcuts was on - so if
+ * killer560 had deliberately switched off just the Master Mode half of a floor (e.g. a real collision with
+ * another mod), that "off" is honoured for the whole floor instead of silently re-enabling it. A group
+ * with no old keys present at all (a config from before this feature even existed) just gets the default,
+ * same as every other setting in this mod.
  */
 public final class CommandShortcutsConfig {
 
@@ -35,12 +47,12 @@ public final class CommandShortcutsConfig {
     private static CommandShortcutsConfig instance;
 
     private boolean enabled = true;
-    private final EnumMap<CommandShortcutsFeature.Shortcut, Boolean> shortcuts =
-            new EnumMap<>(CommandShortcutsFeature.Shortcut.class);
+    private final EnumMap<CommandShortcutsFeature.Group, Boolean> groups =
+            new EnumMap<>(CommandShortcutsFeature.Group.class);
 
     private CommandShortcutsConfig() {
-        for (CommandShortcutsFeature.Shortcut s : CommandShortcutsFeature.Shortcut.values()) {
-            shortcuts.put(s, true);
+        for (CommandShortcutsFeature.Group g : CommandShortcutsFeature.Group.values()) {
+            groups.put(g, true);
         }
     }
 
@@ -61,11 +73,27 @@ public final class CommandShortcutsConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
-            for (CommandShortcutsFeature.Shortcut s : CommandShortcutsFeature.Shortcut.values()) {
-                cfg.shortcuts.put(s, ConfigJson.getBool(obj, key(s), true));
+            for (CommandShortcutsFeature.Group g : CommandShortcutsFeature.Group.values()) {
+                String groupKey = groupKey(g);
+                if (obj.has(groupKey)) {
+                    cfg.groups.put(g, ConfigJson.getBool(obj, groupKey, true));
+                } else {
+                    // No group key yet - fall back to this group's old per-shortcut keys (see class doc)
+                    // instead of resetting straight to the default.
+                    boolean anyOldKey = false;
+                    boolean allOn = true;
+                    for (CommandShortcutsFeature.Shortcut s : g.members()) {
+                        String oldKey = legacyShortcutKey(s);
+                        if (obj.has(oldKey)) {
+                            anyOldKey = true;
+                            allOn &= ConfigJson.getBool(obj, oldKey, true);
+                        }
+                    }
+                    cfg.groups.put(g, anyOldKey ? allOn : true);
+                }
             }
         } catch (Exception ignored) {
-            // Unreadable file: keep whatever the per-key readers managed, everything else stays at its default.
+            // Unreadable file: keep whatever the per-group readers managed, everything else stays at its default.
         }
         instance = cfg;
     }
@@ -75,15 +103,21 @@ public final class CommandShortcutsConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            for (CommandShortcutsFeature.Shortcut s : CommandShortcutsFeature.Shortcut.values()) {
-                obj.addProperty(key(s), shortcuts.getOrDefault(s, true));
+            for (CommandShortcutsFeature.Group g : CommandShortcutsFeature.Group.values()) {
+                obj.addProperty(groupKey(g), groups.getOrDefault(g, true));
             }
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
-    private static String key(CommandShortcutsFeature.Shortcut s) {
+    private static String groupKey(CommandShortcutsFeature.Group g) {
+        return "group." + g.name().toLowerCase(Locale.US);
+    }
+
+    /** Pre-2026-09-27 config key for an individual shortcut - read once during migration, never written
+     *  again after the first {@link #save()} on the new {@code group.*} keys. */
+    private static String legacyShortcutKey(CommandShortcutsFeature.Shortcut s) {
         return "shortcut." + s.name().toLowerCase(Locale.US);
     }
 
@@ -98,13 +132,20 @@ public final class CommandShortcutsConfig {
         this.enabled = enabled;
     }
 
-    public boolean isOn(CommandShortcutsFeature.Shortcut s) {
-        return s != null && Boolean.TRUE.equals(shortcuts.get(s));
+    public boolean isGroupOn(CommandShortcutsFeature.Group g) {
+        return g != null && Boolean.TRUE.equals(groups.get(g));
     }
 
-    public void setOn(CommandShortcutsFeature.Shortcut s, boolean value) {
-        if (s != null) {
-            shortcuts.put(s, value);
+    public void setGroupOn(CommandShortcutsFeature.Group g, boolean value) {
+        if (g != null) {
+            groups.put(g, value);
         }
+    }
+
+    /** Whether the given shortcut's owning {@link CommandShortcutsFeature.Group} toggle is on - every
+     *  real command still checks this exact method, {@link CommandShortcutsFeature#register()} and
+     *  {@code exec()} are otherwise unchanged by the regroup. */
+    public boolean isOn(CommandShortcutsFeature.Shortcut s) {
+        return isGroupOn(CommandShortcutsFeature.Group.forShortcut(s));
     }
 }

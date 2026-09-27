@@ -11,7 +11,9 @@ import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * killer560's item 8.3: "Command shortcuts: /f7, /m7, /infernal, every cata and Kuudra tier." Client-side
@@ -112,6 +114,65 @@ public final class CommandShortcutsFeature {
 
         public boolean isKuudra() {
             return instanceId.startsWith("kuudra_");
+        }
+    }
+
+    /**
+     * 2026-09-27 regroup (killer560: "clump them into groups like catacombs/mastermode as one toggle for
+     * each floor. Same for kuudra.") - the settings tab used to show one toggle per {@link Shortcut} (20
+     * rows: 8 Catacombs + 7 Master Mode + 5 Kuudra), which made for a very long list. Now there is one
+     * toggle per {@code Group} instead: each Catacombs floor's toggle (F1-F7) covers BOTH that floor's
+     * normal Catacombs shortcut AND its Master Mode shortcut together, since killer560 always wants a
+     * floor's two variants on/off as one unit; F0 has no Master Mode so its group is just itself. Kuudra
+     * already had exactly one shortcut per tier, so grouping it "the same way" just means every tier gets
+     * its own {@code Group} too, on the same storage as everything else - see
+     * {@link CommandShortcutsConfig}. The individual {@code /f1}, {@code /m1}, etc. commands are
+     * untouched - only how they're enabled/displayed changed, {@link #members()} still points at the real
+     * {@link Shortcut}s a group's toggle turns on or off.
+     */
+    public enum Group {
+        CATA_F0("/f0", List.of(Shortcut.F0)),
+        CATA_F1("/f1 + /m1", List.of(Shortcut.F1, Shortcut.M1)),
+        CATA_F2("/f2 + /m2", List.of(Shortcut.F2, Shortcut.M2)),
+        CATA_F3("/f3 + /m3", List.of(Shortcut.F3, Shortcut.M3)),
+        CATA_F4("/f4 + /m4", List.of(Shortcut.F4, Shortcut.M4)),
+        CATA_F5("/f5 + /m5", List.of(Shortcut.F5, Shortcut.M5)),
+        CATA_F6("/f6 + /m6", List.of(Shortcut.F6, Shortcut.M6)),
+        CATA_F7("/f7 + /m7", List.of(Shortcut.F7, Shortcut.M7)),
+        KUUDRA_BASIC("/basic", List.of(Shortcut.KUUDRA_BASIC)),
+        KUUDRA_HOT("/hot", List.of(Shortcut.KUUDRA_HOT)),
+        KUUDRA_BURNING("/burning", List.of(Shortcut.KUUDRA_BURNING)),
+        KUUDRA_FIERY("/fiery", List.of(Shortcut.KUUDRA_FIERY)),
+        KUUDRA_INFERNAL("/infernal", List.of(Shortcut.KUUDRA_INFERNAL));
+
+        public final String label;
+        private final List<Shortcut> members;
+
+        Group(String label, List<Shortcut> members) {
+            this.label = label;
+            this.members = members;
+        }
+
+        /** The real {@link Shortcut}s this one toggle enables/disables together. */
+        public List<Shortcut> members() {
+            return members;
+        }
+
+        /** What the tab shows next to this group's toggle: every member's real {@code /joininstance} line. */
+        public String expandsTo() {
+            return members.stream().map(m -> "/joininstance " + m.instanceId)
+                    .collect(Collectors.joining(", "));
+        }
+
+        /** The one group whose toggle governs the given shortcut - every {@link Shortcut} belongs to
+         *  exactly one group. */
+        public static Group forShortcut(Shortcut s) {
+            for (Group g : values()) {
+                if (g.members.contains(s)) {
+                    return g;
+                }
+            }
+            return null;
         }
     }
 

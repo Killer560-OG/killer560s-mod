@@ -85,11 +85,16 @@ public final class AuctionHouseFeature {
         client.execute(() -> client.setScreenAndShow(new AuctionHouseScreen(client.screen)));
     }
 
+    /**
+     * Straight to Hypixel, BELOW the client dispatcher.
+     * <p>
+     * This used {@code sendCommand}, which Fabric's command API intercepts - so forwarding "ah" was handed back to
+     * the very handler that sent it, 156 frames deep, and the game died with a StackOverflowError. Five crash
+     * reports in killer560's Dungeons instance between 2026-09-25 and 2026-09-26 are all this. See
+     * {@link com.killer560.hub.util.ServerCommands}.
+     */
     private static void forwardToServer(String command) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null && client.player.connection != null) {
-            client.player.connection.sendCommand(command);
-        }
+        com.killer560.hub.util.ServerCommands.toServer(command);
     }
 
     private static void tick(Minecraft client) {

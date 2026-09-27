@@ -24,9 +24,11 @@ import java.util.UUID;
  * literal has no effect on the separate {@code f} literal Hypixel's own {@code /f add}, {@code /f remove},
  * etc. use - this class never touches {@code f} at all, so those keep working exactly as before.
  * <p>
- * Forwarding uses {@code ClientPacketListener.sendCommand}, the same real-command-to-the-server call
- * {@code autojoinskyblock.AutoJoinSkyblockFeature} and {@code commandshortcuts.CommandShortcutsFeature}
- * already use - it is NOT re-typed into the chat box, so it can't loop back through this same client command.
+ * Forwarding goes through {@link com.killer560.hub.util.ServerCommands}, NOT {@code sendCommand}. This comment
+ * used to claim the opposite - "it is NOT re-typed into the chat box, so it can't loop back through this same
+ * client command" - which was right about the chat box and wrong about where the interception happens: Fabric's
+ * command API hooks {@code sendCommand} itself, so forwarding "fl" from here was dispatched straight back into
+ * this handler until the stack ran out. That was the /fl crash (2026-09-27).
  */
 public final class FriendsListCommands {
 
@@ -144,7 +146,10 @@ public final class FriendsListCommands {
             return 0;
         }
         String trimmed = args == null ? "" : args.trim();
-        client.player.connection.sendCommand(trimmed.isEmpty() ? "fl" : "fl " + trimmed);
+        // BELOW the client dispatcher - see ServerCommands. sendCommand is the method Fabric's command API hooks,
+        // so forwarding "fl" from the /fl handler fed it straight back to itself until the stack ran out. This is
+        // killer560's "Investigate the crash whenever I do /fl on my dungeons instance" (2026-09-27).
+        com.killer560.hub.util.ServerCommands.toServer(trimmed.isEmpty() ? "fl" : "fl " + trimmed);
         return 1;
     }
 }

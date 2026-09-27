@@ -141,7 +141,12 @@ public final class DoorKeysFeature {
             return;
         }
         AABB box = currentKey.getBoundingBox().inflate(0.3, 0.3, 0.3);
-        Vec3 eyes = client.player.getEyePosition();
+        // killer560, 2026-09-27: "Door keys tracer line is still jacked up" - it was starting from
+        // client.player.getEyePosition(), which only moves once per game tick and lagged behind the
+        // smoothly-interpolated camera, reading as attached to the player's head instead of the crosshair.
+        // WorldRenderUtils.tracerOrigin() is the camera's own position, nudged forward so the line doesn't
+        // collapse to a dot when looking straight down it - see that method's doc.
+        Vec3 tracerStart = WorldRenderUtils.tracerOrigin();
         // killer560, 2026-09-20: "make it so the wither key tracer goes to some fixed midpoint that is
         // unmoving. Right now it really bugs out." It was aimed at the dropped item's live position, and a
         // dropped item bobs up and down and spins forever - so the far end of the line jittered every frame.
@@ -154,7 +159,7 @@ public final class DoorKeysFeature {
         if (!cfg.isThroughWalls()) {
             WorldRenderUtils.renderOutlineBox(context, box, currentColor[0], currentColor[1], currentColor[2], 1f, 2f);
             if (cfg.isShowTracer()) {
-                WorldRenderUtils.renderLineStrip(context, List.of(eyes, target),
+                WorldRenderUtils.renderLineStrip(context, List.of(tracerStart, target),
                         currentColor[0], currentColor[1], currentColor[2], 1f, thickness);
             }
             return;
@@ -172,7 +177,7 @@ public final class DoorKeysFeature {
         VertexConsumer buffer = buffers.getBuffer(ThroughWalls.LINES);
         lineBox(pose, buffer, box, 2f);
         if (cfg.isShowTracer()) {
-            line(pose, buffer, eyes, target, thickness);
+            line(pose, buffer, tracerStart, target, thickness);
         }
         poseStack.popPose();
     }

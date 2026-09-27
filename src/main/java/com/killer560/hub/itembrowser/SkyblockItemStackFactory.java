@@ -127,7 +127,18 @@ public final class SkyblockItemStackFactory {
             Multimap<String, Property> backing = HashMultimap.create();
             backing.put("textures", new Property("textures", entry.skinValue(), entry.skinSignature()));
             PropertyMap properties = new PropertyMap(backing);
-            GameProfile profile = new GameProfile(UUID.randomUUID(), "SkyblockItem", properties);
+            // The UUID is DERIVED FROM THE TEXTURE, not random. This is killer560's "most of the slots are still
+            // flashing heads" (2026-09-27), and the random UUID was the whole of it: Minecraft caches a resolved
+            // skin against the profile's UUID, so a fresh random one every call meant every single lookup was a
+            // miss - it kicked off another async resolve and drew the Steve fallback while it waited, then did it
+            // again. A head that never stops resolving is a head that never stops flashing.
+            //
+            // Deriving it from the texture blob makes it stable for the life of the item AND across restarts, so
+            // the resolve happens once and the vanilla cache can answer every time after. The BUILD_CACHE above
+            // already stopped the per-frame churn; this stops it being fragile if a build ever misses the cache.
+            GameProfile profile = new GameProfile(
+                    UUID.nameUUIDFromBytes(entry.skinValue().getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                    "SkyblockItem", properties);
             stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
             return stack;
         }

@@ -3,6 +3,7 @@ package com.killer560.hub.util;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -64,6 +65,28 @@ public final class WorldRenderUtils {
         renderLineBox(pose, buffer, box, r, g, b, a, thickness);
 
         poseStack.popPose();
+    }
+
+    /**
+     * Where a player-anchored tracer line should actually start so it reads as leaving the crosshair.
+     * <p>
+     * killer560, 2026-09-27: "Door keys tracer line is still jacked up" / "the wwither tracer ... looks like
+     * it is being drawn to my players head instead of their crosshair" - a line built from
+     * {@code Entity#getEyePosition()} anchors to the PLAYER, which is only repositioned once per game tick,
+     * while the camera itself moves every frame (interpolated, plus anything else that offsets it from the
+     * raw eye position). At any FPS above the tick rate that mismatch reads as the line lagging behind and
+     * swinging from the wrong spot - "attached to the head" - instead of tracking the crosshair.
+     * <p>
+     * Anchoring to the camera's own position fixes that, but a line that starts exactly AT the camera looks
+     * straight down its own length from the viewer's eye and can collapse to a dot at some angles - the same
+     * thing killer560 hit in {@code puzzlesolvers.TeleportMazeSolverFeature} (2026-09-21: "the line ... doesn't
+     * really show up"). So this nudges the origin half a block forward along the camera's own look vector
+     * first, exactly like that fix and {@code routes.WaypointRoutesFeature}'s "Line to Next" line already do -
+     * this is just the shared version of both, for every other tracer to call instead of re-deriving it.
+     */
+    public static Vec3 tracerOrigin() {
+        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        return camera.position().add(Vec3.directionFromRotation(camera.xRot(), camera.yRot()).scale(0.5));
     }
 
     /** Draws a connected line strip through a real sequence of world-space points (e.g. a real puzzle

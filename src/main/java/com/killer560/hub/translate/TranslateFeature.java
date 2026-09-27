@@ -84,6 +84,24 @@ public final class TranslateFeature {
     });
 
     /**
+     * Outgoing messages are SENT in the order he typed them, however long each translation takes.
+     * <p>
+     * killer560 (2026-09-27): "Some part of my mod will also randomly delay a message a few seconds. If i send
+     * another message while that one is delayed then the second one will come through first." This was it, and the
+     * reordering was not a race - it was the design: every message got its own {@code supplyAsync} on a cached
+     * pool and sent itself from its own {@code thenAccept}, so they went out in the order the TRANSLATIONS
+     * finished. One slow API call and everything typed after it overtook it.
+     * <p>
+     * Each message's send is now chained behind the previous message's send, so a slow translation delays only
+     * itself and the ones after it - it can never be overtaken. Translations still run concurrently; it is only
+     * the send that is ordered. Same idiom as {@code bridge.SocketAdapter}'s own {@code sendChain}.
+     * <p>
+     * Touched only on the client thread (both the chat hook and {@code client.execute} bodies run there), so it
+     * needs no lock. {@code exceptionally} is what keeps one failure from wedging the chain for the session.
+     */
+    private static CompletableFuture<Void> sendChain = CompletableFuture.completedFuture(null);
+
+    /**
      * @return true if this call was handled here (the vanilla send must be cancelled), false if
      * the caller should let the vanilla chat-send logic run as normal.
      */
@@ -199,28 +217,39 @@ public final class TranslateFeature {
 
         String targetCode = cfg.getTargetLanguageCode();
         String bodyToTranslate = emoteSplit.body();
-        CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<TranslationResult> translating = CompletableFuture.supplyAsync(() -> {
             try {
                 return translate(bodyToTranslate, targetCode);
             } catch (Exception e) {
                 LOGGER.warn("Translate request failed, sending original message instead", e);
                 return (TranslationResult) null;
             }
-        }, EXECUTOR).thenAccept(result -> client.execute(() -> {
-            if (client.player == null) {
-                return;
-            }
-            String translatedBody = result != null ? result.text() : null;
-            if (translatedBody == null) {
-                ModOverlayMessage.show("§c[Killer560's Mod] Translation failed, sent in English instead", 3000);
-            }
-            // Defensive: never send a blank command payload, even if a provider returns "" for a
-            // 2xx response (observed once for a short input - not root-caused, this just prevents
-            // it turning into a broken "/ac" with no message).
-            String bodyOut = (translatedBody != null && !translatedBody.isBlank()) ? translatedBody : bodyToTranslate;
-            String outgoing = ChatEmoteFeature.join(emoteSplit.prefix(), bodyOut, emoteSplit.suffix());
-            sendFinal(client, finalCommandWord, outgoing);
-        }));
+        }, EXECUTOR);
+        // Wait for BOTH this translation AND every earlier message's send, then send. thenCombine is what makes
+        // the order his, not the network's - see sendChain.
+        sendChain = sendChain
+                .exceptionally(t -> null)
+                .thenCombine(translating, (ignored, result) -> result)
+                .thenAccept(result -> client.execute(() -> {
+                    if (client.player == null) {
+                        return;
+                    }
+                    String translatedBody = result != null ? result.text() : null;
+                    if (translatedBody == null) {
+                        ModOverlayMessage.show("§c[Killer560's Mod] Translation failed, sent in English instead", 3000);
+                    }
+                    // Defensive: never send a blank command payload, even if a provider returns "" for a
+                    // 2xx response (observed once for a short input - not root-caused, this just prevents
+                    // it turning into a broken "/ac" with no message).
+                    String bodyOut = (translatedBody != null && !translatedBody.isBlank())
+                            ? translatedBody : bodyToTranslate;
+                    String outgoing = ChatEmoteFeature.join(emoteSplit.prefix(), bodyOut, emoteSplit.suffix());
+                    sendFinal(client, finalCommandWord, outgoing);
+                }))
+                .exceptionally(t -> {
+                    LOGGER.warn("Outgoing translate send failed", t);
+                    return null;
+                });
     }
 
     private static void sendFinal(Minecraft client, String commandWord, String text) {

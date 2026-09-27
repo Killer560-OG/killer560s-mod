@@ -270,10 +270,9 @@ public final class BazaarScreen extends Screen {
     }
 
     private void orderProduct(BazaarProduct p) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && mc.player.connection != null) {
-            mc.player.connection.sendCommand("bz " + p.displayName());
-        }
+        // "bz" is one of our own client commands, so sendCommand would have handed this back to us rather than to
+        // Hypixel - the same recursion that crashed /ah and /fl. See ServerCommands.
+        com.killer560.hub.util.ServerCommands.toServer("bz " + p.displayName());
     }
 
     private static String shortNumber(long n) {

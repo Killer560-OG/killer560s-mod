@@ -5,6 +5,7 @@ import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.puzzlesolvers.SolverEspRender;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -201,7 +202,10 @@ public final class LividSolverFeature {
         // killer560, 2026-09-20: "add an option to draw a line to the correct livid".
         if (cfg.isShowLine() && client.player != null) {
             Vec3 target = lividEntity.getBoundingBox().getCenter();
-            SolverEspRender.renderLineStrip(context, List.of(client.player.getEyePosition(), target),
+            // WorldRenderUtils.tracerOrigin(), not client.player.getEyePosition() - see that method's doc for
+            // the head-instead-of-crosshair bug killer560 reported on doorkeys/wither ESP's tracers (this one
+            // moves the same way).
+            SolverEspRender.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(), target),
                     c[0], c[1], c[2], 1f, 2f);
         }
     }

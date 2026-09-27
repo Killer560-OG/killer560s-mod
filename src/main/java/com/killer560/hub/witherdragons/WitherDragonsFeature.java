@@ -456,7 +456,9 @@ public final class WitherDragonsFeature {
         if (cfg.isDragonTracer() && p != null && p.state == WitherDragon.State.SPAWNING) {
             float[] c = WorldRenderUtils.argbToFloats(p.argb);
             Vec3 target = new Vec3(p.spawnPos.getX() + 0.5, p.spawnPos.getY() + 0.5, p.spawnPos.getZ() + 0.5);
-            WorldRenderUtils.renderLineStrip(context, List.of(client.player.getEyePosition(), target), c[0], c[1], c[2], 1f, 2f);
+            // WorldRenderUtils.tracerOrigin(), not client.player.getEyePosition() - same head-instead-of-crosshair
+            // bug killer560 reported on doorkeys/wither ESP's tracers (2026-09-27); this one moves the same way.
+            WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(), target), c[0], c[1], c[2], 1f, 2f);
         }
     }
 

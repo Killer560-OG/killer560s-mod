@@ -711,7 +711,7 @@ final class SettingTooltipsData {
         d.put("show when failed", "Also highlights the target when the etherwarp would fail (no room to stand, blocked), using Failed Color. OFF: only spots you can actually warp to are shown.");
         d.put("full block box", "ON: the box covers the whole 1x1x1 block. OFF: it hugs the block's real shape (slabs, stairs, etc.).");
         d.put("slot binds", "Links two slots in your own inventory (E) so shift-clicking either one swaps them. One of the pair must be a hotbar slot. Does nothing in chests or other menus.");
-        d.put("bind key", "Key used to create a bind: in your inventory hover a slot and press it, then hover a second slot and press again. Escape unbinds.");
+        d.put("bind key", "Key used to create or delete a bind: in your inventory hover an unbound slot and press it, then click a second slot to link them. Press it again while hovering an already-bound slot to delete that bind. Escape unbinds the key itself.");
         d.put("remove", "Deletes this slot bind pair.");
         d.put("chat commands", "Auto-replies to !coords, !ping, !fps, !time, !holding, !cf, !8ball and !dice sent by others in the chat channels enabled below. Informational replies only.");
         d.put("party", "Answers ! commands posted in party chat, replying in party chat.");
