@@ -98,16 +98,16 @@ public class ScoreboardEditorScreen extends Screen {
 
         int cy = previewY + previewH + 10;
         addRenderableWidget(cycleBtn(() -> "Text Align: §6" + cfg.getTextAlignment().label,
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()), leftX, cy, leftW));
+                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()), () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), leftX, cy, leftW));
         cy += 22;
         addRenderableWidget(cycleBtn(() -> "Title Align: §6" + cfg.getTitleAlignment().label,
-                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()), leftX, cy, leftW));
+                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()), () -> cfg.setTitleAlignment(cfg.getTitleAlignment().previous()), leftX, cy, leftW));
         cy += 22;
         addRenderableWidget(cycleBtn(() -> "Numbers: §6" + cfg.getNumberFormat().label,
-                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), leftX, cy, leftW));
+                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), leftX, cy, leftW));
         cy += 22;
         addRenderableWidget(cycleBtn(() -> "Number Style: " + cfg.getNumberDisplayFormat().label,
-                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), leftX, cy, leftW));
+                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), leftX, cy, leftW));
         cy += 22;
         addRenderableWidget(SettingsButtonWidget.builder(onOff("Background", cfg.isBackgroundEnabled()), btn -> {
                     cfg.setBackgroundEnabled(!cfg.isBackgroundEnabled());
@@ -512,9 +512,14 @@ public class ScoreboardEditorScreen extends Screen {
 
     // ---- widget helpers ----
 
-    private AbstractWidget cycleBtn(Supplier<String> label, Runnable advance, int x, int y, int w) {
+    private AbstractWidget cycleBtn(Supplier<String> label, Runnable advance, Runnable regress, int x, int y, int w) {
         return SettingsButtonWidget.builder(Component.literal(label.get()), btn -> {
                     advance.run();
+                    cfg.save();
+                    btn.setMessage(Component.literal(label.get()));
+                }).secondaryPress(btn -> {
+                    // killer560, 2026-09-27: "if i right click then it goes back one".
+                    regress.run();
                     cfg.save();
                     btn.setMessage(Component.literal(label.get()));
                 }).bounds(x, y, w, 18).build();

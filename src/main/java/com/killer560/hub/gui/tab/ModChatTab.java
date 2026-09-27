@@ -50,6 +50,10 @@ public class ModChatTab extends BaseTab {
                     cfg.setRoomMode(cfg.getRoomMode().next());
                     cfg.save();
                     btn.setMessage(Component.literal("Room: " + cfg.getRoomMode().label));
+                }).secondaryPress(btn -> {
+                    cfg.setRoomMode(cfg.getRoomMode().previous());
+                    cfg.save();
+                    btn.setMessage(Component.literal("Room: " + cfg.getRoomMode().label));
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 

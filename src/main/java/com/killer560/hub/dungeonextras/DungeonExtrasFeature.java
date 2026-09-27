@@ -16,6 +16,10 @@ public final class DungeonExtrasFeature {
         // Killer560ModClient) because this package already owns its two persisted settings.
         ClientTickEvents.START_CLIENT_TICK.register(com.killer560.hub.util.ActionGate::onClientTick);
         DungeonExtrasConfig.getInstance();
+        // Migrates his old breakerAuraSelected picks into config/killer560smod-breakeraura/default.json (if that
+        // folder has no file yet) before anything ticks, and loads whichever config is active.
+        BreakerAuraStore.getInstance();
+        BreakerAuraCommands.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             MageBeamFeature.onClientTick(client);
             AutoDialogueFeature.onClientTick(client);

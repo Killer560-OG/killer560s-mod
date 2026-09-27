@@ -39,6 +39,10 @@ public final class StorageSearchConfig {
         public SortMode next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public SortMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     /** Which kinds of place are shown in the result list at all. */
@@ -61,6 +65,10 @@ public final class StorageSearchConfig {
 
         public SourceFilter next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public SourceFilter previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 

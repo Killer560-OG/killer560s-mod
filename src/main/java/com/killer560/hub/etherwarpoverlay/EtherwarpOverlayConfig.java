@@ -31,6 +31,11 @@ public final class EtherwarpOverlayConfig {
             Style[] v = values();
             return v[(ordinal() + 1) % v.length];
         }
+
+        public Style previous() {
+            Style[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
+        }
     }
 
     // The exact colours the overlay always drew before it had a colour option (r/g/b 0.2/1.0/0.2 and

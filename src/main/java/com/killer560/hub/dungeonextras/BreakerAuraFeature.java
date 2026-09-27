@@ -212,14 +212,13 @@ public final class BreakerAuraFeature {
         if (client.level.getBlockState(pos).isAir()) {
             return;
         }
-        Set<String> picked = cfg.getBreakerAuraSelected();
+        BreakerAuraStore store = BreakerAuraStore.getInstance();
         String k = key(pos);
-        if (picked.remove(k)) {
-            selectedVersion++;
-            cfg.save();
+        if (store.removePick(k)) {
+            store.save();
             ModChat.send("Breaker Aura", ModChat.text("Unpicked "),
                     ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
-                    ModChat.dim(" (" + picked.size() + " picked)"));
+                    ModChat.dim(" (" + store.pickedKeys().size() + " picked)"));
             return;
         }
         if (!isValidTarget(client.level, pos)) {
@@ -227,12 +226,11 @@ public final class BreakerAuraFeature {
                     ModChat.value(client.level.getBlockState(pos).getBlock().getName().getString()));
             return;
         }
-        picked.add(k);
-        selectedVersion++;
-        cfg.save();
+        store.addPick(k);
+        store.save();
         ModChat.send("Breaker Aura", ModChat.text("Picked "),
                 ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
-                ModChat.dim(" (" + picked.size() + " picked)"));
+                ModChat.dim(" (" + store.pickedKeys().size() + " picked)"));
     }
 
     /**
@@ -282,43 +280,40 @@ public final class BreakerAuraFeature {
     }
 
     // onWorldRender calls selectedBlocks() every frame and the planner calls it every tick, but the picked-block
-    // Set only changes on a pick, an unpick, a clear or a config reload - so re-parsing every "x,y,z" string every
+    // Set only changes on a pick, an unpick, a clear or a config switch - so re-parsing every "x,y,z" string every
     // frame was pure waste (found in the 2026-09-27 FPS pass).
     //
-    // Invalidated on an explicit VERSION counter, bumped at all three mutation sites, plus the Set's identity for a
-    // config reload swapping the instance. It was identity + SIZE, which is almost right and quietly wrong: an
-    // unpick followed by a pick leaves the size where it started, so the stale list would have survived and the
-    // renderer would have drawn the old blocks while the aura broke the new ones. A counter cannot miss that.
-    private static Set<String> selectedBlocksCacheSource;
+    // Invalidated on BreakerAuraStore's own VERSION counter (2026-09-27: picks moved into BreakerAuraStore so
+    // Breaker Aura configs can be swapped "just like the auto routes can swap" - killer560). That counter is
+    // bumped on every load/select/pick/unpick/clear, including a config switch, which never swaps the Set's
+    // identity (the active file is reloaded INTO the same store slot) - so identity alone would have kept this
+    // cache pointed at the OLD config's blocks after switching, exactly the bug a plain identity+size check
+    // already had for an unpick-then-pick within one config (see the 2026-09-27 FPS pass note this replaces).
     private static int selectedBlocksCacheVersion = -1;
-    private static int selectedVersion;
     private static List<BlockPos> selectedBlocksCache = List.of();
 
-    /** Every picked block, for the renderer and the planner. */
+    /** Every picked block IN THE ACTIVE CONFIG, for the renderer and the planner. */
     public static List<BlockPos> selectedBlocks() {
-        Set<String> selected = DungeonExtrasConfig.getInstance().getBreakerAuraSelected();
-        if (selected != selectedBlocksCacheSource || selectedVersion != selectedBlocksCacheVersion) {
+        int v = BreakerAuraStore.version();
+        if (v != selectedBlocksCacheVersion) {
             List<BlockPos> out = new ArrayList<>();
-            for (String k : selected) {
+            for (String k : BreakerAuraStore.getInstance().pickedKeys()) {
                 BlockPos p = parse(k);
                 if (p != null) {
                     out.add(p);
                 }
             }
             selectedBlocksCache = out;
-            selectedBlocksCacheSource = selected;
-            selectedBlocksCacheVersion = selectedVersion;
+            selectedBlocksCacheVersion = v;
         }
         return selectedBlocksCache;
     }
 
-    /** Forget every pick - the tab's button and {@code /breakeraura clear}. */
+    /** Forget every pick in the active config - the tab's button and {@code /breakeraura clear}. */
     public static int clearSelection() {
-        Set<String> picked = DungeonExtrasConfig.getInstance().getBreakerAuraSelected();
-        int n = picked.size();
-        picked.clear();
-        selectedVersion++;
-        DungeonExtrasConfig.getInstance().save();
+        BreakerAuraStore store = BreakerAuraStore.getInstance();
+        int n = store.clear();
+        store.save();
         return n;
     }
 
@@ -364,7 +359,7 @@ public final class BreakerAuraFeature {
     }
 
     private static boolean isPicked(BlockPos pos) {
-        return DungeonExtrasConfig.getInstance().getBreakerAuraSelected().contains(key(pos));
+        return BreakerAuraStore.getInstance().isPicked(key(pos));
     }
 
     static void onClientTick(Minecraft client) {

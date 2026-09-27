@@ -21,7 +21,11 @@ import java.nio.file.Path;
  *  <p>
  *  Removed 2026-09-27 (killer560: "remove the time hud those are things that should be in the splits
  *  section") - the run/no-lag timer and its "show current split" mirror are gone; that belongs to
- *  {@code SplitTimersFeature}'s own HUD now. This class only backs the Secrets HUD. */
+ *  {@code SplitTimersFeature}'s own HUD now. This class only backs the Secrets HUD.
+ *  <p>
+ *  Reworked 2026-09-27 (killer560: "the secret hud should only be in room secrets collected / total
+ *  secrets in the room") - the run-total "Secrets: N (X%)" line is gone and per-room secrets is no longer
+ *  optional (it's the only thing the HUD shows now), so {@code showPerRoomSecrets} is gone with it. */
 public final class DungeonInfoConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -32,10 +36,6 @@ public final class DungeonInfoConfig {
 
     // ---- Secrets HUD ----
     private boolean secretsHudEnabled = false;
-    /** New (2026-09-21, killer560: "the hud for how many secrets I have gotten in a room") - secrets found
-     *  since the player entered the room currently standing in, alongside the existing run total. Off by
-     *  default like every new HUD line here. See {@link DungeonInfoFeature#updateRoomSecrets()}. */
-    private boolean showPerRoomSecrets = false;
 
     private DungeonInfoConfig() {
     }
@@ -57,7 +57,6 @@ public final class DungeonInfoConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DungeonInfoConfig cfg = new DungeonInfoConfig();
             cfg.secretsHudEnabled = ConfigJson.getBool(obj, "secretsHudEnabled", cfg.secretsHudEnabled);
-            cfg.showPerRoomSecrets = ConfigJson.getBool(obj, "showPerRoomSecrets", cfg.showPerRoomSecrets);
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonInfoConfig();
@@ -69,7 +68,6 @@ public final class DungeonInfoConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("secretsHudEnabled", secretsHudEnabled);
-            obj.addProperty("showPerRoomSecrets", showPerRoomSecrets);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -81,13 +79,5 @@ public final class DungeonInfoConfig {
 
     public void setSecretsHudEnabled(boolean secretsHudEnabled) {
         this.secretsHudEnabled = secretsHudEnabled;
-    }
-
-    public boolean isShowPerRoomSecrets() {
-        return showPerRoomSecrets;
-    }
-
-    public void setShowPerRoomSecrets(boolean v) {
-        this.showPerRoomSecrets = v;
     }
 }

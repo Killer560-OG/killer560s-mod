@@ -41,6 +41,11 @@ public final class BestFriendsConfig {
             SortMode[] all = values();
             return all[(ordinal() + 1) % all.length];
         }
+
+        public SortMode previous() {
+            SortMode[] all = values();
+            return all[(all.length + ordinal() - 1) % all.length];
+        }
     }
 
     private static BestFriendsConfig instance;

@@ -77,6 +77,10 @@ public enum ArmourSkin {
         return values()[(ordinal() + 1) % values().length];
     }
 
+    public ArmourSkin previous() {
+        return values()[(values().length + ordinal() - 1) % values().length];
+    }
+
     /** Saved by {@link #name()}; an unknown/renamed constant falls back to {@link #NONE}. */
     public static ArmourSkin byName(String name) {
         if (name == null || name.isBlank()) {

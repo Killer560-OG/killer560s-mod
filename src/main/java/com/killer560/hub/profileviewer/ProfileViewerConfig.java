@@ -39,6 +39,11 @@ public final class ProfileViewerConfig {
             Source[] all = values();
             return all[(ordinal() + 1) % all.length];
         }
+
+        public Source previous() {
+            Source[] all = values();
+            return all[(all.length + ordinal() - 1) % all.length];
+        }
     }
 
     /** One head in the recent-views list. Keyed by {@link #uuid} (killer560's rule: a rename must never

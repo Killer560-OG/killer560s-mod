@@ -47,6 +47,10 @@ public final class RelayRoom {
         public Mode next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public Mode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     /**

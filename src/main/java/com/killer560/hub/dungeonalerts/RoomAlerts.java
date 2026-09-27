@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonalerts;
 
+import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -10,23 +11,37 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.sounds.SoundEvents;
 
-import java.util.Locale;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Room Alerts - alert when you walk into a chosen room, using {@link LiveMapFeature#currentRoomEntry()}
- * (read-only). Presentation copied from NoammAddons (26.1.2 upstream) {@code features/impl/dungeon/RoomAlerts.kt}:
- * centered HUD text (default at 44.4% screen height, meant for scale 2.5), NOTE_BLOCK_PLING vol 0.25 pitch 1,
- * visible for "Display Time" seconds (0.5-3.0, default 2.0), cleared on world change.
- * <p>
- * Trigger differs from Noamm on purpose: Noamm alerts on room STATE changes ("Cleared" / "§aSecrets Done!") from
- * its map scanner; this mod's Live Map has no room clear/secret state, so this alerts on ENTERING a room whose
- * name is in the configured comma-separated list, or (toggle) any PUZZLE-type room from the room database.
+ * Room Alerts - reworked 2026-09-27 (killer560: "Make room alerts only have cleared room alert and secrets
+ * in a room done alert"), replacing the old "walk into a named/puzzle room" trigger entirely. Presentation
+ * still follows NoammAddons (26.1.2 upstream) {@code features/impl/dungeon/RoomAlerts.kt}: centered HUD text
+ * (default at 44.4% screen height, meant for scale 2.5), NOTE_BLOCK_PLING vol 0.25 pitch 1, visible for
+ * "Display Time" seconds (0.5-3.0, default 2.0) - Noamm's own two triggers ("Cleared" / "§aSecrets Done!")
+ * are exactly the two this now alerts on:
+ * <ul>
+ * <li><b>Room Cleared</b> - watches EVERY identified room on the map grid (not just the one you're standing
+ * in) via {@link LiveMapFeature#isRoomCleared(int)}, so a teammate clearing a room elsewhere still alerts
+ * you. Latched per room (grid main-tile index) so it only ever fires once, and cleared on world change.
+ * <li><b>Secrets Done</b> - can only really track the room the player is CURRENTLY standing in: the only
+ * secrets-found signal this mod has is a single tab-list run-total ({@link DungeonInfoFeature#roomSecretsFound()}),
+ * with no per-room breakdown, so which room a given secret came from is only known while you're in it (the
+ * same limitation the Secrets HUD's own per-room line already accepts). Fires once per room, comparing the
+ * found count against {@link RoomEntry#secrets} (that room's known total from the room database).
+ * </ul>
  */
 final class RoomAlerts {
 
-    private static RoomEntry lastRoom = null;
     private static String alertText = "";
     private static long alertUntilMs = 0L;
+
+    /** Room-cleared alerts already fired this run, keyed by identified-room main-tile index. */
+    private static final Set<Integer> clearedAlerted = new HashSet<>();
+    /** Secrets-done alerts already fired this run, keyed by {@link RoomEntry} identity (LiveMap keeps one
+     *  instance per grid slot, so this is a stable per-room key without needing an index). */
+    private static final Set<RoomEntry> secretsAlerted = new HashSet<>();
 
     private RoomAlerts() {
     }
@@ -36,50 +51,59 @@ final class RoomAlerts {
     }
 
     static void onWorldChange() {
-        lastRoom = null;
         alertUntilMs = 0L;
+        clearedAlerted.clear();
+        secretsAlerted.clear();
     }
 
     private static void tick() {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
         if (!cfg.roomAlertsEnabled || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
-            lastRoom = null;
             return;
         }
-        RoomEntry room = LiveMapFeature.currentRoomEntry();
-        if (room == lastRoom) {
-            return;
+        if (cfg.roomAlertsRoomCleared) {
+            tickRoomCleared(cfg);
         }
-        RoomEntry previous = lastRoom;
-        lastRoom = room;
-        if (room == null || room.name == null || previous != null && room.name.equals(previous.name)) {
-            return;
+        if (cfg.roomAlertsSecretsDone) {
+            tickSecretsDone(cfg);
         }
-        if (!matches(cfg, room)) {
-            return;
-        }
-        DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Room alert: entered \"{}\" (type={})", room.name, room.type);
-        if (cfg.roomAlertsTitle) {
-            alertText = room.name;
-            alertUntilMs = System.currentTimeMillis() + Math.round(cfg.roomAlertsDisplaySeconds * 1000.0);
-        }
-        if (cfg.roomAlertsChat) {
-            ModChat.send("Room Alerts", ModChat.text("Entered "), ModChat.value(room.name));
-        }
-        DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.25f, 1f);
     }
 
-    private static boolean matches(DungeonAlertsConfig cfg, RoomEntry room) {
-        if (cfg.roomAlertsPuzzles && "PUZZLE".equalsIgnoreCase(room.type)) {
-            return true;
-        }
-        String target = room.name.trim().toLowerCase(Locale.US);
-        for (String part : cfg.roomAlertsNames.split(",")) {
-            if (!part.isBlank() && part.trim().toLowerCase(Locale.US).equals(target)) {
-                return true;
+    private static void tickRoomCleared(DungeonAlertsConfig cfg) {
+        for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
+            int idx = room[0];
+            if (clearedAlerted.contains(idx) || !LiveMapFeature.isRoomCleared(idx)) {
+                continue;
             }
+            clearedAlerted.add(idx);
+            RoomEntry entry = LiveMapFeature.roomEntryAt(idx);
+            String name = entry != null && entry.name != null ? entry.name : "Room";
+            DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Room Cleared alert: \"{}\"", name);
+            fireAlert(cfg, name + " Cleared!");
         }
-        return false;
+    }
+
+    private static void tickSecretsDone(DungeonAlertsConfig cfg) {
+        RoomEntry entry = LiveMapFeature.currentRoomEntry();
+        if (entry == null || entry.secrets <= 0 || secretsAlerted.contains(entry)) {
+            return;
+        }
+        int found = DungeonInfoFeature.roomSecretsFound();
+        if (found < entry.secrets) {
+            return;
+        }
+        secretsAlerted.add(entry);
+        String name = entry.name != null ? entry.name : "Room";
+        DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Secrets Done alert: \"{}\" ({}/{})", name, found, entry.secrets);
+        fireAlert(cfg, name + " Secrets Done!");
+    }
+
+    private static void fireAlert(DungeonAlertsConfig cfg, String text) {
+        if (cfg.roomAlertsTitle) {
+            alertText = text;
+            alertUntilMs = System.currentTimeMillis() + Math.round(cfg.roomAlertsDisplaySeconds * 1000.0);
+        }
+        DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.25f, 1f);
     }
 
     static final HudElement HUD = new HudElement() {
@@ -105,7 +129,8 @@ final class RoomAlerts {
 
         @Override
         public int width() {
-            return 100;
+            // Wider than the old named-room text ("Water Board") to fit "<room> Secrets Done!"/"<room> Cleared!".
+            return 160;
         }
 
         @Override
@@ -124,7 +149,7 @@ final class RoomAlerts {
             if (!example && (!DungeonAlertsConfig.getInstance().roomAlertsEnabled || System.currentTimeMillis() >= alertUntilMs)) {
                 return;
             }
-            String text = example ? "Water Board" : alertText;
+            String text = example ? "Water Board Cleared!" : alertText;
             graphics.centeredText(Minecraft.getInstance().font, text, x + width() / 2, y + 1, 0xFF000000 | ModChat.LIGHT_ORANGE);
         }
     };

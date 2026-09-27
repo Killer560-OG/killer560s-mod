@@ -70,6 +70,10 @@ public class ScoreCalculatorTab extends BaseTab {
                     cfg.setPaulMode(cfg.getPaulMode().next());
                     cfg.save();
                     btn.setMessage(paulLabel(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setPaulMode(cfg.getPaulMode().previous());
+                    cfg.save();
+                    btn.setMessage(paulLabel(cfg));
                 }).bounds(contentX, y, colW, 18).build());
         widgets.add(toggle("Assume Spirit Pet", cfg.isAssumeSpiritPet(), v -> cfg.setAssumeSpiritPet(v), cfg, col2X, y, colW));
         y += 28;

@@ -105,6 +105,24 @@ public final class DungeonLayout {
                 case DOOR_WITHER -> DOOR_WITHER;
                 case DOOR_BLOOD -> DOOR_BLOOD;
                 case DOOR_ENTRANCE -> DOOR_ENTRANCE;
+                // killer560, 2026-09-27: "it does not draw the wither door on the fairy room door if it is
+                // the first door in the run and it should." The cell right next to the Entrance is
+                // deliberately refused a room union in rebuildGroups() ("Never next to the Entrance -
+                // NoammAddons turns that gap into an entrance door"), so when the world scan's own roof-
+                // height/block read couldn't tell that gap apart from a plain connector, classifyDoor()
+                // never ran on it at all and it was left classified Tile.ROOM by scan() forever - nothing
+                // downstream ever reconsidered it, so it fell straight to DOOR_NONE below and never drew.
+                // This cell only reaches this switch once the loop above has confirmed no room group ever
+                // claimed it (roomOf[idx] < 0), so a Tile.ROOM here is already known to be an orphaned
+                // connector, not a real room tile - safe to trust the vanilla map's own door byte instead,
+                // exactly like the DOOR_NORMAL case above already does for a plain misread.
+                case ROOM -> switch (mapDoor) {
+                    case DOOR_WITHER -> DOOR_WITHER;
+                    case DOOR_BLOOD -> DOOR_BLOOD;
+                    case DOOR_ENTRANCE -> DOOR_ENTRANCE;
+                    case DOOR_NORMAL -> DOOR_NORMAL;
+                    default -> DOOR_NONE;
+                };
                 default -> DOOR_NONE;
             };
             layout.doorType[idx] = type;

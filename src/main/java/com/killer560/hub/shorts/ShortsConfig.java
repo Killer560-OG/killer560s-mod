@@ -42,6 +42,11 @@ public final class ShortsConfig {
             Anchor[] v = values();
             return v[(ordinal() + 1) % v.length];
         }
+
+        public Anchor previous() {
+            Anchor[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
+        }
     }
 
     /** Page colour scheme the Shorts window is asked to use (2026-09-16, killer560: "make an option for dark or
@@ -61,6 +66,11 @@ public final class ShortsConfig {
         public Theme next() {
             Theme[] v = values();
             return v[(ordinal() + 1) % v.length];
+        }
+
+        public Theme previous() {
+            Theme[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
         }
     }
 
@@ -98,6 +108,11 @@ public final class ShortsConfig {
             Site[] v = values();
             return v[(ordinal() + 1) % v.length];
         }
+
+        public Site previous() {
+            Site[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
+        }
     }
 
     /** How the window is positioned (2026-09-21 expansion). ANCHORED is the original, sole behaviour -
@@ -117,6 +132,11 @@ public final class ShortsConfig {
         public PlacementMode next() {
             PlacementMode[] v = values();
             return v[(ordinal() + 1) % v.length];
+        }
+
+        public PlacementMode previous() {
+            PlacementMode[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
         }
     }
 

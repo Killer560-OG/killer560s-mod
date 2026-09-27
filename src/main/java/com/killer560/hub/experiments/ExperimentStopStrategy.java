@@ -21,4 +21,9 @@ public enum ExperimentStopStrategy {
         ExperimentStopStrategy[] vals = values();
         return vals[(this.ordinal() + 1) % vals.length];
     }
+
+    public ExperimentStopStrategy previous() {
+        ExperimentStopStrategy[] vals = values();
+        return vals[(vals.length + this.ordinal() - 1) % vals.length];
+    }
 }

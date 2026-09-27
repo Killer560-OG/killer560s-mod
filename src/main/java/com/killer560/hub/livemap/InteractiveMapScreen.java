@@ -3,6 +3,7 @@ package com.killer560.hub.livemap;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
+import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import com.killer560.hub.secretwaypoints.SecretWaypointsFeature;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;

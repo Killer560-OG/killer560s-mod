@@ -628,6 +628,48 @@ public final class ScoreCalculatorFeature {
         return DungeonState.isInDungeon() ? lastResult : null;
     }
 
+    // ---- read-only accessors for the Dungeon Map's "Extra Info" panel (killer560, 2026-09-27) ----
+    // The map never re-derives mimic/prince/bat state or the score formula itself - it only reads what this
+    // class already tracks, exactly like this class's own HUD (buildLines above) does.
+
+    public static boolean isMimicKilled() {
+        return DungeonState.isInDungeon() && mimicKilled;
+    }
+
+    public static boolean isPrinceKilled() {
+        return DungeonState.isInDungeon() && princeKilled;
+    }
+
+    public static boolean isBatKilled() {
+        return DungeonState.isInDungeon() && batKilled;
+    }
+
+    public static int getCrypts() {
+        return DungeonState.isInDungeon() ? crypts : 0;
+    }
+
+    /**
+     * Same "S+ Secrets" readout {@link #buildLines} shows on this feature's own HUD, exposed for the Dungeon
+     * Map's Extra Info panel so it reuses this run's live estimate instead of re-deriving the formula -
+     * {@link ScoreCalculator#calculate} already assumes every room/puzzle ends up done (room score maxed,
+     * skill only docked for deaths/failed puzzles already taken) while keeping the CURRENT bonus/speed as
+     * they stand, which is exactly "assuming the current amount of crypts/status of the other things, not
+     * that they are done but as is" (killer560, 2026-09-27).
+     */
+    public static String secretsNeededSummary() {
+        ScoreCalculator.Result r = currentResult();
+        if (r == null || r.secretsNeeded() < 0) {
+            return "?";
+        }
+        if (r.secretsNeeded() == Integer.MAX_VALUE) {
+            return "not reachable";
+        }
+        if (r.secretsRemaining() <= 0) {
+            return "done (" + secretsFound + "/" + r.secretsNeeded() + ")";
+        }
+        return r.secretsRemaining() + " more (" + secretsFound + "/" + r.secretsNeeded() + ")";
+    }
+
     private static int parseInt(String s, int def) {
         if (s == null) {
             return def;

@@ -99,20 +99,20 @@ public class CustomScoreboardTab extends BaseTab {
         y += 22;
 
         widgets.add(cycle(() -> "Text Align: §6" + cfg.getTextAlignment().label,
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()), cfg, x, y, colW));
+                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()), () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), cfg, x, y, colW));
         widgets.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, cfg, colBX, y, colW));
         y += 22;
 
         widgets.add(cycle(() -> "Title Align: §6" + cfg.getTitleAlignment().label,
-                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()), cfg, x, y, colW));
+                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()), () -> cfg.setTitleAlignment(cfg.getTitleAlignment().previous()), cfg, x, y, colW));
         widgets.add(cycle(() -> "Footer Align: §6" + cfg.getFooterAlignment().label,
-                () -> cfg.setFooterAlignment(cfg.getFooterAlignment().next()), cfg, colBX, y, colW));
+                () -> cfg.setFooterAlignment(cfg.getFooterAlignment().next()), () -> cfg.setFooterAlignment(cfg.getFooterAlignment().previous()), cfg, colBX, y, colW));
         y += 22;
 
         widgets.add(cycle(() -> "Snap X: §6" + cfg.getHorizontalSnap().label,
-                () -> cfg.setHorizontalSnap(cfg.getHorizontalSnap().next()), cfg, x, y, colW));
+                () -> cfg.setHorizontalSnap(cfg.getHorizontalSnap().next()), () -> cfg.setHorizontalSnap(cfg.getHorizontalSnap().previous()), cfg, x, y, colW));
         widgets.add(cycle(() -> "Snap Y: §6" + cfg.getVerticalSnap().label,
-                () -> cfg.setVerticalSnap(cfg.getVerticalSnap().next()), cfg, colBX, y, colW));
+                () -> cfg.setVerticalSnap(cfg.getVerticalSnap().next()), () -> cfg.setVerticalSnap(cfg.getVerticalSnap().previous()), cfg, colBX, y, colW));
         y += 22;
 
         widgets.add(slider(x, y, colW, cfg.getLineSpacing(), 0, 10, v -> "Line Spacing: " + v, cfg::setLineSpacing, cfg));
@@ -121,9 +121,9 @@ public class CustomScoreboardTab extends BaseTab {
         y += 22;
 
         widgets.add(cycle(() -> "Numbers: §6" + cfg.getNumberFormat().label,
-                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), cfg, x, y, colW));
+                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), cfg, x, y, colW));
         widgets.add(cycle(() -> "Number Style: " + cfg.getNumberDisplayFormat().label,
-                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), cfg, colBX, y, colW));
+                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), cfg, colBX, y, colW));
         y += 22;
 
         widgets.add(toggle("Hide Empty Lines", cfg::isHideEmptyLines, cfg::setHideEmptyLines, cfg, x, y, colW));
@@ -143,7 +143,7 @@ public class CustomScoreboardTab extends BaseTab {
         y += 22;
 
         widgets.add(cycle(() -> "Outside Skyblock: §6" + cfg.getOutsideSkyblockMode().label,
-                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()), cfg, x, y, colW));
+                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()), () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().previous()), cfg, x, y, colW));
         widgets.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, cfg, colBX, y, colW));
         y += 22;
 
@@ -157,7 +157,7 @@ public class CustomScoreboardTab extends BaseTab {
 
         widgets.add(toggle("Date In Lobby Code", cfg::isDateInLobbyCode, cfg::setDateInLobbyCode, cfg, x, y, colW));
         widgets.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
-                () -> cfg.setDateFormat(cfg.getDateFormat().next()), cfg, colBX, y, colW));
+                () -> cfg.setDateFormat(cfg.getDateFormat().next()), () -> cfg.setDateFormat(cfg.getDateFormat().previous()), cfg, colBX, y, colW));
         y += 22;
 
         widgets.add(toggle("Exact SkyBlock Minutes", cfg::isTimeExactMinutes, cfg::setTimeExactMinutes, cfg, x, y, colW));
@@ -226,7 +226,7 @@ public class CustomScoreboardTab extends BaseTab {
         y += 22;
 
         widgets.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
-                () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()), cfg, x, y, colW));
+                () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()), () -> cfg.setArrowDisplay(cfg.getArrowDisplay().previous()), cfg, x, y, colW));
         widgets.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, cfg, colBX, y, colW));
         y += 22;
 
@@ -236,7 +236,7 @@ public class CustomScoreboardTab extends BaseTab {
 
         widgets.add(toggle("Unclaimed Bits", cfg::isShowUnclaimedBits, cfg::setShowUnclaimedBits, cfg, x, y, colW));
         widgets.add(cycle(() -> "Powder Display: §6" + cfg.getPowderDisplay().label,
-                () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()), cfg, colBX, y, colW));
+                () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()), () -> cfg.setPowderDisplay(cfg.getPowderDisplay().previous()), cfg, colBX, y, colW));
         y += 22;
 
         widgets.add(toggle("Perkpocalypse Mayor", cfg::isShowJerryMayor, cfg::setShowJerryMayor, cfg, x, y, colW));
@@ -378,10 +378,15 @@ public class CustomScoreboardTab extends BaseTab {
                 }).bounds(x, y, w, 18).build();
     }
 
-    private static AbstractWidget cycle(java.util.function.Supplier<String> label, Runnable advance, CustomScoreboardConfig cfg,
-                                        int x, int y, int w) {
+    private static AbstractWidget cycle(java.util.function.Supplier<String> label, Runnable advance, Runnable regress,
+                                        CustomScoreboardConfig cfg, int x, int y, int w) {
         return SettingsButtonWidget.builder(Component.literal(label.get()), btn -> {
                     advance.run();
+                    cfg.save();
+                    btn.setMessage(Component.literal(label.get()));
+                }).secondaryPress(btn -> {
+                    // killer560, 2026-09-27: "if i right click then it goes back one".
+                    regress.run();
                     cfg.save();
                     btn.setMessage(Component.literal(label.get()));
                 }).bounds(x, y, w, 18).build();

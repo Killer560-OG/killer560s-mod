@@ -93,6 +93,11 @@ public final class LiveMapConfig {
     /** 0 Off, 1 Holding Leap, 2 Always. */
     private int playerNames = 0;
     private float iconScale = 1f;
+    /** killer560, 2026-09-27: "for the extra info it needs to show things like bat, mimic, prince. Also it
+     *  needs to tell me s+ secrets ..." - the Interactive Map legend's own readout of what
+     *  {@code ScoreCalculatorFeature} already tracks for the run. Default ON like Mark Reported Rooms - it
+     *  only ever adds information, never changes what's drawn. */
+    private boolean showExtraInfo = true;
 
     // ---- Teleport pathing (cheat) ----
     private boolean pathingEnabled = false;
@@ -181,6 +186,7 @@ public final class LiveMapConfig {
                 cfg.classBorderColour = ConfigJson.getBool(obj, "classBorderColour", false);
                 cfg.setPlayerNames(ConfigJson.getInt(obj, "playerNames", 0));
                 cfg.setIconScale(ConfigJson.getFloat(obj, "iconScale", 1f));
+                cfg.showExtraInfo = ConfigJson.getBool(obj, "showExtraInfo", true);
 
                 cfg.pathingEnabled = ConfigJson.getBool(obj, "pathingEnabled", false);
                 cfg.startKeyCode = ConfigJson.getInt(obj, "startKeyCode", -1);
@@ -256,6 +262,7 @@ public final class LiveMapConfig {
             obj.addProperty("classBorderColour", classBorderColour);
             obj.addProperty("playerNames", playerNames);
             obj.addProperty("iconScale", iconScale);
+            obj.addProperty("showExtraInfo", showExtraInfo);
 
             obj.addProperty("pathingEnabled", pathingEnabled);
             obj.addProperty("startKeyCode", startKeyCode);
@@ -663,6 +670,14 @@ public final class LiveMapConfig {
 
     public void setIconScale(float v) {
         this.iconScale = clamp(v, 0.5f, 3f);
+    }
+
+    public boolean isShowExtraInfo() {
+        return showExtraInfo;
+    }
+
+    public void setShowExtraInfo(boolean v) {
+        this.showExtraInfo = v;
     }
 
     // ---------------------------------------------------------------- teleport pathing (cheat)

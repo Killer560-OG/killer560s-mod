@@ -92,6 +92,10 @@ public final class BazaarScreen extends Screen {
                     cfg.setLastBazaarSort(cfg.getLastBazaarSort().next());
                     cfg.save();
                     btn.setMessage(sortLabel(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setLastBazaarSort(cfg.getLastBazaarSort().previous());
+                    cfg.save();
+                    btn.setMessage(sortLabel(cfg));
                 }).bounds(panelX + 8, y, panelW - 16, 16).build());
         y += 22;
 

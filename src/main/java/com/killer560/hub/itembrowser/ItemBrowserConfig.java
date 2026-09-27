@@ -33,6 +33,10 @@ public final class ItemBrowserConfig {
         public HorizontalAlign next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public HorizontalAlign previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

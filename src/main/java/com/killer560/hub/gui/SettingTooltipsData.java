@@ -341,7 +341,7 @@ final class SettingTooltipsData {
         d.put("key", "Key this entry uses. Click, then press a key; Escape clears it.");
         d.put("duration", "How long this lasts. Ability Timers: countdown length (+5s per click, wraps at 300s). Custom Mage Beam: Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer's countdown right now so you can check how it looks on the HUD.");
-        d.put("secrets hud", "Shows your team's Secrets Found count and percentage (read from the tab list) while in a dungeon. Move it in the HUD editor.");
+        d.put("secrets hud", "Shows secrets found in the room you're standing in over that room's total secrets, while in a dungeon. Move it in the HUD editor.");
         d.put("mimic killed msg", "Sends the message below to party chat when the Mimic dies (F6/F7, outside the boss). Once per run.");
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when Hypixel says 'A Prince falls. +1 Bonus Score'. Dungeons only, once per run.");
@@ -494,7 +494,6 @@ final class SettingTooltipsData {
         d.put("show/hide", "Keybind that shows or hides the Shorts window. Works in-game only (no screen open); press Esc while binding to clear.");
         d.put("play/pause", "Keybind that plays or pauses the current Short. Works in-game only (no screen open); press Esc while binding to clear.");
         d.put("shadow assassin alert", "Shows a 'Shadow Assassin!' title and plays a sound when a Shadow Assassin teleports behind you in dungeons (skipped in F2/F3 boss).");
-        d.put("party chat alert", "Also sends 'Shadow Assassin!' in party chat whenever the Shadow Assassin alert fires.");
         d.put("secret sound", "Plays a sound when you collect a dungeon secret: chest, lever, wither essence, redstone key, secret item pickup or bat kill.");
         d.put("sound", "Which sound Secret Sound plays (Experience Orb, Note Pling, Level Up, Anvil Land, and more). Click to cycle.");
         d.put("play sound", "Plays the selected secret sound once at the current volume and pitch so you can preview it.");
@@ -510,9 +509,7 @@ final class SettingTooltipsData {
         d.put("buff ended alert", "Shows a 'Ragnarock Ended' title when the 10s Ragnarock buff runs out.");
         d.put("m7 dragon alert", "In M7/F7 P5, shows 'rag' and plays a pling tune when the Wither King's last line appears, cueing a rag cast. Skipped for Tank and Healer.");
         d.put("class colors", "Colors dungeon teammates by their class (Mage, Archer, Berserk, Tank, Healer) in the tab list and/or on nametags.");
-        d.put("room alerts", "Plays a pling, and optionally shows text or a chat line, when you walk into a dungeon room you listed below (or any puzzle room). Uses the Live Map's room detection, so Live Map or a room-based solver must also be ON.");
-        d.put("all puzzle rooms", "Also alerts when you enter any puzzle room, on top of the room names listed below.");
-        d.put("room names", "Type the dungeon room names to alert on, separated by commas (e.g. Water Board, Trinity). Not case sensitive.");
+        d.put("room alerts", "Plays a pling, and optionally shows on-screen text, when a room is cleared or when all its secrets are found. Uses the Live Map's room detection, so Live Map or a room-based solver must also be ON.");
         d.put("name changer", "Changes how player names look on your screen (chat, name tags, tab list, scoreboard, lore). Client-side only; nothing sent to the server changes.");
         d.put("change my name", "Replaces your own IGN everywhere it is drawn with the display name typed below.");
         d.put("randomize others", "Gives every other player you see a stable fake name for this session. Your own name and custom renames take priority.");
@@ -1051,6 +1048,7 @@ final class SettingTooltipsData {
 
         // ---- Live Map / Interactive Map ----
         d.put("interactive map", "Cheat build only. Full-screen dungeon map you open with a key: click a room to etherwarp to it or start its secret route, hover for secrets and crypts, right-click for waypoints.");
+        d.put("extra info", "Adds an Extra Info section to the Interactive Map's legend: Crypts, whether the Bat/Mimic/Prince bonus kills are done yet, and how many more secrets you need for S+ from here (Score Calculator's own live estimate, assuming every room ends up cleared). Needs Score Calculator enabled to show numbers.");
         d.put("open from hud click", "Lets you click the small HUD map (with chat open) to open the full Interactive Map.");
         d.put("map scale", "Size of the full Interactive Map, 1-10.");
         d.put("font scale", "Size of the text drawn on the Interactive Map, 0.5x to 3x.");
@@ -1083,8 +1081,7 @@ final class SettingTooltipsData {
         d.put("auto tic tac toe", "Cheat build only. Shoots the best Tic Tac Toe square on your turn. Needs the Tic Tac Toe solver on.");
         d.put("auto teleport maze", "Cheat build only. Walks the Teleport Maze pads towards the exit. Needs the Teleport Maze solver on.");
         d.put("auto ice fill", "Cheat build only. Walks the Ice Fill path for you. Needs the Ice Fill solver on.");
-        d.put("shoot cooldown", "Cheat build only. Minimum wait between bow shots for the bow puzzles (Blaze, Creeper Beams, Ice Path).");
-        d.put("miss cooldown", "Cheat build only. Extra wait after a shot that did not land before the bow autos try again.");
+        d.put("shoot cooldown", "Cheat build only. Minimum wait between bow shots for the bow puzzles (Blaze, Creeper Beams, Ice Path) - the only pacing between shots now, hit or miss.");
         d.put("boulder click delay", "Cheat build only. Wait between Auto Boulder's clicks.");
         d.put("ice fill delay", "Cheat build only. Wait in ticks between Auto Ice Fill's movement steps.");
         d.put("etherwarp reposition", "Cheat build only. AOTV-warps you onto each puzzle's standing spot before the auto starts, instead of expecting you to walk there.");
@@ -1106,8 +1103,8 @@ final class SettingTooltipsData {
 
         // ---- small solvers ----
         d.put("tic tac toe solver", "Tic Tac Toe dungeon puzzle: reads the board and outlines the best square in green on your turn, so you can't lose. Never clicks for you.");
-        d.put("architect's first draft/click message on puzzle fail", "When a dungeon puzzle is failed (\"PUZZLE FAIL! ...\"), posts a line in your chat you can click to get an Architect's First Draft from your sack (/gfs architect_first_draft 1). You still click it yourself. Off by default.");
-        d.put("architect's first draft/auto get from sack", "Cheat build only. When the PUZZLE FAIL line names YOU, gets an Architect's First Draft from your sack straight away. Off by default.");
+        d.put("architect's first draft/click message on puzzle fail", "When a dungeon puzzle is failed (the puzzle's own fail line - e.g. \"PUZZLE FAIL! ...\", or Quiz's Oruo announcing a wrong answer), posts a line in your chat you can click to get an Architect's First Draft from your sack (/gfs architect_first_draft 1). You still click it yourself. Off by default.");
+        d.put("architect's first draft/auto get from sack", "Cheat build only. When the puzzle's fail line names YOU, gets an Architect's First Draft from your sack straight away. Off by default.");
         d.put("secret waypoints/show names", "Writes each secret's name (Chest, Item, Bat, Wither Essence, Redstone Key) above its waypoint, in the waypoint's colour. Off by default.");
         d.put("adaptive ice fill", "Cheat build only. Instead of a fixed delay, each Auto Ice Fill hop waits until the server has counted the tile you are standing on (it turns to packed ice), then goes at once - so server lag can never make it skip a tile and fail. Replaces Ice Fill Delay while on.");
         d.put("scan all", "Opens every Ender Chest page and backpack, then every wardrobe and pet page, one at a time, and closes each once its contents arrive - so Storage Search remembers all of them. Island chests are not included (they are remembered whenever you open them). Opening or closing a menu yourself stops it.");
@@ -1265,13 +1262,12 @@ final class SettingTooltipsData {
         d.put("mage reduction", "Shortens cooldowns by the Mage class reduction while you are playing Mage in a dungeon. Off by default.");
         d.put("unique class", "You are the only Mage in the party, so the base reduction is 50% instead of 25%.");
         d.put("mage class level", "Your Mage class level, used for the extra 1% reduction per 2 levels. Nothing reads it from tab yet, so set it here.");
-        d.put("lag display", "Shows how long ago the last server tick arrived, plus ping, FPS and a click counter, in one movable HUD element (element: Lag Display in the HUD editor). Pairs well with the terminal click threshold - click when the server is answering.");
-        d.put("server lag", "Shows 'zzz for N.NNs' once the server has gone quiet for longer than the Lag Threshold. Recovery can register up to a second late, so a spike never reads shorter than it was.");
-        d.put("lag threshold", "How long the server has to go silent before the lag line appears. Devonian's default is 300ms. Needs a server that pings every tick (Hypixel does) - stays hidden otherwise.");
+        d.put("performance hud", "Shows TPS, ping, FPS and a click counter, in one movable HUD element (element: Performance HUD in the HUD editor). Pairs well with the terminal click threshold - click when the server is answering.");
+        d.put("tps", "Server ticks per second, from the same real tick timing the '!tps' chat command uses - capped at 20, reads '-' while the server isn't pinging steadily enough to trust.");
         d.put("ping", "Shows your own ping from the tab list, coloured green under 50ms up to red over 200ms.");
         d.put("fps", "Shows your current frames per second.");
         d.put("cps counter", "Shows your left and right clicks per second over the last second. Sampled once per frame, so a click can be missed at very low FPS.");
-        d.put("colour by value", "Colours the lag, ping and FPS numbers by how good they are instead of drawing them white.");
+        d.put("colour by value", "Colours the TPS, ping and FPS numbers by how good they are instead of drawing them white.");
 
         // P3 Nav
         d.put("p3 nav/gate highlight", "Boxes the Phase 3 section gate you're heading for. The box disappears the moment the gate is actually destroyed.");
@@ -1353,8 +1349,9 @@ final class SettingTooltipsData {
         d.put("door helpers/key", "Cheat build only. Keybind that starts Look At Door. Click, then press a key; Escape clears it. With no key set, only On Key Pickup can trigger it.");
         d.put("door helpers/speed", "Cheat build only. How fast Look At Door turns your camera, 1 (slow, most human-looking) to 10 (fast). Each turn also adds a little random variation.");
         d.put("door keys/show tracer", "Draws a line from your eyes to the highlighted key.");
-        d.put("dungeon alerts/chat message", "Also posts 'Entered <room name>' in your own chat (only you see it) when a room alert fires.");
-        d.put("dungeon alerts/on-screen text", "Shows the room name as centred orange text on screen when a room alert fires. Move or resize it in the HUD editor.");
+        d.put("dungeon alerts/room cleared", "Alerts when a room's objective (kill/puzzle) is cleared, for every identified room on the map - not just the one you're standing in.");
+        d.put("dungeon alerts/secrets done", "Alerts once every secret in a room is found. Can only track the room you're standing in when the last one is found - there's no per-room breakdown to check other rooms with.");
+        d.put("dungeon alerts/on-screen text", "Shows the room name and which alert fired as centred orange text on screen. Move or resize it in the HUD editor.");
         d.put("dungeon alerts/display time", "How long the room alert's on-screen text stays up, 0.5-3.0 seconds.");
         d.put("dungeon breaker/zero ping", "Cheat build only. While you hold a Dungeon Breaker with charges left, the block you start mining disappears on your screen instantly instead of after the server confirms it. The server still decides whether it really broke.");
         d.put("secrets/score/timing/trigger", "The exact in-game event that sends the message on this row. Each alert sends at most once per run, and only inside a dungeon.");
@@ -1655,6 +1652,9 @@ final class SettingTooltipsData {
         d.put("breaker aura/pause in edit mode", "Cheat build only. Breaker Aura stops swinging while Auto Routes' edit mode is active, so placing route nodes next to blocks doesn't get them broken.");
         d.put("breaker aura/swap delay", "Cheat build only. Ticks Breaker Aura waits after swapping to the Dungeon Breaker before it swings, so the server has time to see the slot change.");
         d.put("breaker aura/swap back after", "Cheat build only. Idle ticks with nothing left to break before Auto Swap switches your hotbar back to what you were holding.");
+        d.put("breaker aura/choose breaker aura config", "Cheat build only. Which picked-blocks config is active, from the killer560smod-breakeraura folder. Opens a list of every config in the folder to switch to or delete, and a box to create a new empty one. The choice is remembered.");
+        d.put("breaker aura/open breaker aura folder", "Opens the killer560smod-breakeraura folder that holds every picked-blocks config file, so you can copy one out or paste a friend's in, then Choose Breaker Aura Config or Reload Breaker Aura Picks.");
+        d.put("breaker aura/reload breaker aura picks", "Re-reads the active config's file from disk without restarting. Chat says how many blocks loaded, or names the file if it failed to parse. Same as /breakeraura reload.");
         d.put("auto chocolate factory/min delay", "Cheat build only. Shortest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Raising it past Max Delay pushes Max Delay up.");
         d.put("auto chocolate factory/max delay", "Cheat build only. Longest random wait between Auto Chocolate Factory clicks, 50-1500 ms. Lowering it below Min Delay pulls Min Delay down.");
         d.put("auto gfs/dungeons & kuudra only", "Only sends /gfs while you're in a real Catacombs dungeon or fighting Kuudra. Off by default, so Auto GFS can refill sacks anywhere else in Skyblock too.");
@@ -1778,8 +1778,7 @@ final class SettingTooltipsData {
         d.put("party commands/tps", "!tps replies with the server's tick rate, or \"Unknown\" when this client can't tell (the server isn't pinging fast enough to measure it).");
         d.put("party commands/location", "!location replies with your current Skyblock area, read from the tab list.");
         d.put("party commands/discord", "!odin / !od (Odin's own triggers, kept for parity) and !killer560 / !k560 (this mod's own) reply with this mod's Discord invite link.");
-        d.put("secrets hud/secrets hud", "Shows secrets found this run (read from the tab list) as a small movable HUD. Only draws while you're inside a dungeon.");
-        d.put("secrets hud/per-room secrets", "Adds a second HUD line showing secrets found since you walked into the room you're currently standing in. Needs Live Map to have identified that room first.");
+        d.put("secrets hud/secrets hud", "Shows secrets found in the room you're standing in over that room's total secrets, as a small movable HUD. Only draws while you're inside a dungeon; needs Live Map to have identified the room.");
         d.put("score calculator/bonus kill alerts", "Party-chat messages sent when you personally get credit for a mimic, prince or bat bonus-score kill. Each sends at most once per run and never if a party mate's mod already announced the same kill.");
         d.put("score calculator/send 270 now", "Sends the 270 party message immediately, regardless of your current score. Does not affect the automatic 270 alert above.");
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, regardless of your current score. Does not affect the automatic 300 alert above.");

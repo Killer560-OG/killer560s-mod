@@ -157,6 +157,10 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                     cfg.setMessageDetail(cfg.getMessageDetail().next());
                     cfg.save();
                     btn.setMessage(messageDetailText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setMessageDetail(cfg.getMessageDetail().previous());
+                    cfg.save();
+                    btn.setMessage(messageDetailText(cfg));
                 }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), ROW).build());
         y[0] += ROW + GAP;
 

@@ -418,7 +418,7 @@ public final class AutoRoutesFeature {
         boolean startOnly = cfg.isStartFromStartNodeOnly() || mapArrivalGuard;
         RouteNode inside = null;
         for (RouteNode node : route.nodesInPathOrder()) {
-            if (startOnly && node.type != RouteNode.Type.START) {
+            if (startOnly && !node.start) {
                 continue;
             }
             if (node.contains(RouteCoords.toReal(frame, node.relativePos()), height, playerBox)) {
@@ -451,7 +451,7 @@ public final class AutoRoutesFeature {
             return;
         }
         latchedNode = inside;
-        if (inside.type == RouteNode.Type.START) {
+        if (inside.start) {
             mapArrivalGuard = false;
         }
         RouteExecutor.start(route, frame, inside);

@@ -14,4 +14,9 @@ public enum DvdContentType {
         DvdContentType[] vals = values();
         return vals[(this.ordinal() + 1) % vals.length];
     }
+
+    public DvdContentType previous() {
+        DvdContentType[] vals = values();
+        return vals[(vals.length + this.ordinal() - 1) % vals.length];
+    }
 }

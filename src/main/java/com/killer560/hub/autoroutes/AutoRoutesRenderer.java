@@ -78,8 +78,10 @@ public final class AutoRoutesRenderer {
                 // 1-based, same as /ar list and /ar delete - the number on the label has to be the number
                 // you can type (2026-09-16 review).
                 int index = route.indexOf(node) + 1;
+                // node.modifierTag() appends " [start]" / " [await ...]" - the same tag /ar list shows, so a
+                // node carrying either modifier reads the same in the world as it does in chat.
                 renderLabel(ctx, camera, real.x, real.y + height + 0.35, real.z,
-                        "#" + index + " " + node.type.label(), argb | 0xFF000000);
+                        "#" + index + " " + node.type.label() + node.modifierTag(), argb | 0xFF000000);
             }
         }
         if (chain.size() >= 2) {

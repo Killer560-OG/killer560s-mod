@@ -14,16 +14,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Lag Display settings ({@code killer560smod-lagdisplay.json}). Ships OFF; reads go through
+ * Persisted Performance HUD settings ({@code killer560smod-lagdisplay.json} - filename kept from the old
+ * "Lag Display" name so nobody's saved position/scale is lost by the rename). Ships OFF; reads go through
  * {@link ConfigJson} per key, and every GUI change calls {@link #save()} at the call site.
  *
+ * <p>Renamed from "Lag Display" to "Performance HUD" (killer560, 2026-09-27) and its "server lag" ("zzz for
+ * N.NNs") line replaced with a real TPS readout - see {@link com.killer560.hub.lagdisplay.LagDisplayFeature}
+ * for the TPS math. The Lag Threshold slider that used to gate the old lag line is gone with it (nothing
+ * left to threshold-gate).
+ *
  * <p><b>Skyblock gate:</b> deliberately NOT applied here. Devonian gates its own {@code LagDisplay} on
- * {@code Location.stateInSkyblock}, but ping / FPS / CPS / "last tick was N ms ago" are plain client and
- * network readouts that are just as useful on p3sim, on a test server or in a lobby, and none of them
- * reads or reacts to anything Skyblock-specific. The drawn element is still covered by
- * {@code HudInGameRenderer}'s own {@code SkyblockGate.allows()} check, so with "Skyblock Only" on it
- * stops drawing outside Skyblock/p3sim anyway - the difference is only that the setting itself stays
- * honest about what the player turned on.
+ * {@code Location.stateInSkyblock}, but ping / TPS / FPS / CPS are plain client and network readouts that
+ * are just as useful on p3sim, on a test server or in a lobby, and none of them reads or reacts to anything
+ * Skyblock-specific. The drawn element is still covered by {@code HudInGameRenderer}'s own
+ * {@code SkyblockGate.allows()} check, so with "Skyblock Only" on it stops drawing outside Skyblock/p3sim
+ * anyway - the difference is only that the setting itself stays honest about what the player turned on.
  */
 public final class LagDisplayConfig {
 
@@ -32,16 +37,10 @@ public final class LagDisplayConfig {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-lagdisplay.json");
 
-    /** Devonian's own slider range for the "server has not responded for this long" threshold
-     *  ({@code misc/LagDisplay.kt}: {@code addSlider("thresh", 300.0, 50.0, 1000.0)}). */
-    public static final int MIN_LAG_THRESHOLD_MS = 50;
-    public static final int MAX_LAG_THRESHOLD_MS = 1000;
-
     private static LagDisplayConfig instance;
 
     private boolean enabled = false;
-    private boolean showLag = true;
-    private int lagThresholdMs = 300;
+    private boolean showTps = true;
     private boolean showPing = true;
     private boolean showFps = true;
     private boolean showCps = false;
@@ -64,8 +63,7 @@ public final class LagDisplayConfig {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(root, "enabled", cfg.enabled);
-                cfg.showLag = ConfigJson.getBool(root, "showLag", cfg.showLag);
-                cfg.lagThresholdMs = clampThreshold(ConfigJson.getInt(root, "lagThresholdMs", cfg.lagThresholdMs));
+                cfg.showTps = ConfigJson.getBool(root, "showTps", cfg.showTps);
                 cfg.showPing = ConfigJson.getBool(root, "showPing", cfg.showPing);
                 cfg.showFps = ConfigJson.getBool(root, "showFps", cfg.showFps);
                 cfg.showCps = ConfigJson.getBool(root, "showCps", cfg.showCps);
@@ -80,17 +78,12 @@ public final class LagDisplayConfig {
         instance = cfg;
     }
 
-    private static int clampThreshold(int v) {
-        return Math.max(MIN_LAG_THRESHOLD_MS, Math.min(MAX_LAG_THRESHOLD_MS, v));
-    }
-
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject root = new JsonObject();
             root.addProperty("enabled", enabled);
-            root.addProperty("showLag", showLag);
-            root.addProperty("lagThresholdMs", lagThresholdMs);
+            root.addProperty("showTps", showTps);
             root.addProperty("showPing", showPing);
             root.addProperty("showFps", showFps);
             root.addProperty("showCps", showCps);
@@ -109,20 +102,12 @@ public final class LagDisplayConfig {
         enabled = v;
     }
 
-    public boolean isShowLag() {
-        return showLag;
+    public boolean isShowTps() {
+        return showTps;
     }
 
-    public void setShowLag(boolean v) {
-        showLag = v;
-    }
-
-    public int getLagThresholdMs() {
-        return lagThresholdMs;
-    }
-
-    public void setLagThresholdMs(int v) {
-        lagThresholdMs = clampThreshold(v);
+    public void setShowTps(boolean v) {
+        showTps = v;
     }
 
     public boolean isShowPing() {

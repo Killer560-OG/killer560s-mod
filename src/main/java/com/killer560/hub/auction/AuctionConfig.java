@@ -40,6 +40,11 @@ public final class AuctionConfig {
             SortMode[] all = values();
             return all[(ordinal() + 1) % all.length];
         }
+
+        public SortMode previous() {
+            SortMode[] all = values();
+            return all[(all.length + ordinal() - 1) % all.length];
+        }
     }
 
     /** Sort order for the Bazaar browser - see {@code BazaarScreen}. */
@@ -58,6 +63,11 @@ public final class AuctionConfig {
         public BazaarSortMode next() {
             BazaarSortMode[] all = values();
             return all[(ordinal() + 1) % all.length];
+        }
+
+        public BazaarSortMode previous() {
+            BazaarSortMode[] all = values();
+            return all[(all.length + ordinal() - 1) % all.length];
         }
     }
 

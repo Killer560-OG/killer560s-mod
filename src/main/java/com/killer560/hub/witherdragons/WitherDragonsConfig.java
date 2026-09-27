@@ -31,6 +31,10 @@ public final class WitherDragonsConfig {
         public TimerStyle next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public TimerStyle previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     public enum TitleMode {
@@ -43,6 +47,10 @@ public final class WitherDragonsConfig {
 
         public TitleMode next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public TitleMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -57,6 +65,10 @@ public final class WitherDragonsConfig {
         public NameStyle next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public NameStyle previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     /** Odin "Purple Solo Debuff": the class that solo-debuffs purple; the other one helps Berserk/Mage. */
@@ -70,6 +82,10 @@ public final class WitherDragonsConfig {
 
         public SoloDebuff next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public SoloDebuff previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -90,6 +106,10 @@ public final class WitherDragonsConfig {
 
         public ClassOverride next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public ClassOverride previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 

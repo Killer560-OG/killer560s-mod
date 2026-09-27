@@ -32,11 +32,17 @@ import java.util.Map;
  * { "version": 1,
  *   "routes": {
  *     "Room Name": {
- *       "nodes": [ { "type": "ETHERWARP", "x": 12.5, "y": 69.0, "z": 4.5, "yaw": 90.0, "pitch": 45.0, "at": 37, ... } ],
+ *       "nodes": [ { "type": "ETHERWARP", "x": 12.5, "y": 69.0, "z": 4.5, "yaw": 90.0, "pitch": 45.0, "at": 37,
+ *                    "start": true, "awaitEnabled": true, "await": "SECRET", "amount": 2, ... } ],
  *       "pathNote": "recorded movement - edit the nodes above, not this",
  *       "path": "x y z yaw pitch keys ground;..."   (one line, see RoutePath.encode)
  *     } } }
  * </pre>
+ * {@code start} / {@code awaitEnabled}+{@code await}+{@code amount} are the {@code /ar add <type> [start]
+ * [await:<n>]} modifiers (any node type may carry either, both, or neither) - see {@link RouteNode}. An OLDER
+ * file's {@code "type": "START"} / {@code "AWAIT"} nodes still load: {@link #migrateLegacyMarkers} folds them
+ * onto these fields on the node that plays right after them instead of dropping them.
+ * <p>
  * Loading is defensive because this file is meant to be handed around: node/sample counts and string lengths are
  * capped, NaN/infinite/absurd coordinates are dropped, a malformed node is skipped (the rest of the room loads), and
  * a file whose parse fails is copied aside as {@code killer560smod-autoroutes.broken.json (plus a timestamped sibling for any later, different corruption)} and never saved
@@ -109,6 +115,11 @@ public final class RouteStore {
     public static void load() {
         RouteStore store = new RouteStore();
         Path file = routesFile();
+        // Total legacy START/AWAIT nodes folded onto modifiers across every route (see migrateLegacyMarkers) -
+        // if any file's routes actually changed shape, the file itself is resaved once below so the next load
+        // (and the next friend it's shared with) reads the new schema straight away instead of re-migrating
+        // every single time.
+        int migratedTotal = 0;
         if (Files.exists(file)) {
             try {
                 JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -126,6 +137,7 @@ public final class RouteStore {
                         }
                         try {
                             Route route = readRoute(name, routeObj);
+                            migratedTotal += migrateLegacyMarkers(route);
                             if (!route.isEmpty()) {
                                 store.routes.put(name, route);
                             }
@@ -135,6 +147,11 @@ public final class RouteStore {
                     }
                 }
                 LOGGER.info("[AutoRoutes] Loaded {} route(s) from {}", store.routes.size(), FILE_NAME);
+                if (migratedTotal > 0) {
+                    LOGGER.info("[AutoRoutes] Migrated {} legacy start/await node(s) to modifiers - resaving {}",
+                            migratedTotal, FILE_NAME);
+                    store.save();
+                }
             } catch (Exception e) {
                 store.parseFailed = true;
                 store.routes.clear();
@@ -264,6 +281,69 @@ public final class RouteStore {
         return route;
     }
 
+    /**
+     * Folds an old routes file's {@code START} / {@code AWAIT} nodes onto the modifier fields of a real node,
+     * per the redesign: "start should not be a node ... /ar add etherwarp start await:2" (killer560). Per
+     * {@link RouteExecutor#tickAction}, a {@code START} node already played back exactly like a {@code WALK}
+     * node (a no-op pass-through), and an {@code AWAIT} node blocked playback until its condition was met and
+     * THEN let the next node run - so folding either one onto "whichever node plays right after it" preserves
+     * exactly what the old file did, just without the marker taking up a slot of its own.
+     * <p>
+     * Two markers recorded back-to-back (same {@code pathIndex} - e.g. an await added the instant recording
+     * started, right after the automatic start node) fold onto the SAME following real node, which is exactly
+     * the combined {@code start await:<n>} syntax the new command produces. A marker with nothing real after it
+     * (the route's last node, or a route that is nothing but markers) keeps its own position instead and just
+     * becomes a {@code WALK} node carrying the flag - never dropped.
+     * @return how many legacy nodes this route had (0 when there was nothing to migrate, so the caller can
+     * decide whether the file needs resaving).
+     */
+    private static int migrateLegacyMarkers(Route route) {
+        List<RouteNode> ordered = route.nodesInPathOrder();
+        RouteNode keptStartNode = null;
+        int migrated = 0;
+        for (int i = 0; i < ordered.size(); i++) {
+            RouteNode marker = ordered.get(i);
+            RouteNode.Type kind = marker.type;
+            if (kind != RouteNode.Type.START && kind != RouteNode.Type.AWAIT) {
+                continue;
+            }
+            migrated++;
+            RouteNode target = null;
+            for (int j = i + 1; j < ordered.size(); j++) {
+                RouteNode candidate = ordered.get(j);
+                if (candidate.type != RouteNode.Type.START && candidate.type != RouteNode.Type.AWAIT) {
+                    target = candidate;
+                    break;
+                }
+            }
+            if (target == null) {
+                // Nothing real follows it - keep its own spot, just retyped (see the method doc: this is
+                // exactly what a lone START node already behaved like).
+                marker.type = RouteNode.Type.WALK;
+                target = marker;
+            } else {
+                route.nodes().remove(marker);
+            }
+            if (kind == RouteNode.Type.START) {
+                if (keptStartNode != null) {
+                    // More than one legacy START in a hand-edited file - Route#startNode() only ever
+                    // recognised one anyway, so keep the one that plays latest, same as before.
+                    keptStartNode.start = false;
+                }
+                target.start = true;
+                keptStartNode = target;
+            } else {
+                target.awaitEnabled = true;
+                target.awaitCondition = marker.awaitCondition;
+                target.awaitAmount = marker.awaitAmount;
+            }
+        }
+        if (migrated > 0) {
+            LOGGER.info("[AutoRoutes] \"{}\": migrated {} legacy start/await node(s) to modifiers", route.roomName(), migrated);
+        }
+        return migrated;
+    }
+
     private static RouteNode readNode(JsonObject o) {
         RouteNode.Type type = RouteNode.Type.parse(ConfigJson.getString(o, "type", null));
         if (type == null) {
@@ -286,6 +366,8 @@ public final class RouteStore {
         }
         n.item = cleanString(ConfigJson.getString(o, "item", null), MAX_ITEM_ID);
         n.command = cleanString(ConfigJson.getString(o, "command", null), MAX_COMMAND);
+        n.start = ConfigJson.getBool(o, "start", false);
+        n.awaitEnabled = ConfigJson.getBool(o, "awaitEnabled", false);
         n.awaitCondition = ConfigJson.getEnum(o, "await", RouteNode.AwaitCondition.class, RouteNode.AwaitCondition.SECRET);
         n.awaitAmount = Math.max(0, Math.min(600_000, ConfigJson.getInt(o, "amount", 1)));
         JsonArray blocks = ConfigJson.getArray(o, "blocks");
@@ -340,6 +422,16 @@ public final class RouteStore {
         if (n.colour != null) {
             o.addProperty("colour", String.format(Locale.ROOT, "#%08X", n.colour));
         }
+        // Modifiers (killer560's redesign - see RouteNode's start/awaitEnabled fields): apply to any node type,
+        // so they're written outside the type switch below, sparse like radius/colour just above.
+        if (n.start) {
+            o.addProperty("start", true);
+        }
+        if (n.awaitEnabled) {
+            o.addProperty("awaitEnabled", true);
+            o.addProperty("await", n.awaitCondition.name());
+            o.addProperty("amount", n.awaitAmount);
+        }
         switch (n.type) {
             case USE_ITEM -> o.addProperty("item", n.item == null ? "" : n.item);
             case DUNGEON_BREAKER -> {
@@ -348,10 +440,6 @@ public final class RouteStore {
                     blocks.add(b.getX() + " " + b.getY() + " " + b.getZ());
                 }
                 o.add("blocks", blocks);
-            }
-            case AWAIT -> {
-                o.addProperty("await", n.awaitCondition.name());
-                o.addProperty("amount", n.awaitAmount);
             }
             case COMMAND -> o.addProperty("command", n.command == null ? "" : n.command);
             default -> {

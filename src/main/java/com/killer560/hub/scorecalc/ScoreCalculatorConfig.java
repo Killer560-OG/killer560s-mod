@@ -41,6 +41,10 @@ public final class ScoreCalculatorConfig {
         public PaulMode next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public PaulMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     private static ScoreCalculatorConfig instance;

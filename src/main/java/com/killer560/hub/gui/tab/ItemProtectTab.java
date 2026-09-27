@@ -108,6 +108,10 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         cfg.setLockStyle(cfg.getLockStyle().next());
                         cfg.save();
                         btn.setMessage(Component.literal("Marker: §b" + cfg.getLockStyle().label));
+                    }).secondaryPress(btn -> {
+                        cfg.setLockStyle(cfg.getLockStyle().previous());
+                        cfg.save();
+                        btn.setMessage(Component.literal("Marker: §b" + cfg.getLockStyle().label));
                     }).bounds(col2, y, half, 18).build());
             y += 22;
 

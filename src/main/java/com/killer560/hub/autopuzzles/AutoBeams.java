@@ -20,10 +20,14 @@ import java.util.List;
  * {@link BeamsSolverFeature} lit-pair scan. Standing on the centre platform (y == 75), it picks the first lit pair and
  * shoots its first lantern, then its second, with the held shortbow. Progress comes from the elder guardian hurt
  * sound at the lantern (pitch 1.3968254 = first hit, 2.0 = pair done - QUOI's exact values, via
- * {@code PuzzlePacketMixin}); a shot with no sound is retried after the Miss cooldown. The shot aims at the lantern's
- * etherwarp-visible face point (falls back to its centre). If the creeper is between the player and the lantern it
- * (with "Etherwarp Reposition" on) moves to the first platform spot with a clear line; the same toggle also warps onto
- * the platform when off it. After 4 solved pairs it stops and releases sneak.
+ * {@code PuzzlePacketMixin}). The shot aims at the lantern's etherwarp-visible face point (falls back to its
+ * centre). If the creeper is between the player and the lantern it (with "Etherwarp Reposition" on) moves to the
+ * first platform spot with a clear line; the same toggle also warps onto the platform when off it. After 4 solved
+ * pairs it stops and releases sneak.
+ * <p>
+ * Miss cooldown removed (killer560, 2026-09-27: "For auto puzzles remove the miss cooldown."): it used to hold
+ * every shot for an extra {@code missCooldownMs} on top of the Shoot cooldown whenever the hurt sound hadn't
+ * arrived yet, in case that shot missed. Now every shot is paced by the Shoot cooldown alone, hit or miss.
  */
 public final class AutoBeams {
 
@@ -51,7 +55,6 @@ public final class AutoBeams {
 
     private static LanternPair activePair = null;
     private static long lastShotTime = 0L;
-    private static boolean waitingForUpdate = false;
     private static int solvedPairs = 0;
     private static int lastPairCount = -1;
     private static boolean wasInRoom = false;
@@ -80,11 +83,9 @@ public final class AutoBeams {
         }
         if (pair.stage == 0 && packet.getPitch() == 1.3968254f) {
             pair.stage = 1;
-            waitingForUpdate = false;
             LOGGER.info("[AutoPuzzles] Beams: first lantern {} hit", pair.first);
         } else if (pair.stage == 1 && packet.getPitch() == 2.0f) {
             pair.stage = 2;
-            waitingForUpdate = false;
             activePair = null;
             LOGGER.info("[AutoPuzzles] Beams: pair {} -> {} done", pair.first, pair.second);
         }
@@ -112,7 +113,6 @@ public final class AutoBeams {
         // QUOI recalculateLanternPairs: drop the active pair once its first lantern is no longer lit.
         if (activePair != null && !containsFirst(pairs, activePair.first)) {
             activePair = null;
-            waitingForUpdate = false;
         }
         if (lastPairCount >= 0 && pairs.size() < lastPairCount && ++solvedPairs == 4) {
             LOGGER.info("[AutoPuzzles] Beams: 4 pairs solved - done");
@@ -169,13 +169,6 @@ public final class AutoBeams {
         }
 
         long now = System.currentTimeMillis();
-        if (waitingForUpdate) {
-            if (now - lastShotTime > cfg.getMissCooldownMs()) {
-                waitingForUpdate = false;
-            } else {
-                return;
-            }
-        }
         if (!AutoPuzzleUtil.isShortbow(player.getMainHandItem()) || now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
         }
@@ -184,11 +177,10 @@ public final class AutoBeams {
             dir = AutoPuzzleUtil.direction(player.getEyePosition(), lanternVec);
         }
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
-            return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
+            return; // gate held this tick back - no shot, so lastShotTime must not move
         }
         LOGGER.info("[AutoPuzzles] Beams: shot lantern {} (stage {}) yaw={} pitch={}", lantern, pair.stage, dir[0], dir[1]);
         lastShotTime = now;
-        waitingForUpdate = true;
     }
 
     private static boolean containsFirst(List<BlockPos[]> pairs, BlockPos first) {
@@ -221,7 +213,6 @@ public final class AutoBeams {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         activePair = null;
-        waitingForUpdate = false;
         lastShotTime = -1L;
         solvedPairs = 0;
         lastPairCount = -1;

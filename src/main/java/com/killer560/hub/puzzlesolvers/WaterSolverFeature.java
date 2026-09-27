@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.core.BlockPos;
@@ -377,7 +378,12 @@ public final class WaterSolverFeature {
                     leverBox = shape.bounds().move(firstPos);
                 }
             }
-            SolverEspRender.renderWaypoint(context, leverBox, 0.3f, 1.0f, 0.5f, 3f);
+            // killer560, 2026-09-27: "make it so the hitbox is yellow just like the timer text until it is
+            // actually time to click it then it turns green" - same §e/§a colours the floating countdown label
+            // already uses (see labelFor/isReadyNow below), not a separately-picked yellow.
+            int timeInTicks = Math.round(flat.get(0).getValue().floatValue() * 20f);
+            float[] boxColor = isReadyNow(timeInTicks) ? textColor(ChatFormatting.GREEN) : textColor(ChatFormatting.YELLOW);
+            SolverEspRender.renderWaypoint(context, leverBox, boxColor[0], boxColor[1], boxColor[2], 3f);
             if (flat.size() > 1) {
                 LeverBlock second = flat.get(1).getKey();
                 BlockPos secondPos = leverRealPos(second);
@@ -404,11 +410,36 @@ public final class WaterSolverFeature {
     }
 
     private static String labelFor(int timeInTicks) {
+        if (isReadyNow(timeInTicks)) {
+            return "§a§lCLICK ME!";
+        }
         if (openedWaterTick == -1) {
-            return timeInTicks == 0 ? "§a§lCLICK ME!" : String.format(Locale.US, "§e%.1fs", timeInTicks / 20f);
+            return String.format(Locale.US, "§e%.1fs", timeInTicks / 20f);
         }
         long remaining = openedWaterTick + timeInTicks - tickCounter;
-        return remaining > 0 ? String.format(Locale.US, "§e%.1fs", remaining / 20f) : "§a§lCLICK ME!";
+        return String.format(Locale.US, "§e%.1fs", remaining / 20f);
+    }
+
+    /** Same "is it actually time to click this" check the countdown label uses, shared with the tracer box's
+     *  colour so both flip from waiting to ready at the exact same instant. */
+    private static boolean isReadyNow(int timeInTicks) {
+        if (openedWaterTick == -1) {
+            return timeInTicks == 0;
+        }
+        long remaining = openedWaterTick + timeInTicks - tickCounter;
+        return remaining <= 0;
+    }
+
+    /** The exact RGB a §-colour code renders text in, as 0..1 floats - so a world-space highlight can match a
+     *  chat/label colour exactly instead of a separately hand-picked one. */
+    private static float[] textColor(ChatFormatting formatting) {
+        Integer packed = formatting.getColor();
+        int rgb = packed != null ? packed : 0xFFFFFF;
+        return new float[] {
+                ((rgb >> 16) & 0xFF) / 255f,
+                ((rgb >> 8) & 0xFF) / 255f,
+                (rgb & 0xFF) / 255f
+        };
     }
 
     private static void renderWorldText(LevelRenderContext context, double worldX, double worldY, double worldZ,

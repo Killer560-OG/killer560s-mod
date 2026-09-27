@@ -83,9 +83,19 @@ public class StorageSearchScreen extends Screen {
             cfg.save();
             btn.setMessage(sortText(cfg));
             refilter();
+        }).secondaryPress(btn -> {
+            cfg.setSortMode(cfg.getSortMode().previous());
+            cfg.save();
+            btn.setMessage(sortText(cfg));
+            refilter();
         }).bounds(panelX + 6 + boxW + 4, panelY + 36, sortW, 18).build();
         sourceButton = SettingsButtonWidget.builder(sourceText(cfg), btn -> {
             cfg.setSourceFilter(cfg.getSourceFilter().next());
+            cfg.save();
+            btn.setMessage(sourceText(cfg));
+            refilter();
+        }).secondaryPress(btn -> {
+            cfg.setSourceFilter(cfg.getSourceFilter().previous());
             cfg.save();
             btn.setMessage(sourceText(cfg));
             refilter();

@@ -18,4 +18,9 @@ public enum ChatDestination {
         ChatDestination[] vals = values();
         return vals[(this.ordinal() + 1) % vals.length];
     }
+
+    public ChatDestination previous() {
+        ChatDestination[] vals = values();
+        return vals[(vals.length + this.ordinal() - 1) % vals.length];
+    }
 }

@@ -23,7 +23,15 @@ import net.minecraft.network.chat.Component;
  *  settings control still rendered as a plain grey vanilla button, clashing with the new theme - per
  *  killer560's "make those boxes a different color, something more fitting." Deliberately styled with a
  *  DIMMER border than {@link MenuRowWidget}'s accordion headers (full amber, always) so headers still
- *  visually lead over individual controls instead of every box in the menu competing at once. */
+ *  visually lead over individual controls instead of every box in the menu competing at once.
+ *  <p>
+ *  Extended (2026-09-27) per killer560's "for the sort buttons or any button that toggles through a
+ *  bunch of options, make it so if i right click then it goes back one" - a second, optional
+ *  {@code OnPress} set via {@code .secondaryPress(...)} fires on right-click instead of left. Left-click
+ *  is untouched: {@code onClick(...)} below is still only ever invoked by vanilla's own left-button-only
+ *  {@code mouseClicked}, so every existing call site with no {@code secondaryPress} keeps behaving
+ *  exactly as before (right-click on it simply does nothing, same as pre-2026-09-27). Only call sites
+ *  that opt in with {@code .secondaryPress(...)} - the enum-cycling buttons - respond to right-click. */
 public final class SettingsButtonWidget extends AbstractWidget {
 
     private static final int BORDER = 0xFF663D1A;
@@ -37,10 +45,13 @@ public final class SettingsButtonWidget extends AbstractWidget {
     }
 
     private final OnPress onPress;
+    private final OnPress onSecondaryPress;
 
-    private SettingsButtonWidget(Component message, OnPress onPress, int x, int y, int width, int height) {
+    private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress,
+            int x, int y, int width, int height) {
         super(x, y, width, height, message);
         this.onPress = onPress;
+        this.onSecondaryPress = onSecondaryPress;
     }
 
     public static Builder builder(Component message, OnPress onPress) {
@@ -50,6 +61,7 @@ public final class SettingsButtonWidget extends AbstractWidget {
     public static final class Builder {
         private final Component message;
         private final OnPress onPress;
+        private OnPress onSecondaryPress;
         private int x;
         private int y;
         private int width = 150;
@@ -68,8 +80,15 @@ public final class SettingsButtonWidget extends AbstractWidget {
             return this;
         }
 
+        /** Right-click handler - used by cycling/toggle buttons to step backwards instead of forwards.
+         *  Left unset (the default) for ordinary buttons, so right-click on them stays a no-op. */
+        public Builder secondaryPress(OnPress onSecondaryPress) {
+            this.onSecondaryPress = onSecondaryPress;
+            return this;
+        }
+
         public SettingsButtonWidget build() {
-            return new SettingsButtonWidget(message, onPress, x, y, width, height);
+            return new SettingsButtonWidget(message, onPress, onSecondaryPress, x, y, width, height);
         }
     }
 
@@ -87,6 +106,20 @@ public final class SettingsButtonWidget extends AbstractWidget {
         if (onPress != null) {
             onPress.onPress(this);
         }
+    }
+
+    /** Vanilla's own {@code mouseClicked} only ever calls {@code onClick} above for the left button
+     *  (button 0), so left-click behavior here is completely untouched - this only adds a right-click
+     *  (button 1) path, and only when a {@code secondaryPress} was actually set, so a plain button with
+     *  no cycling behavior can never have right-click do anything. */
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (onSecondaryPress != null && active && visible && event.button() == 1
+                && isMouseOver(event.x(), event.y())) {
+            onSecondaryPress.onPress(this);
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override

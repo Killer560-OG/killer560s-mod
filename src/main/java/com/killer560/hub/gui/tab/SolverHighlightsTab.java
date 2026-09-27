@@ -31,6 +31,10 @@ public class SolverHighlightsTab extends BaseTab {
                     cfg.setWaypointStyle(cfg.getWaypointStyle().next());
                     cfg.save();
                     btn.setMessage(styleText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setWaypointStyle(cfg.getWaypointStyle().previous());
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
                 }).bounds(contentX, contentY + 24, contentWidth, 20).build());
 
         return widgets;

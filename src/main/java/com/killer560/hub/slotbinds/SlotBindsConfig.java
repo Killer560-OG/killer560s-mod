@@ -34,6 +34,10 @@ public final class SlotBindsConfig {
         public OverlayMode next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public OverlayMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

@@ -43,6 +43,10 @@ public class BestFriendsTab extends BaseTab {
                     cfg.setSortMode(cfg.getSortMode().next());
                     cfg.save();
                     btn.setMessage(sortText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setSortMode(cfg.getSortMode().previous());
+                    cfg.save();
+                    btn.setMessage(sortText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
         widgets.add(SettingsButtonWidget.builder(onOff("Dungeon Only Filter", cfg.isDungeonOnlyFilter()), btn -> {
                     cfg.setDungeonOnlyFilter(!cfg.isDungeonOnlyFilter());

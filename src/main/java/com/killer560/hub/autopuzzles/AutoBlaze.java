@@ -19,13 +19,18 @@ import java.util.List;
 
 /**
  * Auto Blaze - port of QUOI {@code BlazeSolver.kt}'s {@code auto} (TickEvent.End) logic on top of this mod's
- * {@link BlazeSolverFeature} kill order. Each tick: wait out the previous shot (arrow travel time dist/2.5*50ms +
- * Miss cooldown, or until the target blaze dies); take the next blaze; build QUOI's hitboxes (target 0.35x0.8
- * half-extents, others 0.75x1.45, centred 1 block under the stand); try 7 aim points on the target with the arrow
- * simulation and accept the first whose simulated arrow reaches the target before any other blaze or a block
- * (Terminator: the +-5 degree side arrows must not hit another blaze either); shoot with the held shortbow once the
- * Shoot cooldown allows. With "Etherwarp Reposition" on, it also cycles QUOI's standing spots when there's no clean
- * shot (and on Higher Blaze below y=75).
+ * {@link BlazeSolverFeature} kill order. Each tick: wait out the previous shot's arrow travel time (dist/2.5*50ms,
+ * or until the target blaze dies); take the next blaze; build QUOI's hitboxes (target 0.35x0.8 half-extents,
+ * others 0.75x1.45, centred 1 block under the stand); try 7 aim points on the target with the arrow simulation and
+ * accept the first whose simulated arrow reaches the target before any other blaze or a block (Terminator: the
+ * +-5 degree side arrows must not hit another blaze either); shoot with the held shortbow once the Shoot cooldown
+ * allows. With "Etherwarp Reposition" on, it also cycles QUOI's standing spots when there's no clean shot (and on
+ * Higher Blaze below y=75).
+ * <p>
+ * Miss cooldown removed (killer560, 2026-09-27: "For auto puzzles remove the miss cooldown."): it used to add an
+ * extra {@code missCooldownMs} on top of the arrow's travel time before trying again in case that shot missed.
+ * Now the wait after a shot is just the travel time itself (or the target dying), then the Shoot cooldown alone
+ * paces the next attempt, hit or miss.
  */
 final class AutoBlaze {
 
@@ -118,7 +123,7 @@ final class AutoBlaze {
         if (waitingForUpdate) {
             double dist = target.position().distanceTo(player.position());
             double travelTime = dist / 2.5 * 50.0;
-            if (now - lastShotTime > travelTime + cfg.getMissCooldownMs()) {
+            if (now - lastShotTime > travelTime) {
                 waitingForUpdate = false;
             } else {
                 return;

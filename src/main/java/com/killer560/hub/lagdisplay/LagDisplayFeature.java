@@ -3,6 +3,7 @@ package com.killer560.hub.lagdisplay;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.witherdragons.ServerTickClock;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -18,28 +19,26 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Lag / performance HUD - gap-analysis item 1.5 ("Lag / server-tick display"). One movable HUD element
- * with up to four lines: how long ago the last server tick arrived, ping, FPS and CPS.
+ * Performance HUD (renamed from "Lag Display", killer560 2026-09-27) - gap-analysis item 1.5 ("Lag /
+ * server-tick display"). One movable HUD element with up to four lines: TPS, ping, FPS and CPS.
  *
- * <p>Ported from Devonian {@code features/misc/LagDisplay.kt} (the "zzz for N.NNs" readout and its
- * 50-1000 ms threshold slider, default 300 ms) plus {@code misc/{PingDisplay,FPSDisplay}.kt}, and
- * NoammAddons {@code features/impl/visual/InfoDisplay.kt} (local source
- * a local NoammAddons checkout) for the CPS counter - NoammAddons counts click timestamps and
- * drops anything older than 1000 ms, which is exactly what {@link #cps(Deque)} does.
+ * <p>Ported from Devonian {@code misc/{PingDisplay,FPSDisplay}.kt} plus NoammAddons
+ * {@code features/impl/visual/InfoDisplay.kt} (local source, a local NoammAddons checkout) for the CPS
+ * counter - NoammAddons counts click timestamps and drops anything older than 1000 ms, which is exactly
+ * what {@link #cps(Deque)} does. The old "server lag" line (Devonian's "zzz for N.NNs", threshold slider
+ * and all) is gone - killer560 (2026-09-27): "instead of server lag make it tps" - replaced by a real TPS
+ * readout, same windowed-tick-time math as {@code ChatCommandsFeature}'s own "!tps" command.
  *
- * <p><b>Server-tick source.</b> No new clock: this subscribes to the mod's existing
- * {@link ServerTickClock} (Odin's "one server tick per non-zero {@code ClientboundPingPacket}"). That
- * clock deliberately falls back to counting CLIENT ticks whenever the server stops pinging ~20x/s, which
- * would hide the very lag this readout exists to show - so the timestamp is only refreshed while
- * {@link ServerTickClock#isPingDriven()} is true. Because the clock does not fire on client ticks while it
- * is ping-driven, a freeze is caught from its first millisecond; the only cost is that recovery can be
- * noticed up to ~1 s late (the clock's own sample window), i.e. a spike can read up to a second long when
- * it was slightly shorter. It never reads short.
+ * <p><b>Ping</b> is real network latency, not a client-side measurement: the local player's own tab-list
+ * entry ({@link net.minecraft.client.multiplayer.PlayerInfo#getLatency()}), the same real round-trip value
+ * Hypixel reports for everyone in the tab list - not something derived locally, so it can't just read 1ms.
  *
- * <p><b>Servers that never ping 20x/s</b> (singleplayer, a plain test server) would otherwise show an
- * ever-growing fake lag number, so the lag line only appears once the clock has actually been ping-driven
- * at least once on the current connection ({@link #pingClockSeen}), and that latch is cleared on
- * disconnect.
+ * <p><b>TPS source.</b> No new clock: this subscribes to the mod's existing {@link ServerTickClock} (Odin's
+ * "one server tick per non-zero {@code ClientboundPingPacket}") and keeps a rolling window of tick
+ * timestamps, exactly like {@code ChatCommandsFeature#tpsReply()}. That clock deliberately falls back to
+ * counting CLIENT ticks whenever the server stops pinging ~20x/s - a server that never pings 20x/s
+ * (singleplayer, a plain test server) would otherwise show a fake, always-20 TPS number, so the TPS line
+ * only ever prints a number while {@link ServerTickClock#isPingDriven()} is true; otherwise it reads "-".
  *
  * <p><b>CPS</b> is sampled by polling GLFW's mouse-button state from a frame callback rather than adding a
  * {@code MouseHandler} mixin, so clicks are counted at frame rate. At normal FPS that is far faster than
@@ -49,16 +48,18 @@ import java.util.Locale;
  */
 public final class LagDisplayFeature {
 
-    /** HUD element id - also the key its position/scale are stored under in {@code killer560smod-hud.json}. */
+    /** HUD element id - also the key its position/scale are stored under in {@code killer560smod-hud.json}.
+     *  Kept as "lag_display" (the old name) so a saved drag position carries over the rename. */
     public static final String HUD_ID = "lag_display";
 
     private static final long CPS_WINDOW_MS = 1000L;
+    /** Same window length as {@code ChatCommandsFeature}'s "!tps" command. */
+    private static final long TPS_WINDOW_MS = 5_000L;
 
     private static final Deque<Long> LEFT_CLICKS = new ArrayDeque<>();
     private static final Deque<Long> RIGHT_CLICKS = new ArrayDeque<>();
+    private static final Deque<Long> TICK_TIMES = new ArrayDeque<>();
 
-    private static volatile long lastServerTickMs = 0L;
-    private static volatile boolean pingClockSeen = false;
     private static boolean leftWasDown = false;
     private static boolean rightWasDown = false;
     private static boolean registered = false;
@@ -75,6 +76,7 @@ public final class LagDisplayFeature {
         // Idempotent - Wither Dragons and Tick Timers already call this.
         ServerTickClock.register();
         ServerTickClock.subscribe(LagDisplayFeature::onServerTick);
+        ClientTickEvents.END_CLIENT_TICK.register(client -> pruneTicks());
 
         // Frame-rate click sampler. Separate from the HUD element's own draw so CPS keeps counting even
         // while the element itself is scrolled off / the list is empty.
@@ -87,8 +89,6 @@ public final class LagDisplayFeature {
     }
 
     private static void reset() {
-        lastServerTickMs = 0L;
-        pingClockSeen = false;
         leftWasDown = false;
         rightWasDown = false;
         synchronized (LEFT_CLICKS) {
@@ -97,14 +97,32 @@ public final class LagDisplayFeature {
         synchronized (RIGHT_CLICKS) {
             RIGHT_CLICKS.clear();
         }
+        synchronized (TICK_TIMES) {
+            TICK_TIMES.clear();
+        }
     }
 
     private static void onServerTick() {
         if (!ServerTickClock.isPingDriven()) {
             return;
         }
-        pingClockSeen = true;
-        lastServerTickMs = System.currentTimeMillis();
+        synchronized (TICK_TIMES) {
+            TICK_TIMES.addLast(System.currentTimeMillis());
+            // Bounded independently of pruneTicks() below - a sudden ping burst after a stall must never
+            // grow this without limit while nothing has pruned it yet.
+            while (TICK_TIMES.size() > 200) {
+                TICK_TIMES.pollFirst();
+            }
+        }
+    }
+
+    private static void pruneTicks() {
+        long now = System.currentTimeMillis();
+        synchronized (TICK_TIMES) {
+            while (!TICK_TIMES.isEmpty() && now - TICK_TIMES.peekFirst() > TPS_WINDOW_MS) {
+                TICK_TIMES.pollFirst();
+            }
+        }
     }
 
     private static void sampleClicks() {
@@ -144,12 +162,23 @@ public final class LagDisplayFeature {
         }
     }
 
-    /** @return ms since the last server tick, or -1 when the clock can't be trusted here. */
-    private static long msSinceServerTick() {
-        if (!pingClockSeen || lastServerTickMs == 0L) {
-            return -1L;
+    /** @return current server TPS (capped at 20), or -1 when the server isn't ping-driven right now or
+     *  there isn't enough data yet - same windowed-tick-time approach as {@code ChatCommandsFeature}'s
+     *  own "!tps" command; see that method's doc for why this only ever trusts ping-driven ticks. */
+    private static double tps() {
+        if (!ServerTickClock.isPingDriven()) {
+            return -1.0;
         }
-        return System.currentTimeMillis() - lastServerTickMs;
+        synchronized (TICK_TIMES) {
+            if (TICK_TIMES.size() < 2) {
+                return -1.0;
+            }
+            long spanMs = TICK_TIMES.peekLast() - TICK_TIMES.peekFirst();
+            if (spanMs <= 0) {
+                return -1.0;
+            }
+            return Math.min(20.0, (TICK_TIMES.size() - 1) * 1000.0 / spanMs);
+        }
     }
 
     /** @return the local player's own tab-list latency, or -1 when unknown. Same source
@@ -178,7 +207,7 @@ public final class LagDisplayFeature {
 
         @Override
         public String displayName() {
-            return "Lag Display";
+            return "Performance HUD";
         }
 
         @Override
@@ -228,13 +257,10 @@ public final class LagDisplayFeature {
             List<Line> out = new ArrayList<>();
             boolean colored = cfg.isColorByValue();
 
-            if (cfg.isShowLag()) {
-                long dt = msSinceServerTick();
-                // Devonian only draws the line at all once the server has been silent past the threshold.
-                if (dt >= cfg.getLagThresholdMs()) {
-                    out.add(new Line(String.format(Locale.US, "zzz for %.2fs", dt / 1000.0),
-                            colored ? lagColor(dt) : COLOR_PLAIN));
-                }
+            if (cfg.isShowTps()) {
+                double t = tps();
+                out.add(new Line(t < 0 ? "TPS: -" : String.format(Locale.US, "TPS: %.1f", t),
+                        colored && t >= 0 ? tpsColor(t) : COLOR_PLAIN));
             }
             if (cfg.isShowPing()) {
                 int ping = ping();
@@ -251,11 +277,16 @@ public final class LagDisplayFeature {
             return out;
         }
 
-        private static int lagColor(long ms) {
-            if (ms < 500L) {
+        /** 20 TPS is perfect; Hypixel dungeons feel fine down to ~18, get choppy under 15, and under 10
+         *  is a real lag spike. */
+        private static int tpsColor(double t) {
+            if (t >= 19.5) {
+                return COLOR_GOOD;
+            }
+            if (t >= 15.0) {
                 return COLOR_OK;
             }
-            return ms < 1500L ? COLOR_BAD : COLOR_AWFUL;
+            return t >= 10.0 ? COLOR_BAD : COLOR_AWFUL;
         }
 
         /** Devonian {@code PingDisplay.formatPing} thresholds: 50 / 100 / 150 / 200 ms. */

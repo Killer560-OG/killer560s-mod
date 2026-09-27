@@ -58,9 +58,13 @@ import java.util.regex.Pattern;
  * <p>
  * <b>Discrete actions wait for real confirmation</b> (never a timer alone): an etherwarp / teleporting item is done
  * when the player actually arrives at the recorded landing, a dungeon-breaker node when its blocks are actually air,
- * a superboom when the block it hit changed, an await when its condition is met. Anything that cannot be confirmed
- * within a generous timeout, any drift off the recorded path, any user input, and any screen opening
- * <b>stops the route with a chat message</b> - "a stuck bot in a real run is worse than a stopped one".
+ * a superboom when the block it hit changed. Anything that cannot be confirmed within a generous timeout, any
+ * drift off the recorded path, any user input, and any screen opening <b>stops the route with a chat message</b> -
+ * "a stuck bot in a real run is worse than a stopped one".
+ * <p>
+ * <b>The {@code await} modifier</b> (any node may carry one - see {@link RouteNode#awaitEnabled}, and
+ * {@link #tickAwait}) gates a node's own action behind "wait for N secrets" or "wait a fixed delay" FIRST -
+ * killer560's old {@code AWAIT} node, folded onto whichever node needs it instead of taking a slot of its own.
  */
 public final class RouteExecutor {
 
@@ -121,6 +125,11 @@ public final class RouteExecutor {
     private static long awaitStartMs;
     private static final Set<Integer> countedBats = new HashSet<>();
     private static boolean awaitSkip;
+    /** True once the CURRENT node's {@code awaitEnabled} gate (if it has one) has been satisfied - the node's
+     *  own type-specific action (etherwarp, use, boom, ...) only starts once this is true. Set in
+     *  {@link #beginAction}, read/advanced in {@link #tickAction}. AWAIT stopped being its own node type
+     *  (2026-09-2x) - {@link #tickAwait} is now this pre-action gate for ANY node, not a case of its own. */
+    private static boolean awaitPhaseDone = true;
 
     // ---- input ----
     private static boolean mixinApplied;
@@ -249,6 +258,7 @@ public final class RouteExecutor {
         forceSneak = false;
         unsneakOverride = false;
         secretsFound = -1;
+        awaitPhaseDone = true;
         RouteRotation.clear();
         running = true;
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
@@ -403,8 +413,8 @@ public final class RouteExecutor {
         }
         boolean attack = client.options.keyAttack.isDown();
         boolean driven = !route.path().isEmpty();
-        if (attack && activeNode != null && activeNode.type == RouteNode.Type.AWAIT) {
-            awaitSkip = true; // QUOI: a click while waiting skips the await
+        if (attack && activeNode != null && !awaitPhaseDone) {
+            awaitSkip = true; // QUOI: a click while waiting skips the await (now any node's await modifier)
         } else if ((attack || client.options.keyUse.isDown()) && (driven || activeNode != null)) {
             // A driven route is the bot's alone; a QUOI-style path-less route only minds clicks mid-action.
             stop("you clicked");
@@ -585,11 +595,15 @@ public final class RouteExecutor {
         swapSent = false;
         actionOrigin = Minecraft.getInstance().player.position();
         awaitSkip = false;
+        // The await modifier (if this node has one) runs FIRST, as its own PREP/CONFIRM cycle through
+        // tickAwait - see tickAction. Nothing else about the node starts until that gate opens.
+        awaitPhaseDone = !node.awaitEnabled;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
         boomTarget = null;
         boomBefore.clear();
-        LOGGER.info("[AutoRoutes] Node {} ({}) at sample {}", route.indexOf(node), node.type, cursor);
+        LOGGER.info("[AutoRoutes] Node {} ({}) at sample {}{}", route.indexOf(node), node.type, cursor,
+                node.awaitEnabled ? " (awaiting first)" : "");
     }
 
     private static void finishAction() {
@@ -609,6 +623,12 @@ public final class RouteExecutor {
     private static void tickAction(Minecraft client, LocalPlayer player) {
         RouteNode node = activeNode;
         stepTicks++;
+        if (!awaitPhaseDone) {
+            // The node's own action (etherwarp, use, boom, ...) doesn't start until this clears - see
+            // tickAwait, which is this gate for any node now that AWAIT isn't its own type any more.
+            tickAwait(client, player, node);
+            return;
+        }
         switch (node.type) {
             case START, WALK -> finishAction();
             case UNSNEAK -> {
@@ -644,7 +664,6 @@ public final class RouteExecutor {
                 finishAction();
             }
             case ROTATE -> tickRotate(node);
-            case AWAIT -> tickAwait(client, player, node);
             case ETHERWARP -> tickEtherwarp(client, player, node);
             case USE_ITEM -> tickUseItem(client, player, node);
             case BOOM -> tickBoom(client, player, node);
@@ -666,6 +685,13 @@ public final class RouteExecutor {
         }
     }
 
+    /**
+     * The {@code awaitEnabled} modifier's own PREP/CONFIRM cycle - "wait for {@link RouteNode#awaitAmount}
+     * secrets (or a delay) before this node fires", the old {@code AWAIT} node's behaviour, now gating
+     * whatever real action {@code node} is instead of being a node of its own (see {@link #tickAction}).
+     * On success (or a click, {@link #awaitSkip}) it clears {@link #awaitPhaseDone} and resets {@link #step}
+     * so the node's own action starts fresh the very next tick, rather than finishing the node outright.
+     */
     private static void tickAwait(Minecraft client, LocalPlayer player, RouteNode node) {
         if (step == Step.PREP) {
             awaitBaselineSecrets = secretsFound;
@@ -693,7 +719,10 @@ public final class RouteExecutor {
             done = fromBar + awaitBatSecrets >= Math.max(1, node.awaitAmount);
         }
         if (done || awaitSkip) {
-            finishAction();
+            awaitPhaseDone = true;
+            awaitSkip = false;
+            step = Step.PREP;
+            stepTicks = 0;
         }
     }
 

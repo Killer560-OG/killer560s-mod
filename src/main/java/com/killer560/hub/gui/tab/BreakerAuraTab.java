@@ -1,11 +1,16 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.dungeonextras.BreakerAuraConfigScreen;
+import com.killer560.hub.dungeonextras.BreakerAuraStore;
 import com.killer560.hub.dungeonextras.DungeonExtrasConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -75,6 +80,24 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
+        // Swappable configs (killer560: "breaker aura also needs an option to swap between breaker auras just
+        // like the auto routes can swap. with the same easy copy and whatnot") - same row order as AP3's
+        // "Choose AP3 Config" / "Open AP3 Folder" / "Reload AP3 Chains". Offered even with the aura OFF, same
+        // reasoning as the pick key below: he picks the wall (and which saved wall-set) before switching it on.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Choose Breaker Aura Config: §6"
+                        + cfg.getBreakerAuraConfigFile()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreen(new BreakerAuraConfigScreen(client.screen));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Breaker Aura Folder"), btn -> openFolder())
+                .bounds(contentX, y, col2W, 20).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Reload Breaker Aura Picks"), btn -> {
+                    BreakerAuraStore.reload();
+                    requestRebuild.run();
+                }).bounds(col2bX, y, col2W, 20).build());
+        y += 24;
+
         // The pick key is offered even with the aura OFF: killer560 picks the wall first and switches it on after.
         widgets.add(SettingsButtonWidget.builder(
                 capturing == 1 ? Component.literal("Press any key...")
@@ -85,7 +108,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, col2W, 18)
                 .build());
-        int picked = cfg.getBreakerAuraSelected().size();
+        int picked = BreakerAuraStore.getInstance().pickedKeys().size();
         widgets.add(SettingsButtonWidget.builder(
                 Component.literal("Clear Picked (" + picked + ")"), btn -> {
                     com.killer560.hub.dungeonextras.BreakerAuraFeature.clearSelection();
@@ -238,5 +261,16 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    /** Mirrors {@code Ap3Tab#openFolder} - a fresh install has no folder yet, and opening a missing directory
+     *  does nothing at all, silently, so it is created first. */
+    private static void openFolder() {
+        try {
+            Path dir = BreakerAuraStore.directory();
+            Files.createDirectories(dir);
+            net.minecraft.util.Util.getPlatform().openPath(dir);
+        } catch (Exception ignored) {
+        }
     }
 }

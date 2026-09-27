@@ -32,6 +32,11 @@ public final class EtherwarpWaypointsConfig {
             Style[] v = values();
             return v[(ordinal() + 1) % v.length];
         }
+
+        public Style previous() {
+            Style[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
+        }
     }
 
     /** killer560, 2026-09-27: "Make them purple." */

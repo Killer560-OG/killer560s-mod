@@ -80,6 +80,10 @@ public final class RouteRecorder {
             return null;
         }
         if (player == null || client.level == null) {
+            // Only reachable while the world isn't fully loaded - see AutoRoutesCommands#ready()'s identical
+            // check (2026-09-2x review: this and addNode's own copy were the only two silent refusals /ar
+            // start record and /ar add could hit without saying why).
+            AutoRoutesFeature.chatBad("Not fully loaded into the world yet - try again in a moment.");
             return null;
         }
         if (recording) {
@@ -106,11 +110,15 @@ public final class RouteRecorder {
         lastActionNode = null;
         lastActionSample = -1;
         breakerBeingBuilt = null;
-        // The first sample and the START node are the block killer560 etherwarped onto before typing the command.
+        // The first sample and the start node are the block killer560 etherwarped onto before typing the
+        // command. A plain WALK node carrying the `start` flag, not a dedicated START type any more - it
+        // behaves exactly the same way in the executor (a no-op pass-through node), see RouteNode.Type's doc.
         sample(client, player);
         Vec3 rel = RouteCoords.toRelative(f, player.position());
-        route.nodes().add(new RouteNode(RouteNode.Type.START, rel.x, rel.y, rel.z,
-                RouteCoords.toRelativeYaw(f, player.getYRot()), player.getXRot(), 0));
+        RouteNode startNode = new RouteNode(RouteNode.Type.WALK, rel.x, rel.y, rel.z,
+                RouteCoords.toRelativeYaw(f, player.getYRot()), player.getXRot(), 0);
+        startNode.start = true;
+        route.nodes().add(startNode);
         LOGGER.info("[AutoRoutes] Recording started in \"{}\" (replacing existing: {})", f.roomName(), existing != null);
         return "Recording " + f.roomName() + (existing != null ? " (will replace the saved route)" : "")
                 + " - move, then /ar stop record";
@@ -277,25 +285,71 @@ public final class RouteRecorder {
 
     // ------------------------------------------------------------------------------------------- /ar add
 
-    /** {@code /ar add <type>}: captures from the current look / position / held item. @return chat status. */
-    public static String addNode(RouteNode.Type type) {
-        return addNode(type, null);
+    /**
+     * The {@code start} / {@code await:<n>} modifiers of {@code /ar add <type> [start] [await:<n>]}
+     * (killer560: "start should not be a node ... So i could do /ar add etherwarp start await:2. This means it
+     * is an etherwarp node that is also a start node that will wait for two secrets before it etherwarps.").
+     * {@link AutoRoutesCommands#parseModifiers} builds one of these from the command's free-form modifiers text;
+     * {@link #addNode(RouteNode.Type, NodeModifiers)} applies it to the node it builds.
+     */
+    public static final class NodeModifiers {
+        /** No modifiers - the plain {@code /ar add <type>}. */
+        public static final NodeModifiers NONE =
+                new NodeModifiers(false, false, RouteNode.AwaitCondition.SECRET, 1);
+
+        public final boolean start;
+        public final boolean awaitEnabled;
+        public final RouteNode.AwaitCondition awaitCondition;
+        public final int awaitAmount;
+
+        public NodeModifiers(boolean start, boolean awaitEnabled, RouteNode.AwaitCondition awaitCondition,
+                              int awaitAmount) {
+            this.start = start;
+            this.awaitEnabled = awaitEnabled;
+            this.awaitCondition = awaitCondition;
+            this.awaitAmount = awaitAmount;
+        }
+
+        /** The deprecated {@code /ar add start} alias: just the start flag. */
+        public static NodeModifiers startOnly() {
+            return new NodeModifiers(true, false, RouteNode.AwaitCondition.SECRET, 1);
+        }
+
+        /** The deprecated {@code /ar add await} alias: just the default await (1 secret) - the old AWAIT node's
+         *  own default when it was added with no argument (the command tree never actually passed it one). */
+        public static NodeModifiers awaitDefault() {
+            return new NodeModifiers(false, true, RouteNode.AwaitCondition.SECRET, 1);
+        }
     }
 
-    /** As {@link #addNode(RouteNode.Type)} with an argument: the command text for {@code COMMAND}, or
-     *  {@code "secret [n]"} / {@code "delay <ms>"} / a bare count for {@code AWAIT}. */
-    public static String addNode(RouteNode.Type type, String argument) {
+    /** {@code /ar add <type>}: captures from the current look / position / held item. @return chat status. */
+    public static String addNode(RouteNode.Type type) {
+        return addNode(type, NodeModifiers.NONE);
+    }
+
+    /** As {@link #addNode(RouteNode.Type)}, plus the {@code start} / {@code await:<n>} modifiers. */
+    public static String addNode(RouteNode.Type type, NodeModifiers modifiers) {
+        return addNode(type, modifiers, null);
+    }
+
+    /** As above, plus a free-text argument for node types that need one ({@code COMMAND}'s command line - not
+     *  currently reachable from {@code /ar add}, kept for parity with the type's own data). */
+    public static String addNode(RouteNode.Type type, NodeModifiers modifiers, String argument) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
+        NodeModifiers mods = modifiers == null ? NodeModifiers.NONE : modifiers;
         if (type == null) {
-            return bad("Unknown node type. Types: start, walk, ew, use, breaker, boom, await, rotate, unsneak, command");
+            return bad("Unknown node type. Types: walk, ew, use, breaker, boom - add start / await:<n> as modifiers.");
         }
         if (!cfg.isEnabled()) {
             return bad("Auto Routes is off (cheat build + Skyblock only).");
         }
         if (player == null || client.level == null) {
-            return null;
+            // Only reachable while the world isn't fully loaded - this used to return null here with nothing
+            // said, which was indistinguishable in chat from "the command silently did nothing" (2026-09-2x
+            // review, chasing exactly that report). Every other refusal in this method already said why.
+            return bad("Not fully loaded into the world yet - try again in a moment.");
         }
         RouteCoords.Frame f = recording ? frame : RouteCoords.Frame.current();
         if (f == null) {
@@ -318,7 +372,6 @@ public final class RouteRecorder {
                 player.getXRot(), anchor);
         String extra = "";
         switch (type) {
-            case START -> target.nodes().removeIf(n -> n.type == RouteNode.Type.START);
             case ETHERWARP -> {
                 // Same prediction the etherwarp overlay / Interactive Map use, so playback can confirm the landing.
                 Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
@@ -340,10 +393,6 @@ public final class RouteRecorder {
                 extra = " [" + id + "]";
             }
             case DUNGEON_BREAKER -> extra = " - now /ar edit db and right-click the blocks it should break";
-            case AWAIT -> {
-                parseAwait(node, argument);
-                extra = " [" + node.awaitCondition.name().toLowerCase(Locale.ROOT) + " " + node.awaitAmount + "]";
-            }
             case COMMAND -> {
                 String cmd = RouteStore.cleanString(argument, RouteStore.MAX_COMMAND);
                 if (cmd == null) {
@@ -355,6 +404,22 @@ public final class RouteRecorder {
             default -> {
             }
         }
+        // ---- modifiers: start and await apply on top of the type-specific handling above, to any node type ----
+        boolean movedStart = false;
+        if (mods.start) {
+            for (RouteNode n : target.nodes()) {
+                if (n.start) {
+                    n.start = false;
+                    movedStart = true;
+                }
+            }
+            node.start = true;
+        }
+        if (mods.awaitEnabled) {
+            node.awaitEnabled = true;
+            node.awaitCondition = mods.awaitCondition;
+            node.awaitAmount = mods.awaitAmount;
+        }
         target.nodes().add(node);
         if (type == RouteNode.Type.DUNGEON_BREAKER) {
             breakerBeingBuilt = node;
@@ -362,30 +427,14 @@ public final class RouteRecorder {
         if (!recording) {
             RouteStore.getInstance().save();
         }
+        if (mods.start) {
+            // "setting it on a new node clears it from whatever had it (and say so in chat)" (task spec).
+            extra += movedStart ? " [start - moved off the previous start node]" : " [start]";
+        }
+        if (mods.awaitEnabled) {
+            extra += " [await " + node.awaitCondition.name().toLowerCase(Locale.ROOT) + " " + node.awaitAmount + "]";
+        }
         return "Added " + type.label() + extra + " to " + f.roomName();
-    }
-
-    private static void parseAwait(RouteNode node, String argument) {
-        node.awaitCondition = RouteNode.AwaitCondition.SECRET;
-        node.awaitAmount = 1;
-        if (argument == null || argument.isBlank()) {
-            return;
-        }
-        String[] parts = argument.trim().toLowerCase(Locale.ROOT).split("\\s+");
-        int numberAt = 0;
-        if (parts[0].startsWith("delay") || parts[0].startsWith("ms")) {
-            node.awaitCondition = RouteNode.AwaitCondition.DELAY;
-            node.awaitAmount = 500;
-            numberAt = 1;
-        } else if (parts[0].startsWith("secret") || parts[0].startsWith("bat")) {
-            numberAt = 1;
-        }
-        if (parts.length > numberAt) {
-            try {
-                node.awaitAmount = Math.max(0, Math.min(600_000, Integer.parseInt(parts[numberAt])));
-            } catch (NumberFormatException ignored) {
-            }
-        }
     }
 
     private static String bad(String message) {

@@ -39,6 +39,10 @@ public class ItemRarityTab extends BaseTab {
                     cfg.setStyle(cfg.getStyle().next());
                     cfg.save();
                     requestRebuild.run(); // Outline Width only shows for the Outline style
+                }).secondaryPress(btn -> {
+                    cfg.setStyle(cfg.getStyle().previous());
+                    cfg.save();
+                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 

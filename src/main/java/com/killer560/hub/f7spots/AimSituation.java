@@ -46,6 +46,11 @@ public enum AimSituation {
         return all[(ordinal() + 1) % all.length];
     }
 
+    public AimSituation previous() {
+        AimSituation[] all = values();
+        return all[(all.length + ordinal() - 1) % all.length];
+    }
+
     /** Never throws - an unknown / hand-typo'd value in the JSON falls back to {@link #ANY}. */
     public static AimSituation parse(String s) {
         if (s == null || s.isBlank()) {

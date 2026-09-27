@@ -45,6 +45,10 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
                     cfg.setSource(cfg.getSource().next());
                     cfg.save();
                     btn.setMessage(sourceText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setSource(cfg.getSource().previous());
+                    cfg.save();
+                    btn.setMessage(sourceText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
 
         Component keyLabel = capturingKey ? Component.literal("Press any key...") : keyText(cfg);

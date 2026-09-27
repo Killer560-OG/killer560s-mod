@@ -154,6 +154,11 @@ public class ExperimentsTab extends BaseTab implements KeyCaptureTab {
                         c.setStopStrategy(c.getStopStrategy().next());
                         c.save();
                         btn.setMessage(stopStrategyText());
+                    }).secondaryPress(btn -> {
+                        ExperimentsConfig c = ExperimentsConfig.getInstance();
+                        c.setStopStrategy(c.getStopStrategy().previous());
+                        c.save();
+                        btn.setMessage(stopStrategyText());
                     }).bounds(contentX + half + GAP, y, half, 20).build());
             y += 28;
 

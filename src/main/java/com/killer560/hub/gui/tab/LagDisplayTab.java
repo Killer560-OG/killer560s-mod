@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.lagdisplay.LagDisplayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -14,13 +13,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Lag Display settings - "last server tick was N ms ago" plus ping, FPS and CPS in one movable HUD
- *  element. See {@link com.killer560.hub.lagdisplay.LagDisplayFeature} for the Devonian / NoammAddons
- *  sources and the server-tick caveats. Master ships OFF; every change saves immediately. */
+/** Performance HUD settings (renamed from "Lag Display", killer560 2026-09-27) - TPS, ping, FPS and CPS in
+ *  one movable HUD element. See {@link com.killer560.hub.lagdisplay.LagDisplayFeature} for the Devonian /
+ *  NoammAddons sources and the TPS/ping caveats. Master ships OFF; every change saves immediately. */
 public class LagDisplayTab extends BaseTab {
 
     public LagDisplayTab() {
-        super("Lag Display");
+        super("Performance HUD");
     }
 
     @Override
@@ -32,8 +31,8 @@ public class LagDisplayTab extends BaseTab {
         int half = Math.max(100, (contentWidth - gap) / 2);
         int colB = contentX + half + gap;
 
-        header(w, contentX, y, contentWidth, "Lag Display");
-        w.add(SettingsButtonWidget.builder(onOff("Lag Display", cfg.isEnabled()), btn -> {
+        header(w, contentX, y, contentWidth, "Performance HUD");
+        w.add(SettingsButtonWidget.builder(onOff("Performance HUD", cfg.isEnabled()), btn -> {
                     cfg.setEnabled(!cfg.isEnabled());
                     cfg.save();
                     requestRebuild.run();
@@ -45,7 +44,7 @@ public class LagDisplayTab extends BaseTab {
         }
 
         header(w, contentX, y, contentWidth, "Lines");
-        toggle(w, contentX, y[0], half, "Server Lag", cfg::isShowLag, cfg::setShowLag, cfg);
+        toggle(w, contentX, y[0], half, "TPS", cfg::isShowTps, cfg::setShowTps, cfg);
         toggle(w, colB, y[0], half, "Ping", cfg::isShowPing, cfg::setShowPing, cfg);
         y[0] += 22;
         toggle(w, contentX, y[0], half, "FPS", cfg::isShowFps, cfg::setShowFps, cfg);
@@ -55,31 +54,7 @@ public class LagDisplayTab extends BaseTab {
         y[0] += 22;
         toggle(w, contentX, y[0], contentWidth, "Colour By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
         y[0] += 24;
-
-        header(w, contentX, y, contentWidth, "Lag Threshold");
-        w.add(new ThemedSliderButton(contentX, y[0], contentWidth, 18, thresholdLabel(cfg),
-                (cfg.getLagThresholdMs() - LagDisplayConfig.MIN_LAG_THRESHOLD_MS)
-                        / (double) (LagDisplayConfig.MAX_LAG_THRESHOLD_MS
-                        - LagDisplayConfig.MIN_LAG_THRESHOLD_MS)) {
-            @Override
-            protected void updateMessage() {
-                setMessage(thresholdLabel(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                int range = LagDisplayConfig.MAX_LAG_THRESHOLD_MS - LagDisplayConfig.MIN_LAG_THRESHOLD_MS;
-                cfg.setLagThresholdMs((int) (Math.round(
-                        (LagDisplayConfig.MIN_LAG_THRESHOLD_MS + this.value * range) / 10.0) * 10));
-                cfg.save();
-            }
-        });
-        y[0] += 24;
         return w;
-    }
-
-    private static Component thresholdLabel(LagDisplayConfig cfg) {
-        return Component.literal("Lag Threshold: " + cfg.getLagThresholdMs() + "ms");
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {

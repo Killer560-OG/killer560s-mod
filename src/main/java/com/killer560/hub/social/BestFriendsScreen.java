@@ -71,6 +71,11 @@ public class BestFriendsScreen extends Screen {
             cfg.save();
             btn.setMessage(sortText(cfg));
             refilter();
+        }).secondaryPress(btn -> {
+            cfg.setSortMode(cfg.getSortMode().previous());
+            cfg.save();
+            btn.setMessage(sortText(cfg));
+            refilter();
         }).bounds(panelX + 6 + boxW + 4, panelY + 34, sortW, 18).build());
 
         addRenderableWidget(SettingsButtonWidget.builder(filterText(cfg), btn -> {

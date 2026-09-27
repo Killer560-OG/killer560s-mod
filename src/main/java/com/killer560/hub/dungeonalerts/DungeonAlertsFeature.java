@@ -135,13 +135,6 @@ public final class DungeonAlertsFeature {
         client.execute(() -> client.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume)));
     }
 
-    static void sendPartyChat(String message) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
-            client.player.connection.sendCommand("pc " + message);
-        }
-    }
-
     /** Billboarded, see-through world text - same transform BloodCampFeature.renderTimerText uses (proven on
      *  26.1.2). Legacy section-sign color codes in {@code text} are honored by the font. */
     static void renderWorldText(LevelRenderContext context, String text, double x, double y, double z, float scale) {

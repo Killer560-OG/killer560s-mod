@@ -121,6 +121,12 @@ public final class WeirdosSolverFeature {
         if (room != null && "Three Weirdos".equals(room.name)) {
             LOGGER.info("[WeirdosSolver] NPC line: npc=\"{}\" dialogue=\"{}\" isSolution={} isWrong={}",
                     npc, dialogue, isSolution, isWrong);
+        } else if (isSolution || isWrong) {
+            // A recognised weirdos line while the room is NOT identified as Three Weirdos. Logged because the
+            // gate above would otherwise hide exactly the case being chased - a line that arrives before the
+            // room resolves is invisible in the log AND gets no highlight.
+            LOGGER.info("[WeirdosSolver] NPC line with the room unresolved: npc=\"{}\" room={} isSolution={}",
+                    npc, room == null ? "null" : room.name, isSolution);
         }
         if (!isSolution && !isWrong) {
             return;
@@ -148,6 +154,14 @@ public final class WeirdosSolverFeature {
         }
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
+            // The one path in here that used to fail SILENTLY, and the only one that fits his report:
+            // "It only shows the middle one as red the other two do not get highlights" (2026-09-24). The three
+            // weirdos speak within a moment of each other, so if the room's clay/rotation is not resolved for
+            // some of those lines, those NPCs get no chest and nothing is written down - one highlight, two
+            // missing, no evidence. Every other refusal in this class already says why; this one now does too,
+            // so the next run settles whether that is what happens rather than leaving it to be reasoned about.
+            LOGGER.info("[WeirdosSolver] No chest for \"{}\" - the room's clay/rotation is not resolved yet"
+                    + " (LiveMapFeature.currentRoomClayAndRotation() == null)", npcName);
             return null;
         }
         // Real bug found and fixed (2026-09-14, code review): npcName comes from the color-stripped chat

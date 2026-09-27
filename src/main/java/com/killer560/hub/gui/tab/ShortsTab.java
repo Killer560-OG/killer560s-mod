@@ -82,6 +82,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                     cfg.setAnchor(cfg.getAnchor().next());
                     cfg.save();
                     btn.setMessage(anchorText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setAnchor(cfg.getAnchor().previous());
+                    cfg.save();
+                    btn.setMessage(anchorText(cfg));
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
@@ -128,6 +132,11 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(themeText(cfg));
                     ShortsFeature.applyTheme();
+                }).secondaryPress(btn -> {
+                    cfg.setTheme(cfg.getTheme().previous());
+                    cfg.save();
+                    btn.setMessage(themeText(cfg));
+                    ShortsFeature.applyTheme();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
@@ -153,6 +162,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                     cfg.setSite(cfg.getSite().next());
                     cfg.save();
                     requestRebuild.run();
+                }).secondaryPress(btn -> {
+                    cfg.setSite(cfg.getSite().previous());
+                    cfg.save();
+                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
 
@@ -170,6 +183,10 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(SettingsButtonWidget.builder(placementText(cfg), btn -> {
                     cfg.setPlacementMode(cfg.getPlacementMode().next());
+                    cfg.save();
+                    btn.setMessage(placementText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setPlacementMode(cfg.getPlacementMode().previous());
                     cfg.save();
                     btn.setMessage(placementText(cfg));
                 }).bounds(col2aX, y, col2W, 18).build());

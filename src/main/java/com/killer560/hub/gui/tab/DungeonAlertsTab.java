@@ -5,7 +5,6 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -46,17 +45,13 @@ public class DungeonAlertsTab extends BaseTab {
         header(w, contentX, y, contentWidth, "Shadow Assassin Alert");
         master(w, contentX, y, contentWidth, "Shadow Assassin Alert", () -> cfg.shadowAssassinEnabled,
                 v -> cfg.shadowAssassinEnabled = v, requestRebuild);
-        if (cfg.shadowAssassinEnabled) {
-            toggle(w, contentX, y[0], contentWidth, "Party Chat Alert", () -> cfg.shadowAssassinPartyChat, v -> cfg.shadowAssassinPartyChat = v);
-            y[0] += 22;
-        }
 
-        // --- Room Alerts ---
+        // --- Room Alerts --- killer560 (2026-09-27): only Room Cleared + Secrets Done now - see RoomAlerts.
         header(w, contentX, y, contentWidth, "Room Alerts");
         master(w, contentX, y, contentWidth, "Room Alerts", () -> cfg.roomAlertsEnabled, v -> cfg.roomAlertsEnabled = v, requestRebuild);
         if (cfg.roomAlertsEnabled) {
-            toggle(w, contentX, y[0], half, "All Puzzle Rooms", () -> cfg.roomAlertsPuzzles, v -> cfg.roomAlertsPuzzles = v);
-            toggle(w, colB, y[0], half, "Chat Message", () -> cfg.roomAlertsChat, v -> cfg.roomAlertsChat = v);
+            toggle(w, contentX, y[0], half, "Room Cleared", () -> cfg.roomAlertsRoomCleared, v -> cfg.roomAlertsRoomCleared = v);
+            toggle(w, colB, y[0], half, "Secrets Done", () -> cfg.roomAlertsSecretsDone, v -> cfg.roomAlertsSecretsDone = v);
             y[0] += 22;
             toggle(w, contentX, y[0], half, "On-screen Text", () -> cfg.roomAlertsTitle, v -> cfg.roomAlertsTitle = v);
             w.add(new ThemedSliderButton(colB, y[0], half, 18, displayLabel(cfg), (cfg.roomAlertsDisplaySeconds - 0.5) / 2.5) {
@@ -71,16 +66,6 @@ public class DungeonAlertsTab extends BaseTab {
                     cfg.save();
                 }
             });
-            y[0] += 24;
-            // Format instructions moved into the "Room Names" tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
-            EditBox names = new EditBox(Minecraft.getInstance().font, contentX, y[0], contentWidth, 18, Component.literal("Room names"));
-            names.setMaxLength(500);
-            names.setValue(cfg.roomAlertsNames);
-            names.setResponder(text -> {
-                cfg.roomAlertsNames = text;
-                cfg.save();
-            });
-            w.add(names);
             y[0] += 24;
         }
 

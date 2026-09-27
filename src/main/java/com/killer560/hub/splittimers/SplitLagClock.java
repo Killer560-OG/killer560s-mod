@@ -10,11 +10,11 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * lag lost timer."
  * <p>
  * <b>Reuses, not reinvents:</b> per this task's own instruction, this is built on the exact same clock
- * {@code hub.lagdisplay.LagDisplayFeature} already reads for its "zzz for N.NNs" line -
+ * {@code hub.lagdisplay.LagDisplayFeature} (the Performance HUD) already reads for its TPS line -
  * {@link ServerTickClock} (Odin's "one server tick per non-zero ClientboundPingPacket", i.e. one fire per
  * real Hypixel server tick while {@link ServerTickClock#isPingDriven()}). LagDisplayFeature shows that
- * clock's signal as an instant "ms since the last tick"; this class is a second, independent subscriber
- * (the same pattern Wither Dragons/Tick Timers/Lag Display already use - {@code ServerTickClock.register()}
+ * clock's signal as an instant TPS reading; this class is a second, independent subscriber (the same
+ * pattern Wither Dragons/Tick Timers/Performance HUD already use - {@code ServerTickClock.register()}
  * is explicitly idempotent for exactly this) that instead accumulates it over time, so Split Timers can
  * answer "how much of this split/run was actually lag" rather than just "is the server stalled right now".
  * <p>

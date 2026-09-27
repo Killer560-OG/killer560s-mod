@@ -92,6 +92,10 @@ public class ItemBrowserTab extends BaseTab {
                     cfg.setAlign(cfg.getAlign().next());
                     cfg.save();
                     btn.setMessage(alignText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setAlign(cfg.getAlign().previous());
+                    cfg.save();
+                    btn.setMessage(alignText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 

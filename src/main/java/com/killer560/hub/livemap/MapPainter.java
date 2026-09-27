@@ -1,13 +1,19 @@
 package com.killer560.hub.livemap;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * The one dungeon-map painter, shared by the {@link InteractiveMapScreen} and the
@@ -241,7 +247,72 @@ final class MapPainter {
         if (state == DungeonMapScanner.STATE_UNDISCOVERED) {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
-        return cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
+        int color = cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
+        // killer560, 2026-09-27: "if you have cheater map then it should highlight the room tha thas mimic
+        // as a faint red instead of the normal brown" - cheat build only, same live "is this known secret
+        // chest position actually a trapped_chest right now" check SecretWaypointsFeature already uses for
+        // its own per-chest tint (see isMimic() there), just evaluated for every identified+rotated room
+        // instead of only the one the player is standing in - this map shows the whole run at once, not
+        // just the current room. A faint blend (mix(), same helper reportedRoomColor's dimming above uses),
+        // not a flat overwrite, so it reads as "this brown room" plus a warning, not a different room type.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasLiveMimic(group)) {
+            color = mix(color, MIMIC_TINT);
+        }
+        return color;
+    }
+
+    /** ~55% faint red, blended onto the room's own colour by {@link #mix}. */
+    private static final int MIMIC_TINT = 0x8CFF0000;
+
+    /** Once-a-second snapshot of which rooms (by {@code mainIdx}) currently have a live mimic - see
+     *  {@link #hasLiveMimic}. Rebuilt lazily, never more often than {@link #MIMIC_SCAN_TTL_MS}: a live block
+     *  check per room per frame is exactly the per-frame cost the 2026-09-20 fps pass removed elsewhere on
+     *  this same map. */
+    private static Set<Integer> mimicMainIdx = Set.of();
+    private static long mimicScanStampMs = 0L;
+    private static final long MIMIC_SCAN_TTL_MS = 1000L;
+
+    private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
+        RoomEntry entry = group.entry;
+        if (entry == null || entry.secretCoords == null || entry.secretCoords.chest == null
+                || entry.secretCoords.chest.isEmpty()) {
+            return false;
+        }
+        refreshMimicScanIfStale();
+        return mimicMainIdx.contains(group.mainIdx);
+    }
+
+    private static void refreshMimicScanIfStale() {
+        long now = System.currentTimeMillis();
+        if (now - mimicScanStampMs < MIMIC_SCAN_TTL_MS) {
+            return;
+        }
+        mimicScanStampMs = now;
+        var level = Minecraft.getInstance().level;
+        if (level == null) {
+            mimicMainIdx = Set.of();
+            return;
+        }
+        Set<Integer> found = new HashSet<>();
+        for (LiveMapFeature.RoomGroup group : LiveMapFeature.groupsView()) {
+            RoomEntry entry = group.entry;
+            if (entry == null || entry.secretCoords == null || entry.secretCoords.chest == null
+                    || entry.secretCoords.chest.isEmpty()) {
+                continue;
+            }
+            int[] clayRot = LiveMapFeature.clayAndRotation(group);
+            if (clayRot == null) {
+                continue;
+            }
+            for (RoomEntry.Pos relative : entry.secretCoords.chest) {
+                BlockPos real = RoomDatabase.toRealCoord(relative, clayRot[0], clayRot[1], clayRot[2]);
+                if (level.isLoaded(real) && level.getBlockState(real).getBlock() == Blocks.TRAPPED_CHEST) {
+                    found.add(group.mainIdx);
+                    break;
+                }
+            }
+        }
+        mimicMainIdx = found;
     }
 
     /** A teammate-reported room's fill colour: its real type colour once {@link RoomDatabase#lookupByName}

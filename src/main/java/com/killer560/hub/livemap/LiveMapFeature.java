@@ -807,6 +807,17 @@ public final class LiveMapFeature {
         return result;
     }
 
+    /** For {@link com.killer560.hub.dungeonalerts.RoomAlerts}' Room Cleared alert: true once the room at
+     *  this identified-room index has been cleared - Hypixel's own dungeon map turns the tile green
+     *  (cleared AND every secret found) or shows its plain cleared checkmark (objective done, secrets
+     *  still missing); either counts here. Anything else (discovered/failed/unopened/undiscovered)
+     *  does not. Package-private {@link DungeonMapScanner#stateAt} is the same source the map's own
+     *  checkmark rendering already reads (see that class's doc), just exposed for another package. */
+    public static boolean isRoomCleared(int idx) {
+        int state = DungeonMapScanner.stateAt(idx);
+        return state == DungeonMapScanner.STATE_GREEN || state == DungeonMapScanner.STATE_CLEARED;
+    }
+
     /** @return the room identity for any cell of a room (every tile/connector of a multi-tile room gives
      *  the same entry), or null. */
     public static RoomEntry roomEntryAt(int idx) {

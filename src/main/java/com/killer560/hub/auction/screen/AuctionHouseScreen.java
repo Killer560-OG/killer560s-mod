@@ -108,15 +108,29 @@ public final class AuctionHouseScreen extends Screen {
                     cfg.setLastSort(cfg.getLastSort().next());
                     cfg.save();
                     btn.setMessage(sortLabel(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setLastSort(cfg.getLastSort().previous());
+                    cfg.save();
+                    btn.setMessage(sortLabel(cfg));
                 }).bounds(panelX + 8, y, colW, 16).build());
         addRenderableWidget(SettingsButtonWidget.builder(rarityLabel(cfg), btn -> {
                     cfg.setLastRarityFilter(nextRarity(cfg.getLastRarityFilter()));
                     cfg.save();
                     btn.setMessage(rarityLabel(cfg));
                     scrollOffset = 0;
+                }).secondaryPress(btn -> {
+                    cfg.setLastRarityFilter(previousRarity(cfg.getLastRarityFilter()));
+                    cfg.save();
+                    btn.setMessage(rarityLabel(cfg));
+                    scrollOffset = 0;
                 }).bounds(panelX + 8 + colW + gap, y, colW, 16).build());
         addRenderableWidget(SettingsButtonWidget.builder(petLevelLabel(cfg), btn -> {
                     cfg.setLastMinPetLevel(nextPetLevelStep(cfg.getLastMinPetLevel()));
+                    cfg.save();
+                    btn.setMessage(petLevelLabel(cfg));
+                    scrollOffset = 0;
+                }).secondaryPress(btn -> {
+                    cfg.setLastMinPetLevel(previousPetLevelStep(cfg.getLastMinPetLevel()));
                     cfg.save();
                     btn.setMessage(petLevelLabel(cfg));
                     scrollOffset = 0;
@@ -138,10 +152,31 @@ public final class AuctionHouseScreen extends Screen {
         return RARITIES[0];
     }
 
+    /** Mirror of {@link #nextRarity} for right-click (killer560, 2026-09-27: "if i right click then it
+     *  goes back one"). */
+    private static String previousRarity(String current) {
+        for (int i = 0; i < RARITIES.length; i++) {
+            if (RARITIES[i].equalsIgnoreCase(current)) {
+                return RARITIES[(i - 1 + RARITIES.length) % RARITIES.length];
+            }
+        }
+        return RARITIES[0];
+    }
+
     private static int nextPetLevelStep(int current) {
         for (int i = 0; i < PET_LEVEL_STEPS.length; i++) {
             if (PET_LEVEL_STEPS[i] == current) {
                 return PET_LEVEL_STEPS[(i + 1) % PET_LEVEL_STEPS.length];
+            }
+        }
+        return PET_LEVEL_STEPS[0];
+    }
+
+    /** Mirror of {@link #nextPetLevelStep} for right-click. */
+    private static int previousPetLevelStep(int current) {
+        for (int i = 0; i < PET_LEVEL_STEPS.length; i++) {
+            if (PET_LEVEL_STEPS[i] == current) {
+                return PET_LEVEL_STEPS[(i - 1 + PET_LEVEL_STEPS.length) % PET_LEVEL_STEPS.length];
             }
         }
         return PET_LEVEL_STEPS[0];

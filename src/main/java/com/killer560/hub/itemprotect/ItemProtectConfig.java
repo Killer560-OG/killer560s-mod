@@ -55,6 +55,10 @@ public final class ItemProtectConfig {
         public LockStyle next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public LockStyle previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     /** Mouse buttons are stored as {@code MOUSE_CODE_BASE - button} (left -100, right -101, middle -102, ...)

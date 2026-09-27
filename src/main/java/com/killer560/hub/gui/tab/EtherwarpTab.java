@@ -48,6 +48,10 @@ public class EtherwarpTab extends BaseTab {
                     cfg.setStyle(cfg.getStyle().next());
                     cfg.save();
                     btn.setMessage(styleText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setStyle(cfg.getStyle().previous());
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 

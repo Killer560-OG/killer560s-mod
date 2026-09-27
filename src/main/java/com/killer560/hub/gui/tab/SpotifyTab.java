@@ -58,6 +58,10 @@ public class SpotifyTab extends BaseTab {
                     SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.next();
                     SpotifyLyricsFeature.saveConfig();
                     btn.setMessage(destText());
+                }).secondaryPress(btn -> {
+                    SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.previous();
+                    SpotifyLyricsFeature.saveConfig();
+                    btn.setMessage(destText());
                 }).bounds(contentX, y, half, 20).build());
         widgets.add(SettingsButtonWidget.builder(detailText(), btn -> {
                     SpotifyLyricsFeature.fullLyrics = !SpotifyLyricsFeature.fullLyrics;
@@ -68,6 +72,10 @@ public class SpotifyTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(profanityText(), btn -> {
                     SpotifyLyricsFeature.profanityLevel = SpotifyLyricsFeature.profanityLevel.next();
+                    SpotifyLyricsFeature.saveConfig();
+                    btn.setMessage(profanityText());
+                }).secondaryPress(btn -> {
+                    SpotifyLyricsFeature.profanityLevel = SpotifyLyricsFeature.profanityLevel.previous();
                     SpotifyLyricsFeature.saveConfig();
                     btn.setMessage(profanityText());
                 }).bounds(contentX, y, contentWidth, 20).build());

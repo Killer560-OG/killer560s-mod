@@ -203,6 +203,11 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                     set.accept((get.getAsInt() + 1) % names.length);
                     cfg.save();
                     btn.setMessage(text.get());
+                }).secondaryPress(btn -> {
+                    // killer560, 2026-09-27: "if i right click then it goes back one".
+                    set.accept((get.getAsInt() - 1 + names.length) % names.length);
+                    cfg.save();
+                    btn.setMessage(text.get());
                 }).bounds(x, y, w, 18).build();
     }
 

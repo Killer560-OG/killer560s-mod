@@ -112,6 +112,11 @@ public final class Ap3Config {
             AlignMethod[] all = values();
             return all[(ordinal() + 1) % all.length];
         }
+
+        public AlignMethod previous() {
+            AlignMethod[] all = values();
+            return all[(all.length + ordinal() - 1) % all.length];
+        }
     }
 
     /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
@@ -151,6 +156,10 @@ public final class Ap3Config {
 
         public MessageDetail next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public MessageDetail previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
     /**

@@ -151,9 +151,18 @@ public class F7SpotsTab extends BaseTab {
                     newSituation = newSituation == null ? AimSituation.ANY
                             : (newSituation == AimSituation.P5_PURPLE ? null : newSituation.next());
                     requestRebuild.run();
+                }).secondaryPress(btn -> {
+                    // Mirror of the left-click ring above (null=Auto -> ANY -> ... -> P5_PURPLE -> null),
+                    // walked backwards: null -> P5_PURPLE -> ... -> ANY -> null.
+                    newSituation = newSituation == null ? AimSituation.P5_PURPLE
+                            : (newSituation == AimSituation.ANY ? null : newSituation.previous());
+                    requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
         widgets.add(SettingsButtonWidget.builder(Component.literal("New Aim Class: §b" + CLASSES[newClassIndex]), btn -> {
                     newClassIndex = (newClassIndex + 1) % CLASSES.length;
+                    requestRebuild.run();
+                }).secondaryPress(btn -> {
+                    newClassIndex = (newClassIndex - 1 + CLASSES.length) % CLASSES.length;
                     requestRebuild.run();
                 }).bounds(col2X, y, colW, 18).build());
         y += 22;

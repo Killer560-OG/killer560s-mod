@@ -78,13 +78,6 @@ public class AutoPuzzlesTab extends BaseTab {
                         cfg.save();
                     }));
             y += ROW_STEP;
-            widgets.add(rangeSlider(contentX, y, contentWidth, "Miss Cooldown", cfg.getMissCooldownMs(),
-                    AutoPuzzlesConfig.MISS_CD_MIN, AutoPuzzlesConfig.MISS_CD_MAX, AutoPuzzlesConfig.COOLDOWN_STEP_MS, "ms",
-                    v -> {
-                        cfg.setMissCooldownMs(v);
-                        cfg.save();
-                    }));
-            y += ROW_STEP;
         }
 
         // ---- click puzzles ----

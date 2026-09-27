@@ -31,7 +31,6 @@ public final class DungeonAlertsConfig {
 
     // Shadow Assassin Alert
     public boolean shadowAssassinEnabled = false;
-    public boolean shadowAssassinPartyChat = false;
 
     // Secret Sound
     public boolean secretSoundEnabled = false;
@@ -51,12 +50,12 @@ public final class DungeonAlertsConfig {
     public boolean classColorsTab = true;
     public boolean classColorsNametags = true;
 
-    // Room Alerts
+    // Room Alerts - killer560 (2026-09-27): "Make room alerts only have cleared room alert and secrets in
+    // a room done alert" - replaces the old "enter a named/puzzle room" trigger entirely. See RoomAlerts.
     public boolean roomAlertsEnabled = false;
-    public boolean roomAlertsPuzzles = true;
-    public String roomAlertsNames = "";
+    public boolean roomAlertsRoomCleared = true;
+    public boolean roomAlertsSecretsDone = true;
     public boolean roomAlertsTitle = true;
-    public boolean roomAlertsChat = false;
     public float roomAlertsDisplaySeconds = 2.0f;
 
     private DungeonAlertsConfig() {
@@ -75,7 +74,6 @@ public final class DungeonAlertsConfig {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.shadowAssassinEnabled = bool(o, "shadowAssassinEnabled", cfg.shadowAssassinEnabled);
-                cfg.shadowAssassinPartyChat = bool(o, "shadowAssassinPartyChat", cfg.shadowAssassinPartyChat);
                 cfg.secretSoundEnabled = bool(o, "secretSoundEnabled", cfg.secretSoundEnabled);
                 cfg.secretSoundId = ConfigJson.getString(o, "secretSoundId", cfg.secretSoundId);
                 cfg.secretSoundVolume = clamp(flt(o, "secretSoundVolume", cfg.secretSoundVolume), 0f, 1f);
@@ -87,10 +85,9 @@ public final class DungeonAlertsConfig {
                 cfg.classColorsTab = bool(o, "classColorsTab", cfg.classColorsTab);
                 cfg.classColorsNametags = bool(o, "classColorsNametags", cfg.classColorsNametags);
                 cfg.roomAlertsEnabled = bool(o, "roomAlertsEnabled", cfg.roomAlertsEnabled);
-                cfg.roomAlertsPuzzles = bool(o, "roomAlertsPuzzles", cfg.roomAlertsPuzzles);
-                cfg.roomAlertsNames = ConfigJson.getString(o, "roomAlertsNames", cfg.roomAlertsNames);
+                cfg.roomAlertsRoomCleared = bool(o, "roomAlertsRoomCleared", cfg.roomAlertsRoomCleared);
+                cfg.roomAlertsSecretsDone = bool(o, "roomAlertsSecretsDone", cfg.roomAlertsSecretsDone);
                 cfg.roomAlertsTitle = bool(o, "roomAlertsTitle", cfg.roomAlertsTitle);
-                cfg.roomAlertsChat = bool(o, "roomAlertsChat", cfg.roomAlertsChat);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
             } catch (Exception e) {
                 LOGGER.warn("[DungeonAlerts] Failed to read config, using defaults", e);
@@ -105,7 +102,6 @@ public final class DungeonAlertsConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
             o.addProperty("shadowAssassinEnabled", shadowAssassinEnabled);
-            o.addProperty("shadowAssassinPartyChat", shadowAssassinPartyChat);
             o.addProperty("secretSoundEnabled", secretSoundEnabled);
             o.addProperty("secretSoundId", secretSoundId);
             o.addProperty("secretSoundVolume", secretSoundVolume);
@@ -117,10 +113,9 @@ public final class DungeonAlertsConfig {
             o.addProperty("classColorsTab", classColorsTab);
             o.addProperty("classColorsNametags", classColorsNametags);
             o.addProperty("roomAlertsEnabled", roomAlertsEnabled);
-            o.addProperty("roomAlertsPuzzles", roomAlertsPuzzles);
-            o.addProperty("roomAlertsNames", roomAlertsNames);
+            o.addProperty("roomAlertsRoomCleared", roomAlertsRoomCleared);
+            o.addProperty("roomAlertsSecretsDone", roomAlertsSecretsDone);
             o.addProperty("roomAlertsTitle", roomAlertsTitle);
-            o.addProperty("roomAlertsChat", roomAlertsChat);
             o.addProperty("roomAlertsDisplaySeconds", roomAlertsDisplaySeconds);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception e) {

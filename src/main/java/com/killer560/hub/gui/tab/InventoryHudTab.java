@@ -56,6 +56,10 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
                     cfg.setBackground(cfg.getBackground().next());
                     cfg.save();
                     btn.setMessage(backgroundText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setBackground(cfg.getBackground().previous());
+                    cfg.save();
+                    btn.setMessage(backgroundText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
         widgets.add(opacitySlider(colBX, y, colW, cfg));
         y += 22;
@@ -91,6 +95,10 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, colW, 18).build());
         widgets.add(SettingsButtonWidget.builder(visibilityText(cfg), btn -> {
                     cfg.setVisibility(cfg.getVisibility().next());
+                    cfg.save();
+                    requestRebuild.run();
+                }).secondaryPress(btn -> {
+                    cfg.setVisibility(cfg.getVisibility().previous());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(colBX, y, colW, 18).build());

@@ -8,7 +8,8 @@ import net.minecraft.sounds.SoundEvents;
  * {@code ClientboundInitializeBorderPacket} (the red world-border flash) when a Shadow Assassin teleports behind
  * you. QUOI (area = Dungeon) fires on every such packet except in the F2/F3 boss fights, showing an empty title
  * with subtitle "§aShadow Assassin!", stay 35 ticks, no fades, and playing {@code BLAZE_HURT} (vol 1, pitch 1 -
- * QUOI's {@code setTitle} defaults). Party chat is this mod's own optional extra (off by default).
+ * QUOI's {@code setTitle} defaults). The party-chat variant of this alert was this mod's own optional extra;
+ * removed 2026-09-27 (killer560: "remove the party chat alert to shadow assassin").
  */
 final class ShadowAssassinAlert {
 
@@ -33,8 +34,5 @@ final class ShadowAssassinAlert {
         DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Shadow Assassin alert (border packet, floor={})", DungeonState.getFloor());
         DungeonAlertsFeature.showTitle("", "§aShadow Assassin!", 0, 35, 0);
         DungeonAlertsFeature.playSound(SoundEvents.BLAZE_HURT, 1.0f, 1.0f);
-        if (cfg.shadowAssassinPartyChat) {
-            DungeonAlertsFeature.sendPartyChat("Shadow Assassin!");
-        }
     }
 }

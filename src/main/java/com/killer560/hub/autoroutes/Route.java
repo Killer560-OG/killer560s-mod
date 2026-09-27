@@ -39,10 +39,11 @@ public final class Route {
         return nodes.isEmpty() && path.isEmpty();
     }
 
-    /** The START node, or null. A route has at most one (adding another moves it - see {@link RouteRecorder}). */
+    /** The node flagged {@code start}, or null. A route has at most one (adding the flag to another node moves
+     *  it - see {@link RouteRecorder#addNode}). */
     public RouteNode startNode() {
         for (RouteNode n : nodes) {
-            if (n.type == RouteNode.Type.START) {
+            if (n.start) {
                 return n;
             }
         }

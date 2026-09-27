@@ -586,11 +586,17 @@ public final class SplitTimersFeature {
             int slowest = slowestCoreLine().size();
             int total = SplitTimersConfig.getInstance().isP5LinesRight()
                     ? Math.max(rows, p5) + core + totals + slowest : rows + p5 + core + totals + slowest;
-            return 12 * Math.max(1, total);
+            // Compact (killer560, 2026-09-27: "have it show the splits hud more compact") - tighter row
+            // spacing (was 12) plus dropped header/divider rows, see coreLines()/p5Lines()/totalsLines().
+            return ROW_HEIGHT * Math.max(1, total);
         }
 
-        /** F7/M7 "time to enter the core after terms" rows ({@link CoreEntryTimes}), with a header when there are
-         *  any. In the HUD editor a sample is shown while the toggle is on, so the block can be positioned. */
+        /** Tighter than vanilla's 9px line height would allow overlap; this is the least padding that still
+         *  reads cleanly at scale 1. */
+        private static final int ROW_HEIGHT = 9;
+
+        /** F7/M7 "time to enter the core after terms" rows ({@link CoreEntryTimes}). In the HUD editor a
+         *  sample is shown while the toggle is on, so the block can be positioned. */
         private static List<String> coreLines() {
             if (!SplitTimersConfig.getInstance().isCoreEntryTimes()) {
                 return List.of();
@@ -598,26 +604,19 @@ public final class SplitTimersFeature {
             if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
                 return CoreEntryTimes.editorLines();
             }
-            List<String> lines = CoreEntryTimes.lines();
-            if (lines.isEmpty()) {
-                return List.of();
-            }
-            List<String> out = new ArrayList<>(lines.size() + 1);
-            out.add("§6§lCore Entry");
-            out.addAll(lines);
-            return out;
+            return CoreEntryTimes.lines();
         }
 
-        /** M7 Phase 5 dragon/relic lines ({@link P5Splits}), with a header row when there are any. In the HUD
-         *  editor a sample is shown while either toggle is on, so the column can be positioned before a run. */
+        /** M7 Phase 5 dragon/relic lines ({@link P5Splits}). In the HUD editor a sample is shown while
+         *  either toggle is on, so the column can be positioned before a run. No header row (compact,
+         *  2026-09-27) - the P5 lines already have their own distinct colours. */
         private static List<String> p5Lines() {
             SplitTimersConfig cfg = SplitTimersConfig.getInstance();
             if (!cfg.isP5DragonLines() && !cfg.isP5RelicLines()) {
                 return List.of();
             }
-            List<String> out = new ArrayList<>();
             if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
-                out.add("§5§lP5");
+                List<String> out = new ArrayList<>();
                 if (cfg.isP5DragonLines()) {
                     out.add("§5Purple §8#1§f: 11.35s");
                     out.add("§cRed §8#1§f: §79.80s");
@@ -628,13 +627,7 @@ public final class SplitTimersFeature {
                 }
                 return out;
             }
-            List<String> lines = P5Splits.lines(cfg.isP5DragonLines(), cfg.isP5RelicLines(), false);
-            if (lines.isEmpty()) {
-                return List.of();
-            }
-            out.add("§5§lP5");
-            out.addAll(lines);
-            return out;
+            return P5Splits.lines(cfg.isP5DragonLines(), cfg.isP5RelicLines(), false);
         }
 
         /** Odin's Splits HUD: every row but the Total, with a "Boss Entry" row (Devonian {@code Stages.BossEntry} -
@@ -723,27 +716,25 @@ public final class SplitTimersFeature {
          *  "With lag" is the plain wall-clock total - exactly what Hypixel's own end-of-run "Defeated ...
          *  in" line measures, untouched by SplitLagClock, so it always matches that real number. The other
          *  two are lag-derived and hidden (not shown as a dishonest 0) until SplitLagClock has actually
-         *  seen a real server tick this connection ({@link SplitLagClock#isTrustworthy()}). */
+         *  seen a real server tick this connection ({@link SplitLagClock#isTrustworthy()}).
+         *  <p>
+         *  No longer prefixed with its own divider row (compact, 2026-09-27 - killer560: "drop redundant
+         *  padding/headers"); {@code isClearBossDivider()}'s own divider (a real, user-facing toggle) is
+         *  untouched and still uses {@link #DIVIDER_TEXT}. Labels shortened for the same reason. */
         private static List<String> totalsLines() {
             SplitTimersConfig cfg = SplitTimersConfig.getInstance();
             if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
                 List<String> sample = new ArrayList<>();
                 if (cfg.isTotalWithLag()) {
-                    sample.add("§eTotal (with lag)§f: 1m 23.45s");
+                    sample.add("§eTotal§f: 1m 23.45s");
                 }
                 if (cfg.isTotalWithoutLag()) {
-                    sample.add("§aTotal (without lag)§f: 1m 20.10s");
+                    sample.add("§aNo Lag§f: 1m 20.10s");
                 }
                 if (cfg.isLagLostLine()) {
-                    sample.add("§cLag Lost§f: 3.35s");
+                    sample.add("§cLag§f: 3.35s");
                 }
-                if (sample.isEmpty()) {
-                    return List.of();
-                }
-                List<String> out = new ArrayList<>(sample.size() + 1);
-                out.add(DIVIDER_TEXT);
-                out.addAll(sample);
-                return out;
+                return sample;
             }
             int first = firstRecorded();
             if (first < 0) {
@@ -758,21 +749,15 @@ public final class SplitTimersFeature {
             boolean trusted = SplitLagClock.isTrustworthy();
             List<String> content = new ArrayList<>();
             if (cfg.isTotalWithLag()) {
-                content.add("§eTotal (with lag)§f: " + formatTime(total));
+                content.add("§eTotal§f: " + formatTime(total));
             }
             if (cfg.isTotalWithoutLag() && trusted) {
-                content.add("§aTotal (without lag)§f: " + formatTime(Math.max(0L, total - lag)));
+                content.add("§aNo Lag§f: " + formatTime(Math.max(0L, total - lag)));
             }
             if (cfg.isLagLostLine() && trusted) {
-                content.add("§cLag Lost§f: " + formatTime(lag));
+                content.add("§cLag§f: " + formatTime(lag));
             }
-            if (content.isEmpty()) {
-                return List.of();
-            }
-            List<String> out = new ArrayList<>(content.size() + 1);
-            out.add(DIVIDER_TEXT);
-            out.addAll(content);
-            return out;
+            return content;
         }
 
         /** "You can at the very bottom of the split timers show the slowest person into core and their
@@ -784,10 +769,10 @@ public final class SplitTimersFeature {
                 return List.of();
             }
             if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
-                return List.of("§6Slowest Into Core§f: §cTeammate§f: 6.20s");
+                return List.of("§6Slowest§f: §cTeammate§f: 6.20s");
             }
             String line = CoreEntryTimes.slowestHudLine();
-            return line == null ? List.of() : List.of("§6Slowest Into Core§f: " + line);
+            return line == null ? List.of() : List.of("§6Slowest§f: " + line);
         }
 
         /** Row text, with the lagless "(...)" appended when on and trustworthy - dividers print as-is. */
@@ -818,7 +803,7 @@ public final class SplitTimersFeature {
             if (!HudVisibility.editorOpen()) {
                 for (SplitRow row : displayRows()) {
                     graphics.text(Minecraft.getInstance().font, rowText(row), x, lineY, 0xFFFFFFFF, false);
-                    lineY += 12;
+                    lineY += ROW_HEIGHT;
                 }
             }
             boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
@@ -826,22 +811,22 @@ public final class SplitTimersFeature {
             int p5Y = right ? y : lineY;
             for (String line : p5Lines()) {
                 graphics.text(Minecraft.getInstance().font, line, p5X, p5Y, 0xFFFFFFFF, false);
-                p5Y += 12;
+                p5Y += ROW_HEIGHT;
             }
             // Core entry / totals / slowest-into-core rows always sit in the left column, under whatever
             // is already there, in that order - the last two are the "very bottom" blocks killer560 asked for.
             int coreY = right ? lineY : p5Y;
             for (String line : coreLines()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
-                coreY += 12;
+                coreY += ROW_HEIGHT;
             }
             for (String line : totalsLines()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
-                coreY += 12;
+                coreY += ROW_HEIGHT;
             }
             for (String line : slowestCoreLine()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
-                coreY += 12;
+                coreY += ROW_HEIGHT;
             }
         }
     }

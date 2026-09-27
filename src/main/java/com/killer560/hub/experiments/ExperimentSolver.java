@@ -124,6 +124,28 @@ final class ExperimentSolver {
      *  again forever. Recording which slot this was lets that cleanup skip freeing it specifically,
      *  while still freeing genuinely-stuck PAIR-completion clicks like it's meant to. */
     private Integer superpairsPowerupActivationSlot;
+    /** Real bug found and fixed (2026-09-24) from killer560's report: the solver paired a Titanic
+     *  Experience Bottle with a Grand one, then later found the real second Titanic but re-clicked
+     *  the first one's old partner instead of pairing them, and "kept going down the line not pairing
+     *  it" for the rest of the round. Root cause: {@link #clickAnyRemainingKnownTile} (the "spend this
+     *  click on literally anything known" last-resort fallback, added per killer560's "it gets stuck
+     *  with only 1 click left so just have it click any of them") has no real partner in mind for the
+     *  single slot it clicks - it exists purely so an otherwise-unused click doesn't go to waste, not
+     *  to complete an actual pair - yet it still added that slot to {@link #queuedPairSlots} the same
+     *  way a genuine pair-completion click does. Every OTHER place a queued slot gets freed again only
+     *  does so on a genuine confirm TIMEOUT (see the cleanup in {@link #observeSuperpairs}), but
+     *  re-clicking an ALREADY-known tile almost always DOES produce a visible state change (hidden ->
+     *  revealed again), so it "confirms" normally instead of timing out and is never freed -
+     *  permanently blacklisting that slot from {@link #knownSuperpairsCells}'s byKey pairing scan
+     *  (which skips anything in {@code queuedPairSlots}) for the rest of the round, even once its real
+     *  partner is discovered later. That's exactly what made the real second Titanic unpairable: the
+     *  first Titanic had already been spent this way earlier (visible from the outside as "it clicked a
+     *  Titanic then a Grand back to back," since a lone spend click looks identical to a real queued
+     *  pair click one tick apart), so the byKey scan could never see both Titanic slots at once again.
+     *  This records which slot was spent that way so {@link #observeSuperpairs} can free it the moment
+     *  its click resolves - confirmed or not - since a lone last-resort spend can never complete a real
+     *  match by itself regardless of outcome, unlike every other queuedPairSlots entry. */
+    private Integer superpairsSingleSpendSlot;
     /** Per killer560's request: scan the grid top-left to bottom-right in a full snake/boustrophedon
      *  pattern (row 1 left-to-right, row 2 right-to-left, and so on) rather than a flat row-major
      *  scan, so pairs get queued in that visible order. */
@@ -714,6 +736,16 @@ final class ExperimentSolver {
                     }
                     superpairsPowerupActivationSlot = null;
                 }
+                // Real bug found and fixed (2026-09-24, see superpairsSingleSpendSlot's doc): a
+                // last-resort single-spend click (clickAnyRemainingKnownTile) has no real partner, so
+                // unlike a genuine pair-completion click it must be freed from queuedPairSlots the
+                // moment its confirm resolves EITHER way - not just on timeout like the block above -
+                // since re-revealing an already-known tile almost always DOES produce a visible change
+                // and would otherwise never hit that timeout path at all, leaving it stuck forever.
+                if (superpairsAwaitingConfirmSlot.equals(superpairsSingleSpendSlot)) {
+                    queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
+                    superpairsSingleSpendSlot = null;
+                }
                 superpairsAwaitingConfirmSlot = null;
                 superpairsAwaitingConfirmPriorCell = null;
                 superpairsClickSent = false;
@@ -889,6 +921,17 @@ final class ExperimentSolver {
                     pairClicks.add(slot);
                     queuedPairSlots.add(first);
                     queuedPairSlots.add(slot);
+                    // Diagnostic (2026-09-24), per killer560's report of a Titanic getting queued
+                    // against a Grand: this is the ONLY place a real pair gets queued from matching
+                    // identities, so logging both slots' full remembered identity here (itemId + raw
+                    // name, not the truncated overlay label) settles instantly whether a future repeat
+                    // is a genuine key collision (both names would print identical here) or something
+                    // else entirely (e.g. a last-resort single-spend elsewhere being mistaken for a
+                    // pair - see clickAnyRemainingKnownTile's own log line for that path).
+                    LOGGER.info("Superpairs queuing pair: slot {} (itemId={}, name='{}') with slot {} "
+                                    + "(itemId={}, name='{}') on key '{}'",
+                            first, knownSuperpairsCells.get(first).itemId(), knownSuperpairsCells.get(first).name(),
+                            slot, known.itemId(), known.name(), key);
                     break;
                 }
             }
@@ -963,6 +1006,15 @@ final class ExperimentSolver {
             if (queuedPairSlots.contains(slot)) continue;
             if (knownSuperpairsCells.containsKey(slot)) {
                 queuedPairSlots.add(slot);
+                // See superpairsSingleSpendSlot's doc (real bug found 2026-09-24): this slot has no
+                // known partner - mark it so observeSuperpairs frees it again once the click resolves,
+                // instead of leaving it stuck in queuedPairSlots forever and unpairable with its real
+                // match if one turns up later.
+                superpairsSingleSpendSlot = slot;
+                Cell known = knownSuperpairsCells.get(slot);
+                LOGGER.info("Superpairs: last-resort single-spend on slot {} (itemId={}, name='{}') - "
+                                + "no known partner, spending an otherwise-unused click",
+                        slot, known.itemId(), known.name());
                 return OptionalInt.of(slot);
             }
         }
@@ -1070,6 +1122,7 @@ final class ExperimentSolver {
         superpairsPowerupSlot = null;
         superpairsPowerupPending = false;
         superpairsPowerupActivationSlot = null;
+        superpairsSingleSpendSlot = null;
         superpairsAwaitingConfirmSlot = null;
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;

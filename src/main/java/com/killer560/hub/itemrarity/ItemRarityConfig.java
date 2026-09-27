@@ -31,6 +31,11 @@ public final class ItemRarityConfig {
             return v[(ordinal() + 1) % v.length];
         }
 
+        public Style previous() {
+            Style[] v = values();
+            return v[(v.length + ordinal() - 1) % v.length];
+        }
+
         static Style parse(String s) {
             for (Style st : values()) {
                 if (st.name().equalsIgnoreCase(s)) {

@@ -19,7 +19,17 @@ import java.util.Locale;
  */
 public final class RouteNode {
 
-    /** Node kinds. Aliases in {@link #parse} are the {@code /ar add <type>} spellings killer560 asked for. */
+    /**
+     * Node kinds. Aliases in {@link #parse} are the {@code /ar add <type>} spellings killer560 asked for.
+     * <p>
+     * {@link #START} and {@link #AWAIT} are LEGACY ONLY (killer560, 2026-09-2x: "start should not be a node...
+     * i should do something like /ar add etherwarp start, and that is the start node. same with await."). Nothing
+     * creates a node of either type any more - {@code /ar add} now takes {@code start} and {@code await:<n>} as
+     * modifiers on any real node ({@link #start} / {@link #awaitEnabled} below). The two constants stay in the
+     * enum only so {@link RouteStore} can still recognise {@code "type": "START"} / {@code "AWAIT"} in an old
+     * routes file and fold it onto the modifier fields on load ({@code RouteStore#migrateLegacyMarkers}) instead
+     * of silently dropping someone's saved route.
+     */
     public enum Type {
         START, WALK, ETHERWARP, USE_ITEM, DUNGEON_BREAKER, BOOM, AWAIT, ROTATE, UNSNEAK, COMMAND;
 
@@ -84,6 +94,17 @@ public final class RouteNode {
     public double radius = DEFAULT_RADIUS;
     /** Optional per-node ARGB colour, or null to use the type / uniform colour from the settings. */
     public Integer colour;
+
+    // ---- modifiers (killer560, 2026-09-2x: "/ar add etherwarp start await:2" - any node can carry either, or
+    //      both, of these; see the Type enum doc's note on START / AWAIT being legacy-only now) ----
+    /** This is the route's start node - the one {@code /ar start record} etherwarps back onto to arm playback.
+     *  At most one node per route should have this set; {@link RouteRecorder#addNode} clears it off whichever
+     *  node had it before setting it on a new one. */
+    public boolean start;
+    /** True when this node waits for {@link #awaitCondition} / {@link #awaitAmount} to be satisfied BEFORE it
+     *  fires (the old {@code Type.AWAIT} node's behaviour, now a modifier instead of a separate node in the
+     *  sequence - see {@code RouteExecutor#tickAction}'s pre-action await gate). */
+    public boolean awaitEnabled;
 
     // ---- type-specific ----
     /** {@link Type#DUNGEON_BREAKER}: room-relative blocks this node breaks, in order. */
@@ -169,13 +190,33 @@ public final class RouteNode {
         switch (type) {
             case USE_ITEM -> sb.append(" [").append(item == null ? "?" : item).append(']');
             case DUNGEON_BREAKER -> sb.append(" [").append(breakerBlocks.size()).append(" block(s)]");
-            case AWAIT -> sb.append(" [").append(awaitCondition.name().toLowerCase(Locale.ROOT)).append(' ')
-                    .append(awaitAmount).append(awaitCondition == AwaitCondition.DELAY ? "ms" : "").append(']');
             case COMMAND -> sb.append(" [").append(command == null ? "" : command).append(']');
             default -> {
             }
         }
+        sb.append(modifierTag());
         sb.append(String.format(Locale.US, " @ %.1f, %.1f, %.1f", x, y, z));
+        return sb.toString();
+    }
+
+    /** " [start]" / " [await ...]" / " [start, await ...]" - the {@code start} / {@code awaitEnabled} modifiers
+     *  (see their fields above), shared by {@link #describe()} and the world label so both read the same tags. */
+    public String modifierTag() {
+        if (!start && !awaitEnabled) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(" [");
+        if (start) {
+            sb.append("start");
+        }
+        if (awaitEnabled) {
+            if (start) {
+                sb.append(", ");
+            }
+            sb.append("await ").append(awaitCondition.name().toLowerCase(Locale.ROOT)).append(' ')
+                    .append(awaitAmount).append(awaitCondition == AwaitCondition.DELAY ? "ms" : "");
+        }
+        sb.append(']');
         return sb.toString();
     }
 
@@ -183,6 +224,8 @@ public final class RouteNode {
         RouteNode n = new RouteNode(type, x, y, z, yaw, pitch, pathIndex);
         n.radius = radius;
         n.colour = colour;
+        n.start = start;
+        n.awaitEnabled = awaitEnabled;
         n.breakerBlocks.addAll(breakerBlocks);
         n.item = item;
         n.awaitCondition = awaitCondition;

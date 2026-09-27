@@ -78,6 +78,8 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             y += 20;
             widgets.add(LiveMapTab.toggle("Class Colours", cfg::isClassBorderColour, cfg::setClassBorderColour,
                     cfg, contentX, y, colW));
+            widgets.add(LiveMapTab.toggle("Extra Info", cfg::isShowExtraInfo, cfg::setShowExtraInfo,
+                    cfg, colB, y, colW));
             y += 24;
         }
 

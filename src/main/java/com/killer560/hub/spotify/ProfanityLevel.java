@@ -15,4 +15,9 @@ public enum ProfanityLevel {
         ProfanityLevel[] vals = values();
         return vals[(this.ordinal() + 1) % vals.length];
     }
+
+    public ProfanityLevel previous() {
+        ProfanityLevel[] vals = values();
+        return vals[(vals.length + this.ordinal() - 1) % vals.length];
+    }
 }

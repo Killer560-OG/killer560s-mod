@@ -40,6 +40,13 @@ import java.util.regex.Pattern;
  * Score, and {@code ScoreCalculatorFeature} already ran its own, independent mimic/prince/bat detection for
  * the score formula, so keeping a second copy here just to fire a chat message was the exact kind of
  * overlap this reorg was asked to collapse. See that class for the merged detection+alert code.
+ * <p>
+ * Reworked 2026-09-27 (killer560: "the secret hud should only be in room secrets collected / total secrets
+ * in the room"): the HUD line dropped the run-total/percent text for just "found/total" in the room the
+ * player is standing in - see {@link RoomEntry#secrets} for the total. Tracking itself
+ * ({@link #updateSecretsCount()}/{@link #updateRoomSecrets()}) no longer waits on the Secrets HUD's own
+ * enabled toggle - {@code com.killer560.hub.dungeonalerts.RoomAlerts}' Secrets Done alert reads
+ * {@link #roomSecretsFound()} too, independent of whether this HUD is even on.
  */
 public final class DungeonInfoFeature {
 
@@ -129,11 +136,11 @@ public final class DungeonInfoFeature {
             lastLoggedGates = gates;
         }
 
-        if (inDungeonNow && cfg.isSecretsHudEnabled()) {
+        // Tracked whenever in a dungeon, not just while the Secrets HUD is on - Dungeon Alerts' Secrets
+        // Done alert (roomSecretsFound()) needs this too, independent of this HUD's own toggle.
+        if (inDungeonNow) {
             updateSecretsCount();
-            if (cfg.isShowPerRoomSecrets()) {
-                updateRoomSecrets();
-            }
+            updateRoomSecrets();
         }
     }
 
@@ -219,6 +226,14 @@ public final class DungeonInfoFeature {
         }
     }
 
+    /** Secrets found since the player walked into the room they're currently standing in, or -1 when
+     *  unknown (room unresolved, or the tab-list count hasn't been read yet this run). Used by both the
+     *  Secrets HUD line and {@code com.killer560.hub.dungeonalerts.RoomAlerts}' Secrets Done alert - see
+     *  {@link #updateRoomSecrets()}. */
+    public static int roomSecretsFound() {
+        return roomSecretsFound;
+    }
+
     /** Client-side elapsed time for the current (or most recently finished) run - real wall-clock
      *  elapsed time, so it includes any lag/freeze along the way. Only used for the run-timer-stopped
      *  log line now that the Time HUD (its only display) is gone (killer560, 2026-09-27: "remove the
@@ -280,7 +295,7 @@ public final class DungeonInfoFeature {
 
         @Override
         public int height() {
-            return DungeonInfoConfig.getInstance().isShowPerRoomSecrets() ? 24 : 12;
+            return 12;
         }
 
         @Override
@@ -294,17 +309,10 @@ public final class DungeonInfoFeature {
             if (!cfg.isSecretsHudEnabled() || !DungeonState.isInDungeon() || HudVisibility.hidesHud()) {
                 return;
             }
-            int lineY = y;
-            String text = lastSecretsCount >= 0 ? ("Secrets: " + lastSecretsCount) : "Secrets: ?";
-            if (lastSecretsPercent != null) {
-                text += " (" + lastSecretsPercent + "%)";
-            }
-            graphics.text(Minecraft.getInstance().font, text, x, lineY, 0xFFFFFFFF, false);
-            lineY += 12;
-            if (cfg.isShowPerRoomSecrets()) {
-                String roomText = roomSecretsFound >= 0 ? ("Room: " + roomSecretsFound) : "Room: ?";
-                graphics.text(Minecraft.getInstance().font, roomText, x, lineY, 0xFFAAAAAA, false);
-            }
+            RoomEntry entry = LiveMapFeature.currentRoomEntry();
+            String found = roomSecretsFound >= 0 ? String.valueOf(roomSecretsFound) : "?";
+            String total = entry != null ? String.valueOf(entry.secrets) : "?";
+            graphics.text(Minecraft.getInstance().font, "Secrets: " + found + "/" + total, x, y, 0xFFFFFFFF, false);
         }
     }
 }

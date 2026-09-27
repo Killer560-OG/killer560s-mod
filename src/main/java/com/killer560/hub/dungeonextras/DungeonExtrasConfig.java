@@ -61,8 +61,19 @@ public final class DungeonExtrasConfig {
     private boolean breakerAuraSelectedOnly = true;
     /** The pick/unpick key. Semicolon by default - killer560 (2026-09-23): "default the breaker key to ;". */
     private int breakerAuraSelectKey = org.lwjgl.glfw.GLFW.GLFW_KEY_SEMICOLON;
-    /** The blocks he has picked, as "x,y,z" - they have to outlive a restart like every other setting. */
+    /**
+     * LEGACY (2026-09-27): the picks used to live here, and only here. {@link BreakerAuraStore} is the live copy
+     * now - one file per named config, swappable "just like the auto routes can swap" (killer560) - so nothing
+     * here is read by {@link BreakerAuraFeature} any more. The field stays, and still round-trips through
+     * {@link #load} / {@link #save} exactly as before, purely as the seed {@link BreakerAuraStore} migrates his
+     * real picks from into {@code default.json} the first time that folder has no file of its own; see
+     * {@code BreakerAuraStore#migrateLegacyPicks}.
+     */
     private final java.util.LinkedHashSet<String> breakerAuraSelected = new java.util.LinkedHashSet<>();
+    /** Which {@link BreakerAuraStore} config file is active, by name inside {@link BreakerAuraStore#directory()} -
+     *  "Choose Breaker Aura Config". Always a plain {@code *.json} name {@link BreakerAuraStore#validateConfigName}
+     *  accepts; anything else in a hand-edited settings file falls back to the default. */
+    private String breakerAuraConfigFile = BreakerAuraStore.DEFAULT_CONFIG_NAME;
     private int breakerAuraBlocksPerCycle = 1;
     /**
      * Ticks to wait between breaks, on top of the one-a-tick the gate already enforces. Zero by default now: the
@@ -125,6 +136,8 @@ public final class DungeonExtrasConfig {
                 cfg.breakerAuraSwapDelayTicks = clampInt(o.has("breakerAuraSwapDelayTicks") ? o.get("breakerAuraSwapDelayTicks").getAsInt() : cfg.breakerAuraSwapDelayTicks, 1, 20);
                 cfg.breakerAuraSwapBack = bool(o, "breakerAuraSwapBack", cfg.breakerAuraSwapBack);
                 cfg.breakerAuraSwapBackIdleTicks = clampInt(o.has("breakerAuraSwapBackIdleTicks") ? o.get("breakerAuraSwapBackIdleTicks").getAsInt() : cfg.breakerAuraSwapBackIdleTicks, 5, 100);
+                cfg.setBreakerAuraConfigFile(o.has("breakerAuraConfigFile") && o.get("breakerAuraConfigFile").isJsonPrimitive()
+                        ? o.get("breakerAuraConfigFile").getAsString() : cfg.breakerAuraConfigFile);
             } catch (Exception e) {
                 cfg = new DungeonExtrasConfig();
             }
@@ -163,6 +176,7 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraSwapDelayTicks", breakerAuraSwapDelayTicks);
             o.addProperty("breakerAuraSwapBack", breakerAuraSwapBack);
             o.addProperty("breakerAuraSwapBackIdleTicks", breakerAuraSwapBackIdleTicks);
+            o.addProperty("breakerAuraConfigFile", breakerAuraConfigFile);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -210,7 +224,19 @@ public final class DungeonExtrasConfig {
     public void setBreakerAuraSelectedOnly(boolean v) { breakerAuraSelectedOnly = v; }
     public int getBreakerAuraSelectKey() { return breakerAuraSelectKey; }
     public void setBreakerAuraSelectKey(int v) { breakerAuraSelectKey = v; }
+    /** LEGACY read only - see the field doc. {@link BreakerAuraFeature} no longer reads or writes this set. */
     public java.util.LinkedHashSet<String> getBreakerAuraSelected() { return breakerAuraSelected; }
+
+    /** File name (inside {@link BreakerAuraStore#directory()}) of the config in use - never a path. */
+    public String getBreakerAuraConfigFile() { return breakerAuraConfigFile; }
+
+    /** Rejects anything {@link BreakerAuraStore#validateConfigName} would (path separators, "..", odd characters)
+     *  rather than let a hand-edited settings file point the store outside its folder. */
+    public void setBreakerAuraConfigFile(String name) {
+        String clean = BreakerAuraStore.normalizeConfigName(name);
+        breakerAuraConfigFile = clean != null && BreakerAuraStore.validateConfigName(clean) == null
+                ? clean : BreakerAuraStore.DEFAULT_CONFIG_NAME;
+    }
 
     public boolean isBreakerAuraEnabled() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean isBreakerAuraEnabledRaw() { return breakerAuraEnabled; }

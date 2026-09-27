@@ -153,10 +153,18 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
                         entry.skin = entry.skin.next();
                         cfg.save();
                         requestRebuild.run();
+                    }).secondaryPress(btn -> {
+                        entry.skin = entry.skin.previous();
+                        cfg.save();
+                        requestRebuild.run();
                     }).bounds(contentX, y, colW, 18).build());
             widgets.add(SettingsButtonWidget.builder(
                     Component.literal("Trim: " + shortId(entry.trimMaterial)), btn -> {
                         entry.trimMaterial = cycle(materials, entry.trimMaterial);
+                        cfg.save();
+                        requestRebuild.run();
+                    }).secondaryPress(btn -> {
+                        entry.trimMaterial = cyclePrev(materials, entry.trimMaterial);
                         cfg.save();
                         requestRebuild.run();
                     }).bounds(col2X, y, colW, 18).build());
@@ -165,6 +173,10 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
             widgets.add(SettingsButtonWidget.builder(
                     Component.literal("Pattern: " + shortId(entry.trimPattern)), btn -> {
                         entry.trimPattern = cycle(patterns, entry.trimPattern);
+                        cfg.save();
+                        requestRebuild.run();
+                    }).secondaryPress(btn -> {
+                        entry.trimPattern = cyclePrev(patterns, entry.trimPattern);
                         cfg.save();
                         requestRebuild.run();
                     }).bounds(contentX, y, colW, 18).build());
@@ -203,6 +215,19 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
             return options.get(0);
         }
         return idx + 1 >= options.size() ? "" : options.get(idx + 1);
+    }
+
+    /** Mirror of {@link #cycle} for right-click (killer560, 2026-09-27: "if i right click then it goes
+     *  back one") - same "" (off) <-> first <-> ... <-> last loop, walked the other way. */
+    private static String cyclePrev(List<String> options, String current) {
+        if (options.isEmpty()) {
+            return "";
+        }
+        int idx = options.indexOf(current);
+        if (idx < 0) {
+            return options.get(options.size() - 1);
+        }
+        return idx == 0 ? "" : options.get(idx - 1);
     }
 
     private static String shortId(String id) {

@@ -26,6 +26,10 @@ public final class InventoryHudConfig {
         public Background next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public Background previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     public enum Visibility {
@@ -39,6 +43,10 @@ public final class InventoryHudConfig {
 
         public Visibility next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public Visibility previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 

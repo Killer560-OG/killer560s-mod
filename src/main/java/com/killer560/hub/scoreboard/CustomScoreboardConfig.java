@@ -42,6 +42,10 @@ public final class CustomScoreboardConfig {
         public Align next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public Align previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     public enum HorizontalSnap {
@@ -55,6 +59,10 @@ public final class CustomScoreboardConfig {
 
         public HorizontalSnap next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public HorizontalSnap previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -70,6 +78,10 @@ public final class CustomScoreboardConfig {
         public VerticalSnap next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public VerticalSnap previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     public enum NumberFormat {
@@ -83,6 +95,10 @@ public final class CustomScoreboardConfig {
 
         public NumberFormat next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public NumberFormat previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -102,6 +118,10 @@ public final class CustomScoreboardConfig {
         public NumberDisplayFormat next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public NumberDisplayFormat previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     /** What to show outside Skyblock / p3sim. The vanilla sidebar is never hidden there either way. */
@@ -116,6 +136,10 @@ public final class CustomScoreboardConfig {
 
         public OutsideSkyblockMode next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public OutsideSkyblockMode previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 
@@ -148,6 +172,10 @@ public final class CustomScoreboardConfig {
         public DateFormat next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public DateFormat previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     /** SkyHanni's DisplayConfig.PowderDisplay. */
@@ -163,6 +191,10 @@ public final class CustomScoreboardConfig {
         public PowderDisplay next() {
             return values()[(ordinal() + 1) % values().length];
         }
+
+        public PowderDisplay previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
     }
 
     public enum ArrowDisplay {
@@ -176,6 +208,10 @@ public final class CustomScoreboardConfig {
 
         public ArrowDisplay next() {
             return values()[(ordinal() + 1) % values().length];
+        }
+
+        public ArrowDisplay previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
         }
     }
 

@@ -195,7 +195,7 @@ final class CoreEntryTimes {
 
     /** Sample rows for the HUD editor, so the block can be positioned outside a run. */
     static List<String> editorLines() {
-        return List.of("§6§lCore Entry", "§bYou§f: 2.35s", "§aTeammate§f: 4.10s", "§cTeammate§f: §7-");
+        return List.of("§bYou§f: 2.35s", "§aTeammate§f: 4.10s", "§cTeammate§f: §7-");
     }
 
     private static String colorFor(String name) {

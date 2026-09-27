@@ -15,10 +15,14 @@ import java.util.List;
 /**
  * Auto Ice Path - port of QUOI {@code IcePathSolver.kt}'s {@code auto(...)} on top of {@link IcePathSolverFeature}.
  * Standing on the silverfish's cell (x/z of the silverfish, y 66), it shoots straight down (pitch 90) with the yaw of
- * the etherwarp direction towards the next stop, so the arrow knocks the silverfish that way; Shoot/Miss cooldowns
- * as QUOI. While the silverfish slides it waits. With "Etherwarp Reposition" on it also warps onto the silverfish's
+ * the etherwarp direction towards the next stop, so the arrow knocks the silverfish that way, paced by the Shoot
+ * cooldown. While the silverfish slides it waits. With "Etherwarp Reposition" on it also warps onto the silverfish's
  * cell (and, while it slides, onto the next stop) like QUOI; with it off you stand there yourself.
  * Safety addition: only fires while holding a shortbow (QUOI relied on its reposition having swapped to one).
+ * <p>
+ * Miss cooldown removed (killer560, 2026-09-27: "For auto puzzles remove the miss cooldown."): it used to hold
+ * every shot for an extra {@code missCooldownMs} on top of the Shoot cooldown in case that shot missed and the
+ * silverfish never started sliding. Now the Shoot cooldown alone paces the next attempt, hit or miss.
  */
 final class AutoIcePath {
 
@@ -29,7 +33,6 @@ final class AutoIcePath {
     private static final AutoReposition REPOSITION = new AutoReposition("IcePath");
 
     private static long lastShotTime = 0L;
-    private static boolean waitingForUpdate = false;
     private static boolean wasInRoom = false;
 
     private AutoIcePath() {
@@ -70,18 +73,10 @@ final class AutoIcePath {
         BlockPos nextSpot = BlockPos.containing(path.get(1));
 
         if (IcePathSolverFeature.isSilverfishMoving()) {
-            waitingForUpdate = false;
             if (reposition && !AutoPuzzleUtil.at(player, nextSpot)) {
                 REPOSITION.start(client, nextSpot, true, false, false);
             }
             return;
-        }
-        if (waitingForUpdate) {
-            if (now - lastShotTime > cfg.getMissCooldownMs()) {
-                waitingForUpdate = false;
-            } else {
-                return;
-            }
         }
         if (now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
@@ -102,17 +97,15 @@ final class AutoIcePath {
             return;
         }
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], 90f)) {
-            return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
+            return; // gate held this tick back - no shot, so lastShotTime must not move
         }
         LOGGER.info("[AutoPuzzles] IcePath: shot silverfish at {} towards {} (yaw={})", currSpot, nextSpot, dir[0]);
         lastShotTime = now;
-        waitingForUpdate = true;
     }
 
     private static void reset(Minecraft client) {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         lastShotTime = 0L;
-        waitingForUpdate = false;
     }
 }

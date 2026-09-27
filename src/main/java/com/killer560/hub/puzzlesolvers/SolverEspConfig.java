@@ -51,6 +51,10 @@ public final class SolverEspConfig {
         public WaypointStyle next() {
             return this == OUTLINE ? FULL : OUTLINE;
         }
+
+        public WaypointStyle previous() {
+            return this == OUTLINE ? FULL : OUTLINE;
+        }
     }
 
     private SolverEspConfig() {
