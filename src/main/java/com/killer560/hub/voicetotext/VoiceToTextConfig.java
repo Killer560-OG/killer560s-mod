@@ -18,9 +18,28 @@ public final class VoiceToTextConfig {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-voicetotext.json");
 
+    /** How the mic is listened to (killer560, 2026-09-27: "add an option for open mic or push to talk").
+     *  PUSH_TO_TALK is the default - it's what this feature already did before this option existed, so
+     *  nobody's setup changes silently just from updating. */
+    public enum Mode {
+        OPEN_MIC("Open Mic"), PUSH_TO_TALK("Push To Talk");
+
+        public final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+
+        public Mode next() {
+            Mode[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
+
     private static VoiceToTextConfig instance;
 
     private boolean enabled = false;
+    private Mode mode = Mode.PUSH_TO_TALK;
     private int pushToTalkKeyCode = -1;
     private boolean sendToPartyChat = true;
     /** Java Sound mixer name of the microphone to record from; empty = the system default (2026-09-21). */
@@ -46,6 +65,7 @@ public final class VoiceToTextConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             VoiceToTextConfig cfg = new VoiceToTextConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.PUSH_TO_TALK);
             cfg.pushToTalkKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "pushToTalkKeyCode", -1));
             cfg.sendToPartyChat = ConfigJson.getBool(obj, "sendToPartyChat", true);
             cfg.microphone = obj.has("microphone") && obj.get("microphone").isJsonPrimitive() ? obj.get("microphone").getAsString() : "";
@@ -60,6 +80,7 @@ public final class VoiceToTextConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
+            obj.addProperty("mode", mode.name());
             obj.addProperty("pushToTalkKeyCode", pushToTalkKeyCode);
             obj.addProperty("sendToPartyChat", sendToPartyChat);
             obj.addProperty("microphone", microphone);
@@ -74,6 +95,14 @@ public final class VoiceToTextConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Mode getMode() {
+        return mode;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode == null ? Mode.PUSH_TO_TALK : mode;
     }
 
     public int getPushToTalkKeyCode() {

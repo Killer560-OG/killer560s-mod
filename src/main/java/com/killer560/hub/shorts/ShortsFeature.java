@@ -1126,17 +1126,24 @@ public final class ShortsFeature {
      * Background thread. Applies the saved volume once the active video/player actually exists, and keeps it
      * applied as Shorts' feed swaps in each new video.
      * <p>
-     * killer560: "if i have it set to 1 percent and open yt shorts, then it defaults to the default volume
-     * until I reset it back to 1 percent then it updates". The old code pushed the volume once, 3 seconds
-     * after launch - a guess: if the player wasn't ready yet by then the call landed on nothing, and the very
-     * next Short (a new {@code <video>} element - this is a feed, not one page) reset it right back.
+     * killer560, reported twice now - 2026-09-21: "if i have it set to 1 percent and open yt shorts, then it
+     * defaults to the default volume until I reset it back to 1 percent then it updates"; 2026-09-27: "the 1
+     * percent volume still doesn't work... it plays at default volume until i manually click to update the
+     * volume then it works." The 2026-09-21 fix (a MutationObserver + a 400ms safety-poll, both below) was a
+     * real improvement but still had the same one shot: {@code apply()} wrote the volume exactly once per
+     * video element, then flagged it done via {@code v.__k560AppliedVol} and never touched that element
+     * again - reasonable so it wouldn't fight a real, later volume change made on the page, but Shorts'
+     * {@code #shorts-player} custom element doesn't finish wiring itself up the instant it appears in the
+     * DOM: it can silently reset its OWN volume back to its default well after our hook already ran once and
+     * marked the element done, and that later reset is exactly what a manual slider nudge was overwriting
+     * for him - which is why that always "fixed" it. The fix here keeps re-asserting the saved volume for a
+     * short grace window after each video element first appears (long enough to lose that race with the
+     * player's own late init), then backs off exactly like before so it still won't fight him if he changes
+     * it by hand on the page afterward.
      * <p>
      * This installs a small MutationObserver plus a cheap safety-poll INSIDE the page instead (survives exactly
      * as long as the page does - CDP reconnect re-sends it, same as the theme emulation above). Every check
-     * reads the live {@code window.__k560Vol} and the current active video/player, and only calls
-     * {@code setVolume}/writes {@code .volume} when that element hasn't already been set to that value - so once
-     * it sticks for a given video, nothing keeps re-touching it (and it won't fight a live YouTube volume
-     * change) until either a new video appears or {@link #applyVolume()} bumps {@code __k560Vol} itself.
+     * reads the live {@code window.__k560Vol} and the current active video/player.
      */
     private static String installVolumeHookNow(CdpClient c) throws Exception {
         int vol = ShortsConfig.getInstance().getVolume();
@@ -1181,7 +1188,15 @@ public final class ShortsFeature {
     private static String volumeHookJs(int volume) {
         return "(()=>{window.__k560Vol=" + volume + ";"
                 + "const apply=()=>{const n=window.__k560Vol;if(n<0)return;"
-                + "const v=" + ACTIVE_VIDEO_JS + ";if(!v||v.__k560AppliedVol===n)return;"
+                + "const v=" + ACTIVE_VIDEO_JS + ";if(!v)return;"
+                // Grace window per video element (killer560, 2026-09-27: still defaulted on load - the old
+                // single-shot apply lost the race with #shorts-player finishing its own init, which can
+                // silently reset volume back to default AFTER we already applied and stopped watching it).
+                // Keep re-asserting for 3s after this element first shows up, then stop so a real, later
+                // volume change made on the page itself doesn't get fought.
+                + "if(v.__k560EnforceUntil===undefined)v.__k560EnforceUntil=Date.now()+3000;"
+                + "const enforcing=Date.now()<v.__k560EnforceUntil;"
+                + "if(!enforcing&&v.__k560AppliedVol===n)return;"
                 + "const p=document.querySelector('#shorts-player');"
                 + "if(p&&typeof p.setVolume==='function'){p.setVolume(n);if(n>0&&typeof p.isMuted==='function'&&p.isMuted())p.unMute();}"
                 + "else{v.volume=n/100;if(n>0)v.muted=false;}"
@@ -1192,7 +1207,8 @@ public final class ShortsFeature {
                 + "const obs=()=>window.__k560VolHook.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['is-active']});"
                 + "if(document.documentElement)obs();else document.addEventListener('readystatechange',obs,{once:true});"
                 // Fallback for the case the fixed delay used to miss: the player element can exist before its
-                // setVolume API is ready, with no DOM mutation marking the moment it becomes usable.
+                // setVolume API is ready, with no DOM mutation marking the moment it becomes usable - also
+                // what carries the grace-window re-asserts above once the observer goes quiet.
                 + "setInterval(apply,400);"
                 + "apply();return 'installed'})()";
     }
@@ -1457,12 +1473,21 @@ public final class ShortsFeature {
      * The page-side theme: YouTube's {@code html[dark]} switch (for a profile set to an explicit Dark/Light
      * appearance, which ignores the emulated media query), and for Amber this mod's own stylesheet.
      * <p>
-     * Amber (killer560: "the amber theme doesn't work"): the old sheet set YouTube's colour variables on
-     * {@code :root}, which LOSES to YouTube's own {@code html[dark]} rule (one more attribute of specificity), so it
-     * changed nothing visible. It now sets them on {@code html[dark]} with {@code !important} and goes further than
-     * accents: warm near-black backgrounds, amber text and the mod's orange on the progress bar, buttons and links.
-     * YouTube renames classes constantly, so everything leans on its colour variables; anything unmatched simply
-     * stays dark. Waits for the document when run at document start.
+     * Amber, second look (killer560, 2026-09-27: "the amber still does nothing to make it have that orange
+     * feel"): the previous sheet overrode CSS custom properties named {@code --yt-spec-*} - checked live
+     * against today's youtube.com and every one of those computes to an EMPTY string; YouTube renamed its
+     * whole design-token system (now {@code --yt-sys-color-baseline--*}/{@code --yt-deprecated-*}), so
+     * overriding the old names touched variables nothing reads any more, which is exactly "does nothing".
+     * Worse: even overriding the CURRENT token names (also checked live, by setting them directly on
+     * {@code documentElement.style} in a real tab) produced no visible change either - this frontend doesn't
+     * drive its background/text chrome from those tokens live the way the old one did. What DID visibly
+     * repaint the page (confirmed the same way) is styling the concrete layout elements directly, so that's
+     * what this sheet does now; the token overrides are kept underneath as a harmless second layer in case
+     * anything still consults them. Goes further than accents: warm near-black backgrounds, amber text/links
+     * and the mod's orange on buttons and the classic player's progress bar (still real for the normal
+     * YouTube/watch-page player; Shorts' own scrubber isn't a stable class name so it isn't targeted here).
+     * YouTube renames classes constantly, so this only claims stable, load-bearing container elements;
+     * anything unmatched simply stays dark. Waits for the document when run at document start.
      */
     private static String themeJs(ShortsConfig.Theme theme) {
         final String accent = "#cc6600";
@@ -1473,19 +1498,25 @@ public final class ShortsFeature {
             default -> "true";
         };
         String css = theme == ShortsConfig.Theme.AMBER
-                ? "html[dark],html{"
-                + "--yt-spec-base-background:#140b04 !important;--yt-spec-raised-background:#1f1207 !important;"
-                + "--yt-spec-menu-background:#1f1207 !important;--yt-spec-general-background-a:#140b04 !important;"
-                + "--yt-spec-general-background-b:#1a0e05 !important;--yt-spec-general-background-c:#1f1207 !important;"
-                + "--yt-spec-text-primary:#ffd9b0 !important;--yt-spec-text-secondary:#d9a066 !important;"
-                + "--yt-spec-static-brand-red:" + accent + " !important;--yt-spec-brand-icon-active:" + accentBright + " !important;"
-                + "--yt-spec-call-to-action:" + accentBright + " !important;--yt-spec-icon-active-other:" + accentBright + " !important;"
-                + "--yt-spec-brand-button-background:" + accent + " !important;--yt-spec-10-percent-layer:rgba(255,140,26,.18) !important;"
-                + "--yt-spec-badge-chip-background:rgba(255,140,26,.15) !important;}"
-                + "html[dark] body,html[dark] ytd-app{background:#140b04 !important;}"
+                ? "html,body,ytd-app,ytd-masthead,#masthead-container,tp-yt-app-drawer,#guide-content,"
+                + "ytd-mini-guide-renderer,#content,#page-manager,ytd-watch-flexy,ytd-browse,ytd-shorts{"
+                + "background-color:#140b04 !important;}"
+                + "html{--yt-sys-color-baseline--base-background:#140b04 !important;"
+                + "--yt-sys-color-baseline--raised-background:#1f1207 !important;"
+                + "--yt-sys-color-baseline--menu-background:#1f1207 !important;"
+                + "--yt-deprecated-general-background-a:#140b04 !important;"
+                + "--yt-deprecated-general-background-b:#1a0e05 !important;"
+                + "--yt-deprecated-general-background-c:#1f1207 !important;"
+                + "--yt-sys-color-baseline--text-primary:#ffd9b0 !important;"
+                + "--yt-sys-color-baseline--text-secondary:#d9a066 !important;"
+                + "--yt-sys-color-baseline--static-brand-red:" + accent + " !important;"
+                + "--yt-sys-color-baseline--call-to-action:" + accentBright + " !important;"
+                + "--yt-sys-color-baseline--call-to-action-hover:" + accentBright + " !important;"
+                + "--yt-sys-color-baseline--call-to-action-inverse:" + accent + " !important;}"
+                + "a,ytd-channel-name a,yt-formatted-string a{color:" + accentBright + " !important;}"
+                + ".ytSpecButtonShapeNextTonal{background-color:rgba(255,140,26,.18) !important;}"
                 + ".ytp-play-progress,.ytp-swatch-background-color{background:" + accent + " !important;}"
                 + ".ytp-scrubber-button{background:" + accentBright + " !important;}"
-                + "a{color:" + accentBright + ";}"
                 : "";
         return "(()=>{const go=()=>{const h=document.documentElement;if(!h)return 'no document';"
                 + "const want=" + dark + ";if(want)h.setAttribute('dark','');else h.removeAttribute('dark');"

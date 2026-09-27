@@ -265,8 +265,9 @@ public final class DungeonInfoFeature {
         return String.format(Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60);
     }
 
-    /** Secrets HUD - per-run and (optionally) per-room secrets found. Keeps the old "dungeon_info" HUD id
-     *  so a saved drag position from before the 2026-09-21 Secrets/Time split carries over. */
+    /** Secrets HUD - secrets found in the room you're standing in, over that room's total. Keeps the old
+     *  "dungeon_info" HUD id so a saved drag position from before the 2026-09-21 Secrets/Time split carries
+     *  over. */
     public static final class SecretsHudElement implements HudElement {
         @Override
         public String id() {

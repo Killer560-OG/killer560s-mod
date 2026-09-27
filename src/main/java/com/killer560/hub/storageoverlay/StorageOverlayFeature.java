@@ -51,6 +51,18 @@ public final class StorageOverlayFeature {
     private static final Pattern ENDER_CHEST_TITLE = Pattern.compile("^Ender Chest (?:✦ )?\\(([1-9])/[1-9]\\)$");
     private static final Pattern BACKPACK_TITLE = Pattern.compile("^.+Backpack (?:✦ )?\\(Slot #([0-9]+)\\)$");
 
+    /** Real Wardrobe title, e.g. "(1/6) Armor Sets" - confirmed against NoammAddons' own (already-working
+     *  26.1.2) {@code WardrobeKeybinds.kt}, which matches this exact same pattern. Unlike Ender Chest/Backpack,
+     *  the Wardrobe's own screen is deliberately NOT added to {@link #storageKeyForTitle}/{@link #shouldHideVanilla}
+     *  - see {@link #captureWardrobeIfChanged} for why. */
+    private static final Pattern WARDROBE_TITLE = Pattern.compile("^\\(([1-9][0-9]*)/[1-9][0-9]*\\) Armor Sets$");
+
+    /** Real slots of one Wardrobe page's 9 quick-swap armor-set icons (row 5 of its fixed 45-slot
+     *  container - the page's set icons are always the last 9 of {@code menu.slots}' first 45, confirmed
+     *  against NoammAddons' {@code WardrobeKeybinds.kt}, which indexes exactly 36-44 the same way). */
+    private static final int WARDROBE_SET_SLOT_START = 36;
+    private static final int WARDROBE_SET_SLOT_COUNT = 9;
+
     /** The overview menu's exact real title, ported from {@code StorageMenu.kt} - a chest-style menu
      *  whose slots 9-17 hold one icon per Ender Chest page and 27-44 one icon per Backpack, letting
      *  every storage be discovered before it's ever actually opened. */
@@ -210,6 +222,24 @@ public final class StorageOverlayFeature {
                 scanOverview(menu);
                 return;
             }
+            // Wardrobe (2026-09-27, killer560: "the storage overlay still does not pick up items in my
+            // wardrobe") is captured into the SAME cache the grid reads from, but deliberately kept out of
+            // storageKeyForTitle/shouldHideVanilla - see captureWardrobeIfChanged's own doc for why the
+            // live Wardrobe screen itself is left completely alone (unlike Ender Chest/Backpack, its real
+            // screen has actual functional slots/buttons this overlay has no model for beyond the 9
+            // quick-swap set icons, so hiding-and-redrawing it like the others would blank the rest of it).
+            String wardrobeKey = wardrobeKeyForTitle(title);
+            if (wardrobeKey != null) {
+                captureWardrobeIfChanged(menu, wardrobeKey);
+                ScreenEvents.afterTick(screen).register(s -> {
+                    try {
+                        captureWardrobeIfChanged(menu, wardrobeKey);
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to re-log wardrobe screen", e);
+                    }
+                });
+                return;
+            }
             String key = storageKeyForTitle(title);
             if (key == null) {
                 return;
@@ -276,6 +306,55 @@ public final class StorageOverlayFeature {
         }
         cache.put(key, contents);
         LOGGER.info("Logged storage \"{}\" ({} slots)", key, contents.size());
+    }
+
+    /** @return the composite cache key for this screen title if it's a real Wardrobe page, otherwise
+     *  null. Separate from {@link #storageKeyForTitle} on purpose - see {@link #captureWardrobeIfChanged}. */
+    private static String wardrobeKeyForTitle(String title) {
+        Matcher m = WARDROBE_TITLE.matcher(title);
+        return m.matches() ? storageKey("wardrobe_" + m.group(1)) : null;
+    }
+
+    /**
+     * Captures just the 9 quick-swap armor-set icons (real slots 36-44) of one Wardrobe page into the
+     * same {@link StorageOverlayCache} the grid reads from - killer560 (2026-09-27): "the storage
+     * overlay still does not pick up items in my wardrobe."
+     * <p>
+     * Deliberately NOT wired through {@link #storageKeyForTitle}/{@link #shouldHideVanilla} the way Ender
+     * Chest/Backpack are: those two menus are nothing but chrome (real slots 0-8, never real storage) plus
+     * a uniform grid of plain item slots, so hiding the whole screen and redrawing everything as a generic
+     * grid loses nothing. The Wardrobe's real screen has actual functional slots beyond the 9 set icons
+     * (per-piece equip slots, navigation, etc. - rows 1-4 of its 45-slot container) that this overlay has
+     * no model for; hiding-and-redrawing it the same way would blank all of that instead of just the row
+     * this feature actually understands. So the live Wardrobe screen is left completely untouched (100%
+     * vanilla, fully interactive) - this only records its 9 set icons into the cache so they show up as a
+     * normal (read-only, "click to open" via {@code /wardrobe}) panel in the grid while browsing every
+     * OTHER tracked screen, and so Storage Search can find items sitting in a wardrobe set.
+     */
+    private static void captureWardrobeIfChanged(ChestMenu menu, String key) {
+        if (menu.slots.size() < WARDROBE_SET_SLOT_START + WARDROBE_SET_SLOT_COUNT) {
+            return; // not the 45-slot layout this was ported against - never guess at a different one
+        }
+        List<ItemStack> contents = new ArrayList<>(WARDROBE_SET_SLOT_COUNT);
+        boolean synced = false;
+        for (int i = 0; i < WARDROBE_SET_SLOT_COUNT; i++) {
+            Slot slot = menu.slots.get(WARDROBE_SET_SLOT_START + i);
+            ItemStack stack = slot.getItem();
+            if (stack != null && !stack.isEmpty()) {
+                synced = true;
+            }
+            contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
+        }
+        if (!synced) {
+            return; // same too-early-capture guard as captureIfChanged - contents haven't synced yet
+        }
+        StorageOverlayCache cache = StorageOverlayCache.getInstance();
+        List<ItemStack> cached = cache.get(key);
+        if (sameContents(cached, contents)) {
+            return;
+        }
+        cache.put(key, contents);
+        LOGGER.info("Logged wardrobe page \"{}\" ({} sets)", key, contents.size());
     }
 
     private static boolean sameContents(List<ItemStack> a, List<ItemStack> b) {
@@ -694,9 +773,13 @@ public final class StorageOverlayFeature {
         return true;
     }
 
-    /** @return {@code [type, number]} for a storage key - type 0 = Ender Chest, 1 = Backpack (so
-     *  Ender Chest pages always sort first), number = the real numeric id parsed as an int (not
-     *  compared as a string, which would put "14" before "5"). Used only for ordering the grid. */
+    /** @return {@code [type, number]} for a storage key - type 0 = Ender Chest, 1 = Backpack, 2 = Wardrobe
+     *  (so Ender Chest pages sort first, then Backpacks, then Wardrobe pages), number = the real numeric
+     *  id parsed as an int (not compared as a string, which would put "14" before "5"). Used only for
+     *  ordering the grid. Real bug this avoids: without a distinct type+number per Wardrobe page, every
+     *  Wardrobe page would fall into the same {@code {2, 0}}/{@code {3, 0}} fallback bucket, and since the
+     *  TreeMap this feeds treats equal-comparing keys as duplicates, all but one Wardrobe page would
+     *  silently vanish from the grid. */
     private static int[] storageOrderKey(String key, String prefix) {
         String local = key.substring(prefix.length() + 1);
         if (local.startsWith("enderchest_")) {
@@ -705,7 +788,10 @@ public final class StorageOverlayFeature {
         if (local.startsWith("backpack_")) {
             return new int[]{1, parseIntSafe(local.substring("backpack_".length()))};
         }
-        return new int[]{2, 0};
+        if (local.startsWith("wardrobe_")) {
+            return new int[]{2, parseIntSafe(local.substring("wardrobe_".length()))};
+        }
+        return new int[]{3, 0};
     }
 
     private static int parseIntSafe(String s) {
@@ -1269,6 +1355,12 @@ public final class StorageOverlayFeature {
             client.player.connection.sendCommand("enderchest " + local.substring("enderchest_".length()));
         } else if (local.startsWith("backpack_")) {
             client.player.connection.sendCommand("backpack " + local.substring("backpack_".length()));
+        } else if (local.startsWith("wardrobe_")) {
+            // Unlike Ender Chest/Backpack, Hypixel has no "/wardrobe N" - only page 1 is ever directly
+            // reachable, the rest only by clicking "Next Page" from there (see StorageScanAll). Clicking a
+            // cached Wardrobe page beyond #1 in the grid still opens the Wardrobe (better than nothing),
+            // it just can't jump straight to that exact page the way the other storages can.
+            client.player.connection.sendCommand("wardrobe");
         }
     }
 
@@ -1279,7 +1371,8 @@ public final class StorageOverlayFeature {
     }
 
     /** Readable default built from the key ("enderchest_3" -> "Ender Chest #3", "backpack_5" ->
-     *  "Backpack #5") - public so the settings tab can pre-fill the same default into a rename field. */
+     *  "Backpack #5", "wardrobe_2" -> "Wardrobe #2") - public so the settings tab can pre-fill the same
+     *  default into a rename field. */
     public static String defaultLabelFor(String key, String prefix) {
         String local = key.substring(prefix.length() + 1);
         if (local.startsWith("enderchest_")) {
@@ -1287,6 +1380,9 @@ public final class StorageOverlayFeature {
         }
         if (local.startsWith("backpack_")) {
             return "Backpack #" + local.substring("backpack_".length());
+        }
+        if (local.startsWith("wardrobe_")) {
+            return "Wardrobe #" + local.substring("wardrobe_".length());
         }
         return local;
     }

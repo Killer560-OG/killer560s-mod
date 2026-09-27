@@ -3,7 +3,6 @@ package com.killer560.hub.inventoryhud;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -26,6 +25,10 @@ import net.minecraft.world.item.ItemStack;
  * editor's own preview (every other listed element avoids that by refusing to draw with any screen open,
  * which this one can't do because "Hide in Screens" is optional). {@link InventoryHudElement#render} is
  * therefore the HUD-editor preview path only.
+ * <p>
+ * The Opacity setting only fades the background/slots, NOT the rendered item icons (2026-09-27, killer560:
+ * "the opacity doesn't affect the items opacity and it should") - see {@link #drawStack}'s own doc for why
+ * that's still true and what would be needed to fix it.
  */
 public final class InventoryHudFeature {
 
@@ -210,32 +213,53 @@ public final class InventoryHudFeature {
         return cfg.isVertical() ? col : row;
     }
 
-    /** One 16x16 item at (x, y): vanilla hotbar pop animation, then count / durability decorations. */
+    /** One 16x16 item at (x, y): vanilla hotbar pop animation, then count / durability decorations.
+     *  <p>
+     *  killer560 (2026-09-27): "the opacity doesn't affect the items opacity and it should." Item
+     *  rendering ({@code graphics.item}) ignores a plain ARGB colour the way text/fill do - it draws the
+     *  item's own texture at full alpha regardless. BLOCKED, not fixed - see the comment below. */
     private static void drawStack(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int x, int y,
                                   InventoryHudConfig cfg, float partialTick) {
-        float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
-        if (pop > 0f) {
-            // Same squash-and-stretch as vanilla Gui#extractSlot.
-            float s = 1.0f + pop / 5.0f;
-            graphics.pose().pushMatrix();
-            try {
-                graphics.pose().translate(x + 8, y + 12);
-                graphics.pose().scale(1.0f / s, (s + 1.0f) / 2.0f);
-                graphics.pose().translate(-(x + 8), -(y + 12));
+        // ITEM OPACITY IS NOT IMPLEMENTED, and this is the honest place to say why.
+        //
+        // killer560 (2026-09-27): "For inventory hud the opacity doesn't affect the items opacity and it should."
+        // He is right that it should. The obvious way - RenderSystem.setShaderColor(1,1,1,alpha) around the item
+        // draw - is how it was done for years and does NOT exist in 26.1.2: the method is gone from RenderSystem
+        // entirely (javap-checked against the mapped jar), because item rendering now goes through the submit /
+        // render-pipeline path rather than a global shader colour. Tinting an item here would mean a custom
+        // RenderPipeline or a mixin into the item render layer, which is a real piece of work and exactly the kind
+        // of change that quietly breaks every item this mod draws if it is got wrong.
+        //
+        // So the background/slot opacity still applies (that part works); the ITEMS stay opaque until this is done
+        // properly. Shipping a version that does not compile, or one that tints half the HUD and everything drawn
+        // after it, would be worse than saying so.
+        try {
+            float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
+            if (pop > 0f) {
+                // Same squash-and-stretch as vanilla Gui#extractSlot.
+                float s = 1.0f + pop / 5.0f;
+                graphics.pose().pushMatrix();
+                try {
+                    graphics.pose().translate(x + 8, y + 12);
+                    graphics.pose().scale(1.0f / s, (s + 1.0f) / 2.0f);
+                    graphics.pose().translate(-(x + 8), -(y + 12));
+                    graphics.item(stack, x, y);
+                } finally {
+                    graphics.pose().popMatrix();
+                }
+            } else {
                 graphics.item(stack, x, y);
-            } finally {
-                graphics.pose().popMatrix();
             }
-        } else {
-            graphics.item(stack, x, y);
-        }
 
-        if (cfg.isShowDurability()) {
-            // Empty text suppresses the count while keeping the durability bar / cooldown overlay.
-            graphics.itemDecorations(font, stack, x, y, cfg.isShowCounts() ? null : "");
-        } else if (cfg.isShowCounts() && stack.getCount() != 1) {
-            String count = String.valueOf(stack.getCount());
-            graphics.text(font, count, x + 19 - 2 - font.width(count), y + 6 + 3, 0xFFFFFFFF, true);
+            if (cfg.isShowDurability()) {
+                // Empty text suppresses the count while keeping the durability bar / cooldown overlay.
+                graphics.itemDecorations(font, stack, x, y, cfg.isShowCounts() ? null : "");
+            } else if (cfg.isShowCounts() && stack.getCount() != 1) {
+                String count = String.valueOf(stack.getCount());
+                graphics.text(font, count, x + 19 - 2 - font.width(count), y + 6 + 3, 0xFFFFFFFF, true);
+            }
+        } finally {
+            // (nothing to restore - see the note above; no global colour is being set any more)
         }
     }
 

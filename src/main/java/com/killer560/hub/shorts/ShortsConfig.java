@@ -20,6 +20,10 @@ public final class ShortsConfig {
 
     public static final int MIN_SIZE_PERCENT = 20;
     public static final int MAX_SIZE_PERCENT = 100;
+    /** Also the "Reset to Default Size" button's target (killer560, 2026-09-27: "add a reset to default
+     *  size button for the size") - kept as one constant so the field default, the load() fallback and the
+     *  reset button can never drift apart. */
+    public static final int DEFAULT_SIZE_PERCENT = 60;
     public static final int MAX_MARGIN = 200;
     public static final int MIN_OPACITY = 20;
 
@@ -149,7 +153,7 @@ public final class ShortsConfig {
     private boolean enabled = false;
     private Anchor anchor = Anchor.RIGHT_CENTER;
     private Theme theme = Theme.SYSTEM;
-    private int sizePercent = 60;
+    private int sizePercent = DEFAULT_SIZE_PERCENT;
     private int margin = 10;
     private int opacity = 100;
     private boolean hideWhenUnfocused = false;
@@ -203,7 +207,7 @@ public final class ShortsConfig {
                 cfg.enabled = ConfigJson.getBool(o, "enabled", false);
                 cfg.anchor = ConfigJson.getEnum(o, "anchor", Anchor.class, Anchor.RIGHT_CENTER);
                 cfg.theme = ConfigJson.getEnum(o, "theme", Theme.class, Theme.SYSTEM);
-                cfg.sizePercent = clamp(intOr(o, "sizePercent", 60), MIN_SIZE_PERCENT, MAX_SIZE_PERCENT);
+                cfg.sizePercent = clamp(intOr(o, "sizePercent", DEFAULT_SIZE_PERCENT), MIN_SIZE_PERCENT, MAX_SIZE_PERCENT);
                 cfg.margin = clamp(intOr(o, "margin", 10), 0, MAX_MARGIN);
                 cfg.opacity = clamp(intOr(o, "opacity", 100), MIN_OPACITY, 100);
                 cfg.hideWhenUnfocused = ConfigJson.getBool(o, "hideWhenUnfocused", false);

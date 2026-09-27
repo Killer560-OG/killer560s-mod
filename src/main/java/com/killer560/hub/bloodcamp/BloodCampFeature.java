@@ -620,8 +620,15 @@ public final class BloodCampFeature {
             // colour as the box, through the same depth-tested line type it already uses, so it reads
             // through walls exactly when the box does - no separate "through walls" setting needed.
             if (cfg.isSpawnLine() && client.level.getGameTime() - data.lastMoveTick < RESETTLE_GAP_TICKS) {
+                // killer560, 2026-09-27: "the overlay line is not to the box like it should be." The line used
+                // to end at raw `end`, which is ground level (y+0) - the box drawn above sits a full block
+                // higher, from y+1.0 to y+2.0, so the line always stopped short of it. Ending on the box's
+                // own vertical middle (same y+1.5 renderTimerText already anchors on, "the box's own vertical
+                // middle") makes it actually meet the box instead of the ground underneath it. startVec is a
+                // real world position (the wall spot), not the player - WorldRenderUtils.tracerOrigin() is for
+                // a player-anchored tracer's START and doesn't apply here.
                 SPAWN_LINE_POINTS.set(0, data.startVec);
-                SPAWN_LINE_POINTS.set(1, end);
+                SPAWN_LINE_POINTS.set(1, new Vec3(end.x, end.y + 1.5, end.z));
                 WorldRenderUtils.renderLineStrip(context, SPAWN_LINE_POINTS, rgba[0], rgba[1], rgba[2], 1f,
                         cfg.getSpawnLineWidth());
             }

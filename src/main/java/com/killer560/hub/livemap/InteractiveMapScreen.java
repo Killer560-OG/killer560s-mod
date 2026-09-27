@@ -34,6 +34,8 @@ public class InteractiveMapScreen extends Screen {
     private static final int PANEL = 0xD00D0D0D;
     private static final int TEXT = 0xFFF0E6DC;
     private static final int DIM = 0xFF9A8C80;
+    private static final int GOOD = 0xFF55FF55;
+    private static final int BAD = 0xFFFF5555;
 
     // Room/door colours, the 16/4 layout, checkmarks and player markers all live in MapPainter now - the HUD map
     // shares exactly the same painter (killer560, 2026-09-17: "the live map hud does not look like the real
@@ -293,9 +295,13 @@ public class InteractiveMapScreen extends Screen {
         if (!legendBeside()) {
             return; // too narrow: the map gets the space
         }
+        // killer560, 2026-09-27: "the extra info ... s+ secrets" - only actually drawn once Score Calculator
+        // has a live estimate for this run (same gate that HUD element itself uses), so a blank/disabled
+        // Score Calculator never leaves a half-empty "Extra Info" header with nothing under it.
+        boolean extraInfo = cfg.isShowExtraInfo() && ScoreCalculatorFeature.currentResult() != null;
         int x = p[2] + 8;
         int y = p[1];
-        int h = 12 * 18 + 8;
+        int h = 12 * 18 + 8 + (extraInfo ? 6 * 10 + 2 : 0);
         graphics.fill(x, y, x + LEGEND_W, Math.min(height - 4, y + h), PANEL);
         graphics.outline(x - 1, y - 1, LEGEND_W + 2, Math.min(height - 4, y + h) - y + 2, ORANGE);
         int ty = y + 4;
@@ -323,6 +329,28 @@ public class InteractiveMapScreen extends Screen {
         if (BloodRush.isRunning()) {
             graphics.text(font, "Blood Rush", x + 4, ty + 2, 0xFFFF5555, false);
         }
+        if (extraInfo) {
+            ty = legendHeader(graphics, "Extra Info", x, ty + 2);
+            ty = infoRow(graphics, x, ty, "Crypts", ScoreCalculatorFeature.getCrypts() + "/5", TEXT);
+            ty = infoRow(graphics, x, ty, "Bat", ScoreCalculatorFeature.isBatKilled() ? "✔" : "✘",
+                    ScoreCalculatorFeature.isBatKilled() ? GOOD : BAD);
+            ty = infoRow(graphics, x, ty, "Mimic", ScoreCalculatorFeature.isMimicKilled() ? "✔" : "✘",
+                    ScoreCalculatorFeature.isMimicKilled() ? GOOD : BAD);
+            ty = infoRow(graphics, x, ty, "Prince", ScoreCalculatorFeature.isPrinceKilled() ? "✔" : "✘",
+                    ScoreCalculatorFeature.isPrinceKilled() ? GOOD : BAD);
+            // killer560, 2026-09-27: "s+ secrets assuming the current amount of crypts/status of the other
+            // things, not that they are done but as is. Then it needs to assume all rooms are cleared." -
+            // exactly what ScoreCalculator.calculate()'s own secretsNeeded already computes (see its doc);
+            // this reuses that one live number instead of a second copy of the formula.
+            ty = infoRow(graphics, x, ty, "S+ Secrets", ScoreCalculatorFeature.secretsNeededSummary(), LIGHT_ORANGE);
+        }
+    }
+
+    /** One "label ... value" row of the Extra Info section, right-aligned like the map's own hover tooltips. */
+    private int infoRow(GuiGraphicsExtractor graphics, int x, int y, String label, String value, int valueColor) {
+        graphics.text(font, label, x + 4, y, DIM, false);
+        graphics.text(font, value, x + LEGEND_W - 4 - font.width(value), y, valueColor, false);
+        return y + 10;
     }
 
     private int legendHeader(GuiGraphicsExtractor graphics, String text, int x, int y) {

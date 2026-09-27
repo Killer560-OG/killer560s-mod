@@ -95,6 +95,14 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                 0, ShortsConfig.MAX_MARGIN, v -> "Margin: " + v + "px", cfg));
         y += 20;
 
+        // killer560: "add a reset to default size button for the size."
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Reset to Default Size"), btn -> {
+                    cfg.setSizePercent(ShortsConfig.DEFAULT_SIZE_PERCENT);
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(col2aX, y, col2W, 18).build());
+        y += 20;
+
         widgets.add(slider(col2aX, y, col2W, cfg::getOpacity, cfg::setOpacity,
                 ShortsConfig.MIN_OPACITY, 100, v -> "Opacity: " + v + "%", cfg));
         double volNorm = Math.max(0, cfg.getVolume()) / 100.0;

@@ -158,6 +158,12 @@ public final class BloodCampMoveTimer {
         return cfg.isEnabled() && cfg.isKillPopup() && DungeonState.isInDungeon();
     }
 
+    /** killer560, 2026-09-27: "make the kill timer thing larger" - multiplies the old 76x14 footprint the
+     *  centering math in {@link #render} was written for. */
+    private static final float SCALE = 2.0f;
+    private static final int BASE_W = 76;
+    private static final int BASE_H = 14;
+
     /** The Watcher's dialogue is the same on every floor, so this one is not restricted to F7/M7 the way the
      *  mob tracking is. Registered into the HUD editor by {@code Killer560ModClient}; drawn in-game by
      *  {@link BloodCampFeature}'s own Fabric HUD layer. */
@@ -179,17 +185,18 @@ public final class BloodCampMoveTimer {
 
         @Override
         public int defaultY() {
-            return (int) (Minecraft.getInstance().getWindow().getGuiScaledHeight() * 0.38f);
+            // killer560, 2026-09-27: "in the top middle of the screen" (was 38% down - dead centre).
+            return 12;
         }
 
         @Override
         public int width() {
-            return 76;
+            return Math.round(BASE_W * SCALE);
         }
 
         @Override
         public int height() {
-            return 14;
+            return Math.round(BASE_H * SCALE);
         }
 
         @Override
@@ -222,8 +229,15 @@ public final class BloodCampMoveTimer {
                 }
             }
             Minecraft client = Minecraft.getInstance();
-            graphics.fill(x, y, x + width(), y + height(), 0x66000000);
-            graphics.centeredText(client.font, text, x + width() / 2, y + 3, color);
+            // killer560, 2026-09-27: "with no background overlay" - the semi-transparent fill this used to
+            // draw behind the text is gone. The text itself is drawn scaled up around the box's own centre,
+            // in the OLD 76x14 coordinate space (BASE_W/BASE_H), so the same centring math as before just
+            // ends up SCALE times bigger instead of being rewritten for the new footprint.
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(x + width() / 2f, y + height() / 2f);
+            graphics.pose().scale(SCALE, SCALE);
+            graphics.centeredText(client.font, text, 0, 3 - BASE_H / 2, color);
+            graphics.pose().popMatrix();
         }
     };
 }

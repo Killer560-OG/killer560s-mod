@@ -82,10 +82,8 @@ public class BreakerAuraConfigScreen extends Screen {
             SettingsButtonWidget del = SettingsButtonWidget.builder(Component.literal("§cDelete"), btn -> {
                         String error = BreakerAuraStore.delete(name);
                         status = error != null ? "§c" + error : "§aDeleted " + name;
-                        if (error == null) {
-                            int newMax = Math.max(0, names.size() - 1 - MAX_VISIBLE);
-                            scrollRow = Math.min(scrollRow, newMax);
-                        }
+                        // scrollRow is re-clamped to the fresh (shorter) list at the top of init(), so nothing
+                        // extra is needed here even though one fewer row now exists.
                         rebuildWidgets();
                     }).bounds(x + selW + GAP, y, DEL_W, ROW).build();
             // Refused on the active config (switch away first) and when it is the only one left - same two rules

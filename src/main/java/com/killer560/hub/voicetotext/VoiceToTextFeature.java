@@ -61,6 +61,10 @@ public final class VoiceToTextFeature {
     private static ByteArrayOutputStream capturedAudio;
     private static Thread captureThread;
     private static boolean keyWasDown = false;
+    /** Open Mic only: whether this "enabled" session has already been armed - see {@link #tick()}. Reset
+     *  whenever the feature/window drops out so turning it back on gets exactly one fresh attempt, same as
+     *  the disclosed native-library risk above says to keep any failure a single caught error, not a loop. */
+    private static boolean openMicArmed = false;
 
     private VoiceToTextFeature() {
     }
@@ -72,7 +76,8 @@ public final class VoiceToTextFeature {
     private static void tick() {
         VoiceToTextConfig cfg = VoiceToTextConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || cfg.getPushToTalkKeyCode() < 0 || client.getWindow() == null) {
+        boolean pushToTalk = cfg.getMode() == VoiceToTextConfig.Mode.PUSH_TO_TALK;
+        if (!cfg.isEnabled() || client.getWindow() == null || (pushToTalk && cfg.getPushToTalkKeyCode() < 0)) {
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to just
             // return here with no regard for an in-progress recording - disabling the feature, or
             // rebinding the push-to-talk key away, WHILE the key was physically still held down left the
@@ -81,11 +86,24 @@ public final class VoiceToTextFeature {
             // while state == RECORDING). Now stops recording the same way releasing the key normally
             // would, so the mic always gets closed regardless of why tick() stopped polling it.
             if (state == State.RECORDING) {
-                stopRecordingAndTranscribe();
+                stopRecordingAndTranscribe(false);
             }
             keyWasDown = false;
+            openMicArmed = false;
             return;
         }
+        if (!pushToTalk) {
+            // Open Mic (killer560, 2026-09-27): listens continuously instead of waiting on a held key. Armed
+            // once per "enabled" session (not every tick, which would spam a "no microphone" chat message
+            // forever if startRecording() keeps failing) - see startRecording()'s capture thread for how one
+            // utterance ends and the next one starts on its own via silence detection.
+            if (!openMicArmed && state != State.RECORDING && state != State.TRANSCRIBING && state != State.PREPARING_MODEL) {
+                openMicArmed = true;
+                onKeyPressed(); // reused: preps the speech model on first use, then starts recording
+            }
+            return;
+        }
+        openMicArmed = false;
         // Real bug (2026-09-20 tooltip/config sweep): the push-to-talk key was read from the raw window
         // state even with a screen open, so typing the bound letter into chat started recording and
         // then sent whatever the mic heard straight to /pc or /gc. A push-to-talk press only counts
@@ -122,7 +140,7 @@ public final class VoiceToTextFeature {
         if (state != State.RECORDING) {
             return;
         }
-        stopRecordingAndTranscribe();
+        stopRecordingAndTranscribe(false);
     }
 
     // ------------------------------------------------------------------
@@ -233,11 +251,19 @@ public final class VoiceToTextFeature {
         return (TargetDataLine) AudioSystem.getLine(info);
     }
 
+    /** Open Mic silence detection (killer560, 2026-09-27): not a real voice-activity detector, just a cheap
+     *  RMS-over-threshold check on each 4096-byte chunk - good enough to tell "someone's talking" from
+     *  "background noise" without pulling in a whole VAD library for it. */
+    private static final int VOICE_RMS_THRESHOLD = 500;
+    private static final long SILENCE_CUTOFF_MS = 1200;
+    private static final long MIN_UTTERANCE_MS = 400;
+
     private static void startRecording() {
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
             if (!AudioSystem.isLineSupported(info)) {
                 ModOverlayMessage.show("§c[Voice] No compatible microphone found.", 3000);
+                state = State.READY;
                 return;
             }
             line = openMicrophone(info);
@@ -245,16 +271,46 @@ public final class VoiceToTextFeature {
             line.start();
             capturedAudio = new ByteArrayOutputStream();
             state = State.RECORDING;
-            ModOverlayMessage.show("[Voice] Listening... (release key to send)", 60_000);
+            boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
+            if (!openMic) {
+                ModOverlayMessage.show("[Voice] Listening... (release key to send)", 60_000);
+            }
 
             captureThread = new Thread(() -> {
                 byte[] buffer = new byte[4096];
+                long segmentStart = System.currentTimeMillis();
+                long lastVoiceAt = segmentStart;
+                boolean hadVoice = false;
                 while (state == State.RECORDING && line != null && line.isOpen()) {
                     int read = line.read(buffer, 0, buffer.length);
-                    if (read > 0) {
+                    if (read <= 0) {
+                        continue;
+                    }
+                    synchronized (capturedAudio) {
+                        capturedAudio.write(buffer, 0, read);
+                    }
+                    if (!openMic) {
+                        continue; // Push To Talk: the key release stops it, no auto-cut needed
+                    }
+                    long now = System.currentTimeMillis();
+                    if (rms(buffer, read) > VOICE_RMS_THRESHOLD) {
+                        lastVoiceAt = now;
+                        hadVoice = true;
+                    }
+                    if (hadVoice && now - segmentStart > MIN_UTTERANCE_MS && now - lastVoiceAt > SILENCE_CUTOFF_MS) {
+                        // Said something, then paused - cut the utterance here, send it, and let the
+                        // completion callback start the next one listening again.
+                        Minecraft.getInstance().execute(() -> stopRecordingAndTranscribe(true));
+                        return;
+                    }
+                    if (!hadVoice && now - segmentStart > SILENCE_CUTOFF_MS) {
+                        // Nothing but background noise so far - drop it and keep listening instead of ever
+                        // calling Vosk on silence (that would otherwise spam "Didn't catch anything" about
+                        // once a second the whole time nobody's talking).
                         synchronized (capturedAudio) {
-                            capturedAudio.write(buffer, 0, read);
+                            capturedAudio.reset();
                         }
+                        segmentStart = now;
                     }
                 }
             }, "killer560smod-voice-capture");
@@ -267,7 +323,22 @@ public final class VoiceToTextFeature {
         }
     }
 
-    private static void stopRecordingAndTranscribe() {
+    /** Root-mean-square of {@code len} bytes of {@link #FORMAT} audio (16-bit signed, little-endian, mono). */
+    private static double rms(byte[] buf, int len) {
+        long sumSquares = 0;
+        int samples = len / 2;
+        for (int i = 0; i + 1 < len; i += 2) {
+            short sample = (short) ((buf[i + 1] << 8) | (buf[i] & 0xFF));
+            sumSquares += (long) sample * sample;
+        }
+        return samples == 0 ? 0 : Math.sqrt((double) sumSquares / samples);
+    }
+
+    /** @param restartIfOpenMic whether to start listening again once this utterance is transcribed and sent -
+     *  true for Open Mic's own silence-triggered cut, false for a Push-to-Talk release or a shutdown (the
+     *  feature getting disabled, the key getting unbound, the window going away - see {@link #tick()}), none
+     *  of which should spin the mic back up on their own. */
+    private static void stopRecordingAndTranscribe(boolean restartIfOpenMic) {
         state = State.TRANSCRIBING;
         TargetDataLine capturedLine = line;
         line = null;
@@ -275,7 +346,9 @@ public final class VoiceToTextFeature {
             capturedLine.stop();
             capturedLine.close();
         }
-        ModOverlayMessage.show("[Voice] Transcribing...", 2000);
+        if (!restartIfOpenMic) {
+            ModOverlayMessage.show("[Voice] Transcribing...", 2000);
+        }
 
         new Thread(() -> {
             try {
@@ -290,14 +363,20 @@ public final class VoiceToTextFeature {
                 state = State.READY;
                 Minecraft.getInstance().execute(() -> {
                     if (text == null || text.isBlank()) {
-                        ModOverlayMessage.show("[Voice] Didn't catch anything.", 2000);
-                        return;
+                        if (!restartIfOpenMic) {
+                            ModOverlayMessage.show("[Voice] Didn't catch anything.", 2000);
+                        }
+                    } else {
+                        ModOverlayMessage.show("[Voice] \"" + text + "\"", 3000);
+                        Minecraft client = Minecraft.getInstance();
+                        if (client.player != null) {
+                            String prefix = VoiceToTextConfig.getInstance().isSendToPartyChat() ? "pc " : "gc ";
+                            client.player.connection.sendCommand(prefix + text);
+                        }
                     }
-                    ModOverlayMessage.show("[Voice] \"" + text + "\"", 3000);
-                    Minecraft client = Minecraft.getInstance();
-                    if (client.player != null) {
-                        String prefix = VoiceToTextConfig.getInstance().isSendToPartyChat() ? "pc " : "gc ";
-                        client.player.connection.sendCommand(prefix + text);
+                    VoiceToTextConfig cfg = VoiceToTextConfig.getInstance();
+                    if (restartIfOpenMic && cfg.isEnabled() && cfg.getMode() == VoiceToTextConfig.Mode.OPEN_MIC) {
+                        startRecording();
                     }
                 });
             } catch (Throwable t) {
