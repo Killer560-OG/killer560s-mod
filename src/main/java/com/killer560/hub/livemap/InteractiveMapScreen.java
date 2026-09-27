@@ -4,7 +4,6 @@ import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
-import com.killer560.hub.secretwaypoints.SecretWaypointsFeature;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -198,12 +197,12 @@ public class InteractiveMapScreen extends Screen {
             color = MapPainter.multiply(color, 1.15f);
         }
         MapPainter.drawRoom(graphics, group, gid, color, ox, oy, ppu);
-        String key = group.entry != null ? group.entry.name : null;
-        // Orange outline = waypoints switched on for just this room (with Secret Waypoints itself off).
-        boolean waypoints = key != null && SecretWaypointsFeature.isRoomShown(key)
-                && !com.killer560.hub.secretwaypoints.SecretWaypointsConfig.getInstance().isEnabled();
-        if (hovered || waypoints) {
-            MapPainter.outlineGroup(graphics, group, gid, hovered ? 0xB4FFFFFF : LIGHT_ORANGE, ox, oy, ppu);
+        // The map says nothing about secret waypoints any more - killer560 (2026-09-27): "Do not have the map
+        // show the waypoints loaded or anything just the pathing waypoints I asked you to build that the
+        // interactive map will follow." The orange per-room outline meant "waypoints are on for just this room",
+        // which was the readout for a toggle that no longer exists. Only the hover outline is left.
+        if (hovered) {
+            MapPainter.outlineGroup(graphics, group, gid, 0xB4FFFFFF, ox, oy, ppu);
         }
     }
 
@@ -231,9 +230,6 @@ public class InteractiveMapScreen extends Screen {
             }
             lines.add(row("Secrets", MapPainter.secretsText(group)));
             lines.add(row("Crypts", String.valueOf(entry.crypts)));
-            if (entry.secrets > 0 && entry.secretCoords != null) {
-                lines.add(row("Waypoints", SecretWaypointsFeature.isRoomShown(entry.name) ? "Shown" : "Hidden"));
-            }
         }
         List<String> by = InteractiveMapFeature.clearedBy(group);
         if (by != null && !by.isEmpty()) {

@@ -101,8 +101,6 @@ public final class SecretWaypointsFeature {
     private static long lastWaypointSummaryMs = 0;
 
     /** Interactive map per-room toggles (room names): shown while the feature is off, hidden while it is on. */
-    private static final java.util.Set<String> shownRooms = new java.util.HashSet<>();
-    private static final java.util.Set<String> hiddenRooms = new java.util.HashSet<>();
 
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
     private static final List<Waypoint> CACHED = new ArrayList<>();
@@ -120,26 +118,17 @@ public final class SecretWaypointsFeature {
     private SecretWaypointsFeature() {
     }
 
-    /** Interactive map: flips whether this room's waypoints render. @return the new shown state. */
-    public static boolean toggleRoom(String roomName) {
-        if (roomName == null) {
-            return false;
-        }
-        boolean shown = !isRoomShown(roomName);
-        if (SecretWaypointsConfig.getInstance().isEnabled()) {
-            if (shown) hiddenRooms.remove(roomName); else hiddenRooms.add(roomName);
-        } else {
-            if (shown) shownRooms.add(roomName); else shownRooms.remove(roomName);
-        }
-        invalidateCache();
-        return shown;
-    }
-
+    /**
+     * Whether this room's waypoints render - now simply whether the feature is on.
+     * <p>
+     * There used to be a per-room override here, flipped by right-clicking a room on the Interactive Map, which
+     * could even draw a room's waypoints while the feature itself was off. killer560 removed that control
+     * (2026-09-27: "The toggle waypoint shouldn't exist", and "Do not have the map show the waypoints loaded or
+     * anything"), so the override had no way left to be set and the two sets behind it could only ever be empty -
+     * dead state that still had to be reasoned about at every call. Gone with it.
+     */
     public static boolean isRoomShown(String roomName) {
-        if (roomName == null) {
-            return false;
-        }
-        return SecretWaypointsConfig.getInstance().isEnabled() ? !hiddenRooms.contains(roomName) : shownRooms.contains(roomName);
+        return roomName != null && SecretWaypointsConfig.getInstance().isEnabled();
     }
 
     /** Forces the next client tick to rebuild the waypoint snapshot (config change, room toggle, world change). */
@@ -278,8 +267,6 @@ public final class SecretWaypointsFeature {
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
-            shownRooms.clear();
-            hiddenRooms.clear();
             COLLECTED.clear();
             invalidateCache();
         }
@@ -292,10 +279,10 @@ public final class SecretWaypointsFeature {
     /** Rebuilds {@link #CACHED} at most once per {@link #CACHE_TTL_MS} / {@link #CACHE_MOVE_SQ}, on the tick. */
     private static void refreshCacheIfStale(boolean inDungeon) {
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
-        // Per-room toggles from the Interactive Map still draw while the feature itself is off.
-        boolean perRoomOnly = !cfg.isEnabled() && !shownRooms.isEmpty() && com.killer560.hub.util.SkyblockGate.allows();
+        // The "a per-room toggle draws even while the feature is off" case went with the map's toggle - see
+        // isRoomShown. Off now simply means off.
         Minecraft client = Minecraft.getInstance();
-        if ((!cfg.isEnabled() && !perRoomOnly) || !inDungeon || client.player == null) {
+        if (!cfg.isEnabled() || !inDungeon || client.player == null) {
             CACHED.clear();
             cacheStampMs = 0L;
             return;
