@@ -121,6 +121,15 @@ public final class SimWorld {
         }
         SimState.enter(code);
         SimAbilities.reset();
+        // The last starred mob in a wither-door room drops the key. Wiring it here keeps the two features
+        // ignorant of each other: mobs know when the last star died, doors know what a key is, and neither
+        // needs to import the other.
+        SimMobs.setOnLastStarredDeath(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                SimDoors.dropKeyAt(mc, mc.player.position());
+            }
+        });
         ModChat.send("Sim", ModChat.text("Dungeon sim ready. "),
                 ModChat.dim("/simitem all for the toolkit."));
     }
@@ -134,6 +143,7 @@ public final class SimWorld {
             // Doors belong to the map that was open. Leaving them registered would have the next session's
             // key-click open a door that is no longer there.
             SimDoors.clear();
+            SimMobs.clear(Minecraft.getInstance());
         }
     }
 }
