@@ -434,10 +434,10 @@ public final class AutoPuzzlesFeature {
         Vec3 end = eyes.add(dir.scale(eyes.distanceTo(centre) + 1.5));
         BlockHitResult hit = shape.clip(eyes, end, pos);
         if (hit == null) {
-            // Was the centre with the nearest-facing side - better than a hardcoded face, but still a point
-            // inside the block, which is the half that GrimAC flags (2026-09-28). Clip to the surface instead
-            // and keep the old value only if there is no outline to strike. See BlockHits.
-            hit = com.killer560.hub.util.BlockHits.surfaceOrCentre(level, pos, eyes);
+            // Only reached when the ray misses the outline entirely. These two paths ALREADY clip from the eye
+            // above, which is the thing that matters (see BlockHits and the PositionPlace measurement of
+            // 2026-09-28) - so this last-resort centre is fine where it is and was deliberately left alone.
+            hit = new BlockHitResult(centre, Direction.getApproximateNearest(eyes.subtract(centre)), pos, false);
         }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         client.player.swing(InteractionHand.MAIN_HAND);
