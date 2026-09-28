@@ -130,6 +130,15 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   floor that charges the stop sits at 4.41 ticks against the planner's 4.52 (measured 2026-09-28), and 3 ticks
   is impossible for 72% of aligns at any tolerance. Tolerance is nearly free: Caleb's 3e-8 costs 0.09 of a tick
   over 1e-4. Do not accept a "make the align faster" task without re-deriving that floor first.
+- Verify Skyblock item ids against Hypixel's own list (`api.hypixel.net/v2/resources/skyblock/items`), not
+  against the name or memory. Three were wrong at once (2026-09-28): the Spirit Sceptre is `BAT_WAND`, not
+  `SPIRIT_SCEPTRE`, which broke both the sim item and the RNG meter's auction price lookup; `ClearNode` had
+  `ASTREA` for `ASTRAEA`; and Auto Debuff's `equals` missed `STARRED_MIDAS_SWORD`. Exactly 30 items have a
+  `STARRED_` form and the wither blades are not among them, so "strip STARRED_" and "treat the blades as one
+  item" are separate fixes. `ItemIdentity.family()` is the one place that knows both.
+- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker.
+  Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
+  `matches()`, which only a route's USE_ITEM node reaches.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.
