@@ -23,13 +23,16 @@ public final class TerminalAuraConfig {
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-terminalaura.json");
 
     /** Hypixel's own interact reach. Anything past this is refused server-side anyway. */
-    public static final double MAX_RANGE = 4.0;
+    // Capped at the measured entity limit - vanilla allows 3.0 to an entity, and past it the anticheat
+    // names the distance in a Reach violation. See CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH.
+    public static final double MAX_RANGE =
+            com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
     public static final int MAX_DELAY_MS = 2000;
 
     private static TerminalAuraConfig instance;
 
     private boolean enabled = false;
-    private double range = 4.0;
+    private double range = MAX_RANGE;
     private int delayMs = 750;
     private boolean groundOnly = false;
     private boolean leapDelayEnabled = false;

@@ -44,6 +44,22 @@ public final class CheatUtilsConfig {
      */
     public static final double MEASURED_MAX_REACH = 4.5;
 
+    /**
+     * 3.0 blocks for an ENTITY, which is a tighter limit than the 4.5 a block gets.
+     *
+     * <p>Measured 2026-09-28 on the sim against a live GrimAC, walking in on an armour stand and interacting at
+     * each step: 3.26 blocks and beyond drew a {@code Reach} violation naming the distance; 2.18 and closer drew
+     * nothing. That brackets the line at vanilla's own entity limit of 3.0, which is where it is set.
+     *
+     * <p>One caveat recorded honestly: the probe that produced those numbers also drew {@code Hitboxes} flags,
+     * because it passed the stand's feet as the hit vector rather than a point on its box. That was a fault in
+     * the probe, not in this mod - Arrow Align aims at the centre of the frame's player-facing face and Terminal
+     * Aura clips the eye-to-centre line against the stand's box, which is what a real ray does. Only the
+     * distance half of that measurement is used here.
+     */
+    public static final double MEASURED_MAX_ENTITY_REACH = 3.0;
+
+
     public static final double MIN_AURA_RANGE = 2.1;
     public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
     public static final double MAX_AURA_SKULL_RANGE = 4.7;

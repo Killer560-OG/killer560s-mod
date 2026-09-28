@@ -22,7 +22,10 @@ public final class ArrowAlignConfig {
     public static final int MAX_TRIGGER_BOT_DELAY_MS = 500;
     public static final int MAX_AURA_DELAY_MS = 1000;
     public static final double MIN_AURA_RANGE = 2.0;
-    public static final double MAX_AURA_RANGE = 6.0;
+    // Capped at the measured entity limit, same reason as Terminal Aura. An item frame is an entity, so it
+    // gets 3.0 rather than a block's 4.5. See CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH.
+    public static final double MAX_AURA_RANGE =
+            com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
 
     /** Box tint for a frame that still needs clicks. Alpha 0x59 is the 0.35 the solver always drew at. */
     public static final int DEFAULT_HIGHLIGHT_COLOR = 0x59FFAA00;
@@ -63,7 +66,7 @@ public final class ArrowAlignConfig {
     private boolean auraEnabled = false;
     private int auraMinDelayMs = DEFAULT_AURA_MIN_DELAY_MS;
     private int auraMaxDelayMs = DEFAULT_AURA_MAX_DELAY_MS;
-    private double auraRange = 5.0;
+    private double auraRange = MAX_AURA_RANGE;
 
     private ArrowAlignConfig() {
     }
