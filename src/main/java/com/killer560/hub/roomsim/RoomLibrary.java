@@ -296,8 +296,15 @@ public final class RoomLibrary {
                 for (int y = MIN_Y; y <= MAX_Y; y++) {
                     cursor.set(worldX0 + x, y, worldZ0 + z);
                     BlockState state = level.getBlockState(cursor);
-                    r.blocks[r.index(x, y, z)] = r.paletteFor(BuiltInRegistries.BLOCK.getKey(
-                            state.getBlock()).toString());
+                    // The FULL state, not just the block id. Storing only the id threw away every stair's
+                    // facing, every door's hinge and every lever's wall before the data was even saved - and a
+                    // room rebuilt from that has its geometry right and everything directional pointing the
+                    // same wrong way, which is worse than obviously broken because it looks nearly correct.
+                    // serialize() produces "minecraft:stone_brick_stairs[facing=north,...]", which the existing
+                    // string palette already holds; a plain id from an older capture still parses as the
+                    // default state, so nothing recorded before this breaks.
+                    r.blocks[r.index(x, y, z)] = r.paletteFor(
+                            net.minecraft.commands.arguments.blocks.BlockStateParser.serialize(state));
                 }
                 r.seenColumn[col] = true;
                 added++;

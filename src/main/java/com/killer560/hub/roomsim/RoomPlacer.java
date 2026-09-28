@@ -117,18 +117,31 @@ public final class RoomPlacer {
         return placed;
     }
 
-    /** Resolves one palette string to a default block state, or null (and one warning) if it no longer exists. */
+    /**
+     * Resolves one palette string to a block state, or null (and one warning) if it no longer exists.
+     *
+     * <p>Parses the FULL state, not just the block id. The library stores entries as
+     * {@code minecraft:stone_brick_stairs[facing=north,half=bottom,...]}, so a stair comes back facing the way
+     * it was captured rather than the way its default state happens to point - which is the difference between
+     * a rebuilt room being usable and being subtly wrong everywhere a stair or door appears.
+     *
+     * <p>A bare id still works: entries captured before the palette held states parse straight to the default,
+     * which is exactly what they meant.
+     */
     private static BlockState resolve(String paletteEntry) {
-        Identifier id = Identifier.tryParse(paletteEntry);
-        Block block = id == null ? null : BuiltInRegistries.BLOCK.getOptional(id).orElse(null);
-        if (block == null) {
+        try {
+            return net.minecraft.commands.arguments.blocks.BlockStateParser
+                    .parseForBlock(BuiltInRegistries.BLOCK, paletteEntry, false)
+                    .blockState();
+        } catch (Exception e) {
+            // One warning per distinct entry, not per block: a renamed block appears thousands of times in a
+            // room and the log would be useless.
             if (WARNED_UNRESOLVED.add(paletteEntry)) {
-                LOGGER.warn("Room library palette entry \"{}\" no longer resolves to a block - skipping every "
-                        + "block that used it (renamed/removed since capture?)", paletteEntry);
+                LOGGER.warn("Room library palette entry \"{}\" no longer resolves - skipping every block that "
+                        + "used it (renamed or removed since capture?)", paletteEntry);
             }
             return null;
         }
-        return block.defaultBlockState();
     }
 
     private static Rotation toVanillaRotation(int degrees) {
@@ -161,8 +174,10 @@ public final class RoomPlacer {
      * four times returns the identity - both checked by hand when this was derived, and both exercised again at
      * runtime by {@link #selfCheckRotation()}.
      *
-     * @return {@code {newX, newZ}} in the rotated room's own coordinate space (see {@link #rotatedSizeX} /
-     *     {@link #rotatedSizeZ} for that space's bounds)
+     * @return {@code {newX, newZ}} in the rotated room's own coordinate space - on a 90/270 turn that space is
+     *     {@code sizeZ} wide by {@code sizeX} deep instead of the original {@code sizeX} by {@code sizeZ}, which
+     *     is exactly why {@link #paste} only ever adds this result to a fixed world origin rather than assuming
+     *     the room's footprint keeps its original dimensions
      */
     static int[] rotateLocal(int x, int z, int sizeX, int sizeZ, int degrees) {
         return switch (degrees) {
@@ -173,16 +188,6 @@ public final class RoomPlacer {
             default -> throw new IllegalArgumentException(
                     "rotation must be 0, 90, 180 or 270 degrees, got " + degrees);
         };
-    }
-
-    /** Width of the room once rotated - swaps with {@link #rotatedSizeZ} on a 90/270 turn. */
-    static int rotatedSizeX(int sizeX, int sizeZ, int degrees) {
-        return (degrees == 90 || degrees == 270) ? sizeZ : sizeX;
-    }
-
-    /** Depth of the room once rotated - swaps with {@link #rotatedSizeX} on a 90/270 turn. */
-    static int rotatedSizeZ(int sizeX, int sizeZ, int degrees) {
-        return (degrees == 90 || degrees == 270) ? sizeX : sizeZ;
     }
 
     /**

@@ -40,10 +40,13 @@ public final class FlatTestRoom {
     private static final String STONE = "minecraft:stone";
     private static final String BRICKS = "minecraft:stone_bricks";
     private static final String CRACKED = "minecraft:cracked_stone_bricks";
-    private static final String CHEST = "minecraft:chest";
-    private static final String LEVER = "minecraft:lever";
-    private static final String STAIRS = "minecraft:stone_brick_stairs";
-    private static final String LADDER = "minecraft:ladder";
+    private static final String CHEST = "minecraft:chest[facing=north,type=single]";
+    private static final String LEVER = "minecraft:lever[face=wall,facing=east,powered=false]";
+    // Full block STATES, not bare ids. The palette holds states now, so these carry a known facing - which is
+    // the only reason the directional blocks in here test anything. A stair written as a bare id comes back
+    // pointing whichever way its default state points, and would look identical whether rotation worked or not.
+    private static final String STAIRS = "minecraft:stone_brick_stairs[facing=east,half=bottom,shape=straight]";
+    private static final String LADDER = "minecraft:ladder[facing=south]";
     private static final String GOLD = "minecraft:gold_block";
     private static final String AIR = "minecraft:air";
 
