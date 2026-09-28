@@ -68,6 +68,38 @@ import java.util.Set;
  * into the same table using their own goodLevel/maxLevel (all 0/10) - the tier maths is identical, this mod
  * doesn't render their separate stacking-progress footer either way, and leaving them out would mean a
  * fully-stacked farming tool never lights up "Perfect" for a genuinely maxed enchant.
+ * <p>
+ * <b>2026-09-27, killer560: "For the enchant color you can refrence skyhanni they have some way of detecting
+ * something like gk5 being a t7."</b> The {@code maxLevel} half of every pair below is already the enchant's
+ * real ceiling, not the level you'd get from an enchanting table or a plain anvil combine - e.g. {@code
+ * giant killer}'s {@code maxLevel} is 7, even though the enchanting table and ordinary book-combining only
+ * ever reach V. Spot-checked against hypixelskyblock.minecraft.wiki (2026-09-27, not wiki.hypixel.net or
+ * Fandom per killer560's standing instruction) rather than trusted on the SkyHanni decompile alone:
+ * <ul>
+ *   <li>Giant Killer - table/combine max V, true max VII via the Dark Auction (Scorpius' Darker Auctions
+ *       perk) or Experiments; VI and VII are <i>not</i> reachable by combining books at all.</li>
+ *   <li>Sharpness - table/combine max V, true max VII (VI from Tomioka/Dark Auction/Experiments, VII an
+ *       ultra-rare Experiments/Darker-Auction drop).</li>
+ *   <li>Ender Slayer - book combination alone reaches VI (hence {@code goodLevel} 5 here is the enchanting
+ *       table's own cap, not the combine cap - combining is what gets you from Good to Great), VII only via
+ *       applying an End Stone Idol (Voidgloom Seraph T4 drop, or Experiments) to an Ender Slayer VI item.</li>
+ *   <li>Growth - table/combine max V, true max VII via the Dark Auction or Experiments (VI likewise
+ *       Dark-Auction/Experiments-only).</li>
+ * </ul>
+ * All four already matched this table's existing {@code maxLevel} of 7 (or, for Ender Slayer, the existing
+ * split between table-cap 5 and combine-reachable 6), so nothing needed correcting - this was verification,
+ * not a fix. <b>Left deliberately unverified</b>: the other ~25 enchants sharing the same {@code 5, 7} shape
+ * almost certainly follow the identical Experiments/Dark-Auction pattern (that mechanic isn't per-enchant,
+ * it's a Skyblock-wide endgame system), but "almost certainly" isn't a wiki citation, so they're not
+ * individually confirmed here - if one of them turns out wrong, fix that one entry rather than distrust the
+ * whole table. Ultimate enchants are NOT part of this at all despite killer560's phrasing grouping them in:
+ * an item can only carry one Ultimate enchant, applying a second overwrites rather than stacks, and the
+ * highest tier of any of them is V - there is no "shown level above the normal max" case for an ultimate to
+ * detect, which is exactly why {@link #ULTIMATES} still bypasses goodLevel/maxLevel entirely (see
+ * {@code EnchantColorsFeature}) instead of getting its own maxLevel entry here.
+ * <p>
+ * {@link com.killer560.hub.enchantcolors.EnchantColorsConfig#isTrueMaxDetection()} is the toggle that gates
+ * this - see its own doc for why it defaults ON and what turning it off falls back to.
  */
 public final class EnchantColorsDefaults {
 

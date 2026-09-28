@@ -139,6 +139,17 @@ public class EnchantColorsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Bold Perfect", cfg.isPerfectBold()));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        // killer560, 2026-09-27: "something like gk5 being a t7" - a Giant Killer VII (real max, see
+        // EnchantColorsDefaults) is Perfect only because this is on; off falls back to never calling
+        // anything above Good "Perfect" at all, the old "clamped to the table's top colour" behaviour, kept
+        // as an escape hatch rather than removed.
+        widgets.add(SettingsButtonWidget.builder(onOff("True Max Detection", cfg.isTrueMaxDetection()), btn -> {
+                    cfg.setTrueMaxDetection(!cfg.isTrueMaxDetection());
+                    cfg.save();
+                    btn.setMessage(onOff("True Max Detection", cfg.isTrueMaxDetection()));
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
         // ---------------- Ultimate enchants ----------------

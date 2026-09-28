@@ -31,8 +31,21 @@ public final class CheatUtilsConfig {
 
 
     // ---- Secret Aura (QUOI SecretAura.kt) ----
+    /**
+     * 4.5 blocks, measured rather than chosen.
+     *
+     * <p>killer560 (2026-09-28): "Just make the max whatever you find the max to be that doesnt flag." Run on
+     * the sim against a live GrimAC, one lever per distance: at 4.50 blocks to the block's box the server
+     * accepts the interaction and the anticheat says nothing. At 5.50 the server REFUSES it outright - the
+     * lever does not move - so the extra range never bought a single click, it only produced traffic to be
+     * flagged for. Vanilla's own block-interaction limit is the same 4.5, which is why.
+     *
+     * <p>One named constant so there is a single place to raise it if a measurement ever says otherwise.
+     */
+    public static final double MEASURED_MAX_REACH = 4.5;
+
     public static final double MIN_AURA_RANGE = 2.1;
-    public static final double MAX_AURA_RANGE = 6.5;
+    public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
     public static final double MAX_AURA_SKULL_RANGE = 4.7;
     public static final int MIN_AURA_COOLDOWN_MS = 100;
     public static final int MAX_AURA_COOLDOWN_MS = 2000;
@@ -42,7 +55,9 @@ public final class CheatUtilsConfig {
     private boolean auraLevers = true;
     private boolean auraEssence = true;
     private boolean auraBossLevers = false;
-    private double auraRange = 6.2;       // QUOI default
+    // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
+    // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.
+    private double auraRange = MEASURED_MAX_REACH;
     private double auraSkullRange = 4.7;  // QUOI default
     private int auraCooldownMs = 150;     // QUOI "Click delay" default
     private boolean auraSwing = false;    // QUOI "Swing hand" default off

@@ -26,9 +26,11 @@ import net.minecraft.world.item.ItemStack;
  * which this one can't do because "Hide in Screens" is optional). {@link InventoryHudElement#render} is
  * therefore the HUD-editor preview path only.
  * <p>
- * The Opacity setting only fades the background/slots, NOT the rendered item icons (2026-09-27, killer560:
- * "the opacity doesn't affect the items opacity and it should") - see {@link #drawStack}'s own doc for why
- * that's still true and what would be needed to fix it.
+ * The Opacity setting fades the background/slots AND, since 2026-09-27, the items too - not by tinting
+ * each item (still impossible, see {@link #drawStack}'s doc for why) but by drawing a translucent black
+ * dimming quad over the whole panel, on top of the items, in {@link #drawPanel}. killer560 (2026-09-27):
+ * "the opacity doesn't affect the items opacity and it should ... For the item opactiy find a workaround.
+ * Dim the whole menu or something." This is that workaround.
  */
 public final class InventoryHudFeature {
 
@@ -155,7 +157,16 @@ public final class InventoryHudFeature {
         int opacity = cfg.getBackgroundOpacity();
         InventoryHudConfig.Background bg = cfg.getBackground();
 
-        if (bg != InventoryHudConfig.Background.NONE && opacity > 0) {
+        // Opacity 0 hides the panel entirely, items included.
+        //
+        // Without this the dimming overlay at the bottom of this method is fully opaque at 0, so dragging the
+        // slider to the bottom produced a SOLID BLACK BOX over the world - the exact opposite of what a 0%
+        // opacity control implies. Hiding it is what the number means.
+        if (opacity <= 0) {
+            return;
+        }
+
+        if (bg != InventoryHudConfig.Background.NONE) {
             graphics.fill(x, y, x + w, y + h, withAlpha(PANEL_BG, opacity));
             graphics.outline(x, y, w, h, withAlpha(PANEL_BORDER, opacity));
             if (bg == InventoryHudConfig.Background.SLOTS) {
@@ -203,6 +214,37 @@ public final class InventoryHudFeature {
                 }
             }
         }
+
+        // Item-opacity workaround. killer560 (2026-09-27): "the opacity doesn't affect the items opacity
+        // and it should ... For the item opactiy find a workaround. Dim the whole menu or something."
+        //
+        // We can't tint the items that were just drawn above (no shader colour to lean on any more - see
+        // drawStack's doc), so instead this draws a second, translucent-black quad across the SAME area,
+        // on top of everything drawn so far including the items. It's the same Opacity slider, just
+        // inverted: at Opacity 100 the overlay alpha is 0 (a fully "opaque" panel looks exactly like it did
+        // before this change), and it gets darker as Opacity drops, so lowering the slider now visibly
+        // dims the icons too, not just the panel behind them.
+        //
+        // This is drawn LAST, after the background/slot fill above and after the item loop just above it -
+        // both of those are the only other things this method draws, so "last" here really does mean
+        // "on top of the items". Composing with the background fade: the background fill already faded
+        // out toward Opacity 0, and would look like it's fading into nothing rather than dimming, which is
+        // the opposite of what was asked for. Reusing the SAME (100 - opacity) alpha for this quad means
+        // the background/slot area (which already has its own fill under it) ends up darker overall than
+        // the item area at any given slider position - e.g. at Opacity 50 the slot fill is already ~50%
+        // black and this quad adds another ~50% black on top of that, while an item cell only ever gets the
+        // one ~50% black pass. That reads as "the frame darkens faster than the icons", which was the
+        // decision made here rather than trying to exempt the background pixels from the overlay (that
+        // would mean punching item-shaped holes in the quad, i.e. right back to needing per-item alpha).
+        // It does not go muddy - both layers are the same flat black, so it only ever compounds toward
+        // darker, never toward a mixed colour.
+        // Capped at 80% darkening rather than scaling all the way to opaque. At full strength the icons stop
+        // being readable at all, which is worse than useless for a HUD whose job is telling him what he is
+        // holding - and the fully-hidden case is already handled by the early return above, so nothing is
+        // lost by never reaching solid black here.
+        if (opacity < 100) {
+            graphics.fill(x, y, x + w, y + h, withAlpha(0x000000, (100 - opacity) * 4 / 5));
+        }
     }
 
     private static int displayCol(InventoryHudConfig cfg, int row, int col) {
@@ -217,10 +259,12 @@ public final class InventoryHudFeature {
      *  <p>
      *  killer560 (2026-09-27): "the opacity doesn't affect the items opacity and it should." Item
      *  rendering ({@code graphics.item}) ignores a plain ARGB colour the way text/fill do - it draws the
-     *  item's own texture at full alpha regardless. BLOCKED, not fixed - see the comment below. */
+     *  item's own texture at full alpha regardless, so this method still cannot tint what it draws. See
+     *  the comment below for why, and see {@link #drawPanel}'s dimming-quad comment for the workaround
+     *  that now compensates for it from outside this method instead. */
     private static void drawStack(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int x, int y,
                                   InventoryHudConfig cfg, float partialTick) {
-        // ITEM OPACITY IS NOT IMPLEMENTED, and this is the honest place to say why.
+        // TRUE PER-ITEM OPACITY IS STILL NOT IMPLEMENTED HERE, and this is the honest place to say why.
         //
         // killer560 (2026-09-27): "For inventory hud the opacity doesn't affect the items opacity and it should."
         // He is right that it should. The obvious way - RenderSystem.setShaderColor(1,1,1,alpha) around the item
@@ -230,9 +274,11 @@ public final class InventoryHudFeature {
         // RenderPipeline or a mixin into the item render layer, which is a real piece of work and exactly the kind
         // of change that quietly breaks every item this mod draws if it is got wrong.
         //
-        // So the background/slot opacity still applies (that part works); the ITEMS stay opaque until this is done
-        // properly. Shipping a version that does not compile, or one that tints half the HUD and everything drawn
-        // after it, would be worse than saying so.
+        // That part of the ask is still blocked for the reason above. What's no longer blocked is the actual
+        // complaint - the items looking untouched by the Opacity slider. killer560's own fallback ("dim the whole
+        // menu or something") is implemented one level up: drawPanel draws a translucent black quad over the whole
+        // panel, including every item this method draws, right after this method returns. So the ITEMS this method
+        // draws are still opaque textures with no alpha of their own; they just get dimmed from above afterwards.
         try {
             float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
             if (pop > 0f) {

@@ -75,11 +75,23 @@ public final class AutoCroesusFeature {
 
     private static final String START_BUTTON_ELEMENT_ID = "croesus_start_button";
     /** killer560 (2026-09-27): "Read my start croesus button placement and size and make that default for
-     *  all mods going forward." HOUSE DEFAULT for any new mod-drawn overlay button going forward: 110x20,
-     *  default position centered horizontally and {@code guiScaledHeight/2 + 90} vertically (see
+     *  all mods going forward." HOUSE DEFAULT for any mod-drawn "Start X" overlay button: 110x20, default
+     *  position centered horizontally and {@code guiScaledHeight/2 + 90} vertically (see
      *  {@link #registerStartButtonElement}'s {@code defaultX}/{@code defaultY} below) - this is the exact,
-     *  already-tuned placement/size to reuse, not a new one to invent per feature. Existing tabs/buttons
-     *  are deliberately left as they are; this only applies to what gets built from here on. */
+     *  already-tuned placement/size to reuse, not a new one to invent per feature.
+     *  <p>
+     *  UPDATE (2026-09-27, later the same night, from his list): "the Start Croesus button's position and
+     *  size should act as the default for other HUD buttons of that kind" - a firmer version of the note
+     *  above, this time explicitly retroactive rather than "going forward" only. {@link #sharedStartButtonWidth}/
+     *  {@link #sharedStartButtonHeight}/{@link #sharedStartButtonPosition} below are the wiring for that:
+     *  the Experimentation Table's "Start ETable" button (see {@code ExperimentsFeature}, the only other
+     *  member of this button family right now) now reads its own default width/height/position from these
+     *  instead of its previously-separate 100x20 numbers. This is a DEFAULT ONLY - {@link HudElementRegistry
+     *  #resolvePosition} only ever consults an element's defaultX()/defaultY() when that element itself has
+     *  no saved position (see {@link com.killer560.hub.hud.HudConfig#hasPosition}), so a position killer560 has already dragged
+     *  Start ETable to specifically still always wins over this shared fallback. Size has no separate saved
+     *  override in this codebase (only a scale multiplier, applied on top of whichever base width/height is
+     *  in effect), so Start ETable's base size simply follows Croesus's from here on. */
     private static final int START_BUTTON_WIDTH = 110;
     private static final int START_BUTTON_HEIGHT = 20;
     // Same palette as the Start ETable button, which reuses SettingsButtonWidget's own colours.
@@ -307,6 +319,29 @@ public final class AutoCroesusFeature {
     private static float resolveStartButtonScale() {
         HudElement element = HudElementRegistry.byId(START_BUTTON_ELEMENT_ID);
         return element == null ? 1.0f : HudElementRegistry.resolveScale(element);
+    }
+
+    // ---- shared "Start X" button default, for sibling buttons like Start ETable (killer560, 2026-09-27,
+    // see the START_BUTTON_WIDTH javadoc above) --------------------------------------------------------
+
+    /** Base width every "Start X" button family member defaults to when it has no size override of its
+     *  own (there is no such override in this codebase beyond the per-element scale multiplier - see
+     *  {@link com.killer560.hub.hud.HudConfig#getScale}). */
+    public static int sharedStartButtonWidth() {
+        return START_BUTTON_WIDTH;
+    }
+
+    /** @see #sharedStartButtonWidth() */
+    public static int sharedStartButtonHeight() {
+        return START_BUTTON_HEIGHT;
+    }
+
+    /** This button's OWN resolved position - its saved position if killer560 has dragged it, otherwise its
+     *  own computed default. A sibling button (Start ETable) uses this as ITS default, so dragging the
+     *  Croesus button carries every sibling that hasn't been dragged on its own along with it; a sibling's
+     *  own saved position, once it has one, always overrides this instead. */
+    public static int[] sharedStartButtonPosition() {
+        return resolveStartButtonPosition();
     }
 
     /**

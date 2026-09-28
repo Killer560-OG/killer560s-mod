@@ -21,7 +21,8 @@ public final class LeverAuraConfig {
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-leveraura.json");
 
     public static final double MIN_RANGE = 2.1;
-    public static final double MAX_RANGE = 6.5;
+    // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.
+    public static final double MAX_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     public static final int MIN_DELAY_MS = 50;
     public static final int MAX_DELAY_MS = 2000;
 
@@ -36,7 +37,7 @@ public final class LeverAuraConfig {
     private boolean sectionLevers = false;
     /** ...and also before S2 is open. */
     private boolean sectionLeversEarly = false;
-    private double range = 5.0;
+    private double range = MAX_RANGE;
     private int minDelayMs = 150;
     private int maxDelayMs = 300;
     private boolean swingHand = true;

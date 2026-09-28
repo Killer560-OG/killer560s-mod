@@ -33,6 +33,16 @@ public class DungeonTab extends FolderTab {
                 // Moved out of New 2026-09-14 - killer560 confirmed Simon Says (solver + Auto Start/Solve)
                 // working after real runs ("I think ss is now done").
                 new SimonSaysTab(),
+                // Moved out of New 2026-09-27, per killer560's own report that night: "some stuff looks
+                // weird like mask invincibility being in its own sectino inside of party finder makes no
+                // sence and I dont think that is somethign i asked you to doo." He's right - git log/
+                // comments show no prior request to nest it under Party Finder or Dungeon Queue; it was
+                // just the next plain top-level entry after DungeonQueueTab in New's accordion list, sitting
+                // right below that tab's own "Party Finder Overlay" section, which reads as nesting even
+                // though the code never nested it. This tab already earmarked Mask Invincibility (below,
+                // in the comment) for the move once confirmed - moving it now, unconditionally, per his
+                // request tonight, regardless of confirmation status. Behaviour untouched, presentation only.
+                new MaskInvincibilityTab(),
                 // Puzzle Solvers dissolved into New earlier 2026-09-20, then killer560 changed his mind after
                 // testing: "put every puzzle solver back under one tab called Puzzle Solvers inside the
                 // dungeon tab... separate from Auto Puzzles, but all solvers in one tab". Ships on both
@@ -46,11 +56,13 @@ public class DungeonTab extends FolderTab {
                 new SecretsTab()
         ));
         // Leap Menu, Fast Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, Etherwarp
-        // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers, Mask
-        // Invincibility, I4 Sensors, Live Map, Secret Waypoints, Mod Chat, Voice To Text, Proximity
+        // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers,
+        // I4 Sensors, Live Map, Secret Waypoints, Mod Chat, Voice To Text, Proximity
         // Voice, and (cheat build) Auto Leap Out (built this session) all live in the "New" tab only
         // until killer560 confirms each one actually works, then move back here. Fullbright was tested
-        // and confirmed working 2026-09-14 and has already moved back out of New (see DisplayTab).
+        // and confirmed working 2026-09-14 and has already moved back out of New (see DisplayTab). Mask
+        // Invincibility moved back here 2026-09-27 (see above) ahead of the rest of this list, for the
+        // presentation reason explained there - not because it was confirmed working.
         // Per killer560's explicit "cheat variant should have hitbox's auto etable and auto terms"
         // request (2026-09-10) - Full Block (hitbox expansion) moved from always-available to cheat-only
         // here, joining Auto Terminals; the legit build has neither tab at all, not just a

@@ -203,12 +203,18 @@ public final class ExperimentsFeature {
 
             @Override
             public int defaultX() {
-                return Minecraft.getInstance().getWindow().getGuiScaledWidth() / 2 - START_BUTTON_WIDTH / 2;
+                // killer560 (2026-09-27, from his list): "the Start Croesus button's position ... should
+                // act as the default for other HUD buttons of that kind" - Start ETable is that other
+                // button, so its default now comes from Croesus's own resolved position (dragged or not)
+                // instead of duplicating the centered-below-center formula here. Only consulted when THIS
+                // element has no saved position of its own (see HudElementRegistry#resolvePosition) - once
+                // killer560 drags Start ETable specifically, that saved position wins over this every time.
+                return com.killer560.hub.croesus.AutoCroesusFeature.sharedStartButtonPosition()[0];
             }
 
             @Override
             public int defaultY() {
-                return Minecraft.getInstance().getWindow().getGuiScaledHeight() / 2 + 90;
+                return com.killer560.hub.croesus.AutoCroesusFeature.sharedStartButtonPosition()[1];
             }
 
             @Override
@@ -251,8 +257,13 @@ public final class ExperimentsFeature {
     }
 
     private static final String START_BUTTON_ELEMENT_ID = "experiments_start_button";
-    private static final int START_BUTTON_WIDTH = 100;
-    private static final int START_BUTTON_HEIGHT = 20;
+    // Base size used to be its own tuned 100x20 - now just reads Croesus's, per killer560's 2026-09-27
+    // "the Start Croesus button's position and size should act as the default for other HUD buttons of
+    // that kind" (see the javadoc on AutoCroesusFeature.START_BUTTON_WIDTH for the full note). There is
+    // no saved per-element size override in this codebase to lose by doing this - only the scale
+    // multiplier, which stays independently persisted per element exactly as before.
+    private static final int START_BUTTON_WIDTH = com.killer560.hub.croesus.AutoCroesusFeature.sharedStartButtonWidth();
+    private static final int START_BUTTON_HEIGHT = com.killer560.hub.croesus.AutoCroesusFeature.sharedStartButtonHeight();
 
     /**
      * Called every frame from {@link com.killer560.hub.experiments.mixin.ExperimentsContainerRenderMixin},

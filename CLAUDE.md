@@ -77,8 +77,10 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   after the player's own movement packet, and GrimAC flags every resulting interaction as `Post`. Measured
   2026-09-27 — Breaker Aura drew 808 violations on END and zero on START; Secret Triggerbot 17 and 17.
   Fixed for Breaker Aura in `825f319`. **About twenty other features still tick on END.**
-- `RenderSystem.setShaderColor` does not exist in 26.1.2. Item rendering moved to another path, so the
-  inventory HUD's opacity setting cannot affect items.
+- `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items
+  cannot be tinted per-item. The inventory HUD's Opacity now dims items with a translucent quad drawn over the
+  panel after the item loop instead: 0 hides the panel outright, and the darkening is capped at 80% so no
+  setting turns it into an unreadable black box.
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
 - `DungeonState.toggleSimOverride()` (the `/killer560 sim` command) forces floor, F7 **and boss phase** on

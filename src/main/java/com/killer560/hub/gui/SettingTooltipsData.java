@@ -1973,6 +1973,10 @@ final class SettingTooltipsData {
         d.put("auto kick", "Master toggle, default OFF. Once ON, warns (or kicks) once the CURRENT run's elapsed time passes the target you set for its floor below. Never acts outside a dungeon, never targets yourself, and never fires more than once per run.");
         d.put("auto kick/action mode", "What happens once a floor's target time is missed. Warn Only (default) only prints a chat message - no command is ever sent. Kick All removes every current teammate. Kick Specific removes only the names typed below. Click to cycle forward, right-click to cycle back.");
         d.put("auto kick/specific members", "Comma-separated IGNs for Kick Specific. Only names that are actually in your party right now are ever kicked - a stale or misspelled name here is just ignored.");
+        // killer560, 2026-09-27: "it should populate them from someone else via their api" - fills a real,
+        // API-verified starting point per floor instead of you guessing one. See AutoKickApi's class doc
+        // for the exact field and why it never touches a floor you already set.
+        d.put("auto kick/populate my times from api (fills blanks only)", "Looks up YOUR own fastest recorded clear time per floor via the Hypixel API and fills in any target below that's still 0. Never overwrites a floor you already set, and never turns Auto Kick on by itself. Use /autokick populate <name> to do the same lookup for someone else.");
         for (com.killer560.hub.autokick.AutoKickConfig.Floor f : com.killer560.hub.autokick.AutoKickConfig.Floor.values()) {
             d.put("auto kick/" + f.label().toLowerCase(java.util.Locale.ROOT), "Seconds after this run's clock starts before Auto Kick considers " + f.label()
                     + " missed. Drag to 0 (Disabled) to leave this floor alone. Ships at 0 for every floor - there's no verified 'normal' clear time for a group this mod could safely guess at, so set your own.");

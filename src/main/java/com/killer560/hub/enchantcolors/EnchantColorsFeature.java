@@ -358,7 +358,15 @@ public final class EnchantColorsFeature {
                 if (tier != null) {
                     int goodLevel = tier[0];
                     int maxLevel = tier[1];
-                    boolean perfect = nbtLevel >= maxLevel;
+                    // killer560, 2026-09-27: "something like gk5 being a t7" - maxLevel here is already the
+                    // enchant's real ceiling (Giant Killer's is 7 via Dark Auction/Experiments, not the
+                    // enchant-table cap of 5 - hypixelskyblock.minecraft.wiki, 2026-09-27), so a level at or
+                    // above it is the rarest tier regardless of how far past the "normal" cap it sits.
+                    // Gated behind trueMaxDetection rather than always-on: if that per-enchant ceiling table
+                    // ever falls behind a future Hypixel cap raise, this is the escape hatch back to treating
+                    // every level past goodLevel the same (an ordinary high level, never Perfect) instead of
+                    // quietly mis-tiering something.
+                    boolean perfect = cfg.isTrueMaxDetection() && nbtLevel >= maxLevel;
                     if (perfect && cfg.isPerfectChroma()) {
                         // killer560, 2026-09-27: SkyHanni's real Perfect default is an animated rainbow, not
                         // a fixed colour - see EnchantColorsDefaults' class doc. cfg.getPerfectColor() is

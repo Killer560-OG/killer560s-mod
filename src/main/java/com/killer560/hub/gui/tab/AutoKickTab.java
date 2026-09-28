@@ -1,11 +1,14 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.autokick.AutoKickApi;
 import com.killer560.hub.autokick.AutoKickConfig;
 import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.profileviewer.api.ProfileViewerApi;
+import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -90,6 +93,27 @@ public class AutoKickTab extends BaseTab {
         y += 16;
         widgets.add(note(contentX, y, contentWidth, "0 = disabled. Ships unset - see the tooltip for why."));
         y += 16;
+
+        // killer560's own request (2026-09-27): "it should populate them from someone else via their api" -
+        // this button is the "someone else" being yourself, since that's the one lookup that needs no name
+        // typed in. /autokick populate <name> (AutoKickCommands) covers anyone else. Either path only ever
+        // fills a floor that's still 0 - see AutoKickApi's own doc for why it never overwrites a value he
+        // already chose.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Populate My Times From API (fills blanks only)"), btn -> {
+                    btn.active = false;
+                    ModChat.send("Auto Kick", ModChat.text("Looking up your dungeon clear times..."));
+                    AutoKickApi.populate("").whenComplete((result, error) -> Minecraft.getInstance().execute(() -> {
+                        if (error != null) {
+                            ModChat.send("Auto Kick", ModChat.bad(ProfileViewerApi.messageFor(error)));
+                        } else {
+                            ModChat.send("Auto Kick",
+                                    ModChat.text("Set "), ModChat.value(String.valueOf(result.floorsSet())),
+                                    ModChat.text(" floor target(s) from your fastest recorded clear time."));
+                        }
+                        requestRebuild.run();
+                    }));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
 
         Floor[] floors = Floor.values();
         // First 7 = F1-F7, next 7 = M1-M7 (see Floor's own declaration order) - left/right columns.

@@ -57,6 +57,17 @@ public final class EnchantColorsConfig {
     private int ultimateColor = EnchantColorsDefaults.ULTIMATE;
     /** SkyHanni always renders ultimates bold; kept as a toggle rather than hardcoded. */
     private boolean ultimateBold = true;
+    /** killer560, 2026-09-27: "For the enchant color you can refrence skyhanni they have some way of
+     *  detecting something like gk5 being a t7." The trap this closes: {@link EnchantColorsDefaults#TIERS}'
+     *  {@code maxLevel} is already the enchant's real, post-Experiments/Dark-Auction ceiling (Giant Killer's
+     *  is 7, not the enchant-table cap of 5 - confirmed against hypixelskyblock.minecraft.wiki, 2026-09-27),
+     *  so {@code nbtLevel >= maxLevel} already colours a Giant Killer VII as Perfect rather than lumping it
+     *  in with an ordinary V. Defaults ON because that ceiling data is the whole point of matching SkyHanni;
+     *  OFF is an escape hatch for if that per-enchant table ever drifts out of date (Hypixel raising a cap
+     *  again, same way VI/VII themselves got added) - with it off, nothing above {@code goodLevel} is ever
+     *  called Perfect, which is exactly the old "clamped to the table's top colour" behaviour killer560 was
+     *  pointing at, kept available on purpose rather than silently wrong. */
+    private boolean trueMaxDetection = true;
 
     private EnchantColorsConfig() {
     }
@@ -89,6 +100,7 @@ public final class EnchantColorsConfig {
             cfg.ultimateEnabled = ConfigJson.getBool(obj, "ultimateEnabled", true);
             cfg.ultimateColor = ConfigJson.getInt(obj, "ultimateColor", EnchantColorsDefaults.ULTIMATE);
             cfg.ultimateBold = ConfigJson.getBool(obj, "ultimateBold", true);
+            cfg.trueMaxDetection = ConfigJson.getBool(obj, "trueMaxDetection", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new EnchantColorsConfig();
@@ -112,6 +124,7 @@ public final class EnchantColorsConfig {
             obj.addProperty("ultimateEnabled", ultimateEnabled);
             obj.addProperty("ultimateColor", ultimateColor);
             obj.addProperty("ultimateBold", ultimateBold);
+            obj.addProperty("trueMaxDetection", trueMaxDetection);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -220,5 +233,13 @@ public final class EnchantColorsConfig {
 
     public void setUltimateBold(boolean ultimateBold) {
         this.ultimateBold = ultimateBold;
+    }
+
+    public boolean isTrueMaxDetection() {
+        return trueMaxDetection;
+    }
+
+    public void setTrueMaxDetection(boolean trueMaxDetection) {
+        this.trueMaxDetection = trueMaxDetection;
     }
 }

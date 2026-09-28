@@ -40,7 +40,8 @@ public final class DoorHelpersConfig {
     // Auto Door Opener - QUOI defaults: Triggerbot, Range 5.0, Retry delay 500ms, Swing off, In menus off.
     private boolean autoDoorEnabled = false;
     private OpenerMode autoDoorMode = OpenerMode.TRIGGERBOT;
-    private double autoDoorRange = 5.0;
+    // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.
+    private double autoDoorRange = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     private int autoDoorRetryDelayMs = 500;
     private boolean autoDoorSwing = false;
 

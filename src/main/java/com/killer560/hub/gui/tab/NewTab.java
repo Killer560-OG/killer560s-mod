@@ -65,7 +65,14 @@ public class NewTab extends FolderTab {
                 new PathfindingTab(),
                 new CustomMageBeamTab(),
                 new DungeonQueueTab(),
-                new MaskInvincibilityTab(),
+                // Moved out of New 2026-09-27, per killer560's own report ("some stuff looks weird like mask
+                // invincibility being in its own sectino inside of party finder makes no sence and I dont
+                // think that is somethign i asked you to doo"). Checked git log/comments for any prior
+                // request to nest it under Party Finder/Dungeon Queue - there wasn't one; it has only ever
+                // been a plain top-level entry in this "New" staging list, right next to Dungeon Queue's own
+                // "Party Finder Overlay" section, which is almost certainly what read as nesting in the
+                // accordion. DungeonTab's own class comment already earmarked Mask Invincibility to move
+                // there once confirmed, so that's where it went - see MaskInvincibilityTab in DungeonTab.
                 new ModChatTab(),
                 new InteropTab(),
                 new I4SensorsTab(),
