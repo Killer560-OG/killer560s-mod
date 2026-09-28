@@ -98,6 +98,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // before a feature loads it, not after.
         com.killer560.hub.configversion.ConfigMigrations.run();
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
+        // Dev builds only - the tool that fills the room library that ships. Compiled out of a release.
+        com.killer560.hub.roomsim.RoomRecorderFeature.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
@@ -346,6 +348,18 @@ public class Killer560ModClient implements ClientModInitializer {
                         // "/killer560 bugreport" - one zip with the log, the configs and the build details,
                         // so a stranger in the Discord can be diagnosed without being talked through finding
                         // their log folder. Credentials are stripped before anything goes in it.
+                        .then(ClientCommands.literal("roomrecorder")
+                                .executes(context -> {
+                                    if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                                        return 1;
+                                    }
+                                    if (com.killer560.hub.roomsim.RoomRecorderFeature.isRunning()) {
+                                        com.killer560.hub.roomsim.RoomRecorderFeature.stop("command");
+                                    } else {
+                                        com.killer560.hub.roomsim.RoomRecorderFeature.start();
+                                    }
+                                    return 1;
+                                }))
                         .then(ClientCommands.literal("bugreport")
                                 .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
