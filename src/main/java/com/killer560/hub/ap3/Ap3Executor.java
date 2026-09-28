@@ -1176,6 +1176,9 @@ public final class Ap3Executor {
             step = Step.DO;
             alignModelReset();
             Ap3FastAlign.reset();
+            Vec3 entryVel = player.getDeltaMovement();
+            alignEntryDist = dist;
+            alignEntrySpeed = Math.hypot(entryVel.x, entryVel.z);
             startAlignClock(node);
             if (method == Ap3Config.AlignMethod.SENT_YAW) {
                 // The sent yaw is the keys' frame for the whole align: take it over now (seeded from the live yaw).
@@ -1307,8 +1310,10 @@ public final class Ap3Executor {
         String xTag = wallAxis == Direction.Axis.X ? " (wall)" : "";
         String zTag = wallAxis == Direction.Axis.Z ? " (wall)" : "";
         String offs = String.format(Locale.US, "X off %+.4f%s, Z off %+.4f%s", offX, xTag, offZ, zTag);
-        String model = String.format(Locale.US, "%s, worst miss %.5f, server corrections %d%s",
-                wallAxis != null ? "wall" : "planner", alignWorstMiss, alignCorrections, note == null ? "" : ", " + note);
+        String model = String.format(Locale.US,
+                "%s, entered %.3f blocks out at %.4f/tick, worst miss %.5f, server corrections %d%s",
+                wallAxis != null ? "wall" : "planner", alignEntryDist, alignEntrySpeed, alignWorstMiss,
+                alignCorrections, note == null ? "" : ", " + note);
         LOGGER.info("[AP3 dev] {} #{} took {} ({} ticks) - {} ({})", node.type.label(), number(node),
                 String.format(Locale.US, "%.2fs", seconds), ticks, offs, model);
         ModChat.send("AP3 dev", ModChat.text(node.type.label() + " "), ModChat.value("#" + number(node)),
@@ -1427,6 +1432,16 @@ public final class Ap3Executor {
     private static boolean alignPredValid;
     private static double alignPredX, alignPredZ;
     private static double alignWorstMiss;
+    /**
+     * How far out and how fast he was on the tick AP3 took control. Logged because the tick count is decided
+     * here rather than by the planner: measured 2026-09-28, at his real speed the planner already returns the
+     * fewest ticks that are physically possible, so an align that takes four instead of two is one that began
+     * further out or faster, and nothing in the solver can win that back. Without these two numbers the log
+     * says an align was slow but not why, and the only remaining lever - what the approach hands over - cannot
+     * be aimed.
+     */
+    private static double alignEntryDist;
+    private static double alignEntrySpeed;
     /** What the planner decided last tick, for the trace. */
     private static String alignPhase = "";
 
