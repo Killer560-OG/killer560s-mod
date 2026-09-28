@@ -225,6 +225,9 @@ public final class SimBlazePuzzle {
     }
 
     private static void failAndRebuild(Minecraft client, MinecraftServer server, ServerLevel level, List<UUID> ids) {
+        // Tells the Architect's First Draft feature a puzzle failed, so his existing
+        // auto-get setting works in here the same as it does on Hypixel.
+        SimPuzzles.reportFail("Blaze");
         for (UUID id : ids) {
             Entity entity = level.getEntity(id);
             if (entity != null && entity.isAlive()) {

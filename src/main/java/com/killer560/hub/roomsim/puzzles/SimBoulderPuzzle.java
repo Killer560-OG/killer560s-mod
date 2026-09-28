@@ -171,6 +171,9 @@ public final class SimBoulderPuzzle {
     }
 
     private static void fail(Minecraft client, String what) {
+        // Tells the Architect's First Draft feature a puzzle failed, so his existing
+        // auto-get setting works in here the same as it does on Hypixel.
+        SimPuzzles.reportFail("Boulder");
         ModChat.send("Sim", ModChat.bad("Boulder"), ModChat.text(" failed - pressed " + what + ". Resetting."));
         if (builtOrigin != null && SimState.canAct(client)) {
             build(client, builtOrigin);

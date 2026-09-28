@@ -91,6 +91,19 @@ public final class SimPuzzles {
         ModChat.send("Sim", ModChat.text("Built the "), ModChat.value(name), ModChat.text(" puzzle"));
     }
 
+    /**
+     * A puzzle just failed.
+     *
+     * <p>killer560 asked that the Architect's First Draft feature he already has - the one that fetches a draft
+     * from his sack when a puzzle fails - work in here too. On Hypixel it triggers off the server's own
+     * "PUZZLE FAIL!" broadcast, which no local world sends, so the sim tells it directly instead of faking a
+     * chat line. The SETTINGS are the same ones; only where the draft comes from differs, because there is no
+     * sack to pull from in a world this mod made.
+     */
+    public static void reportFail(String puzzleName) {
+        com.killer560.hub.roomsim.SimArchitect.onPuzzleFail(puzzleName);
+    }
+
     /** Clears every puzzle's state, for leaving the sim or restarting a run. */
     public static void resetAll() {
         for (Runnable r : RESETS.values()) {

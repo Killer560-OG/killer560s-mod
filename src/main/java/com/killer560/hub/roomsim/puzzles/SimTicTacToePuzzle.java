@@ -190,6 +190,9 @@ public final class SimTicTacToePuzzle {
             // The computer got three in a row - the one outcome the real puzzle's "safe prediction" logic
             // exists to make impossible. Treated as a fail: reset, not a silent pass.
             ModChat.send("Sim", ModChat.bad("Computer got three in a row - resetting. Build again to retry."));
+            // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get
+            // setting works in here the same as it does on Hypixel.
+            SimPuzzles.reportFail("Tic Tac Toe");
             reset();
         } else {
             complete = true;

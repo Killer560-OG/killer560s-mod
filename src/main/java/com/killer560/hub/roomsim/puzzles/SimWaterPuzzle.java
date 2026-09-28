@@ -214,6 +214,9 @@ public final class SimWaterPuzzle {
     }
 
     private static void fail(Minecraft client, String what) {
+        // Tells the Architect's First Draft feature a puzzle failed, so his existing
+        // auto-get setting works in here the same as it does on Hypixel.
+        SimPuzzles.reportFail("Water Board");
         ModChat.send("Sim", ModChat.bad("Water Board"), ModChat.text(" failed - clicked " + what + ". Resetting."));
         unpowerLevers(client);
         resetProgress();

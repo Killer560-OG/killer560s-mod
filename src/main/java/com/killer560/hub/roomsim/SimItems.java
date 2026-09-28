@@ -159,6 +159,30 @@ public final class SimItems {
         return 1;
     }
 
+    /** The Architect's First Draft, named once so the sim's Architect handler cannot drift from the enum. */
+    public static final String ARCHITECT_DRAFT_ID = "ARCHITECT_FIRST_DRAFT";
+
+    /**
+     * Gives one item by its Skyblock id, for code rather than for a command.
+     *
+     * <p>Matched against the {@link GiveItem} table rather than built from the id directly, so an id nothing
+     * knows about is a quiet no rather than a blank paper item that looks real and does nothing.
+     *
+     * @return whether the id was one the sim can give
+     */
+    public static boolean give(Minecraft client, String skyblockId) {
+        if (!SimState.canAct(client) || client.player == null || skyblockId == null) {
+            return false;
+        }
+        for (GiveItem item : GiveItem.values()) {
+            if (item.skyblockId.equalsIgnoreCase(skyblockId)) {
+                giveOnServer(client, item);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Builds the stack on the client thread (cheap, no world access needed) and hands it to the SERVER's
      * player on the server thread - same reasoning as {@link SimAbilities#teleport}: only a change made to

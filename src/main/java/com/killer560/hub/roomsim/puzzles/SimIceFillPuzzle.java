@@ -247,6 +247,9 @@ public final class SimIceFillPuzzle {
     }
 
     private static void failAndRebuild(Minecraft client) {
+        // Tells the Architect's First Draft feature a puzzle failed, so his existing
+        // auto-get setting works in here the same as it does on Hypixel.
+        SimPuzzles.reportFail("Ice Fill");
         ModChat.send("Sim", ModChat.bad("Fell through the ice - resetting."));
         BlockPos origin = storedOrigin;
         if (origin != null) {

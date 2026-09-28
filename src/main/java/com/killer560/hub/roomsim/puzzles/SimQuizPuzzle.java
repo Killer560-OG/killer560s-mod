@@ -244,6 +244,9 @@ public final class SimQuizPuzzle {
             // Wrong chest: fail like the real puzzle, not a silent pass - reset so the next attempt is a new
             // question rather than the same one with the wrong option already given away.
             ModChat.send("Sim", ModChat.bad("Wrong chest - resetting. Build again to retry."));
+            // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get
+            // setting works in here the same as it does on Hypixel.
+            SimPuzzles.reportFail("Three Weirdos");
             reset();
         }
     }
