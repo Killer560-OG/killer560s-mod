@@ -69,11 +69,13 @@ public final class SimMenuEntry {
         }
 
         SettingsButtonWidget button = SettingsButtonWidget.builder(Component.literal("Dungeon Sim"), btn -> {
-            // No map-picker exists yet, so there is no real code to hand over - "" is what SimState.enter
-            // already treats as "no map" (see its own null-check). Whatever builds the picker UI is the one
-            // that will have a real MapCode string to pass here.
-            SimState.enter("");
-            client.setScreen(new SimPlaceholderScreen(screen));
+            // No map-picker exists yet, so there is no code to hand over - "" is what SimState.enter already
+            // treats as "no map". Whatever builds the picker is what will pass a real MapCode string here.
+            //
+            // The flag is NOT set here any more. SimWorld sets it once the world has actually loaded, because
+            // setting it before that leaves a window where sim abilities are armed and the player is still on
+            // whatever server they were on.
+            SimWorld.open(client, "");
         }).bounds(x, y, BUTTON_W, BUTTON_H).build();
 
         Screens.getWidgets(screen).add(button);

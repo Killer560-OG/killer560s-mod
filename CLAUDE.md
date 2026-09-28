@@ -114,6 +114,17 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   every push the planner prices comes off the movement-speed attribute: at 550-600 Fast Align lands 100% of
   cases in 3 or 4 ticks, while at 100-450 it lands 89% with a tail out to 7. A constant tuned at walking pace
   is not tuned. The sim can be set to any Hypixel speed with `TestMap.speed(550)`.
+- The dungeon sim (`roomsim/`) is the ONE place this mod writes positions, and that is correct there: the
+  no-direct-movement rule exists because Hypixel reconstructs your movement and lags you back, and in the sim the
+  integrated server is ours. Everything sim-only gates on `SimState.canAct`, which requires a singleplayer world
+  AND no connected server. If that gate is ever wrong, those files write positions on Hypixel - treat it as the
+  single safety boundary of that package and do not add a second way in.
+- Synthetic sim rooms live in `RoomLibrary`'s separate `TEST_ROOMS` map, are never saved, never counted and never
+  listed as missing. A synthetic room in the real map would be written to disk by `saveAll()` and would end up in
+  the shipped library looking exactly like a captured one.
+- No public dungeon dataset ships room GEOMETRY (checked 2026-09-28). Dungeon Rooms Mod and its kind store secret
+  coordinates plus room identification, which a waypoint mod needs and a sim cannot use. DRM is also GPL-3.0
+  against this mod's MIT, so its code can never be used here - data only, credited, and only with his say-so.
 - Align tick counts are bound by STOPPING, not by travel or by the solver. You must arrive under vanilla's 0.003
   zeroing line or the next tick slides you off the point, and friction alone takes ~8 ticks from top speed. A
   floor that charges the stop sits at 4.41 ticks against the planner's 4.52 (measured 2026-09-28), and 3 ticks

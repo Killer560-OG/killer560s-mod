@@ -103,6 +103,30 @@ public final class RoomLibrary {
             return (y - MIN_Y) * sizeX * sizeZ + z * sizeX + x;
         }
 
+        /**
+         * Writes one block, for rooms built in code rather than captured.
+         *
+         * <p>Also marks the column read, because a synthetic room is complete by construction - there is no
+         * "rest of it" still out of render distance.
+         */
+        void set(int x, int y, int z, String blockId) {
+            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < MIN_Y || y > MAX_Y) {
+                return;
+            }
+            blocks[index(x, y, z)] = paletteFor(blockId);
+            seenColumn[z * sizeX + x] = true;
+        }
+
+        /** Marks every column read. For synthetic rooms; a captured one earns this a column at a time. */
+        void markComplete() {
+            java.util.Arrays.fill(seenColumn, true);
+            for (int i = 0; i < blocks.length; i++) {
+                if (blocks[i] == -1) {
+                    blocks[i] = paletteFor("minecraft:air");
+                }
+            }
+        }
+
         /** How much of the room has been read, 0 to 1. */
         public double completeness() {
             int seen = 0;
@@ -145,6 +169,47 @@ public final class RoomLibrary {
         } catch (Exception e) {
             LOGGER.error("Could not load the room library", e);
         }
+    }
+
+    /**
+     * Rooms built in code, kept apart from captured ones.
+     *
+     * <p>A SEPARATE map on purpose (killer560, 2026-09-28: "make sure it's all in a spot that can easily be
+     * deleted and won't accidentally contaminate other parts of the mod"). If a synthetic room shared the real
+     * map it would be written to disk by {@link #saveAll}, counted in his capture progress, and listed as a room
+     * still needing work - it would end up in the shipped library looking exactly like a real one. Nothing in
+     * here is ever saved, counted, or reported as missing.
+     */
+    private static final Map<String, Room> TEST_ROOMS = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+    /** Builds an empty SYNTHETIC room. Never persisted; see {@link #TEST_ROOMS}. */
+    static synchronized Room createTestRoom(String name, int sizeX, int sizeZ) {
+        Room r = new Room(name, sizeX, sizeZ);
+        TEST_ROOMS.put(name, r);
+        return r;
+    }
+
+    /** Forgets every synthetic room. One call, for when the real scanning starts. */
+    public static synchronized void clearTestRooms() {
+        TEST_ROOMS.clear();
+    }
+
+    /** Whether a room of this name is known, captured or synthetic. */
+    public static synchronized boolean has(String name) {
+        load();
+        return ROOMS.containsKey(name) || TEST_ROOMS.containsKey(name);
+    }
+
+    /**
+     * One room by name, or null.
+     *
+     * <p>Captured rooms win over synthetic ones, so the moment a real room of that name is scanned the test
+     * copy stops being used rather than shadowing it.
+     */
+    public static synchronized Room get(String name) {
+        load();
+        Room real = ROOMS.get(name);
+        return real != null ? real : TEST_ROOMS.get(name);
     }
 
     public static synchronized int roomCount() {

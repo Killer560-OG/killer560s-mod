@@ -82,6 +82,12 @@ public final class SimAbilities {
             if (TACTICAL_INSERTION.equals(id)) {
                 return tacticalInsertion(client) ? InteractionResult.SUCCESS : InteractionResult.PASS;
             }
+            // Anything this class does not handle gets one more chance: SimItems owns the Spirit Sceptre,
+            // Superboom and the rest, and splitting them across two files is only tolerable if there is exactly
+            // one place a right-click is resolved.
+            if (SimItems.tryUse(client, id)) {
+                return InteractionResult.SUCCESS;
+            }
             return InteractionResult.PASS;
         });
     }
