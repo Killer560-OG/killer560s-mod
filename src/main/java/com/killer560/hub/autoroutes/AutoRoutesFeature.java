@@ -1,5 +1,6 @@
 package com.killer560.hub.autoroutes;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.InteractiveMapScreen;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -83,7 +84,7 @@ public final class AutoRoutesFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(AutoRoutesFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoRoutesFeature.tick", AutoRoutesFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(AutoRoutesFeature::onRenderFrame);
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.autosell;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
@@ -82,7 +83,7 @@ public final class AutoSellFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(AutoSellFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoSellFeature.tick", AutoSellFeature::tick));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (running) {
                 stop("world changed");

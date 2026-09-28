@@ -1,5 +1,6 @@
 package com.killer560.hub.runstats;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
@@ -46,7 +47,7 @@ public final class RunStatsFeature {
 
     public static void register() {
         ChatObserver.subscribe(RunStatsFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(RunStatsFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RunStatsFeature.tick", RunStatsFeature::tick));
     }
 
     // ------------------------------------------------------------------------------------------- chat

@@ -1,5 +1,6 @@
 package com.killer560.hub.armourdye;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
@@ -38,7 +39,7 @@ public final class ArmourDyeFeature {
 
     public static void register() {
         ScreenEvents.AFTER_INIT.register(ArmourDyeFeature::onScreenInit);
-        ClientTickEvents.END_CLIENT_TICK.register(ArmourDyeFeature::onTick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ArmourDyeFeature.onTick", ArmourDyeFeature::onTick));
     }
 
     private static void onTick(Minecraft client) {

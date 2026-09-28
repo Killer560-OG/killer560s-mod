@@ -1,5 +1,6 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.i4sensors.I4SensorsConfig.Weapon;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -168,7 +169,7 @@ public final class AutoI4Feature {
     public static void register() {
         I4SolverFeature.register();
         I4AutoMask.register();
-        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoI4Feature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> frame());
         // Real bug found and fixed (2026-09-14, real Hypixel F7 log): Fabric's CHAT/GAME events never fired for
         // the real "completed a device!" line with Odin's Terminal Splits installed (it cancels the line via

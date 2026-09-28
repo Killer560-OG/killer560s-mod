@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonqueue;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -55,7 +56,7 @@ public final class DungeonQueueFeature {
 
     public static void register() {
         ChatObserver.subscribe(DungeonQueueFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(DungeonQueueFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonQueueFeature.tick", DungeonQueueFeature::tick));
     }
 
     private static void onChat(Component message) {

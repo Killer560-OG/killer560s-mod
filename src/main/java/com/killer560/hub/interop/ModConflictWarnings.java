@@ -1,5 +1,6 @@
 package com.killer560.hub.interop;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -47,7 +48,7 @@ public final class ModConflictWarnings {
                 countdown = DELAY_TICKS;
             }
         });
-        ClientTickEvents.END_CLIENT_TICK.register(ModConflictWarnings::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ModConflictWarnings.tick", ModConflictWarnings::tick));
     }
 
     private static void tick(Minecraft client) {

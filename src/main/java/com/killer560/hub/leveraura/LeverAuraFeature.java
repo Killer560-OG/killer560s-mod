@@ -1,5 +1,6 @@
 package com.killer560.hub.leveraura;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.secrets.DungeonState;
@@ -112,7 +113,7 @@ public final class LeverAuraFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(LeverAuraFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LeverAuraFeature.tick", LeverAuraFeature::tick));
         ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message)));
         LOGGER.info("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }

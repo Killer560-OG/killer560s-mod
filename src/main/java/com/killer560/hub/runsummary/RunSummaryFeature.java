@@ -1,5 +1,6 @@
 package com.killer560.hub.runsummary;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.runstats.PlayerRunStats;
@@ -126,7 +127,7 @@ public final class RunSummaryFeature {
 
     public static void register() {
         ChatObserver.subscribe(RunSummaryFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(RunSummaryFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RunSummaryFeature.tick", RunSummaryFeature::tick));
     }
 
     // ------------------------------------------------------------------ tick

@@ -1,5 +1,6 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.i4sensors.I4SensorsConfig.DeathItem;
 import com.killer560.hub.maskinvincibility.MaskSwapper;
 import com.killer560.hub.util.ActionGate;
@@ -88,7 +89,7 @@ public final class I4AutoMask {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("I4AutoMask", client -> tick()));
         ChatObserver.subscribe(I4AutoMask::onChat);
     }
 

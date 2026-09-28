@@ -1,5 +1,6 @@
 package com.killer560.hub.chunkcache;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -94,7 +95,7 @@ public final class ChunkCacheManager {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(ChunkCacheManager::onClientTick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ChunkCacheManager.onClientTick", ChunkCacheManager::onClientTick));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             active = false;
             onLevelChanged(null);

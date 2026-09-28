@@ -1,5 +1,6 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -76,7 +77,7 @@ public final class I4SolverFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("I4SolverFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(I4SolverFeature::render);
     }
 

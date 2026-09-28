@@ -1,5 +1,6 @@
 package com.killer560.hub.invsort;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
@@ -77,7 +78,7 @@ public final class InventorySorterExecutor {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(InventorySorterExecutor::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("InventorySorterExecutor.tick", InventorySorterExecutor::tick));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (isRunning()) {
                 stop("world changed");

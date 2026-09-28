@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonalerts;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudEditorScreen;
@@ -46,7 +47,7 @@ public final class DungeonAlertsFeature {
         ClassColors.register();
         RoomAlerts.register();
 
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonAlertsFeature", client -> {
             if (client.level != lastLevel) {
                 lastLevel = client.level;
                 TerracottaTimer.onWorldChange();
@@ -54,7 +55,7 @@ public final class DungeonAlertsFeature {
                 ClassColors.onWorldChange();
                 RoomAlerts.onWorldChange();
             }
-        });
+        }));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DungeonAlertsFeature::onWorldRender);
 
         for (HudElement element : hudElements()) {

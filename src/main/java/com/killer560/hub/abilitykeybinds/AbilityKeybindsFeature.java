@@ -1,5 +1,6 @@
 package com.killer560.hub.abilitykeybinds;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -32,7 +33,7 @@ public final class AbilityKeybindsFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(AbilityKeybindsFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AbilityKeybindsFeature.tick", AbilityKeybindsFeature::tick));
     }
 
     private static void tick(Minecraft client) {

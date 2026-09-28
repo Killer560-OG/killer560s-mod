@@ -1,5 +1,6 @@
 package com.killer560.hub.petwheel;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.petwheel.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.util.ActionGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -48,7 +49,7 @@ final class PetWheelEditor {
 
     /** Registered once from {@link PetWheelFeature#register()}. */
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(PetWheelEditor::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PetWheelEditor.tick", PetWheelEditor::tick));
         ScreenEvents.AFTER_INIT.register(PetWheelEditor::onScreenInit);
     }
 

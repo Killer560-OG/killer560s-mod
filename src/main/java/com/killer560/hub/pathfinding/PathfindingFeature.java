@@ -1,5 +1,6 @@
 package com.killer560.hub.pathfinding;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
@@ -47,7 +48,7 @@ public final class PathfindingFeature {
         FairySoulsFeature.register();
         // START: this drives AutoSoulRunner and EnderPearlHopper, which both send interactions. See
         // ActionGate's class doc.
-        ClientTickEvents.START_CLIENT_TICK.register(PathfindingFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PathfindingFeature.tick", PathfindingFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(PathWorldRenderer::render);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(command()));
         com.killer560.hub.hud.HudElementRegistry.register(HudElementImpl.INSTANCE);

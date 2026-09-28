@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonclass;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.mixin.ContainerScreenPosAccessor;
 import com.killer560.hub.leapmenu.PartyTracker;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -69,7 +70,7 @@ public final class ClassSelectionOverlay {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(ClassSelectionOverlay::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ClassSelectionOverlay.tick", ClassSelectionOverlay::tick));
     }
 
     private static void tick(Minecraft client) {

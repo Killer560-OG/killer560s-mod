@@ -1,5 +1,6 @@
 package com.killer560.hub.mobesp;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cheatutils.WitherEspFeature;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -114,7 +115,7 @@ public final class MobEspFeature {
 
     public static void register() {
         EspRenderer.init();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MobEspFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MobEspFeature::render);
     }
 

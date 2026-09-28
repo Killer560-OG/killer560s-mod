@@ -1,5 +1,6 @@
 package com.killer560.hub.ticktimers;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
@@ -125,7 +126,7 @@ public final class TickTimersFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(TickTimersFeature::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TickTimersFeature", client -> tick()));
         ServerTickClock.register();
         ServerTickClock.subscribe(TickTimersFeature::serverTick);
         // CrushTimer's pad outline render (moved in from f7spots 2026-09-21) - same AFTER_TRANSLUCENT_FEATURES

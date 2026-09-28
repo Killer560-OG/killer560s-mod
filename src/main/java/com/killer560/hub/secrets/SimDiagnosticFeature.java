@@ -1,5 +1,6 @@
 package com.killer560.hub.secrets;
 
+import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
@@ -35,7 +36,7 @@ public final class SimDiagnosticFeature {
         ClientReceiveMessageEvents.CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SimDiagnosticFeature", client -> tick()));
     }
 
     private static void onChatMessage(Component message) {

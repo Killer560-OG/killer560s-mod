@@ -1,5 +1,6 @@
 package com.killer560.hub.autoroutes;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.autoroutes.AutoRoutesCommands.Action;
 import com.killer560.hub.util.KeyUtil;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -32,7 +33,7 @@ public final class AutoRoutesKeybinds {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
-        ClientTickEvents.END_CLIENT_TICK.register(AutoRoutesKeybinds::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoRoutesKeybinds.tick", AutoRoutesKeybinds::tick));
     }
 
     private static void tick(Minecraft client) {

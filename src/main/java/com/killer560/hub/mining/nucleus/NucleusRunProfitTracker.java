@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.nucleus;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -77,13 +78,13 @@ public final class NucleusRunProfitTracker {
 
     public static void register() {
         ChatObserver.subscribe(NucleusRunProfitTracker::onChat);
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("NucleusRunProfitTracker", client -> {
             try {
                 tickClock();
             } catch (Exception e) {
                 LOGGER.error("Nucleus run profit clock tick failed", e);
             }
-        });
+        }));
     }
 
     private static void tickClock() {

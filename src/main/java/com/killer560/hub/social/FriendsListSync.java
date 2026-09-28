@@ -1,5 +1,6 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -87,7 +88,7 @@ public final class FriendsListSync {
     /** Call once from {@code Killer560ModClient#onInitializeClient}. */
     public static void register() {
         ChatObserver.subscribe(FriendsListSync::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("FriendsListSync", client -> tick()));
     }
 
     private static void tick() {

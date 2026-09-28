@@ -1,5 +1,6 @@
 package com.killer560.hub.scorecalc;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonArray;
 import com.killer560.hub.hud.HudVisibility;
 import com.google.gson.JsonElement;
@@ -150,7 +151,7 @@ public final class ScoreCalculatorFeature {
 
     public static void register() {
         ChatObserver.subscribe(ScoreCalculatorFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(ScoreCalculatorFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ScoreCalculatorFeature.tick", ScoreCalculatorFeature::tick));
     }
 
     // ------------------------------------------------------------------ tick

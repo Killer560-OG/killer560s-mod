@@ -1,5 +1,6 @@
 package com.killer560.hub.blessings;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -35,7 +36,7 @@ public final class BlessingsFeature {
 
     public static void register() {
         BlessingsConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(BlessingsFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BlessingsFeature.tick", BlessingsFeature::tick));
         LOGGER.info("[Blessings] Registered (HUD default OFF)");
     }
 

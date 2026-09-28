@@ -1,5 +1,6 @@
 package com.killer560.hub;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.abilitytimers.AbilityTimersFeature;
 import com.killer560.hub.accounts.HypixelJoinWatcher;
 import com.killer560.hub.autojoinskyblock.AutoJoinSkyblockFeature;
@@ -90,8 +91,12 @@ public class Killer560ModClient implements ClientModInitializer {
         //
         // It used to live in DungeonExtrasFeature.register(), which runs a hundred lines below several of
         // those actors.
-        ClientTickEvents.START_CLIENT_TICK.register(com.killer560.hub.util.ActionGate::onClientTick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.criticalStart("ActionGate.onClientTick",
+                com.killer560.hub.util.ActionGate::onClientTick));
 
+        // Before anything reads a config: a setting whose meaning changed between builds has to be fixed
+        // before a feature loads it, not after.
+        com.killer560.hub.configversion.ConfigMigrations.run();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
@@ -279,9 +284,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autosell.AutoSellFeature.register();
         com.killer560.hub.autosell.AutoSellCommands.register();
 
-        ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkHudEditKeybind);
-        ClientTickEvents.END_CLIENT_TICK.register(Killer560ModClient::checkExperimentsCancelKeybind);
-        ClientTickEvents.END_CLIENT_TICK.register(WindowModeFeature::tickApplyOnce);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkHudEditKeybind", Killer560ModClient::checkHudEditKeybind));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkExperimentsCancelKeybind", Killer560ModClient::checkExperimentsCancelKeybind));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WindowModeFeature.tickApplyOnce", WindowModeFeature::tickApplyOnce));
 
         // "/ew waypoint add|remove|undo" (killer560, 2026-09-21: "change the command to /ew waypoint add. add in
         // remove that removes the closest, undo that undoes the last as well").

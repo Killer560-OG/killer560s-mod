@@ -1,5 +1,6 @@
 package com.killer560.hub.namechanger;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -58,7 +59,7 @@ public final class NameChangerFeature {
 
     public static void register() {
         NameChangerConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(NameChangerFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("NameChangerFeature.tick", NameChangerFeature::tick));
     }
 
     private static void tick(Minecraft client) {

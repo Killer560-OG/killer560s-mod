@@ -1,5 +1,6 @@
 package com.killer560.hub.terminals;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
@@ -96,7 +97,7 @@ public final class TerminalQolFeature {
         }
         registered = true;
         restoreDropKeyAfterCrash();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerminalQolFeature", client -> tick()));
     }
 
     // ------------------------------------------------------------------ terminal tracking

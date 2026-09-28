@@ -1,5 +1,6 @@
 package com.killer560.hub.shorts;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -106,7 +107,7 @@ public final class ShortsFeature {
 
     public static void register() {
         ShortsConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(ShortsFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ShortsFeature.tick", ShortsFeature::tick));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> shutdownNow("client stopping"));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdownNow("JVM shutdown"), "killer560smod-shorts-exit"));
     }

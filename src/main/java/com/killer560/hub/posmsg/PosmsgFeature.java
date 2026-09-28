@@ -1,5 +1,6 @@
 package com.killer560.hub.posmsg;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.secrets.DungeonState;
@@ -59,7 +60,7 @@ public final class PosmsgFeature {
 
     public static void register() {
         PosmsgConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(PosmsgFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PosmsgFeature.tick", PosmsgFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(PosmsgRenderer::render);
     }
 

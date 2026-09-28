@@ -1,5 +1,6 @@
 package com.killer560.hub.doorkeys;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -47,7 +48,7 @@ public final class DoorKeysFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(DoorKeysFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DoorKeysFeature.tick", DoorKeysFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DoorKeysFeature::onWorldRender);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Register the no-depth pipeline during client init, before the renderer precompiles its list -

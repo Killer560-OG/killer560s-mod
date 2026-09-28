@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonalerts;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
@@ -49,7 +50,7 @@ final class SpringBootsOverlay {
     }
 
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SpringBootsOverlay", client -> {
             LocalPlayer player = client.player;
             if (player == null || blockAmount == 0f && highCount == 0 && lowCount == 0) {
                 return;
@@ -57,7 +58,7 @@ final class SpringBootsOverlay {
             if (!player.isCrouching() || !wearingSpringBoots(player)) {
                 reset();
             }
-        });
+        }));
     }
 
     static void reset() {

@@ -1,5 +1,6 @@
 package com.killer560.hub.quiver;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -37,7 +38,7 @@ public final class QuiverDisplayFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(QuiverDisplayFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuiverDisplayFeature.tick", QuiverDisplayFeature::tick));
     }
 
     private static void tick(Minecraft client) {

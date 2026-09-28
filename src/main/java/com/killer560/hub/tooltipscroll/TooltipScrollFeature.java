@@ -1,5 +1,6 @@
 package com.killer560.hub.tooltipscroll;
 
+import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -143,14 +144,14 @@ public final class TooltipScrollFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TooltipScrollFeature", client -> {
             // Hover tracking only runs inside container screens; without this, closing one would leave a
             // stale offset that the next unrelated (e.g. widget) tooltip would silently inherit. Also covers
             // "reset when the screen closes" - the very next tick after a container screen closes runs this.
             if (!(client.screen instanceof AbstractContainerScreen<?>)) {
                 setHovered(null);
             }
-        });
+        }));
     }
 
     // ---------------------------------------------------------------- hover tracking

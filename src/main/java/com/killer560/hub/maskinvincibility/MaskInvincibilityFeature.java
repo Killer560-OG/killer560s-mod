@@ -1,5 +1,6 @@
 package com.killer560.hub.maskinvincibility;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
@@ -98,7 +99,7 @@ public final class MaskInvincibilityFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(MaskInvincibilityFeature::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MaskInvincibilityFeature", client -> tick()));
         MaskSwapper.register();
     }
 

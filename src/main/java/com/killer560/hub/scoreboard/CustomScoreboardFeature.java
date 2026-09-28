@@ -1,5 +1,6 @@
 package com.killer560.hub.scoreboard;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
@@ -92,7 +93,7 @@ public final class CustomScoreboardFeature {
         if (CustomScoreboardConfig.getInstance().isBackgroundBlur()) {
             ScoreboardBlur.register();
         }
-        ClientTickEvents.END_CLIENT_TICK.register(CustomScoreboardFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("CustomScoreboardFeature.tick", CustomScoreboardFeature::tick));
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "custom_scoreboard"),
                 (graphics, deltaTracker) -> drawInGame(graphics));

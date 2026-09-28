@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
@@ -195,7 +196,7 @@ public final class LiveMapFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LiveMapFeature", client -> tick()));
         InteractiveMapFeature.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {

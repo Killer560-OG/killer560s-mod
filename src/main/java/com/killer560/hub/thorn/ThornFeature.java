@@ -1,5 +1,6 @@
 package com.killer560.hub.thorn;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
@@ -53,7 +54,7 @@ public final class ThornFeature {
         // ChatObserver (not Fabric CHAT/GAME) so a line Odin/NoammAddons/Skyblocker cancelled and re-added still arrives.
         // Anchored server-format "[BOSS] Thorn: " prefix, so this mod's own client messages can't match.
         ChatObserver.subscribe(ThornFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(ThornFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ThornFeature.tick", ThornFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
             if (!SkyblockGate.allows()) {
                 return;

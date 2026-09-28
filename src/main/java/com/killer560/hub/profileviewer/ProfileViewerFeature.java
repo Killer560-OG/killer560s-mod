@@ -1,5 +1,6 @@
 package com.killer560.hub.profileviewer;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.screen.ProfileViewerScreen;
 import com.killer560.hub.util.ModChat;
@@ -44,7 +45,7 @@ public final class ProfileViewerFeature {
 
     public static void register() {
         ProfileViewerConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(ProfileViewerFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ProfileViewerFeature.tick", ProfileViewerFeature::tick));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(command("pv"));
             dispatcher.register(command("killer560pv"));

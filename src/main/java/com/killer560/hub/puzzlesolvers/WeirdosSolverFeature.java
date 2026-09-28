@@ -1,5 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -85,7 +86,7 @@ public final class WeirdosSolverFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(WeirdosSolverFeature::onMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WeirdosSolverFeature", client -> {
             // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
             boolean inBoss = LiveMapFeature.isInBoss();
             if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || inBoss) {
@@ -95,7 +96,7 @@ public final class WeirdosSolverFeature {
                 }
                 reset();
             }
-        });
+        }));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(WeirdosSolverFeature::onWorldRender);

@@ -1,5 +1,6 @@
 package com.killer560.hub.arrowalign;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
@@ -105,7 +106,7 @@ public final class ArrowAlignFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(ArrowAlignFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ArrowAlignFeature.tick", ArrowAlignFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ArrowAlignFeature::onWorldRender);
         // Per-frame automation so Trigger Bot / Aura delays are honoured to the millisecond, not the 50ms tick
         // (same reason SimonSaysFeature fires its Trigger Bot from this hook).

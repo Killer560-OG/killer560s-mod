@@ -1,5 +1,6 @@
 package com.killer560.hub.commandkeybinds;
 
+import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
@@ -24,7 +25,7 @@ public final class CommandKeybindsFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(CommandKeybindsFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("CommandKeybindsFeature.tick", CommandKeybindsFeature::tick));
     }
 
     private static void tick(Minecraft client) {

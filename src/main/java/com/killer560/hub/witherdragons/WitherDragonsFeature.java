@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
@@ -80,7 +81,7 @@ public final class WitherDragonsFeature {
         ServerTickClock.register();
         ServerTickClock.subscribe(WitherDragonsFeature::onServerTick);
         ChatObserver.subscribe(WitherDragonsFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> onClientTick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDragonsFeature", client -> onClientTick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDragonsFeature::onWorldRender);
         KingRelicsFeature.register();
     }

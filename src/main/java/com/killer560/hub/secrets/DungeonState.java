@@ -1,5 +1,6 @@
 package com.killer560.hub.secrets;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
@@ -180,7 +181,7 @@ public final class DungeonState {
         // delivered by ChatObserver) can't start the boss phase; they can only show up in the log-only
         // keyword diagnostics below. Overlay (action bar) lines are not delivered - none needed here.
         ChatObserver.subscribe(DungeonState::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonState", client -> {
             if (client.level == null && simOverrideActive) {
                 LOGGER.info("[Secrets] World unloaded - clearing /killer560 sim override.");
                 simOverrideActive = false;
@@ -218,7 +219,7 @@ public final class DungeonState {
             }
             logGateSnapshotIfChanged();
             logTabClassesIfChanged(client);
-        });
+        }));
     }
 
     private static void onChatMessage(Component message) {

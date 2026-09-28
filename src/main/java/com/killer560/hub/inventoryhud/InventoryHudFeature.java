@@ -1,5 +1,6 @@
 package com.killer560.hub.inventoryhud;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -52,7 +53,7 @@ public final class InventoryHudFeature {
 
     /** Registers the key tick and the in-game HUD layer. The editor element is registered separately. */
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(InventoryHudFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InventoryHudFeature.tick", InventoryHudFeature::tick));
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "inventory_hud"),
                 (graphics, deltaTracker) -> drawInGame(graphics, deltaTracker.getGameTimeDeltaPartialTick(false)));

@@ -1,5 +1,6 @@
 package com.killer560.hub.autokick;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
 import com.killer560.hub.leapmenu.PartyTracker;
@@ -114,7 +115,7 @@ public final class AutoKickFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoKickFeature", client -> tick()));
     }
 
     private static void tick() {

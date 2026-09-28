@@ -1,5 +1,6 @@
 package com.killer560.hub.maskinvincibility;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
@@ -170,7 +171,7 @@ public final class MaskSwapper {
 
     /** Registered from {@link MaskInvincibilityFeature#register()} - this class has no entry point of its own. */
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(client -> tick(client));
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("MaskSwapper", client -> tick(client)));
     }
 
     // ------------------------------------------------------------------ api

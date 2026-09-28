@@ -1,5 +1,6 @@
 package com.killer560.hub.simonsays;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
@@ -586,7 +587,7 @@ public final class SimonSaysFeature {
         ClientReceiveMessageEvents.CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
-        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimonSaysFeature", client -> tick()));
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             if (!DungeonState.isF7OrM7()) {
                 return;

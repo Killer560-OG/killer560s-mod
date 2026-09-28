@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.interop.InteropConfig;
@@ -75,7 +76,7 @@ public final class BridgeFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(BridgeFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BridgeFeature.tick", BridgeFeature::tick));
         ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message)));
         LOGGER.info("[Bridge] Registered");
     }

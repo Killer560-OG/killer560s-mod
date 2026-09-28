@@ -1,5 +1,6 @@
 package com.killer560.hub.teammates;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.objecthider.ObjectHiderFeature;
@@ -68,7 +69,7 @@ public final class TeammatesFeature {
 
     public static void register() {
         TeammatesEspRenderer.init();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TeammatesFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TeammatesFeature::render);
     }
 

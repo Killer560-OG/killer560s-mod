@@ -1,5 +1,6 @@
 package com.killer560.hub.secrettrigger;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.cheatutils.SecretAuraFeature;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -74,7 +75,7 @@ public final class SecretTriggerbotFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(SecretTriggerbotFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SecretTriggerbotFeature.tick", SecretTriggerbotFeature::tick));
     }
 
     private static void tick(Minecraft client) {

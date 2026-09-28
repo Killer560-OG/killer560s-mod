@@ -1,5 +1,6 @@
 package com.killer560.hub.terminals;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
 import com.killer560.hub.util.ActionGate;
@@ -439,7 +440,7 @@ public final class TerminalSolverFeature {
             return;
         }
         closeWatcherRegistered = true;
-        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalSolverFeature", client -> {
             if (currentType == null || client.screen != null) {
                 noScreenTicks = 0;
                 return;
@@ -448,7 +449,7 @@ public final class TerminalSolverFeature {
                 noScreenTicks = 0;
                 refreshState();
             }
-        });
+        }));
     }
 
     /** Fully resets every piece of per-terminal state for a freshly-detected terminal instance - a

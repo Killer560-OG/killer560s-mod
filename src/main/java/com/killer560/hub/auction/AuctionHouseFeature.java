@@ -1,5 +1,6 @@
 package com.killer560.hub.auction;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.screen.AuctionHouseScreen;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
@@ -35,7 +36,7 @@ public final class AuctionHouseFeature {
 
     public static void register() {
         AuctionConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(AuctionHouseFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AuctionHouseFeature.tick", AuctionHouseFeature::tick));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             // Real Hypixel /ah - intercepted client-side only while both the browser is enabled AND
             // killer560 turned the override on; otherwise this sends the exact same "/ah" straight to

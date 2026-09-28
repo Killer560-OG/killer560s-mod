@@ -1,5 +1,6 @@
 package com.killer560.hub.discordrpc;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonObject;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -56,7 +57,7 @@ public final class DiscordRpcFeature {
 
     public static void register() {
         DiscordRpcConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(DiscordRpcFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DiscordRpcFeature.tick", DiscordRpcFeature::tick));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> stop("client stopping"));
         Runtime.getRuntime().addShutdownHook(
                 new Thread(() -> stop("JVM shutdown"), "killer560smod-discordrpc-exit"));

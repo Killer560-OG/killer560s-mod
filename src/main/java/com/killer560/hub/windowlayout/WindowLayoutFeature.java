@@ -1,5 +1,6 @@
 package com.killer560.hub.windowlayout;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -84,7 +85,7 @@ public final class WindowLayoutFeature {
 
     public static void register() {
         WindowLayoutConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(WindowLayoutFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WindowLayoutFeature.tick", WindowLayoutFeature::tick));
     }
 
     /** Places this window into {@code cellIndex} of a {@code count}-window layout on {@code monitor} and

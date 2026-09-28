@@ -1,5 +1,6 @@
 package com.killer560.hub.modchat;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.relay.HypixelLocation;
 import com.killer560.hub.relay.RelayClient;
@@ -42,7 +43,7 @@ public final class ModChatFeature {
     public static void register() {
         RelayClient.setListener(new Listener());
         HypixelLocation.register();
-        ClientTickEvents.END_CLIENT_TICK.register(ModChatFeature::onTick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ModChatFeature.onTick", ModChatFeature::onTick));
     }
 
     private static void onTick(Minecraft client) {

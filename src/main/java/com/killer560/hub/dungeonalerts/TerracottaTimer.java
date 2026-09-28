@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonalerts;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -43,7 +44,7 @@ final class TerracottaTimer {
     }
 
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerracottaTimer", client -> {
             if (client.level == null) {
                 return;
             }
@@ -52,7 +53,7 @@ final class TerracottaTimer {
                 DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Terracotta timers cleared (Sadan ENOUGH! +10t)");
                 SPAWNS.clear();
             }
-        });
+        }));
         ChatObserver.subscribe(TerracottaTimer::onChat);
     }
 

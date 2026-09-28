@@ -1,5 +1,6 @@
 package com.killer560.hub.terminalaura;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.fastleap.LeapManager;
@@ -44,7 +45,7 @@ public final class TerminalAuraFeature {
             return;
         }
         TerminalAuraConfig.getInstance();
-        ClientTickEvents.START_CLIENT_TICK.register(TerminalAuraFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalAuraFeature.tick", TerminalAuraFeature::tick));
         LOGGER.info("[TerminalAura] Registered (default OFF)");
     }
 

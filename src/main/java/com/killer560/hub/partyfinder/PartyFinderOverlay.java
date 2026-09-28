@@ -1,5 +1,6 @@
 package com.killer560.hub.partyfinder;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonObject;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.partyfinder.PartyFinderOverlayConfig.CompactMode;
@@ -74,7 +75,7 @@ public final class PartyFinderOverlay {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(PartyFinderOverlay::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyFinderOverlay.tick", PartyFinderOverlay::tick));
         ChatObserver.subscribe(message -> {
             Matcher m = PartyFinderParser.CHAT_CLASS_SELECTED.matcher(ChatObserver.strip(message).trim());
             if (m.matches()) {

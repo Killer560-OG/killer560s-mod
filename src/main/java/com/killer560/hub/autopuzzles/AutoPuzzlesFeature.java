@@ -1,5 +1,6 @@
 package com.killer560.hub.autopuzzles;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.puzzlesolvers.QuizSolverConfig;
 import com.killer560.hub.puzzlesolvers.QuizSolverFeature;
@@ -108,7 +109,7 @@ public final class AutoPuzzlesFeature {
         // listeners never see - on Fabric CHAT/GAME the solver would reset but this would never re-arm. The trigger
         // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
         ChatObserver.subscribe(AutoPuzzlesFeature::onMessage);
-        ClientTickEvents.START_CLIENT_TICK.register(AutoPuzzlesFeature::onTick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoPuzzlesFeature.onTick", AutoPuzzlesFeature::onTick));
         LOGGER.info("[AutoPuzzles] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 

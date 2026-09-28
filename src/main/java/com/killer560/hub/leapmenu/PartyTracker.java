@@ -1,5 +1,6 @@
 package com.killer560.hub.leapmenu;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
@@ -74,7 +75,7 @@ public final class PartyTracker {
 
     public static void register() {
         ChatObserver.subscribe(PartyTracker::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyTracker", client -> {
             if (++tickCounter < 10) {
                 return;
             }
@@ -84,7 +85,7 @@ public final class PartyTracker {
             } catch (RuntimeException e) {
                 LOGGER.warn("[PartyTracker] Tab list read failed: {}", e.toString());
             }
-        });
+        }));
     }
 
     private static void onChat(Component message) {

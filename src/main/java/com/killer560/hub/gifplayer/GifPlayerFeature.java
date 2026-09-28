@@ -1,5 +1,6 @@
 package com.killer560.hub.gifplayer;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.mojang.blaze3d.platform.NativeImage;
@@ -67,8 +68,8 @@ public final class GifPlayerFeature {
         } catch (IOException e) {
             LOGGER.error("Failed to create GIF folder", e);
         }
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
-                client -> GifAudioFeature.tickSkyblockGate());
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("GifPlayerFeature", 
+                client -> GifAudioFeature.tickSkyblockGate()));
     }
 
     private static String elementId(String filename) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.p4platform;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.puzzlesolvers.SolverEspRender;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
@@ -70,7 +71,7 @@ public final class P4PlatformHighlightFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(P4PlatformHighlightFeature::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("P4PlatformHighlightFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(P4PlatformHighlightFeature::onWorldRender);
     }
 

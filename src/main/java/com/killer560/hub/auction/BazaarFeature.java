@@ -1,5 +1,6 @@
 package com.killer560.hub.auction;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.screen.BazaarScreen;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
@@ -30,7 +31,7 @@ public final class BazaarFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(BazaarFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BazaarFeature.tick", BazaarFeature::tick));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommands.literal("killer560bz").executes(ctx -> {
                 openOrExplain();

@@ -1,5 +1,6 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.BazaarApi;
 import com.killer560.hub.auction.BazaarProduct;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestType;
@@ -144,7 +145,7 @@ public final class AutoCroesusFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(AutoCroesusFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoCroesusFeature.tick", AutoCroesusFeature::tick));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (state != State.IDLE) {
                 stop("world changed", false);

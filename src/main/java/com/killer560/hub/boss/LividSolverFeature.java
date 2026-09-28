@@ -1,5 +1,6 @@
 package com.killer560.hub.boss;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.puzzlesolvers.SolverEspRender;
@@ -89,7 +90,7 @@ public final class LividSolverFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(LividSolverFeature::onMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(LividSolverFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LividSolverFeature.tick", LividSolverFeature::tick));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(LividSolverFeature::onWorldRender);

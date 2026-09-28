@@ -1,5 +1,6 @@
 package com.killer560.hub.routes;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -46,7 +47,7 @@ public final class WaypointRoutesFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(WaypointRoutesFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WaypointRoutesFeature.tick", WaypointRoutesFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WaypointRoutesFeature::onWorldRender);
     }
 

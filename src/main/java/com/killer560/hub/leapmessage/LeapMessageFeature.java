@@ -1,5 +1,6 @@
 package com.killer560.hub.leapmessage;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.util.ChatObserver;
@@ -50,7 +51,7 @@ public final class LeapMessageFeature {
     // ChatObserver sees both paths once; the text is stripped before matching.
     public static void register() {
         ChatObserver.subscribe(message -> onGameMessage(ChatObserver.strip(message)));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LeapMessageFeature", client -> tick()));
     }
 
     private static void tick() {

@@ -1,5 +1,6 @@
 package com.killer560.hub.cheatutils;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
@@ -39,16 +40,16 @@ public final class CheatUtils {
         // produces. Measured 2026-09-27 - Secret Aura drew Post violations from here. These were missed by the
         // first sweep because it looked for the interaction calls and the registration in the SAME file, and
         // these three are ticked from this lambda while the sends live in their own classes.
-        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("CheatUtils", client -> {
             SecretAuraFeature.tick(client);
             AutoUltFeature.tick(client);
             ChocolateFactoryFeature.tick(client);
-        });
+        }));
         // These two send no interactions: an ESP that only draws, and a GFS that sends a chat command.
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("CheatUtils", client -> {
             WitherEspFeature.tick(client);
             AutoGfsFeature.tick(client);
-        });
+        }));
         // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which

@@ -1,5 +1,6 @@
 package com.killer560.hub.ap3;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.ap3.Ap3Commands.Action;
 import com.killer560.hub.util.KeyUtil;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -35,7 +36,7 @@ public final class Ap3Keybinds {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
-        ClientTickEvents.END_CLIENT_TICK.register(Ap3Keybinds::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Keybinds.tick", Ap3Keybinds::tick));
         Ap3FreezeState.register();
     }
 

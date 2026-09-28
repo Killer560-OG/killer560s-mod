@@ -1,5 +1,6 @@
 package com.killer560.hub.petwheel;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -23,7 +24,7 @@ public final class PetWheelFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(PetWheelFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PetWheelFeature.tick", PetWheelFeature::tick));
         PetSummoner.register();
         PetWheelEditor.register();
     }

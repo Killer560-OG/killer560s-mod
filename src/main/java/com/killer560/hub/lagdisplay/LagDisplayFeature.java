@@ -1,5 +1,6 @@
 package com.killer560.hub.lagdisplay;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.witherdragons.ServerTickClock;
@@ -76,7 +77,7 @@ public final class LagDisplayFeature {
         // Idempotent - Wither Dragons and Tick Timers already call this.
         ServerTickClock.register();
         ServerTickClock.subscribe(LagDisplayFeature::onServerTick);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> pruneTicks());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LagDisplayFeature", client -> pruneTicks()));
 
         // Frame-rate click sampler. Separate from the HUD element's own draw so CPS keeps counting even
         // while the element itself is scrolled off / the list is empty.

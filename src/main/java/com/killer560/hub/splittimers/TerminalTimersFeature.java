@@ -1,5 +1,6 @@
 package com.killer560.hub.splittimers;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -72,12 +73,12 @@ public final class TerminalTimersFeature {
     public static void register() {
         ChatObserver.addRewriter(TerminalTimersFeature::rewrite);
         ChatObserver.subscribe(TerminalTimersFeature::onChatLine);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerminalTimersFeature", client -> {
             if (client.level != lastLevel) {
                 lastLevel = client.level;
                 resetSection(true); // Odin: LevelEvent.Load
             }
-        });
+        }));
     }
 
     // ------------------------------------------------------------------

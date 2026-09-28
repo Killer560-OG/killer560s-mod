@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonalerts;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
@@ -58,7 +59,7 @@ public final class ClassColors {
     }
 
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ClassColors", client -> {
             if (++tickCounter < 10) {
                 return;
             }
@@ -81,7 +82,7 @@ public final class ClassColors {
                 lastLogged = summary;
                 DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Teammate classes: {}", summary);
             }
-        });
+        }));
     }
 
     /** @return [name, class] if the line is a dungeon teammate tab entry. */

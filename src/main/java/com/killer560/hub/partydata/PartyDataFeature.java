@@ -1,5 +1,6 @@
 package com.killer560.hub.partydata;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.interop.InteropConfig;
@@ -96,7 +97,7 @@ public final class PartyDataFeature {
 
     public static void register() {
         RelayClient.addListener(new Listener());
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyDataFeature", client -> tick()));
         LOGGER.info("[PartyData] Registered");
     }
 

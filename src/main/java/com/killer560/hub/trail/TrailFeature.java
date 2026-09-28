@@ -1,5 +1,6 @@
 package com.killer560.hub.trail;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.mainmenu.MainMenuTheme;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -66,7 +67,7 @@ public final class TrailFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TrailFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TrailFeature::onWorldRender);
         // Disconnecting drops client.level to null anyway (tick() below would catch that on its own next
         // tick), but clearing right away avoids a one-tick window where a stale trail could show through

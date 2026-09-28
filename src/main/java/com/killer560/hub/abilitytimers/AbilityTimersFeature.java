@@ -1,5 +1,6 @@
 package com.killer560.hub.abilitytimers;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -30,7 +31,7 @@ public final class AbilityTimersFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AbilityTimersFeature", client -> tick()));
     }
 
     private static void tick() {

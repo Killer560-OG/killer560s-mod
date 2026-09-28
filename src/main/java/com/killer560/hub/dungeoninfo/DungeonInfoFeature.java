@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeoninfo;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -84,7 +85,7 @@ public final class DungeonInfoFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonInfoFeature", client -> tick()));
     }
 
     private static void tick() {

@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonextras;
 
+import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
@@ -31,13 +32,13 @@ public final class DungeonExtrasFeature {
         // Priority is unaffected: ActionGate resolves by what asked on the PREVIOUS tick precisely so it does
         // not depend on which feature's handler happens to run first, and it observes on START_CLIENT_TICK
         // itself, registered above this line and therefore before it.
-        ClientTickEvents.START_CLIENT_TICK.register(BreakerAuraFeature::onClientTick);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BreakerAuraFeature.onClientTick", BreakerAuraFeature::onClientTick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonExtrasFeature", client -> {
             MageBeamFeature.onClientTick(client);
             AutoDialogueFeature.onClientTick(client);
             ManualBreakMonitor.onClientTick(client);
             ForeignBreakerProbe.onClientTick(client);
-        });
+        }));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MageBeamFeature::onWorldRender);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BreakerAuraFeature::onWorldRender);
     }

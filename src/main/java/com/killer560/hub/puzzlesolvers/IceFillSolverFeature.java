@@ -1,5 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
@@ -55,7 +56,7 @@ public final class IceFillSolverFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("IceFillSolverFeature", client -> tick(client)));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(IceFillSolverFeature::onWorldRender);

@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 import java.util.List;
@@ -44,12 +45,12 @@ public final class ServerTickClock {
             return;
         }
         registered = true;
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ServerTickClock", client -> {
             rollWindow();
             if (!pingDriven) {
                 fire();
             }
-        });
+        }));
     }
 
     public static void subscribe(Runnable listener) {

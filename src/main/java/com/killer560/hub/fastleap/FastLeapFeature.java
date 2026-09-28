@@ -1,5 +1,6 @@
 package com.killer560.hub.fastleap;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapGroup;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapTarget;
@@ -100,8 +101,8 @@ public final class FastLeapFeature {
             }
         });
         ChatObserver.subscribe(FastLeapFeature::onChat);
-        ClientTickEvents.START_CLIENT_TICK.register(FastLeapFeature::onStartTick);
-        ClientTickEvents.END_CLIENT_TICK.register(FastLeapFeature::onEndTick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("FastLeapFeature.onStartTick", FastLeapFeature::onStartTick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("FastLeapFeature.onEndTick", FastLeapFeature::onEndTick));
     }
 
     // ------------------------------------------------------------------------------------------------------------

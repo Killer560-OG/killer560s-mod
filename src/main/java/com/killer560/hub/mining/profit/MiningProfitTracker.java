@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.profit;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -84,7 +85,7 @@ public final class MiningProfitTracker {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(MiningProfitTracker::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MiningProfitTracker.tick", MiningProfitTracker::tick));
     }
 
     private static void tick(Minecraft client) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.bloodcamp;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.authlib.GameProfile;
@@ -142,7 +143,7 @@ public final class BloodCampFeature {
 
     public static void register() {
         BloodCampMoveTimer.register();
-        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BloodCampFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BloodCampFeature::onWorldRender);
         for (com.killer560.hub.hud.HudElement element : hudElements()) {
             net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(

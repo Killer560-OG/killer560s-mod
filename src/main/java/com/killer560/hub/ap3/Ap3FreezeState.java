@@ -1,5 +1,6 @@
 package com.killer560.hub.ap3;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -50,7 +51,7 @@ public final class Ap3FreezeState {
     }
 
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(Ap3FreezeState::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3FreezeState.tick", Ap3FreezeState::tick));
     }
 
     public static boolean isFrozen() {

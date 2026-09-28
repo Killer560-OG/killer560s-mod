@@ -1,5 +1,6 @@
 package com.killer560.hub.melody;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.bridge.BridgeTables;
 import com.killer560.hub.bridge.MelodyIntel;
 import com.killer560.hub.fastleap.Floor7Tracker;
@@ -78,7 +79,7 @@ public final class MelodyTrackerFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(MelodyTrackerFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MelodyTrackerFeature.tick", MelodyTrackerFeature::tick));
         HudElementRegistry.register(HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "team_melody_hud"),

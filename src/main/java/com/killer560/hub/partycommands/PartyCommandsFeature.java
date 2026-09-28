@@ -1,5 +1,6 @@
 package com.killer560.hub.partycommands;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.chatcommands.ChatCommandsFeature.Channel;
 import com.killer560.hub.dungeonqueue.DungeonQueueFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
@@ -133,7 +134,7 @@ public final class PartyCommandsFeature {
             return;
         }
         registered = true;
-        ClientTickEvents.END_CLIENT_TICK.register(client -> runPending());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyCommandsFeature", client -> runPending()));
     }
 
     /**

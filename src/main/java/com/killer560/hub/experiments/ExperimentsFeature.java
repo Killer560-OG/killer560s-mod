@@ -1,5 +1,6 @@
 package com.killer560.hub.experiments;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
@@ -158,10 +159,10 @@ public final class ExperimentsFeature {
     private static String lastLoggedControlItem = null;
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ExperimentsFeature", client -> tick()));
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
         // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
-        ClientTickEvents.END_CLIENT_TICK.register(ExperimentsProfitTracker::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ExperimentsProfitTracker.tick", ExperimentsProfitTracker::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
                 ExperimentsProfitTracker.onGameMessage(message);

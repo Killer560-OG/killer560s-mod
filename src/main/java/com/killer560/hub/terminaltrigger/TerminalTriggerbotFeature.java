@@ -1,5 +1,6 @@
 package com.killer560.hub.terminaltrigger;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.terminalaura.TerminalStands;
@@ -52,7 +53,7 @@ public final class TerminalTriggerbotFeature {
             return;
         }
         TerminalTriggerbotConfig.getInstance();
-        ClientTickEvents.START_CLIENT_TICK.register(TerminalTriggerbotFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalTriggerbotFeature.tick", TerminalTriggerbotFeature::tick));
         LOGGER.info("[TerminalTriggerbot] Registered (default OFF)");
     }
 

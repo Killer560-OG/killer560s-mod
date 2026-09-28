@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
@@ -56,7 +57,7 @@ public final class InteractiveMapFeature {
     }
 
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(InteractiveMapFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InteractiveMapFeature.tick", InteractiveMapFeature::tick));
         ClearExecutor.register();
         BloodRush.register();
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {

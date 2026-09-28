@@ -1,5 +1,6 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestType;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestValue;
 import com.killer560.hub.croesus.DungeonChestValuer.PricedItem;
@@ -89,7 +90,7 @@ public final class ChestProfitFeature {
     public static void register() {
         CroesusProfitLog.load();
         ScreenEvents.AFTER_INIT.register(ChestProfitFeature::onScreenInit);
-        ClientTickEvents.END_CLIENT_TICK.register(ChestProfitFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ChestProfitFeature.tick", ChestProfitFeature::tick));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             kind = Kind.NONE;
             runViewChests = List.of();

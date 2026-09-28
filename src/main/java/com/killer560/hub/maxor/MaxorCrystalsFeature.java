@@ -1,5 +1,6 @@
 package com.killer560.hub.maxor;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
@@ -96,7 +97,7 @@ public final class MaxorCrystalsFeature {
         MaxorConfig.getInstance();
         // ChatObserver (not Fabric CHAT/GAME) so a line another mod cancelled and re-added still arrives.
         ChatObserver.subscribe(MaxorCrystalsFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(MaxorCrystalsFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MaxorCrystalsFeature.tick", MaxorCrystalsFeature::tick));
         ensureTickSubscribed();
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
             if (!SkyblockGate.allows()) {

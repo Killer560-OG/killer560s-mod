@@ -1,5 +1,6 @@
 package com.killer560.hub.diorite;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -58,7 +59,7 @@ public final class DioriteGlassFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(DioriteGlassFeature::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DioriteGlassFeature", client -> tick(client)));
     }
 
     private static void onChatMessage(Component message) {

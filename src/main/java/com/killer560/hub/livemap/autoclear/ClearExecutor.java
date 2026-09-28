@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap.autoclear;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapConfig;
@@ -79,10 +80,10 @@ public final class ClearExecutor {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(ClearExecutor::onTickStart);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickStart", ClearExecutor::onTickStart));
         // START: this sends the interactions at the end of a walk leg. Named onTickEnd from when it ran at
         // the end of the tick; the name is left alone so every reference to it keeps working.
-        ClientTickEvents.START_CLIENT_TICK.register(ClearExecutor::onTickEnd);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickEnd", ClearExecutor::onTickEnd));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
             List<ClearNode> current = nodes;
             if (current == null || current.isEmpty()) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.doorhelpers;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -31,7 +32,7 @@ public final class DoorHelpersFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(DoorHelpersFeature::onEndTick);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("DoorHelpersFeature.onEndTick", DoorHelpersFeature::onEndTick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
                 AutoDoorOpenerFeature.onChat(message.getString());

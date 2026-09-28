@@ -1,5 +1,6 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -126,7 +127,7 @@ public final class I4SensorsFeature {
         // does this to "completed a device!"), so this always-on chat logging stayed silent for it. ChatObserver
         // sees both paths, de-duplicated, non-overlay only.
         ChatObserver.subscribe(message -> onChatMessage(message, false));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("I4SensorsFeature", client -> tick()));
     }
 
     // ------------------------------------------------------------------

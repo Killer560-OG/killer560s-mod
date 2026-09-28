@@ -1,5 +1,6 @@
 package com.killer560.hub.accounts;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.accounts.core.HypixelBanStatus;
 import com.killer560.hub.accounts.core.SharedBanStatusStore;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -20,7 +21,7 @@ public final class HypixelJoinWatcher {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(HypixelJoinWatcher::onTick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("HypixelJoinWatcher.onTick", HypixelJoinWatcher::onTick));
     }
 
     private static void onTick(Minecraft minecraft) {

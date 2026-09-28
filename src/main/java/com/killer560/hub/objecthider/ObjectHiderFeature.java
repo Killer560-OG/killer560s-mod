@@ -1,5 +1,6 @@
 package com.killer560.hub.objecthider;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor;
 import com.killer560.hub.objecthider.mixin.ImageButtonSpritesAccessor;
@@ -195,7 +196,7 @@ public final class ObjectHiderFeature {
         // thread and would otherwise be the first caller to lazily read the file.
         ObjectHiderConfig.getInstance();
         ChatObserver.subscribe(ObjectHiderFeature::onChatMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ObjectHiderFeature", client -> tick(client)));
         ClientReceiveMessageEvents.ALLOW_CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) -> allowsChatLine(message));
         ClientReceiveMessageEvents.ALLOW_GAME.register(ObjectHiderFeature::allowsGameLine);

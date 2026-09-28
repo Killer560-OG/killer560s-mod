@@ -1,5 +1,6 @@
 package com.killer560.hub.storagesearch;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.inventorysearch.mixin.ContainerScreenPositionAccessor;
 import com.killer560.hub.storageoverlay.StorageOverlayCache;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
@@ -88,7 +89,7 @@ public final class StorageSearchFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(StorageSearchFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("StorageSearchFeature.tick", StorageSearchFeature::tick));
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> onScreenInit(screen));
         StorageSearchEsp.register();
         // The Storage Overlay grid's own Search button (killer560, 2026-09-21: "have a gui button for it in the

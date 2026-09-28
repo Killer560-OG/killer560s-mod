@@ -1,5 +1,6 @@
 package com.killer560.hub.chatcommands;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.chatcommands.ChatCommandsConfig.InfoCommand;
 import com.killer560.hub.partycommands.PartyCommandsConfig;
 import com.killer560.hub.partycommands.PartyCommandsFeature;
@@ -105,7 +106,7 @@ public final class ChatCommandsFeature {
         });
         ServerTickClock.register();
         ServerTickClock.subscribe(ChatCommandsFeature::onServerTick);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> pruneTicks());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ChatCommandsFeature", client -> pruneTicks()));
     }
 
     private static void onMessage(Component message) {

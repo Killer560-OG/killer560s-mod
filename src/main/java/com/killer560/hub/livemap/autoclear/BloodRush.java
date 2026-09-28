@@ -1,5 +1,6 @@
 package com.killer560.hub.livemap.autoclear;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.DungeonLayout;
@@ -47,7 +48,7 @@ public final class BloodRush {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(BloodRush::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BloodRush.tick", BloodRush::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
                 return;

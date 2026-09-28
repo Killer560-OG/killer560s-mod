@@ -1,5 +1,6 @@
 package com.killer560.hub.storagesearch;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -56,7 +57,7 @@ public final class StorageScanAll {
         if (!registered) {
             registered = true;
             // START: it opens and clicks through storage pages. See ActionGate's class doc.
-            ClientTickEvents.START_CLIENT_TICK.register(StorageScanAll::tick);
+            ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("StorageScanAll.tick", StorageScanAll::tick));
         }
         queue.clear();
         for (int i = 1; i <= 9; i++) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.autojoinskyblock;
 
+import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -39,7 +40,7 @@ public final class AutoJoinSkyblockFeature {
         // below - cancelPending() is called there FIRST, before sendCommand(), so by the time this
         // listener runs for our own command, pending is already false and this is a no-op for it.
         ClientSendMessageEvents.COMMAND.register(command -> cancelPending());
-        ClientTickEvents.END_CLIENT_TICK.register(AutoJoinSkyblockFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoJoinSkyblockFeature.tick", AutoJoinSkyblockFeature::tick));
     }
 
     private static void onJoin(Minecraft client) {

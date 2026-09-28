@@ -1,5 +1,6 @@
 package com.killer560.hub.interop;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -43,7 +44,7 @@ public final class InteropFeature {
     public static void register() {
         SelfDerivation.register();
         InteropChatParser.register();
-        ClientTickEvents.END_CLIENT_TICK.register(InteropFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InteropFeature.tick", InteropFeature::tick));
         LOGGER.info("[Interop] Registered (other dungeon mods detected here: {})", DetectedMods.describe());
     }
 

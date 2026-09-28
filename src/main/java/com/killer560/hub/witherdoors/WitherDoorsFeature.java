@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdoors;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.secrets.DungeonState;
@@ -92,7 +93,7 @@ public final class WitherDoorsFeature {
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             WitherDoorsRenderer.init();
         }
-        ClientTickEvents.END_CLIENT_TICK.register(WitherDoorsFeature::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDoorsFeature.tick", WitherDoorsFeature::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
                 onChat(message.getString());

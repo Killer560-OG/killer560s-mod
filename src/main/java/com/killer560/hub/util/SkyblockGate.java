@@ -1,5 +1,6 @@
 package com.killer560.hub.util;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -49,7 +50,7 @@ public final class SkyblockGate {
 
     public static void register() {
         load();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SkyblockGate", client -> {
             if (++tickCounter < 5) {
                 return;
             }
@@ -59,7 +60,7 @@ public final class SkyblockGate {
             } catch (RuntimeException e) {
                 LOGGER.warn("[SkyblockGate] Detection failed: {}", e.toString());
             }
-        });
+        }));
     }
 
     /** @return false only when "Skyblock Only" is on and you're somewhere other than Skyblock / p3sim. */

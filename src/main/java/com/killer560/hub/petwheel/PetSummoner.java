@@ -1,5 +1,6 @@
 package com.killer560.hub.petwheel;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.itemprotect.ItemProtect;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
@@ -67,7 +68,7 @@ public final class PetSummoner {
 
     /** Registered from {@link PetWheelFeature#register()} - this class has no entry point of its own. */
     public static void register() {
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(PetSummoner::tick);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PetSummoner.tick", PetSummoner::tick));
     }
 
     public static boolean isBusy() {

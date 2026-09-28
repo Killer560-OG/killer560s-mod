@@ -1,5 +1,6 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.secrets.DungeonState;
@@ -66,7 +67,7 @@ public final class BestFriendsTracker {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(BestFriendsTracker::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BestFriendsTracker.tick", BestFriendsTracker::tick));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
     }
 

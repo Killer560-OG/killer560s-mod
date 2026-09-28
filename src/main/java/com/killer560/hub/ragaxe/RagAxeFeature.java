@@ -1,5 +1,6 @@
 package com.killer560.hub.ragaxe;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
@@ -61,7 +62,7 @@ public final class RagAxeFeature {
         RagAxePrompts.register();
         RagAxePrompts.reset();
         ChatObserver.subscribe(RagAxeFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RagAxeFeature", client -> tick(client)));
         for (HudElement element : hudElements()) {
             net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                     Identifier.fromNamespaceAndPath("killer560smod", "ragaxe_" + element.id()),

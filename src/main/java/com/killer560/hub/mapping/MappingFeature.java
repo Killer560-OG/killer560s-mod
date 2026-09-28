@@ -1,5 +1,6 @@
 package com.killer560.hub.mapping;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -49,7 +50,7 @@ public final class MappingFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MappingFeature", client -> {
             String gates = "enabled=" + MappingConfig.getInstance().isEnabled() + " inDungeon=" + DungeonState.isInDungeon();
             if (!gates.equals(lastLoggedGates)) {
                 LOGGER.info("[Mapping] Gates changed: {}", gates);
@@ -64,7 +65,7 @@ public final class MappingFeature {
             }
             tickCounter = 0;
             logDiagnostic();
-        });
+        }));
     }
 
     private static void logDiagnostic() {

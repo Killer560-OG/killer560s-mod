@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
@@ -88,7 +89,7 @@ public final class KingRelicsFeature {
     static void register() {
         ServerTickClock.subscribe(KingRelicsFeature::onServerTick);
         ChatObserver.subscribe(KingRelicsFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> onClientTick());
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("KingRelicsFeature", client -> onClientTick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(KingRelicsFeature::onWorldRender);
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (hit != null) {
