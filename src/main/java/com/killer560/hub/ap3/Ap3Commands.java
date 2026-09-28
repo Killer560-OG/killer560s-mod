@@ -192,11 +192,14 @@ public final class Ap3Commands {
             // Freeze State. The typed /rewind is the only way to step on Hypixel (the keys refuse there) and every
             // use there prints the ban warning first - see Ap3FreezeState.
             ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-                dispatcher.register(ClientCommands.literal("freezestate").executes(context -> {
+                dispatcher.register(ClientCommands.literal("freezestate")
+                        .requires(src -> Ap3Config.getInstance().isEnabledRaw())
+                        .executes(context -> {
                     Ap3FreezeState.toggle();
                     return 1;
                 }));
                 dispatcher.register(ClientCommands.literal("rewind")
+                        .requires(src -> Ap3Config.getInstance().isEnabledRaw())
                         .executes(context -> {
                             Ap3FreezeState.step(-1, 1, true);
                             return 1;
@@ -220,6 +223,11 @@ public final class Ap3Commands {
         }
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("ap3")
+                        // killer560 (2026-09-28): "make it so the commands do not show or try to do anything if
+                        // the setting is off". requires() is the right lever rather than an early return: it
+                        // removes the command from tab-completion as well as refusing it, so a feature that is
+                        // off does not advertise itself.
+                        .requires(src -> Ap3Config.getInstance().isEnabledRaw())
                         .executes(context -> {
                             help();
                             return 1;

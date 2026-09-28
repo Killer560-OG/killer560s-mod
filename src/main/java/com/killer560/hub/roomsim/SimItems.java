@@ -69,6 +69,7 @@ public final class SimItems {
         ASPECT_OF_THE_VOID("ASPECT_OF_THE_VOID", Items.GOLDEN_SWORD, "Aspect of the Void", 1),
         HYPERION("HYPERION", Items.NETHERITE_SWORD, "Hyperion", 1),
         SPIRIT_SCEPTRE("SPIRIT_SCEPTRE", Items.BONE, "Spirit Sceptre", 1),
+        TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
         SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 8),
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
         TACTICAL_INSERTION("TACTICAL_INSERTION", Items.FEATHER, "Tactical Insertion", 1),
@@ -197,6 +198,8 @@ public final class SimItems {
                     // to reimplement, so this is a deliberate no-op rather than a missing handler.
                     false;
             case "SPIRIT_SCEPTRE" -> spiritSceptre(client);
+            // Terminator owns its own file: three arrows, and Salvation after three hits.
+            case "TERMINATOR" -> SimTerminator.use(client);
             case "SUPERBOOM_TNT" -> superboomTnt(client);
             case "DUNGEONBREAKER" -> dungeonBreak(client);
             default -> false;

@@ -125,6 +125,7 @@ public final class SimWorld {
         // zero, which reads as "unknown" rather than as a perfect run.
         SimScore.reset(0, 0);
         SimMimic.reset();
+        SimTerminator.reset();
         // The last starred mob in a wither-door room drops the key. Wiring it here keeps the two features
         // ignorant of each other: mobs know when the last star died, doors know what a key is, and neither
         // needs to import the other.

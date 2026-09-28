@@ -43,8 +43,9 @@ public final class SimClass {
     /** Far above any sim mob's health, so nothing survives a hit it visibly took. */
     private static final float BEAM_DAMAGE = 10_000f;
 
-    /** Vanilla's own left-click rate is the cap. Faster is not more practice, it is just more packets. */
-    private static final int BEAM_COOLDOWN_TICKS = 4;
+    /** Hypixel's 100 Attack Speed baseline, shared with every other sim weapon - killer560 asked that "all
+     *  items assume 100 attack speed equivalent", so the number lives in one place. */
+    private static final int BEAM_COOLDOWN_TICKS = SimAttackSpeed.BASE_ATTACK_INTERVAL_TICKS;
 
     private static int lastBeamTick;
     private static int tickCounter;

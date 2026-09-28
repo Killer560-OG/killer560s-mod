@@ -151,6 +151,10 @@ public final class AutoRoutesCommands {
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("ar")
+                        // Hidden from tab-completion, not merely refused, when Auto Routes is off - his request
+                        // 2026-09-28. The refusal message below stays for the case where it is turned off
+                        // mid-session with the command already typed.
+                        .requires(src -> AutoRoutesConfig.getInstance().isEnabledRaw())
                         .executes(context -> {
                             help();
                             return 1;
