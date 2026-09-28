@@ -168,7 +168,10 @@ public final class SecretAuraFeature {
             if (state.getBlock() == Blocks.LEVER && !inBoss) {
                 leverInitialState.putIfAbsent(key, state.getValue(LeverBlock.POWERED));
             }
-            double distSq = eye.distanceToSqr(Vec3.atCenterOf(pos));
+            // To the block's nearest point, not its centre - the measure the server itself uses. See
+            // BlockHits.boxDistanceSq: comparing centre distance against a range capped at vanilla's 4.5
+            // made the effective reach nearer 4.0 and dropped clicks the server would have taken.
+            double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if (distSq > ("essence".equals(kind) ? skullRangeSq : rangeSq)) {
                 continue;
             }

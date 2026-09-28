@@ -248,7 +248,8 @@ public final class LeverAuraFeature {
                 if (!lit) {
                     unlitTotal++;
                 }
-                double d = eye.distanceToSqr(Vec3.atCenterOf(pos));
+                // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
+                double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
                 if (d > rangeSq) {
                     continue;
                 }
@@ -292,7 +293,8 @@ public final class LeverAuraFeature {
                 if (st.getBlock() != Blocks.LEVER) {
                     continue;
                 }
-                double d = eye.distanceToSqr(Vec3.atCenterOf(pos));
+                // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
+                double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
                 if (d > rangeSq) {
                     continue;
                 }

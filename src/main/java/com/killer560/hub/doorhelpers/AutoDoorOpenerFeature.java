@@ -161,7 +161,8 @@ public final class AutoDoorOpenerFeature {
         double bestDist = Double.MAX_VALUE;
         for (DoorScanner.Door door : doors) {
             BlockPos pos = door.basePos();
-            double distSq = eye.distanceToSqr(Vec3.atCenterOf(pos));
+            // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
+            double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if (distSq <= rangeSq && distSq < bestDist) {
                 bestDist = distSq;
                 best = pos;

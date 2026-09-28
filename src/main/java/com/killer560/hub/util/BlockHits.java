@@ -53,6 +53,27 @@ public final class BlockHits {
     }
 
     /**
+     * Squared distance from {@code eye} to the NEAREST POINT of a block's cell - the measure a server uses when
+     * it decides whether an interaction is in range.
+     *
+     * <p>Not the distance to the centre, which is what the auras used to compare against their range setting and
+     * which reads up to half a block further (0.87 at a corner). That difference is not academic: with the range
+     * capped at vanilla's own 4.5, measuring to the centre put the effective reach nearer 4.0 and silently
+     * dropped clicks the server would have accepted. Breaker Aura hit the same thing from the other direction in
+     * September and was fixed the same way.
+     *
+     * <p>The cell rather than the collision shape, deliberately: a lever's shape is a few pixels and measuring
+     * to it would make a lever on a far wall unreachable at a range that comfortably reaches a chest beside it,
+     * which is not how the server decides either.
+     */
+    public static double boxDistanceSq(Vec3 eye, BlockPos pos) {
+        double dx = Math.max(0, Math.max(pos.getX() - eye.x, eye.x - (pos.getX() + 1)));
+        double dy = Math.max(0, Math.max(pos.getY() - eye.y, eye.y - (pos.getY() + 1)));
+        double dz = Math.max(0, Math.max(pos.getZ() - eye.z, eye.z - (pos.getZ() + 1)));
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
      * Same, but falling back to the centre with the nearest-facing side when the ray misses the outline.
      *
      * <p>For callers that must click <i>something</i> rather than skip a turn. Still better than a hardcoded
