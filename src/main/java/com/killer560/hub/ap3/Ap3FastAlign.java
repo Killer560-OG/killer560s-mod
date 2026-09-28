@@ -23,18 +23,28 @@ final class Ap3FastAlign {
     private Ap3FastAlign() {
     }
 
-    /** Actions tried per press: nothing, W, W+A (the 45-degree diagonal - a bit more push), their sneaking versions,
-     *  and A (sideways - it drops sprint, which shrinks the next pushes). The yaw decides the world direction. */
+    /**
+     * Actions tried per press. The yaw decides the world DIRECTION, so what distinguishes two entries here is only
+     * the SIZE of the push and what each leaves behind for the next tick (sprint, crouch) - a key that merely points
+     * somewhere else is the same action at a different yaw, and searching it again is pure cost.
+     *
+     * <p>Measured 2026-09-28 by driving all eighteen real key combinations through the step: they produce just five
+     * distinct push sizes - 0, 0.13377 (a non-sprinting straight key), 0.13650 (a non-sprinting diagonal), 0.17390
+     * (W) and 0.17745 (W+A). W and W+A are two per cent apart, which is a duplicate rather than a choice: dropping
+     * W left the landing rate identical (88.2%) and the mean tick count within 0.06, and cut the search - which is
+     * |ACTS| to the power of the press count - to a QUARTER of the time. The 0.13650 back-diagonal was then tried
+     * as the one genuinely missing size and bought nothing worth 5.5x the cost.
+     *
+     * <p>So: nothing, the biggest push (W+A), a non-sprinting straight key (A), each of those sneaking, and sneak
+     * alone. Sneak with no movement key pushes nothing, but sneak lands with a one-tick lag, so it is the only way
+     * to get a 0.3x braking tap that is NOT preceded by a full-size push (and it drops sprint as well).
+     */
     private static final Ap3DiscretePlanner.Action[] ACTS = {
             Ap3DiscretePlanner.NONE,
-            new Ap3DiscretePlanner.Action(1, 0, false),
             new Ap3DiscretePlanner.Action(1, 1, false),
-            new Ap3DiscretePlanner.Action(1, 0, true),
             new Ap3DiscretePlanner.Action(1, 1, true),
             new Ap3DiscretePlanner.Action(0, 1, false),
             new Ap3DiscretePlanner.Action(0, 1, true),
-            // Sneak with no movement key: pushes nothing, but sneak lands with a one-tick lag, so this is the only way
-            // to get a 0.3x braking tap that is NOT preceded by a full-size push (and it drops sprint as well).
             new Ap3DiscretePlanner.Action(0, 0, true),
     };
     private static final Ap3DiscretePlanner.Action[] NO_ACTS = {};
@@ -42,7 +52,12 @@ final class Ap3FastAlign {
     /** Up to four presses: three cannot brake the hardest entries inside four ticks (and four ticks is the floor
      *  for those - a dense grid over every 3-press schedule misses them by 0.01-0.18 blocks). */
     static final int MAX_PRESSES = 4;
-    static final int MAX_TICKS = 9;
+    /**
+     * Longest schedule the search will consider. Nine abandoned two cases in five, and an abandoned case does not
+     * cost a little - it falls through to the regular planner, which lands with a tap and then COASTS to rest.
+     * Twelve lands 88% (measured 2026-09-28); sixteen was tried and lands no more, so this is the knee, not a guess.
+     */
+    static final int MAX_TICKS = 12;
     /** The final speed must be this far under the zeroing line (margin for float rounding in the real game). */
     private static final double REST_SPEED = Ap3AlignMath.ZERO_VELOCITY * 0.9;
 
