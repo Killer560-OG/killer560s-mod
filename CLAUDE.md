@@ -89,6 +89,18 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   "The Catacombs (F7)".
 - Several features gate on `getCurrentServer().ip` containing `hypixel.net` or `p3sim.net`, with no
   override anywhere in the codebase.
+- An automated click must aim at a point on the block's real **surface**, from the eye, not at
+  `Vec3.atCenterOf(pos)` with a fixed `Direction`. The centre is a point *inside* the block and no raycast
+  produces it; GrimAC raised `PositionPlace` on every such click even at a distance the server accepted
+  (2026-09-28). Use `util/BlockHits.surface`, and prefer skipping a tick to sending an impossible hit. Entity
+  clicks are the same: aim at a point on the entity's box, which Arrow Align and Terminal Aura already do.
+- Server interaction limits, measured on the sim: **4.5 blocks** to a block's box (past it the server refuses
+  outright), **3.0 blocks** to an entity (past it the anticheat names the distance). `MEASURED_MAX_REACH` and
+  `MEASURED_MAX_ENTITY_REACH` in `CheatUtilsConfig` are the single places those live.
+- When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
+  feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
+  Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
+  of them and the gap only surfaced as `Post` violations in a later test.
 - Reach must be measured to the block's **box**, not its centre — the centre reads up to half a block
   further and makes a module look out of range when it is not.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
