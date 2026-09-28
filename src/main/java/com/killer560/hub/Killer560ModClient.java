@@ -101,6 +101,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // Dev builds only - the tool that fills the room library that ships. Compiled out of a release.
         com.killer560.hub.roomsim.RoomRecorderFeature.register();
         com.killer560.hub.roomsim.SimMenuEntry.register();
+        com.killer560.hub.roomsim.SimAbilities.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
