@@ -61,7 +61,14 @@ public final class PartyFinderParser {
         if (stack == null || stack.isEmpty() || !stack.is(Items.PLAYER_HEAD)) {
             return null;
         }
-        return parse(slot, loreStrings(stack), currentRole);
+        // The SERVER's lore for this slot when we have it, the live stack only as a fallback.
+        //
+        // Devonian's Party Finder Overview rewrites this lore in place every tick, so the live stack holds its
+        // edits rather than Hypixel's text - which is what emptied this overlay entirely (2026-09-21). Loosening
+        // the regexes recovered some of it, but no parser can be made proof against arbitrary rewriting by an
+        // arbitrary mod. The packet copy cannot be rewritten by anyone. See PartyFinderLoreCache.
+        List<String> fromServer = PartyFinderLoreCache.serverLore(slot);
+        return parse(slot, fromServer != null ? fromServer : loreStrings(stack), currentRole);
     }
 
     public static Party parse(int slot, List<String> lore, DungeonClass currentRole) {
