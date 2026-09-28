@@ -253,8 +253,30 @@ public final class DungeonState {
         }
     }
 
+    /**
+     * The dungeon sim is running a CLEAR.
+     *
+     * <p>Separate from {@link #simOverrideActive} on purpose, and the difference is the whole point. That one
+     * forces floor, F7 and BOSS PHASE on together, so it shuts the gate on every feature that requires not being
+     * in the boss - which is most of the clear features, and exactly the ones the sim exists to practise with.
+     * This one says "in a dungeon, on F7, not in the boss", which is what a clear actually is.
+     *
+     * <p>killer560 asked that "configuring secret routes or auto routes and whatnot works in this sim". Those
+     * all gate on {@link #isInDungeon()}, and without this they would every one of them sit out.
+     */
+    private static boolean roomSimActive;
+
+    /** Turned on while a sim clear is loaded; off the moment it ends. */
+    public static void setRoomSim(boolean active) {
+        roomSimActive = active;
+    }
+
+    public static boolean isRoomSim() {
+        return roomSimActive;
+    }
+
     public static boolean isInDungeon() {
-        return simOverrideActive || cachedFloor != null;
+        return simOverrideActive || roomSimActive || cachedFloor != null;
     }
 
     /** @return the raw floor string (e.g. "F7", "M3"), or null outside a dungeon run - added for
@@ -262,14 +284,20 @@ public final class DungeonState {
      *  list per floor rather than just the boolean F7/M7 check the rest of this mod uses. Forced to
      *  "F7" while {@link #isSimOverrideActive()}. */
     public static String getFloor() {
-        return simOverrideActive ? "F7" : cachedFloor;
+        if (simOverrideActive) {
+            return "F7";
+        }
+        // M7 for the sim: the clear features he practises with are the M7 ones, and Auto Debuff is M7-only.
+        return roomSimActive ? "M7" : cachedFloor;
     }
 
     public static boolean isF7OrM7() {
-        return simOverrideActive || "F7".equals(cachedFloor) || "M7".equals(cachedFloor);
+        return simOverrideActive || roomSimActive || "F7".equals(cachedFloor) || "M7".equals(cachedFloor);
     }
 
     public static boolean isBossPhaseActive() {
+        // NOT roomSimActive: a sim clear is explicitly not the boss, and saying otherwise would close the gate
+        // on every feature the sim is for.
         return simOverrideActive || (bossPhaseActive && isF7OrM7());
     }
 

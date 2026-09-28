@@ -45,11 +45,16 @@ public final class SimState {
     public static void enter(String code) {
         active = true;
         mapCode = code == null ? "" : code;
+        // The dungeon gate is set HERE rather than on the world-load path, so it can never disagree with this
+        // flag. Secret routes, auto routes, the map and every other clear feature gate on DungeonState, and a
+        // sim where they all sit out is a sim he cannot practise in.
+        com.killer560.hub.secrets.DungeonState.setRoomSim(true);
     }
 
     public static void leave() {
         active = false;
         mapCode = "";
+        com.killer560.hub.secrets.DungeonState.setRoomSim(false);
     }
 
     /** The map code this session was built from, for showing and for sharing. */

@@ -13,6 +13,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.skeleton.Skeleton;
@@ -161,13 +162,47 @@ public final class SimMobs {
         mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
         mob.setHealth((float) ONE_HP);
         mob.setPersistenceRequired();
+        // NEVER MOVES. killer560 (2026-09-28): "on the main their movement is dependent on where you are and
+        // will be far too hard to replicate I would rather just have them never move". So a sim mob stands
+        // exactly where the capture found it, which is also the only way a practised route means anything -
+        // a route timed against mobs that chase you is a route timed against your own path.
+        mob.setNoAi(true);
         mob.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
         level.addFreshEntity(mob);
         SPAWNED.add(mob.getUUID());
         if (starred) {
             STARRED.add(mob.getUUID());
+            attachStarTag(level, mob);
         }
     }
+
+    /**
+     * Gives a starred mob the same name-tag armour stand Hypixel gives it.
+     *
+     * <p>killer560 asked that "things like mob, ESP work and door ESP and all that style of stuff". Mob ESP does
+     * not look at the mob: Hypixel puts the "star ... heart" name on a separate invisible armour stand and every
+     * mod, this one included, resolves that stand to the mob beneath it. A sim mob with no stand is invisible to
+     * all of it.
+     *
+     * <p>So rather than teaching those features about the sim, the sim produces what they already read. That is
+     * the difference between one change here and a special case in every feature.
+     */
+    private static void attachStarTag(ServerLevel level, Mob mob) {
+        ArmorStand tag = new ArmorStand(level, mob.getX(), mob.getY() + mob.getBbHeight() + 0.1, mob.getZ());
+        tag.setInvisible(true);
+        tag.setNoGravity(true);
+        tag.setNoBasePlate(true);
+        tag.setInvulnerable(true);
+        tag.setCustomName(Component.literal("✯ " + mob.getType().getDescription().getString()
+                + " ❤"));
+        tag.setCustomNameVisible(true);
+        level.addFreshEntity(tag);
+        SPAWNED.add(tag.getUUID());
+        STAR_TAGS.put(mob.getUUID(), tag.getUUID());
+    }
+
+    /** Star tag per starred mob, so the tag can be removed when the mob is. */
+    private static final java.util.Map<UUID, UUID> STAR_TAGS = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Places a dormant Fel: an invisible, no-base-plate armour stand wearing a skull, so only the skull shows -
@@ -211,14 +246,15 @@ public final class SimMobs {
     /**
      * Replaces a dormant Fel with an enderman where it stood.
      *
-     * <p><b>What this does not do:</b> render it upside down. killer560's spec is explicit that the woken form
-     * is "the upside down Enderman", and 26.1.2 has no clean way to do that from this package: there is no
-     * upside-down {@code Pose}, and flipping how one specific entity renders needs a client-side renderer
-     * registration (an {@code EntityRendererProvider} override or a matching mixin on the enderman renderer),
-     * which is wiring that belongs with whichever file registers this mod's entity renderers - not a spawn-and-
-     * track class, and out of scope for this one file. So the wake and the replace are real; the enderman just
-     * renders upright until that renderer piece is added elsewhere. Faking it with, say, a scaled-and-flipped
-     * armour stand instead of a real enderman would have hidden that gap instead of naming it.
+     * <p><b>Upside down, using vanilla's own rule.</b> killer560's spec is explicit that the woken form is "the
+     * upside down Enderman". This needs no renderer and no mixin: {@code LivingEntityRenderer} checks whether an
+     * entity is named "Dinnerbone" or "Grumm" and sets {@code isUpsideDown} on the render state, which flips the
+     * model (verified in the 26.1.2 bytecode, 2026-09-28). So the enderman is named Grumm and the name tag is
+     * hidden - the flip is a property of the NAME, not of the tag being drawn, so hiding it costs nothing.
+     *
+     * <p>That is worth preferring over a mixin even though a mixin would work: this is a rendering behaviour
+     * the game already has, and a mixin on an entity renderer is a thing that breaks quietly on the next
+     * Minecraft version.
      */
     private static void wake(ServerLevel level, FelMarker fel) {
         fel.woken = true;
@@ -231,6 +267,10 @@ public final class SimMobs {
         enderman.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
         enderman.setHealth((float) ONE_HP);
         enderman.setPersistenceRequired();
+        // Vanilla flips anything called Grumm or Dinnerbone. The tag itself is hidden: the flip comes from the
+        // name being set, not from it being drawn.
+        enderman.setCustomName(net.minecraft.network.chat.Component.literal("Grumm"));
+        enderman.setCustomNameVisible(false);
         enderman.setPos(x, y, z);
         level.addFreshEntity(enderman);
         SPAWNED.add(enderman.getUUID());

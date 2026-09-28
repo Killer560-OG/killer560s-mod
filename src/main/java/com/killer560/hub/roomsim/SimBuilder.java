@@ -107,9 +107,8 @@ public final class SimBuilder {
                 }
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
-                // Rotation is not in the code yet - the grid says which cell, not which way round. Until it is,
-                // everything goes in unrotated, which is wrong for real maps and fine for the flat test room.
-                placed += RoomPlacer.paste(level, room, gx, gz, 0);
+                placed += RoomPlacer.paste(level, room, gx, gz, decoded.cellRotation()[cell]);
+                spawnMobsFor(client, level, room, gx, gz);
             }
             final int p = placed;
             final int m = missing;
@@ -123,6 +122,39 @@ public final class SimBuilder {
             });
             LOGGER.info("Sim build: {} blocks placed, {} cells missing a room", p, m);
         });
+    }
+
+    /**
+     * Puts the room's captured starred mobs back where they stood.
+     *
+     * <p>A room without them is scenery. The positions were recorded room-local so they follow the room
+     * wherever it is placed; they are NOT rotated yet, which is wrong for a rotated room and is called out
+     * here rather than hidden, because the fix needs the same coordinate transform the placer uses and that
+     * is worth doing once rather than twice.
+     */
+    private static void spawnMobsFor(Minecraft client, ServerLevel level, RoomLibrary.Room room,
+                                     int gridX, int gridZ) {
+        if (room.mobSpawns.isEmpty()) {
+            return;
+        }
+        var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+        int worldX0 = origin.getX() - RoomLibrary.TILE / 2;
+        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
+        for (String spawn : room.mobSpawns) {
+            String[] parts = spawn.split(",");
+            if (parts.length < 4) {
+                continue;
+            }
+            try {
+                int lx = Integer.parseInt(parts[0]);
+                int ly = Integer.parseInt(parts[1]);
+                int lz = Integer.parseInt(parts[2]);
+                SimMobs.spawnStarred(client,
+                        new net.minecraft.core.BlockPos(worldX0 + lx, ly, worldZ0 + lz), SimMobs.Kind.ZOMBIE);
+            } catch (NumberFormatException ignored) {
+                // a malformed line in a hand-edited room file should skip that mob, not the whole room
+            }
+        }
     }
 
     /**

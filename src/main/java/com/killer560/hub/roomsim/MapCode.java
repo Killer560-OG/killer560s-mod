@@ -30,7 +30,13 @@ public final class MapCode {
 
     /** Bumping this changes the string every future code starts with, so an old parser refuses a new code
      *  instead of silently misreading its bytes as something else. */
-    private static final String PREFIX = "MC1:";
+    private static final String PREFIX = "MC2:";
+
+    /**
+     * The previous format, which had no rotation. Recognised only so a stale code can be refused by name
+     * instead of failing as unparseable - "this code is from an older format" is actionable, "invalid" is not.
+     */
+    private static final String PREFIX_V1 = "MC1:";
 
     /** Room slot with no room in it (a bare connector or the border). Stored as a room-index byte of 0, since
      *  a real name-table index is stored as (index + 1) - see {@link #encode(Decoded)}. */
@@ -41,7 +47,7 @@ public final class MapCode {
      * (or {@link #NO_ROOM} if none), and {@code cellDoor[i]} is that cell's {@code DungeonLayout.DOOR_*} value.
      * Both cell arrays are always exactly {@code DungeonLayout.GRID * DungeonLayout.GRID} long.
      */
-    public record Decoded(String[] nameTable, int[] cellRoom, int[] cellDoor) {
+    public record Decoded(String[] nameTable, int[] cellRoom, int[] cellDoor, int[] cellRotation) {
     }
 
     /**
@@ -64,16 +70,21 @@ public final class MapCode {
         }
         int[] cellRoom = new int[cells];
         int[] cellDoor = new int[cells];
+        int[] cellRotation = new int[cells];
         for (int idx = 0; idx < cells; idx++) {
             int room = layout.roomOfCell(idx);
             cellRoom[idx] = room >= 0 ? nameIndex.get(roomName[room]) : NO_ROOM;
             cellDoor[idx] = layout.doorType(idx);
+            // Without this a rebuilt map has every room facing whichever way it was captured, which looks
+            // almost right and makes every route practised in it wrong.
+            int[] clay = room >= 0 ? layout.clayRotation(room) : null;
+            cellRotation[idx] = clay != null && clay.length >= 3 ? ((clay[2] % 360) + 360) % 360 : 0;
         }
         String[] nameTable = new String[nameIndex.size()];
         for (Map.Entry<String, Integer> e : nameIndex.entrySet()) {
             nameTable[e.getValue()] = e.getKey();
         }
-        return encode(new Decoded(nameTable, cellRoom, cellDoor));
+        return encode(new Decoded(nameTable, cellRoom, cellDoor, cellRotation));
     }
 
     /**
@@ -88,7 +99,8 @@ public final class MapCode {
      */
     private static String encode(Decoded decoded) {
         int cells = DungeonLayout.GRID * DungeonLayout.GRID;
-        if (decoded.cellRoom().length != cells || decoded.cellDoor().length != cells) {
+        if (decoded.cellRoom().length != cells || decoded.cellDoor().length != cells
+                || decoded.cellRotation().length != cells) {
             throw new IllegalArgumentException("Decoded cell arrays must be GRID*GRID (" + cells + ") long");
         }
         if (decoded.nameTable().length > 255) {
@@ -118,8 +130,16 @@ public final class MapCode {
                 if (door < DungeonLayout.DOOR_NONE || door > DungeonLayout.DOOR_ENTRANCE) {
                     throw new IllegalArgumentException("cellDoor[" + idx + "] = " + door + " is not a known door type");
                 }
+                int rot = decoded.cellRotation()[idx];
+                if (rot != 0 && rot != 90 && rot != 180 && rot != 270) {
+                    throw new IllegalArgumentException("cellRotation[" + idx + "] = " + rot
+                            + " is not a quarter turn");
+                }
                 out.writeByte(door);
                 out.writeByte(room + 1);
+                // A quarter turn as 0..3 rather than the degrees, so it fits a byte with room to spare and a
+                // corrupt value is out of range instead of merely odd.
+                out.writeByte(rot / 90);
             }
             return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(buf.toByteArray());
         } catch (IOException e) {
@@ -161,22 +181,25 @@ public final class MapCode {
             int cells = grid * grid;
             int[] cellRoom = new int[cells];
             int[] cellDoor = new int[cells];
+            int[] cellRotation = new int[cells];
             for (int idx = 0; idx < cells; idx++) {
                 int door = in.readUnsignedByte();
                 int roomPlusOne = in.readUnsignedByte();
-                if (door > DungeonLayout.DOOR_ENTRANCE || roomPlusOne > nameCount) {
+                int quarter = in.readUnsignedByte();
+                if (door > DungeonLayout.DOOR_ENTRANCE || roomPlusOne > nameCount || quarter > 3) {
                     // roomPlusOne == 0 means NO_ROOM and is always valid; > nameCount points past the table.
                     return null;
                 }
                 cellDoor[idx] = door;
                 cellRoom[idx] = roomPlusOne - 1;
+                cellRotation[idx] = quarter * 90;
             }
             if (in.available() != 0) {
                 // Trailing bytes mean this wasn't one of ours (or the string was concatenated with something
                 // else) - refuse rather than silently ignore the extra data.
                 return null;
             }
-            return new Decoded(nameTable, cellRoom, cellDoor);
+            return new Decoded(nameTable, cellRoom, cellDoor, cellRotation);
         } catch (IOException e) {
             // Truncated payload: readUnsignedByte()/readFully() hit end-of-stream.
             return null;
@@ -194,19 +217,25 @@ public final class MapCode {
             String[] nameTable = {"Blue Trap Room", "3-Sided Puzzle: Water Board", "Long Corridor", "Unknown"};
             int[] cellRoom = new int[cells];
             int[] cellDoor = new int[cells];
+            int[] cellRotation = new int[cells];
             for (int idx = 0; idx < cells; idx++) {
                 // Deliberately exercise every door type and NO_ROOM, not just room cells, so a bug that only
                 // shows up on a mix of doors and empty cells (the shape a real capture has) would be caught.
                 cellRoom[idx] = idx % 5 == 0 ? NO_ROOM : idx % nameTable.length;
                 cellDoor[idx] = idx % (DungeonLayout.DOOR_ENTRANCE + 1);
+                // Every quarter turn, so a rotation that survives one value and not the others is caught.
+                cellRotation[idx] = (idx % 4) * 90;
             }
-            Decoded original = new Decoded(nameTable, cellRoom, cellDoor);
+            Decoded original = new Decoded(nameTable, cellRoom, cellDoor, cellRotation);
             String code = encode(original);
             Decoded roundTripped = decode(code);
             return roundTripped != null
                     && Arrays.equals(original.nameTable(), roundTripped.nameTable())
                     && Arrays.equals(original.cellRoom(), roundTripped.cellRoom())
-                    && Arrays.equals(original.cellDoor(), roundTripped.cellDoor());
+                    && Arrays.equals(original.cellDoor(), roundTripped.cellDoor())
+                    && Arrays.equals(original.cellRotation(), roundTripped.cellRotation())
+                    // An old code must be refused, not read with its bytes shifted.
+                    && decode(PREFIX_V1 + "AAAA") == null;
         } catch (RuntimeException e) {
             return false;
         }

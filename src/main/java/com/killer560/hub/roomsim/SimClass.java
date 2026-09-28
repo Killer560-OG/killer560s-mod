@@ -15,7 +15,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.List;
 
 /**
  * The only class the sim has: mage, with the left-click beam.
@@ -37,8 +36,9 @@ public final class SimClass {
     /** How far the beam reaches. Long enough to cross a room, short enough not to clear the next one. */
     private static final double BEAM_RANGE = 30.0;
 
-    /** Half-width of the beam. A hitscan line misses a mob you were clearly aiming at; this is a corridor. */
-    private static final double BEAM_RADIUS = 1.0;
+    /** How much a mob's hitbox is forgiven by. A bare line misses something you were clearly aiming at; this
+     *  widens the target rather than widening the beam, which is what stops it being a box. */
+    private static final double BEAM_RADIUS = 0.6;
 
     /** Far above any sim mob's health, so nothing survives a hit it visibly took. */
     private static final float BEAM_DAMAGE = 10_000f;
@@ -76,51 +76,71 @@ public final class SimClass {
             return;
         }
         boolean attacking = client.options.keyAttack.isDown();
-        // Edge OR held: the beam is a weapon, and requiring a fresh click per mob would make a room of mobs a
-        // finger exercise rather than a route exercise.
-        if (!attacking) {
-            wasAttacking = false;
-            return;
-        }
-        wasAttacking = true;
-        if (tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) {
+        // On the PRESS, not while held. He said "left click beam", and a click is an edge - holding to spam was
+        // something I invented. It also mattered in testing: a beam that fires every few ticks while the key
+        // reads as held keeps shooting wherever the camera happens to point, which killed mobs all over the
+        // room and made every result depend on timing.
+        boolean pressed = attacking && !wasAttacking;
+        wasAttacking = attacking;
+        if (!pressed || tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) {
             return;
         }
         lastBeamTick = tickCounter;
         fire(client);
     }
 
-    /** Fires the beam: everything living in a corridor along the look vector, up to the first wall. */
+    /**
+     * Fires the beam at the FIRST mob it reaches. Zero pierce.
+     *
+     * <p>killer560 (2026-09-28): "The beam has 0 pierce right". It did not - it hit everything in an
+     * axis-aligned box from the eye to the endpoint, which is not a corridor: look diagonally across a room and
+     * that box covers most of the room. In testing it was killing mobs behind the player and in far corners,
+     * which looked like the aim being broken and was really the shape being wrong.
+     *
+     * <p>Now it walks the actual ray, takes the nearest entity whose hitbox it crosses, and stops there - both
+     * at that mob and at the first wall, so it cannot reach into the next room through a door he has not opened.
+     */
     private static void fire(Minecraft client) {
         var player = client.player;
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1.0f);
         Vec3 end = eye.add(look.scale(BEAM_RANGE));
 
-        // Stop at the wall. A beam that shoots through the room boundary would kill the next room's mobs before
-        // he has opened the door to it, which would quietly ruin the thing being practised.
+        // The wall first: nothing past it can be hit, so it shortens the search as well as stopping the beam.
         BlockHitResult wall = client.level.clip(new ClipContext(
                 eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         Vec3 stop = wall != null && wall.getType() == HitResult.Type.BLOCK ? wall.getLocation() : end;
 
-        AABB corridor = new AABB(eye, stop).inflate(BEAM_RADIUS);
-        List<Entity> hits = client.level.getEntities(player, corridor,
-                e -> e instanceof LivingEntity && e.isAlive() && e != player);
-        if (hits.isEmpty()) {
+        // A generous search box, then an exact ray test per candidate. The box is only a cheap way to avoid
+        // testing every entity in the world; it is NOT the hit shape, which is what went wrong before.
+        AABB search = new AABB(eye, stop).inflate(BEAM_RADIUS);
+        Entity nearest = null;
+        double nearestDist = Double.MAX_VALUE;
+        for (Entity e : client.level.getEntities(player, search,
+                e -> e instanceof LivingEntity && e.isAlive() && e != player)) {
+            AABB box = e.getBoundingBox().inflate(BEAM_RADIUS * 0.5);
+            var hit = box.clip(eye, stop);
+            if (hit.isEmpty()) {
+                continue;
+            }
+            double d = eye.distanceToSqr(hit.get());
+            if (d < nearestDist) {
+                nearestDist = d;
+                nearest = e;
+            }
+        }
+        if (nearest == null) {
             return;
         }
         var server = client.getSingleplayerServer();
         if (server == null) {
             return;
         }
-        List<java.util.UUID> ids = hits.stream().map(Entity::getUUID).toList();
+        java.util.UUID id = nearest.getUUID();
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (java.util.UUID id : ids) {
-                Entity target = level.getEntity(id);
-                if (target instanceof LivingEntity living && living.isAlive()) {
-                    living.hurtServer(level, level.damageSources().magic(), BEAM_DAMAGE);
-                }
+            if (level.getEntity(id) instanceof LivingEntity living && living.isAlive()) {
+                living.hurtServer(level, level.damageSources().magic(), BEAM_DAMAGE);
             }
         });
     }
