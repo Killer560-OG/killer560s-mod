@@ -103,6 +103,16 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   of them and the gap only surfaced as `Post` violations in a later test.
 - Reach must be measured to the block's **box**, not its centre — the centre reads up to half a block
   further and makes a module look out of range when it is not.
+- AP3's align planners solve the YAW freely, so two entries in an action set differ only by the SIZE of the
+  push and what they leave for the next tick (sprint, crouch) - a key pointing elsewhere is the same action at
+  another yaw. All eighteen real key combinations produce just five sizes: 0, 0.13377 (non-sprinting straight
+  key), 0.13650 (non-sprinting diagonal), 0.17390 (W) and 0.17745 (W+A), and only `fw > 0` sprints. Searching a
+  near-duplicate costs |ACTS| to the power of the press count for nothing.
+- Align tick counts are bound by STOPPING, not by travel or by the solver. You must arrive under vanilla's 0.003
+  zeroing line or the next tick slides you off the point, and friction alone takes ~8 ticks from top speed. A
+  floor that charges the stop sits at 4.41 ticks against the planner's 4.52 (measured 2026-09-28), and 3 ticks
+  is impossible for 72% of aligns at any tolerance. Tolerance is nearly free: Caleb's 3e-8 costs 0.09 of a tick
+  over 1e-4. Do not accept a "make the align faster" task without re-deriving that floor first.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.
