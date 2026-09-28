@@ -59,6 +59,8 @@ public final class GoldorTriggerbotFeature {
      */
     private static final ActionGate.Actor GATE_ACTOR = ActionGate.Actor.GOLDOR_TRIGGER;
 
+    /** Said once per session, not once per frame - this runs on the render thread. */
+    private static boolean warnedOutOfMeleeRange;
     private static int aimTargetId = -1;
     private static long nextClickAtMs = 0L;
     private static Object lastLevel = null;
@@ -133,6 +135,30 @@ public final class GoldorTriggerbotFeature {
         }
         if (now < nextClickAtMs) {
             return;
+        }
+        // MELEE HAS TO BE IN MELEE RANGE. The Range setting governs how far away the crosshair test will still
+        // call you "aimed at Goldor", and 25 blocks is right for that - a Terminator shot is fired from across
+        // the room and the shot itself has no reach limit. An ATTACK is different: a server accepts an entity
+        // attack only within about 3 blocks, and measurement on the sim (2026-09-28) showed an interaction at
+        // 3.26 blocks drawing a Reach violation that names the distance. At the shipped default of 25 every
+        // single attack would be refused and flagged on the way, so in Attack mode the range is clamped to what
+        // an attack can actually do.
+        //
+        // Checked BEFORE the gate is claimed, so an out-of-range tick does not burn this feature's one
+        // interaction for the tick and does not disturb the rolled interval.
+        if (cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK) {
+            double reachSq = com.killer560.hub.util.BlockHits.boxDistanceSq(
+                    player.getEyePosition(), target.getBoundingBox());
+            double limit = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
+            if (reachSq > limit * limit) {
+                if (!warnedOutOfMeleeRange) {
+                    warnedOutOfMeleeRange = true;
+                    LOGGER.info("[Goldor] Aimed at the boss but {} blocks away - an attack only reaches {}, so "
+                                    + "nothing is sent. Use Shoot for a bow, or get closer.",
+                            String.format(java.util.Locale.US, "%.1f", Math.sqrt(reachSq)), limit);
+                }
+                return;
+            }
         }
         // The one-interaction-per-tick gate, checked after the interval has elapsed and before anything is sent
         // or rolled: a denied tick must leave the aim and the due time exactly where they are.

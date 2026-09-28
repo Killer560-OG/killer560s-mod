@@ -73,6 +73,15 @@ public final class BlockHits {
         return dx * dx + dy * dy + dz * dz;
     }
 
+    /** Squared distance from {@code eye} to the nearest point of an arbitrary box - the entity equivalent of
+     *  {@link #boxDistanceSq(Vec3, BlockPos)}, and the measure a server applies to an entity interaction. */
+    public static double boxDistanceSq(Vec3 eye, net.minecraft.world.phys.AABB box) {
+        double dx = Math.max(0, Math.max(box.minX - eye.x, eye.x - box.maxX));
+        double dy = Math.max(0, Math.max(box.minY - eye.y, eye.y - box.maxY));
+        double dz = Math.max(0, Math.max(box.minZ - eye.z, eye.z - box.maxZ));
+        return dx * dx + dy * dy + dz * dz;
+    }
+
     /**
      * Same, but falling back to the centre with the nearest-facing side when the ray misses the outline.
      *

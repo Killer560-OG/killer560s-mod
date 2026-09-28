@@ -137,6 +137,26 @@ public final class EnchantColorsDefaults {
         Map<String, int[]> t = new LinkedHashMap<>();
         // ---- Normal
         t.put("angler", new int[]{5, 6});
+        // Checked against SkyHanni's own Enchants.json (2026-09-28), which is where its tier colouring gets
+        // goodLevel/maxLevel from - killer560: "somehow skyhanni knows which enchants are what tier so you can
+        // find it from them". Its rule turned out to be the one this file already implements
+        // (level >= maxLevel is Perfect, level > goodLevel is Great), so only the DATA was behind.
+        //
+        // Six entries were simply absent, so those enchants got no tier colour at all. Four of them are the
+        // vitality family, which is the current name for what Hypixel used to call the mana enchants - the old
+        // "ferocious mana" / "hardened mana" / "mana vampire" / "strong mana" keys further down are kept so an
+        // old item still colours, but they are legacy and these are the live names.
+        t.put("hardened vitality", new int[]{0, 10});
+        t.put("strong vitality", new int[]{0, 10});
+        t.put("vampiric vitality", new int[]{0, 10});
+        t.put("vivacious vitality", new int[]{0, 10});
+        t.put("karma", new int[]{0, 6});
+        t.put("petalfall", new int[]{0, 5});
+        //
+        // The 26 ultimate enchants in that file are deliberately NOT here. An ultimate is coloured by its own
+        // fixed colour whatever its level, in this mod and in SkyHanni alike, so a good/max pair would never be
+        // read. Stealth was the largest single correction: it was 0/1 here and is 0/6 there, so every level
+        // above 1 was being called Perfect.
         t.put("aqua affinity", new int[]{1, 1});
         t.put("bane of arthropods", new int[]{5, 7});
         t.put("big brain", new int[]{2, 5});
@@ -168,7 +188,7 @@ public final class EnchantColorsDefaults {
         t.put("fire protection", new int[]{5, 7});
         t.put("first strike", new int[]{4, 5});
         t.put("flame", new int[]{2, 2});
-        t.put("forest pledge", new int[]{2, 5});
+        t.put("forest pledge", new int[]{2, 6});
         t.put("fortune", new int[]{3, 4});
         t.put("frail", new int[]{5, 7});
         t.put("frost walker", new int[]{2, 2});
@@ -225,12 +245,12 @@ public final class EnchantColorsDefaults {
         t.put("smoldering", new int[]{0, 5});
         t.put("snipe", new int[]{3, 4});
         t.put("spiked hook", new int[]{5, 7});
-        t.put("stealth", new int[]{0, 1});
+        t.put("stealth", new int[]{0, 6});
         t.put("strong mana", new int[]{0, 10});
         t.put("sugar rush", new int[]{0, 3});
         t.put("sunder", new int[]{0, 6});
         t.put("tabasco", new int[]{1, 3});
-        t.put("thorns", new int[]{3, 3});
+        t.put("thorns", new int[]{3, 4});
         t.put("thunderbolt", new int[]{5, 7});
         t.put("thunderlord", new int[]{5, 7});
         t.put("tidal", new int[]{0, 3});
