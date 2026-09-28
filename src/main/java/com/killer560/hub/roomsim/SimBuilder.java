@@ -55,8 +55,17 @@ public final class SimBuilder {
                                                                     .getString(ctx, "code"));
                                                     return 1;
                                                 })))
+                                .then(net.fabricmc.fabric.api.client.command.v2.ClientCommands
+                                        .literal("run")
+                                        .executes(ctx -> {
+                                            // No entrance door on the map yet, so nothing to hold shut - the
+                                            // countdown still runs, which is the half that is testable today.
+                                            SimRun.begin(Minecraft.getInstance(), null);
+                                            return 1;
+                                        }))
                                 .executes(ctx -> {
-                                    ModChat.send("Sim", ModChat.dim("/simbuild flat  |  /simbuild code <code>"));
+                                    ModChat.send("Sim", ModChat.dim(
+                                            "/simbuild flat  |  /simbuild code <code>  |  /simbuild run"));
                                     return 1;
                                 })));
     }

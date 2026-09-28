@@ -144,6 +144,7 @@ public final class SimWorld {
             // key-click open a door that is no longer there.
             SimDoors.clear();
             SimMobs.clear(Minecraft.getInstance());
+            SimRun.reset();
         }
     }
 }
