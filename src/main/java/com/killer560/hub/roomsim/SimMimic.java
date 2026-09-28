@@ -47,6 +47,9 @@ public final class SimMimic {
     private static BlockPos mimic;
     private static boolean found;
 
+    /** Chests already counted, so re-opening one does not count twice. */
+    private static final Set<BlockPos> OPENED = new LinkedHashSet<>();
+
     private SimMimic() {
     }
 
@@ -55,7 +58,13 @@ public final class SimMimic {
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             Minecraft client = Minecraft.getInstance();
             if (SimState.canAct(client) && player == client.player) {
-                onChestOpened(client, hit.getBlockPos());
+                net.minecraft.core.BlockPos pos = hit.getBlockPos();
+                // A chest is a secret whether or not it bites. Counted here rather than in a second hook: one
+                // place that sees a chest click is easier to keep honest than two that must agree.
+                if (level.getBlockState(pos).is(Blocks.CHEST) && OPENED.add(pos.immutable())) {
+                    SimScore.secretFound();
+                }
+                onChestOpened(client, pos);
             }
             // Never consumes the interaction: the chest should still open. This only decides whether it bites.
             return net.minecraft.world.InteractionResult.PASS;
@@ -79,6 +88,7 @@ public final class SimMimic {
     /** Forgets the map's mimic, for a new one. */
     public static void reset() {
         CANDIDATES.clear();
+        OPENED.clear();
         mimic = null;
         found = false;
     }

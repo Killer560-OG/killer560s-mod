@@ -117,6 +117,7 @@ public final class SimMobs {
             ServerLevel level = server.overworld();
             wakeFels(level);
             refreshStarred(level);
+            countDeadBats(level);
         });
     }
 
@@ -226,6 +227,28 @@ public final class SimMobs {
         level.addFreshEntity(bat);
         SPAWNED.add(bat.getUUID());
         BATS.add(bat.getUUID());
+    }
+
+    /**
+     * Counts bats that have died since the last tick, as SECRETS.
+     *
+     * <p>Polled rather than hooked on a death event: the sim owns these entities and knows exactly which ones
+     * are its bats, so checking the handful it spawned is cheaper and more certain than filtering every death
+     * in the world.
+     */
+    private static void countDeadBats(ServerLevel level) {
+        if (BATS.isEmpty()) {
+            return;
+        }
+        java.util.Iterator<UUID> it = BATS.iterator();
+        while (it.hasNext()) {
+            UUID id = it.next();
+            Entity e = level.getEntity(id);
+            if (e == null || !e.isAlive()) {
+                it.remove();
+                com.killer560.hub.roomsim.SimScore.batKilled();
+            }
+        }
     }
 
     /** Bats spawned by the sim, so their death can be counted as a secret rather than as a kill. */

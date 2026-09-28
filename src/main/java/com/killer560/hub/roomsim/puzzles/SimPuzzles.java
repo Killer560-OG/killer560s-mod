@@ -34,10 +34,12 @@ public final class SimPuzzles {
         BUILDERS.put("creeper", SimCreeperPuzzle::build);
         BUILDERS.put("quiz", SimQuizPuzzle::build);
         BUILDERS.put("tictactoe", SimTicTacToePuzzle::build);
+        BUILDERS.put("water", SimWaterPuzzle::build);
         RESETS.put("blaze", SimBlazePuzzle::reset);
         RESETS.put("creeper", SimCreeperPuzzle::reset);
         RESETS.put("quiz", SimQuizPuzzle::reset);
         RESETS.put("tictactoe", SimTicTacToePuzzle::reset);
+        RESETS.put("water", SimWaterPuzzle::reset);
     }
 
     private SimPuzzles() {
