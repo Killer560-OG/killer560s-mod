@@ -131,6 +131,9 @@ public final class SimWorld {
         if (SimState.isActive()) {
             SimState.leave();
             SimAbilities.reset();
+            // Doors belong to the map that was open. Leaving them registered would have the next session's
+            // key-click open a door that is no longer there.
+            SimDoors.clear();
         }
     }
 }
