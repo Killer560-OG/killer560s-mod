@@ -90,6 +90,23 @@ public final class SimItems {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}, alongside {@code SimAbilities.register()}. */
     public static void register() {
+        // The Dungeon Breaker is a LEFT-click mining tool on Hypixel, so UseItemCallback - which is the
+        // right-click path everything else here goes through - never fires for it. AttackBlockCallback is the
+        // left-click equivalent and needs no mixin, which matters: a mixin on the break path is a thing that
+        // breaks quietly on the next Minecraft version.
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register(
+                (player, level, hand, pos, direction) -> {
+                    Minecraft client = Minecraft.getInstance();
+                    if (!SimState.canAct(client) || player != client.player) {
+                        return net.minecraft.world.InteractionResult.PASS;
+                    }
+                    String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getItemInHand(hand));
+                    if (!"DUNGEONBREAKER".equals(id)) {
+                        return net.minecraft.world.InteractionResult.PASS;
+                    }
+                    dungeonBreak(client);
+                    return net.minecraft.world.InteractionResult.SUCCESS;
+                });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             var root = ClientCommands.literal("simitem").executes(ctx -> help());
             for (GiveItem item : GiveItem.values()) {
