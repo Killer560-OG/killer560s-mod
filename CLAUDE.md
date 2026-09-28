@@ -136,6 +136,11 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   `ASTREA` for `ASTRAEA`; and Auto Debuff's `equals` missed `STARRED_MIDAS_SWORD`. Exactly 30 items have a
   `STARRED_` form and the wither blades are not among them, so "strip STARRED_" and "treat the blades as one
   item" are separate fixes. `ItemIdentity.family()` is the one place that knows both.
+- Instant Transmission is 8 blocks on Aspect of the End, Aspect of the Void AND the Etherwarp Conduit alike.
+  What changes the range is the item's own `tuned_transmission` tag - a Transmission Tuner adds a block, four
+  maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
+  with less"). AOTV is NOT 12 by nature; assuming that got AOTE and AOTV wrongly split in the route matcher
+  once already. `EtherwarpHopper` reads the same tag for the 57-block etherwarp.
 - `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker.
   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
   `matches()`, which only a route's USE_ITEM node reaches.

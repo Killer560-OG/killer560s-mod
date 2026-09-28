@@ -212,12 +212,31 @@ public final class SimItems {
         });
     }
 
+    /**
+     * Tuners the sim's teleport items come with.
+     *
+     * <p>killer560 (2026-09-28): "Treat the default as 12 nearly no one plays with less." Instant Transmission
+     * is 8 blocks plus a block per Transmission Tuner, four maximum, so four tuners is 12 - what he plays with,
+     * and therefore what a route practised in here has to be built against. A sim item that teleported 8 would
+     * teach a route that lands four blocks short of where it does on Hypixel.
+     */
+    private static final int DEFAULT_TUNERS = 4;
+
+    /** Items where a tuner count means anything - the three that carry Instant Transmission. */
+    private static final java.util.Set<String> TUNABLE = java.util.Set.of(
+            "ASPECT_OF_THE_END", "ASPECT_OF_THE_VOID", "ETHERWARP_CONDUIT");
+
     /** The exact inverse of {@code CheatUtils.skyblockId}: a plain stack with "id" set in CUSTOM_DATA. */
     private static ItemStack build(GiveItem item) {
         ItemStack stack = new ItemStack(item.base, item.count);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(item.displayName));
         CompoundTag tag = new CompoundTag();
         tag.putString("id", item.skyblockId);
+        if (TUNABLE.contains(item.skyblockId)) {
+            // The same tag Hypixel uses and EtherwarpHopper already reads, so the sim's own range maths and the
+            // mod's real one agree without either knowing about the other.
+            tag.putInt("tuned_transmission", DEFAULT_TUNERS);
+        }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         return stack;
     }

@@ -52,11 +52,18 @@ public final class ItemIdentity {
      * than from memory. That check found {@code ClearNode}'s teleport list had been carrying "ASTREA" - one
      * letter short of {@code ASTRAEA} - so that entry had never matched anything.
      *
-     * <p><b>What is deliberately NOT in here.</b> Aspect of the End and Aspect of the Void look like a family and
-     * are not one: AOTE teleports 8 blocks and AOTV 12, so a route recorded with one lands short or long with the
-     * other. Grouping them would turn "the item is missing" - which stops the route with a message - into a route
-     * that runs and quietly walks off the path. Necron's Blade (Unrefined) is left out for the same kind of
-     * reason: it is the base item and has no Wither Impact to use.
+     * <p>Aspect of the End and Aspect of the Void ARE one family. An earlier version of this kept them apart on
+     * the belief that AOTE teleports 8 blocks and AOTV 12, which is wrong - killer560 (2026-09-28): "The tp range
+     * depends on how many transmission tuners you add but can be done to any of them. Treat the default as 12
+     * nearly no one plays with less." Both have the same 8-block Instant Transmission, and a Transmission Tuner
+     * adds a block to either of them, four maximum (wiki, checked 2026-09-28). So the range is a property of the
+     * ITEM IN YOUR HAND, not of which of the two it is, and a fully tuned one of each is the same 12 blocks. The
+     * Etherwarp Conduit joins them because {@code SimAbilities} and the etherwarp path already treat all three as
+     * one thing.
+     *
+     * <p><b>What is deliberately NOT in here.</b> Necron's Blade (Unrefined): it is the base item and has no
+     * Wither Impact to use, so handing it to a node that wants one would fail at the point of use instead of at
+     * the point of looking.
      */
     private static final Map<String, String> FAMILIES = Map.ofEntries(
             // The four wither blades: same ability, same teleport, interchangeable for a route.
@@ -64,6 +71,11 @@ public final class ItemIdentity {
             Map.entry("ASTRAEA", "WITHER_BLADE"),
             Map.entry("SCYLLA", "WITHER_BLADE"),
             Map.entry("VALKYRIE", "WITHER_BLADE"),
+            // Instant Transmission, which is the same ability at the same base range on all three. What
+            // differs is the tuner count on the individual item, which is not something an id can tell you.
+            Map.entry("ASPECT_OF_THE_END", "INSTANT_TRANSMISSION"),
+            Map.entry("ASPECT_OF_THE_VOID", "INSTANT_TRANSMISSION"),
+            Map.entry("ETHERWARP_CONDUIT", "INSTANT_TRANSMISSION"),
             // Infinileap is a Spirit Leap that is not consumed - same use, same effect.
             Map.entry("SPIRIT_LEAP", "SPIRIT_LEAP"),
             Map.entry("INFINITE_SPIRIT_LEAP", "SPIRIT_LEAP"),

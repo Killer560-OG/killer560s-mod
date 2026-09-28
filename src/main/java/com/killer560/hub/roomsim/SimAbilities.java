@@ -56,6 +56,22 @@ public final class SimAbilities {
     /** Wither Impact throws you this far along your look. */
     private static final double WITHER_IMPACT_RANGE = 10.0;
 
+    /**
+     * Instant Transmission: 8 blocks, plus one per Transmission Tuner.
+     *
+     * <p>The sim had etherwarp and Wither Impact but no plain right-click teleport at all, which left out the
+     * one most routes are actually built on. Taken from the wiki (2026-09-28): 8 blocks base on Aspect of the
+     * End, Aspect of the Void and the Etherwarp Conduit alike, and a tuner adds a block to any of them, four
+     * maximum. The tuner count is read off the item's own {@code tuned_transmission} tag the same way
+     * {@code EtherwarpHopper} reads it, rather than assumed - so a differently tuned item behaves differently
+     * here, which is the point of practising in it.
+     *
+     * <p>killer560 (2026-09-28): "Treat the default as 12 nearly no one plays with less", so the sim's own
+     * Aspect of the Void is handed out fully tuned and lands 12 blocks out unless he changes it.
+     */
+    private static final double INSTANT_TRANSMISSION_BASE = 8.0;
+    private static final int MAX_TUNERS = 4;
+
     /** Where Tactical Insertion will put you back, or null when none is planted. */
     private static Vec3 insertion;
 
@@ -75,6 +91,9 @@ public final class SimAbilities {
             }
             if (ETHERWARP_ITEMS.contains(id) && player.isShiftKeyDown()) {
                 return etherwarp(client) ? InteractionResult.SUCCESS : InteractionResult.PASS;
+            }
+            if (ETHERWARP_ITEMS.contains(id)) {
+                return instantTransmission(client, held) ? InteractionResult.SUCCESS : InteractionResult.PASS;
             }
             if (WITHER_BLADES.contains(id)) {
                 return witherImpact(client) ? InteractionResult.SUCCESS : InteractionResult.PASS;
@@ -119,15 +138,40 @@ public final class SimAbilities {
     }
 
     /**
+     * The plain right-click teleport: straight along your look, stopping at whatever is in the way.
+     *
+     * <p>Shares {@link #witherImpact}'s stop-at-the-wall handling rather than repeating it, because getting that
+     * wrong in only one of the two would be worse than not having it: a route practised against a teleport that
+     * phases through a wall is a route that does not work on Hypixel.
+     */
+    private static boolean instantTransmission(Minecraft client, ItemStack held) {
+        return dash(client, INSTANT_TRANSMISSION_BASE + tuners(held));
+    }
+
+    /** Tuners on this item, read off its own tag - capped, because Hypixel caps it at four. */
+    private static int tuners(ItemStack held) {
+        var data = held.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return 0;
+        }
+        return Math.min(MAX_TUNERS, Math.max(0, data.copyTag().getIntOr("tuned_transmission", 0)));
+    }
+
+    /**
      * Throws you up to ten blocks along your look, stopping at whatever is in the way.
      *
      * <p>Stopping short rather than passing through: on Hypixel the blades do not put you inside a wall, and a
      * sim that let you phase through one would make every route practised in it wrong.
      */
     private static boolean witherImpact(Minecraft client) {
+        return dash(client, WITHER_IMPACT_RANGE);
+    }
+
+    /** Moves you up to {@code range} along your look, stopping short of whatever blocks the way. */
+    private static boolean dash(Minecraft client, double range) {
         Vec3 eye = client.player.getEyePosition();
         Vec3 look = client.player.getViewVector(1.0f);
-        Vec3 end = eye.add(look.scale(WITHER_IMPACT_RANGE));
+        Vec3 end = eye.add(look.scale(range));
         BlockHitResult hit = client.level.clip(new ClipContext(
                 eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
         Vec3 dest = hit != null && hit.getType() == HitResult.Type.BLOCK
