@@ -70,6 +70,8 @@ public final class SimItems {
         HYPERION("HYPERION", Items.NETHERITE_SWORD, "Hyperion", 1),
         SPIRIT_SCEPTRE("SPIRIT_SCEPTRE", Items.BONE, "Spirit Sceptre", 1),
         TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
+        ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
+                "Architect's First Draft", 1),
         SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 8),
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
         TACTICAL_INSERTION("TACTICAL_INSERTION", Items.FEATHER, "Tactical Insertion", 1),
@@ -217,6 +219,7 @@ public final class SimItems {
             case "SPIRIT_SCEPTRE" -> spiritSceptre(client);
             // Terminator owns its own file: three arrows, and Salvation after three hits.
             case "TERMINATOR" -> SimTerminator.use(client);
+            case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);
             case "SUPERBOOM_TNT" -> superboomTnt(client);
             case "DUNGEONBREAKER" -> dungeonBreak(client);
             default -> false;
@@ -309,6 +312,52 @@ public final class SimItems {
         });
         ModChat.send("Sim", ModChat.text("Superboom TNT detonated"));
         return true;
+    }
+
+    /**
+     * Architect's First Draft: resets the puzzle in the room you are in, and is consumed.
+     *
+     * <p>Verified against the wiki (2026-09-28): it "can be used to reset a failed Dungeon Puzzle in the room
+     * the player is in" and is used up. The sim has no concept of which room a puzzle belongs to yet, so it
+     * resets the puzzles that are built - which is the same thing while only one is ever up, and is stated here
+     * rather than left to be discovered.
+     *
+     * <p>The point of having it at all is that a failed puzzle otherwise ends a practice run: without a reset
+     * he would have to rebuild the map to try the same puzzle twice, which is the opposite of drilling it.
+     */
+    private static boolean architectDraft(Minecraft client) {
+        if (!SimState.canAct(client)) {
+            return false;
+        }
+        com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
+        var server = client.getSingleplayerServer();
+        if (server != null) {
+            var uuid = client.player.getUUID();
+            server.execute(() -> {
+                ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
+                if (sp != null) {
+                    // Consumed, like the real one - a reset that costs nothing is not the same decision.
+                    sp.getInventory().getSelectedItem().shrink(1);
+                }
+            });
+        }
+        ModChat.send("Sim", ModChat.text("Puzzle reset"));
+        return true;
+    }
+
+    /**
+     * Builds a sim item from its Skyblock id, or an empty stack when the id is not one of ours.
+     *
+     * <p>Public so {@link SimLoadout} can rebuild a saved hotbar without duplicating how items are made - two
+     * places constructing the same item is two places to keep in step.
+     */
+    public static ItemStack build(String skyblockId) {
+        for (GiveItem item : GiveItem.values()) {
+            if (item.skyblockId.equals(skyblockId)) {
+                return build(item);
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     /** Instantly breaks the exact block you're looking at - the Dungeon Breaker's whole point ("0 ping",

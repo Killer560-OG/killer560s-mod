@@ -126,6 +126,9 @@ public final class SimWorld {
         SimScore.reset(0, 0);
         SimMimic.reset();
         SimTerminator.reset();
+        // The saved hotbar goes back every time a dungeon opens - muscle memory for a route is partly muscle
+        // memory for which slot things are in.
+        SimLoadout.onSimEntered(client);
         // The last starred mob in a wither-door room drops the key. Wiring it here keeps the two features
         // ignorant of each other: mobs know when the last star died, doors know what a key is, and neither
         // needs to import the other.
