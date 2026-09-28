@@ -77,6 +77,14 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 ).bounds(contentX + half + gap, y, rightW, 20).build());
         y += 26;
 
+        widgets.add(SettingsButtonWidget.builder(updateNotifyText(), btn -> {
+                    var ucfg = com.killer560.hub.updatecheck.UpdateCheckConfig.getInstance();
+                    ucfg.setNotifyOnStart(!ucfg.isNotifyOnStart());
+                    ucfg.save();
+                    btn.setMessage(updateNotifyText());
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         widgets.add(SettingsButtonWidget.builder(skyblockOnlyText(), btn -> {
                     com.killer560.hub.util.SkyblockGate.setEnabled(!com.killer560.hub.util.SkyblockGate.isEnabled());
                     btn.setMessage(skyblockOnlyText());
@@ -102,6 +110,11 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         y += 26;
 
         return widgets;
+    }
+
+    private static Component updateNotifyText() {
+        return Component.literal("Notify Me Of Updates: "
+                + (com.killer560.hub.updatecheck.UpdateCheckConfig.getInstance().isNotifyOnStart() ? "§aON" : "§cOFF"));
     }
 
     private static Component skyblockOnlyText() {

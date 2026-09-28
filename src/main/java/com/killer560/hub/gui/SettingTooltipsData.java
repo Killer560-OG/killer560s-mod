@@ -801,6 +801,7 @@ final class SettingTooltipsData {
         d.put("checking for updates...", "Checks GitHub for a newer release of the mod. If one exists, click again to open its download page.");
         d.put("update available", "A newer release is on GitHub. Click to open its download page.");
         d.put("check failed - click to retry", "The update check couldn't reach GitHub. Click to try again.");
+        d.put("notify me of updates", "Tells you once, the first time you join a world each launch, if a newer release of the mod exists. It is a single check, not constant background checking, and it stays quiet if it cannot reach GitHub. Turn it off to only ever check when you press Check For Updates.");
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor, where you can drag and resize every on-screen element this mod draws.");
         d.put("edit hud keybind", "Key that opens the HUD position editor from in-game. Click, then press a key; Escape unbinds it.");

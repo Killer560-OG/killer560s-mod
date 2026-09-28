@@ -14,9 +14,19 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.function.Consumer;
 
-/** Manual "Check for Updates" support - purely on-click, no background polling. Hits GitHub's
- *  {@code /releases/latest} endpoint, which naturally excludes pre-releases and drafts, so this can
- *  never point killer560 at anything but a real full release, matching his explicit requirement. */
+import com.killer560.hub.util.ModChat;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+
+/**
+ * "Check for Updates" - on click, and once per launch if the notice is on. Hits GitHub's
+ * {@code /releases/latest} endpoint, which naturally excludes pre-releases and drafts, so this can never point
+ * anyone at anything but a real full release, matching killer560's explicit requirement.
+ *
+ * <p>This was click-only, on his instruction that there be no background polling. The startup notice added
+ * 2026-09-28 is ONE check on the first world join of a session and never again, which is not polling - and it
+ * exists because the mod is going out beyond his friends, where the expensive failure is a stranger silently
+ * running a months-old jar and reporting something already fixed. {@link UpdateCheckConfig} turns it off.
+ */
 public final class UpdateCheckFeature {
 
     private static final String MOD_ID = "killer560smod";
@@ -27,6 +37,35 @@ public final class UpdateCheckFeature {
             .build();
 
     private UpdateCheckFeature() {
+    }
+
+    /** One notice per launch, not per world join - he reconnects a lot and a repeat would be nagging. */
+    private static boolean noticeShown;
+
+    /**
+     * Says once, on the first world join of the session, that a newer release exists.
+     *
+     * <p>On JOIN rather than at init because the message goes to chat, and at init there is no player to send it
+     * to; a notice that fires into nothing is the same as no notice. Failures are swallowed on purpose - someone
+     * playing offline, behind a filter, or while GitHub is down should get silence, not an error they cannot act
+     * on and did not ask for.
+     */
+    public static void registerStartupNotice() {
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            if (noticeShown || !UpdateCheckConfig.getInstance().isNotifyOnStart()) {
+                return;
+            }
+            noticeShown = true;
+            checkForUpdateAsync(result -> {
+                if (result == null || result.error() != null || !result.updateAvailable()) {
+                    return;
+                }
+                ModChat.send("Killer560's Mod",
+                        ModChat.text("Version "), ModChat.value(result.remoteVersion()),
+                        ModChat.text(" is out - you are on "), ModChat.value(result.currentVersion()),
+                        ModChat.dim(". " + result.releaseUrl()));
+            });
+        });
     }
 
     public record Result(boolean updateAvailable, String currentVersion, String remoteVersion,

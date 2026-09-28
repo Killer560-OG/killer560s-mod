@@ -92,6 +92,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // those actors.
         ClientTickEvents.START_CLIENT_TICK.register(com.killer560.hub.util.ActionGate::onClientTick);
 
+        com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();
