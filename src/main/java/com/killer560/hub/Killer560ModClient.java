@@ -97,6 +97,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // Before anything reads a config: a setting whose meaning changed between builds has to be fixed
         // before a feature loads it, not after.
         com.killer560.hub.configversion.ConfigMigrations.run();
+        com.killer560.hub.autodebuff.AutoDebuffFeature.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
@@ -342,6 +343,11 @@ public class Killer560ModClient implements ClientModInitializer {
                             });
                             return 1;
                         })
+                        // "/killer560 bugreport" - one zip with the log, the configs and the build details,
+                        // so a stranger in the Discord can be diagnosed without being talked through finding
+                        // their log folder. Credentials are stripped before anything goes in it.
+                        .then(ClientCommands.literal("bugreport")
+                                .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
                         // directly rather than going through the mod menu's Dungeon folder.
                         .then(ClientCommands.literal("leaporder")

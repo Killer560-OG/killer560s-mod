@@ -92,6 +92,27 @@ public class WitherDragonsTab extends BaseTab {
             toggle(w, contentX, y[0], half, "Send Dragon Counts", cfg::isSendConfirmation, cfg::setSendConfirmation, cfg);
             y[0] += 26;
 
+            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                // Auto Debuff lives here rather than in its own tab because everything it needs - the split, the
+                // spawn timers, the priority dragon - is this feature's data.
+                var ad = com.killer560.hub.autodebuff.AutoDebuffConfig.getInstance();
+                header(w, contentX, y, contentWidth, "Auto Debuff (M7)");
+                toggleAd(w, contentX, y[0], half, "Auto Debuff", ad::isEnabled, ad::setEnabled, ad);
+                toggleAd(w, colB, y[0], half, "Auto Pathing", ad::isAutoPathing, ad::setAutoPathing, ad);
+                y[0] += 22;
+                // Per class, because he asked to pick which he is playing. Archer and Berserker are absent on
+                // purpose - they take no part in the debuff and there is nothing to switch on for them.
+                toggleAd(w, contentX, y[0], half, "On Mage", ad::isOnMage, ad::setOnMage, ad);
+                toggleAd(w, colB, y[0], half, "On Healer", ad::isOnHealer, ad::setOnHealer, ad);
+                y[0] += 22;
+                toggleAd(w, contentX, y[0], half, "On Tank", ad::isOnTank, ad::setOnTank, ad);
+                toggleAd(w, colB, y[0], half, "Mage Melee After", ad::isMeleeAfter, ad::setMeleeAfter, ad);
+                y[0] += 22;
+                toggleAd(w, contentX, y[0], half, "Ping Compensation",
+                        ad::isPingCompensation, ad::setPingCompensation, ad);
+                y[0] += 26;
+            }
+
             header(w, contentX, y, contentWidth, "Dragon Priority");
             toggle(w, contentX, y[0], half, "Dragon Priority", cfg::isDragonPriority, cfg::setDragonPriority, cfg);
             toggle(w, colB, y[0], half, "Paul Buff", cfg::isPaulBuff, cfg::setPaulBuff, cfg);
@@ -204,6 +225,18 @@ public class WitherDragonsTab extends BaseTab {
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label, Supplier<Boolean> get,
                                Consumer<Boolean> set, WitherDragonsConfig cfg) {
+        w.add(SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
+                    boolean now = !get.get();
+                    set.accept(now);
+                    cfg.save();
+                    btn.setMessage(onOff(label, now));
+                }).bounds(x, y, width, 18).build());
+    }
+
+    /** Same as {@link #toggle} but for Auto Debuff's own config, which has its own save(). */
+    private static void toggleAd(List<AbstractWidget> w, int x, int y, int width, String label,
+                                 Supplier<Boolean> get, Consumer<Boolean> set,
+                                 com.killer560.hub.autodebuff.AutoDebuffConfig cfg) {
         w.add(SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
                     boolean now = !get.get();
                     set.accept(now);
