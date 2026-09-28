@@ -58,7 +58,9 @@ public final class RoomRecorderFeature {
         /** Dropped to limbo: the long wait before /skyblock. */
         LIMBO,
         /** Sent /skyblock, waiting before /f7. */
-        REJOIN
+        REJOIN,
+        /** Five-puzzle run: handed over to him, still capturing whatever he walks into. */
+        PAUSED
     }
 
     private static Stage stage = Stage.OFF;
@@ -115,6 +117,96 @@ public final class RoomRecorderFeature {
         say("Room Recorder ON. It will run F7 on a loop. Press any key to stop.");
     }
 
+    private static int alertTicks;
+    private static boolean resumeKeyWasDown;
+    /** Quarter of a second, his figure. */
+    private static final int TOGGLE_DEBOUNCE_TICKS = 5;
+    private static int lastToggleTick = -1000;
+    /** Ticks since the client started - only ever compared against itself, for the toggle debounce. */
+    private static int tickCounter;
+    private static boolean suppressKeyStop;
+
+    /**
+     * The rebindable key. One key, three states: running pauses, paused resumes, off starts.
+     *
+     * <p>killer560 (2026-09-28): "The key bind should pause and unpause it as one key bind along with the auto
+     * pause on puzzles." So a manual pause is the same state the five-puzzle detection puts it in - it keeps
+     * capturing whatever he walks into, and the any-key stop stays disabled, because a pause he asked for is a
+     * pause he intends to be playing through.
+     *
+     * <p>Edge-triggered so holding it does not fire repeatedly, and it always sets {@link #suppressKeyStop}:
+     * the key is by definition still down on the next tick, and the any-key stop would otherwise instantly
+     * undo whatever it just did.
+     */
+    private static void pollResumeKey(Minecraft client) {
+        int code = RoomRecorderConfig.getInstance().getResumeKeyCode();
+        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
+        boolean pressed = down && !resumeKeyWasDown;
+        resumeKeyWasDown = down;
+        if (!pressed || client.screen != null) {
+            return; // not while a screen is open: he is typing, not commanding
+        }
+        // A quarter second between toggles, on his request, so a stutter on the key cannot pause and unpause
+        // in the same breath - which would look exactly like the key not working.
+        if (tickCounter - lastToggleTick < TOGGLE_DEBOUNCE_TICKS) {
+            return;
+        }
+        lastToggleTick = tickCounter;
+        suppressKeyStop = true;
+        switch (stage) {
+            case OFF -> start();
+            case PAUSED -> resume();
+            default -> pause("key");
+        }
+    }
+
+    /**
+     * Holds the loop where it is, still capturing.
+     *
+     * <p>Same state the five-puzzle detection uses. It does not send /dh or /f7 while paused, so the run he is
+     * standing in stays open for as long as he wants to walk it.
+     */
+    public static void pause(String reason) {
+        if (stage == Stage.OFF || stage == Stage.PAUSED) {
+            return;
+        }
+        stage = Stage.PAUSED;
+        alertTicks = 0;
+        RoomLibrary.saveAll();
+        say("paused (" + reason + ") - still capturing what you walk into. Press the key again to carry on.");
+    }
+
+
+    /** Leaves a five-puzzle pause and carries on with the loop. */
+    public static void resume() {
+        if (stage != Stage.PAUSED) {
+            return;
+        }
+        RoomLibrary.saveAll();
+        stage = Stage.SCAN;
+        waitTicks = 1;
+        say("resumed");
+    }
+
+    public static boolean isPaused() {
+        return stage == Stage.PAUSED;
+    }
+
+    /** Chat plus a sound, because he will not be looking at chat while walking a run. */
+    private static void alert(Minecraft client, String message) {
+        say(message);
+        try {
+            if (client != null && client.getSoundManager() != null) {
+                client.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.6f));
+                client.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
+            }
+        } catch (Throwable ignored) {
+            // a missing sound must never stop the recorder
+        }
+    }
+
     public static void stop(String reason) {
         if (stage == Stage.OFF) {
             return;
@@ -126,11 +218,26 @@ public final class RoomRecorderFeature {
     }
 
     private static void tick(Minecraft client) {
-        if (stage == Stage.OFF || client == null) {
+        if (client == null) {
             return;
         }
+        tickCounter++;
+        pollResumeKey(client);
+        if (stage == Stage.OFF) {
+            return;
+        }
+        // Tracked in EVERY stage, paused included: the instance cooldown keeps running while he walks a
+        // five-puzzle run by hand, and resuming into a stale clock would fire /f7 straight into a refusal.
         DungeonInstanceCooldown.tick(client);
-        if (anyKeyDown(client)) {
+        // The key that started or resumed it is still held on the next tick, and the any-key stop would
+        // instantly undo it. Wait for a clean keyboard before arming that again.
+        if (suppressKeyStop) {
+            if (!anyKeyDown(client)) {
+                suppressKeyStop = false;
+            }
+        } else if (stage != Stage.PAUSED && anyKeyDown(client)) {
+            // Not while paused: the pause exists so he can walk the run himself, and stopping the moment he
+            // touches a movement key would make the feature impossible to use for the thing it is for.
             stop("key pressed");
             return;
         }
@@ -140,7 +247,9 @@ public final class RoomRecorderFeature {
         }
         if (waitTicks > 0) {
             waitTicks--;
-            if (stage == Stage.SCAN) {
+            if (stage == Stage.SCAN || stage == Stage.PAUSED) {
+                // Paused included: he is walking the run to load rooms, and that is exactly when capturing
+                // every tick matters most.
                 scan(client);
             }
             return;
@@ -171,6 +280,16 @@ public final class RoomRecorderFeature {
             case LEAVING, HUB -> {
                 stage = Stage.ENTER;
                 waitTicks = swapDelay(1);
+            }
+            case PAUSED -> {
+                scan(client);
+                // Keep reminding, quietly spaced: a single alert is easy to miss and this run is the one
+                // worth not missing.
+                alertTicks++;
+                if (alertTicks % 200 == 0) {
+                    alert(client, "still paused - /killer560 roomrecorder resume when you are done");
+                }
+                waitTicks = 20;
             }
             case LIMBO -> {
                 // Back when the client is somewhere real again, not when a number says so.
@@ -203,6 +322,14 @@ public final class RoomRecorderFeature {
                 waitTicks = seconds(65);
                 say("limbo - waiting, then rejoining when the world is back");
             }
+            return;
+        }
+        if (stage == Stage.SCAN && RoomRecorderConfig.getInstance().isPauseOnFivePuzzles()
+                && com.killer560.hub.runsummary.RunSummaryFeature.puzzleCount() == 5) {
+            stage = Stage.PAUSED;
+            alertTicks = 0;
+            alert(client, "FIVE PUZZLE RUN - paused. Walk it yourself to load rare rooms, then "
+                    + "/killer560 roomrecorder resume");
             return;
         }
         DungeonLayout layout = DungeonLayout.current();

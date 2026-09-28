@@ -100,6 +100,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
         // Dev builds only - the tool that fills the room library that ships. Compiled out of a release.
         com.killer560.hub.roomsim.RoomRecorderFeature.register();
+        com.killer560.hub.roomsim.SimMenuEntry.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
@@ -349,6 +350,13 @@ public class Killer560ModClient implements ClientModInitializer {
                         // so a stranger in the Discord can be diagnosed without being talked through finding
                         // their log folder. Credentials are stripped before anything goes in it.
                         .then(ClientCommands.literal("roomrecorder")
+                                .then(ClientCommands.literal("resume")
+                                        .executes(context -> {
+                                            if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                                                com.killer560.hub.roomsim.RoomRecorderFeature.resume();
+                                            }
+                                            return 1;
+                                        }))
                                 .then(ClientCommands.literal("rooms")
                                         .executes(context -> {
                                             if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {

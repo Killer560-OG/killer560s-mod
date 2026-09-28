@@ -107,6 +107,17 @@ public final class RunSummaryFeature {
     private static int crypts = RunRecord.UNKNOWN_INT;
     private static int deaths = RunRecord.UNKNOWN_INT;
     private static int puzzleCount = RunRecord.UNKNOWN_INT;
+
+    /**
+     * Puzzles in the current run, or {@link RunRecord#UNKNOWN_INT} before the tab list has been read.
+     *
+     * <p>Exposed for the room recorder, which pauses on five-puzzle dungeons because those are the ones most
+     * likely to hold rare rooms. Read from here rather than parsed again elsewhere: a second copy of
+     * {@code Puzzles: \((\d+)\)} is a second thing to keep in step with Hypixel's tab list.
+     */
+    public static int puzzleCount() {
+        return puzzleCount;
+    }
     private static int puzzlesFailed = RunRecord.UNKNOWN_INT;
     private static String dungeonClass = null;
     private static int partySize = RunRecord.UNKNOWN_INT;

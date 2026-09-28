@@ -31,6 +31,8 @@ public class RoomLibraryScreen extends Screen {
     private int panelW;
     private int panelH;
     private int scroll;
+    /** True while the next key press is being captured as the new pause key. */
+    private boolean listeningForKey;
 
     public RoomLibraryScreen(Screen parent) {
         super(Component.literal("Room Library"));
@@ -54,23 +56,74 @@ public class RoomLibraryScreen extends Screen {
                         RoomRecorderFeature.start();
                     }
                     rebuildWidgets();
-                }).bounds(panelX + 6, panelY + 34, 110, 18).build());
+                }).bounds(panelX + 6, panelY + 34, (panelW - 12 - 8) / 3, 18).build());
+        // Two rows, both sized from the panel rather than fixed pixels: the panel can be as narrow as 320 and a
+        // hardcoded row overflowed it, putting a button off the edge at small GUI scales.
+        var rcfg = RoomRecorderConfig.getInstance();
+        int gap = 4;
+        int third = (panelW - 12 - gap * 2) / 3;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), btn -> {
             rows = RoomLibrary.incomplete();
             scroll = 0;
-        }).bounds(panelX + 120, panelY + 34, 70, 18).build());
+        }).bounds(panelX + 6 + third + gap, panelY + 34, third, 18).build());
+        if (RoomRecorderFeature.isPaused()) {
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aResume"), btn -> {
+                RoomRecorderFeature.resume();
+                rebuildWidgets();
+            }).bounds(panelX + 6 + (third + gap) * 2, panelY + 34, third, 18).build());
+        }
+        int halfW = (panelW - 12 - gap) / 2;
+        addRenderableWidget(SettingsButtonWidget.builder(
+                Component.literal("Pause on 5-Puzzle Runs: " + (rcfg.isPauseOnFivePuzzles() ? "§aON" : "§cOFF")),
+                btn -> {
+                    rcfg.setPauseOnFivePuzzles(!rcfg.isPauseOnFivePuzzles());
+                    rcfg.save();
+                    rebuildWidgets();
+                }).bounds(panelX + 6, panelY + 56, halfW, 18).build());
+        addRenderableWidget(SettingsButtonWidget.builder(
+                Component.literal(listeningForKey ? "Press any key..." : "Pause Key: " + keyName()), btn -> {
+                    listeningForKey = true;
+                    rebuildWidgets();
+                }).bounds(panelX + 6 + halfW + gap, panelY + 56, halfW, 18).build());
     }
 
+    /** Below BOTH button rows - the second row is at panelY+56 and is 18 tall. */
     private int listY() {
-        return panelY + 58;
+        return panelY + 80;
     }
 
     private int listH() {
-        return panelH - 58 - 8;
+        return panelH - 80 - 8;
     }
 
     private int maxScroll() {
         return Math.max(0, rows.size() * ROW_H - listH());
+    }
+
+    /** The readable name of the pause key, or "Not Set". */
+    private static String keyName() {
+        int code = RoomRecorderConfig.getInstance().getResumeKeyCode();
+        if (code == com.killer560.hub.util.KeyUtil.NONE) {
+            return "Not Set";
+        }
+        String glfw = org.lwjgl.glfw.GLFW.glfwGetKeyName(code, 0);
+        return glfw == null ? ("key " + code) : glfw.toUpperCase(Locale.ROOT);
+    }
+
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent keyEvent) {
+        if (listeningForKey) {
+            listeningForKey = false;
+            // Escape means "leave it alone", the same as every other keybind button in this mod.
+            if (keyEvent.key() != org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+                RoomRecorderConfig cfg = RoomRecorderConfig.getInstance();
+                cfg.setResumeKeyCode(keyEvent.key());
+                cfg.save();
+            }
+            rebuildWidgets();
+            return true;
+        }
+        return super.keyPressed(keyEvent);
     }
 
     @Override
