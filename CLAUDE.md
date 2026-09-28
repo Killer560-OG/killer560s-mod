@@ -108,6 +108,12 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   another yaw. All eighteen real key combinations produce just five sizes: 0, 0.13377 (non-sprinting straight
   key), 0.13650 (non-sprinting diagonal), 0.17390 (W) and 0.17745 (W+A), and only `fw > 0` sprints. Searching a
   near-duplicate costs |ACTS| to the power of the press count for nothing.
+- **Align nodes are designed for 550-600 speed** on the Hypixel scale (killer560, 2026-09-28: "they should
+  still align at lower speeds but the time isn't important"). So tune and benchmark at 550-600, and treat low
+  speed as a CORRECTNESS check only - it must still land, it may take as long as it likes. This matters because
+  every push the planner prices comes off the movement-speed attribute: at 550-600 Fast Align lands 100% of
+  cases in 3 or 4 ticks, while at 100-450 it lands 89% with a tail out to 7. A constant tuned at walking pace
+  is not tuned. The sim can be set to any Hypixel speed with `TestMap.speed(550)`.
 - Align tick counts are bound by STOPPING, not by travel or by the solver. You must arrive under vanilla's 0.003
   zeroing line or the next tick slides you off the point, and friction alone takes ~8 ticks from top speed. A
   floor that charges the stop sits at 4.41 ticks against the planner's 4.52 (measured 2026-09-28), and 3 ticks

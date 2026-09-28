@@ -132,7 +132,16 @@ public final class Ap3Config {
 
     /** 0.001 = the worst case killer560 accepts ("if it can get to .001 as the worst it ever does ... good enough");
      *  the discrete planner typically lands far inside it. */
-    public static final double DEFAULT_ALIGN_TOLERANCE = 0.001;
+    /**
+     * How close an align has to land, per axis.
+     *
+     * <p>0.0001 because killer560 asked for ".0001 level of precision" and align nodes are designed for the speed
+     * he actually plays at - 550 to 600 on the Hypixel scale. Measured there (2026-09-28, 400 cases): tightening
+     * from 0.001 to this costs NOTHING - the same 3-or-4 tick spread, the same solve time - while the worst
+     * landing improves from 0.00053 to 0.00000086. The old 0.001 was quietly letting an align finish half a
+     * thousandth out because that was inside its tolerance, which is five times looser than he asked for.
+     */
+    public static final double DEFAULT_ALIGN_TOLERANCE = 0.0001;
     public static final int MIN_ALIGN_TIMEOUT = 20;
     public static final int MAX_ALIGN_TIMEOUT = 400;
     public static final int MIN_MOVE_TIMEOUT = 20;
@@ -365,7 +374,12 @@ public final class Ap3Config {
                 cfg.setLabelHeightOffset(ConfigJson.getFloat(o, "labelHeightOffset", cfg.labelHeightOffset));
                 // Saved under a new key: the previous build's "alignTolerance" was a loose 0.03 default, and aligns must now
                 // land to 3 decimals, so that old value is deliberately ignored once (killer560, 2026-09-21).
-                cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignToleranceExact", cfg.alignTolerance));
+                // Third key for this one value, and for the same reason as the second: the stored number has to be
+                // retired when what it MEANS changes. "alignToleranceExact" was written by a build whose getter
+                // ignored it, so every value saved under it (0.001 and 0.0005 were found in his own instances) is
+                // a number that never actually drove an align. Reading them now would silently put real installs
+                // above the 0.0001 the nodes are designed to hold, so they are left behind.
+                cfg.setAlignTolerance(ConfigJson.getDouble(o, "alignToleranceV3", cfg.alignTolerance));
                 // New key: Camera Planner won the 2026-09-21 Hypixel A/B (8/8 exact, no corrections) and is the default
                 // now, so whatever was cycled to during that test is dropped once.
                 cfg.alignMethod = ConfigJson.getEnum(o, "alignMethodV2", AlignMethod.class, cfg.alignMethod);
@@ -432,7 +446,7 @@ public final class Ap3Config {
             o.addProperty("labelColorArgb", labelColorArgb);
             o.addProperty("labelScale", labelScale);
             o.addProperty("labelHeightOffset", labelHeightOffset);
-            o.addProperty("alignToleranceExact", alignTolerance);
+            o.addProperty("alignToleranceV3", alignTolerance);
             o.addProperty("alignMethodV2", alignMethod.name());
             o.addProperty("alignFreezeView", alignFreezeView);
             o.addProperty("rewindTicks", rewindTicks);
@@ -644,11 +658,21 @@ public final class Ap3Config {
     public void setDefaultNodeSize(double v) { defaultNodeSize = v >= 0.75 ? 1.0 : 0.5; }
     public void setAlignFreezeView(boolean v) { alignFreezeView = v; }
 
-    /** Fixed, not a setting (killer560: "Remove the sliders as a whole and keep them fixed"). */
-    public double getAlignTolerance() { return DEFAULT_ALIGN_TOLERANCE; }
+    /**
+     * The align tolerance in force.
+     *
+     * <p>This used to return the constant and ignore the stored value, which made {@code /ap3 tolerance} a command
+     * that printed a new number, saved it, and changed nothing - every align kept running at the default. The
+     * "keep them fixed" instruction it was honouring was about removing GUI SLIDERS; it is honoured by the default
+     * above being a fixed sensible value, not by making a typed command a no-op.
+     */
+    public double getAlignTolerance() { return alignTolerance; }
     public void setAlignTolerance(double v) {
         if (Double.isFinite(v)) {
-            alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, Math.round(v * 10000.0) / 10000.0));
+            // No rounding: it used to snap to four decimals, so ANY value under 0.0001 became zero and then
+            // got clamped up to the floor - which made MIN_ALIGN_TOLERANCE unreachable and meant Caleb's
+            // 0.00000003 could not be stored even though the range advertised it.
+            alignTolerance = Math.max(MIN_ALIGN_TOLERANCE, Math.min(MAX_ALIGN_TOLERANCE, v));
         }
     }
 

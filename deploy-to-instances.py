@@ -14,6 +14,7 @@ Two rules it will not break:
 
 Usage:  python deploy-to-instances.py [--dry-run]
 """
+import hashlib
 import json
 import os
 import shutil
@@ -28,6 +29,25 @@ LEGIT = os.path.join(BUILD, "killer560smod-1.1.0-legit.jar")
 
 # The mod declares minecraft ~26.1, so only 26.1.x instances get it.
 SUPPORTED_PREFIX = "26.1"
+
+
+
+def _same(a, b):
+    """Whether two jars are byte-for-byte identical.
+
+    Compared by CONTENT, not by size. Size alone said "already up to date" and skipped a real update on
+    2026-09-28: two consecutive legit builds were both 33202108 bytes despite differing, so the Legit Test
+    instance kept running the older jar and nothing said so. That is the same size-heuristic mistake this
+    script already had once when it used size to tell the two variants apart.
+    """
+    h = []
+    for path in (a, b):
+        d = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                d.update(chunk)
+        h.append(d.digest())
+    return h[0] == h[1]
 
 
 def running_instances():
@@ -113,7 +133,7 @@ def main():
         else:
             dest = target
             deployed.append("%s (%s)" % (name, which))
-        if dest == target and os.path.exists(target)                 and os.path.getsize(target) == os.path.getsize(src):
+        if dest == target and os.path.exists(target) and _same(target, src):
             deployed.pop()
             skipped.append("%s (%s - already up to date)" % (name, which))
             continue
