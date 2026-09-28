@@ -111,7 +111,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimClass.register();
         com.killer560.hub.roomsim.SimSpeed.register();
         com.killer560.hub.roomsim.SimMimic.register();
-        com.killer560.hub.roomsim.SimRunRecorder.register();
+        com.killer560.hub.roomsim.SimScoreCommand.register();
         com.killer560.hub.roomsim.SimMimicRenderer.register();
         // The sim's puzzles. Each owns its own arena and its own failure rule; they do nothing outside the sim.
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();

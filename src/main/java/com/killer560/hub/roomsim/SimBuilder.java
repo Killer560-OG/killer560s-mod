@@ -90,6 +90,9 @@ public final class SimBuilder {
             ServerLevel level = server.overworld();
             int placed = 0;
             int missing = 0;
+            // Counted in an array so the lambda can write to it - rooms actually built, which is the score's
+            // room denominator.
+            final int[] roomsPlaced = {0};
             StringBuilder missingNames = new StringBuilder();
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
                 int nameIndex = decoded.cellRoom()[cell];
@@ -108,6 +111,7 @@ public final class SimBuilder {
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
                 placed += RoomPlacer.paste(level, room, gx, gz, decoded.cellRotation()[cell]);
+                roomsPlaced[0]++;
                 spawnMobsFor(client, level, room, gx, gz);
                 if (SimMimic.roomEligible(name)) {
                     collectChests(level, gx, gz, room);
@@ -116,6 +120,10 @@ public final class SimBuilder {
             // One mimic per MAP, chosen once everything is down. Picking while placing would give the first
             // eligible room a far better chance than the last.
             SimMimic.chooseForMap();
+            // The score's denominators come from the map that was actually built, not from a guess. Without
+            // them "explore" divides by zero and the whole score is meaningless - and a score screen that
+            // invents its own totals is worse than one that says it does not know.
+            SimScore.reset(SimMimic.candidateCount(), roomsPlaced[0]);
             final int p = placed;
             final int m = missing;
             final String names = missingNames.toString();
