@@ -541,7 +541,13 @@ public final class BreakerAuraFeature {
         // A departure from "look at how quoi parses multiple blocks and follow it exactly" - deliberately, and
         // only in the order. Which blocks are eligible, and one a tick, are still QUOI's. When he is not moving
         // there is no way to be in, and this falls back to QUOI's rule exactly.
-        int allowed = Math.max(1, Math.min(cfg.getBreakerAuraBlocksPerCycle(), available));
+        // MULTI BREAK: everything in reach this tick, or one. No number in between.
+        //
+        // killer560 (2026-09-27): "the only breaker command thing I care about is that i never am able to run
+        // into a wall while it is breaking." A per-tick cap cannot deliver that, because the number of blocks
+        // that must go before he arrives depends on his speed, and in a dungeon that is not a constant. Charges
+        // are the only real limit, so charges are the only limit applied.
+        int allowed = cfg.isBreakerAuraMultiBreak() ? available : 1;
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -575,7 +581,7 @@ public final class BreakerAuraFeature {
         //
         // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
         // down for a screen, a teleport, a world swap or a higher-priority actor. What changed is that having
-        // won the tick it may now send more than one break on it, up to Blocks Per Cycle.
+        // won the tick it may now send every break the path needs on it, when Multi Break is on.
         //
         // killer560 asked for this directly, twice, after the measurements ruled everything else out
         // (2026-09-24): "If there is 0 other bug then allow it to break multiple at once." It is worth being
@@ -696,7 +702,11 @@ public final class BreakerAuraFeature {
             // Review fix (2026-09-15): start the swept box FLOOR_CLEARANCE above the feet. At exactly feet.y a
             // player whose y is a hair under an integer (float error, soul sand/farmland, setbacks) got the
             // block they are STANDING ON counted as "in the path" and broken out from under them.
-            AABB box = new AABB(cx - 0.3, feet.y + FLOOR_CLEARANCE, cz - 0.3, cx + 0.3, feet.y + 1.8, cz + 0.3);
+            // His own half-width, plus Side Reach. At 0.0 this is the corridor that shipped: only what he
+            // would physically walk into. Wider is the only way a multi-break tick ever has a real queue
+            // to spend - a flat wall taken head-on only ever offers the next column's two blocks.
+            double half = 0.3 + DungeonExtrasConfig.getInstance().getBreakerAuraSideReach();
+            AABB box = new AABB(cx - half, feet.y + FLOOR_CLEARANCE, cz - half, cx + half, feet.y + 1.8, cz + half);
             int minX = (int) Math.floor(box.minX), maxX = (int) Math.floor(box.maxX);
             int minY = (int) Math.floor(box.minY), maxY = (int) Math.floor(box.maxY - 1.0E-4);
             int minZ = (int) Math.floor(box.minZ), maxZ = (int) Math.floor(box.maxZ);

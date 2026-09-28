@@ -49,6 +49,19 @@ public final class DungeonExtrasConfig {
     // Breaker Aura (cheat)
     private boolean breakerAuraEnabled = false;
     private double breakerAuraReach = 4.5;
+    /**
+     * How far EITHER SIDE of his own line the swept corridor looks, on top of his 0.3 half-width.
+     * <p>
+     * killer560 (2026-09-27): "allow it to break snow to the side of it as well so that way it can break way more
+     * than 1 per second if it is working right." Measured against a live anticheat the same day, Blocks Per Cycle
+     * could not exceed 2 however it was set: walking into a flat wall, the module clears it faster than he reaches
+     * it, so only the two body-height blocks of the next column are ever queued at once. Widening the corridor is
+     * the only way the higher settings have anything to work with.
+     * <p>
+     * Defaults to 0.0 - exactly the behaviour that shipped - because a wider corridor breaks blocks he was never
+     * going to walk into, and that is a visibility decision for him to make rather than one to turn on quietly.
+     */
+    private double breakerAuraSideReach = 0.0;
     /** Kept so old configs still load. killer560 (2026-09-20) asked every aura to take one target per tick, so
      *  Breaker Aura now always breaks exactly one block per cycle and this value is no longer read. */
     /**
@@ -74,7 +87,25 @@ public final class DungeonExtrasConfig {
      *  "Choose Breaker Aura Config". Always a plain {@code *.json} name {@link BreakerAuraStore#validateConfigName}
      *  accepts; anything else in a hand-edited settings file falls back to the default. */
     private String breakerAuraConfigFile = BreakerAuraStore.DEFAULT_CONFIG_NAME;
-    private int breakerAuraBlocksPerCycle = 1;
+    /**
+      * Multi Break: break everything in your path that is in reach, every tick, capped only by the charges you
+      * actually have left.
+      * <p>
+      * killer560 (2026-09-27): "make it a setting that doesnt have a slider [...] on multibreak means I should
+      * never outrun the breaker aura", and then the acceptance test in one line: "the only breaker command thing
+      * I care about is that i never am able to run into a wall while it is breaking."
+      * <p>
+      * So there is no number to tune. A per-tick cap was the wrong shape for the goal: any fixed number is either
+      * higher than the wall needs, in which case it does nothing, or lower than it needs, in which case you walk
+      * into the wall - and which of those it is changes with your speed. The only setting that can promise "never
+      * outrun it" is no cap at all.
+      * <p>
+      * Replaces the old Blocks Per Cycle slider (1-5). The old value is still read from the config once, purely so
+      * anyone who had set it above 1 gets Multi Break on rather than silently losing what they had asked for.
+      */
+     private boolean breakerAuraMultiBreak = false;
+     /** Legacy, read at load only, to migrate a Blocks Per Cycle above 1 into {@link #breakerAuraMultiBreak}. */
+     private int breakerAuraBlocksPerCycle = 1;
     /**
      * Ticks to wait between breaks, on top of the one-a-tick the gate already enforces. Zero by default now: the
      * tick is the rate limit, twenty a second, which is what QUOI does and what he asked for.
@@ -117,6 +148,7 @@ public final class DungeonExtrasConfig {
                 cfg.autoDialogueOutsideDungeons = bool(o, "autoDialogueOutsideDungeons", cfg.autoDialogueOutsideDungeons);
                 cfg.breakerAuraEnabled = bool(o, "breakerAuraEnabled", cfg.breakerAuraEnabled);
                 cfg.breakerAuraReach = clamp((float) (o.has("breakerAuraReach") ? o.get("breakerAuraReach").getAsDouble() : cfg.breakerAuraReach), 1f, 5.5f);
+                cfg.breakerAuraSideReach = clamp((float) (o.has("breakerAuraSideReach") ? o.get("breakerAuraSideReach").getAsDouble() : cfg.breakerAuraSideReach), 0f, 2f);
                 cfg.breakerAuraSelectedOnly = bool(o, "breakerAuraSelectedOnly", cfg.breakerAuraSelectedOnly);
                 cfg.breakerAuraSelectKey = o.has("breakerAuraSelectKey")
                         ? o.get("breakerAuraSelectKey").getAsInt() : cfg.breakerAuraSelectKey;
@@ -129,6 +161,12 @@ public final class DungeonExtrasConfig {
                     }
                 }
                 cfg.breakerAuraBlocksPerCycle = clampInt(o.has("breakerAuraBlocksPerCycle") ? o.get("breakerAuraBlocksPerCycle").getAsInt() : cfg.breakerAuraBlocksPerCycle, 1, 20);
+                // Migration: a config written before Multi Break existed carries only the old slider. Above 1 meant
+                // "send more than one a tick", so that is what it becomes. A config that already knows about Multi
+                // Break is authoritative and the old number is ignored.
+                cfg.breakerAuraMultiBreak = o.has("breakerAuraMultiBreak")
+                        ? o.get("breakerAuraMultiBreak").getAsBoolean()
+                        : cfg.breakerAuraBlocksPerCycle > 1;
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
@@ -161,6 +199,8 @@ public final class DungeonExtrasConfig {
             o.addProperty("autoDialogueOutsideDungeons", autoDialogueOutsideDungeons);
             o.addProperty("breakerAuraEnabled", breakerAuraEnabled);
             o.addProperty("breakerAuraReach", breakerAuraReach);
+            o.addProperty("breakerAuraSideReach", breakerAuraSideReach);
+            o.addProperty("breakerAuraMultiBreak", breakerAuraMultiBreak);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
             o.addProperty("breakerAuraSelectedOnly", breakerAuraSelectedOnly);
             o.addProperty("breakerAuraSelectKey", breakerAuraSelectKey);
@@ -243,10 +283,14 @@ public final class DungeonExtrasConfig {
     public void setBreakerAuraEnabled(boolean v) { breakerAuraEnabled = v; }
     public double getBreakerAuraReach() { return breakerAuraReach; }
     public void setBreakerAuraReach(double v) { breakerAuraReach = clamp((float) v, 1f, 5.5f); }
-    public int getBreakerAuraBlocksPerCycle() { return breakerAuraBlocksPerCycle; }
-    public void setBreakerAuraBlocksPerCycle(int v) { breakerAuraBlocksPerCycle = clampInt(v, 1, 5); }
+    public double getBreakerAuraSideReach() { return breakerAuraSideReach; }
+    public void setBreakerAuraSideReach(double v) { breakerAuraSideReach = clamp((float) v, 0f, 2f); }
+    public boolean isBreakerAuraMultiBreak() { return breakerAuraMultiBreak; }
+    public void setBreakerAuraMultiBreak(boolean v) { breakerAuraMultiBreak = v; }
     public int getBreakerAuraCooldownTicks() { return breakerAuraCooldownTicks; }
-    public void setBreakerAuraCooldownTicks(int v) { breakerAuraCooldownTicks = clampInt(v, 1, 20); }
+    // Lower bound is 0, matching the field's own default and what the loader accepts. It clamped to 1, so once
+    // this setter had been called there was no way back to the shipped value of "no cooldown".
+    public void setBreakerAuraCooldownTicks(int v) { breakerAuraCooldownTicks = clampInt(v, 0, 20); }
     public boolean isBreakerAuraZeroPing() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraZeroPing; }
     public boolean isBreakerAuraZeroPingRaw() { return breakerAuraZeroPing; }
     public void setBreakerAuraZeroPing(boolean v) { breakerAuraZeroPing = v; }

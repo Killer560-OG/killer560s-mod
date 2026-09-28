@@ -20,10 +20,25 @@ public final class DungeonExtrasFeature {
         // folder has no file yet) before anything ticks, and loads whichever config is active.
         BreakerAuraStore.getInstance();
         BreakerAuraCommands.register();
+        // BREAKER AURA TICKS AT THE *START* OF THE TICK, and that is not a detail.
+        //
+        // A vanilla client decides what to dig before it reports where it is: the dig packet goes out earlier
+        // in Minecraft#tick than the player's own movement packet. Fabric's END_CLIENT_TICK runs after that
+        // movement packet, so automation hung there sends its break in an order no vanilla client produces.
+        //
+        // Measured 2026-09-27 against a live GrimAC on a dedicated server, driving the aura through a wall it
+        // one-shots: on END_CLIENT_TICK, 808 "Post - player digging" violations, one per break, at the shipped
+        // default of one block per cycle. Identical run on START_CLIENT_TICK: zero. Same wall, same rate, same
+        // number of blocks broken. A by-hand control holding the attack key in the same arena was clean both
+        // times, so the ordering was the whole difference.
+        //
+        // Priority is unaffected: ActionGate resolves by what asked on the PREVIOUS tick precisely so it does
+        // not depend on which feature's handler happens to run first, and it observes on START_CLIENT_TICK
+        // itself, registered above this line and therefore before it.
+        ClientTickEvents.START_CLIENT_TICK.register(BreakerAuraFeature::onClientTick);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             MageBeamFeature.onClientTick(client);
             AutoDialogueFeature.onClientTick(client);
-            BreakerAuraFeature.onClientTick(client);
             ManualBreakMonitor.onClientTick(client);
             ForeignBreakerProbe.onClientTick(client);
         });
