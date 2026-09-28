@@ -1162,7 +1162,11 @@ public final class Ap3Executor {
         boolean fast = node.type == Ap3Node.Type.FAST_ALIGN;
         // Fast Align always steers the real (camera) yaw - its planner snaps it freely, one delta per tick.
         Ap3Config.AlignMethod method = fast ? Ap3Config.AlignMethod.CAMERA : cfg.getAlignMethod();
-        alignTolerance = fast ? Math.min(cfg.getAlignTolerance(), 0.001) : cfg.getAlignTolerance();
+        // Fast Align used to be clamped to 0.001 here no matter what the setting said, which made the setting a
+        // lie for this node type and put a hard floor 30,000x looser than the .00000003 killer560 is aiming at
+        // (2026-09-28). The configured value is now honoured; Ap3Config.MIN_ALIGN_TOLERANCE is the only floor,
+        // and the default is unchanged, so nothing moves unless he tightens it himself.
+        alignTolerance = cfg.getAlignTolerance();
         if (step == Step.PREP) {
             double dist = Math.sqrt(ex * ex + ez * ez);
             if (dist > ALIGN_REACH + node.length / 2.0 + node.width / 2.0) {

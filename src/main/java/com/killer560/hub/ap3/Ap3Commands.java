@@ -239,6 +239,39 @@ public final class Ap3Commands {
                                                             StringArgumentType.getString(context, "mods"));
                                                     return 1;
                                                 }))))
+                        // ALIGN TOLERANCE, which had no control at all until now - the setting existed and
+                        // persisted, but the only way to change it was editing the config file by hand, which
+                        // is why nobody ever questioned its 0.0001 floor (2026-09-28).
+                        //
+                        // A command rather than a slider on purpose. The range now spans 1e-8 to 0.1, seven
+                        // orders of magnitude, and a linear slider would bury everything tighter than 0.001 in
+                        // the first one percent of its travel. Typing the number is the only usable control at
+                        // that spread, and typing is what he wants anyway: Caleb's align lands within
+                        // .00000003 and that is a figure you enter, not one you drag to.
+                        .then(ClientCommands.literal("tolerance")
+                                .then(ClientCommands.argument("v", DoubleArgumentType.doubleArg(
+                                        Ap3Config.MIN_ALIGN_TOLERANCE, Ap3Config.MAX_ALIGN_TOLERANCE))
+                                        .executes(context -> {
+                                            double v = DoubleArgumentType.getDouble(context, "v");
+                                            Ap3Config cfg = Ap3Config.getInstance();
+                                            cfg.setAlignTolerance(v);
+                                            cfg.save();
+                                            ModChat.send("AP3", ModChat.text("Align tolerance set to "),
+                                                    ModChat.value(String.format(java.util.Locale.US, "%.9f",
+                                                            cfg.getAlignTolerance())),
+                                                    ModChat.text(" blocks. Tighter costs ticks - the planner "
+                                                            + "takes the first schedule that lands."));
+                                            return 1;
+                                        }))
+                                .executes(context -> {
+                                    ModChat.send("AP3", ModChat.text("Align tolerance is "),
+                                            ModChat.value(String.format(java.util.Locale.US, "%.9f",
+                                                    Ap3Config.getInstance().getAlignTolerance())),
+                                            ModChat.text(" blocks (range "
+                                                    + Ap3Config.MIN_ALIGN_TOLERANCE + " to "
+                                                    + Ap3Config.MAX_ALIGN_TOLERANCE + ")."));
+                                    return 1;
+                                }))
                         .then(ClientCommands.literal("list").executes(context -> exec(Action.LIST)))
                         .then(ClientCommands.literal("undo").executes(context -> exec(Action.UNDO)))
                         .then(ClientCommands.literal("clear").executes(context -> exec(Action.CLEAR)))

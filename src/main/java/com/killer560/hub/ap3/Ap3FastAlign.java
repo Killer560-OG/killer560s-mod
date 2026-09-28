@@ -584,7 +584,11 @@ final class Ap3FastAlign {
             float[] fy = toFloat(y);
             evaluate(s, m, acts, fy, total, r);
             double cost = dot(r, r);
-            for (int it = 0; it < 14 && cost > 1e-14; it++) {
+            // Cost is the sum of SQUARED residuals, so a 1e-14 floor stopped the search at about 1e-7 of
+            // position error - an order of magnitude short of the .00000003 being aimed at, and it would have
+            // stopped there however tight the tolerance asked for (2026-09-28). The iteration cap is what
+            // bounds the work, not this, so the floor goes down to where it stops being the limit.
+            for (int it = 0; it < 14 && cost > 1e-20; it++) {
                 // numeric Jacobian (4 x k)
                 double[][] jac = new double[4][k];
                 for (int j = 0; j < k; j++) {

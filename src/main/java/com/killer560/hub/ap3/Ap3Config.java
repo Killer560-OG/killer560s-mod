@@ -85,7 +85,18 @@ public final class Ap3Config {
     /** "Align Tolerance": how far from the point, per axis, an align may settle. 0.0005 = the coordinate reads the
      *  exact 3-decimal value (killer560: "down to 3 decimals of perfect"). AP3 lands there by movement input alone -
      *  it never writes position, Hypixel lags that back - solving vanilla's own step exactly ({@code Ap3AlignMath}). */
-    public static final double MIN_ALIGN_TOLERANCE = 0.0001;
+    /**
+     * The tightest align tolerance that can be asked for.
+     *
+     * <p>Lowered from 0.0001 to 1e-8 (2026-09-28). killer560: Caleb's align lands within .00000003 and he wants
+     * ours as close to that as possible - and at the old floor that number could not even be typed in, so the
+     * question of whether the solver could reach it was never actually asked.
+     *
+     * <p>The DEFAULT is deliberately left at 0.001. A tighter tolerance is harder to satisfy in few ticks, and
+     * the planner takes the first schedule that lands, so tightening trades ticks for precision. That is his
+     * trade to make per node, not one to impose.
+     */
+    public static final double MIN_ALIGN_TOLERANCE = 1e-8;
     public static final double MAX_ALIGN_TOLERANCE = 0.1;
     /**
      * How an ALIGN lands (killer560, 2026-09-21, after Hypixel corrected every tap made under a sent yaw that differed
