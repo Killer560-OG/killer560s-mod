@@ -41,6 +41,9 @@ public final class RoomRecorderFeature {
     /** Fractional wobble applied to every wait. Enough to break the metronome, not enough to break the loop. */
     private static final double VARIANCE = 0.12;
 
+    /** Most extra time added on top of a server swap's one-second floor. */
+    private static final double SWAP_EXTRA_MAX_SECONDS = 1.5;
+
     private enum Stage {
         /** Not running. */
         OFF,
@@ -126,6 +129,7 @@ public final class RoomRecorderFeature {
         if (stage == Stage.OFF || client == null) {
             return;
         }
+        DungeonInstanceCooldown.tick(client);
         if (anyKeyDown(client)) {
             stop("key pressed");
             return;
@@ -143,6 +147,13 @@ public final class RoomRecorderFeature {
         }
         switch (stage) {
             case ENTER, REJOIN -> {
+                // Hypixel allows a new instance every 30s. Waiting for the real cooldown rather than counting
+                // to 30 ourselves means it never fires early into a refusal, and never sits idle after one.
+                long cd = DungeonInstanceCooldown.instanceCooldownRemainingMs();
+                if (cd > 0) {
+                    waitTicks = (int) Math.max(1, cd / 50);
+                    return;
+                }
                 ServerCommands.toServer("f7");
                 roomsAddedThisRun = 0;
                 stage = Stage.SCAN;
@@ -155,16 +166,22 @@ public final class RoomRecorderFeature {
                 say(String.format(Locale.US, "run %d: %d new column(s), %d/%d rooms complete",
                         runs, roomsAddedThisRun, RoomLibrary.completeCount(), RoomLibrary.roomCount()));
                 stage = Stage.LEAVING;
-                waitTicks = seconds(7);
+                waitTicks = swapDelay(7);
             }
             case LEAVING, HUB -> {
                 stage = Stage.ENTER;
-                waitTicks = seconds(1);
+                waitTicks = swapDelay(1);
             }
             case LIMBO -> {
+                // Back when the client is somewhere real again, not when a number says so.
+                if (!DungeonInstanceCooldown.inPlayableWorld(client)
+                        || DungeonInstanceCooldown.looksLikeLimbo(client)) {
+                    waitTicks = seconds(2);
+                    return;
+                }
                 ServerCommands.toServer("skyblock");
                 stage = Stage.REJOIN;
-                waitTicks = seconds(5);
+                waitTicks = swapDelay(5);
             }
             default -> { }
         }
@@ -179,10 +196,12 @@ public final class RoomRecorderFeature {
     private static void scan(Minecraft client) {
         if (!DungeonState.isInDungeon()) {
             // Not in a run when we expected to be: most often limbo, which has its own long recovery.
-            if (client.level != null && client.player != null && client.player.position().y < 0) {
+            if (DungeonInstanceCooldown.looksLikeLimbo(client)) {
                 stage = Stage.LIMBO;
+                // 65s is his figure and stays as the floor; the stage itself then waits for a real world
+                // rather than assuming 65 was long enough.
                 waitTicks = seconds(65);
-                say("limbo - waiting 65s then rejoining");
+                say("limbo - waiting, then rejoining when the world is back");
             }
             return;
         }
@@ -223,6 +242,19 @@ public final class RoomRecorderFeature {
     private static int seconds(double s) {
         double wobble = 1.0 + (JITTER.nextDouble() * 2.0 - 1.0) * VARIANCE;
         return Math.max(1, (int) Math.round(s * 20.0 * wobble));
+    }
+
+    /**
+     * Ticks before a command that changes server, on killer560's rule (2026-09-28): "a minimum of 1s delay with
+     * a random amount added after as well".
+     *
+     * <p>A floor plus an addition rather than a percentage of the wait, because the risk being managed is not
+     * the length of the pause but how tightly a swap follows whatever came before it. A percentage of a short
+     * wait is still a short wait; a floor is a floor.
+     */
+    private static int swapDelay(double baseSeconds) {
+        double base = Math.max(1.0, baseSeconds);
+        return Math.max(20, (int) Math.round((base + JITTER.nextDouble() * SWAP_EXTRA_MAX_SECONDS) * 20.0));
     }
 
     private static void say(String message) {

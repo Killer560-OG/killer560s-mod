@@ -85,7 +85,27 @@ public final class CheatUtils {
             return false;
         }
         String ip = server.ip.toLowerCase(Locale.US);
-        return ip.contains("hypixel.net") || ip.contains("p3sim.net");
+        return ip.contains("hypixel.net") || ip.contains("p3sim.net") || localTestServerOverride(ip);
+    }
+
+    /**
+     * Whether a LOCAL server should be treated as a dungeon server.
+     *
+     * <p>killer560 (2026-09-28) wants to join the GrimAC test server himself and exercise dungeon features
+     * against a real anticheat, the way the automated harness already does. Everything dungeon-shaped in this mod
+     * gates on the address containing hypixel.net or p3sim.net, and there was no override anywhere - so on
+     * localhost every solver, timer and automation silently switched itself off, which reads exactly like the
+     * features being broken.
+     *
+     * <p>Only ever localhost, and only in a DEV build. It is deliberately not a setting: nothing a normal user
+     * runs should be able to convince this mod that an arbitrary server is Hypixel, and the gametest harness
+     * already has its own way of labelling the address it dials.
+     */
+    private static boolean localTestServerOverride(String ip) {
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+            return false;
+        }
+        return ip.startsWith("localhost") || ip.startsWith("127.0.0.1") || ip.startsWith("[::1]");
     }
 
     /** Hypixel Skyblock item id from CUSTOM_DATA "id" (same technique as DungeonBreakerFeature), or null. */
