@@ -349,6 +349,16 @@ public class Killer560ModClient implements ClientModInitializer {
                         // so a stranger in the Discord can be diagnosed without being talked through finding
                         // their log folder. Credentials are stripped before anything goes in it.
                         .then(ClientCommands.literal("roomrecorder")
+                                .then(ClientCommands.literal("rooms")
+                                        .executes(context -> {
+                                            if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                                                return 1;
+                                            }
+                                            Minecraft mc = Minecraft.getInstance();
+                                            mc.execute(() -> mc.setScreenAndShow(
+                                                    new com.killer560.hub.roomsim.RoomLibraryScreen(mc.screen)));
+                                            return 1;
+                                        }))
                                 .executes(context -> {
                                     if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
                                         return 1;
