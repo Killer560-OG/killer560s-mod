@@ -79,6 +79,18 @@ public final class RoomLibrary {
         /** Which columns have been read at least once - this is what completeness means. */
         public boolean[] seenColumn;
 
+        /**
+         * Where starred mobs stood, in ROOM-LOCAL coordinates.
+         *
+         * <p>Captured as well as the blocks because a sim room without its mobs is scenery. Hypixel puts the
+         * "star" name on a separate invisible armour stand rather than on the mob, so these are the stands'
+         * positions - which is where the mob is, and is the only thing visible from the client.
+         *
+         * <p>Deduplicated by position rather than accumulated: a room walked through five times would otherwise
+         * hold five copies of the same spawn, and the sim would spawn five mobs where Hypixel spawns one.
+         */
+        public final java.util.Set<String> mobSpawns = new java.util.LinkedHashSet<>();
+
         Room(String name, int sizeX, int sizeZ) {
             this.name = name;
             this.sizeX = sizeX;
@@ -313,6 +325,22 @@ public final class RoomLibrary {
         return added;
     }
 
+    /**
+     * Records a starred mob spawn, in room-local coordinates.
+     *
+     * <p>Rounded to whole blocks on purpose. Hypixel spawns a mob at a spot, not at a float, and keeping the
+     * fractional position would make two sightings of the same spawn look like two different ones and defeat
+     * the deduplication entirely.
+     */
+    public static synchronized void recordMobSpawn(String roomName, int localX, int localY, int localZ,
+                                                   String kind) {
+        Room r = ROOMS.get(roomName);
+        if (r == null) {
+            return;
+        }
+        r.mobSpawns.add(localX + "," + localY + "," + localZ + "," + kind);
+    }
+
     public static synchronized void saveAll() {
         try {
             Files.createDirectories(DIR);
@@ -351,6 +379,11 @@ public final class RoomLibrary {
             seen.add(b);
         }
         o.add("seenColumn", seen);
+        JsonArray spawns = new JsonArray();
+        for (String m : r.mobSpawns) {
+            spawns.add(m);
+        }
+        o.add("mobSpawns", spawns);
         return o;
     }
 
@@ -368,6 +401,12 @@ public final class RoomLibrary {
         JsonArray seen = o.getAsJsonArray("seenColumn");
         for (int i = 0; i < seen.size() && i < r.seenColumn.length; i++) {
             r.seenColumn[i] = seen.get(i).getAsBoolean();
+        }
+        if (o.has("mobSpawns")) {
+            JsonArray spawns = o.getAsJsonArray("mobSpawns");
+            for (int i = 0; i < spawns.size(); i++) {
+                r.mobSpawns.add(spawns.get(i).getAsString());
+            }
         }
         return r;
     }

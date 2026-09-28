@@ -341,7 +341,58 @@ public final class RoomRecorderFeature {
             return;
         }
         roomsAddedThisRun += RoomLibrary.capture(client.level, layout, room);
+        captureMobSpawns(client, layout, room);
+        // Measures what the sim is currently guessing at - the wither door's real size and shape. Costs nothing
+        // when there is no unlogged door loaded, and never touches the room library.
+        SimMeasure.scanDoors(client);
     }
+
+    /**
+     * Records where starred mobs are standing, in room-local coordinates.
+     *
+     * <p>Hypixel puts the star on a separate invisible armour stand rather than on the mob itself, which is the
+     * same thing Mob ESP already relies on - so these are the stands, and the stand is where the mob is. Without
+     * this a rebuilt room is scenery: the geometry is right and nothing lives in it.
+     */
+    private static void captureMobSpawns(Minecraft client, DungeonLayout layout, int room) {
+        String name = layout.name(room);
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        int[] tiles = layout.tiles(room);
+        if (tiles == null || tiles.length == 0) {
+            return;
+        }
+        int minGx = Integer.MAX_VALUE;
+        int minGz = Integer.MAX_VALUE;
+        for (int idx : tiles) {
+            minGx = Math.min(minGx, idx % DungeonLayout.GRID);
+            minGz = Math.min(minGz, idx / DungeonLayout.GRID);
+        }
+        var origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
+        int worldX0 = origin.getX() - RoomLibrary.TILE / 2;
+        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
+
+        for (var entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand)) {
+                continue;
+            }
+            var custom = stand.getCustomName();
+            if (custom == null || !custom.getString().contains(STAR)) {
+                continue;
+            }
+            int lx = (int) Math.floor(stand.getX()) - worldX0;
+            int ly = (int) Math.floor(stand.getY());
+            int lz = (int) Math.floor(stand.getZ()) - worldZ0;
+            if (lx < 0 || lz < 0 || ly < RoomLibrary.MIN_Y || ly > RoomLibrary.MAX_Y) {
+                continue; // a stand belonging to a neighbouring room, or out of the slice we keep
+            }
+            RoomLibrary.recordMobSpawn(name, lx, ly, lz, "STARRED");
+        }
+    }
+
+    /** Hypixel's starred-mob marker, the same character Mob ESP matches on. */
+    private static final String STAR = "✯";
 
     /**
      * Whether the user has touched the keyboard.
