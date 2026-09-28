@@ -84,7 +84,7 @@ public class CroesusTab extends BaseTab {
                     }).bounds(contentX, y, half, 18).build());
             widgets.add(SettingsButtonWidget.builder(Component.literal("Open Profit Tracker"), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreenAndShow(new CroesusTrackerScreen(client.screen, CroesusTrackerScreen.View.TOTALS));
+                        client.setScreenAndShow(new CroesusTrackerScreen(client.screen, CroesusTrackerScreen.View.OVERVIEW));
                     }).bounds(contentX + half + GAP, y, half, 18).build());
             y += 20;
             widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount()

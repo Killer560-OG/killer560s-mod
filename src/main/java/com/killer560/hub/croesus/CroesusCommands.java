@@ -30,13 +30,13 @@ public final class CroesusCommands {
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("croesus")
-                        .executes(context -> open(CroesusTrackerScreen.View.TOTALS))
+                        .executes(context -> open(CroesusTrackerScreen.View.OVERVIEW))
                         .then(ClientCommands.literal("items")
-                                .executes(context -> open(CroesusTrackerScreen.View.ITEMS)))
+                                .executes(context -> open(CroesusTrackerScreen.View.LOOT_LOG)))
                         .then(ClientCommands.literal("drops")
-                                .executes(context -> open(CroesusTrackerScreen.View.DROPS)))
+                                .executes(context -> open(CroesusTrackerScreen.View.BY_FLOOR)))
                         .then(ClientCommands.literal("profit")
-                                .executes(context -> open(CroesusTrackerScreen.View.TOTALS))
+                                .executes(context -> open(CroesusTrackerScreen.View.OVERVIEW))
                                 .then(ClientCommands.literal("session")
                                         .executes(context -> print("Session", CroesusProfitLog.session())))
                                 .then(ClientCommands.literal("all")
