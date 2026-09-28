@@ -101,6 +101,41 @@ public final class AutoClearUtils {
         return best;
     }
 
+    /**
+     * The nearest door out of the room you are standing in, whatever room that is.
+     *
+     * <p>Written so "walk out of the room when it is done" needs no per-room coordinate. The alternative was a
+     * hand-measured exit for every puzzle room, and there are only two of those in {@link #ROOM_OVERRIDES} -
+     * inventing the rest is how an automation walks you into a wall. The live map already knows where the doors
+     * are: {@link DungeonMapPathfinder#getDoorPos} derives an approach position from the layout, and it stands
+     * two blocks back on the reachable side when the door is locked, so a wither door does not become a
+     * face-plant.
+     *
+     * <p>Unlike {@link #getLockedDoor} this does not care what kind of door it is, only that it is the closest
+     * one - the goal is to be out of the room, not to open anything.
+     *
+     * @return a door index, or -1 when the map has no usable layout yet (do not walk on a -1)
+     */
+    public static int nearestDoorOut(DungeonLayout layout) {
+        int room = layout.currentRoom();
+        if (room < 0) {
+            return -1;
+        }
+        int best = -1;
+        int bestDist = Integer.MAX_VALUE;
+        for (int idx = 0; idx < 121; idx++) {
+            if (!layout.isDoor(idx) || layout.doorType(idx) == DungeonLayout.DOOR_NONE) {
+                continue;
+            }
+            int d = DungeonMapPathfinder.getDistToDoor(layout, room, idx, true);
+            if (d < bestDist) {
+                bestDist = d;
+                best = idx;
+            }
+        }
+        return best;
+    }
+
     /** QUOI {@code pathToDoor}. @return false when pathing couldn't start. */
     public static boolean pathToDoor(DungeonLayout layout, int door, boolean faceOnArrival) {
         if (!canPath(layout)) {

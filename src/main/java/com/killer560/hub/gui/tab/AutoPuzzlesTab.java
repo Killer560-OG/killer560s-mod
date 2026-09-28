@@ -45,6 +45,10 @@ public class AutoPuzzlesTab extends BaseTab {
         }
 
         y = header(widgets, contentX, y, contentWidth, "Chat Puzzles");
+        y = toggle(widgets, contentX, y, contentWidth, "Auto Puzzle Pathing",
+                cfg.isAutoPuzzlePathingEnabled(),
+                () -> cfg.setAutoPuzzlePathingEnabled(!cfg.isAutoPuzzlePathingEnabled()), cfg,
+                requestRebuild);
         y = toggle(widgets, contentX, y, contentWidth, "Auto Quiz", cfg.isAutoQuizEnabled(),
                 () -> cfg.setAutoQuizEnabled(!cfg.isAutoQuizEnabled()), cfg, requestRebuild);
         if (cfg.isAutoQuizEnabled()) {
@@ -116,6 +120,13 @@ public class AutoPuzzlesTab extends BaseTab {
                         cfg.setTicTacToeAuraChestEnabled(!cfg.getTicTacToeAuraChestEnabledRaw());
                         cfg.save();
                         btn.setMessage(onOff("Aura Chest", cfg.getTicTacToeAuraChestEnabledRaw()));
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += ROW_STEP;
+            widgets.add(SettingsButtonWidget.builder(onOff("Walk Out When Done",
+                    cfg.getTicTacToeWalkOutEnabledRaw()), btn -> {
+                        cfg.setTicTacToeWalkOutEnabled(!cfg.getTicTacToeWalkOutEnabledRaw());
+                        cfg.save();
+                        btn.setMessage(onOff("Walk Out When Done", cfg.getTicTacToeWalkOutEnabledRaw()));
                     }).bounds(contentX, y, contentWidth, 20).build());
             y += ROW_STEP;
         }

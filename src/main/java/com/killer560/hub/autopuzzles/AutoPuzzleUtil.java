@@ -427,6 +427,11 @@ public final class AutoPuzzleUtil {
      * again on a later tick rather than treat false as a failure.
      */
     public static boolean pathIfMapOn(BlockPos target, Runnable onArrive) {
+        // The one place the section-wide walking toggle is enforced. Every auto-puzzle walk comes through here,
+        // so there is exactly one check rather than one per puzzle - and no way to add a new walk that forgets it.
+        if (!AutoPuzzlesConfig.getInstance().isAutoPuzzlePathingEnabled()) {
+            return false;
+        }
         if (!com.killer560.hub.livemap.LiveMapConfig.getInstance().isInteractiveMapEnabled()) {
             return false;
         }

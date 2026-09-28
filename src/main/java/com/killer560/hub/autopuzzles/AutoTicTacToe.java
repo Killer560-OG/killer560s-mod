@@ -2,6 +2,8 @@ package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
+import com.killer560.hub.livemap.DungeonLayout;
+import com.killer560.hub.livemap.autoclear.DungeonMapPathfinder;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
 import com.killer560.hub.puzzlesolvers.TicTacToeSolverConfig;
@@ -65,6 +67,8 @@ final class AutoTicTacToe {
     private static boolean wasInRoom = false;
     private static boolean roomSpotAttempted = false;
     private static int totalPlaced = 0;
+    /** One attempt per room visit, so a board that reads as finished for many ticks queues a single walk. */
+    private static boolean walkOutAttempted = false;
 
     private enum ChestStage { NONE, WALK_TO_CHEST, AURA, WALK_BACK, DONE }
 
@@ -115,6 +119,33 @@ final class AutoTicTacToe {
         }
         if (ClearExecutor.isBusy()) {
             return; // walking (room spot, or our own chest trip's ClearExecutor leg)
+        }
+        // WALK OUT WHEN THE BOARD IS DONE.
+        //
+        // "Finished" is read as: the solver has no move left, and we have placed at least one this visit. The
+        // second half matters - the solver also has no move while it cannot read the board at all, on the tick
+        // you walk in, and walking out then would leave the puzzle untouched.
+        //
+        // The destination is not a hand-measured exit. There is no verified doorway coordinate for this room
+        // and inventing one walks you into a wall, which is why this was left unbuilt until now;
+        // AutoClearUtils.nearestDoorOut asks the live map for the closest door to the room you are in, which
+        // works in any room and stands two blocks back from a locked one. Off by default all the same: it is
+        // the only auto-puzzle walk whose target nobody has stood on and checked.
+        if (best == null && totalPlaced > 0 && !walkOutAttempted && cfg.isTicTacToeWalkOutEnabled()) {
+            DungeonLayout layout = DungeonLayout.current();
+            int door = layout == null ? -1 : AutoClearUtils.nearestDoorOut(layout);
+            if (door >= 0) {
+                BlockPos exit = DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), door);
+                if (exit != null && AutoPuzzleUtil.pathIfMapOn(exit, null)) {
+                    walkOutAttempted = true;
+                    LOGGER.info("[AutoPuzzles] TicTacToe: board done after {} placement(s) - walking out to "
+                            + "door {} at {}", totalPlaced, door, exit);
+                }
+            } else if (layout != null) {
+                // Said once, not every tick: no layout means the map has nothing to path with.
+                walkOutAttempted = true;
+                LOGGER.info("[AutoPuzzles] TicTacToe: board done but the map has no door to walk out to");
+            }
         }
         if (!GUARD.solverOn(TicTacToeSolverConfig.getInstance().isEnabled()) || best == null || !GUARD.fresh()) {
             return;
@@ -266,6 +297,7 @@ final class AutoTicTacToe {
         lastClickMs = 0L;
         roomSpotAttempted = false;
         totalPlaced = 0;
+        walkOutAttempted = false;
         chestStage = ChestStage.NONE;
         chestReal = null;
         chestLegStartMs = 0L;
