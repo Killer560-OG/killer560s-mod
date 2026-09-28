@@ -129,12 +129,28 @@ public final class AutoPuzzleUtil {
         float pitch = Mth.clamp(targetPitch, -90f, 90f);
         player.setYRot(yaw);
         player.setXRot(pitch);
-        try {
-            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-        } finally {
-            player.setYRot(realYaw);
-            player.setXRot(realPitch);
-        }
+        // THE ROTATION IS LEFT WHERE THE SHOT NEEDED IT, ON PURPOSE. Do not "restore" it here.
+        //
+        // This used to set the aim, fire, and put the rotation back in a finally, so the aim existed only
+        // inside the use packet and the client never reported looking there. Measured 2026-09-27 against a
+        // live GrimAC: that drew a BadPacketsJ on EVERY shot - ten flags for ten shots - while a control
+        // firing the same item with no rotation at all was clean, and yaw alone and pitch alone each
+        // reproduced it. So it was the unreported aim, not the use, and not the size of the angle.
+        //
+        // Leaving it means the next tick's own sendPosition reports the rotation the ordinary way, which is
+        // what {@link #rotateCamera} has always done for Auto Teleport Maze - and that measured clean even at
+        // an instant 150 degrees, so a large turn in a movement packet is not itself the problem. Same run
+        // after this change: zero flags at 12 and at 150 degrees.
+        //
+        // One thing NOT tried, because it was measured and it was worse: sending a rotation packet first and
+        // then restoring. That produced 7-8 Post violations plus about 36 other flags, because the server then
+        // hears a turn, a use, and the turn snapping back inside one tick. AutoI4Feature#fireNoRotate is built
+        // that way and is worth re-measuring for the same reason.
+        //
+        // The visible cost is that he ends a shot facing the target. His CAMERA does not move - ViewFreeze
+        // above holds the view - but his body does, so a walk started right after a shot sets off in the new
+        // direction. That is the same trade rotateCamera already makes.
+        client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         return true;
     }
 
