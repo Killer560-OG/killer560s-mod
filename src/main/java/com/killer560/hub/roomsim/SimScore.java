@@ -23,12 +23,22 @@ import java.util.Locale;
  */
 public final class SimScore {
 
-    /** Hypixel's crypt requirement for the Bonus five points. */
-    private static final int CRYPTS_FOR_BONUS = 5;
-
-    /** Bonus points per component, as Catacombs awards them. */
-    private static final int CRYPT_BONUS = 5;
+    /**
+     * Bonus scoring, taken from the wiki (checked 2026-09-28) rather than remembered.
+     *
+     * <p>ONE point per crypt, capped at five - not five points for reaching five, which is what this file had
+     * first and is wrong in the way that matters: it made four crypts worth nothing when they are worth four,
+     * so a run that was one crypt short of 300 would have read as five short.
+     *
+     * <p>The mimic is two, on Floor VI and above. Paul's EZPZ perk is ten more when the mayor is Paul, which is
+     * a real part of whether a run makes 300 and is therefore a switch rather than something left out.
+     */
+    private static final int MAX_CRYPT_BONUS = 5;
     private static final int MIMIC_BONUS = 2;
+    private static final int PAUL_EZPZ_BONUS = 10;
+
+    /** Whether Paul's EZPZ is on for this run. */
+    private static boolean paulEzpz;
 
     private static int cryptsBlown;
     private static boolean mimicKilled;
@@ -38,6 +48,16 @@ public final class SimScore {
     private static int roomsCleared;
     private static int roomsTotal;
     private static int deaths;
+
+    /**
+     * The share of a floor's secrets needed for full marks.
+     *
+     * <p>Catacombs does not ask for every secret - the explore score divides by a REQUIREMENT that is a
+     * fraction of the total, which is why a 300 run does not mean a 100% secret run. Floor VII's is 100%;
+     * lower floors ask for less. Kept as a constant here because the sim only builds M7 today, and it is named
+     * so the day another floor matters it is one number to change rather than a formula to rediscover.
+     */
+    private static final double SECRET_REQUIREMENT = 1.0;
 
     private SimScore() {
     }
@@ -52,6 +72,7 @@ public final class SimScore {
         roomsCleared = 0;
         secretsTotal = mapSecretTotal;
         roomsTotal = mapRoomTotal;
+        paulEzpz = false;
     }
 
     public static void cryptBlown() {
@@ -92,12 +113,17 @@ public final class SimScore {
         if (roomsTotal <= 0) {
             return 0;
         }
+        // The real formula (wiki, 2026-09-28): floor(60 x clearedRooms/totalRooms) + floor(40 x secretsFound /
+        // (secretRequirement x totalSecrets)), the secret half capped at 40. Floored SEPARATELY, because
+        // flooring the sum instead quietly hands back a point that Hypixel does not.
         double roomPart = Math.min(1.0, (double) roomsCleared / roomsTotal);
-        double secretPart = secretsTotal <= 0 ? 1.0 : Math.min(1.0, (double) secretsFound / secretsTotal);
-        // Catacombs weights completion more heavily than secrets; 60/40 is the split this uses and is stated
-        // here rather than buried, because it is the one number in this file taken from community tables
-        // rather than from something observable.
-        return (int) Math.floor(60 * roomPart + 40 * secretPart);
+        int roomScore = (int) Math.floor(60 * roomPart);
+        int secretScore = 40;
+        if (secretsTotal > 0) {
+            double needed = SECRET_REQUIREMENT * secretsTotal;
+            secretScore = (int) Math.floor(40 * Math.min(1.0, secretsFound / needed));
+        }
+        return roomScore + Math.min(40, secretScore);
     }
 
     /** Skill: 100 less the death penalty. Puzzle fails are not modelled - the sim does not fail puzzles yet. */
@@ -105,16 +131,25 @@ public final class SimScore {
         return Math.max(0, 100 - deaths * 2);
     }
 
-    /** Bonus: crypts and the mimic. The part a 300 run lives or dies on. */
+    /** Bonus: one per crypt to a maximum of five, two for the mimic, ten for Paul. */
     public static int bonusScore() {
-        int bonus = 0;
-        if (cryptsBlown >= CRYPTS_FOR_BONUS) {
-            bonus += CRYPT_BONUS;
-        }
+        int bonus = Math.min(cryptsBlown, MAX_CRYPT_BONUS);
         if (mimicKilled) {
             bonus += MIMIC_BONUS;
         }
+        if (paulEzpz) {
+            bonus += PAUL_EZPZ_BONUS;
+        }
         return bonus;
+    }
+
+    /** Paul's EZPZ, which is worth ten and decides plenty of 300 runs on its own. */
+    public static void setPaulEzpz(boolean on) {
+        paulEzpz = on;
+    }
+
+    public static boolean isPaulEzpz() {
+        return paulEzpz;
     }
 
     public static int cryptsBlown() {
@@ -137,8 +172,8 @@ public final class SimScore {
      */
     public static String whatIsMissing() {
         StringBuilder sb = new StringBuilder();
-        if (cryptsBlown < CRYPTS_FOR_BONUS) {
-            sb.append(CRYPTS_FOR_BONUS - cryptsBlown).append(" more crypt(s)");
+        if (cryptsBlown < MAX_CRYPT_BONUS) {
+            sb.append(MAX_CRYPT_BONUS - cryptsBlown).append(" more crypt(s)");
         }
         if (!mimicKilled) {
             sb.append(sb.isEmpty() ? "" : ", ").append("the mimic");
@@ -156,7 +191,7 @@ public final class SimScore {
     public static String summary() {
         return String.format(Locale.US,
                 "skill %d  explore %d  bonus %d   crypts %d/%d  mimic %s  bats %d  secrets %d/%d",
-                skillScore(), exploreScore(), bonusScore(), cryptsBlown, CRYPTS_FOR_BONUS,
+                skillScore(), exploreScore(), bonusScore(), cryptsBlown, MAX_CRYPT_BONUS,
                 mimicKilled ? "yes" : "no", batsKilled, secretsFound, secretsTotal);
     }
 

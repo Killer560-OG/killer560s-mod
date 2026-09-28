@@ -247,6 +247,14 @@ public final class SimItems {
      *  real item is thrown/placed and detonates after a short fuse, but the sim has no need to model the
      *  fuse itself, so this fires the moment {@code tryUse} is called for it - whatever event wires that up
      *  decides what "using" a Superboom means in the sim. */
+    /**
+     * Superboom.
+     *
+     * <p>A superboom that opens a CRYPT counts toward the score: five crypts are worth the bonus five points,
+     * and that is most of the gap between a 299 and a 300. Recognised by the blocks it breaks rather than by
+     * where it was used - a crypt is a cracked-stone-brick wall, and reading the wall is the only thing the sim
+     * can know for certain.
+     */
     private static boolean superboomTnt(Minecraft client) {
         BlockHitResult hit = lookedAtBlock(client);
         if (hit == null) {
@@ -267,8 +275,19 @@ public final class SimItems {
             ServerLevel level = (ServerLevel) sp.level();
             BlockPos min = center.offset(-SUPERBOOM_RADIUS, -SUPERBOOM_RADIUS, -SUPERBOOM_RADIUS);
             BlockPos max = center.offset(SUPERBOOM_RADIUS, SUPERBOOM_RADIUS, SUPERBOOM_RADIUS);
+            // A crypt is a cracked-stone-brick wall, so a superboom that removes one is a crypt opened. Counted
+            // ONCE per detonation rather than per block: a crypt wall is several blocks and counting each of
+            // them would hand out the bonus five points from a single charge.
+            boolean openedCrypt = false;
             for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-                breakIfBreakable(level, pos.immutable(), sp);
+                BlockPos here = pos.immutable();
+                if (level.getBlockState(here).is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)) {
+                    openedCrypt = true;
+                }
+                breakIfBreakable(level, here, sp);
+            }
+            if (openedCrypt) {
+                SimScore.cryptBlown();
             }
         });
         ModChat.send("Sim", ModChat.text("Superboom TNT detonated"));

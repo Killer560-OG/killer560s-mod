@@ -52,7 +52,7 @@ public final class SimMobs {
     private static final double ONE_HP = 1.0;
 
     public enum Kind {
-        ZOMBIE, SKELETON, FEL
+        ZOMBIE, SKELETON, FEL, BAT
     }
 
     /** Every entity this class has spawned (dummies and woken Fels), for {@link #clear}. */
@@ -142,6 +142,10 @@ public final class SimMobs {
                 case ZOMBIE -> spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred);
                 case SKELETON -> spawnDummy(level, new SimSkeleton(EntityType.SKELETON, level), pos, starred);
                 case FEL -> spawnFel(level, pos, starred);
+                // A bat is a SECRET on Hypixel, not a mob worth points - which is exactly why it is here: a
+                // 300 run needs every secret, and a player who cannot tell a bat secret from a chest secret
+                // cannot tell why their count is short.
+                case BAT -> spawnBat(level, pos);
             }
         });
     }
@@ -203,6 +207,29 @@ public final class SimMobs {
 
     /** Star tag per starred mob, so the tag can be removed when the mob is. */
     private static final java.util.Map<UUID, UUID> STAR_TAGS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * A bat secret. Counted toward secrets when it dies, the way Hypixel counts it.
+     *
+     * <p>It does not move either, for the same reason nothing else does: a bat that flies away is a secret
+     * whose difficulty depends on where it drifted rather than on the route.
+     */
+    private static void spawnBat(ServerLevel level, BlockPos pos) {
+        var bat = new net.minecraft.world.entity.ambient.Bat(
+                net.minecraft.world.entity.EntityType.BAT, level);
+        bat.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
+        bat.setHealth((float) ONE_HP);
+        bat.setNoAi(true);
+        bat.setNoGravity(true);
+        bat.setPersistenceRequired();
+        bat.setPos(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
+        level.addFreshEntity(bat);
+        SPAWNED.add(bat.getUUID());
+        BATS.add(bat.getUUID());
+    }
+
+    /** Bats spawned by the sim, so their death can be counted as a secret rather than as a kill. */
+    private static final java.util.Set<UUID> BATS = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /**
      * Places a dormant Fel: an invisible, no-base-plate armour stand wearing a skull, so only the skull shows -

@@ -1,0 +1,282 @@
+package com.killer560.hub.roomsim.puzzles;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.killer560.hub.roomsim.SimState;
+import com.killer560.hub.util.ModChat;
+
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.level.block.Blocks;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * A three-chest "which one is right" puzzle for the dungeon sim: three chests, one labelled answer is correct,
+ * clicking it solves the puzzle and clicking either other one fails it. Built fresh at a given origin, not read
+ * off a real captured room.
+ *
+ * <p><b>What is real here and what is not.</b> The QUESTION and its CORRECT answer are the real Hypixel dungeon
+ * "Quiz" trivia database this mod already ships and already uses for the live solver -
+ * {@code data/killer560smod/puzzles/quiz-answers.json}, loaded the exact same way
+ * {@code com.killer560.hub.puzzlesolvers.QuizSolverFeature#loadAnswers} does, and never edited or invented here.
+ *
+ * <p>The other two chests' WRONG answer text is not real: that file only ever stored the correct answer(s) for
+ * each question (it is how the live solver tells you which of Oruo's three floor spots to stand on - it does not
+ * need to know the wrong options, since it never has to display them). Hypixel generates the two wrong options
+ * itself and nothing in this codebase records what they were. So the wrong options here are other REAL questions'
+ * REAL correct answers, borrowed out of context and relabelled as distractors for a question they don't belong
+ * to - a generated puzzle using real data as raw material, not a reproduction of a real trivia round. Said plainly
+ * rather than dressed up as authentic.
+ *
+ * <p>This also means the puzzle only covers "Quiz"-shaped trivia (one question, three lettered answers). The
+ * real "Three Weirdos" puzzle is a different mechanic entirely - three NPCs each giving one of several fixed
+ * truth/lie dialogue lines that the real solver ({@code WeirdosSolverFeature}) pattern-matches to work out who is
+ * lying - and nothing in {@code quiz-answers.json} or elsewhere in the bundled data encodes that dialogue, so it
+ * is not reproduced here. Three clickable chests was kept as the shared shape between the two real puzzles, since
+ * the task asked for either.
+ *
+ * <p>Gated on {@link SimState#canAct} throughout; every block and entity change happens on the integrated server
+ * thread via {@code server.execute(...)} - same rule as the rest of {@code roomsim}.
+ */
+public final class SimQuizPuzzle {
+
+    private static final Map<String, List<String>> ANSWERS = loadAnswers();
+    /** Chests spaced 3 blocks apart along X at the given origin - not real Hypixel Quiz floor coordinates (those
+     *  are room-relative capture data this sim has no captured room to anchor to; see QuizSolverFeature's own
+     *  (20,70,6)/(15,70,9)/(10,70,6) for what the real layout actually is). */
+    private static final int[] OFFSET_X = {0, 3, 6};
+
+    private static final Map<BlockPos, Integer> CELL_INDEX = new ConcurrentHashMap<>();
+    private static volatile BlockPos[] chestPos = null;
+    private static final List<UUID> LABELS = new ArrayList<>();
+
+    private static volatile boolean built = false;
+    private static volatile boolean complete = false;
+    private static volatile int correctIndex = -1;
+
+    private SimQuizPuzzle() {
+    }
+
+    /** Hooks the chest click. Call once from {@code Killer560ModClient#onInitializeClient}, alongside the other
+     *  {@code roomsim} {@code register()} calls (wiring not done here - see this file's restriction on which
+     *  files it may touch). */
+    public static void register() {
+        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            Minecraft client = Minecraft.getInstance();
+            // level.isClientSide(): this event also fires server-side; without this check a real click would
+            // resolve twice - the same double-fire guard SimDoors uses for its own UseBlockCallback. Returning
+            // a non-PASS result here also stops the vanilla chest screen from opening, which is the point.
+            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) {
+                return InteractionResult.PASS;
+            }
+            Integer index = CELL_INDEX.get(hitResult.getBlockPos());
+            if (index == null || !built || complete) {
+                return InteractionResult.PASS;
+            }
+            onChestClick(client, index);
+            return InteractionResult.SUCCESS;
+        });
+    }
+
+    /** Builds a fresh question: picks a random real question from {@code quiz-answers.json}, places its real
+     *  correct answer and two borrowed-real-answer distractors on three chests in random order, and announces
+     *  the question and lettered options in chat the way the real Oruo statue line does. */
+    public static void build(Minecraft client, BlockPos origin) {
+        if (!SimState.canAct(client) || origin == null) {
+            return;
+        }
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        reset();
+        if (ANSWERS.isEmpty()) {
+            ModChat.send("Sim", ModChat.bad("No quiz data bundled - quiz-answers.json did not load."));
+            return;
+        }
+        List<String> questions = new ArrayList<>(ANSWERS.keySet());
+        String question = questions.get(ThreadLocalRandom.current().nextInt(questions.size()));
+        List<String> correctAnswers = ANSWERS.get(question);
+        String correct = correctAnswers.get(ThreadLocalRandom.current().nextInt(correctAnswers.size()));
+
+        String[] text = new String[3];
+        int correctSlot = ThreadLocalRandom.current().nextInt(3);
+        text[correctSlot] = correct;
+        List<String> wrongPool = distractorPool(question, correct, questions);
+        int wrongTaken = 0;
+        for (int i = 0; i < 3 && wrongTaken < wrongPool.size(); i++) {
+            if (i == correctSlot) {
+                continue;
+            }
+            text[i] = wrongPool.get(wrongTaken++);
+        }
+        // If the file somehow had too few other questions to borrow two distractors from, fall back to a
+        // clearly-fake placeholder rather than leaving a chest unlabelled.
+        for (int i = 0; i < 3; i++) {
+            if (text[i] == null) {
+                text[i] = "(no other answer available)";
+            }
+        }
+        correctIndex = correctSlot;
+
+        BlockPos[] positions = new BlockPos[3];
+        for (int i = 0; i < 3; i++) {
+            positions[i] = origin.offset(OFFSET_X[i], 0, 0).immutable();
+        }
+        chestPos = positions;
+        for (int i = 0; i < 3; i++) {
+            CELL_INDEX.put(positions[i], i);
+        }
+        built = true;
+        complete = false;
+
+        char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'}; // circled a/b/c - same glyphs QuizSolverFeature matches
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            for (int i = 0; i < 3; i++) {
+                level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
+                LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
+            }
+        });
+
+        StringBuilder options = new StringBuilder();
+        for (int i = 0; i < 3; i++) {
+            options.append(letters[i]).append(' ').append(text[i]).append("  ");
+        }
+        ModChat.send("Sim", ModChat.text(question));
+        ModChat.send("Sim", ModChat.dim(options.toString().trim()));
+    }
+
+    /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
+     *  answer text (so a question that happens to share wording with another isn't its own distractor). */
+    private static List<String> distractorPool(String question, String correct, List<String> allQuestions) {
+        List<String> candidates = new ArrayList<>(allQuestions);
+        candidates.remove(question);
+        java.util.Collections.shuffle(candidates, ThreadLocalRandom.current());
+        Set<String> seen = new HashSet<>();
+        seen.add(correct);
+        List<String> picked = new ArrayList<>(2);
+        for (String q : candidates) {
+            if (picked.size() >= 2) {
+                break;
+            }
+            List<String> answers = ANSWERS.get(q);
+            if (answers == null || answers.isEmpty()) {
+                continue;
+            }
+            String answer = answers.get(0);
+            if (seen.add(answer)) {
+                picked.add(answer);
+            }
+        }
+        return picked;
+    }
+
+    /** Whether the correct chest has been opened. False before a question is answered, and false again after a
+     *  wrong click resets the board. */
+    public static boolean isComplete() {
+        return complete;
+    }
+
+    /** Clears the chests and labels if a session is still open, and always clears the in-memory state. Safe to
+     *  call with nothing built, and safe to call after the sim session has already ended. */
+    public static void reset() {
+        BlockPos[] positions = chestPos;
+        List<UUID> labels = List.copyOf(LABELS);
+        Minecraft client = Minecraft.getInstance();
+        if ((positions != null || !labels.isEmpty()) && SimState.canAct(client)) {
+            MinecraftServer server = client.getSingleplayerServer();
+            if (server != null) {
+                server.execute(() -> {
+                    ServerLevel level = server.overworld();
+                    if (positions != null) {
+                        for (BlockPos pos : positions) {
+                            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                        }
+                    }
+                    for (UUID id : labels) {
+                        Entity entity = level.getEntity(id);
+                        if (entity != null) {
+                            entity.discard();
+                        }
+                    }
+                });
+            }
+        }
+        chestPos = null;
+        CELL_INDEX.clear();
+        LABELS.clear();
+        built = false;
+        complete = false;
+        correctIndex = -1;
+    }
+
+    private static void onChestClick(Minecraft client, int index) {
+        MinecraftServer server = client.getSingleplayerServer();
+        if (index == correctIndex) {
+            complete = true;
+            if (server != null) {
+                BlockPos pos = chestPos[index];
+                server.execute(() -> server.overworld().setBlockAndUpdate(pos, Blocks.EMERALD_BLOCK.defaultBlockState()));
+            }
+            ModChat.send("Sim", ModChat.good("Correct!"));
+        } else {
+            // Wrong chest: fail like the real puzzle, not a silent pass - reset so the next attempt is a new
+            // question rather than the same one with the wrong option already given away.
+            ModChat.send("Sim", ModChat.bad("Wrong chest - resetting. Build again to retry."));
+            reset();
+        }
+    }
+
+    /** An invisible, no-gravity armour stand carrying the option's letter and text as its name - the same
+     *  "invisible stand, visible name" tag SimMobs uses for star mobs, and WeirdosSolverFeature reads for real
+     *  NPCs. Floats just above the chest so it doesn't block the click raycast onto the chest itself. */
+    private static UUID spawnLabel(ServerLevel level, BlockPos chestPos, String text) {
+        ArmorStand stand = new ArmorStand(level, chestPos.getX() + 0.5, chestPos.getY() + 1.3, chestPos.getZ() + 0.5);
+        stand.setInvisible(true);
+        stand.setNoGravity(true);
+        stand.setNoBasePlate(true);
+        stand.setInvulnerable(true);
+        stand.setCustomName(Component.literal(text));
+        stand.setCustomNameVisible(true);
+        level.addFreshEntity(stand);
+        return stand.getUUID();
+    }
+
+    private static Map<String, List<String>> loadAnswers() {
+        try (InputStream stream = SimQuizPuzzle.class.getClassLoader()
+                .getResourceAsStream("data/killer560smod/puzzles/quiz-answers.json")) {
+            if (stream == null) {
+                return Map.of();
+            }
+            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                Type type = new TypeToken<Map<String, List<String>>>() {
+                }.getType();
+                Map<String, List<String>> parsed = new Gson().fromJson(reader, type);
+                return parsed != null ? parsed : Map.of();
+            }
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+}
