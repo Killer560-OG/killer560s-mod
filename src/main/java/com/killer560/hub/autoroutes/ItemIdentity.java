@@ -7,6 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,7 +38,57 @@ public final class ItemIdentity {
             "suspicious", "sweet", "titanic", "toil", "treacherous", "unpleasant", "unreal", "vivid", "warped",
             "waxed", "wise", "withered", "zealous", "zooming");
 
+    /**
+     * Items a {@code USE_ITEM} node treats as the same item, id to family key.
+     *
+     * <p>killer560 (2026-09-28): "if I set up a used item node with a Hyperion it should work with any of the
+     * other wither blade variant [...] whether they are starred or not starred [...] and if they're recombed or
+     * not." Stars and reforges were already handled - neither changes the Skyblock id, and the {@code STARRED_}
+     * prefix is stripped above. Recombobulating changes an item's RARITY, not its id and not its name text, so it
+     * was never a factor. The FOUR WITHER BLADES were the real gap: they are four separate ids, so a node
+     * recorded with a Hyperion simply never matched an Astraea.
+     *
+     * <p>Every id here was read from Hypixel's own item list (api.hypixel.net item resource, 2026-09-28) rather
+     * than from memory. That check found {@code ClearNode}'s teleport list had been carrying "ASTREA" - one
+     * letter short of {@code ASTRAEA} - so that entry had never matched anything.
+     *
+     * <p><b>What is deliberately NOT in here.</b> Aspect of the End and Aspect of the Void look like a family and
+     * are not one: AOTE teleports 8 blocks and AOTV 12, so a route recorded with one lands short or long with the
+     * other. Grouping them would turn "the item is missing" - which stops the route with a message - into a route
+     * that runs and quietly walks off the path. Necron's Blade (Unrefined) is left out for the same kind of
+     * reason: it is the base item and has no Wither Impact to use.
+     */
+    private static final Map<String, String> FAMILIES = Map.ofEntries(
+            // The four wither blades: same ability, same teleport, interchangeable for a route.
+            Map.entry("HYPERION", "WITHER_BLADE"),
+            Map.entry("ASTRAEA", "WITHER_BLADE"),
+            Map.entry("SCYLLA", "WITHER_BLADE"),
+            Map.entry("VALKYRIE", "WITHER_BLADE"),
+            // Infinileap is a Spirit Leap that is not consumed - same use, same effect.
+            Map.entry("SPIRIT_LEAP", "SPIRIT_LEAP"),
+            Map.entry("INFINITE_SPIRIT_LEAP", "SPIRIT_LEAP"),
+            // Infinityboom TNT is the same for Superboom.
+            Map.entry("SUPERBOOM_TNT", "SUPERBOOM"),
+            Map.entry("INFINITE_SUPERBOOM_TNT", "SUPERBOOM"));
+
     private ItemIdentity() {
+    }
+
+    /**
+     * The family key for an identity, or the identity itself when it is in no family.
+     *
+     * <p>Takes the same {@code STARRED_} strip {@link #of} does, because this is also handed identities that came
+     * out of a SAVED ROUTE - a node recorded before that strip existed can still be holding {@code STARRED_}.
+     */
+    public static String family(String identity) {
+        if (identity == null) {
+            return null;
+        }
+        String key = identity.trim().toUpperCase(Locale.ROOT);
+        if (key.startsWith("STARRED_")) {
+            key = key.substring("STARRED_".length());
+        }
+        return FAMILIES.getOrDefault(key, key);
     }
 
     /** @return the identity string, or null for an empty stack. */
@@ -75,12 +126,29 @@ public final class ItemIdentity {
         return s.isEmpty() ? null : s.toUpperCase(Locale.ROOT).replace(' ', '_');
     }
 
+    /**
+     * Whether a stack satisfies a node's recorded item.
+     *
+     * <p>The family widening lives HERE and not in {@link #of}, which looks like the tidier place and is the wrong
+     * one. {@code of} is also what Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker key
+     * on, and collapsing the wither blades there would make "sell my Hyperion" sell an Astraea and make the
+     * sorter treat two different swords as one. Only a route's USE_ITEM node wants the loose match, and
+     * {@code matches} is only reached from {@link #findHotbarSlot}, so this is the whole blast radius.
+     */
     public static boolean matches(ItemStack stack, String identity) {
         if (identity == null) {
             return false;
         }
         String id = of(stack);
-        return id != null && id.equalsIgnoreCase(identity);
+        if (id == null) {
+            return false;
+        }
+        if (id.equalsIgnoreCase(identity)) {
+            return true;
+        }
+        String a = family(id);
+        String b = family(identity);
+        return a != null && a.equals(b);
     }
 
     /** Hotbar slot (0-8) holding an item with this identity, or -1. */

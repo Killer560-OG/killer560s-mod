@@ -131,7 +131,7 @@ public abstract class ClearNode {
 
         @Override
         public boolean execute(double[] playerPos) {
-            return doTeleport(playerPos, new String[]{"HYPERION", "ASTREA", "SCYLLA", "VALKYRIE"}, false, 1.0,
+            return doTeleport(playerPos, new String[]{"HYPERION", "ASTRAEA", "SCYLLA", "VALKYRIE"}, false, 1.0,
                     from -> TeleportUtils.getTeleportPos(from, yaw, pitch, 10.0));
         }
     }

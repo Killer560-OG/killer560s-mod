@@ -68,7 +68,12 @@ public final class SimItems {
     private enum GiveItem {
         ASPECT_OF_THE_VOID("ASPECT_OF_THE_VOID", Items.GOLDEN_SWORD, "Aspect of the Void", 1),
         HYPERION("HYPERION", Items.NETHERITE_SWORD, "Hyperion", 1),
-        SPIRIT_SCEPTRE("SPIRIT_SCEPTRE", Items.BONE, "Spirit Sceptre", 1),
+        // BAT_WAND, not SPIRIT_SCEPTRE. That is the id Hypixel actually puts in the item's
+        // ExtraAttributes (checked against api.hypixel.net's item list, 2026-09-28 - the starred one is
+        // STARRED_BAT_WAND). It matters beyond being tidy: a route or an item node recorded on Hypixel
+        // stores BAT_WAND, so a sim sceptre carrying the wrong id would not have matched it and the
+        // route would have stopped with "SPIRIT_SCEPTRE is not in the hotbar".
+        SPIRIT_SCEPTRE("BAT_WAND", Items.BONE, "Spirit Sceptre", 1),
         TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
         ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
                 "Architect's First Draft", 1),
@@ -240,7 +245,7 @@ public final class SimItems {
                     // server exactly like any other singleplayer world - there is nothing Hypixel-specific
                     // to reimplement, so this is a deliberate no-op rather than a missing handler.
                     false;
-            case "SPIRIT_SCEPTRE" -> spiritSceptre(client);
+            case "BAT_WAND" -> spiritSceptre(client);
             // Terminator owns its own file: three arrows, and Salvation after three hits.
             case "TERMINATOR" -> SimTerminator.use(client);
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);

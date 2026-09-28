@@ -1,5 +1,7 @@
 package com.killer560.hub.autodebuff;
 
+import com.killer560.hub.autoroutes.ItemIdentity;
+
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.autopuzzles.AutoPuzzleUtil;
 import com.killer560.hub.dungeonclass.DungeonClass;
@@ -58,10 +60,26 @@ public final class AutoDebuffFeature {
     // with Wither Essence and both carry the Flay ability, so either tier is accepted.
     private static final String LAST_BREATH = "LAST_BREATH";
     private static final String ICE_SPRAY_WAND = "ICE_SPRAY_WAND";
-    private static final String STARRED_ICE_SPRAY_WAND = "STARRED_ICE_SPRAY_WAND";
     private static final String[] FLAY_ITEMS = {"FLAMING_FLAY", "SOUL_WHIP"};
 
-    /** Mage's melee preference, best first. The two Hyperions share an id and differ only by ultimate enchant. */
+    /**
+     * Every id here is compared through {@link ItemIdentity#family}, never with {@code equals}.
+     *
+     * <p>killer560 (2026-09-28): "if I set up a used item node with a Hyperion it should work with any of the
+     * other wither blade variant [...] whether they are starred or not starred [...] and if they're recombed or
+     * not. Same with the spirit sceptre and any other items that might get used." That applies here as much as
+     * to a route node - this feature also picks an item out of the hotbar by id.
+     *
+     * <p>Two real gaps this closes, both checked against Hypixel's own item list (2026-09-28) rather than
+     * assumed. A fragged Midas' Sword is {@code STARRED_MIDAS_SWORD}, so the plain {@code equals} never found
+     * one; same for {@code STARRED_LAST_BREATH}. And the mage swap only ever looked for a Hyperion, so an
+     * Astraea, Scylla or Valkyrie with the same ultimate enchant was ignored. The wither blades turn out to have
+     * no starred form at all - only 30 items do - so the star handling and the family handling are genuinely two
+     * separate fixes rather than one.
+     *
+     * <p>Recombobulating was never a factor: it changes an item's rarity, not its id.
+     */
+    /** Mage's melee preference, best first. The Hyperions differ only by ultimate enchant. */
     private static final String DARK_CLAYMORE = "DARK_CLAYMORE";
     private static final String MIDAS_SWORD = "MIDAS_SWORD";
     private static final String HYPERION = "HYPERION";
@@ -135,13 +153,13 @@ public final class AutoDebuffFeature {
         Vec3 aim = dragon.box.getCenter();
 
         if (ticks > cfg.getStopLastBreathTicks()) {
-            if (holdItem(player, LAST_BREATH::equals)) {
+            if (holdItem(player, id -> sameItem(id, LAST_BREATH))) {
                 aimAndUse(client, player, aim);
             }
             return;
         }
         // Stopped firing: get the wand in hand now, so the spray can go out on the spawn tick itself.
-        holdItem(player, id -> ICE_SPRAY_WAND.equals(id) || STARRED_ICE_SPRAY_WAND.equals(id));
+        holdItem(player, id -> sameItem(id, ICE_SPRAY_WAND));
 
         if (!jumpedThisSpawn && ticks <= cfg.getJumpLeadTicks() && player.onGround()) {
             pressJump(client);
@@ -211,23 +229,33 @@ public final class AutoDebuffFeature {
     }
 
     private static boolean isFlayItem(String id) {
-        for (String f : FLAY_ITEMS) {
-            if (f.equals(id)) {
+        for (String flay : FLAY_ITEMS) {
+            if (sameItem(id, flay)) {
                 return true;
             }
         }
         return false;
     }
 
+    /** Whether a held item's id is the wanted item, allowing for stars, fragging and variant blades. */
+    private static boolean sameItem(String heldId, String wanted) {
+        if (heldId == null) {
+            return false;
+        }
+        String a = ItemIdentity.family(heldId);
+        String c = ItemIdentity.family(wanted);
+        return a != null && a.equals(c);
+    }
+
     /** Mage's order: Dark Claymore, Midas' Sword, Hyperion with Chimera, Hyperion with Ultimate Wise. */
     private static boolean holdMageWeapon(LocalPlayer player) {
-        if (holdItem(player, DARK_CLAYMORE::equals) || holdItem(player, MIDAS_SWORD::equals)) {
+        if (holdItem(player, id -> sameItem(id, DARK_CLAYMORE)) || holdItem(player, id -> sameItem(id, MIDAS_SWORD))) {
             return true;
         }
         for (String ult : new String[]{ULTIMATE_CHIMERA, ULTIMATE_WISE}) {
             for (int slot = 0; slot < 9; slot++) {
                 ItemStack stack = player.getInventory().getItem(slot);
-                if (HYPERION.equals(skyblockId(stack)) && hasEnchant(stack, ult)) {
+                if (sameItem(skyblockId(stack), HYPERION) && hasEnchant(stack, ult)) {
                     return select(player, slot);
                 }
             }
