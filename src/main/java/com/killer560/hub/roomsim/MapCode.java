@@ -40,7 +40,8 @@ public final class MapCode {
 
     /** Room slot with no room in it (a bare connector or the border). Stored as a room-index byte of 0, since
      *  a real name-table index is stored as (index + 1) - see {@link #encode(Decoded)}. */
-    private static final int NO_ROOM = -1;
+    /** Cell with no room in it. Public because the map generator builds Decoded values itself. */
+    public static final int NO_ROOM = -1;
 
     /**
      * Plain data form of a map code: {@code nameTable[cellRoom[i]]} is the room name occupying cell {@code i}
@@ -97,6 +98,11 @@ public final class MapCode {
      * of GRID*GRID cells a 1-byte door type followed by a 1-byte room-index-plus-one (0 = no room). That whole
      * byte array is URL-safe Base64 without padding, and {@link #PREFIX} is prepended in plain ASCII.
      */
+    /** Encodes a Decoded built in code rather than captured - what the map generator produces. */
+    public static String encodeDecoded(Decoded decoded) {
+        return encode(decoded);
+    }
+
     private static String encode(Decoded decoded) {
         int cells = DungeonLayout.GRID * DungeonLayout.GRID;
         if (decoded.cellRoom().length != cells || decoded.cellDoor().length != cells

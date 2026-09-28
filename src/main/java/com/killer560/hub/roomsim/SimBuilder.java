@@ -109,7 +109,13 @@ public final class SimBuilder {
                 int gz = cell / DungeonLayout.GRID;
                 placed += RoomPlacer.paste(level, room, gx, gz, decoded.cellRotation()[cell]);
                 spawnMobsFor(client, level, room, gx, gz);
+                if (SimMimic.roomEligible(name)) {
+                    collectChests(level, gx, gz, room);
+                }
             }
+            // One mimic per MAP, chosen once everything is down. Picking while placing would give the first
+            // eligible room a far better chance than the last.
+            SimMimic.chooseForMap();
             final int p = placed;
             final int m = missing;
             final String names = missingNames.toString();
@@ -122,6 +128,29 @@ public final class SimBuilder {
             });
             LOGGER.info("Sim build: {} blocks placed, {} cells missing a room", p, m);
         });
+    }
+
+    /**
+     * Finds the chests in a placed room and offers them as mimic candidates.
+     *
+     * <p>Read back out of the world rather than out of the room data, because what matters is where the chest
+     * actually ended up - a rotated room puts its chests somewhere the room-local coordinates do not say.
+     */
+    private static void collectChests(ServerLevel level, int gridX, int gridZ, RoomLibrary.Room room) {
+        var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+        int x0 = origin.getX() - RoomLibrary.TILE / 2;
+        int z0 = origin.getZ() - RoomLibrary.TILE / 2;
+        var cursor = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int x = 0; x < room.sizeX; x++) {
+            for (int z = 0; z < room.sizeZ; z++) {
+                for (int y = RoomLibrary.MIN_Y; y <= RoomLibrary.MAX_Y; y++) {
+                    cursor.set(x0 + x, y, z0 + z);
+                    if (level.getBlockState(cursor).is(net.minecraft.world.level.block.Blocks.CHEST)) {
+                        SimMimic.addCandidate(cursor);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -155,6 +184,34 @@ public final class SimBuilder {
                 // a malformed line in a hand-edited room file should skip that mob, not the whole room
             }
         }
+    }
+
+    /**
+     * Builds ONE room in the middle of the grid, for drilling a single room.
+     *
+     * <p>The mode that gets used most while learning a room, which is why the menu offers it directly rather
+     * than making him generate a whole map to reach it.
+     */
+    public static void buildSingleRoom(Minecraft client, String roomName) {
+        RoomLibrary.Room room = RoomLibrary.get(roomName);
+        if (room == null) {
+            ModChat.send("Sim", ModChat.text("No captured room called " + roomName));
+            return;
+        }
+        var server = client.getSingleplayerServer();
+        if (server == null) {
+            SimWorld.open(client, "");
+            ModChat.send("Sim", ModChat.dim("Opening the sim - run /simbuild room again once you are in."));
+            return;
+        }
+        int centre = DungeonLayout.GRID / 2;
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            int placed = RoomPlacer.paste(level, room, centre, centre, 0);
+            spawnMobsFor(client, level, room, centre, centre);
+            client.execute(() -> ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName),
+                    ModChat.text(" (" + placed + " blocks)")));
+        });
     }
 
     /**

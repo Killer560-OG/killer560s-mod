@@ -224,6 +224,15 @@ public final class RoomLibrary {
         return real != null ? real : TEST_ROOMS.get(name);
     }
 
+    /** Every room name known, captured or synthetic, for the picker. */
+    public static synchronized java.util.List<String> names() {
+        load();
+        java.util.Set<String> all = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        all.addAll(ROOMS.keySet());
+        all.addAll(TEST_ROOMS.keySet());
+        return new java.util.ArrayList<>(all);
+    }
+
     public static synchronized int roomCount() {
         return ROOMS.size();
     }
