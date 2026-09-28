@@ -586,7 +586,7 @@ public final class SimonSaysFeature {
         ClientReceiveMessageEvents.CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             if (!DungeonState.isF7OrM7()) {
                 return;

@@ -11,10 +11,6 @@ public final class DungeonExtrasFeature {
 
     public static void register() {
         AutoDialogueFeature.register();
-        // The shared automation gate observes on START_CLIENT_TICK, which always runs before every feature's
-        // END_CLIENT_TICK handler no matter what order they registered in. It lives here (rather than in
-        // Killer560ModClient) because this package already owns its two persisted settings.
-        ClientTickEvents.START_CLIENT_TICK.register(com.killer560.hub.util.ActionGate::onClientTick);
         DungeonExtrasConfig.getInstance();
         // Migrates his old breakerAuraSelected picks into config/killer560smod-breakeraura/default.json (if that
         // folder has no file yet) before anything ticks, and loads whichever config is active.

@@ -35,6 +35,30 @@ import java.util.concurrent.ThreadLocalRandom;
  *       automation clicks, world auras stand down, and vice versa.</li>
  *   <li><b>Transition safety</b>: nothing fires in the ticks around a screen opening/closing, a world/dimension
  *       swap, or a teleport/leap (a position jump), which is where this goes wrong in practice.</li>
+ * <h2>Every actor ticks at the START of the tick</h2>
+ * Not a style choice, and not about this gate: a vanilla client decides what to interact with <i>before</i> it
+ * reports where it is, so its dig/use packet leaves earlier in {@code Minecraft#tick} than the player's own
+ * movement packet. Fabric's {@code END_CLIENT_TICK} runs after that movement packet, so automation hung there
+ * sends interactions in a sequence no vanilla client produces - which is cheap for a server to notice and has
+ * nothing to do with how fast or how many.
+ * <p>
+ * Measured 2026-09-27 against a live GrimAC on a dedicated server, with a by-hand control in the same arena:
+ * Breaker Aura on {@code END_CLIENT_TICK} drew <b>808</b> "Post - player digging" violations in one run, one
+ * per break, at its default rate of one block a tick; the identical run on {@code START_CLIENT_TICK} drew
+ * <b>zero</b>. Secret Triggerbot, a different feature sending a different packet, drew 17 from 17 clicks and
+ * the by-hand control was clean both times. So all nineteen interaction-sending features were moved.
+ * <p>
+ * This gate observes on {@code START_CLIENT_TICK} as well, and {@link #onClientTick} ROLLS the per-tick want
+ * list. An actor whose handler ran before it would ask for the tick and then have the request wiped, and the
+ * priority yielding below would silently stop working. That is why the gate is registered first thing in
+ * {@code Killer560ModClient#onInitializeClient}, ahead of every feature, rather than in the package that owns
+ * its settings.
+ * <p>
+ * Still outstanding: the features that click from a render frame rather than a tick, for sub-tick click
+ * spacing - Goldor Triggerbot, and Arrow Align's and Auto i4's frame paths. A render frame happens after the
+ * tick's movement packet too, so moving their tick handler does not fix those paths; they would have to hold
+ * the packet until the next tick begins, which costs them the timing precision they exist for.
+ *
  *   <li><b>Deterministic priority</b>: {@link Actor} is declared highest-priority first. A lower-priority actor
  *       that saw a higher-priority actor asking on the previous tick waits (for at most
  *       {@link #MAX_YIELD_TICKS} ticks, so nothing starves) instead of stealing the slot.</li>

@@ -52,7 +52,7 @@ public final class TerminalTriggerbotFeature {
             return;
         }
         TerminalTriggerbotConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(TerminalTriggerbotFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(TerminalTriggerbotFeature::tick);
         LOGGER.info("[TerminalTriggerbot] Registered (default OFF)");
     }
 

@@ -108,7 +108,7 @@ public final class AutoPuzzlesFeature {
         // listeners never see - on Fabric CHAT/GAME the solver would reset but this would never re-arm. The trigger
         // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
         ChatObserver.subscribe(AutoPuzzlesFeature::onMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(AutoPuzzlesFeature::onTick);
+        ClientTickEvents.START_CLIENT_TICK.register(AutoPuzzlesFeature::onTick);
         LOGGER.info("[AutoPuzzles] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 

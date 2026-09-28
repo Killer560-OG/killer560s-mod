@@ -158,7 +158,7 @@ public final class ExperimentsFeature {
     private static String lastLoggedControlItem = null;
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
         // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
         ClientTickEvents.END_CLIENT_TICK.register(ExperimentsProfitTracker::tick);

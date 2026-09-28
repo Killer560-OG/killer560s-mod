@@ -67,7 +67,7 @@ public final class PetSummoner {
 
     /** Registered from {@link PetWheelFeature#register()} - this class has no entry point of its own. */
     public static void register() {
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(PetSummoner::tick);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(PetSummoner::tick);
     }
 
     public static boolean isBusy() {

@@ -77,7 +77,7 @@ public final class InventorySorterExecutor {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(InventorySorterExecutor::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(InventorySorterExecutor::tick);
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (isRunning()) {
                 stop("world changed");

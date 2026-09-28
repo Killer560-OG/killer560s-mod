@@ -170,7 +170,7 @@ public final class MaskSwapper {
 
     /** Registered from {@link MaskInvincibilityFeature#register()} - this class has no entry point of its own. */
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
+        ClientTickEvents.START_CLIENT_TICK.register(client -> tick(client));
     }
 
     // ------------------------------------------------------------------ api

@@ -44,7 +44,7 @@ public final class TerminalAuraFeature {
             return;
         }
         TerminalAuraConfig.getInstance();
-        ClientTickEvents.END_CLIENT_TICK.register(TerminalAuraFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(TerminalAuraFeature::tick);
         LOGGER.info("[TerminalAura] Registered (default OFF)");
     }
 

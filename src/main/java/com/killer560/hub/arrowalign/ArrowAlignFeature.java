@@ -105,7 +105,7 @@ public final class ArrowAlignFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(ArrowAlignFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(ArrowAlignFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ArrowAlignFeature::onWorldRender);
         // Per-frame automation so Trigger Bot / Aura delays are honoured to the millisecond, not the 50ms tick
         // (same reason SimonSaysFeature fires its Trigger Bot from this hook).

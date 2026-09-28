@@ -31,7 +31,7 @@ public final class DoorHelpersFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(DoorHelpersFeature::onEndTick);
+        ClientTickEvents.START_CLIENT_TICK.register(DoorHelpersFeature::onEndTick);
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
                 AutoDoorOpenerFeature.onChat(message.getString());

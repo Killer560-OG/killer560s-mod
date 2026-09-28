@@ -32,7 +32,7 @@ public final class AbilityKeybindsFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(AbilityKeybindsFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(AbilityKeybindsFeature::tick);
     }
 
     private static void tick(Minecraft client) {

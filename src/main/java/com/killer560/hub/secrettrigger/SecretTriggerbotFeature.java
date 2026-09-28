@@ -74,7 +74,7 @@ public final class SecretTriggerbotFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(SecretTriggerbotFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(SecretTriggerbotFeature::tick);
     }
 
     private static void tick(Minecraft client) {

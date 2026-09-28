@@ -132,7 +132,7 @@ public final class AutoCroesusFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(AutoCroesusFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(AutoCroesusFeature::tick);
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (state != State.IDLE) {
                 stop("world changed", false);

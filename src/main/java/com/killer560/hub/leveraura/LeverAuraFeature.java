@@ -112,7 +112,7 @@ public final class LeverAuraFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(LeverAuraFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(LeverAuraFeature::tick);
         ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message)));
         LOGGER.info("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }

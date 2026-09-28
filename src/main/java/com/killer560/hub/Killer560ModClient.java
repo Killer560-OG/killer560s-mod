@@ -77,6 +77,21 @@ public class Killer560ModClient implements ClientModInitializer {
     public void onInitializeClient() {
         ModCompatibility.refuseIfFirmamentPresent();
 
+        // THE ACTION GATE GOES FIRST, and the order is the whole point.
+        //
+        // Every automated interaction in this mod now runs on START_CLIENT_TICK, because an interaction sent
+        // after the tick's own movement packet is an order no vanilla client produces and a server can see it
+        // (measured 2026-09-27: 808 violations from Breaker Aura on END_CLIENT_TICK, zero on START; 17 from
+        // Secret Triggerbot, zero after). The gate observes on START_CLIENT_TICK too, and it ROLLS the
+        // per-tick want list - so if any actor's handler were registered before this one, it would ask for the
+        // tick and then have its request wiped by the roll, and the priority yielding would quietly stop
+        // working. Fabric runs handlers in registration order, so registering here, before any feature, is
+        // what makes that impossible rather than merely unlikely.
+        //
+        // It used to live in DungeonExtrasFeature.register(), which runs a hundred lines below several of
+        // those actors.
+        ClientTickEvents.START_CLIENT_TICK.register(com.killer560.hub.util.ActionGate::onClientTick);
+
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
         ProxyConfig.load();

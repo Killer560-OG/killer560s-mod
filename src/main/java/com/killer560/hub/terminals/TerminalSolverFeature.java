@@ -439,7 +439,7 @@ public final class TerminalSolverFeature {
             return;
         }
         closeWatcherRegistered = true;
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
             if (currentType == null || client.screen != null) {
                 noScreenTicks = 0;
                 return;

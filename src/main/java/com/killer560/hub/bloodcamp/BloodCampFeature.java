@@ -142,7 +142,7 @@ public final class BloodCampFeature {
 
     public static void register() {
         BloodCampMoveTimer.register();
-        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        ClientTickEvents.START_CLIENT_TICK.register(client -> tick());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BloodCampFeature::onWorldRender);
         for (com.killer560.hub.hud.HudElement element : hudElements()) {
             net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(

@@ -82,7 +82,7 @@ public final class AutoSellFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(AutoSellFeature::tick);
+        ClientTickEvents.START_CLIENT_TICK.register(AutoSellFeature::tick);
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
             if (running) {
                 stop("world changed");
