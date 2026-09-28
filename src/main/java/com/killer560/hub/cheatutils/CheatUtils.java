@@ -34,12 +34,20 @@ public final class CheatUtils {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            WitherEspFeature.tick(client);
+        // The three that send interactions go at the START of the tick, for the reason in ActionGate's
+        // class doc: an interaction sent after this tick's own movement packet is an order no vanilla client
+        // produces. Measured 2026-09-27 - Secret Aura drew Post violations from here. These were missed by the
+        // first sweep because it looked for the interaction calls and the registration in the SAME file, and
+        // these three are ticked from this lambda while the sends live in their own classes.
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
             SecretAuraFeature.tick(client);
-            AutoGfsFeature.tick(client);
             AutoUltFeature.tick(client);
             ChocolateFactoryFeature.tick(client);
+        });
+        // These two send no interactions: an ESP that only draws, and a GFS that sends a chat command.
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            WitherEspFeature.tick(client);
+            AutoGfsFeature.tick(client);
         });
         // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.

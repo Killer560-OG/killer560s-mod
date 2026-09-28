@@ -2806,8 +2806,12 @@ public final class SimonSaysFeature {
         if (!ActionGate.tryAct(ActionGate.Actor.SIMON_SAYS)) {
             return false;
         }
-        Vec3 hitVec = Vec3.atCenterOf(pos);
-        BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.EAST, pos, false);
+        // A surface hit from the eye. This method was the precedent Secret Aura and Lever Aura copied, so it
+        // carried the same fault: the block's centre - a point inside it - with a hardcoded east face. Measured
+        // 2026-09-28, that shape draws a PositionPlace violation per click even inside vanilla's reach. See
+        // BlockHits.
+        BlockHitResult hitResult = com.killer560.hub.util.BlockHits.surfaceOrCentre(
+                client.level, pos, client.player.getEyePosition());
         // Flagged so onRealBlockInteractAttempt (called from the same useItemOn this goes through) knows
         // to ignore this as one of the mod's own clicks rather than a real one.
         syntheticClickInProgress = true;

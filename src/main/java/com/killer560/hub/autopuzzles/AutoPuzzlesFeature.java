@@ -434,7 +434,10 @@ public final class AutoPuzzlesFeature {
         Vec3 end = eyes.add(dir.scale(eyes.distanceTo(centre) + 1.5));
         BlockHitResult hit = shape.clip(eyes, end, pos);
         if (hit == null) {
-            hit = new BlockHitResult(centre, Direction.getApproximateNearest(eyes.subtract(centre)), pos, false);
+            // Was the centre with the nearest-facing side - better than a hardcoded face, but still a point
+            // inside the block, which is the half that GrimAC flags (2026-09-28). Clip to the surface instead
+            // and keep the old value only if there is no outline to strike. See BlockHits.
+            hit = com.killer560.hub.util.BlockHits.surfaceOrCentre(level, pos, eyes);
         }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         client.player.swing(InteractionHand.MAIN_HAND);

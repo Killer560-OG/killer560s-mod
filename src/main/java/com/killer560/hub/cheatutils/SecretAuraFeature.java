@@ -221,7 +221,18 @@ public final class SecretAuraFeature {
         lastClickMs = now;
         lastClickKey = "chest".equals(bestKind) ? key : null;
 
-        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(bestPos), Direction.EAST, bestPos, false);
+        // A SURFACE hit, not the block's centre with a hardcoded east face.
+        //
+        // Measured 2026-09-28 against a live GrimAC: clicking a lever at 4.50 blocks - inside vanilla's own
+        // limit, and accepted by the server - drew a PositionPlace violation every single time, because the hit
+        // was a point INSIDE the block on a face the player was not looking at. No raycast can produce that.
+        // Breaker Aura, which has always clipped its hit from the eye through the shape, measured clean over
+        // hundreds of interactions in the same harness. See BlockHits.
+        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(
+                client.level, bestPos, client.player.getEyePosition());
+        if (hit == null) {
+            return; // no outline to strike; skipping beats sending an impossible hit
+        }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         if (cfg.isAuraSwing()) {
             client.player.swing(InteractionHand.MAIN_HAND);

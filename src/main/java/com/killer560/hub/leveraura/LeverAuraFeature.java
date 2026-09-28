@@ -338,7 +338,15 @@ public final class LeverAuraFeature {
             face = attach == AttachFace.WALL ? st.getValue(LeverBlock.FACING)
                     : attach == AttachFace.CEILING ? Direction.DOWN : Direction.UP;
         }
-        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(pos), face, pos, false);
+        // A surface hit from the eye rather than the block's centre. The face below was already worked out
+        // from the lever's own attachment, which was the right instinct, but the POSITION was still a point
+        // inside the block - and that is what GrimAC flagged on Secret Aura (2026-09-28, PositionPlace at a
+        // distance the server itself accepted). See BlockHits.
+        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos,
+                client.player.getEyePosition());
+        if (hit == null) {
+            hit = new BlockHitResult(Vec3.atCenterOf(pos), face, pos, false);
+        }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         if (cfg.isSwingHand()) {
             client.player.swing(InteractionHand.MAIN_HAND);

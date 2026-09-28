@@ -80,7 +80,9 @@ public final class ClearExecutor {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(ClearExecutor::onTickStart);
-        ClientTickEvents.END_CLIENT_TICK.register(ClearExecutor::onTickEnd);
+        // START: this sends the interactions at the end of a walk leg. Named onTickEnd from when it ran at
+        // the end of the tick; the name is left alone so every reference to it keeps working.
+        ClientTickEvents.START_CLIENT_TICK.register(ClearExecutor::onTickEnd);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
             List<ClearNode> current = nodes;
             if (current == null || current.isEmpty()) {

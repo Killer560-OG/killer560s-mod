@@ -55,7 +55,8 @@ public final class StorageScanAll {
         }
         if (!registered) {
             registered = true;
-            ClientTickEvents.END_CLIENT_TICK.register(StorageScanAll::tick);
+            // START: it opens and clicks through storage pages. See ActionGate's class doc.
+            ClientTickEvents.START_CLIENT_TICK.register(StorageScanAll::tick);
         }
         queue.clear();
         for (int i = 1; i <= 9; i++) {

@@ -45,7 +45,9 @@ public final class PathfindingFeature {
         FairySoulStore.load();
         ProfileTracker.register();
         FairySoulsFeature.register();
-        ClientTickEvents.END_CLIENT_TICK.register(PathfindingFeature::tick);
+        // START: this drives AutoSoulRunner and EnderPearlHopper, which both send interactions. See
+        // ActionGate's class doc.
+        ClientTickEvents.START_CLIENT_TICK.register(PathfindingFeature::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(PathWorldRenderer::render);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(command()));
         com.killer560.hub.hud.HudElementRegistry.register(HudElementImpl.INSTANCE);
