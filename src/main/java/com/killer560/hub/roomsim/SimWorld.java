@@ -150,6 +150,7 @@ public final class SimWorld {
             SimDoors.clear();
             SimMobs.clear(Minecraft.getInstance());
             SimRun.reset();
+            com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
         }
     }
 }

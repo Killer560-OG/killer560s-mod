@@ -112,6 +112,12 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimSpeed.register();
         com.killer560.hub.roomsim.SimMimic.register();
         com.killer560.hub.roomsim.SimMimicRenderer.register();
+        // The sim's puzzles. Each owns its own arena and its own failure rule; they do nothing outside the sim.
+        com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();
+        com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.register();
+        com.killer560.hub.roomsim.puzzles.SimQuizPuzzle.register();
+        com.killer560.hub.roomsim.puzzles.SimTicTacToePuzzle.register();
+        com.killer560.hub.roomsim.puzzles.SimPuzzles.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();

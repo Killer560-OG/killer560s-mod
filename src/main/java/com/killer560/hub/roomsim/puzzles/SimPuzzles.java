@@ -1,0 +1,96 @@
+package com.killer560.hub.roomsim.puzzles;
+
+import com.killer560.hub.roomsim.SimState;
+import com.killer560.hub.util.ModChat;
+
+import com.mojang.brigadier.arguments.StringArgumentType;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.BiConsumer;
+
+/**
+ * One place to build and reset the sim's puzzles, and the command that does it.
+ *
+ * <p>Each puzzle owns its own rules and its own arena; this only knows their names. That split is deliberate -
+ * adding a puzzle should mean writing one file and adding one line here, not touching a switch in five places.
+ *
+ * <p>{@code /simpuzzle <name>} builds one where the player is standing, which is how a puzzle gets practised in
+ * isolation before it ever appears in a generated map.
+ */
+public final class SimPuzzles {
+
+    /** Name to builder. Order is the order they are listed to him. */
+    private static final Map<String, BiConsumer<Minecraft, BlockPos>> BUILDERS = new LinkedHashMap<>();
+    private static final Map<String, Runnable> RESETS = new LinkedHashMap<>();
+
+    static {
+        BUILDERS.put("blaze", SimBlazePuzzle::build);
+        BUILDERS.put("creeper", SimCreeperPuzzle::build);
+        BUILDERS.put("quiz", SimQuizPuzzle::build);
+        BUILDERS.put("tictactoe", SimTicTacToePuzzle::build);
+        RESETS.put("blaze", SimBlazePuzzle::reset);
+        RESETS.put("creeper", SimCreeperPuzzle::reset);
+        RESETS.put("quiz", SimQuizPuzzle::reset);
+        RESETS.put("tictactoe", SimTicTacToePuzzle::reset);
+    }
+
+    private SimPuzzles() {
+    }
+
+    public static void register() {
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->
+                dispatcher.register(ClientCommands.literal("simpuzzle")
+                        .then(ClientCommands.literal("reset").executes(ctx -> {
+                            resetAll();
+                            ModChat.send("Sim", ModChat.text("Puzzles reset"));
+                            return 1;
+                        }))
+                        .then(ClientCommands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> {
+                                    build(Minecraft.getInstance(),
+                                            StringArgumentType.getString(ctx, "name"));
+                                    return 1;
+                                }))
+                        .executes(ctx -> {
+                            ModChat.send("Sim", ModChat.dim("/simpuzzle " + String.join("|", BUILDERS.keySet())
+                                    + "  |  /simpuzzle reset"));
+                            return 1;
+                        })));
+    }
+
+    private static void build(Minecraft client, String rawName) {
+        if (!SimState.canAct(client)) {
+            ModChat.send("Sim", ModChat.text("Puzzles only build inside the sim."));
+            return;
+        }
+        String name = rawName.toLowerCase(Locale.ROOT);
+        BiConsumer<Minecraft, BlockPos> builder = BUILDERS.get(name);
+        if (builder == null) {
+            ModChat.send("Sim", ModChat.text("No puzzle called " + rawName + " - "),
+                    ModChat.dim(String.join(", ", BUILDERS.keySet())));
+            return;
+        }
+        // Built where he is standing, a few blocks ahead, so it appears in front rather than on top of him.
+        BlockPos origin = client.player.blockPosition()
+                .relative(client.player.getDirection(), 4);
+        builder.accept(client, origin);
+        ModChat.send("Sim", ModChat.text("Built the "), ModChat.value(name), ModChat.text(" puzzle"));
+    }
+
+    /** Clears every puzzle's state, for leaving the sim or restarting a run. */
+    public static void resetAll() {
+        for (Runnable r : RESETS.values()) {
+            try {
+                r.run();
+            } catch (Throwable ignored) {
+                // one puzzle failing to reset must not stop the others
+            }
+        }
+    }
+}
