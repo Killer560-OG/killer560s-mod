@@ -338,6 +338,10 @@ public final class SimBuilder {
             SimBuildQueue.submitClear(level, origin.getX() - halfX, origin.getZ() - halfZ,
                     origin.getX() + halfX, origin.getZ() + halfZ);
             SimBuildQueue.submit(level, room, centre, centre, 0);
+            // After the paste, so the ring it inspects is the room's real wall - before it, every column
+            // would still be air and the whole perimeter would come out diamond.
+            SimBuildQueue.submitSeal(level, origin.getX() - room.sizeX / 2, origin.getZ() - room.sizeZ / 2,
+                    origin.getX() + room.sizeX / 2, origin.getZ() + room.sizeZ / 2);
             SimBuildQueue.whenDone(() -> {
                 spawnMobsFor(client, level, room, centre, centre);
                 // After the geometry, never before: a chest placed first would be overwritten by the paste.

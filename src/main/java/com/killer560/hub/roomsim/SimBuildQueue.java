@@ -88,6 +88,87 @@ public final class SimBuildQueue {
         JOBS.addFirst(new ClearJob(level, minX, minZ, maxX, maxZ));
     }
 
+    /**
+     * Seals a room's doorways so a single-room test cannot be walked out of.
+     *
+     * <p>killer560 (2026-09-28): "if something has a doorway that can be open to path into another room, then
+     * you can just fill the doorway so I cannot leave with diamond blocks or soemthing so i know it is normally
+     * a door but for single room testing i cant walk out and fall into the void."
+     *
+     * <p>It fills the room's perimeter ring ONLY WHERE THAT RING IS ALREADY AIR. That one rule does the whole
+     * job without needing to know what a doorway is: the ring is the room's own wall almost everywhere, so the
+     * only air in it is where a door or an opening is, and those are exactly the holes worth plugging. Nothing
+     * has to detect a doorway, and a room with an odd opening nobody anticipated gets sealed too.
+     *
+     * <p>Diamond because it is unmistakable. The point is not to hide the edge of the room but to mark it -
+     * he should be able to tell at a glance which walls are the dungeon's and which are the sim stopping him
+     * falling into the void, or he will practise a route that walks through one.
+     */
+    public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        JOBS.add(new SealJob(level, minX, minZ, maxX, maxZ));
+    }
+
+    /** Fills the air in a box's outer ring with an obvious block. */
+    private static final class SealJob implements Job {
+
+        private final ServerLevel level;
+        private final int minX;
+        private final int minZ;
+        private final int maxX;
+        private final int maxZ;
+        private final net.minecraft.core.BlockPos.MutableBlockPos cursor =
+                new net.minecraft.core.BlockPos.MutableBlockPos();
+        private final net.minecraft.world.level.block.state.BlockState fill =
+                net.minecraft.world.level.block.Blocks.DIAMOND_BLOCK.defaultBlockState();
+
+        private int x;
+        private int z;
+        private int y = RoomLibrary.MIN_Y;
+        private boolean done;
+
+        SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+            this.level = level;
+            this.minX = minX;
+            this.minZ = minZ;
+            this.maxX = maxX;
+            this.maxZ = maxZ;
+            this.x = minX;
+            this.z = minZ;
+        }
+
+        @Override
+        public boolean isDone() {
+            return done;
+        }
+
+        @Override
+        public int step(int budget) {
+            int written = 0;
+            while (written < budget) {
+                if (y > RoomLibrary.MAX_Y) {
+                    done = true;
+                    return written;
+                }
+                boolean onRing = x == minX || x == maxX || z == minZ || z == maxZ;
+                if (onRing) {
+                    cursor.set(x, y, z);
+                    if (level.getBlockState(cursor).isAir()) {
+                        level.setBlock(cursor, fill, RoomPlacer.CLEAR_FLAGS);
+                        written++;
+                    }
+                }
+                if (++z > maxZ) {
+                    z = minZ;
+                    if (++x > maxX) {
+                        x = minX;
+                        y++;
+                    }
+                }
+            }
+            return written;
+        }
+    }
+
     /** Fills a box with air, a slice at a time. */
     private static final class ClearJob implements Job {
 
