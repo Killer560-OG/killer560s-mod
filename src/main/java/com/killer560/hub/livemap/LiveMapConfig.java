@@ -110,6 +110,10 @@ public final class LiveMapConfig {
     // the Interactive Map tab's own Automation section, unchanged otherwise.
     private int startKeyCode = -1;
     private int lockedDoorKeyCode = -1;
+    /** killer560, 2026-09-29: "Make a third button bind for go to a room and secret it." - a separate bind that
+     *  does what the double press does (path to the room's Auto Routes START node, then run its secrets) on a
+     *  single press. Unbound by default so it cannot clash with a key he already uses. */
+    private int goSecretKeyCode = -1;
     private boolean faceDoorOnArrival = false;
     /** killer560, 2026-09-27: "Keep the keep chunks loaded section on by default." */
     private boolean keepChunksLoaded = true;
@@ -211,6 +215,7 @@ public final class LiveMapConfig {
 
                 cfg.startKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "startKeyCode", -1));
                 cfg.lockedDoorKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lockedDoorKeyCode", -1));
+                cfg.goSecretKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "goSecretKeyCode", -1));
                 cfg.faceDoorOnArrival = ConfigJson.getBool(obj, "faceDoorOnArrival", false);
                 // Migration: files saved before 2026-09-27 have an explicit "keepChunksLoaded" (usually false,
                 // the old default) - honour it. A file with no key at all (fresh install) now ships true.
@@ -290,6 +295,7 @@ public final class LiveMapConfig {
 
             obj.addProperty("startKeyCode", startKeyCode);
             obj.addProperty("lockedDoorKeyCode", lockedDoorKeyCode);
+            obj.addProperty("goSecretKeyCode", goSecretKeyCode);
             obj.addProperty("faceDoorOnArrival", faceDoorOnArrival);
             obj.addProperty("keepChunksLoaded", keepChunksLoaded);
             obj.addProperty("yawStep", yawStep);
@@ -723,6 +729,14 @@ public final class LiveMapConfig {
 
     public void setLockedDoorKeyCode(int v) {
         this.lockedDoorKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(v);
+    }
+
+    public int getGoSecretKeyCode() {
+        return goSecretKeyCode;
+    }
+
+    public void setGoSecretKeyCode(int v) {
+        this.goSecretKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(v);
     }
 
     public boolean isFaceDoorOnArrival() {

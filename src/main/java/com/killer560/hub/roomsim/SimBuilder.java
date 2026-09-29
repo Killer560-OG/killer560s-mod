@@ -607,6 +607,7 @@ public final class SimBuilder {
         // as one he picked up.
         SimSecretItems.reset();
         SimSecrets.PLACED_CHESTS.clear();
+        SimSecrets.resetAudit();
         SimPrince.reset();
         // Out of the way before a single block is written, so nothing he can see is ever half-built.
         holdPlayer(Minecraft.getInstance(), level);

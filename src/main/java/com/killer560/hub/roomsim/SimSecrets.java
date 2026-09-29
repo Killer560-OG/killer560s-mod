@@ -77,9 +77,22 @@ public final class SimSecrets {
         // The corner is the corner of the room's TILE area, not of the captured window - the window takes in
         // one column of wall on each side (RoomLibrary.WALL_MARGIN) and the clay marker stands inside the
         // room, so the margin is deliberately not subtracted here.
-        int[] clay = clayCorner(room, gridX, gridZ, rotation);
+        // The rotation the DATABASE has to be turned by is not the rotation the room was PASTED at. A capture
+        // carries whatever quarter turn the room happened to be at when he walked through it, and only 34 of
+        // his 135 are canonical - see RoomCaptureRotation. The paste rotation decides the room's footprint;
+        // the sum of the two decides where the database's coordinates land and which corner they start from.
+        int dbRotation = Math.floorMod(rotation + RoomCaptureRotation.of(room), 360);
+        int[] clay = clayCorner(room, gridX, gridZ, rotation, dbRotation);
         int clayX = clay[0];
         int clayZ = clay[1];
+
+        // The corner and rotation this WOULD have used before the capture's own turn was accounted for, kept
+        // only so the audit can score both and the difference between them can be measured rather than
+        // asserted. A fix with no control is a fix you are taking on trust.
+        int[] oldClay = clayCorner(room, gridX, gridZ, rotation, rotation);
+        uncorrectedClayX = oldClay[0];
+        uncorrectedClayZ = oldClay[1];
+        uncorrectedRotation = rotation;
 
         int placed = 0;
         // The room's own tile box, so a secret that lands outside it is reported rather than left in the
@@ -93,18 +106,19 @@ public final class SimSecrets {
         boxMaxX = boxMinX + tilesX * (RoomLibrary.TILE + 1) - 2;
         boxMaxZ = boxMinZ + tilesZ * (RoomLibrary.TILE + 1) - 2;
         outsideBox = 0;
-        placed += chests(level, entry.secretCoords.chest, clayX, clayZ, rotation);
-        placed += bats(level, entry.secretCoords.bat, clayX, clayZ, rotation);
-        placed += items(level, entry.secretCoords.item, clayX, clayZ, rotation);
-        placed += markers(level, entry.secretCoords.wither, clayX, clayZ, rotation, WITHER_MARKER);
-        placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, rotation, KEY_MARKER);
+        placed += chests(level, entry.secretCoords.chest, clayX, clayZ, dbRotation);
+        placed += bats(level, entry.secretCoords.bat, clayX, clayZ, dbRotation);
+        placed += items(level, entry.secretCoords.item, clayX, clayZ, dbRotation);
+        placed += markers(level, entry.secretCoords.wither, clayX, clayZ, dbRotation, WITHER_MARKER);
+        placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, dbRotation, KEY_MARKER);
         // Loud only when something is wrong. A handful of real secrets do sit in a room's wall, so a couple
         // outside the tile box is normal; a whole room's worth means the clay corner for that rotation is
         // wrong, which is exactly the bug rotation introduced on 2026-09-29.
         if (outsideBox > 0) {
-            LOGGER.warn("Sim secrets for {} (rotation {}): {} secret(s) skipped, outside the room's own box "
-                    + "x[{}..{}] z[{}..{}]",
-                    room.name, rotation, outsideBox, boxMinX, boxMaxX, boxMinZ, boxMaxZ);
+            LOGGER.warn("Sim secrets for {} (pasted at {}, capture turn {}, database rotation {}): {} "
+                    + "secret(s) skipped, outside the room's own box x[{}..{}] z[{}..{}]",
+                    room.name, rotation, RoomCaptureRotation.of(room), dbRotation, outsideBox,
+                    boxMinX, boxMaxX, boxMinZ, boxMaxZ);
         }
         LOGGER.info("Sim secrets for {}: {} placed", room.name, placed);
         return placed;
@@ -126,6 +140,19 @@ public final class SimSecrets {
     }
 
     public static int[] clayCorner(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
+        return clayCorner(room, gridX, gridZ, rotation, Math.floorMod(rotation + RoomCaptureRotation.of(room), 360));
+    }
+
+    /**
+     * The clay corner, with the paste rotation and the database rotation given separately.
+     *
+     * <p>They are different numbers and they are used for different things. The room's FOOTPRINT - how many
+     * tiles it covers along x and along z - follows the rotation it was physically pasted at. WHICH CORNER the
+     * marker stands in follows the database rotation, because that is the corner {@code toRealCoord} measures
+     * from. Collapsing the two into one value is what put whole rooms' secrets in the wrong corner for every
+     * capture that was not canonical, which is 88 of his 122 identifiable rooms.
+     */
+    public static int[] clayCorner(RoomLibrary.Room room, int gridX, int gridZ, int rotation, int dbRotation) {
         int tilesX = (rotation == 90 || rotation == 270) ? tiles(room.sizeZ) : tiles(room.sizeX);
         int tilesZ = (rotation == 90 || rotation == 270) ? tiles(room.sizeX) : tiles(room.sizeZ);
         BlockPos centre = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
@@ -134,9 +161,34 @@ public final class SimSecrets {
         int maxX = minX + tilesX * (RoomLibrary.TILE + 1) - 2;
         int maxZ = minZ + tilesZ * (RoomLibrary.TILE + 1) - 2;
         return new int[]{
-            (rotation == 90 || rotation == 180) ? maxX : minX,
-            (rotation == 180 || rotation == 270) ? maxZ : minZ,
+            (dbRotation == 90 || dbRotation == 180) ? maxX : minX,
+            (dbRotation == 180 || dbRotation == 270) ? maxZ : minZ,
         };
+    }
+
+    /**
+     * How many chest secrets landed on a chest the capture had already pasted, and how many were tried.
+     *
+     * <p>The floor's own mark for whether database coordinates are being translated correctly. Reset per
+     * build by {@link #resetAudit()} and read by scenario 82.
+     */
+    private static int chestsOnCapturedChest;
+    private static int chestsChecked;
+    private static int chestsUncorrected;
+    private static int uncorrectedClayX;
+    private static int uncorrectedClayZ;
+    private static int uncorrectedRotation;
+
+    /** @return {@code {corrected, checked, uncorrected}} for the floor just built. */
+    public static int[] chestAudit() {
+        return new int[]{chestsOnCapturedChest, chestsChecked, chestsUncorrected};
+    }
+
+    /** Starts a new floor's audit. */
+    public static void resetAudit() {
+        chestsOnCapturedChest = 0;
+        chestsChecked = 0;
+        chestsUncorrected = 0;
     }
 
     /** Every chest this floor placed, so the build can check afterwards that they are all still there. */
@@ -187,6 +239,25 @@ public final class SimSecrets {
             // one more chest every time a map was generated.
             if (!checkInside(at)) {
                 continue;
+            }
+            // Does this secret land where the room's own capture already has a chest?
+            //
+            // This is the check that decides whether the database rotation is right, and it needs no Hypixel
+            // and no eyeballing: the room is pasted BEFORE its secrets are placed, and a captured room still
+            // contains the very chests these coordinates describe. Land on one and the translation agrees with
+            // the geometry; land on air and it does not. Before the capture rotation was accounted for this
+            // sat near zero on most floors, which is what "secrets in the wrong corner" looks like from inside.
+            chestsChecked++;
+            if (level.getBlockState(at).is(Blocks.CHEST)) {
+                chestsOnCapturedChest++;
+            }
+            // The same question asked of the old, uncorrected translation, at the same moment against the same
+            // world. This is the control: if both score the same the capture rotation is doing nothing, and if
+            // the corrected one is not clearly ahead then it is not the fix it claims to be.
+            BlockPos before = world(RoomDatabase.toRealCoord(
+                    p, uncorrectedClayX, uncorrectedClayZ, uncorrectedRotation));
+            if (level.getBlockState(before).is(Blocks.CHEST)) {
+                chestsUncorrected++;
             }
             SimBuildQueue.touched(at.getX(), at.getZ());
             level.setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());

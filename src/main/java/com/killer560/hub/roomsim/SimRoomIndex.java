@@ -29,6 +29,10 @@ public final class SimRoomIndex {
      * One placed room.
      *
      * @param clayX the corner the room database's relative coordinates are measured from, at this rotation
+     * @param rotation the DATABASE rotation, not the rotation the room was pasted at - the paste rotation
+     *                 decides the footprint, but everything downstream of this record is translating database
+     *                 coordinates, and those two numbers differ by the capture's own turn
+     *                 ({@link RoomCaptureRotation}) in 88 of his 122 identifiable rooms
      * @param cells the 11x11 grid cells this room covers, so "am I in it" is a lookup
      */
     public record Placed(String name, int clayX, int clayZ, int rotation, int[] cells) {
@@ -53,7 +57,10 @@ public final class SimRoomIndex {
         if (room == null) {
             return;
         }
-        int[] clay = SimSecrets.clayCorner(room, gridX, gridZ, rotation);
+        // Must match what SimSecrets actually did, or the waypoints point at where the secrets are not -
+        // and the waypoints are the thing being practised against.
+        int dbRotation = Math.floorMod(rotation + RoomCaptureRotation.of(room), 360);
+        int[] clay = SimSecrets.clayCorner(room, gridX, gridZ, rotation, dbRotation);
         int tilesX = (rotation == 90 || rotation == 270)
                 ? tiles(room.sizeZ) : tiles(room.sizeX);
         int tilesZ = (rotation == 90 || rotation == 270)
@@ -72,7 +79,7 @@ public final class SimRoomIndex {
         for (int i = 0; i < cellArray.length; i++) {
             cellArray[i] = cells.get(i);
         }
-        ROOMS.add(new Placed(room.name, clay[0], clay[1], rotation, cellArray));
+        ROOMS.add(new Placed(room.name, clay[0], clay[1], dbRotation, cellArray));
     }
 
     private static int tiles(int size) {

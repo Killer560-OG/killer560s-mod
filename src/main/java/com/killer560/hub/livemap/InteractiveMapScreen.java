@@ -338,7 +338,12 @@ public class InteractiveMapScreen extends Screen {
         // this isn't a left or right click but based off of my key binds").
         String startName = cfg.getStartKeyCode() == KeyUtil.NONE ? "LMB" : KeyUtil.bindShortName(cfg.getStartKeyCode());
         ty = control(graphics, x, ty, startName, "Go / retarget");
-        ty = control(graphics, x, ty, "x2", "Start node");
+        if (cfg.isMapDoublePressStartNode()) {
+            ty = control(graphics, x, ty, "x2", "Start node");
+        }
+        if (cfg.getGoSecretKeyCode() != KeyUtil.NONE) {
+            ty = control(graphics, x, ty, KeyUtil.bindShortName(cfg.getGoSecretKeyCode()), "Go + secret");
+        }
         if (cfg.getLockedDoorKeyCode() != KeyUtil.NONE) {
             ty = control(graphics, x, ty, KeyUtil.bindShortName(cfg.getLockedDoorKeyCode()), "Locked door");
         }
@@ -464,6 +469,10 @@ public class InteractiveMapScreen extends Screen {
         // ever reset the view, and silently, since the reset owns that button unconditionally.
         if (isBind(cfg.getLockedDoorKeyCode(), button)) {
             InteractiveMapFeature.pathToLockedDoor();
+            return;
+        }
+        if (isBind(cfg.getGoSecretKeyCode(), button)) {
+            InteractiveMapFeature.onMapSecretPress(inside(panel(), mouseX, mouseY) ? cellAt(mouseX, mouseY) : -1);
             return;
         }
         boolean startButton = isBind(cfg.getStartKeyCode(), button)

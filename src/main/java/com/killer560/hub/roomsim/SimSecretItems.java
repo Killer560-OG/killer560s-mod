@@ -67,6 +67,12 @@ public final class SimSecretItems {
     /** Drops that have appeared and not yet been collected. */
     private static final List<UUID> LIVE = new CopyOnWriteArrayList<>();
 
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim");
+
+    /** So a throw in the tick handler is reported once rather than twenty times a second, or never. */
+    private static boolean warnedOnce;
+
     private SimSecretItems() {
     }
 
@@ -81,11 +87,39 @@ public final class SimSecretItems {
     public static void reset() {
         PENDING.clear();
         LIVE.clear();
+        warnedOnce = false;
     }
 
     /** How many item secrets are still waiting to be found, for anything that wants to report progress. */
     public static int remaining() {
         return PENDING.size() + LIVE.size();
+    }
+
+    /**
+     * How many have not appeared yet, separately from how many are lying around uncollected.
+     *
+     * <p>{@link #remaining()} adds the two together, so it reads the same whether a secret never spawned or
+     * spawned and was never picked up - and those are different bugs. Scenario 81 could not tell them apart
+     * until this existed.
+     */
+    public static int pendingCount() {
+        return PENDING.size();
+    }
+
+    /** How many drops are on the floor waiting to be collected. */
+    public static int liveCount() {
+        return LIVE.size();
+    }
+
+    /**
+     * Where the item secrets that have not appeared yet are.
+     *
+     * <p>For scenario 81, which walks the player onto one to prove the proximity spawn and the pickup work.
+     * A test cannot guess these - they come from the room database through two rotations - and a test that
+     * asserted on a position it made up would prove nothing about the real ones.
+     */
+    public static List<BlockPos> pendingPositions() {
+        return List.copyOf(PENDING.keySet());
     }
 
     public static void register() {
@@ -101,7 +135,14 @@ public final class SimSecretItems {
                 }
                 tickCollected(level);
             } catch (RuntimeException e) {
-                // One bad secret must never stall the server tick.
+                // One bad secret must never stall the server tick - but it must not vanish either. This was an
+                // empty catch, and an empty catch on a per-tick handler is a feature that can stop working with
+                // nothing anywhere to say so. Logged ONCE, because a throw here would repeat twenty times a
+                // second and bury the log it is meant to explain.
+                if (!warnedOnce) {
+                    warnedOnce = true;
+                    LOGGER.warn("Item secrets stopped ticking after an error; none will appear this run", e);
+                }
             }
         });
     }

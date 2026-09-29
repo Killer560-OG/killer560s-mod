@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
 
-    private enum KeyTarget { OPEN, START, LOCKED_DOOR, BLOOD_RUSH }
+    private enum KeyTarget { OPEN, START, LOCKED_DOOR, GO_SECRET, BLOOD_RUSH }
 
     private KeyTarget capturing = null;
 
@@ -103,6 +103,13 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(keyButton("Start Key", KeyTarget.START, cfg.getStartKeyCode(), contentX, y, colW));
             widgets.add(keyButton("Locked Door Key", KeyTarget.LOCKED_DOOR, cfg.getLockedDoorKeyCode(), colB, y, colW));
             y += 20;
+            // killer560, 2026-09-29: "Make a third button bind for go to a room and secret it. You can have an
+            // option as well as a toggle ... that is double clicking room to do secret as an option." The bind
+            // and the double-press toggle sit side by side because they are the same action reached two ways.
+            widgets.add(keyButton("Go + Secret Key", KeyTarget.GO_SECRET, cfg.getGoSecretKeyCode(), contentX, y, colW));
+            widgets.add(LiveMapTab.toggle("Double-Press Secrets", cfg::isMapDoublePressStartNode,
+                    cfg::setMapDoublePressStartNode, cfg, colB, y, colW));
+            y += 20;
             widgets.add(LiveMapTab.toggle("Face Door on Arrival", cfg::isFaceDoorOnArrival, cfg::setFaceDoorOnArrival,
                     cfg, contentX, y, colW));
             widgets.add(LiveMapTab.toggle("Keep Chunks Loaded", cfg::isKeepChunksLoadedRaw, cfg::setKeepChunksLoaded,
@@ -121,14 +128,11 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // ordinary ones.
             widgets.add(LiveMapTab.toggle("Retarget Mid-Path", cfg::isMapRetargetMidPath, cfg::setMapRetargetMidPath,
                     cfg, contentX, y, colW));
-            widgets.add(LiveMapTab.toggle("Double-Press Start Node", cfg::isMapDoublePressStartNode,
-                    cfg::setMapDoublePressStartNode, cfg, colB, y, colW));
-            y += 20;
-            // Shown whether or not the toggle above is on: the window is also what stops two quick presses on
-            // the same room from reading as two separate goals, so it is never dead weight.
+            // Shown whether or not Double-Press Secrets is on: the window is also what stops two quick presses
+            // on the same room from reading as two separate goals, so it is never dead weight.
             widgets.add(LiveMapTab.slider("Double-Press Window", cfg::getMapDoublePressMs,
                     v -> cfg.setMapDoublePressMs((int) (Math.round(v / 50.0) * 50)), 150, 1000, "ms",
-                    cfg, contentX, y, contentWidth));
+                    cfg, colB, y, colW));
             y += 24;
 
             // ---------------------------------------------------------------- etherwarp path preview
@@ -215,6 +219,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
                 case OPEN -> cfg.setOpenKeyCode(code);
                 case START -> cfg.setStartKeyCode(code);
                 case LOCKED_DOOR -> cfg.setLockedDoorKeyCode(code);
+                case GO_SECRET -> cfg.setGoSecretKeyCode(code);
                 case BLOOD_RUSH -> cfg.setBloodRushKeyCode(code);
             }
         }

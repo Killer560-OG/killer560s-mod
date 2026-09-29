@@ -94,6 +94,22 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   "Doorway" is not "air": a shut wither door is coal block and a blood door red terracotta, and checking for
   air alone reported Spikes, Staircase and Arrow Trap as sealed. Blood and Higher Blaze genuinely have none
   at floor height and are read as enterable from any side.
+- **A capture carries its own rotation, and it is not the database's.** Secret coordinates in the room
+  database are relative to the room's CANONICAL orientation; a capture is taken from whatever instance he
+  walked through, so each one holds an arbitrary quarter turn. The sim handed `toRealCoord` the rotation the
+  room was PASTED at alone, so every non-canonical room put its secrets in the wrong corner - measured
+  2026-09-29, only 34 of 135 captures are canonical and 88 of the 122 identifiable ones were wrong. Invisible
+  in square rooms, because a wrong corner is still inside the room. `RoomCaptureRotation` recovers the turn
+  from the capture's own blue terracotta roof marker (119 of 135), with the database's chest and lever
+  positions breaking ties (122). The paste rotation still decides the FOOTPRINT; only the sum decides the
+  corner and the translation, so `SimSecrets.clayCorner` takes both separately.
+- The room captures only store y 60..140 (`RoomLibrary.MIN_Y`), but 29 of the 167 database chest secrets sit
+  below y 60, down to y 28. Those parts of those rooms were never captured, so Catwalk holds 2 chests where
+  the database lists 4. Not a translation fault - do not chase it as one.
+- Three captures are the wrong SIZE, not the wrong rotation: Deathmite is 2 tiles where the database says 3,
+  and Chambers and Raccoon match at no rotation. Re-capturing is the only fix.
+- An empty `catch` on a per-tick handler is a feature that can stop working with nothing anywhere to say so.
+  `SimSecretItems` swallowed every `RuntimeException` from the server tick; it now logs once.
 - `SimSecrets`' clay corner is ROTATION-DEPENDENT: NW at 0, NE at 90, SE at 180, SW at 270. It used NW
   always, which was invisible while the generator refused to rotate rooms and threw every secret out of the
   room the moment it did. It is the corner of the TILE area, not of the captured window - the wall margin is

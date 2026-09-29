@@ -43,6 +43,7 @@ public final class InteractiveMapFeature {
     private static boolean openWasDown = false;
     private static boolean startWasDown = false;
     private static boolean lockedWasDown = false;
+    private static boolean goSecretWasDown = false;
     private static boolean bloodRushWasDown = false;
     private static boolean peeking = false;
 
@@ -123,6 +124,14 @@ public final class InteractiveMapFeature {
             pathToLockedDoor();
         }
         lockedWasDown = lockedDown;
+        // Go + Secret key: same polling rules as the two above (only with the map open, mouse binds left to the
+        // screen's own click delivery), and the same dispatcher, told to take the start-node branch outright.
+        boolean goSecretDown = hasWindow && bindPollable(cfg.getGoSecretKeyCode(), pollMouseBinds)
+                && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getGoSecretKeyCode());
+        if (goSecretDown && !goSecretWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
+            onMapSecretPress(cellUnderCursor(client));
+        }
+        goSecretWasDown = goSecretDown;
         tickPendingGoal(client);
 
         boolean bloodDown = hasWindow && cfg.getBloodRushKeyCode() != com.killer560.hub.util.KeyUtil.NONE
@@ -171,6 +180,20 @@ public final class InteractiveMapFeature {
      * @param cell grid cell under the cursor, or -1 when the cursor is not over the map
      */
     static void onMapPress(int cell) {
+        onMapPress(cell, false);
+    }
+
+    /**
+     * killer560, 2026-09-29: "Make a third button bind for go to a room and secret it." The dedicated bind: the
+     * double press's action (path to the room's START node, then secret it) on a single press, whatever the
+     * Double-Press Secrets toggle says. Same queue as every other map goal, so it retargets a path in flight and
+     * cancels a playing secret route exactly as they do.
+     */
+    static void onMapSecretPress(int cell) {
+        onMapPress(cell, true);
+    }
+
+    private static void onMapPress(int cell, boolean forceStartNode) {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         if (!cfg.isInteractiveMapEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             // Used to quietly fall back to toggling waypoints, which is why a press sometimes did something
@@ -187,7 +210,11 @@ public final class InteractiveMapFeature {
                 queue(cell, (l, room, doorCell) -> AutoClearUtils.pathToDoor(l, doorCell, cfg.isFaceDoorOnArrival()));
             } else {
                 // Cursor is off the map entirely: the key keeps its old "start the room I am in" meaning.
-                pathToCurrentRoomStart();
+                if (forceStartNode) {
+                    pathToCurrentRoomStartNode();
+                } else {
+                    pathToCurrentRoomStart();
+                }
             }
             return;
         }
@@ -200,6 +227,13 @@ public final class InteractiveMapFeature {
         int gz = cell / LiveMapFeature.GRID;
         int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : LiveMapFeature.groupsView().get(gid).mainIdx;
 
+        if (forceStartNode) {
+            // Not a press the double-press counter should see: it would leave this room half-counted, and a
+            // following ordinary press on it could then read as the second of a double press.
+            lastPressRoom = -1;
+            queue(tile, InteractiveMapFeature::startNodeGoal);
+            return;
+        }
         if (registerPress(room, cfg) && cfg.isMapDoublePressStartNode()) {
             queue(tile, InteractiveMapFeature::startNodeGoal);
             return;
@@ -361,6 +395,18 @@ public final class InteractiveMapFeature {
                 return;
             }
             activateRoom(layout, room, layout.tiles(room)[0]);
+        });
+    }
+
+    /** The Go + Secret bind with the cursor off the map: the room you are standing in, start node first. */
+    static void pathToCurrentRoomStartNode() {
+        queue(-1, (layout, ignoredRoom, ignoredCell) -> {
+            int room = layout.currentRoom();
+            if (room < 0) {
+                ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
+                return;
+            }
+            startNodeGoal(layout, room, layout.tiles(room)[0]);
         });
     }
 
