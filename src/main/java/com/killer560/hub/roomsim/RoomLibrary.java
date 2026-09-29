@@ -273,7 +273,22 @@ public final class RoomLibrary {
     private static final String UNIDENTIFIED = "Unknown";
 
     public static synchronized int capture(Level level, DungeonLayout layout, int room) {
+        return capture(level, layout, room, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Captures a room, stopping after {@code columnBudget} new columns.
+     *
+     * <p>The budget exists because the recorder now sweeps every room in render distance rather than only the
+     * one you stand in, and this runs every tick. A room is 961 columns of 81 blocks each; a whole map's worth
+     * in one tick is close to two million block reads and would stutter badly. Spreading it costs no coverage:
+     * columns already captured are skipped, and the 25 second scan window is hundreds of ticks long.
+     */
+    public static synchronized int capture(Level level, DungeonLayout layout, int room, int columnBudget) {
         load();
+        if (columnBudget <= 0) {
+            return 0;
+        }
         String name = layout.name(room);
         if (name == null || name.isBlank() || UNIDENTIFIED.equals(name)) {
             // "Unknown" is DungeonLayout's placeholder for a room it has not identified yet, not a room name.
@@ -341,6 +356,11 @@ public final class RoomLibrary {
                 }
                 r.seenColumn[col] = true;
                 added++;
+                if (added >= columnBudget) {
+                    // Out of budget. The rest of this room is picked up on a later tick - seenColumn means
+                    // resuming costs nothing and never re-reads what is already stored.
+                    return added;
+                }
             }
         }
         return added;

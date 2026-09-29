@@ -147,6 +147,15 @@ public final class RoomRecorderFeature {
     private static int tickCounter;
     private static boolean suppressKeyStop;
     private static int confirmTicks;
+    private static int scanCursor;
+
+    /**
+     * New columns to read per tick, across all rooms.
+     *
+     * <p>256 columns is about 21k block reads a tick, small beside what the client already does each frame, and
+     * over a 25 second window it is far more than a whole map needs - so the cap costs no coverage at all.
+     */
+    private static final int COLUMNS_PER_TICK = 256;
 
     /**
      * Tick to click the undersized-party confirm on, or -1 when the menu is not up.
@@ -406,12 +415,27 @@ public final class RoomRecorderFeature {
         if (layout == null) {
             return;
         }
-        int room = layout.roomAtWorld(client.player.getX(), client.player.getZ());
-        if (room < 0) {
-            return;
+        // killer560 (2026-09-28): "make sure it doesnt just scan the room i am in but every room in my render
+        // distance." Standing in a doorway already loads four rooms, and a loop that only recorded the tile
+        // underfoot threw away most of what the client had in memory.
+        //
+        // Nothing here decides what is "in render distance". RoomLibrary.capture already tests every column
+        // against the chunk cache and skips the ones that are not loaded, so an out-of-range room contributes
+        // nothing rather than a room-shaped block of air. Keeping that the single place load state is judged is
+        // what keeps this honest - asking the question twice, in two ways, is how you store air and call it seen.
+        int rooms = layout.roomCount();
+        if (rooms > 0) {
+            int budget = COLUMNS_PER_TICK;
+            for (int i = 0; i < rooms && budget > 0; i++) {
+                // Rotated start, so the room the budget runs out on is not the same one every tick and the far
+                // side of the map is not permanently starved by the near side.
+                int added = RoomLibrary.capture(client.level, layout, (scanCursor + i) % rooms, budget);
+                budget -= added;
+                roomsAddedThisRun += added;
+            }
+            scanCursor = (scanCursor + 1) % rooms;
         }
-        roomsAddedThisRun += RoomLibrary.capture(client.level, layout, room);
-        captureMobSpawns(client, layout, room);
+        captureMobSpawns(client, layout);
         // Measures what the sim is currently guessing at - the wither door's real size and shape. Costs nothing
         // when there is no unlogged door loaded, and never touches the room library.
         SimMeasure.scanDoors(client);
@@ -424,25 +448,17 @@ public final class RoomRecorderFeature {
      * same thing Mob ESP already relies on - so these are the stands, and the stand is where the mob is. Without
      * this a rebuilt room is scenery: the geometry is right and nothing lives in it.
      */
-    private static void captureMobSpawns(Minecraft client, DungeonLayout layout, int room) {
-        String name = layout.name(room);
-        if (name == null || name.isBlank()) {
-            return;
-        }
-        int[] tiles = layout.tiles(room);
-        if (tiles == null || tiles.length == 0) {
-            return;
-        }
-        int minGx = Integer.MAX_VALUE;
-        int minGz = Integer.MAX_VALUE;
-        for (int idx : tiles) {
-            minGx = Math.min(minGx, idx % DungeonLayout.GRID);
-            minGz = Math.min(minGz, idx / DungeonLayout.GRID);
-        }
-        var origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
-        int worldX0 = origin.getX() - RoomLibrary.TILE / 2;
-        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
-
+    /**
+     * Records every starred mob in the loaded world, into whichever room it actually stands in.
+     *
+     * <p>One sweep for the whole map rather than one per room. It used to take a room and walk the entity list
+     * for it, which is a full sweep per room now that every room is scanned - and it decided whether a stand
+     * belonged to that room by subtracting the room's origin and rejecting negatives, with NO UPPER BOUND. A
+     * stand in the room to the +x or +z side produced positive coordinates that landed inside the array and was
+     * filed under the wrong room. Asking {@code roomAtWorld} where the stand is cannot make that mistake, and
+     * costs one sweep instead of one per room.
+     */
+    private static void captureMobSpawns(Minecraft client, DungeonLayout layout) {
         for (var entity : client.level.entitiesForRendering()) {
             if (!(entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand)) {
                 continue;
@@ -451,11 +467,30 @@ public final class RoomRecorderFeature {
             if (custom == null || !custom.getString().contains(STAR)) {
                 continue;
             }
-            int lx = (int) Math.floor(stand.getX()) - worldX0;
+            int room = layout.roomAtWorld(stand.getX(), stand.getZ());
+            if (room < 0) {
+                continue;
+            }
+            String name = layout.name(room);
+            if (name == null || name.isBlank() || "Unknown".equals(name)) {
+                continue;
+            }
+            int[] tiles = layout.tiles(room);
+            if (tiles == null || tiles.length == 0) {
+                continue;
+            }
+            int minGx = Integer.MAX_VALUE;
+            int minGz = Integer.MAX_VALUE;
+            for (int idx : tiles) {
+                minGx = Math.min(minGx, idx % DungeonLayout.GRID);
+                minGz = Math.min(minGz, idx / DungeonLayout.GRID);
+            }
+            var origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
+            int lx = (int) Math.floor(stand.getX()) - (origin.getX() - RoomLibrary.TILE / 2);
             int ly = (int) Math.floor(stand.getY());
-            int lz = (int) Math.floor(stand.getZ()) - worldZ0;
+            int lz = (int) Math.floor(stand.getZ()) - (origin.getZ() - RoomLibrary.TILE / 2);
             if (lx < 0 || lz < 0 || ly < RoomLibrary.MIN_Y || ly > RoomLibrary.MAX_Y) {
-                continue; // a stand belonging to a neighbouring room, or out of the slice we keep
+                continue;
             }
             RoomLibrary.recordMobSpawn(name, lx, ly, lz, "STARRED");
         }
