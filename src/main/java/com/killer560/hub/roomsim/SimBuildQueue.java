@@ -39,7 +39,16 @@ public final class SimBuildQueue {
      */
     private static final int BLOCKS_PER_TICK = 40_000;
 
-    private static final Deque<RoomPlacer.PasteJob> JOBS = new ArrayDeque<>();
+    /** A piece of world-writing that can be done a slice at a time. */
+    public interface Job {
+
+        /** Does up to {@code budget} blocks and returns how many were written. */
+        int step(int budget);
+
+        boolean isDone();
+    }
+
+    private static final Deque<Job> JOBS = new ArrayDeque<>();
     private static Runnable onDone;
     private static int placedTotal;
     private static int jobsTotal;
@@ -61,6 +70,82 @@ public final class SimBuildQueue {
                                            int rotation) {
         JOBS.add(new RoomPlacer.PasteJob(level, room, gridX, gridZ, rotation));
         jobsTotal++;
+    }
+
+    /**
+     * Queues a region to be wiped to air.
+     *
+     * <p>killer560 (2026-09-28): "it doesnt do a good job of clearing the surroundings and stuff." The sim
+     * world is a flat world, so there is grass and stone everywhere the room does not cover - and a paste only
+     * writes the columns that were actually CAPTURED, leaving the rest as flatland poking through the middle of
+     * a dungeon. Clearing first is what makes a pasted room look like a room rather than a ruin in a field.
+     *
+     * <p>Queued ahead of the rooms rather than done inline, for the same reason the pastes are: a margin around
+     * a 2x2 room is well over a million blocks and doing it in one go is precisely the freeze this queue
+     * exists to prevent.
+     */
+    public static synchronized void submitClear(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        JOBS.addFirst(new ClearJob(level, minX, minZ, maxX, maxZ));
+    }
+
+    /** Fills a box with air, a slice at a time. */
+    private static final class ClearJob implements Job {
+
+        private final ServerLevel level;
+        private final int minX;
+        private final int minZ;
+        private final int maxX;
+        private final int maxZ;
+        private final net.minecraft.core.BlockPos.MutableBlockPos cursor =
+                new net.minecraft.core.BlockPos.MutableBlockPos();
+        private final net.minecraft.world.level.block.state.BlockState air =
+                net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+
+        private int x;
+        private int z;
+        private int y = RoomLibrary.MIN_Y;
+        private boolean done;
+
+        ClearJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+            this.level = level;
+            this.minX = minX;
+            this.minZ = minZ;
+            this.maxX = maxX;
+            this.maxZ = maxZ;
+            this.x = minX;
+            this.z = minZ;
+        }
+
+        @Override
+        public boolean isDone() {
+            return done;
+        }
+
+        @Override
+        public int step(int budget) {
+            int written = 0;
+            while (written < budget) {
+                if (y > RoomLibrary.MAX_Y) {
+                    done = true;
+                    return written;
+                }
+                cursor.set(x, y, z);
+                // Only touch what is not already air. A flat world is mostly air above the surface, and
+                // rewriting it would burn the whole budget on nothing.
+                if (!level.getBlockState(cursor).isAir()) {
+                    level.setBlock(cursor, air, RoomPlacer.CLEAR_FLAGS);
+                    written++;
+                }
+                if (++z > maxZ) {
+                    z = minZ;
+                    if (++x > maxX) {
+                        x = minX;
+                        y++;
+                    }
+                }
+            }
+            return written;
+        }
     }
 
     /**
@@ -90,7 +175,7 @@ public final class SimBuildQueue {
             }
             int budget = BLOCKS_PER_TICK;
             while (budget > 0 && !JOBS.isEmpty()) {
-                RoomPlacer.PasteJob job = JOBS.peek();
+                Job job = JOBS.peek();
                 int placed = job.step(budget);
                 budget -= Math.max(1, placed);
                 placedTotal += placed;

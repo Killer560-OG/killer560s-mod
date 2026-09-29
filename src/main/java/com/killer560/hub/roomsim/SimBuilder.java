@@ -5,6 +5,7 @@ import com.killer560.hub.util.ModChat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +98,9 @@ public final class SimBuilder {
             // Counted in an array so the lambda can write to it - rooms actually built, which is the score's
             // room denominator.
             final int[] roomsPlaced = {0};
+            // Where to put him when it is built - the first cell that actually got a room, so he never lands
+            // in a gap the map left empty.
+            final int[] firstPlacedCell = {-1};
             StringBuilder missingNames = new StringBuilder();
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
                 int nameIndex = decoded.cellRoom()[cell];
@@ -115,6 +119,9 @@ public final class SimBuilder {
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
                 SimBuildQueue.submit(level, room, gx, gz, decoded.cellRotation()[cell]);
+                if (firstPlacedCell[0] < 0) {
+                    firstPlacedCell[0] = cell;
+                }
                 roomsPlaced[0]++;
                 spawnMobsFor(client, level, room, gx, gz);
                 if (SimMimic.roomEligible(name)) {
@@ -131,17 +138,83 @@ public final class SimBuilder {
             final int m = missing;
             final String names = missingNames.toString();
             final int roomCount = roomsPlaced[0];
-            SimBuildQueue.whenDone(() -> client.execute(() -> {
+            // The whole grid, in one wipe, so no flatland shows between rooms or in the gaps a map leaves.
+            var gridMin = DungeonLayout.cellCenter(0);
+            var gridMax = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
+            SimBuildQueue.submitClear(level,
+                    Math.min(gridMin.getX(), gridMax.getX()) - RoomLibrary.TILE,
+                    Math.min(gridMin.getZ(), gridMax.getZ()) - RoomLibrary.TILE,
+                    Math.max(gridMin.getX(), gridMax.getX()) + RoomLibrary.TILE,
+                    Math.max(gridMin.getZ(), gridMax.getZ()) + RoomLibrary.TILE);
+            final int firstCell = firstPlacedCell[0];
+            SimBuildQueue.whenDone(() -> {
+                if (firstCell >= 0) {
+                    snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
+                            firstCell / DungeonLayout.GRID);
+                }
+                client.execute(() -> {
                 SimWorld.buildFinished(client, null);
                 ModChat.send("Sim", ModChat.text("Built "), ModChat.value(String.valueOf(roomCount)),
                         ModChat.text(" room(s)."));
                 if (m > 0) {
                     ModChat.send("Sim", ModChat.dim(m + " cell(s) had no captured room: " + names));
                 }
-            }));
+                });
+            });
             LOGGER.info("Sim build: {} room(s) queued, {} cells missing a room", roomCount, m);
         });
     }
+
+    /**
+     * Puts the player in the room that was just built.
+     *
+     * <p>killer560 (2026-09-28): "I found the room generated it is just really far away my character isnt
+     * snapped to it." The sim's grid is anchored at -185,-185 and a room can be a couple of hundred blocks from
+     * world spawn, so building it and leaving him at spawn means the work is invisible - he was looking at
+     * empty flatland with a dungeon over the horizon.
+     *
+     * <p>The landing spot is FOUND rather than assumed. Rooms differ in floor height and the captured slice
+     * spans y 60 to 140, so a fixed Y drops him inside the floor or a long way above it. This scans down the
+     * centre column for the first solid block with two blocks of air on top - the same test that decides
+     * whether an etherwarp is legal, and for the same reason: it is what "somewhere you can stand" means.
+     *
+     * <p>Writing the position directly is correct here and only here: the integrated server is ours, and the
+     * whole package is gated on {@link SimState#canAct}. The no-direct-movement rule exists because Hypixel
+     * reconstructs movement and lags you back; there is no Hypixel in this world.
+     */
+    static void snapPlayerTo(Minecraft client, ServerLevel level, int gridX, int gridZ) {
+        var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+        int x = origin.getX();
+        int z = origin.getZ();
+        int landing = -1;
+        for (int y = RoomLibrary.MAX_Y; y > RoomLibrary.MIN_Y; y--) {
+            if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
+                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
+                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()) {
+                landing = y + 1;
+                break;
+            }
+        }
+        if (landing < 0) {
+            // Nothing to stand on at the centre - a doorway column, or a room whose middle is a pit. Put him
+            // above it rather than inside the floor; falling a few blocks is recoverable, suffocating is not.
+            landing = RoomLibrary.MAX_Y;
+        }
+        final int y = landing;
+        var uuid = client.player == null ? null : client.player.getUUID();
+        if (uuid == null) {
+            return;
+        }
+        level.getServer().execute(() -> {
+            ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
+            if (sp != null) {
+                sp.teleportTo(level, x + 0.5, y, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
+            }
+        });
+    }
+
+    /** Blocks of flat world to wipe around a room, so it does not sit in a field. */
+    private static final int CLEAR_MARGIN = 24;
 
     /**
      * Finds the chests in a placed room and offers them as mimic candidates.
@@ -225,9 +298,15 @@ public final class SimBuilder {
             ServerLevel level = server.overworld();
             // Through the queue, not straight into a 700k-block loop on this thread - that is what froze the
             // game. The completion callback is what takes the loading screen down.
+            var origin = DungeonLayout.cellCenter(centre * DungeonLayout.GRID + centre);
+            int halfX = room.sizeX / 2 + CLEAR_MARGIN;
+            int halfZ = room.sizeZ / 2 + CLEAR_MARGIN;
+            SimBuildQueue.submitClear(level, origin.getX() - halfX, origin.getZ() - halfZ,
+                    origin.getX() + halfX, origin.getZ() + halfZ);
             SimBuildQueue.submit(level, room, centre, centre, 0);
             SimBuildQueue.whenDone(() -> {
                 spawnMobsFor(client, level, room, centre, centre);
+                snapPlayerTo(client, level, centre, centre);
                 client.execute(() -> {
                     SimWorld.buildFinished(client, null);
                     ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
@@ -256,15 +335,22 @@ public final class SimBuilder {
         int centre = DungeonLayout.GRID / 2;
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            SimBuildQueue.submit(level, room, centre, centre, 0);
             var origin = DungeonLayout.cellCenter(centre * DungeonLayout.GRID + centre);
-            SimBuildQueue.whenDone(() -> client.execute(() -> {
+            SimBuildQueue.submitClear(level, origin.getX() - room.sizeX / 2 - CLEAR_MARGIN,
+                    origin.getZ() - room.sizeZ / 2 - CLEAR_MARGIN,
+                    origin.getX() + room.sizeX / 2 + CLEAR_MARGIN,
+                    origin.getZ() + room.sizeZ / 2 + CLEAR_MARGIN);
+            SimBuildQueue.submit(level, room, centre, centre, 0);
+            SimBuildQueue.whenDone(() -> {
+                snapPlayerTo(client, level, centre, centre);
+                client.execute(() -> {
                 SimWorld.buildFinished(client, null);
                 ModChat.send("Sim",
                     ModChat.text("Flat test room built at "),
                     ModChat.value(String.format(Locale.US, "%d %d %d",
                             origin.getX(), origin.getY(), origin.getZ())));
-            }));
+                });
+            });
         });
     }
 }

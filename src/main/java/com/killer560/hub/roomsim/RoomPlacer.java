@@ -52,6 +52,9 @@ public final class RoomPlacer {
      */
     private static final int PLACE_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
 
+    /** Same flags for wiping a region before a paste - see {@code SimBuildQueue.ClearJob}. */
+    public static final int CLEAR_FLAGS = PLACE_FLAGS;
+
     /** Palette strings already warned about this JVM run, so a renamed/removed block warns once, not per block. */
     private static final Set<String> WARNED_UNRESOLVED = new HashSet<>();
 
@@ -90,7 +93,7 @@ public final class RoomPlacer {
      * unchanged and still lives in {@link #paste}; this only remembers how far through it is, by keeping the
      * three loop counters as fields instead of on the stack.
      */
-    public static final class PasteJob {
+    public static final class PasteJob implements SimBuildQueue.Job {
 
         private final ServerLevel level;
         private final RoomLibrary.Room room;
@@ -117,6 +120,7 @@ public final class RoomPlacer {
             this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
         }
 
+        @Override
         public boolean isDone() {
             return done;
         }
@@ -128,6 +132,7 @@ public final class RoomPlacer {
          * captured, and those are skipped without costing anything, so charging the budget for them would make
          * a sparse room take as many ticks as a solid one for no work.
          */
+        @Override
         public int step(int budget) {
             int placed = 0;
             while (placed < budget) {
