@@ -111,7 +111,10 @@ public class SimMapEditorScreen extends Screen {
 
         // The grid is square and takes the left half; the list takes the rest.
         int gridArea = Math.min(panelH - 144, (panelW - 30) / 2);
-        cell = Math.max(14, gridArea / GRID);
+        // Floor of 8, not 14. At 14 the grid could not shrink far enough to clear the settings row on a
+        // short window - scenario 83 measured the grid's bottom at y 170 against a button top of y 168 at a
+        // 240-unit window height. A cramped grid is better than one drawn over the controls.
+        cell = Math.max(8, gridArea / GRID);
         gridX = panelX + 14;
         gridY = panelY + 66;
         listX = gridX + cell * GRID + 14;
@@ -517,7 +520,9 @@ public class SimMapEditorScreen extends Screen {
                 : status;
         // Under the grid, not over the settings row. This sat at panelH - 40, which was clear when there was
         // one row of buttons and is inside the Floor / Rooms to blood / Puzzles row now that there are two.
-        g.text(this.font, hint, panelX + 14, panelY + panelH - 72, ProfitPanels.DIM, false);
+        // Anchored to the GRID rather than to the panel, so it follows the grid when the grid shrinks
+        // instead of being swallowed by it.
+        g.text(this.font, hint, panelX + 14, gridY + cell * GRID + 4, ProfitPanels.DIM, false);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 

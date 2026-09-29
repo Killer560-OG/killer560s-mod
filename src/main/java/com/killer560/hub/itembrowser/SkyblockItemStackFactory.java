@@ -163,6 +163,31 @@ public final class SkyblockItemStackFactory {
         return stack;
     }
 
+    /**
+     * How many of a catalog entry's real {@code material} fit in one slot, according to the VANILLA item
+     * that material resolves to. Used by the Bazaar-to-NPC Flipper to size a purchase against real stack
+     * sizes instead of assuming 64 for everything.
+     *
+     * <p><b>This is the vanilla figure, not a figure read off Hypixel.</b> Hypixel can and does override
+     * stack sizes for its own items, and nothing in the public item catalog exposes what it uses, so this
+     * is deliberately the conservative direction: where the two disagree, vanilla is the smaller number
+     * (ender pearls are 16 here), so a buy sized off this under-fills rather than over-fills. Never treat
+     * it as verified Skyblock behaviour.
+     *
+     * @return 1..64, or 64 when {@code material} is null/unresolvable (the overwhelmingly common case for
+     * the enchanted blocks this actually matters for).
+     */
+    public static int materialMaxStackSize(String material) {
+        if (material == null || material.isBlank()) {
+            return 64;
+        }
+        try {
+            return Math.max(1, Math.min(64, resolveMaterialItem(material).getDefaultMaxStackSize()));
+        } catch (Exception e) {
+            return 64;
+        }
+    }
+
     private static Item resolveMaterialItem(String material) {
         if ("SKULL_ITEM".equals(material) || "SKELETON_SKULL_ITEM".equals(material)) {
             return Items.PLAYER_HEAD;

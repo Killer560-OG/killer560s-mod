@@ -17,6 +17,7 @@ final class SettingTooltipsData {
         mining(d);
         invSortAndAutoSell(d);
         autoKick(d);
+        bazaarFlip(d);
     }
 
     private static void part1(Map<String, String> d) {
@@ -1985,5 +1986,14 @@ final class SettingTooltipsData {
             d.put("auto kick/" + f.label().toLowerCase(java.util.Locale.ROOT), "Seconds after this run's clock starts before Auto Kick considers " + f.label()
                     + " missed. Drag to 0 (Disabled) to leave this floor alone. Ships at 0 for every floor - there's no verified 'normal' clear time for a group this mod could safely guess at, so set your own.");
         }
+    }
+
+    private static void bazaarFlip(Map<String, String> d) {
+        d.put("bazaar flipper", "Master toggle for buying an item out of the Bazaar at instant-buy price and selling it to the /trades NPC. Default OFF and unbound. The buy and sell CLICKS are not implemented yet - it scans, picks, opens each menu, prints what was in it and stops, because neither menu's layout has been verified.");
+        d.put("bazaar flipper/start key", "Starts a flipping session. Any key stops it while it runs, and the stop message names the key. Mouse buttons work too. Nothing scans while it is idle.");
+        d.put("bazaar flipper/rank by", "Percentage Margin ranks by profit as a share of what you spend; Total Profit Per Run ranks by raw coins from one buy-and-sell cycle. Use the profit floor below either way.");
+        d.put("bazaar flipper/min profit per run", "Coins one buy-and-sell cycle must clear before the bot will touch it, in both ranking modes. Without it, percentage ranking picks things like Netherrack at 900% that net under two thousand coins for a whole inventory.");
+        d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this. Off (0) means it keeps going until you stop it or nothing is profitable.");
+        d.put("bazaar flipper/speed", "Milliseconds left between two consecutive automated actions - a command send or a menu click - drawn randomly inside the shown band. It does not change how much is bought and does not shorten any safety timeout.");
     }
 }

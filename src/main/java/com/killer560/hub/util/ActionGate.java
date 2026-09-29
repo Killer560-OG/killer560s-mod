@@ -194,6 +194,19 @@ public final class ActionGate {
          *  you can refrence quoi for it" - QUOI's own source has no auto-sell module to port; see
          *  {@code autosell.AutoSellFeature}'s class doc). Same "no one dies if this is a tick late" bucket. */
         AUTO_SELL(Kind.SCREEN),
+        /** The Bazaar-to-NPC Flipper's {@code /bz <item>} and {@code /trades} sends (killer560, 2026-09-29:
+         *  "a bazaar flipper"). A command, so {@link Kind#COMMAND}. Same "no one dies if this is a tick late"
+         *  bucket as Auto Sell - it is shop automation in the Hub, never in a run. Wired in the same change
+         *  that declared it, per the warning above this enum: {@code BazaarFlipFeature#sendCommand} is the
+         *  only caller. */
+        BAZAAR_FLIP_CMD(Kind.COMMAND),
+        /** The Bazaar-to-NPC Flipper clicking inside Hypixel's Bazaar product menu or the {@code /trades} NPC
+         *  menu. Declared and wired together with {@code BAZAAR_FLIP_CMD}, but note that the click steps
+         *  themselves are gated off behind {@code BazaarFlipFeature#MENU_CLICKS_VERIFIED} until those two
+         *  menu layouts have actually been observed in game - so this actor is reachable only from the one
+         *  helper that performs a verified click, and today nothing calls it. That is deliberate, and it is
+         *  the case this enum's doc warns about, stated rather than hidden. */
+        BAZAAR_FLIP_MENU(Kind.SCREEN),
         /** Room Recorder confirming Hypixel's "Undersized party!" menu on a solo joininstance. */
         ROOM_RECORDER_MENU(Kind.SCREEN),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create

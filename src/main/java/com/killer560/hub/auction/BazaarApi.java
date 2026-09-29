@@ -108,6 +108,92 @@ public final class BazaarApi {
         });
     }
 
+    /**
+     * One on-demand GET that returns every product's real <b>instant-buy</b> order book, cheapest level
+     * first. Used by the Bazaar-to-NPC Flipper, which has to walk the book level by level to price a real
+     * purchase. Deliberately <b>not</b> wired into {@link #ensureAutoStarted()}'s five-minute loop and it
+     * never touches {@link #products}: the flipper only scans while it is actually running (killer560,
+     * 2026-09-29: "only have the rescan go while the bot is running"), and the always-on Auction House scan
+     * is already a known performance complaint.
+     *
+     * <p><b>The naming trap.</b> Hypixel's two summaries are named the opposite of how they read:
+     * <ul>
+     *   <li>{@code buy_summary} is the book you <b>instant-buy out of</b>, i.e. what you PAY. Verified live
+     *       on {@code VIBRANT_CORAL} (2026-09-29):
+     *       {@code quick_status.buyPrice} 3324220.9 lines up with {@code buy_summary[0].pricePerUnit}
+     *       3324220.8, and {@code quick_status.sellPrice} 221606.1 lines up with
+     *       {@code sell_summary[0].pricePerUnit} 221606.1 exactly. So {@code buy_summary} is the expensive
+     *       side and is the one an instant BUY consumes.</li>
+     *   <li>{@code sell_summary} is the cheap side, the book an instant SELL fills into.</li>
+     * </ul>
+     * Reading them the other way round produced a fake 1.6-billion-coin "flip" the first time this was
+     * written. This method returns {@code buy_summary} only, because that is the only book a
+     * buy-from-Bazaar/sell-to-NPC flip ever touches.
+     *
+     * <p>{@code quick_status.buyPrice} is <b>not</b> the top of that book - it is a weighted average of the
+     * top orders, and it matched the exact top price on only 628 of 1833 products with a book (measured
+     * 2026-09-29). Anything sizing a real purchase must walk the levels, not read that average.
+     *
+     * @return product id -&gt; levels sorted ascending by {@code pricePerUnit} (cheapest first, i.e. the
+     * order a real instant-buy consumes them in). Empty map on any failure - never null, never partial.
+     */
+    public static CompletableFuture<Map<String, List<BazaarOrderLevel>>> fetchInstantBuyBooksAsync() {
+        return CompletableFuture.supplyAsync(BazaarApi::fetchInstantBuyBooks);
+    }
+
+    private static Map<String, List<BazaarOrderLevel>> fetchInstantBuyBooks() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(BAZAAR_URL))
+                    .timeout(Duration.ofSeconds(30))
+                    .header("User-Agent", "Killer560sMod-Bazaar/1.0")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                LOGGER.warn("[Bazaar] Order-book fetch returned HTTP {}", response.statusCode());
+                return Map.of();
+            }
+            JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+            if (!root.has("success") || !root.get("success").getAsBoolean() || !root.has("products")) {
+                return Map.of();
+            }
+            JsonObject productsJson = root.getAsJsonObject("products");
+            Map<String, List<BazaarOrderLevel>> out = new java.util.HashMap<>(productsJson.size() * 2);
+            for (Map.Entry<String, JsonElement> entry : productsJson.entrySet()) {
+                if (!entry.getValue().isJsonObject()) {
+                    continue;
+                }
+                JsonObject obj = entry.getValue().getAsJsonObject();
+                // buy_summary ONLY - see this method's doc for why that is the instant-BUY side.
+                if (!obj.has("buy_summary") || !obj.get("buy_summary").isJsonArray()) {
+                    continue;
+                }
+                List<BazaarOrderLevel> levels = new ArrayList<>();
+                for (JsonElement el : obj.getAsJsonArray("buy_summary")) {
+                    if (!el.isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject lvl = el.getAsJsonObject();
+                    double ppu = lvl.has("pricePerUnit") ? lvl.get("pricePerUnit").getAsDouble() : 0;
+                    long amount = lvl.has("amount") ? lvl.get("amount").getAsLong() : 0;
+                    int orders = lvl.has("orders") ? lvl.get("orders").getAsInt() : 0;
+                    if (ppu > 0 && amount > 0) {
+                        levels.add(new BazaarOrderLevel(ppu, amount, orders));
+                    }
+                }
+                if (levels.isEmpty()) {
+                    continue;
+                }
+                levels.sort(java.util.Comparator.comparingDouble(BazaarOrderLevel::pricePerUnit));
+                out.put(entry.getKey(), List.copyOf(levels));
+            }
+            return Map.copyOf(out);
+        } catch (Exception e) {
+            LOGGER.warn("[Bazaar] Order-book fetch failed", e);
+            return Map.of();
+        }
+    }
+
     private static List<BazaarProduct> fetchAndParse() {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(BAZAAR_URL))

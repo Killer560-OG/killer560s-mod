@@ -311,3 +311,11 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   `stoppedByUser`/`justFinished`, and both make `AutoRoutesFeature` latch instead of arming *while the player
   stands inside a node* - which is exactly where a map warp puts him. Clear them whenever something other than
   the player cancels a route.
+- **Hypixel's Bazaar summaries are named the opposite of how they read.** In
+  `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
+  the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
+  matches `buy_summary[0].pricePerUnit` and `sellPrice` 221605.8 matches `sell_summary[0]`. Reading them the
+  other way round produced a fake 1.6-billion-coin flip. `quick_status.buyPrice` is also a weighted AVERAGE,
+  matching the exact top of book on only 628 of 1833 products, so anything sizing a real purchase must walk the
+  levels. Scale check for the Bazaar-to-NPC flipper: of 819 products with an `npc_sell_price` only ~46 profit at
+  all and the worthwhile margins are 0.4%-1.5% - a result far outside that band means the book is backwards.

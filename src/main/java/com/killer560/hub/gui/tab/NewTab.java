@@ -146,6 +146,10 @@ public class NewTab extends FolderTab {
             // both are cheat-only like everything else in this block.
             tabs.add(new InventorySorterTab());
             tabs.add(new AutoSellTab());
+            // Bazaar-to-NPC Flipper (killer560, 2026-09-29: "a bazaar flipper"). Buys out of the Bazaar and
+            // sells to the /trades NPC, so it is automation that spends coins - cheat-only like the rest of
+            // this block.
+            tabs.add(new BazaarFlipTab());
         }
         return tabs;
     }
