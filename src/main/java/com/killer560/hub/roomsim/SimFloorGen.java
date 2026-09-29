@@ -399,10 +399,17 @@ public final class SimFloorGen {
         chosen.add(start);
         taken.add(key(start));
 
-        Deque<int[]> frontier = new ArrayDeque<>();
+        // A LIST used as a random frontier, not a stack.
+        //
+        // It was a stack, which makes this a depth-first walk - and a depth-first walk produces one long
+        // snaking corridor, not a dungeon. killer560 (2026-09-28): "it looks nothing like a normal dungeon."
+        // Picking a random frontier cell each step grows a compact blob instead, which is the shape a real
+        // Catacombs floor has.
+        List<int[]> frontier = new ArrayList<>();
         frontier.add(start);
         while (chosen.size() < want && !frontier.isEmpty()) {
-            int[] from = frontier.peek();
+            int fromIndex = RNG.nextInt(frontier.size());
+            int[] from = frontier.get(fromIndex);
             List<int[]> options = new ArrayList<>();
             for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
                 int nx = from[0] + d[0];
@@ -416,13 +423,13 @@ public final class SimFloorGen {
                 }
             }
             if (options.isEmpty()) {
-                frontier.poll();
+                frontier.remove(fromIndex);
                 continue;
             }
             int[] next = options.get(RNG.nextInt(options.size()));
             chosen.add(next);
             taken.add(key(next));
-            frontier.push(next);
+            frontier.add(next);
         }
         return chosen;
     }

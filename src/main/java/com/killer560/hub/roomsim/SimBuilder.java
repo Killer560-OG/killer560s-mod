@@ -209,6 +209,24 @@ public final class SimBuilder {
                     break;
                 }
             }
+            // Every doorway, queued to be cut AFTER the rooms are pasted - cutting first would simply be
+            // pasted over, which is the same ordering mistake the secrets had.
+            final java.util.List<int[]> doorCells = new java.util.ArrayList<>();
+            for (int cell = 0; cell < decoded.cellDoor().length; cell++) {
+                if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_NONE) {
+                    continue;
+                }
+                int gx = cell % DungeonLayout.GRID;
+                int gz = cell / DungeonLayout.GRID;
+                // A door cell is odd on exactly one axis; that axis is the one the rooms sit apart on.
+                boolean alongX = (gx % 2) == 1;
+                doorCells.add(new int[]{cell, alongX ? 1 : 0, decoded.cellDoor()[cell]});
+            }
+            afterBuild.add(() -> {
+                for (int[] d : doorCells) {
+                    SimDoors.carveDoorway(level, DungeonLayout.cellCenter(d[0]), d[1] == 1, d[2]);
+                }
+            });
             final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
                 for (Runnable r : afterBuild) {

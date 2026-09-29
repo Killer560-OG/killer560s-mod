@@ -6,6 +6,7 @@ import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.Minecraft;
+import com.killer560.hub.livemap.DungeonLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -81,6 +82,74 @@ public final class SimDoors {
 
     /** One door's block positions. A record so it works as a map key by structural equality. */
     private record Door(List<BlockPos> blocks) {
+    }
+
+    /**
+     * Cuts an actual doorway through the wall between two rooms.
+     *
+     * <p>killer560 (2026-09-28): "the map is not full nor is it possible to get to every room from the
+     * starting room." The second half was this: NOTHING ever cut an opening. Every captured room is pasted
+     * with all four of its walls intact, so a generated floor was a set of sealed boxes standing next to each
+     * other. The map data said there were doors between them and the world disagreed.
+     *
+     * <p>The opening is carved through BOTH walls and the seam between them, because a room's own wall and its
+     * neighbour's are two separate walls with a gap - punching through only one leaves a dead end that looks
+     * like a doorway.
+     *
+     * <p>A normal door is left open. Blood and entrance doors are filled with barriers and registered, so the
+     * existing key and countdown logic can open them exactly as it already does for wither doors.
+     *
+     * @param alongX true when the two rooms are side by side on the X axis
+     */
+    public static void carveDoorway(ServerLevel level, BlockPos centre, boolean alongX, int doorType) {
+        int floorY = findFloor(level, centre);
+        // Three wide and four high, the shape of a Catacombs doorway, and deep enough to pass through both
+        // walls plus the seam.
+        int halfWidth = 1;
+        int depth = 3;
+        boolean barrier = doorType == DungeonLayout.DOOR_BLOOD
+                || doorType == DungeonLayout.DOOR_ENTRANCE
+                || doorType == DungeonLayout.DOOR_WITHER;
+        java.util.List<BlockPos> filled = new java.util.ArrayList<>();
+        for (int d = -depth; d <= depth; d++) {
+            for (int w = -halfWidth; w <= halfWidth; w++) {
+                for (int y = floorY; y < floorY + DOOR_HEIGHT; y++) {
+                    BlockPos at = alongX
+                            ? new BlockPos(centre.getX() + d, y, centre.getZ() + w)
+                            : new BlockPos(centre.getX() + w, y, centre.getZ() + d);
+                    level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                    if (barrier && d == 0) {
+                        level.setBlockAndUpdate(at, Blocks.BARRIER.defaultBlockState());
+                        filled.add(at.immutable());
+                    }
+                }
+            }
+        }
+        if (barrier && !filled.isEmpty()) {
+            Door door = new Door(java.util.List.copyOf(filled));
+            DOORS.add(door);
+            for (BlockPos p : door.blocks()) {
+                BLOCK_INDEX.put(p, door);
+            }
+        }
+    }
+
+    /**
+     * The floor level at a doorway.
+     *
+     * <p>Searched rather than assumed, for the same reason the player's landing spot is: rooms differ in floor
+     * height, and a doorway cut at a fixed Y is a hole in a wall halfway up on half the floors.
+     */
+    private static int findFloor(ServerLevel level, BlockPos near) {
+        for (int y = RoomLibrary.MIN_Y; y < RoomLibrary.MAX_Y - 2; y++) {
+            BlockPos at = new BlockPos(near.getX(), y, near.getZ());
+            if (!level.getBlockState(at).isAir()
+                    && level.getBlockState(at.above()).isAir()
+                    && level.getBlockState(at.above(2)).isAir()) {
+                return y + 1;
+            }
+        }
+        return 69;
     }
 
     /**
