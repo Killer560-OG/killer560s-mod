@@ -67,6 +67,20 @@ public class SimMapEditorScreen extends Screen {
     // one is placed at rotation 0 throughout (SimFloorGen.planExplicit). Filling the drawing grid from the
     // generator would throw those rotations away, and the room database's secret coordinates are translated
     // through exactly that rotation.
+    /**
+     * The floor Generate laid out, shown on the grid and waiting for Play.
+     *
+     * <p>killer560 (2026-09-29): "Before I can press play I should have to press generate and it shows on the
+     * left map what map it is going to generate." Generate used to build and close the screen immediately.
+     *
+     * <p>Kept whole rather than re-derived from the grid, because the grid cannot hold everything a plan has:
+     * a generated floor carries a rotation per room worked out from doorway matching, and
+     * {@code SimFloorGen.planExplicit} places a drawn floor at rotation 0 throughout. Playing the drawing
+     * instead of the plan would throw those rotations away - and the room database's secret coordinates are
+     * translated through exactly that rotation. So the grid shows the plan, and Play builds the PLAN.
+     */
+    private SimFloorGen.Planned generated;
+
     private SimFloorGen.Floor floor = SimFloorGen.Floor.F7;
     private int roomsToBlood = 5;
     private int puzzleCount = 3;
@@ -140,10 +154,8 @@ public class SimMapEditorScreen extends Screen {
                 SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
                 v -> puzzleCount = v));
         ax += wSlider + 6;
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aGenerate"), b -> {
-            SimFloorGen.generate(this.minecraft, floor, puzzleCount, roomsToBlood);
-            this.minecraft.setScreen(null);
-        }).bounds(ax, ay, wGen, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aGenerate"), b -> preview())
+                .bounds(ax, ay, wGen, 20).build());
 
         // Row B - the drawn floor: the drawing tools, and Play for what is on the grid.
         int by = panelY + panelH - 26;
@@ -153,12 +165,16 @@ public class SimMapEditorScreen extends Screen {
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
             placements.clear();
+            planStale();
             rebuildOccupancy();
             status = "cleared";
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Fill"), b -> autoFill())
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Fill"), b -> {
+            planStale();
+            autoFill();
+        })
                 .bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
@@ -316,6 +332,7 @@ public class SimMapEditorScreen extends Screen {
     }
 
     private void loadMap(String name) {
+        planStale();
         Map<Integer, String> saved = SimMapPresets.get(name);
         if (saved == null) {
             status = "could not read \"" + name + "\"";
@@ -345,9 +362,57 @@ public class SimMapEditorScreen extends Screen {
                 : "loaded \"" + name + "\" - " + dropped + " room(s) are no longer captured";
     }
 
+    /**
+     * Forget the generated plan, because the grid no longer shows it.
+     *
+     * <p>Play builds the PLAN when there is one, so a plan left standing after he edits, clears, fills or
+     * loads over it would build something other than what he is looking at - the exact failure the preview
+     * exists to prevent.
+     */
+    private void planStale() {
+        generated = null;
+    }
+
+    /**
+     * Lays out a floor and puts it on the grid. Nothing is built and no world is opened.
+     */
+    private void preview() {
+        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzleCount, roomsToBlood);
+        if (planned == null) {
+            status = "could not lay out that floor";   // plan() has already said why, in chat
+            return;
+        }
+        generated = planned;
+        placements.clear();
+        var decoded = planned.decoded();
+        java.util.Set<Integer> anchored = new java.util.HashSet<>();
+        // Room ids are per PLACEMENT, never per name, so the first cell carrying an id in reading order is
+        // that placement's top-left - which is exactly what the grid wants.
+        for (int gz = 0; gz < GRID; gz++) {
+            for (int gx = 0; gx < GRID; gx++) {
+                int cell = (gz * 2) * com.killer560.hub.livemap.DungeonLayout.GRID + (gx * 2);
+                int id = decoded.cellRoom()[cell];
+                if (id == MapCode.NO_ROOM || id < 0 || id >= decoded.nameTable().length
+                        || !anchored.add(id)) {
+                    continue;
+                }
+                placements.put(gz * GRID + gx, decoded.nameTable()[id]);
+            }
+        }
+        rebuildOccupancy();
+        status = planned.decoded().nameTable().length + " rooms, blood "
+                + planned.bloodDistance() + " in - press Play to build it";
+    }
+
     private void play() {
+        // A generated plan wins over the drawing, because it carries rotations the drawing cannot.
+        if (generated != null) {
+            String code = generated.code();
+            SimWorld.open(this.minecraft, code, c -> SimBuilder.build(c, code), "Generating " + floor.label);
+            return;
+        }
         if (placements.isEmpty()) {
-            status = "place at least one room first";
+            status = "press Generate, or place a room first";
             return;
         }
         int built = SimFloorGen.buildExplicit(this.minecraft, placements);
@@ -369,6 +434,7 @@ public class SimMapEditorScreen extends Screen {
             if (event.button() == 1) {
                 Integer anchor = occupiedBy.get(slot);
                 if (anchor != null) {
+                    planStale();
                     status = "removed " + placements.remove(anchor);
                     rebuildOccupancy();
                 }
@@ -380,10 +446,12 @@ public class SimMapEditorScreen extends Screen {
             }
             Integer anchor = occupiedBy.get(slot);
             if (anchor != null) {
+                planStale();
                 placements.remove(anchor);
                 rebuildOccupancy();
             }
             if (canPlace(selected, slot)) {
+                planStale();
                 placements.put(slot, selected);
                 rebuildOccupancy();
                 status = "placed " + selected;
@@ -396,7 +464,7 @@ public class SimMapEditorScreen extends Screen {
 
         // The list.
         int top = panelY + 66;
-        int bottom = panelY + panelH - 32;
+        int bottom = listBottom();
         if (mx >= listX && mx < listX + listW && my >= top && my < bottom) {
             int row = (int) ((my - top + scroll) / ROW_H);
             if (row >= 0 && row < listed.size()) {
@@ -421,7 +489,7 @@ public class SimMapEditorScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double dx, double dy) {
         if (mouseX >= listX) {
-            int visible = panelY + panelH - 32 - (panelY + 66);
+            int visible = listBottom() - (panelY + 66);
             int max = Math.max(0, listed.size() * ROW_H - visible);
             scroll = Math.max(0, Math.min(max, scroll - (int) (dy * ROW_H)));
             return true;
@@ -447,8 +515,22 @@ public class SimMapEditorScreen extends Screen {
         String hint = status.isEmpty()
                 ? "click a room, then a cell · right-click a cell to remove"
                 : status;
-        g.text(this.font, hint, panelX + 14, panelY + panelH - 40, ProfitPanels.DIM, false);
+        // Under the grid, not over the settings row. This sat at panelH - 40, which was clear when there was
+        // one row of buttons and is inside the Floor / Rooms to blood / Puzzles row now that there are two.
+        g.text(this.font, hint, panelX + 14, panelY + panelH - 72, ProfitPanels.DIM, false);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
+    }
+
+    /**
+     * The lowest pixel the room list may use.
+     *
+     * <p>Derived from the button rows rather than written as a number in three places. It was
+     * {@code panelH - 32}, which cleared one row of buttons; a second row was added under it and the list ran
+     * straight through the settings row (killer560, 2026-09-29: "the search rooms section goes too low and
+     * overlaps the top layer of things").
+     */
+    private int listBottom() {
+        return panelY + panelH - 58;
     }
 
     private void drawGrid(GuiGraphicsExtractor g, int mouseX, int mouseY) {
@@ -509,7 +591,7 @@ public class SimMapEditorScreen extends Screen {
 
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int top = panelY + 66;
-        int bottom = panelY + panelH - 32;
+        int bottom = listBottom();
         g.fill(listX, top, listX + listW, bottom, ProfitPanels.INNER_BG);
         g.outline(listX - 1, top - 1, listW + 2, bottom - top + 2, ProfitPanels.BORDER);
         g.enableScissor(listX, top, listX + listW, bottom);
