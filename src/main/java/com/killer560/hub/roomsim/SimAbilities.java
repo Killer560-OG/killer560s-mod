@@ -119,22 +119,38 @@ public final class SimAbilities {
      * for the routes he is practising.
      */
     private static boolean etherwarp(Minecraft client) {
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getViewVector(1.0f);
-        Vec3 end = eye.add(look.scale(ETHERWARP_RANGE));
-        BlockHitResult hit = client.level.clip(new ClipContext(
-                eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
-        if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
+        // The overlay's own resolver, not a second idea of what a legal target is. killer560 (2026-09-28):
+        // "make sure etherwarp cannot put me into blocks it shoudl function the same as on main. Make sure
+        // etherwarp overlay works as well."
+        //
+        // The old code here raycast to a block and required two air blocks above it. That is wrong for every
+        // block whose collision box is not a full cube - a slab, a stair, a chest - because the feet do not go
+        // at blockY+1, they go at the top of the real collision shape. It also meant the sim could land
+        // somewhere the overlay had not highlighted, which is worse than either being wrong on its own: the
+        // overlay is the thing he aims with, so the two disagreeing trains the aim and then punishes it.
+        //
+        // Sharing the resolver makes the highlight a promise. If the overlay does not draw it, the sim does
+        // not go there, and neither does Hypixel.
+        double range = ETHERWARP_RANGE + tunersOnHeldItem(client);
+        BlockPos target = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.resolveTarget(
+                client.level, client.player.position(), client.player, range);
+        if (target == null) {
+            fail(client, "no etherwarp target there");
             return false;
         }
-        BlockPos target = hit.getBlockPos();
-        BlockPos stand = target.above();
-        if (!client.level.getBlockState(stand).isAir() || !client.level.getBlockState(stand.above()).isAir()) {
-            fail(client, "no room to stand there");
-            return false;
-        }
-        teleport(client, stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
+        double standY = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(client.level, target);
+        teleport(client, target.getX() + 0.5, standY, target.getZ() + 0.5);
         return true;
+    }
+
+    /** Tuners on the item in hand, so the sim's reach matches the one he is actually carrying. */
+    private static int tunersOnHeldItem(Minecraft client) {
+        var stack = client.player.getMainHandItem();
+        var data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return 0;
+        }
+        return Math.max(0, Math.min(4, data.copyTag().getIntOr("tuned_transmission", 0)));
     }
 
     /**

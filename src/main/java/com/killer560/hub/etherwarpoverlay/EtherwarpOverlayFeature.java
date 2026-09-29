@@ -182,6 +182,32 @@ public final class EtherwarpOverlayFeature {
         return isEtherItem ? tag : null;
     }
 
+    /**
+     * The block an etherwarp from here would actually land on, or null if there is nowhere legal.
+     *
+     * <p>Exists so the dungeon sim can teleport to the SAME place this overlay draws. killer560 (2026-09-28):
+     * "make sure etherwarp cannot put me into blocks it shoudl function the same as on main. Make sure
+     * etherwarp overlay works as well." Those are one request, not two: the sim had its own simpler idea of a
+     * legal target - a raycast plus two air blocks - which disagrees with this one on slabs, stairs and
+     * anything whose collision box is not a full cube, and a sim that lands somewhere the overlay did not
+     * highlight teaches the opposite of what it is for.
+     *
+     * <p>Returns the block to stand ON. The caller decides where that puts the feet, because the clearance
+     * this traversal computes already accounts for a partial block's real height.
+     */
+    public static BlockPos resolveTarget(Level level, Vec3 position,
+                                         net.minecraft.world.entity.player.Player player, double distance) {
+        EtherPos pos = getEtherPos(level, position, player, distance);
+        return pos != null && pos.succeeded() ? pos.pos() : null;
+    }
+
+    /** Where the feet end up when standing on {@code target} - the top of its real collision box. */
+    public static double standYOn(Level level, BlockPos target) {
+        var shape = level.getBlockState(target).getCollisionShape(level, target);
+        double top = shape.isEmpty() ? 1.0 : shape.max(Direction.Axis.Y);
+        return target.getY() + Math.max(1.0, Math.ceil(top));
+    }
+
     private static EtherPos getEtherPos(Level level, Vec3 position, net.minecraft.world.entity.player.Player player,
                                          double distance) {
         double eyeHeight = player.getPose() == Pose.SWIMMING ? 0.4 : player.isCrouching() ? 1.27 : 1.62;

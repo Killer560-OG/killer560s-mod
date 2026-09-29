@@ -64,22 +64,36 @@ public final class SimItems {
     private SimItems() {
     }
 
-    /** One entry per {@code /simitem <name>} subcommand. */
+    /**
+     * One entry per {@code /simitem <name>} subcommand.
+     *
+     * <p>killer560 (2026-09-28): "make sure items are the same minecraft item as the one on main server, so
+     * make hype an iron sword etherwarp a diamond shovel [...] and tac insertion is a blaze rod."
+     *
+     * <p>Every base item below is the {@code material} Hypixel's own item list gives (api.hypixel.net, checked
+     * 2026-09-28), not a lookalike picked here. It matters for more than looks: an item's model decides its
+     * held pose and its icon, so a Hyperion that is a netherite sword in the sim and an iron sword on Hypixel
+     * looks different in the hotbar and in the hand, and a hotbar you read by shape is the thing being
+     * practised.
+     */
     private enum GiveItem {
-        ASPECT_OF_THE_VOID("ASPECT_OF_THE_VOID", Items.GOLDEN_SWORD, "Aspect of the Void", 1),
-        HYPERION("HYPERION", Items.NETHERITE_SWORD, "Hyperion", 1),
+        ASPECT_OF_THE_VOID("ASPECT_OF_THE_VOID", Items.DIAMOND_SHOVEL, "Aspect of the Void", 1),
+        HYPERION("HYPERION", Items.IRON_SWORD, "Hyperion", 1),
         // BAT_WAND, not SPIRIT_SCEPTRE. That is the id Hypixel actually puts in the item's
         // ExtraAttributes (checked against api.hypixel.net's item list, 2026-09-28 - the starred one is
         // STARRED_BAT_WAND). It matters beyond being tidy: a route or an item node recorded on Hypixel
         // stores BAT_WAND, so a sim sceptre carrying the wrong id would not have matched it and the
         // route would have stopped with "SPIRIT_SCEPTRE is not in the hotbar".
-        SPIRIT_SCEPTRE("BAT_WAND", Items.BONE, "Spirit Sceptre", 1),
+        // PAPER is what Hypixel actually sends for the Spirit Sceptre. killer560 sees a flower because his
+        // resource pack draws one over it - so the base item here is the real one, and the pack will do the
+        // same thing in the sim that it does on Hypixel. If it does not, a flower item is a one-word change.
+        SPIRIT_SCEPTRE("BAT_WAND", Items.PAPER, "Spirit Sceptre", 1),
         TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
         ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
                 "Architect's First Draft", 1),
-        SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 8),
+        SUPERBOOM_TNT("SUPERBOOM_TNT", Items.PAPER, "Superboom TNT", 8),
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
-        TACTICAL_INSERTION("TACTICAL_INSERTION", Items.FEATHER, "Tactical Insertion", 1),
+        TACTICAL_INSERTION("TACTICAL_INSERTION", Items.BLAZE_ROD, "Tactical Insertion", 1),
         DUNGEON_BREAKER("DUNGEONBREAKER", Items.DIAMOND_PICKAXE, "Dungeon Breaker", 1);
 
         final String skyblockId;
@@ -456,6 +470,10 @@ public final class SimItems {
         if (server == null) {
             return false;
         }
+        if (!SimBreakerState.trySpend()) {
+            fail(client, "no Dungeonbreaker charges left");
+            return false;
+        }
         var uuid = client.player.getUUID();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
@@ -471,6 +489,12 @@ public final class SimItems {
      *  only, never actually clears" boundary the rest of the mod already respects for indestructible blocks. */
     private static void breakIfBreakable(ServerLevel level, BlockPos pos, ServerPlayer breaker) {
         BlockState state = level.getBlockState(pos);
+        // Remembered BEFORE it goes, so it can come back - killer560 (2026-09-28): "make sure dungeon breaker
+        // blocks come back after broken just like on main". Without it, the second run through a room is
+        // through a room he already demolished, and every run after that is a different room.
+        if (!state.isAir()) {
+            SimBreakerState.remember(level, pos, state);
+        }
         if (state.isAir() || state.getDestroySpeed(level, pos) < 0) {
             return;
         }

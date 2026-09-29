@@ -29,8 +29,23 @@ public final class SimItemsScreen extends Screen {
 
     /** Nine across, the width of a hotbar - the row he will be filling. */
     private static final int COLUMNS = 9;
-    private static final int CELL = 20;
-    private static final int PAD = 2;
+
+    /**
+     * Cell size and spacing.
+     *
+     * <p>killer560 (2026-09-28): "this menu is a bit cluttered but works just make it look better." It was
+     * drawing a 20px grid and then writing the hovered item's name straight across it, so the text sat on top
+     * of the icons. Cells are now the 18px an inventory slot is, with the 4px gutter a Skyblock menu uses, and
+     * every piece of text has a row of its own.
+     */
+    private static final int CELL = 26;
+    private static final int PAD = 4;
+
+    /** Room for the title bar above the grid. */
+    private static final int HEADER = 34;
+
+    /** Room under the grid for the hovered name and the button, each on its own line. */
+    private static final int FOOTER = 56;
 
     private final Screen parent;
     private final List<SimItems.Entry> entries = new ArrayList<>();
@@ -58,12 +73,14 @@ public final class SimItemsScreen extends Screen {
             icons.add(SimItems.build(e.skyblockId()));
         }
         int rows = Math.max(1, (entries.size() + COLUMNS - 1) / COLUMNS);
-        panelW = COLUMNS * (CELL + PAD) + 20;
-        panelH = rows * (CELL + PAD) + 74;
+        int gridW = COLUMNS * CELL + (COLUMNS - 1) * PAD;
+        int gridH = rows * CELL + (rows - 1) * PAD;
+        panelW = gridW + 24;
+        panelH = HEADER + gridH + FOOTER;
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
-        gridX = panelX + 10;
-        gridY = panelY + 40;
+        gridX = panelX + 12;
+        gridY = panelY + HEADER;
     }
 
     @Override
@@ -110,10 +127,11 @@ public final class SimItemsScreen extends Screen {
             if (i == hovered) {
                 g.outline(cx, cy, CELL, CELL, ProfitPanels.ACCENT);
             }
-            g.item(icons.get(i), cx + 2, cy + 2);
+            // Centred in the cell rather than pinned to a corner - an item icon is 16px.
+            g.item(icons.get(i), cx + (CELL - 16) / 2, cy + (CELL - 16) / 2);
         }
 
-        int allY = panelY + panelH - 26;
+        int allY = panelY + panelH - 28;
         boolean overAll = isOverGiveAll(mouseX, mouseY);
         g.fill(panelX + 10, allY, panelX + panelW - 10, allY + 18, overAll ? 0xFF3A2A12 : 0xFF141414);
         g.outline(panelX + 10, allY, panelW - 20, 18, overAll ? ProfitPanels.ACCENT : ProfitPanels.BORDER);
@@ -125,13 +143,14 @@ public final class SimItemsScreen extends Screen {
         String label = hovered >= 0 && hovered < entries.size()
                 ? entries.get(hovered).displayName()
                 : "Click an item to take one";
-        g.centeredText(this.font, label, panelX + panelW / 2, panelY + panelH - 42,
+        // Its own line, clear of both the grid above and the button below.
+        g.centeredText(this.font, label, panelX + panelW / 2, panelY + panelH - FOOTER + 6,
                 hovered >= 0 ? ProfitPanels.TEXT : ProfitPanels.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 
     private boolean isOverGiveAll(double mx, double my) {
-        int allY = panelY + panelH - 26;
+        int allY = panelY + panelH - 28;
         return mx >= panelX + 10 && mx <= panelX + panelW - 10 && my >= allY && my <= allY + 18;
     }
 
@@ -140,8 +159,8 @@ public final class SimItemsScreen extends Screen {
         if (mx < gridX || my < gridY) {
             return -1;
         }
-        int col = (int) ((mx - gridX) / (CELL + PAD));
-        int row = (int) ((my - gridY) / (CELL + PAD));
+        int col = (int) ((mx - gridX) / (double) (CELL + PAD));
+        int row = (int) ((my - gridY) / (double) (CELL + PAD));
         if (col < 0 || col >= COLUMNS || row < 0) {
             return -1;
         }

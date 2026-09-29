@@ -129,7 +129,10 @@ public final class SimWorld {
             }
             LevelSettings settings = new LevelSettings(
                     LEVEL_NAME,
-                    GameType.CREATIVE,
+                    // killer560 (2026-09-28): "make my gamemode survival not creative." Survival is also the
+                    // mode the thing being practised happens in - creative flight would let a route cheat past
+                    // exactly the jumps and drops it exists to rehearse.
+                    GameType.SURVIVAL,
                     // No difficulty, no hardcore: the sim is for practising routes, and being killed by a
                     // zombie that wandered in is not the exercise.
                     new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false),
@@ -222,6 +225,16 @@ public final class SimWorld {
             return;
         }
         SimState.enter(code);
+        // Forced every time, not just at creation: the sim world was made in creative before he asked for
+        // survival, and a level that already exists keeps the mode it was made with.
+        var server = client.getSingleplayerServer();
+        if (server != null) {
+            server.execute(() -> {
+                for (var sp : server.getPlayerList().getPlayers()) {
+                    sp.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+                }
+            });
+        }
         SimAbilities.reset();
         // Score starts blank for every session. Totals come from the map once it is built; until then they are
         // zero, which reads as "unknown" rather than as a perfect run.
@@ -229,6 +242,7 @@ public final class SimWorld {
         SimMimic.reset();
         SimTerminator.reset();
         SimArchitect.reset();
+        SimBreakerState.reset();
         // The saved hotbar goes back every time a dungeon opens - muscle memory for a route is partly muscle
         // memory for which slot things are in.
         SimLoadout.onSimEntered(client);
