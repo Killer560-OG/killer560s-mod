@@ -75,6 +75,61 @@ public final class SimWorld {
                 (handler, client) -> onWorldUnloaded());
     }
 
+    /**
+     * A world made of nothing at all.
+     *
+     * <p>killer560 (2026-09-28): "For the sim world make it so it is literally pure void with only the room i
+     * want in it." It was a superflat, so every direction outside the room was grass and stone to the horizon -
+     * and a room standing in a field does not read like a dungeon. Clearing a margin around it helped and could
+     * never finish the job, because the ground goes on forever and wiping it is unbounded work.
+     *
+     * <p>Generating nothing is the version that costs nothing: a flat generator with an EMPTY layer list and
+     * the void biome. The room is then the only thing in the world, which is exactly what he asked for, and it
+     * also makes the earlier clearing pass almost free - there is nothing left to clear.
+     *
+     * <p>Built by replacing the overworld generator on the flat preset rather than assembling a WorldDimensions
+     * by hand, so the nether and end stems stay whatever vanilla says they should be. Nothing goes there, but
+     * a world missing a dimension is the kind of thing that breaks much later and somewhere else.
+     */
+    private static net.minecraft.world.level.levelgen.WorldDimensions voidWorldDimensions(
+            net.minecraft.core.HolderLookup.Provider registries) {
+        var biomes = registries.lookupOrThrow(net.minecraft.core.registries.Registries.BIOME);
+        var structures = registries.lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET);
+        var features = registries.lookupOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE);
+        var settings = net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings
+                .getDefault(biomes, structures, features)
+                .withBiomeAndLayers(java.util.List.of(), java.util.Optional.empty(),
+                        biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.THE_VOID));
+        return WorldPresets.createFlatWorldDimensions(registries).replaceOverworldGenerator(
+                registries, new net.minecraft.world.level.levelgen.FlatLevelSource(settings));
+    }
+
+    /**
+     * Throws the sim world away so the next open regenerates it.
+     *
+     * <p>A world's generator is fixed when it is created, so the void setting above does nothing to the
+     * superflat one already on disk. This is safe in a way deleting a world usually is not: everything in the
+     * sim world is rebuilt from the room library on demand, so there is nothing in it that is not also
+     * somewhere else. The room library itself lives in the config folder and is not touched.
+     *
+     * @return whether a world was actually removed
+     */
+    public static boolean deleteWorld(Minecraft client) {
+        try {
+            if (!exists(client)) {
+                return false;
+            }
+            try (var access = client.getLevelSource().createAccess(LEVEL_ID)) {
+                access.deleteLevel();
+            }
+            LOGGER.info("Sim world deleted - it will be recreated as void on the next open");
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn("Could not delete the sim world", e);
+            return false;
+        }
+    }
+
     /** Whether the sim world has been created at least once. */
     public static boolean exists(Minecraft client) {
         try {
@@ -109,6 +164,13 @@ public final class SimWorld {
      */
     public static void open(Minecraft client, String mapCode, java.util.function.Consumer<Minecraft> build,
                             String label) {
+        // The sim world is generated, so rebuilding it costs nothing but the seconds it takes - and a world
+        // made before the void change is still a superflat, which is the whole complaint. Done once, tracked
+        // by a flag next to the other sim settings rather than by guessing at the world's generator.
+        if (!SimWorldVersion.isVoidWorld()) {
+            deleteWorld(client);
+            SimWorldVersion.markVoidWorld();
+        }
         pendingCode = mapCode == null ? "" : mapCode;
         pendingBuild = build;
         loadingLabel = label == null ? "Opening the sim" : label;
@@ -142,7 +204,7 @@ public final class SimWorld {
                     LEVEL_ID,
                     settings,
                     new WorldOptions(0L, false, false),
-                    WorldPresets::createFlatWorldDimensions,
+                    SimWorld::voidWorldDimensions,
                     null);
         } catch (Throwable t) {
             pendingCode = null;

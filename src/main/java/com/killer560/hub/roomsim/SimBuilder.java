@@ -37,7 +37,22 @@ public final class SimBuilder {
      */
     public static void register() {
         net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
-                (dispatcher, registryAccess) -> dispatcher.register(
+                (dispatcher, registryAccess) -> {
+                    // killer560 (2026-09-28): "also let me do /map to change it."
+                    //
+                    // Gated with requires(), not merely guarded inside the body. A client command claims its
+                    // NAME globally, so an ungated /map would swallow the command on Hypixel as well - and
+                    // this mod already refuses to shadow server commands (it is why the item command is
+                    // /simitem and not /item). With requires(), the command does not exist outside the sim: it
+                    // does not tab-complete there, and whatever the server does with /map still happens.
+                    dispatcher.register(net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("map")
+                            .requires(src -> SimState.canAct(Minecraft.getInstance()))
+                            .executes(ctx -> {
+                                Minecraft mc = Minecraft.getInstance();
+                                mc.execute(() -> mc.setScreenAndShow(new SimMenuScreen(mc.screen)));
+                                return 1;
+                            }));
+                    dispatcher.register(
                         net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("simbuild")
                                 .then(net.fabricmc.fabric.api.client.command.v2.ClientCommands
                                         .literal("flat")
@@ -68,7 +83,8 @@ public final class SimBuilder {
                                     ModChat.send("Sim", ModChat.dim(
                                             "/simbuild flat  |  /simbuild code <code>  |  /simbuild run"));
                                     return 1;
-                                })));
+                                }));
+                });
     }
 
     /**
@@ -101,6 +117,7 @@ public final class SimBuilder {
             // Where to put him when it is built - the first cell that actually got a room, so he never lands
             // in a gap the map left empty.
             final int[] firstPlacedCell = {-1};
+            final java.util.List<Runnable> afterBuild = new java.util.ArrayList<>();
             StringBuilder missingNames = new StringBuilder();
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
                 int nameIndex = decoded.cellRoom()[cell];
@@ -119,6 +136,13 @@ public final class SimBuilder {
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
                 SimBuildQueue.submit(level, room, gx, gz, decoded.cellRotation()[cell]);
+                final int rot = decoded.cellRotation()[cell];
+                final int fgx = gx;
+                final int fgz = gz;
+                final RoomLibrary.Room fr = room;
+                // Queued to run after the whole map is placed, for the same reason as a single room: a secret
+                // written before the paste reaches that cell would simply be pasted over.
+                afterBuild.add(() -> SimSecrets.place(level, fr, fgx, fgz, rot));
                 if (firstPlacedCell[0] < 0) {
                     firstPlacedCell[0] = cell;
                 }
@@ -148,6 +172,10 @@ public final class SimBuilder {
                     Math.max(gridMin.getZ(), gridMax.getZ()) + RoomLibrary.TILE);
             final int firstCell = firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
+                for (Runnable r : afterBuild) {
+                    r.run();
+                }
+                SimMimic.chooseForMap();
                 if (firstCell >= 0) {
                     snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
                             firstCell / DungeonLayout.GRID);
@@ -309,7 +337,12 @@ public final class SimBuilder {
             SimBuildQueue.submit(level, room, centre, centre, 0);
             SimBuildQueue.whenDone(() -> {
                 spawnMobsFor(client, level, room, centre, centre);
+                // After the geometry, never before: a chest placed first would be overwritten by the paste.
+                int secrets = SimSecrets.place(level, room, centre, centre, 0);
+                SimMimic.chooseForMap();
+                SimScore.reset(Math.max(0, secrets), 1);
                 snapPlayerTo(client, level, centre, centre);
+                client.execute(() -> SimSecrets.report(roomName, secrets));
                 client.execute(() -> {
                     SimWorld.buildFinished(client, null);
                     ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));

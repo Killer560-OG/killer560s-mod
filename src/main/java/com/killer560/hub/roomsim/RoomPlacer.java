@@ -62,6 +62,19 @@ public final class RoomPlacer {
     /** Dungeon floors sit here, so a placeholder at this height lines up with the real ones either side. */
     private static final int MARKER_Y = 69;
 
+    /**
+     * The wall margin a captured room was taken with, read off its own size.
+     *
+     * <p>Captures made before the wall fix are a whole number of 31-block tiles; ones made after carry an extra
+     * column each side, so their size is a multiple of 31 plus 2. Deriving it per room rather than assuming the
+     * current format is what lets old captures and the synthetic test room keep placing exactly where they
+     * always did - assuming it shifted every one of them a block west, which the sim gametest caught by
+     * finding the orientation marker one block off.
+     */
+    private static int marginOf(int size) {
+        return size % RoomLibrary.TILE == RoomLibrary.WALL_MARGIN * 2 ? RoomLibrary.WALL_MARGIN : 0;
+    }
+
     /** Palette strings already warned about this JVM run, so a renamed/removed block warns once, not per block. */
     private static final Set<String> WARNED_UNRESOLVED = new HashSet<>();
 
@@ -125,8 +138,8 @@ public final class RoomPlacer {
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
             // The same offset capture used, including the wall margin. If these two ever disagree every room
             // lands a block off its neighbours and the seams stop lining up.
-            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
-            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room.sizeX);
+            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room.sizeZ);
         }
 
         @Override
@@ -193,8 +206,8 @@ public final class RoomPlacer {
         Rotation vanillaRotation = toVanillaRotation(rotation);
 
         BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
-        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room.sizeX);
+        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room.sizeZ);
 
         int sizeX = room.sizeX;
         int sizeZ = room.sizeZ;
