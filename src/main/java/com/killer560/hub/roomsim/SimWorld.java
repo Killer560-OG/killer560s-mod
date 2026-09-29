@@ -305,6 +305,7 @@ public final class SimWorld {
         SimTerminator.reset();
         SimArchitect.reset();
         SimBreakerState.reset();
+        SimSurvival.reset();
         // The saved hotbar goes back every time a dungeon opens - muscle memory for a route is partly muscle
         // memory for which slot things are in.
         SimLoadout.onSimEntered(client);

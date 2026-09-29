@@ -232,6 +232,9 @@ public final class SimBuilder {
             landing = RoomLibrary.MAX_Y;
         }
         final int y = landing;
+        // The same spot death sends him back to - one definition of "the middle of the room", so the place he
+        // starts and the place he returns to cannot drift apart.
+        SimSurvival.setHome(new net.minecraft.core.BlockPos(x, y, z));
         var uuid = client.player == null ? null : client.player.getUUID();
         if (uuid == null) {
             return;
