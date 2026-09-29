@@ -319,6 +319,16 @@ public final class SimBuilder {
      * unbounded scan over the whole grid is exactly the freeze the queue exists to prevent.
      */
     private static void wipeWholeGrid(ServerLevel level) {
+        // Only what the last build actually wrote, when that is known. Sweeping the whole grid meant four
+        // million block reads, most of them into chunks that had to be LOADED to answer - in a world whose
+        // only contents were one room. The full sweep stays as the fallback for the first build after a
+        // restart, when nothing has been recorded yet and the rooms on disk are still real.
+        int[] known = SimBuildQueue.touchedBounds();
+        SimBuildQueue.forgetTouched();
+        if (known != null) {
+            SimBuildQueue.submitClear(level, known[0], known[1], known[2], known[3]);
+            return;
+        }
         var gridMin = DungeonLayout.cellCenter(0);
         var gridMax = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
         SimBuildQueue.submitClear(level,

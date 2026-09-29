@@ -50,10 +50,25 @@ public final class RoomPlacer {
      * has not been sent to anyone yet) and wrong here: this runs on a level a player is already standing in, so
      * the client must be told. Flag used: {@code UPDATE_CLIENTS | UPDATE_SKIP_ALL_SIDEEFFECTS}.
      */
-    private static final int PLACE_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
+    /**
+     * Flags for a bulk build.
+     *
+     * <p>{@link Block#UPDATE_CLIENTS} is deliberately NOT here, and that is the single biggest reason a floor
+     * now loads in seconds rather than minutes. killer560 (2026-09-28): "I had it start creating a dungeon sim
+     * floor and i got bored waiting after about a minute [...] It should load far faster nearly instantly."
+     *
+     * <p>With that flag, every one of roughly two million block writes queues a client update. The tick counts
+     * were never the problem - sixteen ticks of clearing and fifty of pasting is three seconds - the per-block
+     * cost was, and almost all of it was telling the client about a block it was about to be told about anyway.
+     * The chunks are sent once at the end instead: about two hundred packets in place of two million.
+     */
+    private static final int PLACE_FLAGS = Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
 
     /** Same flags for wiping a region before a paste - see {@code SimBuildQueue.ClearJob}. */
     public static final int CLEAR_FLAGS = PLACE_FLAGS;
+
+    /** Positions a paste may look at in one tick, as opposed to write. */
+    private static final int SCAN_BUDGET = 400_000;
 
     /** Stand-in floor for a column the recorder has not seen yet, and the height it goes at. */
     private static final net.minecraft.world.level.block.state.BlockState MARKER =
@@ -157,7 +172,12 @@ public final class RoomPlacer {
         @Override
         public int step(int budget) {
             int placed = 0;
-            while (placed < budget) {
+            int scanned = 0;
+            // Bounded by what it LOOKS at as well as what it writes. A room is mostly uncaptured air that
+            // costs nothing to write and is not free to walk past - eighty-eight thousand positions for a
+            // 1x1, most of them skipped - so without this a sparse room could run the whole room in one tick.
+            while (placed < budget && scanned < SCAN_BUDGET) {
+                scanned++;
                 if (y > RoomLibrary.MAX_Y) {
                     done = true;
                     return placed;
@@ -183,6 +203,7 @@ public final class RoomPlacer {
                         int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
                         level.setBlock(new BlockPos(worldX0 + local[0], y, worldZ0 + local[1]),
                                 state.rotate(vanillaRotation), PLACE_FLAGS);
+                        SimBuildQueue.touched(worldX0 + local[0], worldZ0 + local[1]);
                         placed++;
                     }
                 }

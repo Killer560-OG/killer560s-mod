@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Places the sim's rooms a slice at a time, instead of all at once on one server tick.
@@ -37,7 +39,7 @@ public final class SimBuildQueue {
      * tick, large enough that a whole floor lands in a few seconds rather than a minute - which matters,
      * because the alternative to a slow build is not a fast one, it is the freeze this replaces.
      */
-    private static final int BLOCKS_PER_TICK = 40_000;
+    private static final int BLOCKS_PER_TICK = 150_000;
 
     /** A piece of world-writing that can be done a slice at a time. */
     public interface Job {
@@ -49,6 +51,65 @@ public final class SimBuildQueue {
     }
 
     private static final Deque<Job> JOBS = new ArrayDeque<>();
+
+    /**
+     * Chunks this build has touched.
+     *
+     * <p>Two jobs at once. It tells the end of the build which chunks to send to the client - the writes
+     * themselves no longer do that, see {@code RoomPlacer.PLACE_FLAGS} - and it tells the NEXT build what is
+     * worth clearing. Wiping the whole grid meant four million block reads, most of them into chunks that had
+     * to be loaded to answer, when the only thing actually in the world was the last room.
+     */
+    private static final Set<Long> touchedChunks = new HashSet<>();
+
+    /** Records a written position's chunk. Cheap enough to call per block: a long key and a set add. */
+    static void touched(int x, int z) {
+        touchedChunks.add((((long) (x >> 4)) << 32) ^ ((z >> 4) & 0xffffffffL));
+    }
+
+    /** The region those chunks cover, or null when nothing has been built yet. */
+    public static synchronized int[] touchedBounds() {
+        if (touchedChunks.isEmpty()) {
+            return null;
+        }
+        int minX = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (long k : touchedChunks) {
+            int cx = (int) (k >> 32);
+            int cz = (int) k;
+            minX = Math.min(minX, cx << 4);
+            minZ = Math.min(minZ, cz << 4);
+            maxX = Math.max(maxX, (cx << 4) + 15);
+            maxZ = Math.max(maxZ, (cz << 4) + 15);
+        }
+        return new int[]{minX, minZ, maxX, maxZ};
+    }
+
+    /**
+     * Sends every touched chunk to the players, once.
+     *
+     * <p>This is the other half of dropping UPDATE_CLIENTS from the writes. Without it the build would be
+     * invisible until something else happened to resend those chunks, which is a far worse bug than the slow
+     * one it replaces - so it runs on completion, before the loading screen comes down.
+     */
+    private static void sendTouchedChunks(net.minecraft.server.MinecraftServer server) {
+        var level = server.overworld();
+        for (long k : touchedChunks) {
+            int cx = (int) (k >> 32);
+            int cz = (int) k;
+            var chunk = level.getChunkSource().getChunkNow(cx, cz);
+            if (chunk == null) {
+                continue;
+            }
+            var packet = new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
+                    chunk, level.getLightEngine(), null, null);
+            for (var sp : server.getPlayerList().getPlayers()) {
+                sp.connection.send(packet);
+            }
+        }
+    }
     private static Runnable onDone;
     private static int placedTotal;
     private static int jobsTotal;
@@ -154,6 +215,7 @@ public final class SimBuildQueue {
                     cursor.set(x, y, z);
                     if (level.getBlockState(cursor).isAir()) {
                         level.setBlock(cursor, fill, RoomPlacer.CLEAR_FLAGS);
+                        touched(x, z);
                         written++;
                     }
                 }
@@ -230,6 +292,7 @@ public final class SimBuildQueue {
                 // Only touch what is not already air - rewriting air would burn the write budget on nothing.
                 if (!level.getBlockState(cursor).isAir()) {
                     level.setBlock(cursor, air, RoomPlacer.CLEAR_FLAGS);
+                    touched(x, z);
                     written++;
                 }
                 if (++z > maxZ) {
@@ -261,6 +324,12 @@ public final class SimBuildQueue {
         onDone = null;
         placedTotal = 0;
         jobsTotal = 0;
+        touchedChunks.clear();
+    }
+
+    /** Forgets which chunks were touched, without cancelling anything - for starting a fresh build. */
+    public static synchronized void forgetTouched() {
+        touchedChunks.clear();
     }
 
     private static void tick(net.minecraft.server.MinecraftServer server) {
@@ -280,6 +349,7 @@ public final class SimBuildQueue {
                 }
             }
             if (JOBS.isEmpty()) {
+                sendTouchedChunks(server);
                 done = onDone;
                 onDone = null;
                 LOGGER.info("Sim build finished: {} block(s) across {} room(s)", placedTotal, jobsTotal);
