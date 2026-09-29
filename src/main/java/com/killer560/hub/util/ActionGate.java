@@ -182,6 +182,8 @@ public final class ActionGate {
          *  you can refrence quoi for it" - QUOI's own source has no auto-sell module to port; see
          *  {@code autosell.AutoSellFeature}'s class doc). Same "no one dies if this is a tick late" bucket. */
         AUTO_SELL(Kind.SCREEN),
+        /** Room Recorder confirming Hypixel's "Undersized party!" menu on a solo joininstance. */
+        ROOM_RECORDER_MENU(Kind.SCREEN),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as

@@ -10,6 +10,12 @@ import com.killer560.hub.util.ServerCommands;
 import com.killer560.hub.util.KeyUtil;
 
 import org.lwjgl.glfw.GLFW;
+import com.killer560.hub.cheatutils.CheatUtils;
+import com.killer560.hub.util.ActionGate;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
@@ -49,6 +55,15 @@ public final class RoomRecorderFeature {
         OFF,
         /** Waiting to send the joininstance for F7. */
         ENTER,
+        /**
+         * Sent the join, waiting on Hypixel's "Undersized party!" confirm menu.
+         *
+         * <p>killer560 (2026-09-28): "it does need to click this after running the command." Joining F7 solo
+         * does not drop you into the floor - Hypixel opens a menu warning that the instance wants five players,
+         * and nothing happens until something clicks "Click to play anyway!". Without this the loop queued a
+         * dungeon it never entered.
+         */
+        CONFIRM,
         /** Inside the run, reading rooms. */
         SCAN,
         /** Sent /dh, waiting to arrive. */
@@ -131,6 +146,10 @@ public final class RoomRecorderFeature {
     /** Ticks since the client started - only ever compared against itself, for the toggle debounce. */
     private static int tickCounter;
     private static boolean suppressKeyStop;
+    private static int confirmTicks;
+
+    /** How long to wait for the undersized-party menu before giving up on it and scanning anyway. */
+    private static final int CONFIRM_TIMEOUT_TICKS = 100;
 
     /**
      * The rebindable key. One key, three states: running pauses, paused resumes, off starts.
@@ -281,8 +300,28 @@ public final class RoomRecorderFeature {
                 }
                 ServerCommands.toServer(joinFloorCommand());
                 roomsAddedThisRun = 0;
-                stage = Stage.SCAN;
-                waitTicks = seconds(25);
+                stage = Stage.CONFIRM;
+                confirmTicks = 0;
+                waitTicks = 2;
+            }
+            case CONFIRM -> {
+                if (confirmUndersizedParty(client)) {
+                    // Clicked. The floor load follows, and the scan clock starts from the join rather than from
+                    // the click, so a slow menu does not eat the 25 seconds of scanning.
+                    stage = Stage.SCAN;
+                    waitTicks = seconds(25);
+                    return;
+                }
+                confirmTicks++;
+                if (confirmTicks > CONFIRM_TIMEOUT_TICKS) {
+                    // No menu and no floor: either the join was refused or the party is big enough that Hypixel
+                    // never asked. Carry on into the scan rather than stalling here forever - a run that turns
+                    // out to be empty costs one cycle, a stuck loop costs the night.
+                    stage = Stage.SCAN;
+                    waitTicks = seconds(25);
+                    return;
+                }
+                waitTicks = 2;
             }
             case SCAN -> {
                 ServerCommands.toServer("dh");
@@ -441,6 +480,61 @@ public final class RoomRecorderFeature {
             }
         }
         return -1;
+    }
+
+    /**
+     * Clicks through Hypixel's "Undersized party!" warning, if it is open.
+     *
+     * <p>Found by the ITEM'S OWN TEXT rather than by a slot number. A slot index is a guess read off one
+     * screenshot that breaks silently the day Hypixel moves it; "Click to play anyway!" is the thing the menu
+     * exists to offer and is what a person reads to find it too.
+     *
+     * <p>Restricted to the container's own slots - never the player's inventory - so a coincidentally named
+     * item in his hotbar can never be the thing this clicks.
+     *
+     * @return whether the confirm was clicked
+     */
+    private static boolean confirmUndersizedParty(Minecraft client) {
+        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+            return false;
+        }
+        String title = screen.getTitle() == null ? "" : screen.getTitle().getString();
+        if (!title.toLowerCase(Locale.ROOT).contains("undersized party")) {
+            return false;
+        }
+        AbstractContainerMenu menu = screen.getMenu();
+        for (Slot slot : menu.slots) {
+            if (client.player != null && slot.container == client.player.getInventory()) {
+                continue;
+            }
+            if (!looksLikePlayAnyway(slot.getItem())) {
+                continue;
+            }
+            if (!ActionGate.tryAct(ActionGate.Actor.ROOM_RECORDER_MENU, screen)) {
+                return false;
+            }
+            client.gameMode.handleContainerInput(menu.containerId, slot.index, 0,
+                    ContainerInput.PICKUP, client.player);
+            say("undersized party - playing anyway");
+            return true;
+        }
+        return false;
+    }
+
+    /** The confirm item: its name or lore offers to play anyway. */
+    private static boolean looksLikePlayAnyway(net.minecraft.world.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        if (CheatUtils.plainName(stack).toLowerCase(Locale.ROOT).contains("play anyway")) {
+            return true;
+        }
+        for (String line : CheatUtils.lore(stack)) {
+            if (line.toLowerCase(Locale.ROOT).contains("play anyway")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
