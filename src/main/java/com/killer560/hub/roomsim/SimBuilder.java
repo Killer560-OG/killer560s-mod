@@ -403,22 +403,39 @@ public final class SimBuilder {
     }
 
     /**
-     * Finds the chests in a placed room and offers them as mimic candidates.
+     * Finds a room's chests, for the mimic.
      *
-     * <p>Read back out of the world rather than out of the room data, because what matters is where the chest
-     * actually ended up - a rotated room puts its chests somewhere the room-local coordinates do not say.
+     * <p>Read out of the CAPTURED data rather than out of the world, and that is two fixes in one.
+     *
+     * <p>killer560 (2026-09-28): "I still load in and it freezes and makes me restart." This was the freeze.
+     * It walked every position of every room - eighty-eight thousand block reads each, one-point-eight million
+     * across a floor - synchronously on the server thread, loading chunks as it went. The build itself had
+     * already been cut to 1.3 seconds for nearly three million blocks; this was all the time that was left.
+     *
+     * <p>It was also wrong. It ran in the loop that QUEUES the pastes, so it read the world before a single
+     * block of the room had been placed, and found nothing. The captured palette has the answer without
+     * touching the world at all, and without caring when the paste happens.
      */
     private static void collectChests(ServerLevel level, int gridX, int gridZ, RoomLibrary.Room room) {
+        // Which palette entries are chests. A palette is a hundred or so strings, so this is nothing.
+        java.util.Set<Integer> chestIds = new java.util.HashSet<>();
+        for (int i = 0; i < room.palette.size(); i++) {
+            String entry = room.palette.get(i);
+            if (entry != null && entry.startsWith("minecraft:chest")) {
+                chestIds.add(i);
+            }
+        }
+        if (chestIds.isEmpty()) {
+            return;
+        }
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
         int x0 = origin.getX() - RoomLibrary.TILE / 2;
         int z0 = origin.getZ() - RoomLibrary.TILE / 2;
-        var cursor = new net.minecraft.core.BlockPos.MutableBlockPos();
         for (int x = 0; x < room.sizeX; x++) {
             for (int z = 0; z < room.sizeZ; z++) {
                 for (int y = RoomLibrary.MIN_Y; y <= RoomLibrary.MAX_Y; y++) {
-                    cursor.set(x0 + x, y, z0 + z);
-                    if (level.getBlockState(cursor).is(net.minecraft.world.level.block.Blocks.CHEST)) {
-                        SimMimic.addCandidate(cursor);
+                    if (chestIds.contains((int) room.blocks[room.index(x, y, z)])) {
+                        SimMimic.addCandidate(new net.minecraft.core.BlockPos(x0 + x, y, z0 + z));
                     }
                 }
             }

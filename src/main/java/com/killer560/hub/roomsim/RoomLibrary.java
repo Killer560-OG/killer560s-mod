@@ -192,7 +192,13 @@ public final class RoomLibrary {
                             ROOMS.put(r.name, r);
                         }
                     } catch (Exception e) {
-                        LOGGER.warn("Could not read captured room {}", f.getFileName(), e);
+                        // The exception CLASS, not the exception. Gson puts the text it failed to parse into
+                        // the message, so logging the throwable wrote the whole file to disk - killer560's log
+                        // reached 50 MB from four corrupt rooms, written synchronously on the render thread.
+                        // The class name and the file name say everything useful.
+                        LOGGER.warn("Could not read captured room {} ({}) - moving it aside",
+                                f.getFileName(), e.getClass().getSimpleName());
+                        quarantine(f);
                     }
                 }
             }
@@ -254,6 +260,26 @@ public final class RoomLibrary {
 
     public static synchronized int roomCount() {
         return ROOMS.size();
+    }
+
+    /**
+     * Moves a room file that cannot be read out of the way.
+     *
+     * <p>killer560's four corrupt files were entirely NUL bytes, which is what a file looks like when its data
+     * never reached the disk - his machine bugchecked while they were being written. They are unrecoverable,
+     * and leaving them in place means paying to fail on them on every single load.
+     *
+     * <p>Renamed rather than deleted. They look worthless, but they are his data and "they look worthless" is
+     * not a good enough reason to remove something permanently. The recorder captures those rooms again on its
+     * next pass anyway.
+     */
+    private static void quarantine(Path f) {
+        try {
+            Files.move(f, f.resolveSibling(f.getFileName() + ".corrupt"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            LOGGER.warn("Could not move aside the unreadable room {}", f.getFileName());
+        }
     }
 
     public static synchronized int completeCount() {
