@@ -155,19 +155,32 @@ public final class DungeonLayout {
     }
 
     /** World position of a door cell's lock block (QUOI {@code OdonDoor.pos} at y 69). */
+    /**
+     * How far the floor is shifted from Hypixel's own heights, which is zero everywhere except the sim.
+     *
+     * <p>Here, in one place, because four separate callers derived a height from {@link #doorBlock} and then
+     * overwrote its y with a literal 68, 70 or 71 - so the one site that had been fixed was undone by its
+     * own neighbours. Anything that wants a height near the dungeon floor asks for it relative to the door
+     * block or adds this.
+     */
+    public static int simYOffset() {
+        return com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
+    }
+
     public static BlockPos doorBlock(int idx) {
         // y 69 is Hypixel's floor height. In the sim the whole map is shifted vertically, so the block that
         // tells a wither door apart from an open one is somewhere else entirely - and read at 69 it is always
         // air, which reads as "already open".
-        int y = 69 + (com.killer560.hub.roomsim.SimState.isActive()
-                ? com.killer560.hub.roomsim.SimAltitude.offset() : 0);
+        int y = 69 + simYOffset();
         return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM, y,
                 LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
     }
 
     /** World centre of a cell at y 70 (QUOI {@code RoomTile.blockPos}). */
     public static BlockPos cellCenter(int idx) {
-        return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM, 70,
+        return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM,
+                70 + simYOffset(),
                 LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
     }
 
@@ -179,7 +192,7 @@ public final class DungeonLayout {
      * because {@code idx % GRID} wraps a negative column round to the far side of the map.
      */
     public static BlockPos cellCenter(int gx, int gz) {
-        return new BlockPos(LiveMapFeature.START_X + gx * LiveMapFeature.HALF_ROOM, 70,
+        return new BlockPos(LiveMapFeature.START_X + gx * LiveMapFeature.HALF_ROOM, 70 + simYOffset(),
                 LiveMapFeature.START_Z + gz * LiveMapFeature.HALF_ROOM);
     }
 
@@ -259,6 +272,7 @@ public final class DungeonLayout {
 
     public static Vec3 doorCentre(int idx) {
         BlockPos p = doorBlock(idx);
-        return new Vec3(p.getX() + 0.5, 71.0, p.getZ() + 0.5);
+        // Relative to the door block, which already follows the floor's shift - not a literal 71.
+        return new Vec3(p.getX() + 0.5, p.getY() + 2.0, p.getZ() + 0.5);
     }
 }

@@ -72,7 +72,8 @@ public final class DungeonMapPathfinder {
     /** Approach position of a door: the door itself if unlocked, else 2 blocks back on the reachable side. */
     public static BlockPos getDoorPos(DungeonLayout layout, int start, int door) {
         BlockPos lock = DungeonLayout.doorBlock(door);
-        BlockPos pos = new BlockPos(lock.getX(), 68, lock.getZ());
+        // One below the door block rather than a literal 68, so it follows the sim's shift.
+        BlockPos pos = new BlockPos(lock.getX(), lock.getY() - 1, lock.getZ());
         if (!layout.isLocked(door)) {
             return pos;
         }
@@ -82,7 +83,7 @@ public final class DungeonMapPathfinder {
         }
         int dx = (r[1] % 11) - (door % 11);
         int dz = (r[1] / 11) - (door / 11);
-        return new BlockPos(lock.getX() + dx * 2, 68, lock.getZ() + dz * 2);
+        return new BlockPos(lock.getX() + dx * 2, lock.getY() - 1, lock.getZ() + dz * 2);
     }
 
     /** QUOI {@code stupid()}: {door index, index of the tile you reach it from, room distance}. */

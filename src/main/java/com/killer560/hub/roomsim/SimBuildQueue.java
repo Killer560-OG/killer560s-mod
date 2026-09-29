@@ -340,7 +340,12 @@ public final class SimBuildQueue {
         @Override
         public int step(int budget) {
             int written = 0;
-            while (written < budget) {
+            // A SCAN budget as well as a write budget, for the same reason ClearJob has one: only the ring
+            // positions can ever write, so a 3x3 seal walks about three quarters of a million positions for
+            // twenty-nine thousand writes, and the write budget alone never ends the tick.
+            int scanned = 0;
+            while (written < budget && scanned < SCAN_BUDGET) {
+                scanned++;
                 if (y > SimAltitude.maxWorldY()) {
                     done = true;
                     return written;
@@ -501,6 +506,15 @@ public final class SimBuildQueue {
                 if (job.isDone()) {
                     finishedWork += job.totalWork();
                     JOBS.poll();
+                } else if (placed == 0) {
+                    // The job did a tick's worth of work and wrote nothing, which is what hitting its SCAN
+                    // budget looks like. Charging Math.max(1, placed) for that let a clear over a void world -
+                    // where almost every position is already air - run this loop a hundred and fifty thousand
+                    // times on one server tick, holding this class's monitor the whole way, while the loading
+                    // screen's own synchronized progress() waited behind it on the render thread. That is the
+                    // freeze this budget exists to prevent, re-created by the charge being wrong rather than
+                    // the budget being missing.
+                    break;
                 }
             }
             if (JOBS.isEmpty() && !touchedChunks.isEmpty()) {

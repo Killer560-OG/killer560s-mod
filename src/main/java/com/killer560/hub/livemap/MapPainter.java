@@ -142,7 +142,15 @@ final class MapPainter {
     }
 
     private static boolean hideUnrevealed() {
-        return REVEAL_ONLY_FROM_MAP_ITEM && !onP3Sim();
+        // The dungeon SIM is exempt, exactly as p3sim already is.
+        //
+        // The legit map only draws what the vanilla map ITEM has revealed, which is the right rule on Hypixel:
+        // it is what stops the legit build knowing more than the server told it. A singleplayer sim has no map
+        // item, so the scanner is never calibrated, every cell reads as undiscovered and the map is simply
+        // blank - on the legit jar the whole feature looked broken in there. Nothing is being revealed early:
+        // the floor is one the mod built itself and he drew or generated.
+        return REVEAL_ONLY_FROM_MAP_ITEM && !onP3Sim()
+                && !com.killer560.hub.roomsim.SimState.isActive();
     }
 
     /** @return whether this single cell may be painted at all. */
@@ -374,7 +382,10 @@ final class MapPainter {
                 continue;
             }
             for (RoomEntry.Pos relative : entry.secretCoords.chest) {
-                BlockPos real = RoomDatabase.toRealCoord(relative, clayRot[0], clayRot[1], clayRot[2]);
+                // Shifted with the floor, like Secret Waypoints' copy of the same transform. Without it the
+                // mimic tint reads air in the sim and the room is never marked, even with a mimic in it.
+                BlockPos real = RoomDatabase.toRealCoord(relative, clayRot[0], clayRot[1], clayRot[2])
+                        .above(DungeonLayout.simYOffset());
                 if (level.isLoaded(real) && level.getBlockState(real).getBlock() == Blocks.TRAPPED_CHEST) {
                     found.add(group.mainIdx);
                     break;

@@ -142,6 +142,16 @@ public final class SimBuilder {
             // copies of the same room on one floor stay separate, because they do not touch.
             // Cleared HERE, not in wipeWholeGrid: the wipe is queued after this loop has already recorded
             // every room, so clearing there would throw away the floor that was just indexed.
+            // The same per-map state SimWorld.open drops when it opens a fresh sim.
+            //
+            // /simbuild and the menu's Change Room build INTO an existing sim world, so they never went near
+            // SimWorld.open and never reached its reset. The mimic candidate list kept the previous floor's
+            // chests - so the mimic was usually picked at a coordinate on a floor that no longer existed, and
+            // the renderer drew amber boxes around air - and SimDoors kept the old floor's door blocks, so
+            // the sidebar's door count only ever grew and a right-click could still open a door inside a wall.
+            SimMimic.reset();
+            SimDoors.clear();
+            SimBuilder.clearEntranceDoor();
             SimRoomIndex.clear();
             // Clay corner and rotation per NAME TABLE index, for the live map. Collected here because this is
             // the loop that knows both - SimRoomIndex records placements in flood-fill order, which is not
@@ -721,12 +731,22 @@ public final class SimBuilder {
             // on the map is the current room." The whole grid, not a margin round the new room - a margin
             // leaves the last room still standing wherever it was, and a single-room test with someone else's
             // room over the horizon is not a single-room test.
-            wipeWholeGrid(level);
-            // Indexed here too, so Secret Waypoints draws in a single-room drill as well as on a full
-            // floor - which is the mode he spends most time in while learning a room.
+            // ALTITUDE FIRST, then the wipe. This was the other way round and it meant Change Room cleared
+            // NOTHING.
+            //
+            // The clear job reads its start y once, in a field initialiser, when submitClear builds it - from
+            // SimAltitude.previousMinWorldY(). plan() is what moves the current offset into "previous". Called
+            // after the wipe was queued, the job started at the UNSHIFTED y 60 while its end bound, read live,
+            // had already become 17 - so the first step saw 60 > 17, called itself done, and the whole
+            // previous floor stayed standing with the new room pasted through it. build() has always had this
+            // order right; this path did not.
+            SimMimic.reset();
+            SimDoors.clear();
+            SimBuilder.clearEntranceDoor();
             SimRoomIndex.clear();
             SimRoomIndex.add(room, centre, centre, 0);
             SimAltitude.plan(level, new String[]{room.name});
+            wipeWholeGrid(level);
             SimBuildQueue.submit(level, room, centre, centre, 0);
             // After the paste, so the ring it inspects is the room's real wall - before it, every column
             // would still be air and the whole perimeter would come out diamond.

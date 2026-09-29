@@ -219,7 +219,8 @@ public final class EtherwarpPathfinder {
             int nextRoom = -1;
             if (step.door() >= 0) {
                 BlockPos door = DungeonLayout.doorBlock(step.door());
-                target = new BlockPos(door.getX(), 68, door.getZ());
+                // One below the door block, not a literal 68 - the sim shifts the whole floor.
+                target = new BlockPos(door.getX(), door.getY() - 1, door.getZ());
                 radius = 9.0;
                 nextRoom = roomPath.get(i + 1).room();
             }

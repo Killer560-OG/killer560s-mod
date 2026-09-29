@@ -48,13 +48,18 @@ public final class SimMimic {
      * A plain LinkedHashSet there is a ConcurrentModificationException waiting for a build to run while he is
      * looking at the room - which is most of them. Insertion order is preserved, which the picker relies on.
      */
-    private static final Set<BlockPos> CANDIDATES =
-            java.util.Collections.newSetFromMap(new java.util.LinkedHashMap<>() {
-                @Override
-                protected boolean removeEldestEntry(java.util.Map.Entry<BlockPos, Boolean> eldest) {
-                    return false;
-                }
-            });
+    /**
+     * ACTUALLY concurrent, which the old one only claimed to be.
+     *
+     * <p>It was {@code Collections.newSetFromMap(new LinkedHashMap<>(){...})} with a comment saying it existed
+     * to stop a ConcurrentModificationException - and {@code newSetFromMap} adds no synchronisation at all, so
+     * it did nothing of the kind. The race is real and routine: the build's completion callback adds secret
+     * chests on the integrated server's thread while SimMimicRenderer walks this set every frame on the render
+     * thread. A CopyOnWriteArraySet is genuinely safe to iterate under concurrent writes and keeps the
+     * insertion order the picker relies on. The set is a few dozen chests, so copy-on-write costs nothing
+     * here.
+     */
+    private static final Set<BlockPos> CANDIDATES = new java.util.concurrent.CopyOnWriteArraySet<>();
 
     /** The one that actually is. */
     private static BlockPos mimic;

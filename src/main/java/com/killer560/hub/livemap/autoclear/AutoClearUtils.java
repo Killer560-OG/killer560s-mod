@@ -187,7 +187,10 @@ public final class AutoClearUtils {
             rel.x = override[0];
             rel.y = override[1];
             rel.z = override[2];
-            goal = RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2]);
+            // A database y is a HYPIXEL height; the sim shifts the whole floor, so it has to move with it
+            // or the override points at air a hundred blocks above the room.
+            goal = RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2])
+                    .above(DungeonLayout.simYOffset());
         }
         if (goal == null) {
             goal = TeleportUtils.nearestEtherwarpable(DungeonLayout.cellCenter(tileIdx));
