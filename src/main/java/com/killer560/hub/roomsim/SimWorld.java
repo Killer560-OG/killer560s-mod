@@ -69,7 +69,26 @@ public final class SimWorld {
      * {@link #onWorldLoaded}.
      */
     public static void open(Minecraft client, String mapCode) {
+        open(client, mapCode, null, null);
+    }
+
+    /**
+     * Opens the sim world and builds something into it before handing it over.
+     *
+     * <p>killer560 (2026-09-28): "Make sure the room loads before I am actually put into the workd." Callers
+     * used to have to be in a world already, and the one that was not - picking a room off the main menu -
+     * opened an empty sim and asked him to run a command to finish the job. Now the work is queued here and run
+     * the moment the world exists, behind {@link SimLoadingScreen}, so what he walks into is already built.
+     *
+     * @param build what to build, handed the client once the world is real; may be null for an empty sim
+     * @param label what to show on the loading screen while it happens
+     */
+    public static void open(Minecraft client, String mapCode, java.util.function.Consumer<Minecraft> build,
+                            String label) {
         pendingCode = mapCode == null ? "" : mapCode;
+        pendingBuild = build;
+        // Up before the world starts loading, so there is never a frame of empty flatland.
+        loadingScreen = SimLoadingScreen.show(client, label == null ? "Opening the sim" : label);
         try {
             if (exists(client)) {
                 client.createWorldOpenFlows().openWorld(LEVEL_ID, () -> {
@@ -102,6 +121,34 @@ public final class SimWorld {
     /** The code this session is being opened with, held only between the request and the world arriving. */
     private static String pendingCode;
 
+    /** What to build once the world is real, or null for an empty sim. */
+    private static java.util.function.Consumer<Minecraft> pendingBuild;
+
+    /** The screen covering the gap between the world arriving and the map being built. */
+    private static SimLoadingScreen loadingScreen;
+
+    /**
+     * Called by whatever finished building, to take the loading screen down.
+     *
+     * <p>The builders report completion rather than this class guessing at it: the paste runs on the server
+     * thread and only the thing doing it knows when the last block landed. A timer here would have to be longer
+     * than the biggest room to be safe, and would then make every small room feel broken.
+     */
+    public static void buildFinished(Minecraft client, String summary) {
+        if (loadingScreen != null && summary != null && !summary.isEmpty()) {
+            loadingScreen.progress(summary);
+        }
+        loadingScreen = null;
+        SimLoadingScreen.dismiss(client);
+    }
+
+    /** Progress line for the loading screen, if one is up. */
+    public static void buildProgress(String line) {
+        if (loadingScreen != null) {
+            loadingScreen.progress(line);
+        }
+    }
+
     /**
      * Called once the client is actually in a world.
      *
@@ -115,8 +162,11 @@ public final class SimWorld {
         }
         String code = pendingCode;
         pendingCode = null;
+        java.util.function.Consumer<Minecraft> build = pendingBuild;
+        pendingBuild = null;
         if (client.getSingleplayerServer() == null || client.getCurrentServer() != null) {
             LOGGER.warn("Sim world request completed on a non-local world - not entering sim mode");
+            buildFinished(client, null);
             return;
         }
         SimState.enter(code);
@@ -139,8 +189,15 @@ public final class SimWorld {
                 SimDoors.dropKeyAt(mc, mc.player.position());
             }
         });
+        if (build != null) {
+            // The world is real and the sim flag is on, so the builder can do its work. It takes the loading
+            // screen down itself when the last block lands.
+            build.accept(client);
+        } else {
+            buildFinished(client, null);
+        }
         ModChat.send("Sim", ModChat.text("Dungeon sim ready. "),
-                ModChat.dim("/simitem all for the toolkit."));
+                ModChat.dim("/simitem for the toolkit."));
     }
 
     /** Called when the player leaves a world, so the flag can never outlive the session. */

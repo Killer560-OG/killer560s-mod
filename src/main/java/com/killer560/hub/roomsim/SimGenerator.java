@@ -80,7 +80,7 @@ public final class SimGenerator {
         if (placed < all.size()) {
             ModChat.send("Sim", ModChat.dim((all.size() - placed) + " did not fit on the grid"));
         }
-        SimWorld.open(client, code);
+        SimWorld.open(client, code, c -> SimBuilder.build(c, code), "Generating the map");
     }
 
     /**
@@ -139,6 +139,6 @@ public final class SimGenerator {
                 ModChat.value(String.valueOf(placedPuzzles)), ModChat.text(" puzzle(s), "),
                 ModChat.value(String.valueOf(Math.min(roomsToBlood, DungeonLayout.GRID))),
                 ModChat.text(" rooms to blood."));
-        SimWorld.open(client, code);
+        SimWorld.open(client, code, c -> SimBuilder.build(c, code), "Generating the map");
     }
 }

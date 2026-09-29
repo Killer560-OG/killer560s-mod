@@ -159,6 +159,11 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   complete" for one room seen twice. Every unidentified room shares that one placeholder, so the real damage
   was the next one overwriting it and producing a file holding half of two different rooms. Check for the
   placeholder, not just for blank, and distrust a room count that has not been diffed.
+- The sim menu runs from the MAIN MENU, where there is no world yet. Every builder had a `server == null`
+  branch that returned silently or opened an empty sim with a "run the command again" message, so nothing the
+  menu offered ever built anything (found 2026-09-28: "no room ever loaded"). `SimWorld.open` now takes the
+  build as a callback and runs it once the world exists, behind `SimLoadingScreen`. Any new entry point must
+  go through that, not call a builder directly.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.

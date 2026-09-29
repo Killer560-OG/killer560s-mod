@@ -115,7 +115,18 @@ public final class SimItems {
                     return net.minecraft.world.InteractionResult.SUCCESS;
                 });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            var root = ClientCommands.literal("simitem").executes(ctx -> help());
+            // killer560 (2026-09-28): "make /simitem open a menu [...] All of it should be through a gui."
+            // The named subcommands stay - they cost nothing and a keybind can still fire one - but the bare
+            // command now opens the picker rather than printing a list of words to type back.
+            var root = ClientCommands.literal("simitem").executes(ctx -> {
+                Minecraft mc = Minecraft.getInstance();
+                if (!SimState.canAct(mc)) {
+                    ModChat.send("Sim", ModChat.text("Sim items only work inside the sim."));
+                    return 1;
+                }
+                mc.execute(() -> mc.setScreenAndShow(new SimItemsScreen(mc.screen)));
+                return 1;
+            });
             for (GiveItem item : GiveItem.values()) {
                 root = root.then(ClientCommands.literal(literalName(item))
                         .executes(ctx -> give(item)));
@@ -162,6 +173,29 @@ public final class SimItems {
         }
         ModChat.send("Sim", ModChat.text("Gave you the full sim item set"));
         return 1;
+    }
+
+    /** One item as the picker needs to know it - id and label, nothing about how it is built. */
+    public record Entry(String skyblockId, String displayName) {
+    }
+
+    /**
+     * Every item the sim can hand out, for {@link SimItemsScreen}.
+     *
+     * <p>Derived from the same enum the commands use rather than copied, so a new item appears in the picker by
+     * existing - there is no second list to forget to update.
+     */
+    public static java.util.List<Entry> entries() {
+        java.util.List<Entry> out = new java.util.ArrayList<>();
+        for (GiveItem item : GiveItem.values()) {
+            out.add(new Entry(item.skyblockId, item.displayName));
+        }
+        return out;
+    }
+
+    /** Everything at once, for the picker's one button. */
+    public static void giveEverything(Minecraft client) {
+        giveAll();
     }
 
     /** The Architect's First Draft, named once so the sim's Architect handler cannot drift from the enum. */

@@ -84,8 +84,13 @@ public final class SimBuilder {
         }
         var server = client.getSingleplayerServer();
         if (server == null) {
+            // Reached from the main menu, where there is no world yet. It used to return silently here, which
+            // is why "Create a New Map" and "Load a Previous Run" both dropped him into an empty sim: the world
+            // opened, nothing built it, and nothing said so.
+            SimWorld.open(client, code, c -> build(c, code), "Building the map");
             return;
         }
+        SimWorld.buildProgress("Placing rooms");
         server.execute(() -> {
             ServerLevel level = server.overworld();
             int placed = 0;
@@ -128,6 +133,7 @@ public final class SimBuilder {
             final int m = missing;
             final String names = missingNames.toString();
             client.execute(() -> {
+                SimWorld.buildFinished(client, null);
                 ModChat.send("Sim", ModChat.text("Built "), ModChat.value(String.valueOf(p)),
                         ModChat.text(" blocks."));
                 if (m > 0) {
@@ -208,17 +214,23 @@ public final class SimBuilder {
         }
         var server = client.getSingleplayerServer();
         if (server == null) {
-            SimWorld.open(client, "");
-            ModChat.send("Sim", ModChat.dim("Opening the sim - run /simbuild room again once you are in."));
+            // Not in a world yet - which is the normal case, because this is reached from the MAIN MENU. It
+            // used to open an empty sim here and ask him to run a command once inside, so the room he picked
+            // was never placed. The build is queued instead and runs the moment the world exists.
+            SimWorld.open(client, "", c -> buildSingleRoom(c, roomName), "Loading " + roomName);
             return;
         }
         int centre = DungeonLayout.GRID / 2;
+        SimWorld.buildProgress("Placing " + roomName);
         server.execute(() -> {
             ServerLevel level = server.overworld();
             int placed = RoomPlacer.paste(level, room, centre, centre, 0);
             spawnMobsFor(client, level, room, centre, centre);
-            client.execute(() -> ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName),
-                    ModChat.text(" (" + placed + " blocks)")));
+            client.execute(() -> {
+                SimWorld.buildFinished(client, null);
+                ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName),
+                        ModChat.text(" (" + placed + " blocks)"));
+            });
         });
     }
 
@@ -230,6 +242,10 @@ public final class SimBuilder {
      */
     public static void buildFlatTest(Minecraft client) {
         var server = client.getSingleplayerServer();
+        if (server == null && Minecraft.getInstance().level == null) {
+            SimWorld.open(client, "", SimBuilder::buildFlatTest, "Loading the test room");
+            return;
+        }
         if (server == null) {
             ModChat.send("Sim", ModChat.text("Not in a local world."));
             return;

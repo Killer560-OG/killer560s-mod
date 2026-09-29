@@ -80,7 +80,7 @@ public final class SimRunHistory {
             ModChat.send("Sim", ModChat.text("Could not turn that run's map into a sim map."));
             return;
         }
-        SimWorld.open(client, code);
+        SimWorld.open(client, code, c -> SimBuilder.build(c, code), "Rebuilding " + run.floorLabel());
     }
 
     /**
