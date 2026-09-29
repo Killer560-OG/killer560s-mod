@@ -162,14 +162,8 @@ public final class SimBuilder {
             final int m = missing;
             final String names = missingNames.toString();
             final int roomCount = roomsPlaced[0];
-            // The whole grid, in one wipe, so no flatland shows between rooms or in the gaps a map leaves.
-            var gridMin = DungeonLayout.cellCenter(0);
-            var gridMax = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
-            SimBuildQueue.submitClear(level,
-                    Math.min(gridMin.getX(), gridMax.getX()) - RoomLibrary.TILE,
-                    Math.min(gridMin.getZ(), gridMax.getZ()) - RoomLibrary.TILE,
-                    Math.max(gridMin.getX(), gridMax.getX()) + RoomLibrary.TILE,
-                    Math.max(gridMin.getZ(), gridMax.getZ()) + RoomLibrary.TILE);
+            // Everything that was here before, so a new map never shows the last one's rooms in its gaps.
+            wipeWholeGrid(level);
             final int firstCell = firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
                 for (Runnable r : afterBuild) {
@@ -247,8 +241,22 @@ public final class SimBuilder {
         });
     }
 
-    /** Blocks of flat world to wipe around a room, so it does not sit in a field. */
-    private static final int CLEAR_MARGIN = 24;
+    /**
+     * Wipes every cell of the dungeon grid.
+     *
+     * <p>Queued like everything else, and safe to ask for because the clear now bounds how much it READS as
+     * well as how much it writes - in a void world nearly every position it visits is already air, and an
+     * unbounded scan over the whole grid is exactly the freeze the queue exists to prevent.
+     */
+    private static void wipeWholeGrid(ServerLevel level) {
+        var gridMin = DungeonLayout.cellCenter(0);
+        var gridMax = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
+        SimBuildQueue.submitClear(level,
+                Math.min(gridMin.getX(), gridMax.getX()) - RoomLibrary.TILE,
+                Math.min(gridMin.getZ(), gridMax.getZ()) - RoomLibrary.TILE,
+                Math.max(gridMin.getX(), gridMax.getX()) + RoomLibrary.TILE,
+                Math.max(gridMin.getZ(), gridMax.getZ()) + RoomLibrary.TILE);
+    }
 
     /**
      * Finds the chests in a placed room and offers them as mimic candidates.
@@ -333,10 +341,11 @@ public final class SimBuilder {
             // Through the queue, not straight into a 700k-block loop on this thread - that is what froze the
             // game. The completion callback is what takes the loading screen down.
             var origin = DungeonLayout.cellCenter(centre * DungeonLayout.GRID + centre);
-            int halfX = room.sizeX / 2 + CLEAR_MARGIN;
-            int halfZ = room.sizeZ / 2 + CLEAR_MARGIN;
-            SimBuildQueue.submitClear(level, origin.getX() - halfX, origin.getZ() - halfZ,
-                    origin.getX() + halfX, origin.getZ() + halfZ);
+            // killer560 (2026-09-28): "when I go to make a new room have it wipe everything so the only stuff
+            // on the map is the current room." The whole grid, not a margin round the new room - a margin
+            // leaves the last room still standing wherever it was, and a single-room test with someone else's
+            // room over the horizon is not a single-room test.
+            wipeWholeGrid(level);
             SimBuildQueue.submit(level, room, centre, centre, 0);
             // After the paste, so the ring it inspects is the room's real wall - before it, every column
             // would still be air and the whole perimeter would come out diamond.
@@ -379,10 +388,7 @@ public final class SimBuilder {
         server.execute(() -> {
             ServerLevel level = server.overworld();
             var origin = DungeonLayout.cellCenter(centre * DungeonLayout.GRID + centre);
-            SimBuildQueue.submitClear(level, origin.getX() - room.sizeX / 2 - CLEAR_MARGIN,
-                    origin.getZ() - room.sizeZ / 2 - CLEAR_MARGIN,
-                    origin.getX() + room.sizeX / 2 + CLEAR_MARGIN,
-                    origin.getZ() + room.sizeZ / 2 + CLEAR_MARGIN);
+            wipeWholeGrid(level);
             SimBuildQueue.submit(level, room, centre, centre, 0);
             SimBuildQueue.whenDone(() -> {
                 snapPlayerTo(client, level, centre, centre);

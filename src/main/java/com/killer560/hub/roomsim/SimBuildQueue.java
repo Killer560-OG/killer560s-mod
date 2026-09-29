@@ -169,6 +169,15 @@ public final class SimBuildQueue {
         }
     }
 
+    /**
+     * Positions a clear may LOOK at in one tick, as opposed to write.
+     *
+     * <p>Reading a block state is far cheaper than writing one, so this is much larger than the write budget -
+     * but it is finite, which is the whole point. At this rate a full 11x11 grid wipe takes a couple of seconds
+     * of visible loading instead of one very long frozen frame.
+     */
+    private static final int SCAN_BUDGET = 250_000;
+
     /** Fills a box with air, a slice at a time. */
     private static final class ClearJob implements Job {
 
@@ -205,14 +214,20 @@ public final class SimBuildQueue {
         @Override
         public int step(int budget) {
             int written = 0;
-            while (written < budget) {
+            int scanned = 0;
+            // TWO budgets, and the second one matters more than it looks. Charging only for blocks WRITTEN was
+            // safe while this cleared a margin round one room, and became a freeze the moment it was asked to
+            // wipe the whole grid: in a void world almost every position is already air, so a tick could look
+            // at ten million of them, write nothing, spend no budget and never return. Scanning is work even
+            // when it changes nothing.
+            while (written < budget && scanned < SCAN_BUDGET) {
                 if (y > RoomLibrary.MAX_Y) {
                     done = true;
                     return written;
                 }
+                scanned++;
                 cursor.set(x, y, z);
-                // Only touch what is not already air. A flat world is mostly air above the surface, and
-                // rewriting it would burn the whole budget on nothing.
+                // Only touch what is not already air - rewriting air would burn the write budget on nothing.
                 if (!level.getBlockState(cursor).isAir()) {
                     level.setBlock(cursor, air, RoomPlacer.CLEAR_FLAGS);
                     written++;
