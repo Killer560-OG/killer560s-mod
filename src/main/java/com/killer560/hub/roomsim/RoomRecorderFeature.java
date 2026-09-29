@@ -148,6 +148,20 @@ public final class RoomRecorderFeature {
     private static boolean suppressKeyStop;
     private static int confirmTicks;
 
+    /**
+     * Tick to click the undersized-party confirm on, or -1 when the menu is not up.
+     *
+     * <p>killer560 (2026-09-28): "make sure it doesnt insta click the join button give it a random delay
+     * between .5s and 1s." A click on the same tick the menu renders is not a thing a hand does - nobody has
+     * reacted to a window before it has drawn - and this loop opens that menu every thirty seconds all night,
+     * so the one perfectly-zero reaction time would be the most repeated signal in the session.
+     */
+    private static int confirmClickTick = -1;
+
+    /** Reaction-time window for that click, in ticks: 0.5s to 1.0s. */
+    private static final int CONFIRM_DELAY_MIN_TICKS = 10;
+    private static final int CONFIRM_DELAY_MAX_TICKS = 20;
+
     /** How long to wait for the undersized-party menu before giving up on it and scanning anyway. */
     private static final int CONFIRM_TIMEOUT_TICKS = 100;
 
@@ -302,6 +316,7 @@ public final class RoomRecorderFeature {
                 roomsAddedThisRun = 0;
                 stage = Stage.CONFIRM;
                 confirmTicks = 0;
+                confirmClickTick = -1;
                 waitTicks = 2;
             }
             case CONFIRM -> {
@@ -321,7 +336,7 @@ public final class RoomRecorderFeature {
                     waitTicks = seconds(25);
                     return;
                 }
-                waitTicks = 2;
+                waitTicks = 1;
             }
             case SCAN -> {
                 ServerCommands.toServer("dh");
@@ -496,12 +511,25 @@ public final class RoomRecorderFeature {
      */
     private static boolean confirmUndersizedParty(Minecraft client) {
         if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+            confirmClickTick = -1;
             return false;
         }
         String title = screen.getTitle() == null ? "" : screen.getTitle().getString();
         if (!title.toLowerCase(Locale.ROOT).contains("undersized party")) {
+            confirmClickTick = -1;
             return false;
         }
+        // Wait out a human-looking reaction before touching it, drawn fresh each time the menu appears so the
+        // delay is never the same twice.
+        if (confirmClickTick < 0) {
+            confirmClickTick = tickCounter + CONFIRM_DELAY_MIN_TICKS
+                    + JITTER.nextInt(CONFIRM_DELAY_MAX_TICKS - CONFIRM_DELAY_MIN_TICKS + 1);
+            return false;
+        }
+        if (tickCounter < confirmClickTick) {
+            return false;
+        }
+
         AbstractContainerMenu menu = screen.getMenu();
         for (Slot slot : menu.slots) {
             if (client.player != null && slot.container == client.player.getInventory()) {
@@ -515,6 +543,7 @@ public final class RoomRecorderFeature {
             }
             client.gameMode.handleContainerInput(menu.containerId, slot.index, 0,
                     ContainerInput.PICKUP, client.player);
+            confirmClickTick = -1;
             say("undersized party - playing anyway");
             return true;
         }

@@ -269,10 +269,22 @@ public final class RoomLibrary {
      *
      * @return how many new columns this call added
      */
+    /** {@link DungeonLayout}'s placeholder for a room it cannot name yet - never a real room. */
+    private static final String UNIDENTIFIED = "Unknown";
+
     public static synchronized int capture(Level level, DungeonLayout layout, int room) {
         load();
         String name = layout.name(room);
-        if (name == null || name.isBlank()) {
+        if (name == null || name.isBlank() || UNIDENTIFIED.equals(name)) {
+            // "Unknown" is DungeonLayout's placeholder for a room it has not identified yet, not a room name.
+            // Capturing it wrote the geometry a second time under that placeholder - killer560's first live
+            // scan produced Entrance.json and Unknown.json that were identical in all 77841 block positions,
+            // and the recorder reported "2 of 2 rooms complete" for what was one room seen twice.
+            //
+            // The duplicate is the harmless half. Every unidentified room shares the one placeholder, so a
+            // later one would overwrite it, and a file holding half of one room and half of another would look
+            // exactly like a captured room to the sim. Waiting costs nothing: the name resolves a moment later
+            // and the same room is captured properly on the next scan tick.
             return 0;
         }
         int[] tiles = layout.tiles(room);

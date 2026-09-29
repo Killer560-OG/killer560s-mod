@@ -153,6 +153,12 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
   immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
   pressed" cannot tell a walk from the feature killing itself.
+- `DungeonLayout.name(room)` returns the literal `"Unknown"` for a room it has not identified yet - a
+  placeholder, not a name. `RoomLibrary.capture` only rejected null/blank, so the first live scan (2026-09-28)
+  wrote `Entrance.json` and `Unknown.json` identical in all 77841 block positions and reported "2 of 2 rooms
+  complete" for one room seen twice. Every unidentified room shares that one placeholder, so the real damage
+  was the next one overwriting it and producing a file holding half of two different rooms. Check for the
+  placeholder, not just for blank, and distrust a room count that has not been diffed.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.
