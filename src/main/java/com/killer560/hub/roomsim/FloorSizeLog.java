@@ -137,8 +137,22 @@ public final class FloorSizeLog {
             }
         }
 
+        // Blood, the entrance and the fairy room are given on every floor, so they do not count - his rule.
+        Set<Integer> free = new HashSet<>();
+        if (entranceRoom != null) {
+            free.add(entranceRoom);
+        }
+        if (bloodRoom != null) {
+            free.add(bloodRoom);
+        }
+        for (int room : rooms) {
+            RoomEntry e = RoomDatabase.lookupByName(layout.name(room));
+            if (e != null && "FAIRY".equalsIgnoreCase(e.type)) {
+                free.add(room);
+            }
+        }
         int cellsToBlood = entranceRoom == null || bloodRoom == null
-                ? -1 : distanceBetween(layout, cellToRoom, entranceRoom, bloodRoom);
+                ? -1 : distanceBetween(layout, cellToRoom, entranceRoom, bloodRoom, free);
 
         // Only once the map looks fully revealed. Sampling a half-discovered floor would record a smaller
         // dungeon than the one he actually ran, and a table built from those would be wrong in the direction
@@ -186,6 +200,22 @@ public final class FloorSizeLog {
      */
     private static int distanceBetween(DungeonLayout layout, Map<Integer, Integer> cellToRoom,
                                        int fromRoom, int toRoom) {
+        return distanceBetween(layout, cellToRoom, fromRoom, toRoom, Set.of());
+    }
+
+    /**
+     * Cells between the entrance and blood, not counting the given rooms.
+     *
+     * <p>killer560 (2026-09-28): "the max is 8 if you do not count blood green room or fairy. It cannot be
+     * more." My first version counted every cell the path crossed, including the entrance's own and blood's
+     * own, which is why it reported up to ten and disagreed with him. Those three rooms are given on every
+     * floor, so counting them measures the floor's furniture rather than how far the blood door is.
+     *
+     * <p>{@code freeRooms} are the rooms that do not count: their cells are still WALKED, because you do walk
+     * through them, they are simply not added to the total.
+     */
+    private static int distanceBetween(DungeonLayout layout, Map<Integer, Integer> cellToRoom,
+                                       int fromRoom, int toRoom, Set<Integer> freeRooms) {
         Map<Integer, Integer> dist = new HashMap<>();
         Deque<Integer> queue = new ArrayDeque<>();
         // Start from every cell of the entrance at distance zero: the room itself costs nothing to be in.
@@ -220,7 +250,9 @@ public final class FloorSizeLog {
                 if (!sameRoom && !layout.isDoor(between)) {
                     continue;
                 }
-                dist.put(next, dist.get(cell) + 1);
+                // A cell in one of the given rooms is crossed for free - it is on the way, not on the count.
+                int cost = freeRooms.contains(otherRoom) ? 0 : 1;
+                dist.put(next, dist.get(cell) + cost);
                 queue.add(next);
             }
         }

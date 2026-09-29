@@ -79,8 +79,16 @@ public final class SimFloorGen {
 
     /** His sliders' limits, in one place so the menu and the generator cannot disagree. */
     public static final int MIN_ROOMS_TO_BLOOD = 2;
-    /** Measured 5 to 10 across his runs, so the 8 he asked for would have cut off real floors. */
-    public static final int MAX_ROOMS_TO_BLOOD = 10;
+    /**
+     * Eight, on killer560's word: "the max is 8 if you do not count blood green room or fairy. It cannot be
+     * more."
+     *
+     * <p>My own measurement said ten and it was measuring the wrong thing - it counted every cell on the path
+     * including the ones belonging to the three given rooms, which is not the number he means. The logger now
+     * counts his way, so the next set of runs either confirms eight or shows me something I have still got
+     * wrong.
+     */
+    public static final int MAX_ROOMS_TO_BLOOD = 8;
     public static final int MIN_PUZZLES = 2;
     public static final int MAX_PUZZLES = 5;
 
