@@ -104,6 +104,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
         com.killer560.hub.roomsim.SimWorld.register();
+        com.killer560.hub.roomsim.SimBuildQueue.register();
         com.killer560.hub.roomsim.SimItems.register();
         com.killer560.hub.roomsim.SimBuilder.register();
         com.killer560.hub.roomsim.SimDoors.register();

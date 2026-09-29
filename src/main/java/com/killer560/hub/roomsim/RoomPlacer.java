@@ -83,6 +83,81 @@ public final class RoomPlacer {
      *
      * @return how many blocks were actually written (excludes skipped -1 columns and unresolved palette entries)
      */
+    /**
+     * A paste in progress, so it can be done a slice at a time.
+     *
+     * <p>Exists because doing it in one go froze the game - see {@link SimBuildQueue}. The placement itself is
+     * unchanged and still lives in {@link #paste}; this only remembers how far through it is, by keeping the
+     * three loop counters as fields instead of on the stack.
+     */
+    public static final class PasteJob {
+
+        private final ServerLevel level;
+        private final RoomLibrary.Room room;
+        private final Rotation vanillaRotation;
+        private final int rotation;
+        private final int worldX0;
+        private final int worldZ0;
+
+        private int y = RoomLibrary.MIN_Y;
+        private int x;
+        private int z;
+        private boolean done;
+
+        public PasteJob(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
+            if (room == null) {
+                throw new IllegalArgumentException("room is null");
+            }
+            this.level = level;
+            this.room = room;
+            this.rotation = rotation;
+            this.vanillaRotation = toVanillaRotation(rotation);
+            BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2;
+            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
+        }
+
+        public boolean isDone() {
+            return done;
+        }
+
+        /**
+         * Places up to {@code budget} blocks and returns how many landed.
+         *
+         * <p>The count is of blocks WRITTEN, not of positions considered. A room is mostly air that was never
+         * captured, and those are skipped without costing anything, so charging the budget for them would make
+         * a sparse room take as many ticks as a solid one for no work.
+         */
+        public int step(int budget) {
+            int placed = 0;
+            while (placed < budget) {
+                if (y > RoomLibrary.MAX_Y) {
+                    done = true;
+                    return placed;
+                }
+                short paletteIdx = room.blocks[room.index(x, y, z)];
+                if (paletteIdx >= 0) {
+                    BlockState state = resolve(room.palette.get(paletteIdx));
+                    if (state != null) {
+                        int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
+                        level.setBlock(new BlockPos(worldX0 + local[0], y, worldZ0 + local[1]),
+                                state.rotate(vanillaRotation), PLACE_FLAGS);
+                        placed++;
+                    }
+                }
+                // Same iteration order as paste(): z fastest, then x, then y.
+                if (++z >= room.sizeZ) {
+                    z = 0;
+                    if (++x >= room.sizeX) {
+                        x = 0;
+                        y++;
+                    }
+                }
+            }
+            return placed;
+        }
+    }
+
     public static int paste(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
         if (room == null) {
             throw new IllegalArgumentException("room is null");

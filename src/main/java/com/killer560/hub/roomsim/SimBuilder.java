@@ -93,7 +93,6 @@ public final class SimBuilder {
         SimWorld.buildProgress("Placing rooms");
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            int placed = 0;
             int missing = 0;
             // Counted in an array so the lambda can write to it - rooms actually built, which is the score's
             // room denominator.
@@ -115,7 +114,7 @@ public final class SimBuilder {
                 }
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
-                placed += RoomPlacer.paste(level, room, gx, gz, decoded.cellRotation()[cell]);
+                SimBuildQueue.submit(level, room, gx, gz, decoded.cellRotation()[cell]);
                 roomsPlaced[0]++;
                 spawnMobsFor(client, level, room, gx, gz);
                 if (SimMimic.roomEligible(name)) {
@@ -129,18 +128,18 @@ public final class SimBuilder {
             // them "explore" divides by zero and the whole score is meaningless - and a score screen that
             // invents its own totals is worse than one that says it does not know.
             SimScore.reset(SimMimic.candidateCount(), roomsPlaced[0]);
-            final int p = placed;
             final int m = missing;
             final String names = missingNames.toString();
-            client.execute(() -> {
+            final int roomCount = roomsPlaced[0];
+            SimBuildQueue.whenDone(() -> client.execute(() -> {
                 SimWorld.buildFinished(client, null);
-                ModChat.send("Sim", ModChat.text("Built "), ModChat.value(String.valueOf(p)),
-                        ModChat.text(" blocks."));
+                ModChat.send("Sim", ModChat.text("Built "), ModChat.value(String.valueOf(roomCount)),
+                        ModChat.text(" room(s)."));
                 if (m > 0) {
                     ModChat.send("Sim", ModChat.dim(m + " cell(s) had no captured room: " + names));
                 }
-            });
-            LOGGER.info("Sim build: {} blocks placed, {} cells missing a room", p, m);
+            }));
+            LOGGER.info("Sim build: {} room(s) queued, {} cells missing a room", roomCount, m);
         });
     }
 
@@ -224,12 +223,15 @@ public final class SimBuilder {
         SimWorld.buildProgress("Placing " + roomName);
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            int placed = RoomPlacer.paste(level, room, centre, centre, 0);
-            spawnMobsFor(client, level, room, centre, centre);
-            client.execute(() -> {
-                SimWorld.buildFinished(client, null);
-                ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName),
-                        ModChat.text(" (" + placed + " blocks)"));
+            // Through the queue, not straight into a 700k-block loop on this thread - that is what froze the
+            // game. The completion callback is what takes the loading screen down.
+            SimBuildQueue.submit(level, room, centre, centre, 0);
+            SimBuildQueue.whenDone(() -> {
+                spawnMobsFor(client, level, room, centre, centre);
+                client.execute(() -> {
+                    SimWorld.buildFinished(client, null);
+                    ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
+                });
             });
         });
     }
@@ -254,13 +256,15 @@ public final class SimBuilder {
         int centre = DungeonLayout.GRID / 2;
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            int placed = RoomPlacer.paste(level, room, centre, centre, 0);
+            SimBuildQueue.submit(level, room, centre, centre, 0);
             var origin = DungeonLayout.cellCenter(centre * DungeonLayout.GRID + centre);
-            client.execute(() -> ModChat.send("Sim",
-                    ModChat.text("Flat test room built ("), ModChat.value(String.valueOf(placed)),
-                    ModChat.text(" blocks) at "),
+            SimBuildQueue.whenDone(() -> client.execute(() -> {
+                SimWorld.buildFinished(client, null);
+                ModChat.send("Sim",
+                    ModChat.text("Flat test room built at "),
                     ModChat.value(String.format(Locale.US, "%d %d %d",
-                            origin.getX(), origin.getY(), origin.getZ()))));
+                            origin.getX(), origin.getY(), origin.getZ())));
+            }));
         });
     }
 }

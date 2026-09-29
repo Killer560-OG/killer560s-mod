@@ -47,6 +47,30 @@ public final class SimWorld {
     public static void register() {
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register(
                 (handler, sender, client) -> onWorldLoaded(client));
+        // Keeps the sim's own loading screen up for as long as the build is running.
+        //
+        // Showing it once is not enough and that is why killer560 never saw one: opening a world REPLACES the
+        // screen with vanilla's own progress and receiving-level screens, and then clears it to null when the
+        // level arrives. Re-asserting it every tick while a build is outstanding is the only thing that
+        // survives that, and it costs a null check on the ticks when nothing is building.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (!buildInProgress) {
+                return;
+            }
+            // Only once the level is actually here. While it is still loading, vanilla owns the screen -
+            // fighting it for that every tick means replacing its receiving-level screen over and over, which
+            // is its own way to hang the client. Vanilla covers the world load; this covers the build after it.
+            if (client.level != null && !(client.screen instanceof SimLoadingScreen)) {
+                loadingScreen = SimLoadingScreen.show(client, loadingLabel);
+            }
+            if (++loadingTicks > LOADING_WATCHDOG_TICKS) {
+                LOGGER.warn("Sim build never reported finishing after {} ticks - releasing the loading screen",
+                        loadingTicks);
+                buildFinished(client, null);
+                ModChat.send("Sim", ModChat.dim("The build did not report finishing - letting you in anyway. "
+                        + "If the map looks wrong, the log has the detail."));
+            }
+        });
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
                 (handler, client) -> onWorldUnloaded());
     }
@@ -87,12 +111,18 @@ public final class SimWorld {
                             String label) {
         pendingCode = mapCode == null ? "" : mapCode;
         pendingBuild = build;
-        // Up before the world starts loading, so there is never a frame of empty flatland.
-        loadingScreen = SimLoadingScreen.show(client, label == null ? "Opening the sim" : label);
+        loadingLabel = label == null ? "Opening the sim" : label;
+        // Held from here until the builder reports done. The tick hook above is what actually keeps it on
+        // screen through the world load; this call just gets it up for the frames before that starts.
+        buildInProgress = true;
+        loadingTicks = 0;
+        loadingScreen = SimLoadingScreen.show(client, loadingLabel);
         try {
             if (exists(client)) {
                 client.createWorldOpenFlows().openWorld(LEVEL_ID, () -> {
                     pendingCode = null;
+                    pendingBuild = null;
+                    buildFinished(client, null);
                     ModChat.send("Sim", ModChat.text("Could not open the sim world"));
                 });
                 return;
@@ -113,6 +143,8 @@ public final class SimWorld {
                     null);
         } catch (Throwable t) {
             pendingCode = null;
+            pendingBuild = null;
+            buildFinished(client, null);
             LOGGER.error("Could not open the sim world", t);
             ModChat.send("Sim", ModChat.text("Could not open the sim world - see the log"));
         }
@@ -127,6 +159,26 @@ public final class SimWorld {
     /** The screen covering the gap between the world arriving and the map being built. */
     private static SimLoadingScreen loadingScreen;
 
+    /** True from the moment a build is requested until the builder says it has finished. */
+    private static volatile boolean buildInProgress;
+
+    /** What that screen says while it is up. */
+    private static String loadingLabel = "";
+
+    /** Client ticks the loading screen has been up for, for the watchdog below. */
+    private static int loadingTicks;
+
+    /**
+     * Longest the loading screen may stay up before it is taken down regardless.
+     *
+     * <p>Sixty seconds, and it exists because the contract "every builder remembers to report completion" is one
+     * a builder WILL eventually break - {@code buildFlatTest} broke it immediately, and the symptom was being
+     * stuck on the loading screen with no way off it, since it deliberately ignores Escape. A screen that
+     * outstays a slow build by a few seconds is a much smaller failure than one that never leaves, so the
+     * watchdog is generous rather than tight: it is there to bound the worst case, not to time the build.
+     */
+    private static final int LOADING_WATCHDOG_TICKS = 20 * 60;
+
     /**
      * Called by whatever finished building, to take the loading screen down.
      *
@@ -135,15 +187,15 @@ public final class SimWorld {
      * than the biggest room to be safe, and would then make every small room feel broken.
      */
     public static void buildFinished(Minecraft client, String summary) {
-        if (loadingScreen != null && summary != null && !summary.isEmpty()) {
-            loadingScreen.progress(summary);
-        }
+        buildInProgress = false;
+        loadingTicks = 0;
         loadingScreen = null;
         SimLoadingScreen.dismiss(client);
     }
 
     /** Progress line for the loading screen, if one is up. */
     public static void buildProgress(String line) {
+        loadingLabel = line == null ? loadingLabel : line;
         if (loadingScreen != null) {
             loadingScreen.progress(line);
         }
