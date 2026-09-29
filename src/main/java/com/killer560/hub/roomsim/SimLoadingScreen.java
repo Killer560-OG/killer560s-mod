@@ -81,20 +81,23 @@ public final class SimLoadingScreen extends Screen {
             g.centeredText(this.font, detail, panelX + panelW / 2, panelY + 52, ProfitPanels.DIM);
         }
 
-        // A bar that sweeps rather than fills. The builder cannot say how far along it is without counting the
-        // work twice, and a progress bar that invents a percentage is worse than one that only says "working".
+        // A real bar. killer560 (2026-09-28): "instead of the moving bar at the bottom [...] make an acttual
+        // progress bar." The earlier sweep was there because I thought the builder could not say how far along
+        // it was without counting the work twice - it can, because every job knows the size of its own box
+        // before it starts. Measured in positions VISITED rather than blocks written: a room is mostly
+        // uncaptured air that gets skipped, so a write-based bar would stall on sparse rooms and race through
+        // dense ones, which is worse than no bar because it looks like it has hung.
         int barX = panelX + 20;
         int barW = panelW - 40;
         int barY = panelY + panelH - 30;
         g.fill(barX, barY, barX + barW, barY + 6, 0xFF1A1A1A);
-        int span = Math.max(24, barW / 4);
-        int travel = barW + span;
-        int head = (int) (((ticks * 3L) % travel) - span);
-        int from = Math.max(barX, barX + head);
-        int to = Math.min(barX + barW, barX + head + span);
-        if (to > from) {
-            g.fill(from, barY, to, barY + 6, ProfitPanels.ACCENT);
+        float progress = SimBuildQueue.progress();
+        int filled = Math.max(0, Math.min(barW, Math.round(barW * progress)));
+        if (filled > 0) {
+            g.fill(barX, barY, barX + filled, barY + 6, ProfitPanels.ACCENT);
         }
+        String pct = Math.round(progress * 100) + "%";
+        g.centeredText(this.font, pct, panelX + panelW / 2, barY + 10, ProfitPanels.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 

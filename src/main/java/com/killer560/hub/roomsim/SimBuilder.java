@@ -318,7 +318,32 @@ public final class SimBuilder {
      * well as how much it writes - in a void world nearly every position it visits is already air, and an
      * unbounded scan over the whole grid is exactly the freeze the queue exists to prevent.
      */
+    /**
+     * Removes dropped items from the sim world.
+     *
+     * <p>killer560 (2026-09-28): "make sure you clear all floor drops on every generation of a room." They
+     * survive a rebuild because clearing blocks does not touch entities, so a room loaded three times has
+     * three runs' worth of litter on its floor - and item secrets are placed as dropped items, so the pile
+     * grows with every generation and stops meaning anything.
+     *
+     * <p>Only ever inside the sim, and only item entities: this is a delete, and a broad one in the wrong
+     * world would be unforgivable.
+     */
+    private static void clearFloorDrops(ServerLevel level) {
+        int removed = 0;
+        for (var entity : level.getAllEntities()) {
+            if (entity instanceof net.minecraft.world.entity.item.ItemEntity) {
+                entity.discard();
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            LOGGER.info("Cleared {} floor drop(s) before building", removed);
+        }
+    }
+
     private static void wipeWholeGrid(ServerLevel level) {
+        clearFloorDrops(level);
         // Only what the last build actually wrote, when that is known. Sweeping the whole grid meant four
         // million block reads, most of them into chunks that had to be LOADED to answer - in a world whose
         // only contents were one room. The full sweep stays as the fallback for the first build after a

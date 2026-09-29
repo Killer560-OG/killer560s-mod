@@ -48,6 +48,20 @@ public final class SimBuildQueue {
         int step(int budget);
 
         boolean isDone();
+
+        /**
+         * Total positions this job will visit, and how many it has visited.
+         *
+         * <p>killer560 (2026-09-28): "instead of the moving bar at the bottom during the dungeon loading thing
+         * make an acttual progress bar." A real bar needs a real denominator, and only the job knows it - a
+         * paste knows its room's dimensions before it starts, a clear knows its box. Measured in positions
+         * VISITED rather than blocks written, because that is what actually takes the time: a room is mostly
+         * uncaptured air that is skipped, and a bar that only counted writes would stall on sparse rooms and
+         * race through dense ones.
+         */
+        long totalWork();
+
+        long doneWork();
     }
 
     private static final Deque<Job> JOBS = new ArrayDeque<>();
@@ -126,12 +140,37 @@ public final class SimBuildQueue {
         return !JOBS.isEmpty();
     }
 
+    /**
+     * How far through the whole build we are, 0 to 1.
+     *
+     * <p>Counts jobs already finished as complete rather than forgetting them, or the bar would jump backwards
+     * every time one job ended and the next began.
+     */
+    public static synchronized float progress() {
+        long total = finishedWork;
+        long done = finishedWork;
+        for (Job j : JOBS) {
+            total += j.totalWork();
+            done += j.doneWork();
+        }
+        return total <= 0 ? 0f : Math.min(1f, (float) ((double) done / total));
+    }
+
+    /** Work from jobs that have already finished and left the queue. */
+    private static long finishedWork;
+
     /** Queues a room. Safe to call from the server thread while the queue is already running. */
     public static synchronized void submit(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ,
                                            int rotation) {
+        if (JOBS.isEmpty()) {
+            startedAtMs = System.currentTimeMillis();
+        }
         JOBS.add(new RoomPlacer.PasteJob(level, room, gridX, gridZ, rotation));
         jobsTotal++;
     }
+
+    /** When the current build began, so the log can say how long it actually took rather than how long it felt. */
+    private static long startedAtMs;
 
     /**
      * Queues a region to be wiped to air.
@@ -186,8 +225,12 @@ public final class SimBuildQueue {
         private int z;
         private int y = RoomLibrary.MIN_Y;
         private boolean done;
+        private long visited;
+        private final long total;
 
         SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+            this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
+                    * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
             this.level = level;
             this.minX = minX;
             this.minZ = minZ;
@@ -203,6 +246,16 @@ public final class SimBuildQueue {
         }
 
         @Override
+        public long totalWork() {
+            return total;
+        }
+
+        @Override
+        public long doneWork() {
+            return visited;
+        }
+
+        @Override
         public int step(int budget) {
             int written = 0;
             while (written < budget) {
@@ -210,6 +263,7 @@ public final class SimBuildQueue {
                     done = true;
                     return written;
                 }
+                visited++;
                 boolean onRing = x == minX || x == maxX || z == minZ || z == maxZ;
                 if (onRing) {
                     cursor.set(x, y, z);
@@ -257,8 +311,12 @@ public final class SimBuildQueue {
         private int z;
         private int y = RoomLibrary.MIN_Y;
         private boolean done;
+        private long visited;
+        private final long total;
 
         ClearJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+            this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
+                    * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
             this.level = level;
             this.minX = minX;
             this.minZ = minZ;
@@ -271,6 +329,16 @@ public final class SimBuildQueue {
         @Override
         public boolean isDone() {
             return done;
+        }
+
+        @Override
+        public long totalWork() {
+            return total;
+        }
+
+        @Override
+        public long doneWork() {
+            return visited;
         }
 
         @Override
@@ -288,6 +356,7 @@ public final class SimBuildQueue {
                     return written;
                 }
                 scanned++;
+                visited++;
                 cursor.set(x, y, z);
                 // Only touch what is not already air - rewriting air would burn the write budget on nothing.
                 if (!level.getBlockState(cursor).isAir()) {
@@ -345,10 +414,18 @@ public final class SimBuildQueue {
                 budget -= Math.max(1, placed);
                 placedTotal += placed;
                 if (job.isDone()) {
+                    finishedWork += job.totalWork();
                     JOBS.poll();
                 }
             }
             if (JOBS.isEmpty()) {
+                // Heightmaps, block counts and lighting, once per chunk - everything the fast section writes
+                // deliberately skipped. Without it the room is the right shape and pitch dark, and sections
+                // that still think they are empty are not sent at all.
+                RoomPlacer.finishChunks(server.overworld(), touchedChunks);
+                long ms = System.currentTimeMillis() - startedAtMs;
+                LOGGER.info("Sim build took {} ms for {} block(s) across {} job(s)", ms, placedTotal, jobsTotal);
+                finishedWork = 0;
                 sendTouchedChunks(server);
                 done = onDone;
                 onDone = null;

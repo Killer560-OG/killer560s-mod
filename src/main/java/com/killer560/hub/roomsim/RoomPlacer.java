@@ -70,6 +70,84 @@ public final class RoomPlacer {
     /** Positions a paste may look at in one tick, as opposed to write. */
     private static final int SCAN_BUDGET = 400_000;
 
+    /**
+     * Writes a block straight into its chunk section, bypassing {@code Level.setBlock}.
+     *
+     * <p>killer560 (2026-09-28): "You still need a way to make the map load faster it takes all of the time
+     * and fails still." This is the answer, and it is the difference between the right tool and the wrong one:
+     * {@code setBlock} is built for ONE block changing in a live world, so every call re-finds the chunk,
+     * re-finds the section, updates heightmaps, pokes the light engine and checks for a block entity. Paying
+     * all of that two million times is where the minutes went.
+     *
+     * <p>A bulk build wants the opposite shape - find the chunk and section once, write many blocks, then fix
+     * up heightmaps, lighting and the client ONCE at the end. That is what this does, with the caller keeping
+     * the section between writes.
+     *
+     * <p>The catch is real and is handled at the end of the build rather than ignored: nothing here updates
+     * lighting or heightmaps, so a build that stopped after this would be a correctly-shaped room in the dark.
+     * {@link #finishChunks} does that pass.
+     */
+    static final class SectionWriter {
+
+        private final ServerLevel level;
+        private net.minecraft.world.level.chunk.LevelChunk chunk;
+        private int chunkX = Integer.MIN_VALUE;
+        private int chunkZ = Integer.MIN_VALUE;
+        private net.minecraft.world.level.chunk.LevelChunkSection section;
+        private int sectionIndex = Integer.MIN_VALUE;
+
+        SectionWriter(ServerLevel level) {
+            this.level = level;
+        }
+
+        /** @return whether the block was written */
+        boolean set(int x, int y, int z, BlockState state) {
+            int cx = x >> 4;
+            int cz = z >> 4;
+            if (cx != chunkX || cz != chunkZ || chunk == null) {
+                chunk = level.getChunk(cx, cz);
+                chunkX = cx;
+                chunkZ = cz;
+                sectionIndex = Integer.MIN_VALUE;
+            }
+            int idx = chunk.getSectionIndex(y);
+            if (idx < 0 || idx >= chunk.getSections().length) {
+                return false;
+            }
+            if (idx != sectionIndex) {
+                section = chunk.getSections()[idx];
+                sectionIndex = idx;
+            }
+            section.setBlockState(x & 15, y & 15, z & 15, state, false);
+            chunk.markUnsaved();
+            return true;
+        }
+    }
+
+    /**
+     * Puts right everything the fast path skipped, once per chunk.
+     *
+     * <p>Block counts first, because a section that was written behind its own back does not know how many
+     * non-air blocks it holds, and an empty-looking section is not sent to the client at all - which would
+     * show up as half a room missing rather than as a lighting bug.
+     */
+    static void finishChunks(ServerLevel level, java.util.Collection<Long> chunkKeys) {
+        for (long key : chunkKeys) {
+            int cx = (int) (key >> 32);
+            int cz = (int) key;
+            var chunk = level.getChunkSource().getChunkNow(cx, cz);
+            if (chunk == null) {
+                continue;
+            }
+            for (var section : chunk.getSections()) {
+                section.recalcBlockCounts();
+            }
+            chunk.markUnsaved();
+            level.getChunkSource().getLightEngine()
+                    .propagateLightSources(new net.minecraft.world.level.ChunkPos(cx, cz));
+        }
+    }
+
     /** Stand-in floor for a column the recorder has not seen yet, and the height it goes at. */
     private static final net.minecraft.world.level.block.state.BlockState MARKER =
             net.minecraft.world.level.block.Blocks.RED_CONCRETE.defaultBlockState();
@@ -141,6 +219,9 @@ public final class RoomPlacer {
         private int x;
         private int z;
         private boolean done;
+        private long visited;
+        private final long total;
+        private final SectionWriter writer;
 
         public PasteJob(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
             if (room == null) {
@@ -150,6 +231,8 @@ public final class RoomPlacer {
             this.room = room;
             this.rotation = rotation;
             this.vanillaRotation = toVanillaRotation(rotation);
+            this.total = (long) room.sizeX * room.sizeZ * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
+            this.writer = new SectionWriter(level);
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
             // The same offset capture used, including the wall margin. If these two ever disagree every room
             // lands a block off its neighbours and the seams stop lining up.
@@ -160,6 +243,16 @@ public final class RoomPlacer {
         @Override
         public boolean isDone() {
             return done;
+        }
+
+        @Override
+        public long totalWork() {
+            return total;
+        }
+
+        @Override
+        public long doneWork() {
+            return visited;
         }
 
         /**
@@ -178,6 +271,7 @@ public final class RoomPlacer {
             // 1x1, most of them skipped - so without this a sparse room could run the whole room in one tick.
             while (placed < budget && scanned < SCAN_BUDGET) {
                 scanned++;
+                visited++;
                 if (y > RoomLibrary.MAX_Y) {
                     done = true;
                     return placed;
@@ -193,16 +287,15 @@ public final class RoomPlacer {
                     // would have him practising a route across ground that may not be there. Red concrete
                     // says "this is not the dungeon" at a glance and is still something to stand on.
                     int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
-                    level.setBlock(new BlockPos(worldX0 + local[0], y, worldZ0 + local[1]),
-                            MARKER, PLACE_FLAGS);
+                    writer.set(worldX0 + local[0], y, worldZ0 + local[1], MARKER);
+                    SimBuildQueue.touched(worldX0 + local[0], worldZ0 + local[1]);
                     placed++;
                 }
                 if (paletteIdx >= 0) {
                     BlockState state = resolve(room.palette.get(paletteIdx));
                     if (state != null) {
                         int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
-                        level.setBlock(new BlockPos(worldX0 + local[0], y, worldZ0 + local[1]),
-                                state.rotate(vanillaRotation), PLACE_FLAGS);
+                        writer.set(worldX0 + local[0], y, worldZ0 + local[1], state.rotate(vanillaRotation));
                         SimBuildQueue.touched(worldX0 + local[0], worldZ0 + local[1]);
                         placed++;
                     }
