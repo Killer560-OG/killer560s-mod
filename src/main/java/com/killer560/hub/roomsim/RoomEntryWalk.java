@@ -91,6 +91,35 @@ public final class RoomEntryWalk {
     /** The facing we entered with. Captured once, never recomputed - the whole path is relative to it. */
     private static float entryYaw;
 
+    /**
+     * The world we were in when the run was reset, so we can tell a NEW dungeon from the last one.
+     *
+     * <p>killer560 (2026-09-28): "it worked the first room then once it clicked to start the second one it
+     * started running and jumping instead of waiting for the next dungeon to load." This is why. The only gate
+     * was "are we in a dungeon", and that is still TRUE for the old dungeon while the next one is loading - the
+     * scoreboard has not caught up yet - so the walk fired during the transfer and paced out its five blocks in
+     * whatever world happened to be under it.
+     *
+     * <p>A world swap is the one signal that cannot be stale: the level object is literally replaced. Held
+     * weakly so a finished dungeon is not kept alive by this field.
+     */
+    private static java.lang.ref.WeakReference<Object> levelAtReset = new java.lang.ref.WeakReference<>(null);
+
+    /** Ticks since a new world appeared, so the walk does not start mid-load. */
+    private static int settleTicks;
+
+    /** Ticks spent waiting for Mort before accepting he is not coming. */
+    private static int waitingTicks;
+
+    /** Let the world settle before moving - chunks, the player's own position, and the entry facing. */
+    private static final int SETTLE_TICKS = 20;
+
+    /** How long to keep looking for Mort after the world loads. */
+    private static final int MORT_WAIT_TICKS = 200;
+
+    /** Mort is right there at the spawn. Further than this and we are not where we think we are. */
+    private static final double MORT_MAX_DISTANCE = 40.0;
+
     private RoomEntryWalk() {
     }
 
@@ -101,6 +130,11 @@ public final class RoomEntryWalk {
     /** Called when a fresh run starts, so the next dungeon walks again. */
     public static void reset() {
         leg = Leg.IDLE;
+        settleTicks = 0;
+        waitingTicks = 0;
+        Minecraft client = Minecraft.getInstance();
+        // Remember the world we are leaving. The walk stays shut until this is not the world any more.
+        levelAtReset = new java.lang.ref.WeakReference<>(client.level);
         releaseKeys();
     }
 
@@ -110,14 +144,26 @@ public final class RoomEntryWalk {
      * @return whether a walk was started
      */
     public static boolean begin(Minecraft client) {
-        if (leg != Leg.IDLE || client.player == null) {
+        if (leg != Leg.IDLE || client.player == null || client.level == null) {
+            return false;
+        }
+        if (client.level == levelAtReset.get()) {
+            // Still the world we were in when the run was reset - the next dungeon has not loaded yet.
+            return false;
+        }
+        if (++settleTicks < SETTLE_TICKS) {
+            // Just arrived. Walking on the first tick of a world is how you walk before the floor exists.
             return false;
         }
         Entity mort = findMort(client);
-        if (mort == null) {
-            // No Mort: either not the spawn room or the NPC has not loaded. Skipped rather than guessed at -
-            // walking a fixed distance towards nothing is how you end up in a wall.
-            leg = Leg.DONE;
+        if (mort == null || mort.distanceToSqr(client.player) > MORT_MAX_DISTANCE * MORT_MAX_DISTANCE) {
+            // He may simply not have loaded yet, so keep looking for a while rather than giving up the way this
+            // used to on the first miss - that turned "the NPC was a tick late" into "no walk for this run".
+            // But not forever: starting this walk in the middle of a run would pace five blocks sideways from
+            // wherever he happens to be standing.
+            if (++waitingTicks > MORT_WAIT_TICKS) {
+                leg = Leg.DONE;
+            }
             return false;
         }
         entryYaw = client.player.getYRot();
