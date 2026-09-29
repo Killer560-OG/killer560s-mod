@@ -100,7 +100,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
         // Dev builds only - the tool that fills the room library that ships. Compiled out of a release.
         com.killer560.hub.roomsim.RoomRecorderFeature.register();
-        com.killer560.hub.roomsim.SimMenuEntry.register();
+        // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
+        // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
         com.killer560.hub.roomsim.SimWorld.register();
         com.killer560.hub.roomsim.SimItems.register();

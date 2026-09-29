@@ -19,6 +19,7 @@ import net.minecraft.resources.Identifier;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import com.killer560.hub.gui.SettingsButtonWidget;
 import java.util.Comparator;
 import java.util.List;
 
@@ -74,6 +75,22 @@ public final class MainMenuTitleLayout {
     private static final String KEY_REALMS = "menu.online";
     private static final String KEY_OPTIONS = "menu.options";
     private static final String KEY_QUIT = "menu.quit";
+    private static final String KEY_MULTIPLAYER = "menu.multiplayer";
+
+    /**
+     * The Dungeon Sim row, kept by reference so a re-layout moves it instead of adding a second one.
+     *
+     * <p>killer560 (2026-09-28): "Put the join sim right below the multiplayer button there." It used to sit in
+     * the corner of the Multiplayer SERVER LIST, which was a misreading of his earlier "its own option to join
+     * under multiplayer on the main menu" - he meant the main menu's own column, under the Multiplayer button.
+     *
+     * <p>It goes in HERE rather than in its own {@code AFTER_INIT} listener because this class already owns the
+     * title screen's column: it collects the full-width buttons, sorts them and lays them out at an even step,
+     * shifting the Options/Quit row to suit. A button added from outside would either be swept up as an
+     * anonymous column member and land wherever its y happened to sort, or be positioned by hand and then be
+     * moved by this code on the next resize.
+     */
+    private static WeakReference<AbstractWidget> simButton = new WeakReference<>(null);
     private static final String KEY_LANGUAGE = "options.language";
     private static final String KEY_ACCESSIBILITY = "options.accessibility";
     private static final String MODMENU_PACKAGE = "com.terraformersmc.modmenu.";
@@ -152,9 +169,18 @@ public final class MainMenuTitleLayout {
             AbstractWidget options = null;
             AbstractWidget quit = null;
             AbstractWidget mods = null;
+            AbstractWidget multiplayer = null;
+            AbstractWidget sim = simButton.get();
+            if (sim != null && !widgets.contains(sim)) {
+                // A fresh screen: the old button belongs to a screen that is gone.
+                sim = null;
+            }
             for (AbstractWidget w : widgets) {
                 if (w instanceof SwapAccountsButton s) {
                     swap = s;
+                    continue;
+                }
+                if (w == sim) {
                     continue;
                 }
                 String key = translationKey(w);
@@ -168,6 +194,8 @@ public final class MainMenuTitleLayout {
                     options = w;
                 } else if (KEY_QUIT.equals(key) && quit == null) {
                     quit = w;
+                } else if (KEY_MULTIPLAYER.equals(key) && multiplayer == null) {
+                    multiplayer = w;
                 } else if (mods == null && isModMenuButton(w)) {
                     mods = w;
                 }
@@ -185,7 +213,8 @@ public final class MainMenuTitleLayout {
             // shrunk) Mods button; Realms / icons / our own button excluded. Stable-sorted by current y.
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
-                if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit) {
+                if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
+                        || w == sim) {
                     continue;
                 }
                 if (w == mods && !modsIsIcon) {
@@ -199,6 +228,34 @@ public final class MainMenuTitleLayout {
                 return;
             }
             column.sort(Comparator.comparingInt(AbstractWidget::getY));
+
+            // Directly under Multiplayer. Placed by INDEX in the sorted column rather than by a y value, so the
+            // even-step layout below puts it in the next row whatever the rows happen to be - and so it stays
+            // under Multiplayer even when another mod has added buttons of its own.
+            int afterMultiplayer = multiplayer == null ? -1 : column.indexOf(multiplayer);
+            if (afterMultiplayer >= 0) {
+                if (sim == null) {
+                    sim = SettingsButtonWidget.builder(Component.literal("Dungeon Sim"), btn ->
+                            Minecraft.getInstance().setScreen(
+                                    new com.killer560.hub.roomsim.SimMenuScreen(screen)))
+                            .bounds(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT)
+                            .build();
+                    // Into the screen's widget list at the matching spot, so tab order follows what you see.
+                    int idx = widgets.indexOf(multiplayer);
+                    if (idx >= 0) {
+                        widgets.add(idx + 1, sim);
+                    } else {
+                        widgets.add(sim);
+                    }
+                    simButton = new WeakReference<>(sim);
+                }
+                column.add(afterMultiplayer + 1, sim);
+            } else if (sim != null) {
+                // No Multiplayer button to sit under (another mod removed it) - do not leave ours floating.
+                removeWidget(screen, widgets, sim);
+                simButton = new WeakReference<>(null);
+            }
+
             if (swap != null) {
                 column.add(swap);
             }
