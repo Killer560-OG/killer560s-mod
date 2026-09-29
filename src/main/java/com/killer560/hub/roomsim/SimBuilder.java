@@ -114,9 +114,15 @@ public final class SimBuilder {
             // Counted in an array so the lambda can write to it - rooms actually built, which is the score's
             // room denominator.
             final int[] roomsPlaced = {0};
-            // Where to put him when it is built - the first cell that actually got a room, so he never lands
-            // in a gap the map left empty.
+            // Where to put him when it is built.
+            //
+            // killer560 (2026-09-28): "when i tried to generate a map everything was broken it made rooms but
+            // i wasnt spawnedd inside od green room." It was landing him in the first cell the map code
+            // happened to fill, which is wherever the name table started rather than where a run begins. The
+            // entrance is marked in the map with DOOR_ENTRANCE, so it is found rather than guessed at, and the
+            // first-filled cell is kept only as a fallback for maps that carry no entrance.
             final int[] firstPlacedCell = {-1};
+            final int[] entranceCell = {-1};
             final java.util.List<Runnable> afterBuild = new java.util.ArrayList<>();
             StringBuilder missingNames = new StringBuilder();
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
@@ -146,6 +152,9 @@ public final class SimBuilder {
                 if (firstPlacedCell[0] < 0) {
                     firstPlacedCell[0] = cell;
                 }
+                if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_ENTRANCE) {
+                    entranceCell[0] = cell;
+                }
                 roomsPlaced[0]++;
                 spawnMobsFor(client, level, room, gx, gz);
                 if (SimMimic.roomEligible(name)) {
@@ -164,7 +173,7 @@ public final class SimBuilder {
             final int roomCount = roomsPlaced[0];
             // Everything that was here before, so a new map never shows the last one's rooms in its gaps.
             wipeWholeGrid(level);
-            final int firstCell = firstPlacedCell[0];
+            final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
                 for (Runnable r : afterBuild) {
                     r.run();

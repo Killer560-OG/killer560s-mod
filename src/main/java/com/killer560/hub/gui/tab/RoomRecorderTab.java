@@ -71,6 +71,14 @@ public class RoomRecorderTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
+        var missing = com.killer560.hub.roomsim.MissingRoomsConfig.getInstance();
+        w.add(SettingsButtonWidget.builder(onOff("Missing Rooms HUD", missing.isEnabled()), btn -> {
+                    missing.setEnabled(!missing.isEnabled());
+                    missing.save();
+                    btn.setMessage(onOff("Missing Rooms HUD", missing.isEnabled()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
         w.add(SettingsButtonWidget.builder(onOff("Walk In On Entry", cfg.isWalkInOnEntry()), btn -> {
                     cfg.setWalkInOnEntry(!cfg.isWalkInOnEntry());
                     cfg.save();

@@ -60,7 +60,10 @@ public class SimMenuScreen extends Screen {
 
     /** Generator settings. */
     private int puzzleCount = 3;
-    private int roomsToBlood = 12;
+    /** Defaults are the middle of each range rather than an extreme, so the first generate is a usable floor. */
+    private int roomsToBlood = 5;
+
+    private SimFloorGen.Floor floor = SimFloorGen.Floor.F7;
 
     private List<String> listed = List.of();
 
@@ -121,29 +124,47 @@ public class SimMenuScreen extends Screen {
         backButton();
     }
 
+    /**
+     * The generate panel: which floor, and the two sliders.
+     *
+     * <p>killer560 (2026-09-28): "have an option to choose what map size so for instance entrance, f1, f6, f7",
+     * "Max rooms to blood should be 8 and it should be a sliding bar between 2-8 [...] Make puzzles a bar as
+     * well from 2-5."
+     *
+     * <p>Real sliders rather than buttons that cycle a number. A cycling button made picking 3 out of 0-20 a
+     * matter of clicking eight times and overshooting, which is exactly the interaction a slider exists to
+     * replace - and the ranges are small and bounded, which is what sliders are good at.
+     */
     private void buildGenerate() {
         int x = panelX + 20;
         int y = panelY + 58;
-        int half = (panelW - 50) / 2;
+        int full = panelW - 40;
+
         addRenderableWidget(SettingsButtonWidget.builder(
-                Component.literal("Puzzles: " + puzzleCount), b -> {
-                    puzzleCount = (puzzleCount + 1) % 6;   // 0..5, the real range a floor can have
+                Component.literal("Floor: \u00a76" + floor.label + " \u00a77(" + floor.rooms + " rooms)"), b -> {
+                    var all = SimFloorGen.Floor.values();
+                    floor = all[(floor.ordinal() + 1) % all.length];
                     rebuildWidgets();
-                }).bounds(x, y, half, 20).build());
-        addRenderableWidget(SettingsButtonWidget.builder(
-                Component.literal("Rooms to blood: " + roomsToBlood), b -> {
-                    roomsToBlood = roomsToBlood >= 20 ? 6 : roomsToBlood + 2;
-                    rebuildWidgets();
-                }).bounds(x + half + 10, y, half, 20).build());
+                }).bounds(x, y, full, 20).build());
+
+        addRenderableWidget(new SimSlider(x, y + 26, full, "Rooms to blood",
+                SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD, roomsToBlood,
+                v -> roomsToBlood = v));
+
+        addRenderableWidget(new SimSlider(x, y + 52, full, "Puzzles",
+                SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
+                v -> puzzleCount = v));
+
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Pick specific rooms..."), b -> {
             mode = Mode.ROOM;
             scroll = 0;
             rebuildWidgets();
-        }).bounds(x, y + 28, panelW - 40, 20).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aGenerate"), b -> {
-            SimGenerator.generate(this.minecraft, puzzleCount, roomsToBlood);
+        }).bounds(x, y + 80, full, 20).build());
+
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("\u00a7aGenerate"), b -> {
+            SimFloorGen.generate(this.minecraft, floor, puzzleCount, roomsToBlood);
             this.minecraft.setScreen(null);
-        }).bounds(x, y + 56, panelW - 40, 22).build());
+        }).bounds(x, y + 108, full, 22).build());
         backButton();
     }
 

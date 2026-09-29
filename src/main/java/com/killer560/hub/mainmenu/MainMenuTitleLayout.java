@@ -91,6 +91,23 @@ public final class MainMenuTitleLayout {
      * moved by this code on the next resize.
      */
     private static WeakReference<AbstractWidget> simButton = new WeakReference<>(null);
+
+    /** When the sim row was added, so it can sit out the title screen's fade-in like everything else. */
+    private static long simAddedAtMs;
+
+    /** Roughly the length of vanilla's own title fade. */
+    private static final long FADE_MS = 1000;
+
+    static {
+        // Reveals the row once the fade is over. A tick rather than a one-off check, because the layout pass
+        // runs only on init and resize and would otherwise leave it hidden for as long as the screen is open.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            AbstractWidget w = simButton.get();
+            if (w != null && !w.visible && System.currentTimeMillis() - simAddedAtMs >= FADE_MS) {
+                w.visible = true;
+            }
+        });
+    }
     private static final String KEY_LANGUAGE = "options.language";
     private static final String KEY_ACCESSIBILITY = "options.accessibility";
     private static final String MODMENU_PACKAGE = "com.terraformersmc.modmenu.";
@@ -240,6 +257,14 @@ public final class MainMenuTitleLayout {
                                     new com.killer560.hub.roomsim.SimMenuScreen(screen)))
                             .bounds(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT)
                             .build();
+                    // killer560 (2026-09-28): "the whole menu fades in and all the buttons except the dungeon
+                    // sim one. It is always there." The title screen fades its own widgets in by ramping their
+                    // alpha over the first second, and a widget added afterwards was simply never part of that
+                    // ramp - it drew at full opacity from the first frame while everything around it faded up.
+                    // Hidden until the fade has run instead: matching vanilla's curve exactly would mean
+                    // reaching into its private timer, and a button that appears WITH the others is what he is
+                    // actually asking for.
+                    simAddedAtMs = System.currentTimeMillis();
                     // Into the screen's widget list at the matching spot, so tab order follows what you see.
                     int idx = widgets.indexOf(multiplayer);
                     if (idx >= 0) {
@@ -249,6 +274,11 @@ public final class MainMenuTitleLayout {
                     }
                     simButton = new WeakReference<>(sim);
                 }
+                // Hidden to begin with; a client tick reveals it once the fade has run. Deciding it here
+                // alone would leave it hidden forever, because this method only runs on init and resize.
+                // visible=false also takes it out of the click and tab order, which is right - a button nobody
+                // can see should not be reachable either.
+                sim.visible = System.currentTimeMillis() - simAddedAtMs >= FADE_MS;
                 column.add(afterMultiplayer + 1, sim);
             } else if (sim != null) {
                 // No Multiplayer button to sit under (another mod removed it) - do not leave ours floating.
