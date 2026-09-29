@@ -7,6 +7,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -46,6 +47,10 @@ public final class PositionFeature {
     private static double lastY = Double.NaN;
     private static double lastZ = Double.NaN;
     private static float lastYaw;
+    /** The real body yaw and whether the camera was held, both shown only during a freeze - so both belong in
+     *  the cache key, or the line would go stale the moment either changed on its own. */
+    private static float lastBodyYaw;
+    private static boolean lastFrozen;
     private static float lastPitch;
     private static double lastVelX;
     private static double lastVelY;
@@ -97,12 +102,27 @@ public final class PositionFeature {
         double x = player.getX();
         double y = player.getY();
         double z = player.getZ();
-        float yaw = player.getYRot();
-        float pitch = player.getXRot();
+        // While the camera is held, the number he wants is where he is LOOKING, not where his body is pointed.
+        //
+        // killer560 (2026-09-29): "make the hud coordinate thing show the yaw that i am facing updated even
+        // while i am frozen so it is my current one instead of the one I am frozen on." During a freeze his
+        // mouse steers the held view (ViewFreeze.turnView) while the automation holds his real body at one
+        // angle, so getYRot() sits still no matter where he turns - the HUD looked stuck.
+        //
+        // The body yaw is still worth seeing, because it is the one the server receives and the one an AP3
+        // node is made from, so while frozen it is shown after the view value rather than replaced by it.
+        float bodyYaw = player.getYRot();
+        float bodyPitch = player.getXRot();
+        float heldYaw = ViewFreeze.viewYaw();
+        float heldPitch = ViewFreeze.viewPitch();
+        boolean frozen = !Float.isNaN(heldYaw) && !Float.isNaN(heldPitch);
+        float yaw = frozen ? heldYaw : bodyYaw;
+        float pitch = frozen ? heldPitch : bodyPitch;
         Vec3 velocity = showVelocity ? player.getDeltaMovement() : Vec3.ZERO;
         BlockPos block = showBlock ? player.blockPosition() : BlockPos.ZERO;
 
         if (cacheValid && lastX == x && lastY == y && lastZ == z && lastYaw == yaw && lastPitch == pitch
+                && lastFrozen == frozen && (!frozen || lastBodyYaw == bodyYaw)
                 && lastDecimalPlaces == decimalPlaces && lastShowFacing == showFacing
                 && lastShowBlock == showBlock && lastShowVelocity == showVelocity
                 && (!showVelocity || (lastVelX == velocity.x && lastVelY == velocity.y && lastVelZ == velocity.z))
@@ -121,6 +141,9 @@ public final class PositionFeature {
             LINE_BUILDER.setLength(0);
             LINE_BUILDER.append("§6Yaw §f").append(format(yaw, decimalPlaces))
                     .append(" (").append(format(wrappedYaw, decimalPlaces)).append(')');
+            if (frozen) {
+                LINE_BUILDER.append(" §8body ").append(format(bodyYaw, decimalPlaces));
+            }
             out[i++] = LINE_BUILDER.toString();
 
             LINE_BUILDER.setLength(0);
@@ -146,6 +169,8 @@ public final class PositionFeature {
         lastZ = z;
         lastYaw = yaw;
         lastPitch = pitch;
+        lastBodyYaw = bodyYaw;
+        lastFrozen = frozen;
         lastVelX = velocity.x;
         lastVelY = velocity.y;
         lastVelZ = velocity.z;
