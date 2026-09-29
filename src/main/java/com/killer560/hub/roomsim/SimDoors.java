@@ -83,8 +83,14 @@ public final class SimDoors {
     private SimDoors() {
     }
 
-    /** One door's block positions. A record so it works as a map key by structural equality. */
-    private record Door(List<BlockPos> blocks) {
+    /**
+     * One door's block positions, and which kind of door it is.
+     *
+     * <p>The type is carried so the entrance gate can be taken down by clearing the blocks this class wrote,
+     * rather than hunting for infested chiseled stone brick across the grid - see {@link #openEntranceGate}.
+     * A record so it works as a map key by structural equality.
+     */
+    private record Door(List<BlockPos> blocks, int type) {
     }
 
     /**
@@ -146,7 +152,7 @@ public final class SimDoors {
             }
         }
         if (fill != null && !filled.isEmpty()) {
-            Door door = new Door(java.util.List.copyOf(filled));
+            Door door = new Door(java.util.List.copyOf(filled), doorType);
             DOORS.add(door);
             for (BlockPos p : door.blocks()) {
                 BLOCK_INDEX.put(p, door);
@@ -214,7 +220,7 @@ public final class SimDoors {
         for (BlockPos p : BlockPos.betweenClosed(min, max)) {
             blocks.add(p.immutable());
         }
-        Door door = new Door(List.copyOf(blocks));
+        Door door = new Door(List.copyOf(blocks), DungeonLayout.DOOR_WITHER);
         DOORS.add(door);
         for (BlockPos p : door.blocks()) {
             BLOCK_INDEX.put(p, door);
@@ -361,51 +367,30 @@ public final class SimDoors {
         int[] removed = {0};
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            BlockPos min = DungeonLayout.cellCenter(0);
-            BlockPos max = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
-            int x0 = Math.min(min.getX(), max.getX()) - RoomLibrary.TILE;
-            int x1 = Math.max(min.getX(), max.getX()) + RoomLibrary.TILE;
-            int z0 = Math.min(min.getZ(), max.getZ()) - RoomLibrary.TILE;
-            int z1 = Math.max(min.getZ(), max.getZ()) + RoomLibrary.TILE;
-            // Section by section, skipping any whose palette cannot hold the gate block. A gate is a dozen
-            // blocks in a five-million-block region, and reading all of it on the server thread is the freeze
-            // this mod has already paid for once.
-            for (int cx = x0 >> 4; cx <= (x1 >> 4); cx++) {
-                for (int cz = z0 >> 4; cz <= (z1 >> 4); cz++) {
-                    // Loaded chunks only - force-loading the whole grid on the server thread froze the
-                    // client badly enough to be killed as unresponsive. The gate is in the green room, which
-                    // is where he is standing when /start runs, so it is always loaded.
-                    if (!level.hasChunk(cx, cz)) {
-                        continue;
+            // Clear the blocks this class WROTE, not every infested chiseled stone brick it can find.
+            //
+            // The sweep this replaces walked the whole grid section by section and skipped any chunk
+            // hasChunk called unloaded, on the reasoning that "the gate is in the green room, which is where
+            // he is standing when /start runs, so it is always loaded". That holds for one gate. Scenario 81
+            // built a floor whose entrance room had TWO gated doorways, 32 blocks apart, and walked the
+            // player face-first into both of them after the countdown had finished and said GO.
+            //
+            // Every gate block's position is already recorded at carve time, so there is nothing to search
+            // for: a dozen positions per door, no chunk scan, and no assumption about what is loaded. It also
+            // cannot delete a room's own decorative infested brick, which the sweep could.
+            for (Door door : DOORS) {
+                if (door.type() != DungeonLayout.DOOR_ENTRANCE) {
+                    continue;
+                }
+                for (BlockPos at : door.blocks()) {
+                    if (!level.getBlockState(at).isAir()) {
+                        level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                        removed[0]++;
                     }
-                    var chunk = level.getChunk(cx, cz);
-                    var sections = chunk.getSections();
-                    for (int i = 0; i < sections.length; i++) {
-                        var section = sections[i];
-                        if (section == null || section.hasOnlyAir()
-                                || !section.maybeHas(st -> st.is(Blocks.INFESTED_CHISELED_STONE_BRICKS))) {
-                            continue;
-                        }
-                        int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
-                        if (baseY + 15 < SimAltitude.minWorldY() || baseY > SimAltitude.maxWorldY()) {
-                            continue;
-                        }
-                        for (int lx = 0; lx < 16; lx++) {
-                            for (int lz = 0; lz < 16; lz++) {
-                                for (int ly = 0; ly < 16; ly++) {
-                                    if (!section.getBlockState(lx, ly, lz)
-                                            .is(Blocks.INFESTED_CHISELED_STONE_BRICKS)) {
-                                        continue;
-                                    }
-                                    BlockPos at = new BlockPos((cx << 4) + lx, baseY + ly, (cz << 4) + lz);
-                                    level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
-                                    removed[0]++;
-                                }
-                            }
-                        }
-                    }
+                    BLOCK_INDEX.remove(at);
                 }
             }
+            DOORS.removeIf(d -> d.type() == DungeonLayout.DOOR_ENTRANCE);
         });
         return removed[0];
     }

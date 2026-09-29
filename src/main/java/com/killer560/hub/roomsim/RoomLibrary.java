@@ -312,6 +312,10 @@ public final class RoomLibrary {
         // The measured doorways belong to the rooms that are about to be replaced, so they go too - a mask
         // that outlived its room would lay the next floor out against geometry that is no longer there.
         RoomDoors.clearCache();
+        // Same reasoning for the capture rotations: they are derived from the blocks of the rooms being
+        // replaced, and a stale one puts a re-captured room's secrets back in the corner it was just fixed
+        // out of. Keyed by name, so it would survive the reload unnoticed.
+        RoomCaptureRotation.clearCache();
         loadAsync();
     }
 
