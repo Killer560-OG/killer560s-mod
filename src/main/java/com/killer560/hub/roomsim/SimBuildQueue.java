@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
@@ -83,14 +84,22 @@ public final class SimBuildQueue {
 
     /** The region those chunks cover, or null when nothing has been built yet. */
     public static synchronized int[] touchedBounds() {
-        if (touchedChunks.isEmpty()) {
+        int[] live = boundsOf(touchedChunks);
+        return live != null ? live : lastBuiltBounds;
+    }
+
+    /** What the last finished build covered, so the next one knows what to clear. */
+    private static int[] lastBuiltBounds;
+
+    private static int[] boundsOf(Set<Long> chunks) {
+        if (chunks.isEmpty()) {
             return null;
         }
         int minX = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
-        for (long k : touchedChunks) {
+        for (long k : chunks) {
             int cx = (int) (k >> 32);
             int cz = (int) k;
             minX = Math.min(minX, cx << 4);
@@ -102,26 +111,77 @@ public final class SimBuildQueue {
     }
 
     /**
-     * Sends every touched chunk to the players, once.
+     * Relights and resends the built chunks, a few at a time.
      *
-     * <p>This is the other half of dropping UPDATE_CLIENTS from the writes. Without it the build would be
-     * invisible until something else happened to resend those chunks, which is a far worse bug than the slow
-     * one it replaces - so it runs on completion, before the loading screen comes down.
+     * <p>This is the other half of dropping UPDATE_CLIENTS from the writes: without it the build is invisible,
+     * which is worse than slow. But it is also the most expensive thing per unit here - each chunk means a
+     * light propagation on the server and a full chunk packet the client has to turn into a mesh - so it is
+     * paced rather than done all at once.
+     *
+     * <p>Counted as work like any other job, so the loading screen stays up and keeps moving through it. The
+     * alternative was a bar that reached the end and then a frozen game, which is the worst of both.
      */
-    private static void sendTouchedChunks(net.minecraft.server.MinecraftServer server) {
-        var level = server.overworld();
-        for (long k : touchedChunks) {
-            int cx = (int) (k >> 32);
-            int cz = (int) k;
-            var chunk = level.getChunkSource().getChunkNow(cx, cz);
-            if (chunk == null) {
-                continue;
+    private static final class FinishJob implements Job {
+
+        /** Chunks per tick. Small because each one costs a relight AND a mesh rebuild on the client. */
+        private static final int CHUNKS_PER_TICK = 6;
+
+        private final net.minecraft.server.MinecraftServer server;
+        private final java.util.List<Long> chunks;
+        private int index;
+
+        FinishJob(net.minecraft.server.MinecraftServer server, java.util.List<Long> chunks) {
+            this.server = server;
+            this.chunks = chunks;
+        }
+
+        @Override
+        public boolean isDone() {
+            return index >= chunks.size();
+        }
+
+        @Override
+        public long totalWork() {
+            return chunks.size();
+        }
+
+        @Override
+        public long doneWork() {
+            return index;
+        }
+
+        @Override
+        public int step(int budget) {
+            var level = server.overworld();
+            int did = 0;
+            while (did < CHUNKS_PER_TICK && index < chunks.size()) {
+                long k = chunks.get(index++);
+                int cx = (int) (k >> 32);
+                int cz = (int) k;
+                var chunk = level.getChunkSource().getChunkNow(cx, cz);
+                did++;
+                if (chunk == null) {
+                    continue;
+                }
+                for (var section : chunk.getSections()) {
+                    // A section written behind its own back does not know how many non-air blocks it holds,
+                    // and one that still believes it is empty is not sent at all - which looks like half a
+                    // room missing rather than like a lighting bug.
+                    section.recalcBlockCounts();
+                }
+                chunk.markUnsaved();
+                level.getChunkSource().getLightEngine()
+                        .propagateLightSources(new net.minecraft.world.level.ChunkPos(cx, cz));
+                var packet = new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
+                        chunk, level.getLightEngine(), null, null);
+                for (var sp : server.getPlayerList().getPlayers()) {
+                    sp.connection.send(packet);
+                }
             }
-            var packet = new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
-                    chunk, level.getLightEngine(), null, null);
-            for (var sp : server.getPlayerList().getPlayers()) {
-                sp.connection.send(packet);
-            }
+            // Reported as one unit of the write budget per chunk, not as the thousands of blocks it touches -
+            // the pacing here is CHUNKS_PER_TICK, and returning the real block count would make the queue
+            // think its budget was spent and starve anything queued behind it.
+            return did;
         }
     }
     private static Runnable onDone;
@@ -399,6 +459,7 @@ public final class SimBuildQueue {
     /** Forgets which chunks were touched, without cancelling anything - for starting a fresh build. */
     public static synchronized void forgetTouched() {
         touchedChunks.clear();
+        lastBuiltBounds = null;
     }
 
     private static void tick(net.minecraft.server.MinecraftServer server) {
@@ -418,15 +479,24 @@ public final class SimBuildQueue {
                     JOBS.poll();
                 }
             }
+            if (JOBS.isEmpty() && !touchedChunks.isEmpty()) {
+                // The finishing pass is WORK, not a formality, so it goes through the queue like everything
+                // else. killer560 (2026-09-28): "i loaded in then it froze my game and I had to close it after
+                // I actually loaded the map." Doing it in one burst meant relighting two hundred chunks on the
+                // server thread and then handing the client two hundred full chunk packets in a single tick -
+                // the client has to rebuild a mesh for every one of them, which is a freeze on his side even
+                // though the build itself had finished.
+                // The bounds are kept BEFORE the set is emptied. They are what the next build clears instead
+                // of sweeping the whole grid, and losing them here would quietly undo that - the next load
+                // would go back to four million reads and look like the speed fix had been reverted.
+                lastBuiltBounds = boundsOf(touchedChunks);
+                JOBS.add(new FinishJob(server, new ArrayList<>(touchedChunks)));
+                touchedChunks.clear();
+            }
             if (JOBS.isEmpty()) {
-                // Heightmaps, block counts and lighting, once per chunk - everything the fast section writes
-                // deliberately skipped. Without it the room is the right shape and pitch dark, and sections
-                // that still think they are empty are not sent at all.
-                RoomPlacer.finishChunks(server.overworld(), touchedChunks);
                 long ms = System.currentTimeMillis() - startedAtMs;
                 LOGGER.info("Sim build took {} ms for {} block(s) across {} job(s)", ms, placedTotal, jobsTotal);
                 finishedWork = 0;
-                sendTouchedChunks(server);
                 done = onDone;
                 onDone = null;
                 LOGGER.info("Sim build finished: {} block(s) across {} room(s)", placedTotal, jobsTotal);
