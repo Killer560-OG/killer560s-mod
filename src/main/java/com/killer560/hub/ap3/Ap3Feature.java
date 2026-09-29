@@ -625,6 +625,10 @@ public final class Ap3Feature {
                 precise ? pos.x : Ap3Node.snapCentre(pos.x), Ap3Node.snapY(pos.y), precise ? pos.z : Ap3Node.snapCentre(pos.z),
                 Mth.wrapDegrees(Ap3FreezeState.placementYaw(player)), Mth.clamp(Ap3FreezeState.placementPitch(player), -90f, 90f));
         node.precise = precise;
+        if (type == Ap3Node.Type.USE) {
+            // The item in his hand AT PLACEMENT TIME, so the node can put it back there when it runs.
+            node.useItemId = com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getMainHandItem());
+        }
         node.setWidth(cfg.getDefaultNodeSize());
         node.setLength(cfg.getDefaultNodeSize());
         if (type == Ap3Node.Type.AXIS_ALIGN) {

@@ -1100,8 +1100,44 @@ public final class Ap3Executor {
                     return;
                 }
                 beginAim(player);
-                step = Step.AIM;
+                step = Step.SWAP;
                 stepTicks = 0;
+            }
+            case SWAP -> {
+                // The item he was HOLDING when he made the node. killer560 (2026-09-29): "make sure it will
+                // swap to the proper item as well the item that I was holding when I placed the node."
+                //
+                // A node made with an empty hand has no id and uses whatever is held, which is the only
+                // sensible reading of "use" with nothing recorded. The swap is the same shape BOOM's is: it
+                // takes the tick's interaction slot, and a refused tick simply asks again.
+                if (node.useItemId == null || node.useItemId.isBlank()) {
+                    step = Step.AIM;
+                    stepTicks = 0;
+                    return;
+                }
+                int slot = ItemIdentity.findHotbarSlotById(player, node.useItemId);
+                if (slot < 0) {
+                    failNode("no " + node.useItemId + " in the hotbar for use #" + number(node));
+                    return;
+                }
+                if (player.getInventory().getSelectedSlot() != slot) {
+                    if (!swapSent) {
+                        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                            return;
+                        }
+                        player.getInventory().setSelectedSlot(slot);
+                        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+                        swapSent = true;
+                        stepTicks = 0;
+                    } else if (stepTicks > SWAP_TIMEOUT) {
+                        failNode("couldn't switch to " + node.useItemId);
+                    }
+                    return;
+                }
+                if (!swapSent || stepTicks >= 2) { // the tick after a swap the server has seen it
+                    step = Step.AIM;
+                    stepTicks = 0;
+                }
             }
             case AIM -> {
                 aimAt(player, node);

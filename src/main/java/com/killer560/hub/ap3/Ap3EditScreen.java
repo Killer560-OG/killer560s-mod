@@ -95,7 +95,7 @@ public class Ap3EditScreen extends Screen {
 
         // 9 text rows, 4 toggle rows, the two "from me" buttons, and Save/Cancel.
         panelW = PANEL_W;
-        panelH = 32 + 9 * (ROW + GAP) + 4 * (ROW + GAP) + (ROW + GAP) + 24 + PAD;
+        panelH = 32 + 10 * (ROW + GAP) + 4 * (ROW + GAP) + (ROW + GAP) + 24 + PAD;
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         int x = panelX + PAD;
@@ -111,6 +111,9 @@ public class Ap3EditScreen extends Screen {
         y = addField(x, y, w, "Width", fmt(n.width));
         y = addField(x, y, w, "Wait ms", String.valueOf(n.waitAfterMs));
         y = addField(x, y, w, "Name", n.name == null ? "" : n.name);
+        // The Use node's item. Shown for every type - it is only read for a USE, and hiding it would mean the
+        // panel changed shape as he cycled the type, which is worse than one row that sometimes does nothing.
+        y = addField(x, y, w, "Use item", n.useItemId == null ? "" : n.useItemId);
 
         // Type, and the jump/edge modifier he asked about by name.
         this.addRenderableWidget(SettingsButtonWidget.builder(
@@ -214,6 +217,7 @@ public class Ap3EditScreen extends Screen {
         // The setters clamp length, width and wait to their own limits, and pitch to +/-90. Yaw is left
         // uncapped on purpose: this mod never wraps a yaw to 0..360 - see the project's CLAUDE.md.
         final String newName = get("Name").isBlank() ? null : get("Name").trim();
+        final String newUseItem = get("Use item").isBlank() ? null : get("Use item").trim();
         Ap3Feature.editNode(index, "everything", node -> {
             node.x = nx;
             node.y = ny;
@@ -228,6 +232,7 @@ public class Ap3EditScreen extends Screen {
             node.precise = precise;
             node.closeGate = closeGate;
             node.name = newName;
+            node.useItemId = newUseItem;
         });
         onClose();
     }

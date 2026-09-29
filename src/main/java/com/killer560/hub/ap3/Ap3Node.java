@@ -221,6 +221,16 @@ public final class Ap3Node {
     public JumpMod jumpMod = JumpMod.NONE;
     /** STOPWATCH: an optional name ("s3") - only the node that STARTS the stopwatch matters; the time is reported
      *  under it (killer560, 2026-09-21). Null = unnamed. */
+    /**
+     * The item a USE node swaps to - the one he was holding when he made the node.
+     *
+     * <p>killer560 (2026-09-29): "For use make sure it will swap to the proper item as well the item that I
+     * was holding when I placed the node." Recorded as the SKYBLOCK id where the item has one, because a
+     * hotbar slot moves between runs and a vanilla item id cannot tell a Hyperion from a Valkyrie. Null means
+     * "use whatever is in hand", which is what a node made with an empty hand gets.
+     */
+    public String useItemId;
+
     public String name;
 
     public enum JumpMod { NONE, JUMP, EDGE }
@@ -472,6 +482,8 @@ public final class Ap3Node {
             case LEAP -> sb.append(" [").append(leapDescription()).append(']');
             case LEAP_COUNTER -> sb.append(" [").append(leapCount).append(leapCount == 1 ? " leap]" : " leaps]");
             case LOOK, BOOM, BLOCK -> sb.append(String.format(Locale.US, " [%.1f / %.1f]", yaw, pitch));
+            case USE -> sb.append(String.format(Locale.US, " [%s @ %.1f / %.1f]",
+                    useItemId == null || useItemId.isBlank() ? "held item" : useItemId, yaw, pitch));
             case STOPWATCH -> {
                 if (name != null) {
                     sb.append(" [").append(name).append(']');

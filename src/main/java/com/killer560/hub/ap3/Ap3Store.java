@@ -562,6 +562,9 @@ public final class Ap3Store {
         n.leapMode = ConfigJson.getEnum(o, "leapMode", Ap3Node.LeapMode.class, Ap3Node.LeapMode.DEFAULT);
         n.leapClass = DungeonClass.byName(ConfigJson.getString(o, "leapClass", null));
         n.leapIgn = cleanString(ConfigJson.getString(o, "leapIgn", null), MAX_IGN);
+        // The USE node's item. Same cleaning as an IGN: a Skyblock id is a short word, and a chains file is
+        // hand-editable, so an absurd value is trimmed rather than trusted.
+        n.useItemId = cleanString(ConfigJson.getString(o, "useItemId", null), 64);
         n.setLeapCount(ConfigJson.getInt(o, "leapCount", 1));
         if (type == Ap3Node.Type.PATH) {
             n.pathIndex = Math.max(1, Math.min(999, ConfigJson.getInt(o, "pathIndex", 1)));
@@ -639,6 +642,7 @@ public final class Ap3Store {
                 o.addProperty("leapMode", n.leapMode.name());
                 o.addProperty("leapClass", n.leapClass == null ? "" : n.leapClass.name());
                 o.addProperty("leapIgn", n.leapIgn == null ? "" : n.leapIgn);
+                o.addProperty("useItemId", n.useItemId == null ? "" : n.useItemId);
             }
             case LEAP_COUNTER -> o.addProperty("leapCount", n.leapCount);
             case PATH -> {
