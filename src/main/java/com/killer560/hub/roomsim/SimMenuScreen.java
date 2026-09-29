@@ -83,7 +83,7 @@ public class SimMenuScreen extends Screen {
         panelH = Math.min(this.height - 20, Math.max(220, Math.min((int) (this.height * 0.8), 440)));
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
-        RoomLibrary.load();
+        RoomLibrary.loadAsync();
 
         switch (mode) {
             case HOME -> buildHome();
@@ -280,7 +280,10 @@ public class SimMenuScreen extends Screen {
         g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         g.text(this.font, mode.title.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11,
                 ProfitPanels.ACCENT, false);
-        String count = RoomLibrary.completeCount() + " rooms captured";
+        // "0 rooms captured" while it is still reading would be a lie that looks like lost data.
+        String count = RoomLibrary.isReady()
+                ? RoomLibrary.completeCount() + " rooms captured"
+                : "loading rooms... " + RoomLibrary.loadedSoFar();
         g.text(this.font, count, panelX + panelW - 10 - this.font.width(count), panelY + 11,
                 ProfitPanels.DIM, false);
 

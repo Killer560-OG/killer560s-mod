@@ -45,7 +45,7 @@ public class RoomLibraryScreen extends Screen {
         panelH = Math.min(this.height - 20, Math.max(200, Math.min((int) (this.height * 0.8), 420)));
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
-        RoomLibrary.load();
+        RoomLibrary.loadAsync();
         rows = RoomLibrary.incomplete();
 
         addRenderableWidget(SettingsButtonWidget.builder(

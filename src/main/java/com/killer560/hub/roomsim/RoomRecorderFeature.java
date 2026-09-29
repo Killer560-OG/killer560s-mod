@@ -125,7 +125,7 @@ public final class RoomRecorderFeature {
                     + "not the instance for that.");
             return;
         }
-        RoomLibrary.load();
+        RoomLibrary.loadAsync();
         stage = Stage.ENTER;
         waitTicks = seconds(2);
         runs = 0;

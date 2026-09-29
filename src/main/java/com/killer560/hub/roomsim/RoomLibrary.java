@@ -174,24 +174,71 @@ public final class RoomLibrary {
         }
     }
 
+    /**
+     * Loads the library, off the render thread.
+     *
+     * <p>killer560 (2026-09-28): "still froze on boot [...] on joining the sim sorry." His library had reached
+     * 187 MB, and all of it was read and parsed on the thread that draws the game, so joining the sim stopped
+     * the client dead for as long as that took.
+     *
+     * <p>Two things were wrong and both are fixed. The format was JSON numbers - 77,841 of them per room,
+     * every one tokenised - and is now gzipped bytes, roughly a twentieth of the size and needing no parsing.
+     * And the work happened on the render thread at all, which no amount of making it faster would have made
+     * safe: a library big enough is always going to outlast a frame. It runs on its own thread now and the
+     * callers wait on {@link #isReady()} instead of on the disk.
+     */
+    public static void loadAsync() {
+        synchronized (RoomLibrary.class) {
+            if (loaded || loading) {
+                return;
+            }
+            loading = true;
+        }
+        Thread t = new Thread(RoomLibrary::load, "killer560smod-roomlibrary");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Whether the library has finished loading. */
+    public static synchronized boolean isReady() {
+        return loaded;
+    }
+
+    /** Rooms read so far, for a progress line while it loads. */
+    public static synchronized int loadedSoFar() {
+        return ROOMS.size();
+    }
+
+    private static volatile boolean loading;
+
     public static synchronized void load() {
         if (loaded) {
             return;
         }
-        loaded = true;
+        long startedAt = System.currentTimeMillis();
         try {
             if (!Files.isDirectory(DIR)) {
                 return;
             }
+            int upgraded = 0;
             try (var files = Files.list(DIR)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".json")).toList()) {
                     try {
-                        Room r = fromJson(JsonParser.parseString(
-                                Files.readString(f, StandardCharsets.UTF_8)).getAsJsonObject());
+                        JsonObject json = JsonParser.parseString(
+                                Files.readString(f, StandardCharsets.UTF_8)).getAsJsonObject();
+                        Room r = fromJson(json);
                         if (r != null) {
                             ROOMS.put(r.name, r);
+                            if (!json.has("blocksZ")) {
+                                // Written in the old number-array format. Rewritten now, while it is already
+                                // in memory, so this load is the last slow one rather than every load being
+                                // slow until the recorder happens to save that room again.
+                                upgraded++;
+                                Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
+                            }
                         }
-                    } catch (Exception e) {
+                        loaded = true;
+        } catch (Exception e) {
                         // The exception CLASS, not the exception. Gson puts the text it failed to parse into
                         // the message, so logging the throwable wrote the whole file to disk - killer560's log
                         // reached 50 MB from four corrupt rooms, written synchronously on the render thread.
@@ -202,7 +249,8 @@ public final class RoomLibrary {
                     }
                 }
             }
-            LOGGER.info("Room library: {} room(s) on disk, {} complete", ROOMS.size(), completeCount());
+            LOGGER.info("Room library: {} room(s) on disk, {} complete, {} upgraded to the compact format, {} ms",
+                    ROOMS.size(), completeCount(), upgraded, System.currentTimeMillis() - startedAt);
         } catch (Exception e) {
             LOGGER.error("Could not load the room library", e);
         }
@@ -443,6 +491,65 @@ public final class RoomLibrary {
         return name.replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
+    /** Shorts to gzipped base64. Big-endian, so the encoding does not depend on the machine that wrote it. */
+    private static String encodeShorts(short[] values) {
+        try {
+            var raw = new java.io.ByteArrayOutputStream();
+            try (var gz = new java.util.zip.GZIPOutputStream(raw);
+                 var out = new java.io.DataOutputStream(gz)) {
+                for (short v : values) {
+                    out.writeShort(v);
+                }
+            }
+            return java.util.Base64.getEncoder().encodeToString(raw.toByteArray());
+        } catch (Exception e) {
+            LOGGER.warn("Could not compress a room's blocks", e);
+            return "";
+        }
+    }
+
+    private static void decodeShorts(String encoded, short[] into) {
+        if (encoded == null || encoded.isEmpty()) {
+            return;
+        }
+        try (var in = new java.io.DataInputStream(new java.util.zip.GZIPInputStream(
+                new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode(encoded))))) {
+            for (int i = 0; i < into.length; i++) {
+                into[i] = in.readShort();
+            }
+        } catch (java.io.EOFException expected) {
+            // A shorter array than this room expects: everything past it stays at its default. Better a
+            // partly-read room than a discarded one.
+        } catch (Exception e) {
+            LOGGER.warn("Could not read a room's compressed blocks", e);
+        }
+    }
+
+    /** One bit per column rather than one byte, since it is a boolean array of a thousand or so. */
+    private static String encodeBits(boolean[] values) {
+        byte[] packed = new byte[(values.length + 7) / 8];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i]) {
+                packed[i >> 3] |= (byte) (1 << (i & 7));
+            }
+        }
+        return java.util.Base64.getEncoder().encodeToString(packed);
+    }
+
+    private static void decodeBits(String encoded, boolean[] into) {
+        if (encoded == null || encoded.isEmpty()) {
+            return;
+        }
+        try {
+            byte[] packed = java.util.Base64.getDecoder().decode(encoded);
+            for (int i = 0; i < into.length && (i >> 3) < packed.length; i++) {
+                into[i] = (packed[i >> 3] & (1 << (i & 7))) != 0;
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Could not read a room's seen-column data", e);
+        }
+    }
+
     private static JsonObject toJson(Room r) {
         JsonObject o = new JsonObject();
         o.addProperty("name", r.name);
@@ -455,16 +562,15 @@ public final class RoomLibrary {
             pal.add(p);
         }
         o.add("palette", pal);
-        JsonArray blocks = new JsonArray();
-        for (short b : r.blocks) {
-            blocks.add(b);
-        }
-        o.add("blocks", blocks);
-        JsonArray seen = new JsonArray();
-        for (boolean b : r.seenColumn) {
-            seen.add(b);
-        }
-        o.add("seenColumn", seen);
+        // Compressed, not a list of numbers. killer560 (2026-09-28): "still froze on boot" - his library had
+        // reached 187 MB and every byte of it was parsed on the render thread before the title screen. A room
+        // is 77,841 block ids; written as JSON numbers that is half a megabyte of text per 1x1 room and five
+        // for a 2x2, and Gson has to tokenise every single one.
+        //
+        // The same data as gzipped bytes is roughly a twentieth of the size and needs no parsing at all. That
+        // is the difference between a library that is slow and one that does not fit in a boot.
+        o.addProperty("blocksZ", encodeShorts(r.blocks));
+        o.addProperty("seenZ", encodeBits(r.seenColumn));
         JsonArray spawns = new JsonArray();
         for (String m : r.mobSpawns) {
             spawns.add(m);
@@ -480,13 +586,24 @@ public final class RoomLibrary {
         for (int i = 0; i < pal.size(); i++) {
             r.paletteFor(pal.get(i).getAsString());
         }
-        JsonArray blocks = o.getAsJsonArray("blocks");
-        for (int i = 0; i < blocks.size() && i < r.blocks.length; i++) {
-            r.blocks[i] = blocks.get(i).getAsShort();
+        // Both formats are read. Everything already captured is in the old one, and rewriting 187 MB of it
+        // on load would be a worse first boot than the one being fixed - each room upgrades itself the next
+        // time it is saved, which the recorder does every run.
+        if (o.has("blocksZ")) {
+            decodeShorts(o.get("blocksZ").getAsString(), r.blocks);
+        } else if (o.has("blocks")) {
+            JsonArray blocks = o.getAsJsonArray("blocks");
+            for (int i = 0; i < blocks.size() && i < r.blocks.length; i++) {
+                r.blocks[i] = blocks.get(i).getAsShort();
+            }
         }
-        JsonArray seen = o.getAsJsonArray("seenColumn");
-        for (int i = 0; i < seen.size() && i < r.seenColumn.length; i++) {
-            r.seenColumn[i] = seen.get(i).getAsBoolean();
+        if (o.has("seenZ")) {
+            decodeBits(o.get("seenZ").getAsString(), r.seenColumn);
+        } else if (o.has("seenColumn")) {
+            JsonArray seen = o.getAsJsonArray("seenColumn");
+            for (int i = 0; i < seen.size() && i < r.seenColumn.length; i++) {
+                r.seenColumn[i] = seen.get(i).getAsBoolean();
+            }
         }
         if (o.has("mobSpawns")) {
             JsonArray spawns = o.getAsJsonArray("mobSpawns");
