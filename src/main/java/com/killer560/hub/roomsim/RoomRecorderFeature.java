@@ -47,17 +47,17 @@ public final class RoomRecorderFeature {
     private enum Stage {
         /** Not running. */
         OFF,
-        /** Waiting to send /f7. */
+        /** Waiting to send the joininstance for F7. */
         ENTER,
         /** Inside the run, reading rooms. */
         SCAN,
         /** Sent /dh, waiting to arrive. */
         LEAVING,
-        /** In the hub, waiting before the next /f7. */
+        /** In the hub, waiting before the next floor join. */
         HUB,
         /** Dropped to limbo: the long wait before /skyblock. */
         LIMBO,
-        /** Sent /skyblock, waiting before /f7. */
+        /** Sent /skyblock, waiting before the floor join. */
         REJOIN,
         /** Five-puzzle run: handed over to him, still capturing whatever he walks into. */
         PAUSED
@@ -114,6 +114,12 @@ public final class RoomRecorderFeature {
         stage = Stage.ENTER;
         waitTicks = seconds(2);
         runs = 0;
+        // killer560 (2026-09-28): "if i turn it on it auto turns off". This is why, and it made the feature
+        // impossible to start from the command: the RETURN key that submits "/killer560 roomrecorder" is still
+        // physically down on the next tick, the any-key stop sees it and switches straight back off. The resume
+        // key path already armed this guard; start() never did. Cleared once the keyboard is clear, so a key
+        // held at the moment of starting never counts as taking the controls back - only a fresh press does.
+        suppressKeyStop = true;
         say("Room Recorder ON. It will run F7 on a loop. Press any key to stop.");
     }
 
@@ -185,6 +191,9 @@ public final class RoomRecorderFeature {
         RoomLibrary.saveAll();
         stage = Stage.SCAN;
         waitTicks = 1;
+        // Same reason as start(): "/killer560 roomrecorder resume" is submitted with Return, and coming back
+        // from a pause straight into the any-key stop would look exactly like the resume having done nothing.
+        suppressKeyStop = true;
         say("resumed");
     }
 
@@ -231,14 +240,21 @@ public final class RoomRecorderFeature {
         DungeonInstanceCooldown.tick(client);
         // The key that started or resumed it is still held on the next tick, and the any-key stop would
         // instantly undo it. Wait for a clean keyboard before arming that again.
-        if (suppressKeyStop) {
+        if (client.screen != null) {
+            // A screen is open, so every key belongs to it, not to the world. This is the other half of the
+            // "if i turn it on it auto turns off" bug (killer560, 2026-09-28): Return submits the command that
+            // starts it, and Escape closes the settings tab that starts it, and both were being read as him
+            // taking the controls back. Re-armed rather than merely skipped, so the tick after the screen
+            // closes still waits for a clean keyboard instead of seeing the key that closed it.
+            suppressKeyStop = true;
+        } else if (suppressKeyStop) {
             if (!anyKeyDown(client)) {
                 suppressKeyStop = false;
             }
-        } else if (stage != Stage.PAUSED && anyKeyDown(client)) {
+        } else if (stage != Stage.PAUSED && firstKeyDown(client) != -1) {
             // Not while paused: the pause exists so he can walk the run himself, and stopping the moment he
             // touches a movement key would make the feature impossible to use for the thing it is for.
-            stop("key pressed");
+            stop(KeyUtil.bindDisplayName(firstKeyDown(client)) + " pressed");
             return;
         }
         if (client.player == null || client.level == null) {
@@ -263,7 +279,7 @@ public final class RoomRecorderFeature {
                     waitTicks = (int) Math.max(1, cd / 50);
                     return;
                 }
-                ServerCommands.toServer("f7");
+                ServerCommands.toServer(joinFloorCommand());
                 roomsAddedThisRun = 0;
                 stage = Stage.SCAN;
                 waitTicks = seconds(25);
@@ -402,18 +418,48 @@ public final class RoomRecorderFeature {
      * shift to sprint is still a person taking the controls back.
      */
     private static boolean anyKeyDown(Minecraft client) {
+        return firstKeyDown(client) != -1;
+    }
+
+    /**
+     * The first key found held, or -1.
+     *
+     * <p>Returns WHICH key rather than a yes/no so the stop message can name it. "Room Recorder OFF (key
+     * pressed)" is a report; "OFF (W pressed)" is a diagnosis, and the difference between him having walked and
+     * the feature having stopped itself was guesswork without it.
+     */
+    private static int firstKeyDown(Minecraft client) {
         var window = client.getWindow();
         if (window == null) {
-            return false;
+            return -1;
         }
         // KeyUtil rather than raw GLFW: glfwGetKey rejects codes outside its keyboard range, and sweeping the
         // whole range is exactly how you hand it an invalid one.
         for (int key = GLFW.GLFW_KEY_SPACE; key <= GLFW.GLFW_KEY_LAST; key++) {
             if (KeyUtil.isKeyDown(window, key)) {
-                return true;
+                return key;
             }
         }
-        return false;
+        return -1;
+    }
+
+    /**
+     * The command that actually opens a floor.
+     *
+     * <p>killer560 (2026-09-28): "it cannot just do /f7 it needs to do the joininstance one." Exactly right, and
+     * the bug was mine: {@code /f7} is THIS MOD'S OWN client-side shortcut (see
+     * {@link com.killer560.hub.commandshortcuts.CommandShortcutsFeature}), not a Hypixel command.
+     * {@code ServerCommands.toServer} sends below the client dispatcher on purpose - that is how it avoids the
+     * recursion that forwarding a self-registered name causes - so it put the literal text "/f7" in front of a
+     * server that has never heard of it, and the loop sat waiting for a dungeon that was never queued.
+     *
+     * <p>Read off {@code Shortcut.F7} rather than written out again, so the id has ONE definition. That enum is
+     * also where the provenance lives: it was taken from this mod's shipped {@code /joininstance} usage and
+     * cross-checked against NoammAddons, not guessed.
+     */
+    private static String joinFloorCommand() {
+        return "joininstance "
+                + com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Shortcut.F7.instanceId;
     }
 
     /** Ticks for a wait, with a few per cent of jitter so the loop is not a metronome. */

@@ -144,6 +144,15 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
 - `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker.
   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
   `matches()`, which only a route's USE_ITEM node reaches.
+- `/f7`, `/m7` and the rest are THIS MOD'S client-side shortcuts, not Hypixel commands - they expand to
+  `/joininstance catacombs_floor_seven` etc. in `CommandShortcutsFeature.Shortcut`. So automation must send the
+  `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it handed
+  Hypixel the literal "/f7" and the Room Recorder sat waiting for a dungeon that was never queued (2026-09-28).
+  `/dh` and `/skyblock` ARE real Hypixel commands. Read the id off the enum rather than writing it out again.
+- An "any key stops it" guard must ignore keys while `client.screen != null`. Otherwise the Return that submits
+  the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
+  immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
+  pressed" cannot tell a walk from the feature killing itself.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.
