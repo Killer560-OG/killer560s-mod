@@ -175,13 +175,14 @@ public final class SimSecrets {
     private static int chestsOnCapturedChest;
     private static int chestsChecked;
     private static int chestsUncorrected;
+    private static int chestsSkippedOutside;
     private static int uncorrectedClayX;
     private static int uncorrectedClayZ;
     private static int uncorrectedRotation;
 
-    /** @return {@code {corrected, checked, uncorrected}} for the floor just built. */
+    /** @return {@code {corrected, checked, uncorrected, skippedOutsideTheirRoom}} for the floor just built. */
     public static int[] chestAudit() {
-        return new int[]{chestsOnCapturedChest, chestsChecked, chestsUncorrected};
+        return new int[]{chestsOnCapturedChest, chestsChecked, chestsUncorrected, chestsSkippedOutside};
     }
 
     /** Starts a new floor's audit. */
@@ -189,6 +190,7 @@ public final class SimSecrets {
         chestsOnCapturedChest = 0;
         chestsChecked = 0;
         chestsUncorrected = 0;
+        chestsSkippedOutside = 0;
     }
 
     /** Every chest this floor placed, so the build can check afterwards that they are all still there. */
@@ -238,6 +240,12 @@ public final class SimSecrets {
             // level was outside the bounds the paste recorded, so it survived the wipe and the floor collected
             // one more chest every time a map was generated.
             if (!checkInside(at)) {
+                // Counted by TYPE as well, because a floor holding fewer chests than the database lists is
+                // either a translation fault or a room whose capture is the wrong size, and only a count of
+                // the ones deliberately dropped can tell those apart. Deathmite is two tiles where the
+                // database says three, so four of its secrets have nowhere to go and never will until it is
+                // re-captured.
+                chestsSkippedOutside++;
                 continue;
             }
             // Does this secret land where the room's own capture already has a chest?

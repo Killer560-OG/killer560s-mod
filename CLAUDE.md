@@ -32,9 +32,11 @@ never draw a conclusion from its log.
 Never swap a jar over a running game; stage it as `.jar.pending`. Never blanket `taskkill javaw` — kill
 only the PID that was launched, and if the log shows a server join, he took the window, so leave it.
 
-Deploying updates **Mod Only Test does not reach the instances he plays on.** Five instances run the cheat
-variant — `26.1.2 (Dungeons)`, `26.1.2`, `26.1.2 ALT`, `Map Logger` and `26.1.2 (Mod Only Test)` — and
-`26.1.2 (Legit Test)` runs a legit build. After a session's work lands, check every one of them by md5, and
+Deploying updates **Mod Only Test does not reach the instances he plays on.** SIX instances run the cheat
+variant — `26.1.2 (Dungeons)`, `26.1.2`, `26.1.2 ALT`, `Map Logger`, `AP3 Competition Instance` and
+`26.1.2 (Mod Only Test)` — and `26.1.2 (Legit Test)` runs a legit build. (`AP3 Competition Instance` was
+missing from this list until 2026-09-29; enumerate the instances directory rather than trusting the names
+written here.) After a session's work lands, check every one of them by md5, and
 promote or delete any leftover `.jar.pending`: on 2026-09-29 four instances were still two builds behind
 with a stale `.pending` from the night before that nothing had ever promoted.
 
