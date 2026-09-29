@@ -1090,31 +1090,35 @@ public final class Ap3Executor {
      * wand or an ender pearl at the sky needs.
      */
     private static void tickUse(Minecraft client, LocalPlayer player, Ap3Node node) {
-        switch (step) {
-            case PREP -> {
-                if (takePreAim(node, player)) {
-                    preAimPrevSlot = -1;
-                    step = Step.DO;
-                    stepTicks = 0;
-                    tickUse(client, player, node);
-                    return;
-                }
+        // The phases FALL THROUGH within one tick wherever there is nothing to wait for.
+        //
+        // killer560 (2026-09-29): "my use item nodes come out like half a second late." Each phase was its own
+        // `case` that set the next step and returned, so PREP, SWAP and AIM each cost a whole client tick even
+        // when none of them had anything to wait for - four ticks before the click went out, six or seven when
+        // a swap was involved. Only two of those waits are real: the server must see the new rotation before
+        // the use, and it must have acknowledged a hotbar change. Everything else was the shape of the switch.
+        if (step == Step.PREP) {
+            if (takePreAim(node, player)) {
+                preAimPrevSlot = -1;
+                step = Step.DO;
+                stepTicks = 0;
+            } else {
                 beginAim(player);
                 step = Step.SWAP;
                 stepTicks = 0;
             }
-            case SWAP -> {
-                // The item he was HOLDING when he made the node. killer560 (2026-09-29): "make sure it will
-                // swap to the proper item as well the item that I was holding when I placed the node."
-                //
-                // A node made with an empty hand has no id and uses whatever is held, which is the only
-                // sensible reading of "use" with nothing recorded. The swap is the same shape BOOM's is: it
-                // takes the tick's interaction slot, and a refused tick simply asks again.
-                if (node.useItemId == null || node.useItemId.isBlank()) {
-                    step = Step.AIM;
-                    stepTicks = 0;
-                    return;
-                }
+        }
+        if (step == Step.SWAP) {
+            // The item he was HOLDING when he made the node. killer560 (2026-09-29): "make sure it will
+            // swap to the proper item as well the item that I was holding when I placed the node."
+            //
+            // A node made with an empty hand has no id and uses whatever is held, which is the only
+            // sensible reading of "use" with nothing recorded. The swap is the same shape BOOM's is: it
+            // takes the tick's interaction slot, and a refused tick simply asks again.
+            if (node.useItemId == null || node.useItemId.isBlank()) {
+                step = Step.AIM;
+                stepTicks = 0;
+            } else {
                 int slot = ItemIdentity.findHotbarSlotById(player, node.useItemId);
                 if (slot < 0) {
                     failNode("no " + node.useItemId + " in the hotbar for use #" + number(node));
@@ -1137,35 +1141,42 @@ public final class Ap3Executor {
                 if (!swapSent || stepTicks >= 2) { // the tick after a swap the server has seen it
                     step = Step.AIM;
                     stepTicks = 0;
-                }
-            }
-            case AIM -> {
-                aimAt(player, node);
-                step = Step.DO;
-                stepTicks = 0;
-            }
-            case DO -> {
-                // The gate decides whether this tick's one automated interaction is ours; a refused tick costs
-                // nothing, the same use is asked for again next tick.
-                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                } else {
                     return;
                 }
-                Vec3 eye = player.getEyePosition();
-                Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(USE_REACH);
-                HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
-                        ClipContext.Fluid.NONE, player));
-                endAim(player);
-                if (hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK
-                        && client.gameMode != null) {
-                    client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
-                } else if (client.gameMode != null) {
-                    client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-                }
-                player.swing(InteractionHand.MAIN_HAND);
-                finishNode();
             }
-            default -> finishNode();
         }
+        if (step == Step.AIM) {
+            aimAt(player, node);
+            step = Step.DO;
+            stepTicks = 0;
+            // The one wait that has to stay. The rotation leaves with this tick's movement packet; sending the
+            // use now would put it in front of the rotation the server is meant to click along, which is the
+            // PositionPlace this mod has already paid for once.
+            return;
+        }
+        if (step == Step.DO) {
+            // The gate decides whether this tick's one automated interaction is ours; a refused tick costs
+            // nothing, the same use is asked for again next tick.
+            if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                return;
+            }
+            Vec3 eye = player.getEyePosition();
+            Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(USE_REACH);
+            HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.NONE, player));
+            endAim(player);
+            if (hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK
+                    && client.gameMode != null) {
+                client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
+            } else if (client.gameMode != null) {
+                client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            }
+            player.swing(InteractionHand.MAIN_HAND);
+            finishNode();
+            return;
+        }
+        finishNode();
     }
 
     /** How far a USE node's ray looks for a block before treating the use as "at the air". */

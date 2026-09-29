@@ -275,6 +275,19 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.
+- **A node's angle was being quantised on every save.** `Ap3Store.writeNode` wrote yaw and pitch through
+  `round(v, 1)`, so a restart moved every node's angle to the nearest tenth of a degree and the loss compounded
+  (killer560, 2026-09-29: "it feels like the angles and stuff gets truncated whenever I close and restart").
+  `Ap3EditScreen.fmt` did the same at two decimals, and it is read back on Save, so opening an editor and
+  saving damaged the node - as did "Look from me". Store at 5-6 decimals, and print fields at full precision
+  with the zeros trimmed.
+- `Ap3Store` wrote `useItemId` inside `case LEAP`, so a USE node's recorded item was NEVER saved while the load
+  path read it unconditionally. It worked until the game closed and then became "use whatever is in my hand".
+  A field shared by several node types belongs outside the type switch.
+- A step machine whose every phase sets the next step and RETURNS costs one client tick per phase whether or
+  not it had anything to wait for. AP3's USE node spent four ticks before the click, six or seven with a swap
+  ("my use item nodes come out like half a second late"). Only two waits are real: the server must see the new
+  rotation before the use, and it must have acknowledged a hotbar change. Let the rest fall through in one tick.
 - A second Interactive Map goal cannot simply be issued over a running one. `ClearExecutor.etherPath` returns
   immediately while `pathPending`, and even when it does plan, it plans from the position you were at when you
   pressed - `ClearNode.inside` needs you within 0.32 blocks of the first hop, so once you have warped off that

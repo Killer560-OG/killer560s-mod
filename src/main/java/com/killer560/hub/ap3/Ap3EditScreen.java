@@ -275,8 +275,23 @@ public class Ap3EditScreen extends Screen {
         return Component.literal(label + ": " + (on ? "§aon" : "§7off"));
     }
 
+    /**
+     * A number in a field, at full precision but without a tail of zeros.
+     *
+     * <p>This printed two decimals, and the fields are read back on Save - so simply opening a node's editor
+     * and saving it quantised its position and its angle to a hundredth, and "Look from me" recorded a rounded
+     * copy of where he was looking rather than where he was looking. Five decimals is past what a float
+     * carries, and the trailing zeros are trimmed so an ordinary value still reads as "3" and not "3.00000".
+     */
     private static String fmt(double v) {
-        return String.format(Locale.US, "%.2f", v);
+        String out = String.format(Locale.US, "%.5f", v);
+        if (out.contains(".")) {
+            out = out.replaceAll("0+$", "");
+            if (out.endsWith(".")) {
+                out = out.substring(0, out.length() - 1);
+            }
+        }
+        return out;
     }
 
     @Override

@@ -614,13 +614,21 @@ public final class Ap3Store {
     private static JsonObject writeNode(Ap3Node n) {
         JsonObject o = new JsonObject();
         o.addProperty("type", n.type.name());
-        o.addProperty("x", round(n.x, 4));
-        o.addProperty("y", round(n.y, 3));
-        o.addProperty("z", round(n.z, 4));
-        o.addProperty("yaw", round(n.yaw, 1));
-        o.addProperty("pitch", round(n.pitch, 1));
-        o.addProperty("width", round(n.width, 2));
-        o.addProperty("length", round(n.length, 2));
+        // Rounded to what a float actually carries, not to what reads nicely in the file.
+        //
+        // killer560 (2026-09-29): "my ap3 feels like the angles and stuff gets truncated whenever I close and
+        // restart the game." It did. Yaw and pitch were written to ONE decimal place, so every save quantised
+        // a node's recorded angle to the nearest tenth of a degree and the loss compounded across restarts -
+        // and for a USE node, whose whole point is the angle he was looking at, that is the value itself being
+        // damaged rather than a display detail. Width and length at two decimals had the same problem for
+        // anyone who typed a finer box.
+        o.addProperty("x", round(n.x, 6));
+        o.addProperty("y", round(n.y, 6));
+        o.addProperty("z", round(n.z, 6));
+        o.addProperty("yaw", round(n.yaw, 5));
+        o.addProperty("pitch", round(n.pitch, 5));
+        o.addProperty("width", round(n.width, 5));
+        o.addProperty("length", round(n.length, 5));
         if (n.precise) {
             o.addProperty("precise", true);
         }
@@ -636,13 +644,21 @@ public final class Ap3Store {
         if (n.name != null) {
             o.addProperty("name", n.name);
         }
+        // Written for EVERY node type that has one, outside the switch.
+        //
+        // It used to be written only under `case LEAP`, so a USE node's item - the item he was holding when he
+        // placed the node, which is the whole reason USE swaps at all - was never saved. It survived until the
+        // game was closed and then silently became "use whatever is in my hand". The load path always read it
+        // unconditionally, so only the write side was ever wrong.
+        if (n.useItemId != null && !n.useItemId.isBlank()) {
+            o.addProperty("useItemId", n.useItemId);
+        }
         switch (n.type) {
             case AXIS_ALIGN -> o.addProperty("wall", n.wallDir == null ? "" : n.wallDir.getName());
             case LEAP -> {
                 o.addProperty("leapMode", n.leapMode.name());
                 o.addProperty("leapClass", n.leapClass == null ? "" : n.leapClass.name());
                 o.addProperty("leapIgn", n.leapIgn == null ? "" : n.leapIgn);
-                o.addProperty("useItemId", n.useItemId == null ? "" : n.useItemId);
             }
             case LEAP_COUNTER -> o.addProperty("leapCount", n.leapCount);
             case PATH -> {
@@ -652,8 +668,8 @@ public final class Ap3Store {
                 o.addProperty("minSpeed", round(n.minSpeed, 4));
                 o.addProperty("maxSpeed", round(n.maxSpeed, 4));
                 o.addProperty("hasDir", n.hasDir);
-                o.addProperty("dirDeg", round(n.dirDeg, 1));
-                o.addProperty("dirTolDeg", round(n.dirTolDeg, 1));
+                o.addProperty("dirDeg", round(n.dirDeg, 5));
+                o.addProperty("dirTolDeg", round(n.dirTolDeg, 5));
                 o.addProperty("termWait", n.termWait);
             }
             default -> {
