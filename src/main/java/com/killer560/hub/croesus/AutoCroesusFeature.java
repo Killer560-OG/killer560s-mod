@@ -70,7 +70,13 @@ public final class AutoCroesusFeature {
     private static final long PRICE_WAIT_MS = 10_000L;
     private static final long ENTITY_BIND_WINDOW_MS = 3000L;
     /** How far the Croesus NPC may be for a re-open click, in blocks squared. */
-    private static final double NPC_RANGE_SQ = 36.0;
+    /**
+     * Measured ENTITY reach, squared.
+     *
+     * <p>Was 36.0 - 6.0 blocks, feet to feet, for what is an entity interaction limited to 3.0 to the box.
+     * Double the real limit against a measure that already flatters itself.
+     */
+    private static final double NPC_RANGE_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
     private static final int MAX_CLICKS_PER_SESSION = 400;
     private static final Pattern PAGE_TITLE = Pattern.compile("^\\((\\d+)/(\\d+)\\) Croesus$");
 

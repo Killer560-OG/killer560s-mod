@@ -1,10 +1,9 @@
 package com.killer560.hub.livemap;
 
-import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
-import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -48,6 +47,12 @@ public class InteractiveMapScreen extends Screen {
     private double pressX;
     private double pressY;
     private boolean dragMoved = false;
+    /** Last cursor position this screen was rendered with. killer560, 2026-09-29: "Remember this isn't a left or
+     *  right click but based off of my key binds" - a bound KEY press carries no coordinates, so the thing it
+     *  acts on is whatever the cursor is over. No mouse hook is needed to know that: a Screen is handed the
+     *  cursor every frame, so caching it here is the whole mechanism. -1 until the first frame. */
+    private int cursorX = -1;
+    private int cursorY = -1;
 
     public InteractiveMapScreen(boolean openedByKey) {
         super(Component.literal("Interactive Map"));
@@ -111,12 +116,23 @@ public class InteractiveMapScreen extends Screen {
         return gx < 0 || gz < 0 ? -1 : gx + gz * LiveMapFeature.GRID;
     }
 
+    /** The grid cell the cursor is over right now, or -1 when it is off the map panel or nothing has rendered
+     *  yet. This is what a bound KEY press acts on - see {@link #cursorX}. */
+    int cellUnderCursor() {
+        if (cursorX < 0 || !inside(panel(), cursorX, cursorY)) {
+            return -1;
+        }
+        return cellAt(cursorX, cursorY);
+    }
+
     // ------------------------------------------------------------------------------------------- rendering
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         Minecraft client = Minecraft.getInstance();
         LiveMapConfig cfg = LiveMapConfig.getInstance();
+        cursorX = mouseX;
+        cursorY = mouseY;
         int[] p = panel();
         graphics.fill(p[0], p[1], p[2], p[3], PANEL);
         graphics.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, ORANGE);
@@ -317,9 +333,15 @@ public class InteractiveMapScreen extends Screen {
         ty = swatch(graphics, x, ty, 0xFF55FF55, "You");
         ty = legendHeader(graphics, "Controls", x, ty + 2);
         // killer560: "the entire portion of interactive map is the teleport pathing" - this screen only ever
-        // exists while Interactive Map (and therefore pathing) is on, so LMB always teleports here now.
-        ty = control(graphics, x, ty, "LMB", "Teleport");
-        ty = control(graphics, x, ty, "RMB", "Waypoints");
+        // exists while Interactive Map (and therefore pathing) is on, so the Start bind always teleports here.
+        // The bind's own name is printed rather than "LMB", since it is his to change (2026-09-29: "Remember
+        // this isn't a left or right click but based off of my key binds").
+        String startName = cfg.getStartKeyCode() == KeyUtil.NONE ? "LMB" : KeyUtil.bindShortName(cfg.getStartKeyCode());
+        ty = control(graphics, x, ty, startName, "Go / retarget");
+        ty = control(graphics, x, ty, "x2", "Start node");
+        if (cfg.getLockedDoorKeyCode() != KeyUtil.NONE) {
+            ty = control(graphics, x, ty, KeyUtil.bindShortName(cfg.getLockedDoorKeyCode()), "Locked door");
+        }
         ty = control(graphics, x, ty, "Scroll", "Zoom");
         ty = control(graphics, x, ty, "Drag", "Pan");
         ty = control(graphics, x, ty, "MMB", "Reset view");
@@ -364,7 +386,12 @@ public class InteractiveMapScreen extends Screen {
 
     private int control(GuiGraphicsExtractor graphics, int x, int y, String key, String action) {
         graphics.text(font, key, x + 4, y, LIGHT_ORANGE, false);
-        graphics.text(font, action, x + 42, y, TEXT, false);
+        // The key column used to be a fixed 38px, which was fine while every entry was "LMB"/"Scroll" but runs
+        // into the action as soon as a bind prints its own name ("Left Shift"). Push the action across instead,
+        // and keep the pair inside the panel.
+        int actionX = Math.max(x + 42, x + 8 + font.width(key));
+        actionX = Math.min(actionX, x + LEGEND_W - 4 - font.width(action));
+        graphics.text(font, action, actionX, y, TEXT, false);
         return y + 10;
     }
 
@@ -426,48 +453,41 @@ public class InteractiveMapScreen extends Screen {
     }
 
     private void onClick(int button, double mouseX, double mouseY) {
+        LiveMapConfig cfg = LiveMapConfig.getInstance();
+        // killer560, 2026-09-29: "Remember this isn't a left or right click but based off of my key binds."
+        // A mouse button acts here when it IS one of his binds (KeyUtil stores a mouse button in the same int
+        // as a key), or when it is the left button, which is what this screen has always answered to and what
+        // the legend still documents. While the map is open InteractiveMapFeature deliberately stops polling a
+        // mouse-bound key, so a bound button arrives exactly once, through here.
+        //
+        // Tested BEFORE the middle-button reset below: a bind set to the middle button would otherwise only
+        // ever reset the view, and silently, since the reset owns that button unconditionally.
+        if (isBind(cfg.getLockedDoorKeyCode(), button)) {
+            InteractiveMapFeature.pathToLockedDoor();
+            return;
+        }
+        boolean startButton = isBind(cfg.getStartKeyCode(), button)
+                || (button == 0 && !KeyUtil.isMouseCode(cfg.getStartKeyCode()));
+        if (startButton) {
+            // One dispatcher for both inputs, so a click and a key press cannot drift apart - including the
+            // double-press rule, which is counted per ROOM and not per input device. Off the panel it gets -1,
+            // exactly what the key poll passes when the cursor is off the map.
+            InteractiveMapFeature.onMapPress(inside(panel(), mouseX, mouseY) ? cellAt(mouseX, mouseY) : -1);
+            return;
+        }
         if (button == 2) {
             zoom = 1f;
             panX = 0f;
             panY = 0f;
-            return;
         }
-        if (!inside(panel(), mouseX, mouseY)) {
-            return;
-        }
-        int cell = cellAt(mouseX, mouseY);
-        if (cell < 0) {
-            return;
-        }
-        LiveMapConfig cfg = LiveMapConfig.getInstance();
-        int gid = LiveMapFeature.groupIdAt(cell);
-        // LEFT CLICK ONLY. The right-click "toggle this room's waypoints" is gone - killer560 (2026-09-27):
-        // "Remove the hardcoded. The toggle waypoint shouldn't exist." Secret waypoints are their own feature
-        // with their own settings; having the map silently flip them per room was a second, hidden way to
-        // control something that already has an obvious one.
-        if (button != 0) {
-            return;
-        }
-        boolean canTeleport = cfg.isInteractiveMapEnabled() && com.killer560.hub.secrets.DungeonState.isInDungeon()
-                && !LiveMapFeature.isInBoss();
-        if (gid >= 0) {
-            if (!canTeleport) {
-                // Used to quietly fall back to toggling waypoints, which is why clicking a room sometimes did
-                // something entirely unrelated to what the click means. Say why instead.
-                ModChat.send(InteractiveMapFeature.CHAT, ModChat.dim(LiveMapFeature.isInBoss()
-                        ? "Not during the boss." : "Interactive Map is off, or you are not in a dungeon."));
-                return;
-            }
-            DungeonLayout layout = DungeonLayout.capture();
-            int room = layout.roomOfCell(cell);
-            int gx = cell % LiveMapFeature.GRID;
-            int gz = cell / LiveMapFeature.GRID;
-            int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : LiveMapFeature.groupsView().get(gid).mainIdx;
-            InteractiveMapFeature.activateRoom(layout, room, tile);
-        } else if (canTeleport && MapPainter.isDoorCell(cell)) {
-            DungeonLayout layout = DungeonLayout.capture();
-            AutoClearUtils.pathToDoor(layout, cell, cfg.isFaceDoorOnArrival());
-        }
+        // Anything else does nothing. The right-click "toggle this room's waypoints" is gone - killer560
+        // (2026-09-27): "Remove the hardcoded. The toggle waypoint shouldn't exist." Secret waypoints are their
+        // own feature with their own settings; having the map silently flip them per room was a second, hidden
+        // way to control something that already has an obvious one.
+    }
+
+    private static boolean isBind(int code, int button) {
+        return KeyUtil.isMouseCode(code) && KeyUtil.mouseButton(code) == button;
     }
 
 }

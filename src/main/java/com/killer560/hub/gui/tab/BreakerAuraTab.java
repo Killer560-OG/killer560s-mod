@@ -130,8 +130,12 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
+        // The slider spans 1.0 to the MEASURED limit, not to 5.5. It ran to 5.5, so the top of its travel
+        // asked the server for a break it refuses outright - a setting that cannot work is not a setting.
+        final double reachMin = 1.0;
+        final double reachSpan = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH - reachMin;
         widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, reachText(cfg),
-                (cfg.getBreakerAuraReach() - 1.0) / 4.5) {
+                (cfg.getBreakerAuraReach() - reachMin) / reachSpan) {
             @Override
             protected void updateMessage() {
                 setMessage(reachText(cfg));
@@ -139,7 +143,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
             @Override
             protected void applyValue() {
-                cfg.setBreakerAuraReach(Math.round((1.0 + this.value * 4.5) * 10.0) / 10.0);
+                cfg.setBreakerAuraReach(Math.round((reachMin + this.value * reachSpan) * 10.0) / 10.0);
                 cfg.save();
             }
         });
@@ -178,6 +182,15 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             }
         });
+        y += 20;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Edit Mode", cfg.isBreakerAuraEditMode()),
+                btn -> {
+                    cfg.setBreakerAuraEditMode(!cfg.isBreakerAuraEditMode());
+                    cfg.save();
+                    btn.setMessage(onOff("Edit Mode", cfg.isBreakerAuraEditMode()));
+                }).bounds(contentX, y, col2W, 18)
+                .build());
         y += 20;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()),

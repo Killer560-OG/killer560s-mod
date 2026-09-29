@@ -1983,7 +1983,29 @@ public final class TerminalSolverFeature {
         return pane.getColor();
     }
 
+    /**
+     * Strips Minecraft colour codes.
+     *
+     * <p>Was {@code replaceAll}, which COMPILES the pattern on every call - and this runs per item, per
+     * terminal, per frame while a terminal is open. A hand-written strip is both faster and allocation-free
+     * for the common case of a string with no codes in it.
+     */
     private static String stripColor(String s) {
-        return s.replaceAll("§.", "").trim();
+        if (s == null || s.isEmpty()) {
+            return "";
+        }
+        if (s.indexOf('§') < 0) {
+            return s.trim();
+        }
+        StringBuilder out = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '§' && i + 1 < s.length()) {
+                i++;   // skip the code character too
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString().trim();
     }
 }

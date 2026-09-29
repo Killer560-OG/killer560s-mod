@@ -93,6 +93,16 @@ public final class SimRun {
         return running;
     }
 
+    /** Ticks left on the countdown, 0 once the door has opened. Also what the HUD reads. */
+    public static int countdownTicks() {
+        return ticksLeft;
+    }
+
+    /** True between {@link #begin} and the end of the run - the countdown is only ticked while armed. */
+    public static boolean isArmed() {
+        return armed;
+    }
+
     /** Milliseconds since the door opened, or 0 when no run is under way. */
     public static long elapsedMs() {
         return running ? System.currentTimeMillis() - startedAtMs : 0L;
@@ -115,9 +125,9 @@ public final class SimRun {
         if (!running) {
             running = true;
             startedAtMs = System.currentTimeMillis();
-            if (entranceDoor != null) {
-                SimDoors.openForTest(client, entranceDoor);
-            }
+            // The gate, not just the one door that was registered. killer560 (2026-09-29): "Once the start
+            // finishes it needs to remove the blocks for the gate. Those infested chizzledd blocks."
+            SimDoors.openEntranceGate(client, entranceDoor);
             ModChat.send("Sim", ModChat.text("GO"));
         }
     }

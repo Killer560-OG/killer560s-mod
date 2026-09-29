@@ -302,6 +302,25 @@ public final class SecretWaypointsFeature {
         rebuild(cfg, px, pz);
     }
 
+    /**
+     * How many LEVER waypoints the last scan found.
+     *
+     * <p>Exposed so the scan can be checked against a brute-force count of the same room - the lever scan was
+     * rewritten on 2026-09-29 to skip chunk sections whose palette cannot contain a lever, and a faster scan
+     * that misses levers is worse than the slow one it replaced.
+     */
+    public static int cachedLeverCount() {
+        int n = 0;
+        synchronized (CACHED) {
+            for (Waypoint w : CACHED) {
+                if (w.kind() == Kind.LEVER) {
+                    n++;
+                }
+            }
+        }
+        return n;
+    }
+
     private static void rebuild(SecretWaypointsConfig cfg, double px, double pz) {
         CACHED.clear();
         // Only the room you are in (killer560, 2026-09-21: "only show the waypoints for the room I am currently in
@@ -313,9 +332,25 @@ public final class SecretWaypointsFeature {
             return;
         }
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-        for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
-            RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
-            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name) || !roomHasCell(room[0], currentIdx)) {
+        // In the dungeon SIM the rooms come from the sim, not from a map item.
+        //
+        // killer560 (2026-09-29): "Then the secret waypoints need to show in rooms." They never could:
+        // identifiedRoomsWithRotation() is built by reading the dungeon map Hypixel sends, and a singleplayer
+        // sim has no such item, so the list was empty and this loop did nothing. The sim placed the rooms and
+        // knows exactly where each one's clay corner is, so it answers instead - using the same corner it put
+        // the secrets at, so a waypoint cannot point somewhere its secret is not.
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+        java.util.List<int[]> rooms = sim
+                ? com.killer560.hub.roomsim.SimRoomIndex.identifiedRoomsWithRotation()
+                : LiveMapFeature.identifiedRoomsWithRotation();
+        for (int[] room : rooms) {
+            RoomEntry entry = sim
+                    ? com.killer560.hub.roomsim.SimRoomIndex.roomEntryAt(room[0])
+                    : LiveMapFeature.roomEntryAt(room[0]);
+            boolean hasCell = sim
+                    ? com.killer560.hub.roomsim.SimRoomIndex.roomHasCell(room[0], currentIdx)
+                    : roomHasCell(room[0], currentIdx);
+            if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name) || !hasCell) {
                 continue;
             }
             int clayX = room[1];
@@ -367,22 +402,70 @@ public final class SecretWaypointsFeature {
         if (a <= 0f) {
             a = 1f;
         }
+        // Chunk by chunk, and skip a whole 16-block section when its PALETTE has no lever in it.
+        //
+        // This walked every block in the room across 41 y-levels, asking the level for the chunk each time:
+        // 33x33x41 = 44,649 lookups for a 1x1 room and about 173,000 for a 1x4, every second, on the client
+        // thread. A section's palette already knows whether a lever can possibly be inside it, and in a
+        // dungeon room almost none of them contain one - so nearly all of that work was proving a negative
+        // the chunk could have answered in one check.
+        //
+        // The result is identical: same bounds, same y range, same blocks found.
+        // The band the rooms are actually in. On Hypixel that is the fixed 68..108 the constants name; in
+        // the sim the floor is shifted bodily, so the same rooms are somewhere else entirely and a fixed band
+        // finds no levers at all.
+        int shiftY = com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
+        int leverMinY = LEVER_SCAN_MIN_Y + shiftY;
+        int leverMaxY = LEVER_SCAN_MAX_Y + shiftY;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int x = bounds[0]; x <= bounds[2]; x++) {
-            for (int z = bounds[1]; z <= bounds[3]; z++) {
-                for (int y = LEVER_SCAN_MIN_Y; y <= LEVER_SCAN_MAX_Y; y++) {
-                    pos.set(x, y, z);
-                    if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).getBlock() != Blocks.LEVER) {
+        int minChunkX = bounds[0] >> 4;
+        int maxChunkX = bounds[2] >> 4;
+        int minChunkZ = bounds[1] >> 4;
+        int maxChunkZ = bounds[3] >> 4;
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                if (!client.level.hasChunk(cx, cz)) {
+                    continue;
+                }
+                net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(cx, cz);
+                int x0 = Math.max(bounds[0], cx << 4);
+                int x1 = Math.min(bounds[2], (cx << 4) + 15);
+                int z0 = Math.max(bounds[1], cz << 4);
+                int z1 = Math.min(bounds[3], (cz << 4) + 15);
+                var sections = chunk.getSections();
+                for (int i = 0; i < sections.length; i++) {
+                    int sectionMinY = chunk.getSectionYFromSectionIndex(i) << 4;
+                    int sectionMaxY = sectionMinY + 15;
+                    if (sectionMaxY < leverMinY || sectionMinY > leverMaxY) {
                         continue;
                     }
-                    BlockPos real = pos.immutable();
-                    if (!seen.add(real)) {
+                    var section = sections[i];
+                    if (section == null || section.hasOnlyAir()
+                            || !section.maybeHas(state -> state.is(Blocks.LEVER))) {
                         continue;
                     }
-                    AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
-                    CACHED.add(new Waypoint(box,
-                            (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
-                            r, g, b, a, real, Kind.LEVER, "Lever"));
+                    int y0 = Math.max(leverMinY, sectionMinY);
+                    int y1 = Math.min(leverMaxY, sectionMaxY);
+                    for (int x = x0; x <= x1; x++) {
+                        for (int z = z0; z <= z1; z++) {
+                            for (int y = y0; y <= y1; y++) {
+                                if (section.getBlockState(x & 15, y & 15, z & 15).getBlock() != Blocks.LEVER) {
+                                    continue;
+                                }
+                                pos.set(x, y, z);
+                                BlockPos real = pos.immutable();
+                                if (!seen.add(real)) {
+                                    continue;
+                                }
+                                AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
+                                CACHED.add(new Waypoint(box,
+                                        (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5,
+                                        (box.minZ + box.maxZ) * 0.5,
+                                        r, g, b, a, real, Kind.LEVER, "Lever"));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -416,8 +499,14 @@ public final class SecretWaypointsFeature {
         if (a <= 0f) {
             a = 1f;
         }
+        // In the SIM, the whole floor is shifted vertically - about 123 blocks down normally, and 185 up on a
+        // floor carrying Higher Blaze - so a database y has to be shifted with it or every waypoint hangs in
+        // the void at the height the room would have had on Hypixel. Zero everywhere else.
+        int shift = com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
         for (RoomEntry.Pos relative : positions) {
-            BlockPos real = RoomDatabase.toRealCoord(relative, clayX, clayZ, rotation);
+            BlockPos real = RoomDatabase.toRealCoord(relative, clayX, clayZ, rotation)
+                    .above(shift);
             if (COLLECTED.contains(real) || !seen.add(real)) {
                 continue;
             }

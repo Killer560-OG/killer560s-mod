@@ -145,8 +145,12 @@ public final class AuctionConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.ahEnabled = ConfigJson.getBool(obj, "ahEnabled", false);
-                cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", false);
+                // The fallback must be the FIELD's default, not false. These default to true (killer560,
+                // 2026-09-27: "turn auction house and bazaar settings on by default") but load resolved a
+                // missing or malformed key to false - so a config written before those keys existed, or one
+                // with a typo'd key, silently turned both off and looked like the feature was broken.
+                cfg.ahEnabled = ConfigJson.getBool(obj, "ahEnabled", true);
+                cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", true);
                 cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
                 cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
                 cfg.overrideBzCommand = ConfigJson.getBool(obj, "overrideBzCommand", false);

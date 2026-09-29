@@ -84,16 +84,25 @@ public final class SimItems {
         // STARRED_BAT_WAND). It matters beyond being tidy: a route or an item node recorded on Hypixel
         // stores BAT_WAND, so a sim sceptre carrying the wrong id would not have matched it and the
         // route would have stopped with "SPIRIT_SCEPTRE is not in the hotbar".
-        // PAPER is what Hypixel actually sends for the Spirit Sceptre. killer560 sees a flower because his
-        // resource pack draws one over it - so the base item here is the real one, and the pack will do the
-        // same thing in the sim that it does on Hypixel. If it does not, a flower item is a one-word change.
-        SPIRIT_SCEPTRE("BAT_WAND", Items.PAPER, "Spirit Sceptre", 1),
+        // A LOOKALIKE, not Hypixel's own material, for the two items whose material is paper.
+        //
+        // killer560 (2026-09-29): "superboom tnt and the spirit sceptre are both paper instead of their
+        // propper item." Hypixel really does send PAPER for both, and on Hypixel his resource pack draws the
+        // real item over it - but a pack tells them apart by the model id Hypixel attaches, and the sim has no
+        // such id to give it, so in here they were simply paper. Setting a Hypixel model id instead would draw
+        // a missing texture for anyone without that exact pack, which is worse than paper.
+        //
+        // So these two use a vanilla item that already looks like the thing. The Skyblock id in CUSTOM_DATA is
+        // untouched, which is what everything else in the mod actually reads.
+        SPIRIT_SCEPTRE("BAT_WAND", Items.BLAZE_ROD, "Spirit Sceptre", 1),
         TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
+        // Paper is right for this one - it IS a blueprint.
         ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
                 "Architect's First Draft", 1),
-        SUPERBOOM_TNT("SUPERBOOM_TNT", Items.PAPER, "Superboom TNT", 8),
+        SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 8),
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
-        TACTICAL_INSERTION("TACTICAL_INSERTION", Items.BLAZE_ROD, "Tactical Insertion", 1),
+        // Moved off the blaze rod so it is not the same item in the hand as the Spirit Sceptre above.
+        TACTICAL_INSERTION("TACTICAL_INSERTION", Items.FEATHER, "Tactical Insertion", 1),
         DUNGEON_BREAKER("DUNGEONBREAKER", Items.DIAMOND_PICKAXE, "Dungeon Breaker", 1);
 
         final String skyblockId;
@@ -122,11 +131,41 @@ public final class SimItems {
                         return net.minecraft.world.InteractionResult.PASS;
                     }
                     String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getItemInHand(hand));
-                    if (!"DUNGEONBREAKER".equals(id)) {
-                        return net.minecraft.world.InteractionResult.PASS;
+                    if ("DUNGEONBREAKER".equals(id)) {
+                        dungeonBreak(client);
+                        return net.minecraft.world.InteractionResult.SUCCESS;
                     }
-                    dungeonBreak(client);
+                    // killer560 (2026-09-29): "Superboom should be able to be activated on left click as
+                    // well." Right click still works - SimAbilities routes it here - and this is the other
+                    // half, because in a real run it is whichever button your thumb reaches first.
+                    if ("SUPERBOOM_TNT".equals(id)) {
+                        superboomTnt(client);
+                        return net.minecraft.world.InteractionResult.SUCCESS;
+                    }
+                    // Everything else: nothing happens.
+                    //
+                    // killer560 (2026-09-29): "Make sure I cannot break blocks with anything besides the
+                    // dungeon breaker." The sim world is survival, so a sword or a bare hand could mine the
+                    // floor out of a room, and nothing remembered those blocks so they never came back - one
+                    // mis-click permanently changed the room he was practising in. SUCCESS consumes the click
+                    // so the mining animation does not even start.
                     return net.minecraft.world.InteractionResult.SUCCESS;
+                });
+        // And the same rule on the break itself.
+        //
+        // AttackBlockCallback alone is not enough: it stops the click that STARTS a break, but creative mode,
+        // an instant-break block and anything that reaches PlayerBlockBreakEvents by another route would
+        // still go through. This is the one that actually decides whether a block may be destroyed, so the
+        // rule lives here as well - two gates on the same rule, because losing a room to a stray click is not
+        // recoverable.
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
+                (level, player, pos, state, entity) -> {
+                    Minecraft client = Minecraft.getInstance();
+                    if (!SimState.isActive() || client == null || player != client.player) {
+                        return true;
+                    }
+                    return "DUNGEONBREAKER".equals(
+                            com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getMainHandItem()));
                 });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             // killer560 (2026-09-28): "make /simitem open a menu [...] All of it should be through a gui."
@@ -285,8 +324,26 @@ public final class SimItems {
             // mod's real one agree without either knowing about the other.
             tag.putInt("tuned_transmission", DEFAULT_TUNERS);
         }
+        if (TUNABLE.contains(item.skyblockId)) {
+            // The tag the etherwarp OVERLAY looks for. Without it the overlay refuses to draw for the sim's own
+            // Aspect of the Void - it accepts an item either with ethermerge set or with the conduit's id - so
+            // he was aiming an etherwarp in here with no highlight at all.
+            tag.putInt("ethermerge", 1);
+        }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        applySkyblockTooltip(stack, item.skyblockId);
         return stack;
+    }
+
+    /**
+     * Gives a stack the tooltip it has on Hypixel.
+     *
+     * <p>Public because the sim hands out items from more than one place - the picker, loadouts, wither keys
+     * and secret item drops - and killer560 asked for "the same tooltip as main [...] for all items the player
+     * gets", which means all of them, not just the ones this class builds.
+     */
+    public static void applySkyblockTooltip(ItemStack stack, String skyblockId) {
+        SimItemLore.apply(stack, skyblockId);
     }
 
     // ---------------------------------------------------------------------------------------------------
@@ -391,23 +448,87 @@ public final class SimItems {
             ServerLevel level = (ServerLevel) sp.level();
             BlockPos min = center.offset(-SUPERBOOM_RADIUS, -SUPERBOOM_RADIUS, -SUPERBOOM_RADIUS);
             BlockPos max = center.offset(SUPERBOOM_RADIUS, SUPERBOOM_RADIUS, SUPERBOOM_RADIUS);
-            // A crypt is a cracked-stone-brick wall, so a superboom that removes one is a crypt opened. Counted
-            // ONCE per detonation rather than per block: a crypt wall is several blocks and counting each of
-            // them would hand out the bonus five points from a single charge.
+            // A crypt is a cracked-stone-brick wall, so a superboom that removes one is a crypt opened.
+            // Counted ONCE per detonation rather than per block: a crypt wall is several blocks and counting
+            // each of them would hand out the bonus five points from a single charge.
             boolean openedCrypt = false;
+            BlockPos cryptAt = null;
+            BlockPos princeAt = null;
+            int broken = 0;
             for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
                 BlockPos here = pos.immutable();
-                if (level.getBlockState(here).is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)) {
-                    openedCrypt = true;
+                BlockState state = level.getBlockState(here);
+                if (!isFragile(state) && !SimPrince.isPrince(here)) {
+                    continue;
                 }
-                breakIfBreakable(level, here, sp);
+                if (state.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                        || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)) {
+                    openedCrypt = true;
+                    cryptAt = here;
+                }
+                // The prince: the golden crypt that was already in the room. Blowing one opens it and drops
+                // its zombie; only the FIRST prince of the run scores, on his word "multiple princes still
+                // the first one only gives 1 score".
+                if (SimPrince.isPrince(here) && SimPrince.blow(here)) {
+                    princeAt = here;
+                }
+                // NOT remembered, so it never comes back. killer560 (2026-09-29): "If it breaks something it
+                // does not regenerate." That is how a crypt behaves on Hypixel - a wall you have blown open
+                // stays open for the rest of the run - and it is the opposite of the Dungeon Breaker, whose
+                // blocks DO come back. Sharing SimBreakerState between the two was what made a blown crypt
+                // seal itself ten seconds later.
+                level.destroyBlock(here, false, sp, 512);
+                broken++;
+            }
+            if (broken == 0) {
+                client.execute(() -> fail(client, "nothing fragile there - "
+                        + "Superboom only breaks crypt walls"));
+                return;
             }
             if (openedCrypt) {
                 SimScore.cryptBlown();
+                // The zombie that is standing in the crypt. killer560 (2026-09-29): "It should break crypts
+                // and have the zombie spawn."
+                SimMobs.spawnStarred(client, cryptAt.above(), SimMobs.Kind.ZOMBIE);
             }
+            if (princeAt != null) {
+                boolean scored = SimPrince.takeScore();
+                if (scored) {
+                    SimScore.cryptBlown();
+                }
+                SimMobs.spawnStarred(client, princeAt.above(), SimMobs.Kind.ZOMBIE);
+                client.execute(() -> ModChat.send("Sim", ModChat.text("You opened the "),
+                        ModChat.value("prince"), scored ? ModChat.text("") : ModChat.dim(" (no score - "
+                                + "the run has already had its prince point)")));
+            }
+            // One charge per detonation. It was free before, so a single Superboom cleared a whole floor.
+            sp.getInventory().getNonEquipmentItems().stream()
+                    .filter(st -> "SUPERBOOM_TNT".equals(
+                            com.killer560.hub.cheatutils.CheatUtils.skyblockId(st)))
+                    .findFirst().ifPresent(st -> st.shrink(1));
         });
         ModChat.send("Sim", ModChat.text("Superboom TNT detonated"));
         return true;
+    }
+
+    /**
+     * Blocks a Superboom is allowed to break.
+     *
+     * <p>killer560 (2026-09-29): "it shouldnt just break blocks in its way. It should break crypts [...] and
+     * cracked stone bricks."
+     *
+     * <p>It used to clear every breakable block in a 3x3x3 cube, which meant a Superboom aimed anywhere took
+     * a bite out of the room - floor, pillars, decoration, all of it. On Hypixel it only opens the fragile
+     * walls: the cracked brick of a crypt and the chiseled brick that seals a passage, plus the cobwebs that
+     * sometimes stand in for them. Everything else it is pointed at is simply not affected.
+     */
+    private static boolean isFragile(BlockState state) {
+        return state.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.CHISELED_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.INFESTED_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.COBWEB);
     }
 
     /**

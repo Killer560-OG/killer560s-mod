@@ -156,7 +156,12 @@ public final class DungeonLayout {
 
     /** World position of a door cell's lock block (QUOI {@code OdonDoor.pos} at y 69). */
     public static BlockPos doorBlock(int idx) {
-        return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM, 69,
+        // y 69 is Hypixel's floor height. In the sim the whole map is shifted vertically, so the block that
+        // tells a wither door apart from an open one is somewhere else entirely - and read at 69 it is always
+        // air, which reads as "already open".
+        int y = 69 + (com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimAltitude.offset() : 0);
+        return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM, y,
                 LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
     }
 
@@ -164,6 +169,18 @@ public final class DungeonLayout {
     public static BlockPos cellCenter(int idx) {
         return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM, 70,
                 LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
+    }
+
+    /**
+     * The same centre, from grid coordinates rather than an index, so a cell just OFF the grid still has one.
+     *
+     * <p>The sim needs that: a room on the edge of the map can have a doorway pointing outwards, and the wall
+     * it has to brick up stands at the cell beyond the last one. {@link #cellCenter(int)} cannot express that,
+     * because {@code idx % GRID} wraps a negative column round to the far side of the map.
+     */
+    public static BlockPos cellCenter(int gx, int gz) {
+        return new BlockPos(LiveMapFeature.START_X + gx * LiveMapFeature.HALF_ROOM, 70,
+                LiveMapFeature.START_Z + gz * LiveMapFeature.HALF_ROOM);
     }
 
     public int roomCount() {
@@ -176,8 +193,17 @@ public final class DungeonLayout {
 
     /** QUOI {@code ScanUtils.getRoomFromPos}: clamped grid tile under a world position, or -1. */
     public int roomAtWorld(double x, double z) {
-        int gx = Math.max(0, Math.min(10, (int) Math.round(((int) x - LiveMapFeature.START_X) / 32.0) * 2));
-        int gz = Math.max(0, Math.min(10, (int) Math.round(((int) z - LiveMapFeature.START_Z) / 32.0) * 2));
+        // Math.floor, not a cast.
+        //
+        // (int) truncates TOWARD ZERO, so at negative coordinates - which is the entire dungeon grid, anchored
+        // at -185 - it rounds the wrong way and the last block of each tile on the +x and +z sides was
+        // assigned to the neighbouring room. LiveMapFeature.gridCellFor uses the double directly and was
+        // right; this disagreed with it by one block, and roomAtWorld feeds canPath, getLockedDoor,
+        // nearestDoorOut, Blood Rush and the pathfinder's start room.
+        int gx = Math.max(0, Math.min(10,
+                (int) Math.round((Math.floor(x) - LiveMapFeature.START_X) / 32.0) * 2));
+        int gz = Math.max(0, Math.min(10,
+                (int) Math.round((Math.floor(z) - LiveMapFeature.START_Z) / 32.0) * 2));
         return roomOf[gz * GRID + gx];
     }
 

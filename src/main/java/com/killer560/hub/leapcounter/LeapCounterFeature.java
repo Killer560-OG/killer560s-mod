@@ -111,8 +111,14 @@ public final class LeapCounterFeature {
     }
 
     private static String format(int count, int target, LeapTracker.Section section) {
-        String color = count >= target ? "§a" : (target - count == 1 ? "§e" : "§c");
-        return color + count + "§7/§b" + target + " §fLeaped §8(" + section.label() + ")";
+        // Clamped to the target, so the HUD can never read "4/3".
+        //
+        // count is the number of teammates seen to leap and target is min(alive teammates, configured) -
+        // which defaults to 3 for S3 while a full party is 4. With everyone on the S3 holder, which is
+        // normal, the row read 4/3 and the "Everyone Leaped!" alert fired a leap early.
+        int shown = Math.min(count, target);
+        String color = shown >= target ? "§a" : (target - shown == 1 ? "§e" : "§c");
+        return color + shown + "§7/§b" + target + " §fLeaped §8(" + section.label() + ")";
     }
 
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {

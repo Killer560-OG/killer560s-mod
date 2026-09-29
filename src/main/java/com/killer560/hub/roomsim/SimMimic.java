@@ -40,8 +40,21 @@ public final class SimMimic {
         "entrance", "blood", "fairy", "puzzle", "trap", "boss"
     };
 
-    /** Every chest that could have been the mimic on this map. */
-    private static final Set<BlockPos> CANDIDATES = new LinkedHashSet<>();
+    /**
+     * Every chest that could have been the mimic on this map.
+     *
+     * <p>Concurrent, because the two sides do not share a thread: the SERVER thread adds to it while a build
+     * places chests, and the unguarded render callback in {@code SimMimicRenderer} iterates it every frame.
+     * A plain LinkedHashSet there is a ConcurrentModificationException waiting for a build to run while he is
+     * looking at the room - which is most of them. Insertion order is preserved, which the picker relies on.
+     */
+    private static final Set<BlockPos> CANDIDATES =
+            java.util.Collections.newSetFromMap(new java.util.LinkedHashMap<>() {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<BlockPos, Boolean> eldest) {
+                    return false;
+                }
+            });
 
     /** The one that actually is. */
     private static BlockPos mimic;

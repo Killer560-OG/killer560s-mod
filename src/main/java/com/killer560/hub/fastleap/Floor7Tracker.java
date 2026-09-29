@@ -26,8 +26,14 @@ public final class Floor7Tracker {
         UNKNOWN(0), S1(1), S2(2), S3(3), S4(4), S5(5);
 
         // QUOI REGEX_TERM_COMPLETED, plus an optional trailing suffix so a line annotated by another mod still matches.
+        // The name group is a REAL username, not any 16 characters.
+        //
+        // ".{1,16}" is anchored but still matches "[VIP] Bob: a" - twelve characters - so any player typing
+        // "a completed a terminal! (7/7)" forged a stage completion. For Fast Leap that means an automated leap
+        // in P3; for Lever Aura it advances or ends the section counter and levers get clicked out of sequence.
+        // A Minecraft name is letters, digits and underscore, which no chat prefix can be.
         private static final Pattern TERM_COMPLETED =
-                Pattern.compile("^(.{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
+                Pattern.compile("^([A-Za-z0-9_]{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
 
         public final int number;
         private int current = 0;

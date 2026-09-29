@@ -241,7 +241,19 @@ public final class BreakerAuraFeature {
      */
     static void onWorldRender(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
-        if (!cfg.isBreakerAuraEnabled() && cfg.getBreakerAuraSelectKey() == com.killer560.hub.util.KeyUtil.NONE) {
+        // The select key DEFAULTS to semicolon, so "enabled, or a select key is bound" was true out of the
+        // box and this render callback ran in every world - the lobby, the hub, a skyblock island - walking
+        // up to MAX_PICKED (4000) blocks per frame for a dungeon feature. Being in a dungeon is the real
+        // condition; the picker is no use anywhere else.
+        if (!com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+            return;
+        }
+        // Drawn only when the feature is ON, or when he is editing the list.
+        //
+        // killer560 (2026-09-29): "I shouldnt be able to see breaker blocks while the setting is off." The old
+        // condition was "enabled, OR a select key is bound" - and the select key defaults to semicolon, so a
+        // bound key was the normal state and the boxes were drawn with the feature switched off.
+        if (!cfg.isBreakerAuraEnabled() && !cfg.isBreakerAuraEditMode()) {
             return;
         }
         Minecraft client = Minecraft.getInstance();
@@ -368,7 +380,14 @@ public final class BreakerAuraFeature {
         if (!cfg.isBreakerAuraRespectEditMode() || !isRouteEditModeActive()) {
             tickSelectKey(client);
         }
-        boolean active = cfg.isBreakerAuraEnabled() && client.player != null && client.level != null
+        // EDIT MODE breaks nothing.
+        //
+        // killer560 (2026-09-29): "There should be a button to toggle edit mode that makes it not break them
+        // for me to add or remove them." Picking above still runs - that is the point of the mode - but the
+        // aura itself stands down, so he can add and remove blocks in a wall without it disappearing as he
+        // works.
+        boolean active = cfg.isBreakerAuraEnabled() && !cfg.isBreakerAuraEditMode()
+                && client.player != null && client.level != null
                 && client.gameMode != null && DungeonState.isInDungeon();
         if (active != wasActive) {
             wasActive = active;

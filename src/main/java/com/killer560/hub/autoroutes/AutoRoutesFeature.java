@@ -2,6 +2,7 @@ package com.killer560.hub.autoroutes;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.DungeonLayout;
+import com.killer560.hub.livemap.InteractiveMapFeature;
 import com.killer560.hub.livemap.InteractiveMapScreen;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.BloodRush;
@@ -59,7 +60,8 @@ public final class AutoRoutesFeature {
     /** NoammAddons {@code ActionBarParser} / {@code LiveMapFeature.ACTION_BAR_SECRETS}. */
     private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d+)/(\\d+) Secrets");
     /** QUOI DB editor: a block further than this (squared) from the breaker node is refused. */
-    private static final double EDIT_MAX_DIST_SQ = 30.0;
+    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    private static final double EDIT_MAX_DIST_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
 
     private static boolean editMode;
     /** The DUNGEON_BREAKER node {@code /ar edit db} right-clicks add blocks to (chosen when edit mode turns on). */
@@ -234,15 +236,41 @@ public final class AutoRoutesFeature {
      * @return true when consumed (the caller skips its own pathing).
      */
     public static boolean onMapRoomClicked(DungeonLayout layout, int room) {
+        if (layout == null || room < 0 || room != layout.currentRoom()) {
+            return false;
+        }
+        return warpToStartNode(layout, room);
+    }
+
+    /**
+     * killer560, 2026-09-29: "If I double click a room then it should auto pathfind to the start node to start
+     * secreting." - the same START-node warp {@link #onMapRoomClicked} does, for ANY room on the map rather than
+     * only the one under your feet.
+     * <p>
+     * A {@link RouteCoords.Frame} is nothing but a room name plus its clay corner and rotation, and
+     * {@link DungeonLayout} already carries both for every room it has identified, so a room across the floor
+     * resolves exactly like the current one - {@code Frame.current()} is just the live-map shortcut for the room
+     * you are standing in. The room's name is checked against the {@code "Unknown"} placeholder
+     * {@link DungeonLayout#name} hands back for a room it has not identified yet: every unidentified room shares
+     * that one string, so looking a route up by it would hand back whatever route happens to be saved under it.
+     *
+     * @return true when the warp was started; false when this room has no recorded route (the caller falls back).
+     */
+    public static boolean warpToStartNode(DungeonLayout layout, int room) {
         // Asking to be taken to the start node is as deliberate as typing /ar start: a stop the player made
         // earlier must not make the route refuse to arm when they land (2026-09-16 review).
         RouteExecutor.clearStoppedByUser();
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
-        if (!cfg.isEnabled() || layout == null || room < 0 || room != layout.currentRoom()) {
+        if (!cfg.isEnabled() || layout == null || room < 0) {
             return false;
         }
-        RouteCoords.Frame frame = RouteCoords.Frame.current();
-        Route route = frame == null ? null : RouteStore.getInstance().forRoom(frame.roomName());
+        String name = layout.name(room);
+        int[] clayRotation = layout.clayRotation(room);
+        if (name == null || name.isBlank() || "Unknown".equals(name) || clayRotation == null) {
+            return false;
+        }
+        RouteCoords.Frame frame = new RouteCoords.Frame(name, clayRotation[0], clayRotation[1], clayRotation[2]);
+        Route route = RouteStore.getInstance().forRoom(frame.roomName());
         RouteNode start = route == null ? null : route.startNode();
         if (start == null) {
             return false;
@@ -267,6 +295,45 @@ public final class AutoRoutesFeature {
         });
         chat(ModChat.text("Warping to the start node of "), ModChat.value(frame.roomName()));
         return true;
+    }
+
+    /**
+     * killer560, 2026-09-29: "For the map make it such that if I am in the middle of a secret route and use it
+     * then it'll use the interactive map portion instead of the secret route portion." The Interactive Map wins
+     * outright - it is about to move him, and two things steering at once is the one outcome neither of them
+     * can recover from.
+     *
+     * <p>Interlock 1 already stops a route when the map SCREEN opens, and interlock 5 keeps it stopped while a
+     * map teleport is in flight. This is the press itself saying so, which matters for two cases neither covers:
+     * a press landing in the same tick the screen opened (both features tick on {@code END_CLIENT_TICK}, so
+     * which one sees the other first is just registration order), and the ticks a map goal spends QUEUED, where
+     * {@code ClearExecutor.isBusy()} is deliberately false - see {@link InteractiveMapFeature#isSteering()},
+     * which interlock 5 now also checks.
+     *
+     * <p>{@link RouteExecutor#stop} is a real cancel and needs nothing added: it drops the step machine, calls
+     * {@code releaseKeys()} (which zeroes the want-flags the input mixin reads, so it works whether the mixin
+     * applied or not) and {@code RouteRotation.clear()} (which releases the camera). Everything a node builds
+     * up - the breaker queue, the boom block snapshot, the swap and await state - is rebuilt from scratch by
+     * {@code beginAction}, so a cancel mid-node cannot leak into the next route. What it does NOT clear is
+     * {@code stoppedByUser}, and that one would make the next route refuse to arm, so it is cleared here for the
+     * same reason {@code onMapRoomClicked} already cleared it: being taken somewhere by the map is as deliberate
+     * as typing {@code /ar start}.
+     */
+    public static void cancelForInteractiveMap(String why) {
+        if (!AutoRoutesConfig.getInstance().isEnabled()) {
+            return;
+        }
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop(why);
+        }
+        RouteExecutor.clearStoppedByUser();
+        RouteExecutor.clearJustFinished();
+        // The map is about to move him, so hold the feature in the same state a map teleport puts it in: only
+        // the START node may arm until he has been through it. latchedNode is deliberately left alone - nulling
+        // it is what lets a node arm UNDER him, which is the arrival callback's job, not the press's.
+        mapArrivalGuard = true;
+        arrivedByTeleport = true;
+        teleportSettleTicks = TELEPORT_SETTLE_TICKS;
     }
 
     /** {@link RouteStore#reload()} swapped the routes: drop anything pointing at the old objects. */
@@ -339,7 +406,11 @@ public final class AutoRoutesFeature {
         hidden = false;
 
         // Interlock 5: Blood Rush (or any Interactive Map teleport in flight) -> inert.
-        if (BloodRush.isRunning() || ClearExecutor.isBusy()) {
+        // isSteering() covers the ticks a map goal spends QUEUED behind a cancelled path, where isBusy() is
+        // false by design and a node underfoot would otherwise arm in the gap and steer against the warp that
+        // is about to start (killer560, 2026-09-29: "it'll use the interactive map portion instead of the
+        // secret route portion").
+        if (BloodRush.isRunning() || ClearExecutor.isBusy() || InteractiveMapFeature.isSteering()) {
             if (RouteExecutor.isRunning()) {
                 RouteExecutor.stop(BloodRush.isRunning() ? "Auto Blood Rush" : "Interactive Map teleport");
             }

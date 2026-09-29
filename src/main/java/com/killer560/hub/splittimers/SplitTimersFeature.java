@@ -94,8 +94,17 @@ public final class SplitTimersFeature {
     // Blood Key line: the three real forms this repo already matches in doorhelpers/LookAtDoorFeature.onChat
     // ("has obtained Blood Key", "Blood Key was picked up", "RIGHT CLICK on the BLOOD DOOR ...").
     private static final SplitDef BLOOD_RUSH = def(BLOOD_OPEN.pattern().pattern(), "§2Blood Rush");
+    /**
+     * ANCHORED for real. The leading "^" bought nothing while the first two alternatives began with ".*".
+     *
+     * <p>This is matched against every line ChatObserver sees, which explicitly includes other players'
+     * party, guild and all chat - so "Party > Bob: has obtained Blood Key" matched in full, and because the
+     * first write wins, one forged line stamped the Blood split twenty seconds into the clear and left the
+     * Blood Open and Boss Entry rows wrong for the whole run. Same class as the wither-key and boss-phase
+     * spoofs fixed earlier on 2026-09-29; this one was missed because it LOOKED anchored.
+     */
     private static final SplitDef BLOOD_KEY = def(
-            "^(?:.*(?:has obtained Blood Key|Blood Key was picked up).*|RIGHT CLICK on the BLOOD DOOR.*)$",
+            "^(?:[A-Za-z0-9_]{1,16} has obtained Blood Key!?|Blood Key was picked up!?|RIGHT CLICK on the BLOOD DOOR.*)$",
             "§2Blood Open");
     private static final SplitDef WATCHER_DIALOGUE = def(BLOOD_CLEAR.pattern().pattern(), "§cWatcher Dialogue");
     // Devonian WatcherSplits: WatcherDialog's stop trigger, i.e. the line the blood mobs start on.

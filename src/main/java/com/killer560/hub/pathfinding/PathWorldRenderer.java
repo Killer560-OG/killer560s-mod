@@ -24,6 +24,9 @@ import java.util.Locale;
  */
 public final class PathWorldRenderer {
 
+    /** Points per segment, however long the segment claims to be. */
+    private static final int MAX_SUBDIVISIONS = 512;
+
     private static final double SUBDIVISION_STEP = 0.5;
 
     private PathWorldRenderer() {
@@ -129,7 +132,17 @@ public final class PathWorldRenderer {
             Vec3 p1 = points.get(i);
             Vec3 p2 = points.get(i + 1);
             Vec3 p3 = i + 2 < points.size() ? points.get(i + 2) : points.get(i + 1);
-            int steps = (int) Math.max(1, p1.distanceTo(p2) / SUBDIVISION_STEP);
+            // Capped, and NaN-proof.
+            //
+            // This was unbounded, inside an unguarded render callback. "/k560path 30000000 64 30000000" asks
+            // for about 85 million points and takes the game out of memory on the render thread, and
+            // parseDouble accepts "Infinity", which made steps negative or enormous. A segment longer than a
+            // few hundred blocks does not need more detail than this to look smooth.
+            double segment = p1.distanceTo(p2);
+            if (!Double.isFinite(segment)) {
+                continue;
+            }
+            int steps = (int) Math.max(1, Math.min(MAX_SUBDIVISIONS, segment / SUBDIVISION_STEP));
             for (int step = 1; step <= steps; step++) {
                 out.add(catmullRom(p0, p1, p2, p3, (double) step / steps));
             }

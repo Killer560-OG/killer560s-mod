@@ -8,6 +8,7 @@ import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -38,8 +39,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPacketListener.class)
 public abstract class PartyFinderLoreCacheMixin {
 
+    /**
+     * Whether the cache is wanted at all.
+     *
+     * <p>These hooks sit on the packet path for EVERY container in the game, and each one walked up to ninety
+     * slots turning every lore line into a String inside a synchronized method - while the Party Finder
+     * overlay that consumes it defaults to off. So the cost was paid in every menu, all the time, for nothing.
+     */
+    @Unique
+    private static boolean killer560smod$wanted() {
+        try {
+            return com.killer560.hub.partyfinder.PartyFinderOverlayConfig.getInstance().isEnabledRaw();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     @Inject(method = "handleContainerContent", at = @At("HEAD"), require = 1)
     private void killer560smod$cacheContent(ClientboundContainerSetContentPacket packet, CallbackInfo ci) {
+        if (!killer560smod$wanted()) {
+            return;
+        }
         try {
             PartyFinderLoreCache.onContent(packet.containerId(), packet.items());
         } catch (Throwable ignored) {
@@ -49,6 +69,9 @@ public abstract class PartyFinderLoreCacheMixin {
 
     @Inject(method = "handleContainerSetSlot", at = @At("HEAD"), require = 1)
     private void killer560smod$cacheSlot(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
+        if (!killer560smod$wanted()) {
+            return;
+        }
         try {
             PartyFinderLoreCache.onSlot(packet.getContainerId(), packet.getSlot(), packet.getItem());
         } catch (Throwable ignored) {

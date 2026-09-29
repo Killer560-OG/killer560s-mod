@@ -1054,6 +1054,7 @@ public final class Ap3Executor {
             case STOP -> tickStop(player);
             case LOOK -> tickLook(player, node);
             case BOOM -> tickBoom(client, player, node);
+            case USE -> tickUse(client, player, node);
             case BLOCK -> tickBlock(client, player, node);
             case STOPWATCH -> {
                 toggleStopwatch(node);
@@ -1072,6 +1073,67 @@ public final class Ap3Executor {
             }
         }
     }
+
+    /**
+     * USE: right-click whatever is in his hand, along the angle the node was made at.
+     *
+     * <p>killer560 (2026-09-29): "add a use node for things to ap3 that uses an item at the angle the player
+     * was looking when they made the node."
+     *
+     * <p>The angle is the node's OWN recorded yaw and pitch, fed through the same aim path BOOM uses - so the
+     * server sees the rotation before the use, and the camera is put back afterwards rather than left pointing
+     * wherever the node said. Nothing is swapped: it uses what is held, because "uses an item" is about the
+     * action, and which item is his to choose by putting it in his hand.
+     *
+     * <p>A block under the ray gets {@code useItemOn} at the real hit, so a lever, a button or a chest behaves
+     * as it would under a real click; nothing under it gets a plain {@code useItem}, which is what firing a
+     * wand or an ender pearl at the sky needs.
+     */
+    private static void tickUse(Minecraft client, LocalPlayer player, Ap3Node node) {
+        switch (step) {
+            case PREP -> {
+                if (takePreAim(node, player)) {
+                    preAimPrevSlot = -1;
+                    step = Step.DO;
+                    stepTicks = 0;
+                    tickUse(client, player, node);
+                    return;
+                }
+                beginAim(player);
+                step = Step.AIM;
+                stepTicks = 0;
+            }
+            case AIM -> {
+                aimAt(player, node);
+                step = Step.DO;
+                stepTicks = 0;
+            }
+            case DO -> {
+                // The gate decides whether this tick's one automated interaction is ours; a refused tick costs
+                // nothing, the same use is asked for again next tick.
+                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+                    return;
+                }
+                Vec3 eye = player.getEyePosition();
+                Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(USE_REACH);
+                HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, player));
+                endAim(player);
+                if (hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK
+                        && client.gameMode != null) {
+                    client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
+                } else if (client.gameMode != null) {
+                    client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                }
+                player.swing(InteractionHand.MAIN_HAND);
+                finishNode();
+            }
+            default -> finishNode();
+        }
+    }
+
+    /** How far a USE node's ray looks for a block before treating the use as "at the air". */
+    private static final double USE_REACH = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
 
     // ---- JUMP / EDGE ------------------------------------------------------------------------------------------
 

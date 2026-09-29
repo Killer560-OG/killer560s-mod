@@ -1070,11 +1070,14 @@ final class SettingTooltipsData {
         // "Teleport Pathing" toggle any more (its settings just sit under Interactive Map's own Automation
         // header now), and "Path Threads" is gone too - see EtherwarpPathfinder.threadsFor's own doc.
         d.put("interactive map/map mode", "Whether the Interactive Map stays open until you press the open key again (Toggle) or only while you hold it down (Hold).");
-        d.put("start key", "Cheat build only. While the Interactive Map is open, paths you to the start of the room you are in. Esc clears it; can be bound to a mouse button.");
+        d.put("start key", "Cheat build only. While the Interactive Map is open, acts on the room under your cursor: goes there, retargets a path already running, or runs that room's secrets if you are standing in it. Press twice quickly for its route start node. Esc clears it; can be bound to a mouse button.");
         d.put("locked door key", "Cheat build only. While the Interactive Map is open, paths you to the nearest locked (wither) door. Esc clears it; can be bound to a mouse button.");
         d.put("face door on arrival", "Cheat build only. Turns you to look at the door once pathing gets you there.");
         d.put("keep chunks loaded", "Cheat build only. Holds onto chunks the server unloads so pathing can still route through rooms you have left. Uses the Chunk Cache. On by default.");
         d.put("path timeout", "Cheat build only. How long the pathfinder may search before giving up, 200-1000 ms.");
+        d.put("retarget mid-path", "Cheat build only. A press on another room or door while a path is already running cancels that path and re-plans to the new goal, instead of being ignored until the old path finishes.");
+        d.put("double-press start node", "Cheat build only. Pressing the Start Key twice quickly on the same room paths to that room's Auto Routes start node, so you land ready to run its secrets. Rooms with no recorded route fall back to the room's own spot.");
+        d.put("double-press window", "How long after a map press a second press on the same room still counts as a double press, 150-1000 ms.");
         d.put("interactive map/show etherwarp path", "Cheat build only. Draws a small circle at each etherwarp hop your queued path is about to take, with a line joining them in order, while a Teleport route is active.");
         d.put("auto blood rush", "Cheat build only. Etherwarp-rushes you door to door towards blood as soon as it is toggled on.");
         d.put("blood rush key", "Cheat build only. Toggles Auto Blood Rush on and off. Works with the map open or closed. Esc clears it; can be bound to a mouse button.");

@@ -48,7 +48,8 @@ public final class DungeonExtrasConfig {
 
     // Breaker Aura (cheat)
     private boolean breakerAuraEnabled = false;
-    private double breakerAuraReach = 4.5;
+    /** The measured limit, from the constant rather than a literal that has to be kept in step. */
+    private double breakerAuraReach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     /**
      * How far EITHER SIDE of his own line the swept corridor looks, on top of his 0.3 half-width.
      * <p>
@@ -103,7 +104,34 @@ public final class DungeonExtrasConfig {
       * Replaces the old Blocks Per Cycle slider (1-5). The old value is still read from the config once, purely so
       * anyone who had set it above 1 gets Multi Break on rather than silently losing what they had asked for.
       */
-     private boolean breakerAuraMultiBreak = false;
+     /**
+      * Multi Break: several breaks on one client tick.
+      *
+      * <p>Default ON since 2026-09-29, and switched on ONCE for a config that predates that - see
+      * {@link #breakerAuraMultiBreakDefaulted}. killer560: "for breaker aura it can multibreak if it doesnt
+      * flag." Measured against a real GrimAC on the harness the same day, scenario 51 against scenario 50 as
+      * the control: 904 break-starts over 139 ticks with up to TEN on a single tick, 930 blocks cleared,
+      * <b>zero violations</b>, zero Post violations, furthest reach 4.50 to the box - and the positive
+      * control fired in the same run, so the detector was demonstrably still watching. It is about twice as
+      * fast through a wall: 0.54 blocks a tick against 0.28.
+      *
+      * <p>What that does NOT mean: GrimAC is not Watchdog. Ten interaction packets inside one client tick is
+      * not a pattern a hand can produce and is visible as such to anything that looks for it, whether or not
+      * Grim names it. Nothing here tries to disguise that - no jitter, no shaped spacing - because disguising
+      * it is a different thing from doing it.
+      */
+     private boolean breakerAuraMultiBreak = true;
+
+     /** Whether the Multi Break default has already been applied to this config. One-time, like Interop's. */
+     private boolean breakerAuraMultiBreakDefaulted = false;
+     /**
+      * Edit Mode: show the picked blocks and let him change them, but break NOTHING.
+      *
+      * <p>killer560 (2026-09-29): "There should be a button to toggle edit mode that makes it not break them
+      * for me to add or remove them." Until now the only way to edit a wall was to turn the whole feature off
+      * - and with it off the boxes were still drawn, which was the other half of the complaint.
+      */
+     private boolean breakerAuraEditMode = false;
      /** Legacy, read at load only, to migrate a Blocks Per Cycle above 1 into {@link #breakerAuraMultiBreak}. */
      private int breakerAuraBlocksPerCycle = 1;
     /**
@@ -147,7 +175,9 @@ public final class DungeonExtrasConfig {
                 cfg.autoDialogueNpcFilter = o.has("autoDialogueNpcFilter") ? o.get("autoDialogueNpcFilter").getAsString() : cfg.autoDialogueNpcFilter;
                 cfg.autoDialogueOutsideDungeons = bool(o, "autoDialogueOutsideDungeons", cfg.autoDialogueOutsideDungeons);
                 cfg.breakerAuraEnabled = bool(o, "breakerAuraEnabled", cfg.breakerAuraEnabled);
-                cfg.breakerAuraReach = clamp((float) (o.has("breakerAuraReach") ? o.get("breakerAuraReach").getAsDouble() : cfg.breakerAuraReach), 1f, 5.5f);
+                // 4.5, not 5.5: past the measured limit the server refuses the break outright. Clamped on LOAD as
+                // well as in the setter, or a config saved at 5.5 before this change would load unchanged.
+                cfg.breakerAuraReach = clamp((float) (o.has("breakerAuraReach") ? o.get("breakerAuraReach").getAsDouble() : cfg.breakerAuraReach), 1f, (float) com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH);
                 cfg.breakerAuraSideReach = clamp((float) (o.has("breakerAuraSideReach") ? o.get("breakerAuraSideReach").getAsDouble() : cfg.breakerAuraSideReach), 0f, 2f);
                 cfg.breakerAuraSelectedOnly = bool(o, "breakerAuraSelectedOnly", cfg.breakerAuraSelectedOnly);
                 cfg.breakerAuraSelectKey = o.has("breakerAuraSelectKey")
@@ -167,9 +197,23 @@ public final class DungeonExtrasConfig {
                 cfg.breakerAuraMultiBreak = o.has("breakerAuraMultiBreak")
                         ? o.get("breakerAuraMultiBreak").getAsBoolean()
                         : cfg.breakerAuraBlocksPerCycle > 1;
+                // The new default, applied ONCE. A config written before 2026-09-29 carries the old "false"
+                // and would otherwise never see the change; after this it is his setting again and is never
+                // touched, so turning it back off sticks.
+                cfg.breakerAuraMultiBreakDefaulted =
+                        bool(o, "breakerAuraMultiBreakDefaulted", cfg.breakerAuraMultiBreakDefaulted);
+                if (!cfg.breakerAuraMultiBreakDefaulted) {
+                    cfg.breakerAuraMultiBreakDefaulted = true;
+                    cfg.breakerAuraMultiBreak = true;
+                    org.slf4j.LoggerFactory.getLogger("killer560smod-dungeonextras").info(
+                            "[DungeonExtras] Multi Break switched on once (new default - measured clean "
+                                    + "against GrimAC on 2026-09-29). Turn it off in the Breaker Aura tab if "
+                                    + "you would rather it sent one break a tick.");
+                }
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
+                cfg.breakerAuraEditMode = bool(o, "breakerAuraEditMode", cfg.breakerAuraEditMode);
                 cfg.breakerAuraAutoSwap = bool(o, "breakerAuraAutoSwap", cfg.breakerAuraAutoSwap);
                 cfg.breakerAuraSwapDelayTicks = clampInt(o.has("breakerAuraSwapDelayTicks") ? o.get("breakerAuraSwapDelayTicks").getAsInt() : cfg.breakerAuraSwapDelayTicks, 1, 20);
                 cfg.breakerAuraSwapBack = bool(o, "breakerAuraSwapBack", cfg.breakerAuraSwapBack);
@@ -201,6 +245,7 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraReach", breakerAuraReach);
             o.addProperty("breakerAuraSideReach", breakerAuraSideReach);
             o.addProperty("breakerAuraMultiBreak", breakerAuraMultiBreak);
+            o.addProperty("breakerAuraMultiBreakDefaulted", breakerAuraMultiBreakDefaulted);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
             o.addProperty("breakerAuraSelectedOnly", breakerAuraSelectedOnly);
             o.addProperty("breakerAuraSelectKey", breakerAuraSelectKey);
@@ -212,6 +257,7 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraCooldownTicks", breakerAuraCooldownTicks);
             o.addProperty("breakerAuraZeroPing", breakerAuraZeroPing);
             o.addProperty("breakerAuraRespectEditMode", breakerAuraRespectEditMode);
+            o.addProperty("breakerAuraEditMode", breakerAuraEditMode);
             o.addProperty("breakerAuraAutoSwap", breakerAuraAutoSwap);
             o.addProperty("breakerAuraSwapDelayTicks", breakerAuraSwapDelayTicks);
             o.addProperty("breakerAuraSwapBack", breakerAuraSwapBack);
@@ -282,9 +328,11 @@ public final class DungeonExtrasConfig {
     public boolean isBreakerAuraEnabledRaw() { return breakerAuraEnabled; }
     public void setBreakerAuraEnabled(boolean v) { breakerAuraEnabled = v; }
     public double getBreakerAuraReach() { return breakerAuraReach; }
-    public void setBreakerAuraReach(double v) { breakerAuraReach = clamp((float) v, 1f, 5.5f); }
+    public void setBreakerAuraReach(double v) { breakerAuraReach = clamp((float) v, 1f, (float) com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH); }
     public double getBreakerAuraSideReach() { return breakerAuraSideReach; }
     public void setBreakerAuraSideReach(double v) { breakerAuraSideReach = clamp((float) v, 0f, 2f); }
+    public boolean isBreakerAuraEditMode() { return breakerAuraEditMode; }
+    public void setBreakerAuraEditMode(boolean v) { breakerAuraEditMode = v; }
     public boolean isBreakerAuraMultiBreak() { return breakerAuraMultiBreak; }
     public void setBreakerAuraMultiBreak(boolean v) { breakerAuraMultiBreak = v; }
     public int getBreakerAuraCooldownTicks() { return breakerAuraCooldownTicks; }

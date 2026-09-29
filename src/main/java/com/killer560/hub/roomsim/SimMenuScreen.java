@@ -155,11 +155,11 @@ public class SimMenuScreen extends Screen {
                 SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
                 v -> puzzleCount = v));
 
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Pick specific rooms..."), b -> {
-            mode = Mode.ROOM;
-            scroll = 0;
-            rebuildWidgets();
-        }).bounds(x, y + 80, full, 20).build());
+        // killer560 (2026-09-29): "make this page that map selection instead of the pick specific rooms
+        // thing." The single-room picker still exists behind /simroom for when he wants one room; this row is
+        // the thing he asked for, which is laying out a whole floor by hand.
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Design the map..."), b ->
+                this.minecraft.setScreen(new SimMapEditorScreen(this))).bounds(x, y + 80, full, 20).build());
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("\u00a7aGenerate"), b -> {
             SimFloorGen.generate(this.minecraft, floor, puzzleCount, roomsToBlood);
@@ -281,8 +281,10 @@ public class SimMenuScreen extends Screen {
         g.text(this.font, mode.title.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11,
                 ProfitPanels.ACCENT, false);
         // "0 rooms captured" while it is still reading would be a lie that looks like lost data.
+        // Both halves, because "87 rooms captured" next to a library of 135 files reads as lost data when it
+        // actually means 87 are usable and the rest still need walking (killer560 saw exactly that).
         String count = RoomLibrary.isReady()
-                ? RoomLibrary.completeCount() + " rooms captured"
+                ? RoomLibrary.completeCount() + " of " + RoomLibrary.expectedCount() + " rooms ready"
                 : "loading rooms... " + RoomLibrary.loadedSoFar();
         g.text(this.font, count, panelX + panelW - 10 - this.font.width(count), panelY + 11,
                 ProfitPanels.DIM, false);

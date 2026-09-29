@@ -103,18 +103,27 @@ public final class InteractiveMapFeature {
         // QUOI start / locked door keys only act while the map is open. killer560: "The button prebound as
         // lmb and rmb should be customizable in settings, those are the ones currently under start key and
         // locked door key" - both now poll isBindDown so either one can be set to a mouse button too.
-        boolean startDown = hasWindow && cfg.getStartKeyCode() != com.killer560.hub.util.KeyUtil.NONE
+        //
+        // killer560, 2026-09-29: "Remember this isn't a left or right click but based off of my key binds."
+        // So the Start Key no longer means "the room I am standing in": it means "the room under the cursor on
+        // the open map", and falls back to the current room only when the cursor is off the map. A bind set to
+        // a MOUSE button is deliberately NOT polled here while the map is open - the screen already receives
+        // that button as a real click, and polling it as well would count one press twice and turn every single
+        // press into a double press.
+        boolean pollMouseBinds = !mapOpen;
+        boolean startDown = hasWindow && bindPollable(cfg.getStartKeyCode(), pollMouseBinds)
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
         if (startDown && !startWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
-            pathToCurrentRoomStart();
+            onMapPress(cellUnderCursor(client));
         }
         startWasDown = startDown;
-        boolean lockedDown = hasWindow && cfg.getLockedDoorKeyCode() != com.killer560.hub.util.KeyUtil.NONE
+        boolean lockedDown = hasWindow && bindPollable(cfg.getLockedDoorKeyCode(), pollMouseBinds)
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getLockedDoorKeyCode());
         if (lockedDown && !lockedWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
             pathToLockedDoor();
         }
         lockedWasDown = lockedDown;
+        tickPendingGoal(client);
 
         boolean bloodDown = hasWindow && cfg.getBloodRushKeyCode() != com.killer560.hub.util.KeyUtil.NONE
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getBloodRushKeyCode());
@@ -129,6 +138,198 @@ public final class InteractiveMapFeature {
     private static boolean isDead(Minecraft client) {
         return client.player == null || client.player.isDeadOrDying()
                 || PartyTracker.isDead(client.player.getGameProfile().name());
+    }
+
+    /** A bind is polled here unless it is a mouse button the open map screen is already delivering as a click. */
+    private static boolean bindPollable(int code, boolean pollMouseBinds) {
+        return code != com.killer560.hub.util.KeyUtil.NONE
+                && (pollMouseBinds || !com.killer560.hub.util.KeyUtil.isMouseCode(code));
+    }
+
+    // ------------------------------------------------------------------------------------------- map presses
+
+    /** Last map press, for the double-press test. The mod had no double-press helper to reuse, so this is the
+     *  whole of it: same room twice inside the configured window. */
+    private static long lastPressMs = 0;
+    private static int lastPressRoom = -1;
+
+    /**
+     * Every Interactive Map "go here" press lands here, whichever input made it - the Start Key polled above, or
+     * a click on the screen (killer560, 2026-09-29: "Remember this isn't a left or right click but based off of
+     * my key binds", so neither input may have rules of its own).
+     *
+     * <p>His three cases, in the order they are tested:
+     * <ol>
+     * <li>"If I double click a room then it should auto pathfind to the start node to start secreting" - a second
+     * press on the same room inside the double-press window goes to that room's Auto Routes START node.
+     * <li>"If I click a room I am already in once then it does its secrets still" - a single press on the room
+     * you are standing in is {@link #activateRoom}, i.e. Auto Routes runs that room's own route.
+     * <li>"If I click a different room mid path then it goes doesn't have to be a double click same with
+     * dooring" - any other single press just goes there, cancelling a path already in flight if there is one.
+     * </ol>
+     *
+     * @param cell grid cell under the cursor, or -1 when the cursor is not over the map
+     */
+    static void onMapPress(int cell) {
+        LiveMapConfig cfg = LiveMapConfig.getInstance();
+        if (!cfg.isInteractiveMapEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            // Used to quietly fall back to toggling waypoints, which is why a press sometimes did something
+            // entirely unrelated to what it means. Say why instead.
+            ModChat.send(CHAT, ModChat.dim(LiveMapFeature.isInBoss()
+                    ? "Not during the boss." : "Interactive Map is off, or you are not in a dungeon."));
+            return;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        int gid = cell < 0 ? -1 : LiveMapFeature.groupIdAt(cell);
+        if (gid < 0) {
+            lastPressRoom = -1;
+            if (cell >= 0 && MapPainter.isDoorCell(cell)) {
+                queue(cell, (l, room, doorCell) -> AutoClearUtils.pathToDoor(l, doorCell, cfg.isFaceDoorOnArrival()));
+            } else {
+                // Cursor is off the map entirely: the key keeps its old "start the room I am in" meaning.
+                pathToCurrentRoomStart();
+            }
+            return;
+        }
+        int room = layout.roomOfCell(cell);
+        if (room < 0) {
+            ModChat.send(CHAT, ModChat.bad("That room is unknown"));
+            return;
+        }
+        int gx = cell % LiveMapFeature.GRID;
+        int gz = cell / LiveMapFeature.GRID;
+        int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : LiveMapFeature.groupsView().get(gid).mainIdx;
+
+        if (registerPress(room, cfg) && cfg.isMapDoublePressStartNode()) {
+            queue(tile, InteractiveMapFeature::startNodeGoal);
+            return;
+        }
+        // Both remaining cases are the same call: activateRoom hands the click to Auto Routes when it is the
+        // room you are standing in ("If I click a room I am already in once then it does its secrets still")
+        // and paths there otherwise. Queueing it is what makes the mid-path press a retarget.
+        queue(tile, InteractiveMapFeature::activateRoom);
+    }
+
+    /** @return true when this press is the second of a double press. */
+    private static boolean registerPress(int room, LiveMapConfig cfg) {
+        long now = System.currentTimeMillis();
+        boolean doublePress = room == lastPressRoom && now - lastPressMs <= cfg.getMapDoublePressMs();
+        lastPressMs = now;
+        // A third press must not read as another double press off the second one's timestamp.
+        lastPressRoom = doublePress ? -1 : room;
+        return doublePress;
+    }
+
+    /** The double-press action: this room's Auto Routes START node, or the room's own spot when it has none. */
+    private static void startNodeGoal(DungeonLayout layout, int room, int tile) {
+        if (com.killer560.hub.autoroutes.AutoRoutesFeature.warpToStartNode(layout, room)) {
+            return;
+        }
+        // Auto Routes is the only place this mod stores "where a secret route for this room begins", so a room
+        // with no recorded route has no start node to aim at. Falling back to the room's own standing spot is
+        // the closest thing the mod actually knows, rather than inventing a second notion of where a room starts.
+        ModChat.send(CHAT, ModChat.dim("No route start node for "), ModChat.value(layout.name(room)),
+                ModChat.dim(" - pathing to the room"));
+        activateRoom(layout, room, tile);
+    }
+
+    // ------------------------------------------------------------------------------------------- goal queue
+
+    /** A queued map goal. It is re-resolved against a FRESH layout when it finally runs, because it can sit for
+     *  a few ticks waiting for the cancelled path to stop and a room INDEX is only valid for the capture it came
+     *  from - the grid CELL it was pressed on is what stays meaningful across captures. */
+    @FunctionalInterface
+    private interface MapGoal {
+        void run(DungeonLayout layout, int room, int tile);
+    }
+
+    /** ~3s. Long enough to cover a cancelled search finishing plus a landing, short enough that a goal which can
+     *  never start (standing in a Boulder room, say - {@link AutoClearUtils#canPath}) says so instead of hanging. */
+    private static final int PENDING_GOAL_TIMEOUT_TICKS = 60;
+
+    private static MapGoal pendingGoal = null;
+    private static int pendingGoalCell = -1;
+    private static int pendingGoalTicks = 0;
+
+    /**
+     * killer560, 2026-09-29: "If I click a different room mid path then it goes doesn't have to be a double click
+     * same with dooring." A press while something is already running has to CANCEL first and then re-plan, and
+     * it cannot do both in one call: {@code ClearExecutor.etherPath} refuses a second search while one is in
+     * flight, and even if it did not, a path planned from the position you were at when you pressed can never
+     * execute once you have warped off it ({@code ClearNode.inside} wants you within 0.32 blocks of its first
+     * hop). So the goal is held and issued from the tick once the queue has actually stopped.
+     */
+    /** True while a map goal is waiting for a cancelled path to stop. {@code ClearExecutor.isBusy()} is false
+     *  through that window by design, so anything that must not steer against the map (Auto Routes' interlock 5)
+     *  has to ask this as well. */
+    public static boolean isSteering() {
+        return pendingGoal != null;
+    }
+
+    private static void queue(int cell, MapGoal goal) {
+        LiveMapConfig cfg = LiveMapConfig.getInstance();
+        // killer560, 2026-09-29: "if I am in the middle of a secret route and use it then it'll use the
+        // interactive map portion instead of the secret route portion". Every map goal comes through here, so
+        // this is the one place the precedence has to be stated - before the goal runs, and before the decision
+        // below about whether it can run now, since a route left playing would steer against either answer.
+        // No setting: he asked for the map to win.
+        com.killer560.hub.autoroutes.AutoRoutesFeature.cancelForInteractiveMap("Interactive Map");
+        boolean busy = ClearExecutor.isBusy() || BloodRush.isRunning() || pendingGoal != null;
+        if (!busy) {
+            DungeonLayout layout = DungeonLayout.capture();
+            goal.run(layout, layout.roomOfCell(cell), cell);
+            return;
+        }
+        if (!cfg.isMapRetargetMidPath()) {
+            ModChat.send(CHAT, ModChat.dim("Already pathing - turn on Retarget Mid-Path to change the goal."));
+            return;
+        }
+        if (BloodRush.isRunning()) {
+            // It re-paths to its own next door the moment the queue empties, so leaving it running would
+            // simply undo the retarget a tick later.
+            BloodRush.stop("Stopped (new map goal)");
+        }
+        ClearExecutor.cancel();
+        pendingGoal = goal;
+        pendingGoalCell = cell;
+        pendingGoalTicks = PENDING_GOAL_TIMEOUT_TICKS;
+    }
+
+    private static void tickPendingGoal(Minecraft client) {
+        if (pendingGoal == null) {
+            return;
+        }
+        // Dying, the boss starting, or leaving the dungeon all mean the goal no longer refers to anything -
+        // drop it silently rather than warping somewhere on a run he is no longer in.
+        if (!DungeonState.isInDungeon() || LiveMapFeature.isInBoss() || isDead(client)
+                || !LiveMapConfig.getInstance().isInteractiveMapEnabled()) {
+            pendingGoal = null;
+            pendingGoalCell = -1;
+            return;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        // canPath is what every other entry point checks anyway; here it also covers the airborne tick or two
+        // right after the cancelled path's last warp, which is exactly when a retarget tends to be pressed.
+        if (!ClearExecutor.isBusy() && AutoClearUtils.canPath(layout)) {
+            MapGoal goal = pendingGoal;
+            int cell = pendingGoalCell;
+            pendingGoal = null;
+            pendingGoalCell = -1;
+            goal.run(layout, layout.roomOfCell(cell), cell);
+            return;
+        }
+        if (--pendingGoalTicks <= 0) {
+            pendingGoal = null;
+            pendingGoalCell = -1;
+            ModChat.send(CHAT, ModChat.bad("Could not start from here"));
+        }
+    }
+
+    /** The grid cell the cursor is over on the open map, or -1. No mouse events are needed for this: the
+     *  Interactive Map is a real {@code Screen}, so it is handed the cursor position every frame and caches it -
+     *  the key poll above just asks it what is under there. */
+    private static int cellUnderCursor(Minecraft client) {
+        return client.screen instanceof InteractiveMapScreen map ? map.cellUnderCursor() : -1;
     }
 
     /**
@@ -153,23 +354,29 @@ public final class InteractiveMapFeature {
     }
 
     static void pathToCurrentRoomStart() {
-        DungeonLayout layout = DungeonLayout.capture();
-        int room = layout.currentRoom();
-        if (room < 0) {
-            ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
-            return;
-        }
-        activateRoom(layout, room, layout.tiles(room)[0]);
+        queue(-1, (layout, ignoredRoom, ignoredCell) -> {
+            int room = layout.currentRoom();
+            if (room < 0) {
+                ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
+                return;
+            }
+            activateRoom(layout, room, layout.tiles(room)[0]);
+        });
     }
 
+    /** killer560, 2026-09-29: "same with dooring" - the Locked Door Key retargets a path already in flight too,
+     *  so it goes through the same queue as a room press rather than being swallowed while the executor is busy.
+     *  The door is re-picked against the fresh layout when the goal runs, since "nearest locked door" is measured
+     *  from the room you are in and cancelling a path can leave you in a different one. */
     static void pathToLockedDoor() {
-        DungeonLayout layout = DungeonLayout.capture();
-        int door = AutoClearUtils.getLockedDoor(layout);
-        if (door < 0) {
-            ModChat.send(CHAT, ModChat.bad("No locked doors found."));
-            return;
-        }
-        AutoClearUtils.pathToDoor(layout, door, LiveMapConfig.getInstance().isFaceDoorOnArrival());
+        queue(-1, (layout, room, cell) -> {
+            int door = AutoClearUtils.getLockedDoor(layout);
+            if (door < 0) {
+                ModChat.send(CHAT, ModChat.bad("No locked doors found."));
+                return;
+            }
+            AutoClearUtils.pathToDoor(layout, door, LiveMapConfig.getInstance().isFaceDoorOnArrival());
+        });
     }
 
     static boolean isPeeking() {

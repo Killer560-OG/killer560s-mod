@@ -45,7 +45,8 @@ final class AutoTeleportMaze {
     private static final String ROOM = "Teleport Maze";
     private static final long WALK_TIMEOUT_MS = 3000L;
     private static final long FINISH_WALK_TIMEOUT_MS = 5000L;
-    private static final double AURA_REACH_SQ = 36.0;
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final double ARRIVE_SQ = 2.25; // 1.5 blocks - "close enough", same feel as QUOI's own pad hops
     private static final int MAX_AURA_ATTEMPTS = 3;
     // Same fixed relative layout TeleportMazeSolverFeature's own PADS array carries ("end"/"start", the two pads
@@ -200,7 +201,9 @@ final class AutoTeleportMaze {
             auraAttempts++;
             return;
         }
-        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(target));
+        // To the box, like the picker above - measuring the gate one way and the choice another is how a
+        // module ends up clicking at something it cannot reach.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
             auraAttempts++;
             return;

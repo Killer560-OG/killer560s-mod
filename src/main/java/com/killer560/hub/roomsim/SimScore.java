@@ -109,6 +109,16 @@ public final class SimScore {
     }
 
     /** Explore: rooms completed and secrets found, as a percentage pair. */
+    /** Secrets found so far this run - read by the sim's sidebar. */
+    public static int secretsFound() {
+        return secretsFound;
+    }
+
+    /** Secrets the generated map contains, or 0 before a map has been built. */
+    public static int secretsTotal() {
+        return secretsTotal;
+    }
+
     public static int exploreScore() {
         if (roomsTotal <= 0) {
             return 0;

@@ -63,21 +63,116 @@ public final class SimSecrets {
             return -1;
         }
 
-        // The corner the database's relative coordinates are measured from. On Hypixel that is the clay marker
-        // at the room's corner; here the room is placed at a known cell, so it is computed from the same
-        // origin the paste used - one block inside the captured window, which carries the wall margin.
-        BlockPos centre = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int clayX = centre.getX() - RoomLibrary.TILE / 2;
-        int clayZ = centre.getZ() - RoomLibrary.TILE / 2;
+        // The corner the database's relative coordinates are measured from, WHICH CORNER DEPENDS ON THE
+        // ROTATION.
+        //
+        // A secret's relative coordinates are non-negative offsets running into the room from the clay marker,
+        // and {@code toRealCoord} rotates them about that marker. At rotation 0 they run south-east, so the
+        // marker is the room's north-west corner; a quarter turn sends them south-west, so the marker has to
+        // be the north-east corner, and so on round. This used the north-west corner whatever the rotation,
+        // so every room not at 0 threw its chests, bats and markers out of the room entirely - which is the
+        // "alot of random floating chests" killer560 reported on 2026-09-29. It survived because the
+        // generator refused to rotate anything; now that it does, this had to be right first.
+        //
+        // The corner is the corner of the room's TILE area, not of the captured window - the window takes in
+        // one column of wall on each side (RoomLibrary.WALL_MARGIN) and the clay marker stands inside the
+        // room, so the margin is deliberately not subtracted here.
+        int[] clay = clayCorner(room, gridX, gridZ, rotation);
+        int clayX = clay[0];
+        int clayZ = clay[1];
 
         int placed = 0;
+        // The room's own tile box, so a secret that lands outside it is reported rather than left in the
+        // void. Cheap, and it is the check that would have caught the rotated-corner bug the moment rooms
+        // started being turned instead of three scenarios later.
+        int tilesX = (rotation == 90 || rotation == 270) ? tiles(room.sizeZ) : tiles(room.sizeX);
+        int tilesZ = (rotation == 90 || rotation == 270) ? tiles(room.sizeX) : tiles(room.sizeZ);
+        BlockPos boxCentre = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+        boxMinX = boxCentre.getX() - RoomLibrary.TILE / 2;
+        boxMinZ = boxCentre.getZ() - RoomLibrary.TILE / 2;
+        boxMaxX = boxMinX + tilesX * (RoomLibrary.TILE + 1) - 2;
+        boxMaxZ = boxMinZ + tilesZ * (RoomLibrary.TILE + 1) - 2;
+        outsideBox = 0;
         placed += chests(level, entry.secretCoords.chest, clayX, clayZ, rotation);
         placed += bats(level, entry.secretCoords.bat, clayX, clayZ, rotation);
         placed += items(level, entry.secretCoords.item, clayX, clayZ, rotation);
         placed += markers(level, entry.secretCoords.wither, clayX, clayZ, rotation, WITHER_MARKER);
         placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, rotation, KEY_MARKER);
+        // Loud only when something is wrong. A handful of real secrets do sit in a room's wall, so a couple
+        // outside the tile box is normal; a whole room's worth means the clay corner for that rotation is
+        // wrong, which is exactly the bug rotation introduced on 2026-09-29.
+        if (outsideBox > 0) {
+            LOGGER.warn("Sim secrets for {} (rotation {}): {} secret(s) skipped, outside the room's own box "
+                    + "x[{}..{}] z[{}..{}]",
+                    room.name, rotation, outsideBox, boxMinX, boxMaxX, boxMinZ, boxMaxZ);
+        }
         LOGGER.info("Sim secrets for {}: {} placed", room.name, placed);
         return placed;
+    }
+
+    /**
+     * The corner a room's database coordinates are measured from, for a room placed at this cell and rotation.
+     *
+     * <p>Public and shared, because {@link SimRoomIndex} hands the same corner to Secret Waypoints. If the
+     * waypoints computed their own, a waypoint could be drawn where the secret is not - and the waypoints are
+     * the thing being practised against.
+     *
+     * @param gridX the 11x11 grid coordinates of the room's top-left cell
+     * @return {@code {clayX, clayZ}}
+     */
+    /** A database coordinate in the world the floor was built into - the floor's shift applies to y. */
+    private static BlockPos world(BlockPos at) {
+        return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ());
+    }
+
+    public static int[] clayCorner(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
+        int tilesX = (rotation == 90 || rotation == 270) ? tiles(room.sizeZ) : tiles(room.sizeX);
+        int tilesZ = (rotation == 90 || rotation == 270) ? tiles(room.sizeX) : tiles(room.sizeZ);
+        BlockPos centre = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+        int minX = centre.getX() - RoomLibrary.TILE / 2;
+        int minZ = centre.getZ() - RoomLibrary.TILE / 2;
+        int maxX = minX + tilesX * (RoomLibrary.TILE + 1) - 2;
+        int maxZ = minZ + tilesZ * (RoomLibrary.TILE + 1) - 2;
+        return new int[]{
+            (rotation == 90 || rotation == 180) ? maxX : minX,
+            (rotation == 180 || rotation == 270) ? maxZ : minZ,
+        };
+    }
+
+    /** Every chest this floor placed, so the build can check afterwards that they are all still there. */
+    public static final java.util.List<BlockPos> PLACED_CHESTS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** The room being placed right now, for the outside-the-box check. Single-threaded: place() is one call. */
+    private static int boxMinX;
+    private static int boxMinZ;
+    private static int boxMaxX;
+    private static int boxMaxZ;
+    private static int outsideBox;
+
+    /**
+     * How far outside its own room a secret may sit before it is dropped.
+     *
+     * <p>Not zero: a few real secrets are embedded in a room's wall, and the wall is one column outside the
+     * tile box. Two blocks covers those. Beyond that the coordinate is simply wrong - one of his floors put a
+     * chest at x=-222, twenty-two blocks off the west edge of the map, in the void - and a secret in the void
+     * is worse than a missing one, because the room's count says it is findable.
+     */
+    private static final int OUTSIDE_TOLERANCE = 2;
+
+    /** Whether a secret is close enough to its own room to be worth placing. Counts the ones that are not. */
+    private static boolean checkInside(BlockPos at) {
+        boolean inside = at.getX() >= boxMinX - OUTSIDE_TOLERANCE && at.getX() <= boxMaxX + OUTSIDE_TOLERANCE
+                && at.getZ() >= boxMinZ - OUTSIDE_TOLERANCE && at.getZ() <= boxMaxZ + OUTSIDE_TOLERANCE;
+        if (!inside) {
+            outsideBox++;
+        }
+        return inside;
+    }
+
+    /** Tiles across a captured dimension - {@code size = tiles * 32 + 1}, so this is its inverse. */
+    private static int tiles(int size) {
+        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
 
     private static int chests(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
@@ -86,8 +181,16 @@ public final class SimSecrets {
         }
         int n = 0;
         for (RoomEntry.Pos p : list) {
-            BlockPos at = RoomDatabase.toRealCoord(p, clayX, clayZ, rotation);
+            BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
+            // Recorded, so the NEXT build's clear knows this block exists. A secret written straight into the
+            // level was outside the bounds the paste recorded, so it survived the wipe and the floor collected
+            // one more chest every time a map was generated.
+            if (!checkInside(at)) {
+                continue;
+            }
+            SimBuildQueue.touched(at.getX(), at.getZ());
             level.setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());
+            PLACED_CHESTS.add(at);
             // Offered to the mimic picker the same way a pasted room's chests are, so a sim floor can have a
             // mimic in a secret chest exactly as a real one does.
             SimMimic.addCandidate(at);
@@ -102,7 +205,10 @@ public final class SimSecrets {
         }
         int n = 0;
         for (RoomEntry.Pos p : list) {
-            BlockPos at = RoomDatabase.toRealCoord(p, clayX, clayZ, rotation);
+            BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
+            if (!checkInside(at)) {
+                continue;
+            }
             var bat = EntityType.BAT.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
             if (bat != null) {
                 bat.setPos(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
@@ -117,22 +223,32 @@ public final class SimSecrets {
         return n;
     }
 
+    /**
+     * Item secrets are REGISTERED here, not spawned.
+     *
+     * <p>killer560 (2026-09-29): "I cannot pick up items in rooms for the item secrets. Make the item secrets
+     * only spawn in if i am within 3 blocks of them for longer than 5 ticks."
+     *
+     * <p>Two separate things were wrong. The drop was created with {@code setNeverPickUp()}, which is not a
+     * delay that expires - it is 32767 ticks, forever - so the item could be walked through and never
+     * collected, and nothing counted it as a secret either way. And every item secret on the floor existed
+     * from the moment the floor was built, which is not how Hypixel behaves: the item appears when you are
+     * standing on it.
+     *
+     * <p>So the position is remembered and {@link SimSecretItems} spawns a real, collectable drop once he has
+     * been within three blocks of it for more than five ticks - and picking it up counts a secret.
+     */
     private static int items(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
         if (list == null) {
             return 0;
         }
         int n = 0;
         for (RoomEntry.Pos p : list) {
-            BlockPos at = RoomDatabase.toRealCoord(p, clayX, clayZ, rotation);
-            var stack = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.PAPER);
-            var drop = new net.minecraft.world.entity.item.ItemEntity(
-                    level, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, stack);
-            drop.setNeverPickUp();
-            // No despawn timer and no drift: a secret that vanishes after five minutes makes the room
-            // different on the second run through it, which is the one thing a practice room must not be.
-            drop.setUnlimitedLifetime();
-            drop.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
-            level.addFreshEntity(drop);
+            BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
+            if (!checkInside(at)) {
+                continue;
+            }
+            SimSecretItems.register(at);
             n++;
         }
         return n;
@@ -145,8 +261,9 @@ public final class SimSecrets {
         }
         int n = 0;
         for (RoomEntry.Pos p : list) {
-            BlockPos at = RoomDatabase.toRealCoord(p, clayX, clayZ, rotation);
-            if (level.getBlockState(at).isAir()) {
+            BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
+            if (checkInside(at) && level.getBlockState(at).isAir()) {
+                SimBuildQueue.touched(at.getX(), at.getZ());
                 level.setBlockAndUpdate(at, marker);
                 n++;
             }

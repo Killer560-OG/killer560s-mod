@@ -84,7 +84,14 @@ public final class RouteExecutor {
     private static final int BOOM_TIMEOUT = 40;
     private static final int BREAKER_TIMEOUT = 40;
     private static final double LANDING_TOLERANCE = 2.0;
-    private static final double BREAKER_RANGE_SQ = 30.0;
+    /**
+     * Measured block reach, squared.
+     *
+     * <p>Was 30.0 - 5.48 blocks, and measured with {@code distToCenterSqr}, so up to half a block further
+     * again. The server refuses a block interaction past 4.5 to the BOX, so this was breaking blocks it had
+     * no business reaching.
+     */
+    private static final double BREAKER_RANGE_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     private static final String[] BOOM_IDS = {"INFINITE_SUPERBOOM_TNT", "SUPERBOOM_TNT"};
     private static final String BREAKER_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES = Pattern.compile("Charges: (\\d+)/(\\d+)");

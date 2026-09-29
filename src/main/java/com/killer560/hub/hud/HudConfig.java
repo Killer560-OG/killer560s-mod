@@ -108,7 +108,11 @@ public final class HudConfig {
     }
 
     public int[] getPosition(String id, int defaultX, int defaultY) {
-        return positions.getOrDefault(id, new int[]{defaultX, defaultY});
+        // getOrDefault EVALUATES its default eagerly, so this allocated a fresh int[2] on every call even
+        // when the element had a saved position - about 110 allocations a frame across the HUD, every frame,
+        // almost all of them thrown away immediately. The lookup answers first now.
+        int[] saved = positions.get(id);
+        return saved != null ? saved : new int[]{defaultX, defaultY};
     }
 
     /** True once the player has moved this element themselves (a scale-only entry does not count). Used by

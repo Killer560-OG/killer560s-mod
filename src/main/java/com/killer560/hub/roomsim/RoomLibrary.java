@@ -80,6 +80,17 @@ public final class RoomLibrary {
 
     /** name -> room. A TreeMap so the "still needed" list is stable and alphabetical. */
     private static final Map<String, Room> ROOMS = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+    /**
+     * Rooms changed since the last write.
+     *
+     * <p>{@link #saveAll()} rewrites every room - 47 files and about 13 MB of gzipped block arrays - which is
+     * fine at the end of a run and ruinous per tick. The capture loop saves as it goes so a crash cannot lose a
+     * session, and on 2026-09-29 that meant re-serialising the whole library twenty times a second on the
+     * render thread, under this class's own lock. {@link #saveDirty()} writes only what actually changed;
+     * {@code capture} is the one thing that changes a room, so this stays honest as long as that is true.
+     */
+    private static final java.util.Set<String> DIRTY = new java.util.LinkedHashSet<>();
     private static boolean loaded;
 
     private RoomLibrary() {
@@ -97,6 +108,16 @@ public final class RoomLibrary {
         private final Map<String, Short> paletteIndex = new LinkedHashMap<>();
         /** Which columns have been read at least once - this is what completeness means. */
         public boolean[] seenColumn;
+        /**
+         * Blocks of wall captured outside the room on each side.
+         *
+         * <p>Stored rather than worked out from {@link #sizeX}. {@code RoomPlacer} used to infer it with
+         * {@code size % TILE == WALL_MARGIN * 2}, which only ever worked because the footprint maths below was
+         * wrong in a way that happened to leave every size a multiple of 31 plus 2. With the footprint correct
+         * a three-tile room is 97 wide and 97 % 31 is 4, so the inference would have silently decided those
+         * rooms had no margin and pasted them one block off. A number this load-bearing belongs in the file.
+         */
+        public int margin = WALL_MARGIN;
 
         /**
          * Where starred mobs stood, in ROOM-LOCAL coordinates.
@@ -172,6 +193,82 @@ public final class RoomLibrary {
         public boolean complete() {
             return completeness() >= 0.999;
         }
+
+        /**
+         * Captured at the footprint this version of the mod uses.
+         *
+         * <p>A room stored at an older footprint is not a room this mod can use: {@code capture} throws it away
+         * and rebuilds it the moment it is seen again, and {@code RoomPlacer} would paste it at the wrong size.
+         * So it must not be counted as done anywhere, or the progress numbers promise work that still has to be
+         * redone - which is exactly what happened on 2026-09-29, when 49 of 102 "complete" rooms turned out to
+         * be at the old inflated size.
+         *
+         * <p>Every valid footprint is {@code tiles * 32 + 1} - see {@link RoomLibrary#footprint}.
+         */
+        public boolean currentFormat() {
+            return margin == WALL_MARGIN
+                    && sizeX >= TILE + WALL_MARGIN * 2 && (sizeX - 1) % (TILE + 1) == 0
+                    && sizeZ >= TILE + WALL_MARGIN * 2 && (sizeZ - 1) % (TILE + 1) == 0;
+        }
+
+        /** Lowest and highest captured y that holds anything but air, worked out once. */
+        private int contentMinY = Integer.MIN_VALUE;
+        private int contentMaxY = Integer.MIN_VALUE;
+
+        /**
+         * The lowest y in this room that is not air.
+         *
+         * <p>For {@link SimAltitude}, which shifts a whole floor so its lowest block sits just above the void.
+         * Measured rather than assumed: the capture window runs from {@link RoomLibrary#MIN_Y} to
+         * {@link RoomLibrary#MAX_Y} and most rooms use only part of it, so the window's edges say nothing
+         * about where the room's blocks actually are.
+         *
+         * <p>Computed once per room and kept. A room is about 80,000 block ids, and this walks them once.
+         */
+        public int contentMinY() {
+            measureContent();
+            return contentMinY;
+        }
+
+        /** The highest y in this room that is not air. */
+        public int contentMaxY() {
+            measureContent();
+            return contentMaxY;
+        }
+
+        private synchronized void measureContent() {
+            if (contentMinY != Integer.MIN_VALUE) {
+                return;
+            }
+            int air = palette.indexOf("minecraft:air");
+            int lo = MAX_Y;
+            int hi = MIN_Y;
+            boolean any = false;
+            for (int y = MIN_Y; y <= MAX_Y; y++) {
+                boolean solid = false;
+                for (int z = 0; z < sizeZ && !solid; z++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        short id = blocks[index(x, y, z)];
+                        if (id >= 0 && id != air) {
+                            solid = true;
+                            break;
+                        }
+                    }
+                }
+                if (solid) {
+                    any = true;
+                    lo = Math.min(lo, y);
+                    hi = Math.max(hi, y);
+                }
+            }
+            contentMinY = any ? lo : MIN_Y;
+            contentMaxY = any ? hi : MAX_Y;
+        }
+
+        /** Finished AND in the current format - the only thing that should ever be called done. */
+        public boolean usable() {
+            return currentFormat() && complete();
+        }
     }
 
     /**
@@ -212,6 +309,9 @@ public final class RoomLibrary {
             loading = false;
             readSoFar = 0;
         }
+        // The measured doorways belong to the rooms that are about to be replaced, so they go too - a mask
+        // that outlived its room would lay the next floor out against geometry that is no longer there.
+        RoomDoors.clearCache();
         loadAsync();
     }
 
@@ -354,6 +454,29 @@ public final class RoomLibrary {
         return new java.util.ArrayList<>(all);
     }
 
+    /**
+     * How many grid cells a captured room covers, as {@code tilesX * tilesZ}.
+     *
+     * <p>The inverse of {@link #footprint}, in one place, because the layout planner and the paste MUST agree
+     * about it. They did not between 00:27 and 01:20 on 2026-09-29 and the result was every multi-tile room
+     * pasted over its neighbour.
+     *
+     * @return 0 when the room is unknown or not in the current format
+     */
+    public static synchronized int cellFootprint(String name) {
+        Room r = ROOMS.get(name);
+        if (r == null || !r.currentFormat()) {
+            return 0;
+        }
+        return Math.max(1, (r.sizeX - 1) / (TILE + 1)) * Math.max(1, (r.sizeZ - 1) / (TILE + 1));
+    }
+
+    /** Tiles across on X, 0 when the room is unknown or not in the current format. */
+    public static synchronized int tilesX(String name) {
+        Room r = ROOMS.get(name);
+        return r == null || !r.currentFormat() ? 0 : Math.max(1, (r.sizeX - 1) / (TILE + 1));
+    }
+
     public static synchronized int roomCount() {
         return ROOMS.size();
     }
@@ -382,21 +505,42 @@ public final class RoomLibrary {
     private static int completeCountLocked() {
         int n = 0;
         for (Room r : ROOMS.values()) {
-            if (r.complete()) {
+            if (r.usable()) {
                 n++;
             }
         }
         return n;
     }
 
+    /** How many rooms are finished AND in the current format. */
     public static synchronized int completeCount() {
-        int n = 0;
-        for (Room r : ROOMS.values()) {
-            if (r.complete()) {
-                n++;
+        return completeCountLocked();
+    }
+
+    /**
+     * How many rooms there are to capture in total.
+     *
+     * <p>killer560 (2026-09-29): "can you update the room scanner and recorder and all that to have the proper
+     * number of rooms." Every progress line used {@link #roomCount()} - the number of FILES ON DISK - as the
+     * denominator, so it read "36/47 rooms complete" when the real figure was 36 of 140 and the denominator
+     * grew every time a new room was found. A fraction whose bottom half moves is not progress.
+     *
+     * <p>The real total is the room database, the same 140-room list the Live Map identifies rooms against and
+     * the missing-rooms HUD already compares to. Falls back to the file count only while that is still loading,
+     * so the number is never zero and never pretends to be authoritative when it is not.
+     */
+    public static int expectedCount() {
+        if (!com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
+            return roomCount();
+        }
+        java.util.Set<String> names = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (com.killer560.hub.roomdatabase.RoomEntry e
+                : com.killer560.hub.roomdatabase.RoomDatabase.allEntries()) {
+            if (e != null && e.name != null && !e.name.isBlank()) {
+                names.add(e.name);
             }
         }
-        return n;
+        return names.isEmpty() ? roomCount() : names.size();
     }
 
     /** Every room touched so far that is not finished, worst first - what the recorder still needs. */
@@ -436,6 +580,81 @@ public final class RoomLibrary {
      * in one tick is close to two million block reads and would stutter badly. Spreading it costs no coverage:
      * columns already captured are skipped, and the 25 second scan window is hundreds of ticks long.
      */
+    /**
+     * How much of the floor in front of him is already in the library.
+     *
+     * <p>killer560 (2026-09-29): "does it send a chat message once I can go to a new map". It did not - it only
+     * reported a running column count, which says the capture is working but never says it is finished, so the
+     * only way to know a floor was done was to guess. This is the number that answers it.
+     *
+     * <p>A room counts as done when a Room of the RIGHT SIZE exists and every one of its columns has been seen.
+     * The size test matters: a room captured at another footprint is a different room as far as capture is
+     * concerned, and it rebuilds rather than merges, so calling that one done would skip a room that is about
+     * to be re-read from scratch.
+     *
+     * @return {@code {done, total}} over the rooms this layout has identified; a room still sitting on the
+     *         "Unknown" placeholder is counted in neither, because it cannot be captured yet either.
+     */
+    public static synchronized int[] floorProgress(DungeonLayout layout) {
+        load();
+        int done = 0;
+        int total = 0;
+        if (layout == null) {
+            return new int[]{0, 0};
+        }
+        for (int room = 0; room < layout.roomCount(); room++) {
+            String name = layout.name(room);
+            if (name == null || name.isBlank() || UNIDENTIFIED.equals(name)) {
+                continue;
+            }
+            int[] tiles = layout.tiles(room);
+            if (tiles == null || tiles.length == 0) {
+                continue;
+            }
+            total++;
+            int minGx = Integer.MAX_VALUE;
+            int minGz = Integer.MAX_VALUE;
+            int maxGx = Integer.MIN_VALUE;
+            int maxGz = Integer.MIN_VALUE;
+            for (int idx : tiles) {
+                int gx = idx % DungeonLayout.GRID;
+                int gz = idx / DungeonLayout.GRID;
+                minGx = Math.min(minGx, gx);
+                minGz = Math.min(minGz, gz);
+                maxGx = Math.max(maxGx, gx);
+                maxGz = Math.max(maxGz, gz);
+            }
+            int sizeX = footprint(maxGx - minGx);
+            int sizeZ = footprint(maxGz - minGz);
+            Room r = ROOMS.get(name);
+            if (r != null && r.sizeX == sizeX && r.sizeZ == sizeZ && r.usable()) {
+                done++;
+            }
+        }
+        return new int[]{done, total};
+    }
+
+    /**
+     * How wide a room is, from how many GRID CELLS its tiles span on one axis.
+     *
+     * <p>Wrong until 2026-09-29, and wrong in a way that only showed up on multi-tile rooms. Cells are
+     * {@code HALF_ROOM} = 16 blocks apart and a room's tiles sit on every OTHER cell, so a two-tile room spans
+     * 2 cells and a three-tile room spans 4 - the cells in between are the same room, not extra tiles. The old
+     * formula read the cell span as a tile count and multiplied it by 31, so a three-tile room was captured
+     * 157 blocks long where the room is 97. The extra 60 columns ran into the NEXT room, which is why Gravel
+     * and Diagonal sat at 5-10% and why pasting one into the sim would have overwritten its neighbour.
+     *
+     * <p>A 1x1 room spans 0 cells and comes out at 33 either way, which is exactly why this survived: every
+     * single-tile room in the library is correct and they are the majority.
+     *
+     * <p>The room itself is {@code tiles * TILE} plus the one-block seam between each pair of tiles, and then
+     * {@link #WALL_MARGIN} on each side: 3 tiles = 93 + 2 + 2 = 97.
+     */
+    static int footprint(int cellSpan) {
+        int tiles = cellSpan / 2 + 1;
+        return tiles * TILE + (tiles - 1) + WALL_MARGIN * 2;
+    }
+
     public static synchronized int capture(Level level, DungeonLayout layout, int room, int columnBudget) {
         load();
         if (columnBudget <= 0) {
@@ -470,16 +689,57 @@ public final class RoomLibrary {
             maxGx = Math.max(maxGx, gx);
             maxGz = Math.max(maxGz, gz);
         }
-        int sizeX = (maxGx - minGx + 1) * TILE + WALL_MARGIN * 2;
-        int sizeZ = (maxGz - minGz + 1) * TILE + WALL_MARGIN * 2;
+        return captureBox(level, name, minGx, minGz, maxGx, maxGz, columnBudget);
+    }
+
+    /**
+     * Captures one named room occupying the grid cells {@code minG..maxG}, with no {@link DungeonLayout}.
+     *
+     * <p>Split out of {@link #capture} on 2026-09-29 for Ashfall's single-room practice worlds. Those put one
+     * room in an empty world and a sidebar saying {@code Practice Room}, so there is no floor, no layout and no
+     * room list - but the room still sits on the ordinary dungeon grid, so everything from the footprint down
+     * is identical and belongs in one place rather than copied.
+     */
+    public static synchronized int captureBox(Level level, String name, int minGx, int minGz,
+                                              int maxGx, int maxGz, int columnBudget) {
+        BlockPos origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
+        return captureAt(level, name, origin.getX(), origin.getZ(),
+                (maxGx - minGx) / 2 + 1, (maxGz - minGz) / 2 + 1, columnBudget);
+    }
+
+    /**
+     * Captures a room by the WORLD position of its first tile's centre, with no grid at all.
+     *
+     * <p>{@link DungeonLayout} is a fixed 11x11 window anchored at world -185, which is every real Catacombs
+     * floor and is not everything worth capturing. killer560 (2026-09-29) found an Ashfall preset holding all
+     * 134 rooms in a line spanning 47 cells; the grid could see five columns of it, reported "all 16 rooms
+     * here are fully captured" and was telling the truth about the only rooms it could see. Walking does not
+     * help, because the window is anchored to the world and not to him.
+     *
+     * <p>So this takes world coordinates. Everything below the footprint was already independent of the grid;
+     * only the origin ever needed it.
+     *
+     * @param centreX  world X of the centre of the room's lowest-X tile
+     * @param centreZ  world Z of the centre of the room's lowest-Z tile
+     * @param tilesX   how many tiles wide, at least 1
+     * @param tilesZ   how many tiles deep, at least 1
+     */
+    public static synchronized int captureAt(Level level, String name, int centreX, int centreZ,
+                                             int tilesX, int tilesZ, int columnBudget) {
+        load();
+        if (columnBudget <= 0 || name == null || name.isBlank() || UNIDENTIFIED.equals(name)
+                || tilesX < 1 || tilesZ < 1) {
+            return 0;
+        }
+        int sizeX = footprint((tilesX - 1) * 2);
+        int sizeZ = footprint((tilesZ - 1) * 2);
         Room r = ROOMS.get(name);
         if (r == null || r.sizeX != sizeX || r.sizeZ != sizeZ) {
             r = new Room(name, sizeX, sizeZ);
             ROOMS.put(name, r);
         }
-        BlockPos origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
-        int worldX0 = origin.getX() - TILE / 2 - WALL_MARGIN;
-        int worldZ0 = origin.getZ() - TILE / 2 - WALL_MARGIN;
+        int worldX0 = centreX - TILE / 2 - WALL_MARGIN;
+        int worldZ0 = centreZ - TILE / 2 - WALL_MARGIN;
 
         int added = 0;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
@@ -511,11 +771,104 @@ public final class RoomLibrary {
                 if (added >= columnBudget) {
                     // Out of budget. The rest of this room is picked up on a later tick - seenColumn means
                     // resuming costs nothing and never re-reads what is already stored.
+                    DIRTY.add(name);
                     return added;
                 }
             }
         }
+        if (added > 0) {
+            DIRTY.add(name);
+        }
+        if (captureMobs(level, r, worldX0, worldZ0)) {
+            DIRTY.add(name);
+        }
         return added;
+    }
+
+    /** At most this many mobs remembered per room - a room is not a mob farm, and the file stays small. */
+    private static final int MAX_MOB_SPAWNS = 40;
+
+    /**
+     * Records the mobs standing in this room, so a sim floor is not an empty building.
+     *
+     * <p>{@code Room.mobSpawns} was read by {@code SimBuilder} and written by NOTHING - the field existed, was
+     * saved, was loaded, and was empty in all 135 rooms. So every sim floor has been silent and empty, which
+     * is a large part of why it does not feel like a dungeon.
+     *
+     * <p>Honest about what this is: a SNAPSHOT of where mobs happened to be standing when the room was
+     * scanned, not where Hypixel spawns them. Dungeon mobs wander, so the positions are approximate. That is
+     * still far better than nothing, and it is the only source available - no public dataset carries mob
+     * positions either.
+     *
+     * <p>Only fills up to {@link #MAX_MOB_SPAWNS} and never re-records a position it already has, so scanning
+     * the same room for a minute does not accumulate a smear of one zombie's walk.
+     *
+     * @return true when something new was recorded
+     */
+    private static boolean captureMobs(Level level, Room r, int worldX0, int worldZ0) {
+        if (r.mobSpawns.size() >= MAX_MOB_SPAWNS) {
+            return false;
+        }
+        // Only for the room he is actually near.
+        //
+        // Without this it is one entity query per room per tick - up to 36 a tick while the recorder sweeps a
+        // floor - and a room that simply has no mobs never stops asking. Entities only exist near the player
+        // anyway, so a far room could only ever answer "none": the query would cost something and learn
+        // nothing. 64 blocks is two rooms out.
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc == null || mc.player == null) {
+            return false;
+        }
+        double cx = worldX0 + r.sizeX / 2.0;
+        double cz = worldZ0 + r.sizeZ / 2.0;
+        if (mc.player.distanceToSqr(cx, mc.player.getY(), cz) > 64 * 64) {
+            return false;
+        }
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(
+                worldX0, MIN_Y, worldZ0, worldX0 + r.sizeX, MAX_Y, worldZ0 + r.sizeZ);
+        boolean changed = false;
+        for (net.minecraft.world.entity.Entity e
+                : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box)) {
+            String kind = kindOf(e);
+            if (kind == null) {
+                continue;
+            }
+            int lx = net.minecraft.util.Mth.floor(e.getX()) - worldX0;
+            int ly = net.minecraft.util.Mth.floor(e.getY());
+            int lz = net.minecraft.util.Mth.floor(e.getZ()) - worldZ0;
+            if (lx < 0 || lz < 0 || lx >= r.sizeX || lz >= r.sizeZ || ly < MIN_Y || ly > MAX_Y) {
+                continue;
+            }
+            String line = lx + "," + ly + "," + lz + "," + kind;
+            if (r.mobSpawns.add(line)) {
+                changed = true;
+                if (r.mobSpawns.size() >= MAX_MOB_SPAWNS) {
+                    break;
+                }
+            }
+        }
+        return changed;
+    }
+
+    /** The {@code SimMobs.Kind} name for an entity, or null for anything the sim cannot stand in for. */
+    private static String kindOf(net.minecraft.world.entity.Entity e) {
+        if (e instanceof net.minecraft.world.entity.player.Player) {
+            return null;
+        }
+        if (e instanceof net.minecraft.world.entity.ambient.Bat) {
+            return "BAT";
+        }
+        if (e instanceof net.minecraft.world.entity.monster.EnderMan) {
+            return "FEL";
+        }
+        // The 26.1.2 packages: monster.skeleton.* and monster.zombie.*, not monster.* directly.
+        if (e instanceof net.minecraft.world.entity.monster.skeleton.AbstractSkeleton) {
+            return "SKELETON";
+        }
+        if (e instanceof net.minecraft.world.entity.monster.zombie.Zombie) {
+            return "ZOMBIE";
+        }
+        return null;
     }
 
     /**
@@ -541,9 +894,38 @@ public final class RoomLibrary {
                 Path f = DIR.resolve(safeName(r.name) + ".json");
                 Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
             }
+            DIRTY.clear();
         } catch (Exception e) {
             LOGGER.error("Could not save the room library", e);
         }
+    }
+
+    /**
+     * Writes only the rooms that changed. For the capture loop, which saves constantly.
+     *
+     * @return how many files were written, so a caller can skip announcing a save that wrote nothing
+     */
+    public static synchronized int saveDirty() {
+        if (DIRTY.isEmpty()) {
+            return 0;
+        }
+        int written = 0;
+        try {
+            Files.createDirectories(DIR);
+            for (String name : DIRTY) {
+                Room r = ROOMS.get(name);
+                if (r == null) {
+                    continue;
+                }
+                Path f = DIR.resolve(safeName(r.name) + ".json");
+                Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
+                written++;
+            }
+            DIRTY.clear();
+        } catch (Exception e) {
+            LOGGER.error("Could not save the changed rooms", e);
+        }
+        return written;
     }
 
     private static String safeName(String name) {
@@ -630,6 +1012,7 @@ public final class RoomLibrary {
         // is the difference between a library that is slow and one that does not fit in a boot.
         o.addProperty("blocksZ", encodeShorts(r.blocks));
         o.addProperty("seenZ", encodeBits(r.seenColumn));
+        o.addProperty("margin", r.margin);
         JsonArray spawns = new JsonArray();
         for (String m : r.mobSpawns) {
             spawns.add(m);
@@ -656,6 +1039,12 @@ public final class RoomLibrary {
                 r.blocks[i] = blocks.get(i).getAsShort();
             }
         }
+        // Written since 2026-09-29. Older files get the inference that used to live in RoomPlacer, which is
+        // correct for every room those files can contain: single-tile rooms are 33 wide and multi-tile ones
+        // were captured at the old inflated size, which is also a multiple of 31 plus 2.
+        r.margin = o.has("margin")
+                ? o.get("margin").getAsInt()
+                : (o.get("sizeX").getAsInt() % TILE == WALL_MARGIN * 2 ? WALL_MARGIN : 0);
         if (o.has("seenZ")) {
             decodeBits(o.get("seenZ").getAsString(), r.seenColumn);
         } else if (o.has("seenColumn")) {

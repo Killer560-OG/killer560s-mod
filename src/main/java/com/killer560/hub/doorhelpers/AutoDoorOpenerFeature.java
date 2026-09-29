@@ -58,15 +58,30 @@ public final class AutoDoorOpenerFeature {
     /** Same three chat patterns {@code doorhelpers}' old Look At Door trusted for key state - arms the pending
      *  window for the matching door type. Not filtered by whose name is in the message: any party member
      *  obtaining the key means a door of that type is about to need clicking, same as the feature it replaces. */
+    /** {@code <Name> has obtained Wither Key!} exactly - see the note in onChat. */
+    private static final java.util.regex.Pattern KEY_OBTAINED_WITHER =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Wither Key!?$");
+
+    /** {@code <Name> has obtained Blood Key!} exactly. */
+    private static final java.util.regex.Pattern KEY_OBTAINED_BLOOD =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Blood Key!?$");
+
     static void onChat(String raw) {
         String msg = ChatFormatting.stripFormatting(raw);
         if (msg == null) {
             return;
         }
-        if (msg.contains("has obtained Wither Key") || msg.contains("Wither Key was picked up")
+        // ANCHORED, because arming this makes the client SEND A CLICK.
+        //
+        // These were `contains`, so any player typing "has obtained Wither Key" in any channel armed a
+        // 60-tick window in which the mod right-clicks the nearest locked door. That is a stranger causing an
+        // automated interaction on his account - the exact shape of thing that gets people banned, triggered
+        // by someone else. Hypixel's real line is "<Name> has obtained Wither Key!" with nothing in front,
+        // and a player's message always carries their own name and a colon first.
+        if (KEY_OBTAINED_WITHER.matcher(msg).matches() || msg.equals("Wither Key was picked up!")
                 || msg.startsWith("RIGHT CLICK on a WITHER door")) {
             arm(DoorScanner.DoorType.WITHER);
-        } else if (msg.contains("has obtained Blood Key") || msg.contains("Blood Key was picked up")
+        } else if (KEY_OBTAINED_BLOOD.matcher(msg).matches() || msg.equals("Blood Key was picked up!")
                 || msg.startsWith("RIGHT CLICK on the BLOOD DOOR")) {
             arm(DoorScanner.DoorType.BLOOD);
         } else if (msg.contains("opened a WITHER door")) {

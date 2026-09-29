@@ -62,7 +62,8 @@ public final class CheatUtilsConfig {
 
     public static final double MIN_AURA_RANGE = 2.1;
     public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
-    public static final double MAX_AURA_SKULL_RANGE = 4.7;
+    /** Was 4.7 - past the 4.5 the server enforces, so the furthest skulls were refused. */
+    public static final double MAX_AURA_SKULL_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     public static final int MIN_AURA_COOLDOWN_MS = 100;
     public static final int MAX_AURA_COOLDOWN_MS = 2000;
 

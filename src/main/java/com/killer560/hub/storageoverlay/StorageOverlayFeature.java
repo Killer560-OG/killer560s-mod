@@ -416,8 +416,19 @@ public final class StorageOverlayFeature {
                 cache.unmarkKnown(key);
             }
         }
-        LOGGER.info("Scanned Storage overview: {} owned page(s)/backpack(s) found", ownedCount);
+        // Only when the answer CHANGES.
+        //
+        // scanOverview runs every frame while a storage screen is open, and this logged every time - about
+        // two hundred lines a second at 200 fps, straight to disk, saying the same thing. A log line that
+        // repeats at frame rate is not a diagnostic, it is a leak with a timestamp.
+        if (ownedCount != lastLoggedOwnedCount) {
+            lastLoggedOwnedCount = ownedCount;
+            LOGGER.info("Scanned Storage overview: {} owned page(s)/backpack(s) found", ownedCount);
+        }
     }
+
+    /** The count last logged, so the scan only says something when something changed. */
+    private static int lastLoggedOwnedCount = -1;
 
     private static String overviewSlotToKey(int slotIndex) {
         if (slotIndex >= 9 && slotIndex < 18) {

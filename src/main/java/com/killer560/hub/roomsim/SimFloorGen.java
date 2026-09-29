@@ -31,24 +31,25 @@ import java.util.Set;
  * not what a route is written against: on a real floor most of the rooms are off to the side, the order you
  * take them in is the decision being practised, and a corridor removes the decision entirely.
  *
- * <p>So this grows a connected map over the room grid, then decides what each room IS. Rooms-to-blood is the
- * distance from the entrance to the blood door along that map, counted the way he counts it - blood, entrance
- * and fairy are given and do not count towards it.
+ * <p>The layout itself lives in {@link SimFloorLayout}, which fits rooms together by their real doorways -
+ * killer560 (2026-09-29): "it should read which rooms have doors where and make sure that each room is
+ * reachable via going through doors into rooms." This file turns what that produces into a map code: one name
+ * table entry per placement, the rotation on every cell the room covers, and a door in the cell between each
+ * pair of linked rooms.
  *
- * <p><b>One-by-one rooms only, for now.</b> A map code gives one room per cell, so a 2x2 room named in four
- * cells is pasted four times on top of itself rather than once across them. Rather than produce a map that
- * looks subtly wrong, this generates from the 1x1 rooms and says how many were set aside. That is a real
- * limitation and is better stated than discovered.
+ * <p>Rooms-to-blood is the distance from the entrance to the blood door along that map, counted the way he
+ * counts it - blood, entrance and fairy are given and do not count towards it.
+ *
+ * <p><b>Rooms are rotated now.</b> They were not, for two reasons that both had to be dealt with first: the
+ * cells were reserved from the unrotated footprint, so a quarter turn spilled a 2x1 room over its neighbour;
+ * and {@link SimSecrets} measured every secret from the room's north-west corner whatever the rotation, so a
+ * turned room threw its chests outside itself. The footprint is now rotated with the room and the secrets are
+ * measured from the corner that matches the rotation, which is what made a door-driven layout possible at all
+ * - with fixed orientations, fitting rooms together by their doorways almost never works.
  */
 public final class SimFloorGen {
 
     private static final Random RNG = new Random();
-
-    /** Catacombs puzzle rooms, by name, for when the database cannot say. */
-    private static final String[] PUZZLE_NAMES = {
-        "boulder", "ice fill", "ice_fill", "ice path", "ice_path", "creeper", "beams", "water",
-        "quiz", "weirdos", "teleport", "maze", "blaze", "tic tac toe", "tic_tac_toe", "bomb",
-    };
 
     /** The room grid inside {@link DungeonLayout}'s 11x11: rooms sit on even coordinates, doors between. */
     private static final int ROOM_GRID = (DungeonLayout.GRID + 1) / 2;
@@ -110,42 +111,65 @@ public final class SimFloorGen {
     private static final org.slf4j.Logger LOGGER =
             org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim");
 
+    /**
+     * A planned floor: the map code and what the planner decided, with nothing built yet.
+     *
+     * @param bloodDistance rooms from the entrance to blood, as actually laid out
+     * @param bigPlaced     rooms larger than one cell
+     */
+    public record Planned(MapCode.Decoded decoded, String code, int placedPuzzles, int bloodDistance,
+                          int bigPlaced) {
+    }
+
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
-        long planStart = System.currentTimeMillis();
-        Map<String, RoomLibrary.Room> usable = new HashMap<>();
-        for (String name : RoomLibrary.names()) {
-            RoomLibrary.Room r = RoomLibrary.get(name);
-            if (r == null || !r.complete()) {
-                continue;
-            }
-            // killer560 (2026-09-28): "dont use 1x1 you need to use more than just that." Rooms of every
-            // footprint now, which is only possible because a map code's cells are pasted once per ROOM rather
-            // than once per cell - a 2x2 used to go down four times on top of itself.
-            usable.put(name, r);
+        Planned planned = plan(floor, puzzles, roomsToBlood);
+        if (planned == null) {
+            return;   // plan() has already said why
         }
+        ModChat.send("Sim", ModChat.text(floor.label + ": "),
+                ModChat.value(String.valueOf(planned.decoded().nameTable().length)),
+                ModChat.text(" rooms, "), ModChat.value(String.valueOf(planned.placedPuzzles())),
+                ModChat.text(" puzzle(s), blood "),
+                ModChat.value(String.valueOf(planned.bloodDistance())), ModChat.text(" rooms in"));
+        if (planned.bigPlaced() > 0) {
+            ModChat.send("Sim", ModChat.dim(planned.bigPlaced() + " room(s) larger than 1x1"));
+        }
+        SimWorld.open(client, planned.code(), c -> SimBuilder.build(c, planned.code()),
+                "Generating " + floor.label);
+    }
+
+    /**
+     * Lays out a floor and returns it, without touching the world.
+     *
+     * <p>Split out of {@link #generate} on 2026-09-29 so the layout can be tested properly. Testing it through
+     * {@code generate} means opening a world per floor, which is slow enough that a scenario can only afford
+     * one - and one sample cannot tell "the generator never places multi-tile rooms" from "this floor happened
+     * not to". The first version of that assertion passed and failed on alternate runs for exactly that reason,
+     * and a test that flaps is worse than no test because it teaches you to ignore it.
+     *
+     * @return the planned floor, or null when it could not lay one out (having said so in chat)
+     */
+    public static Planned plan(Floor floor, int puzzles, int roomsToBlood) {
+        long planStart = System.currentTimeMillis();
+        Map<String, RoomLibrary.Room> usable = usableRooms();
         if (usable.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("No complete 1x1 rooms captured yet - "),
+            ModChat.send("Sim", ModChat.text("No usable rooms captured yet - "),
                     ModChat.dim("run the Room Recorder first."));
-            return;
+            return null;
         }
 
         int wantRooms = Math.min(floor.rooms, ROOM_GRID * ROOM_GRID);
-        List<int[]> shape = growConnectedShape(wantRooms);
-        if (shape.size() < 3) {
-            ModChat.send("Sim", ModChat.text("Could not lay out a floor that size."));
-            return;
-        }
-
-        // Distances from the entrance, which is the first cell the growth placed.
-        int[] entrance = shape.get(0);
-        Map<Long, Integer> distance = distancesFrom(shape, entrance);
-
-        // Blood sits at the requested distance when the map reaches that far, and at the furthest room it does
-        // reach otherwise - a floor that cannot honour the number should still be playable, and saying so is
-        // better than silently building something shorter.
+        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
+        // Blood sits one doorway beyond the last ordinary room, which is how he counts it: "the max is 8 if
+        // you do not count blood green room or fairy."
         int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood)) + 1;
-        int[] blood = cellAtDistance(shape, distance, wantDistance);
-        int[] fairy = pickAwayFrom(shape, entrance, blood);
+
+        SimFloorLayout.Floor laid = SimFloorLayout.generate(usable, wantRooms, wantPuzzles, wantDistance, RNG);
+        if (laid == null || laid.rooms().size() < 3) {
+            ModChat.send("Sim", ModChat.text("Could not lay out a floor that size - "),
+                    ModChat.dim("the Entrance room has to be captured first."));
+            return null;
+        }
 
         int gridCells = DungeonLayout.GRID * DungeonLayout.GRID;
         int[] cellRoom = new int[gridCells];
@@ -154,124 +178,215 @@ public final class SimFloorGen {
         java.util.Arrays.fill(cellRoom, MapCode.NO_ROOM);
         List<String> nameTable = new ArrayList<>();
 
-        List<String> puzzlePool = byType(usable, "PUZZLE");
-        if (puzzlePool.isEmpty()) {
-            // The database was not loaded, or those rooms are not in it. His last floor came out with zero
-            // puzzles for this reason, which is worse than a wrong puzzle: a floor with none is not a floor
-            // he can practise a route on. Falling back to the names the puzzles actually have.
-            for (String name : usable.keySet()) {
-                String lower = name.toLowerCase(Locale.ROOT);
-                for (String p : PUZZLE_NAMES) {
-                    if (lower.contains(p)) {
-                        puzzlePool.add(name);
-                        break;
-                    }
-                }
-            }
-        }
-        List<String> normalPool = byType(usable, "NORMAL", "RARE", "TRAP", "CHAMPION");
-        if (normalPool.isEmpty()) {
-            // Nothing classified: use whatever is captured rather than refuse. A floor of unclassified rooms
-            // is still a floor to walk.
-            normalPool = new ArrayList<>(usable.keySet());
-        }
-
-        // Puzzles go anywhere that is not one of the three given rooms.
-        List<int[]> free = new ArrayList<>();
-        for (int[] c : shape) {
-            if (!same(c, entrance) && !same(c, blood) && !same(c, fairy)) {
-                free.add(c);
-            }
-        }
-        Collections.shuffle(free, RNG);
-        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
+        int[] entranceCell = null;
+        int[] bloodCell = null;
         int placedPuzzles = 0;
-
-        Set<Long> filled = new HashSet<>();
-        Set<Long> inShape = new HashSet<>();
-        for (int[] c : shape) {
-            inShape.add(key(c));
-        }
         int bigPlaced = 0;
-
-        for (int[] c : shape) {
-            if (filled.contains(key(c))) {
-                continue;   // already covered by a larger room placed from an earlier cell
-            }
-            String pick;
-            boolean given = false;
-            if (same(c, entrance)) {
-                pick = named(usable, "Entrance", normalPool);
-                given = true;
-            } else if (same(c, blood)) {
-                pick = named(usable, "Blood", normalPool);
-                given = true;
-            } else if (same(c, fairy)) {
-                pick = named(usable, "Fairy", normalPool);
-                given = true;
-            } else if (placedPuzzles < wantPuzzles && !puzzlePool.isEmpty()
-                    && free.indexOf(c) < wantPuzzles && free.contains(c)) {
-                pick = puzzlePool.get(RNG.nextInt(puzzlePool.size()));
-                placedPuzzles++;
-            } else {
-                pick = normalPool.get(RNG.nextInt(normalPool.size()));
-            }
-
-            // How many cells this room needs, from what was captured. A room that will not fit here without
-            // running off the map or over a neighbour is swapped for one that does, rather than squeezed in -
-            // a 2x2 crammed into a 1x1 hole is the smeared mess this whole change exists to stop.
-            int[] size = cellFootprint(usable.get(pick));
-            List<int[]> cells = footprintCells(c, size, inShape, filled);
-            if (cells == null && !given) {
-                String smaller = firstThatFits(usable, normalPool, c, inShape, filled);
-                if (smaller != null) {
-                    pick = smaller;
-                    size = cellFootprint(usable.get(pick));
-                    cells = footprintCells(c, size, inShape, filled);
+        for (SimFloorLayout.Placement p : laid.rooms()) {
+            nameTable.add(p.name());
+            int id = nameTable.size() - 1;
+            List<int[]> cells = new ArrayList<>();
+            for (int a = 0; a < p.cellsX(); a++) {
+                for (int c = 0; c < p.cellsZ(); c++) {
+                    cells.add(new int[]{p.originX() + a, p.originZ() + c});
                 }
             }
-            if (cells == null) {
-                cells = List.of(c);   // one cell, even if the room is bigger - better a room than a hole
-            }
+            markRoomCells(cellRoom, cellRotation, cells, id, p.rotation());
             if (cells.size() > 1) {
                 bigPlaced++;
             }
-
-            int idx = nameTable.indexOf(pick);
-            if (idx < 0) {
-                nameTable.add(pick);
-                idx = nameTable.size() - 1;
+            if ("PUZZLE".equalsIgnoreCase(p.type())) {
+                placedPuzzles++;
             }
-            // Every cell of the footprint carries the same room, and the builder pastes it once across them.
-            // One rotation for the whole room, or its halves would face different ways.
-            int rotation = RNG.nextInt(4) * 90;
-            for (int[] fc : cells) {
-                filled.add(key(fc));
-                int cell = gridCell(fc);
-                cellRoom[cell] = idx;
-                cellRotation[cell] = rotation;
-                // Rooms are not doors. Doors go in the cells BETWEEN rooms, which is done once below.
-                cellDoor[cell] = DungeonLayout.DOOR_NONE;
+            if (entranceCell == null && "ENTRANCE".equalsIgnoreCase(p.type())) {
+                entranceCell = new int[]{p.originX(), p.originZ()};
+            }
+            if (bloodCell == null && "BLOOD".equalsIgnoreCase(p.type())) {
+                bloodCell = new int[]{p.originX(), p.originZ()};
             }
         }
 
-        LOGGER.info("[SimPhase] layout planned in {} ms", System.currentTimeMillis() - planStart);
-        // Doors, in the cells between adjacent rooms.
-        //
-        // killer560 (2026-09-28): "the map is not propperly linking things." This is why. The generator was
-        // writing door types onto the ROOM cells and never onto the odd cells between them, which is where a
-        // door actually lives - so the map had nothing to draw a connector from and every room looked like an
-        // island. The same gap made the floor logger report "blood -1 cells in": its search steps between
-        // rooms only through a door, and there were none, so no path to blood existed.
-        //
-        // The door out of the entrance is marked DOOR_ENTRANCE and the ones into blood DOOR_BLOOD, so both the
-        // map and anything that reasons about the route can tell them apart.
+        // Doors go in the cell BETWEEN two rooms, which is where a door lives on the grid - writing them onto
+        // the room cells, as an older version did, left the map with nothing to draw a connector from and made
+        // the floor logger report "blood -1 cells in" because its search steps between rooms only through one.
         int doors = 0;
-        for (int[] c : shape) {
-            long here = key(c);
-            if (!filled.contains(here)) {
+        for (SimFloorLayout.Link link : laid.links()) {
+            int a = gridCell(new int[]{link.aX(), link.aZ()});
+            int bCell = gridCell(new int[]{link.bX(), link.bZ()});
+            int between = (a + bCell) / 2;
+            if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
                 continue;
             }
+            boolean toBlood = bloodCell != null
+                    && (cellRoom[a] == cellRoom[gridCell(bloodCell)] || cellRoom[bCell] == cellRoom[gridCell(bloodCell)]);
+            boolean fromEntrance = entranceCell != null
+                    && (cellRoom[a] == cellRoom[gridCell(entranceCell)]
+                        || cellRoom[bCell] == cellRoom[gridCell(entranceCell)]);
+            cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
+                    : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
+                    : DungeonLayout.DOOR_NORMAL;
+            doors++;
+        }
+
+        LOGGER.info("[SimPhase] layout planned in {} ms: {} room(s), {} door(s), {} doorway(s) to brick up",
+                System.currentTimeMillis() - planStart, laid.rooms().size(), doors, laid.openDoors().size());
+        MapCode.Decoded decoded = new MapCode.Decoded(
+                nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
+        return new Planned(decoded, MapCode.encodeDecoded(decoded), placedPuzzles,
+                laid.bloodDepth() < 0 ? 0 : laid.bloodDepth(), bigPlaced);
+    }
+
+    /**
+     * Builds exactly the floor he drew, instead of one this class invented.
+     *
+     * <p>killer560 (2026-09-29) wants Ashfall's Dungeon Maker: pick rooms from a list, place them on a grid,
+     * press play. That is this - the map editor hands over a placement per room-grid cell and everything from
+     * here down is the same code the random generator uses, so a drawn floor and a generated one differ only
+     * in how the cells were chosen.
+     *
+     * <p>Placements are keyed by {@code gz * ROOM_GRID + gx} and anchored at their top-left cell, the corner
+     * the capture measured from. A room whose footprint runs off the grid or over another room is dropped and
+     * reported rather than pasted on top of its neighbour.
+     *
+     * @return how many rooms were placed, or -1 if there was nothing to build
+     */
+    public static int buildExplicit(Minecraft client, Map<Integer, String> placements) {
+        Planned planned = planExplicit(placements);
+        if (planned == null) {
+            return -1;
+        }
+        ModChat.send("Sim", ModChat.text("Your map: "),
+                ModChat.value(String.valueOf(planned.decoded().nameTable().length)),
+                ModChat.text(" rooms, "), ModChat.value(String.valueOf(planned.bloodDistance())),
+                ModChat.text(" doors"));
+        SimWorld.open(client, planned.code(), c -> SimBuilder.build(c, planned.code()), "Building your map");
+        return planned.decoded().nameTable().length;
+    }
+
+    /**
+     * Lays out the drawn floor without touching the world - the editor's half of {@link #plan}.
+     *
+     * <p>Split for the same reason: a layout that can only be checked by building a world can only be checked
+     * once per scenario, and once is not enough to tell a defect from a coincidence.
+     *
+     * <p>{@code bloodDistance} carries the DOOR COUNT here rather than a distance, because a drawn floor has
+     * no generated blood path to measure.
+     */
+    public static Planned planExplicit(Map<Integer, String> placements) {
+        Map<String, RoomLibrary.Room> usable = usableRooms();
+        if (placements == null || placements.isEmpty()) {
+            ModChat.send("Sim", ModChat.text("Nothing placed on the map yet."));
+            return null;
+        }
+        int gridCells = DungeonLayout.GRID * DungeonLayout.GRID;
+        int[] cellRoom = new int[gridCells];
+        int[] cellDoor = new int[gridCells];
+        int[] cellRotation = new int[gridCells];
+        java.util.Arrays.fill(cellRoom, MapCode.NO_ROOM);
+        List<String> nameTable = new ArrayList<>();
+
+        Set<Long> filled = new java.util.HashSet<>();
+        List<int[]> occupied = new ArrayList<>();
+        List<String> dropped = new ArrayList<>();
+        int[] entrance = null;
+        int[] blood = null;
+
+        // Sorted so the result does not depend on hash order - the same drawing must build the same floor.
+        List<Integer> keys = new ArrayList<>(placements.keySet());
+        java.util.Collections.sort(keys);
+        for (int slot : keys) {
+            String name = placements.get(slot);
+            RoomLibrary.Room room = usable.get(name);
+            if (room == null) {
+                dropped.add(name + " (not captured)");
+                continue;
+            }
+            int[] at = {slot % ROOM_GRID, slot / ROOM_GRID};
+            int[] size = cellFootprint(room);
+            List<int[]> cells = new ArrayList<>();
+            boolean fits = true;
+            for (int dx = 0; dx < size[0] && fits; dx++) {
+                for (int dz = 0; dz < size[1] && fits; dz++) {
+                    int[] c = {at[0] + dx, at[1] + dz};
+                    if (c[0] >= ROOM_GRID || c[1] >= ROOM_GRID || filled.contains(key(c))) {
+                        fits = false;
+                    } else {
+                        cells.add(c);
+                    }
+                }
+            }
+            if (!fits) {
+                dropped.add(name + " (no room for its " + size[0] + "x" + size[1] + " footprint)");
+                continue;
+            }
+            int id = nameTable.size();
+            nameTable.add(name);
+            for (int[] c : cells) {
+                filled.add(key(c));
+                occupied.add(c);
+            }
+            markRoomCells(cellRoom, cellRotation, cells, id, 0);
+            String type = typeOf(name);
+            if (entrance == null && "ENTRANCE".equals(type)) {
+                entrance = at;
+            }
+            if (blood == null && "BLOOD".equals(type)) {
+                blood = at;
+            }
+        }
+        if (nameTable.isEmpty()) {
+            ModChat.send("Sim", ModChat.text("Nothing on the map could be placed."));
+            return null;
+        }
+        // No entrance drawn: the first placement stands in, so /start still has a door to open.
+        if (entrance == null) {
+            entrance = new int[]{keys.get(0) % ROOM_GRID, keys.get(0) / ROOM_GRID};
+        }
+        int doors = linkDoors(cellRoom, cellDoor, occupied, filled, entrance, blood);
+
+        for (String d : dropped) {
+            ModChat.send("Sim", ModChat.dim("skipped " + d));
+        }
+        MapCode.Decoded decoded = new MapCode.Decoded(
+                nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
+        return new Planned(decoded, MapCode.encodeDecoded(decoded), 0, doors, 0);
+    }
+
+    /** Every room that can actually be pasted - complete AND at the current footprint. */
+    public static Map<String, RoomLibrary.Room> usableRooms() {
+        Map<String, RoomLibrary.Room> usable = new HashMap<>();
+        for (String name : RoomLibrary.names()) {
+            RoomLibrary.Room r = RoomLibrary.get(name);
+            if (r != null && r.usable()) {
+                usable.put(name, r);
+            }
+        }
+        return usable;
+    }
+
+    /** The database's shape for a room ("1x1", "1x2", "2x2", "L", ...), or null when it does not know it. */
+    public static String shapeOf(String name) {
+        var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
+        return entry == null ? null : entry.shape;
+    }
+
+    /** The database's type for a room, or "NORMAL" when it does not know it. */
+    public static String typeOf(String name) {
+        var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
+        return entry == null || entry.type == null ? "NORMAL" : entry.type;
+    }
+
+    /**
+     * Puts a door in every gap between two DIFFERENT rooms that touch.
+     *
+     * <p>Lifted out of {@link #generate} so the drawn floor and the generated one cannot drift apart. The rule
+     * that matters is the one about a room's own halves: a 2x2's four cells touch each other and must not get
+     * doors between them, or the floor fills with doorways inside single rooms.
+     */
+    private static int linkDoors(int[] cellRoom, int[] cellDoor, List<int[]> occupied, Set<Long> filled,
+                                 int[] entrance, int[] blood) {
+        int doors = 0;
+        for (int[] c : occupied) {
             for (int[] step : new int[][]{{1, 0}, {0, 1}}) {
                 int[] n = {c[0] + step[0], c[1] + step[1]};
                 if (!filled.contains(key(n))) {
@@ -279,33 +394,22 @@ public final class SimFloorGen {
                 }
                 int a = gridCell(c);
                 int bCell = gridCell(n);
-                if (cellRoom[a] < 0 || cellRoom[bCell] < 0) {
+                if (cellRoom[a] < 0 || cellRoom[bCell] < 0 || cellRoom[a] == cellRoom[bCell]) {
                     continue;
                 }
-                // Inside one room there is no door - a 2x2's own halves are not connected by one.
-                if (cellRoom[a] == cellRoom[bCell]) {
+                int between = (a + bCell) / 2;
+                if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
                     continue;
                 }
-                int between = (gridCell(c) + gridCell(n)) / 2;
-                boolean toBlood = same(c, blood) || same(n, blood);
-                boolean fromEntrance = same(c, entrance) || same(n, entrance);
+                boolean toBlood = blood != null && (same(c, blood) || same(n, blood));
+                boolean fromEntrance = entrance != null && (same(c, entrance) || same(n, entrance));
                 cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
                         : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
                         : DungeonLayout.DOOR_NORMAL;
                 doors++;
             }
         }
-
-        String code = MapCode.encodeDecoded(new MapCode.Decoded(
-                nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation));
-        ModChat.send("Sim", ModChat.text(floor.label + ": "), ModChat.value(String.valueOf(nameTable.size())),
-                ModChat.text(" rooms, "), ModChat.value(String.valueOf(placedPuzzles)),
-                ModChat.text(" puzzle(s), blood "), ModChat.value(String.valueOf(
-                        distance.getOrDefault(key(blood), 0))), ModChat.text(" rooms in"));
-        if (bigPlaced > 0) {
-            ModChat.send("Sim", ModChat.dim(bigPlaced + " room(s) larger than 1x1"));
-        }
-        SimWorld.open(client, code, c -> SimBuilder.build(c, code), "Generating " + floor.label);
+        return doors;
     }
 
     /**
@@ -323,11 +427,21 @@ public final class SimFloorGen {
         return new int[]{tilesAcross(r.sizeX), tilesAcross(r.sizeZ)};
     }
 
-    /** Tiles spanned by a captured dimension - the wall margin is not a tile. */
+    /**
+     * Room cells spanned by a captured dimension.
+     *
+     * <p>One room cell is one tile: cells sit 16 blocks apart, rooms occupy every other one, and a tile is 31
+     * blocks with a 1-block seam. So the inverse of {@link RoomLibrary#footprint} is the whole of it -
+     * {@code size = tiles * 32 + 1}, therefore {@code tiles = (size - 1) / 32}.
+     *
+     * <p>Wrong between 00:27 and 01:20 on 2026-09-29, and only for multi-tile rooms. The old form read the
+     * captured size as a TILE span and halved it, which was exactly right while capture was inflating every
+     * multi-tile room by a factor of about 1.65 - the two errors cancelled. Fixing the capture left this one
+     * standing alone, and it then planned a 2-tile room into a single cell: 65 blocks pasted into a 32-block
+     * slot, straight over the neighbour. That is "the map isnt generating right".
+     */
     private static int tilesAcross(int size) {
-        int tiles = Math.max(1, (size - 2) / RoomLibrary.TILE);
-        // A tile span covers the door cells between rooms too, so N tiles is (N+1)/2 rooms across.
-        return Math.max(1, (tiles + 1) / 2);
+        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
 
     /**
@@ -351,137 +465,53 @@ public final class SimFloorGen {
         return cells;
     }
 
-    /** A room from the pool small enough to fit at this cell, or null when even a 1x1 will not. */
-    private static String firstThatFits(Map<String, RoomLibrary.Room> usable, List<String> pool, int[] at,
-                                        Set<Long> inShape, Set<Long> filled) {
-        List<String> shuffled = new ArrayList<>(pool);
-        Collections.shuffle(shuffled, RNG);
-        for (String name : shuffled) {
-            if (footprintCells(at, cellFootprint(usable.get(name)), inShape, filled) != null) {
-                return name;
-            }
-        }
-        return null;
-    }
 
-    private static List<String> byType(Map<String, RoomLibrary.Room> usable, String... types) {
-        Set<String> want = new HashSet<>(List.of(types));
-        List<String> out = new ArrayList<>();
-        for (String name : usable.keySet()) {
-            RoomEntry e = RoomDatabase.lookupByName(name);
-            if (e != null && e.type != null && want.contains(e.type.toUpperCase(Locale.ROOT))) {
-                out.add(name);
-            }
-        }
-        return out;
-    }
 
-    /** The named room if it was captured, otherwise something from the pool rather than a hole in the map. */
-    private static String named(Map<String, RoomLibrary.Room> usable, String want, List<String> fallback) {
-        for (String name : usable.keySet()) {
-            if (name.equalsIgnoreCase(want)) {
-                return name;
-            }
-        }
-        return fallback.get(RNG.nextInt(fallback.size()));
-    }
+
+
+
+
 
     /**
-     * Grows a connected blob of room cells.
+     * Marks every cell a room covers, INCLUDING the connector cells between its own tiles.
      *
-     * <p>Grown outward from one cell rather than scattered and joined afterwards, because connectivity is the
-     * property that matters - a floor with an unreachable wing is not a harder floor, it is a broken one.
+     * <p>This is the convention a live Hypixel capture already uses - {@code DungeonLayout} marks the cell
+     * between two tiles of one room as part of that room ("ROOM (connector)" in its own log) - and the
+     * generator did not follow it. It wrote only the even tile cells and left the connector as NO_ROOM.
+     *
+     * <p>{@code SimBuilder} pastes one room per group found by flood-filling cells that share an id, and that
+     * flood fill steps ONE cell at a time. From an even tile cell its neighbours are the odd connectors, so on
+     * a generated floor it never reached the room's other tile: every tile became its own group and the whole
+     * room was pasted at each of them, offset by a tile and smeared over the neighbour. Live captures were
+     * fine, which is why this survived - the two paths disagreed about what a room's cells are.
+     *
+     * <p>Filling the connector fixes it at the source and leaves one convention instead of two. Connectors
+     * BETWEEN DIFFERENT rooms are untouched: those are where the doors go.
      */
-    private static List<int[]> growConnectedShape(int want) {
-        List<int[]> chosen = new ArrayList<>();
-        Set<Long> taken = new HashSet<>();
-        int[] start = {RNG.nextInt(ROOM_GRID), RNG.nextInt(ROOM_GRID)};
-        chosen.add(start);
-        taken.add(key(start));
-
-        // A LIST used as a random frontier, not a stack.
-        //
-        // It was a stack, which makes this a depth-first walk - and a depth-first walk produces one long
-        // snaking corridor, not a dungeon. killer560 (2026-09-28): "it looks nothing like a normal dungeon."
-        // Picking a random frontier cell each step grows a compact blob instead, which is the shape a real
-        // Catacombs floor has.
-        List<int[]> frontier = new ArrayList<>();
-        frontier.add(start);
-        while (chosen.size() < want && !frontier.isEmpty()) {
-            int fromIndex = RNG.nextInt(frontier.size());
-            int[] from = frontier.get(fromIndex);
-            List<int[]> options = new ArrayList<>();
-            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-                int nx = from[0] + d[0];
-                int nz = from[1] + d[1];
-                if (nx < 0 || nz < 0 || nx >= ROOM_GRID || nz >= ROOM_GRID) {
-                    continue;
-                }
-                int[] n = {nx, nz};
-                if (!taken.contains(key(n))) {
-                    options.add(n);
-                }
-            }
-            if (options.isEmpty()) {
-                frontier.remove(fromIndex);
-                continue;
-            }
-            int[] next = options.get(RNG.nextInt(options.size()));
-            chosen.add(next);
-            taken.add(key(next));
-            frontier.add(next);
+    private static void markRoomCells(int[] cellRoom, int[] cellRotation, List<int[]> cells, int id,
+                                      int rotation) {
+        // The whole grid box the room's tiles span, which is every tile cell plus every connector between
+        // them - including the CENTRE of a 2x2, which sits diagonally between four tiles and is reached by no
+        // edge midpoint. A first version filled only the edge seams and left 2x2 rooms at 8 cells of 9, which
+        // still split the flood fill. The reserved cells are always a rectangle (footprintCells walks a
+        // rectangle), so the box IS the room.
+        int minX = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (int[] c : cells) {
+            minX = Math.min(minX, c[0]);
+            minZ = Math.min(minZ, c[1]);
+            maxX = Math.max(maxX, c[0]);
+            maxZ = Math.max(maxZ, c[1]);
         }
-        return chosen;
-    }
-
-    private static Map<Long, Integer> distancesFrom(List<int[]> shape, int[] start) {
-        Set<Long> inShape = new HashSet<>();
-        for (int[] c : shape) {
-            inShape.add(key(c));
-        }
-        Map<Long, Integer> dist = new HashMap<>();
-        Deque<int[]> queue = new ArrayDeque<>();
-        dist.put(key(start), 0);
-        queue.add(start);
-        while (!queue.isEmpty()) {
-            int[] at = queue.poll();
-            int d = dist.get(key(at));
-            for (int[] step : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-                int[] n = {at[0] + step[0], at[1] + step[1]};
-                long k = key(n);
-                if (inShape.contains(k) && !dist.containsKey(k)) {
-                    dist.put(k, d + 1);
-                    queue.add(n);
-                }
+        for (int gz = minZ * 2; gz <= maxZ * 2; gz++) {
+            for (int gx = minX * 2; gx <= maxX * 2; gx++) {
+                int cell = gz * DungeonLayout.GRID + gx;
+                cellRoom[cell] = id;
+                cellRotation[cell] = rotation;
             }
         }
-        return dist;
-    }
-
-    private static int[] cellAtDistance(List<int[]> shape, Map<Long, Integer> dist, int want) {
-        int[] best = null;
-        int bestD = -1;
-        for (int[] c : shape) {
-            int d = dist.getOrDefault(key(c), -1);
-            if (d == want) {
-                return c;
-            }
-            if (d > bestD) {
-                bestD = d;
-                best = c;
-            }
-        }
-        return best == null ? shape.get(shape.size() - 1) : best;
-    }
-
-    private static int[] pickAwayFrom(List<int[]> shape, int[] a, int[] b) {
-        List<int[]> options = new ArrayList<>();
-        for (int[] c : shape) {
-            if (!same(c, a) && !same(c, b)) {
-                options.add(c);
-            }
-        }
-        return options.isEmpty() ? shape.get(shape.size() - 1) : options.get(RNG.nextInt(options.size()));
     }
 
     /** Room cell to the 11x11 grid index - rooms live on even coordinates. */

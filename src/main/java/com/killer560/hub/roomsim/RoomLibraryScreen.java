@@ -153,8 +153,8 @@ public class RoomLibraryScreen extends Screen {
         g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
         g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         g.text(this.font, "ROOM LIBRARY", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
-        String summary = String.format(Locale.US, "%d complete of %d seen",
-                RoomLibrary.completeCount(), RoomLibrary.roomCount());
+        String summary = String.format(Locale.US, "%d of %d rooms complete",
+                RoomLibrary.completeCount(), RoomLibrary.expectedCount());
         g.text(this.font, summary, panelX + panelW - 10 - this.font.width(summary), panelY + 11,
                 ProfitPanels.DIM, false);
 

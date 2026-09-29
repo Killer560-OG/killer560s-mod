@@ -219,11 +219,32 @@ public final class DungeonInfoFeature {
         }
         if (entry != lastRoomEntry) {
             lastRoomEntry = entry;
-            roomBaselineSecrets = Math.max(0, lastSecretsCount);
+            roomBaselineSecrets = lastSecretsCount;
             roomSecretsFound = 0;
-            LOGGER.info("[DungeonInfo] Room changed to \"{}\" - per-room secrets baseline set to {}", entry.name, roomBaselineSecrets);
-        } else if (lastSecretsCount >= 0) {
-            roomSecretsFound = Math.max(0, lastSecretsCount - roomBaselineSecrets);
+            LOGGER.info("[DungeonInfo] Room changed to \"{}\" - per-room secrets baseline set to {}",
+                    entry.name, roomBaselineSecrets);
+        }
+        // Hypixel's OWN per-room number first.
+        //
+        // The fallback below subtracts the tab list's run total from a baseline, and that total is the WHOLE
+        // TEAM's - the field's own comment says so. So on a five-man floor every secret anyone found anywhere
+        // was credited to the room he was standing in: stand still in a 3-secret room while three teammates
+        // pop one each and the HUD reads "Secrets: 3/3" for a room he never searched. It also fired the
+        // "Secrets Done!" alert, which latches per room for the rest of the run, so the alert was then
+        // spent and could never fire correctly for that room.
+        //
+        // The action bar's "x/y Secrets" IS the per-room count, and LiveMapFeature already parses it. It is
+        // only absent before the first secret of a room is found, which is exactly when zero is right anyway.
+        int fromActionBar = LiveMapFeature.foundSecretsForRoom(entry.name);
+        if (fromActionBar >= 0) {
+            roomSecretsFound = fromActionBar;
+            return;
+        }
+        // No action bar line yet. The team-total delta is kept only as a floor of zero rather than a guess,
+        // because a wrong number here fires an alert - and "none found yet" is right far more often than the
+        // delta was.
+        if (roomBaselineSecrets < 0) {
+            roomSecretsFound = 0;
         }
     }
 

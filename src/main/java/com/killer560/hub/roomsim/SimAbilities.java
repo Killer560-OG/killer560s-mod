@@ -183,22 +183,46 @@ public final class SimAbilities {
         return dash(client, WITHER_IMPACT_RANGE);
     }
 
-    /** Moves you up to {@code range} along your look, stopping short of whatever blocks the way. */
+    /**
+     * Moves you up to {@code range} along your look, stopping at the last place you actually fit.
+     *
+     * <p>killer560 (2026-09-29): "if i teleport and am looking down a little bit then it puts me into blocks
+     * and it shouldnt."
+     *
+     * <p>Here is why it did. The old version cast a ray from the EYE, took where it hit, and then dropped that
+     * point by the eye height to get the feet. Look down a few degrees and the ray meets the floor a couple of
+     * blocks ahead - so the landing point was the floor's surface minus 1.62, which is a block and a half
+     * inside the floor. The 0.4 back-off along the look vector was nearly horizontal and did nothing about it.
+     *
+     * <p>This walks the player's own bounding box along the look vector in quarter-block steps from where he
+     * is standing and keeps the LAST position that does not collide with anything. It cannot end inside a
+     * block, it cannot pass through a wall, and it needs no special case for looking down - the floor stops
+     * the box the same way a wall does. A quarter block is fine enough that the stop is never visibly short
+     * and coarse enough to be 48 checks at the longest range.
+     */
     private static boolean dash(Minecraft client, double range) {
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getViewVector(1.0f);
-        Vec3 end = eye.add(look.scale(range));
-        BlockHitResult hit = client.level.clip(new ClipContext(
-                eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
-        Vec3 dest = hit != null && hit.getType() == HitResult.Type.BLOCK
-                ? hit.getLocation().subtract(look.scale(0.4)) // back off the face so you do not land in it
-                : end;
-        // Feet, not eyes: the ray came from eye level and teleporting to it would gain you a block of height
-        // on every cast.
-        double drop = client.player.getEyePosition().y - client.player.getY();
-        teleport(client, dest.x, dest.y - drop, dest.z);
+        var player = client.player;
+        Vec3 look = player.getViewVector(1.0f);
+        Vec3 from = player.position();
+        net.minecraft.world.phys.AABB box = player.getBoundingBox();
+        Vec3 best = null;
+        for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
+            Vec3 candidate = from.add(look.scale(d));
+            if (!client.level.noCollision(player, box.move(candidate.subtract(from)))) {
+                break;
+            }
+            best = candidate;
+        }
+        if (best == null) {
+            fail(client, "no room to teleport that way");
+            return false;
+        }
+        teleport(client, best.x, best.y, best.z);
         return true;
     }
+
+    /** How finely {@link #dash} walks the look vector. */
+    private static final double STEP = 0.25;
 
     /** First use plants the marker, the next returns to it - the way it works on Hypixel. */
     private static boolean tacticalInsertion(Minecraft client) {

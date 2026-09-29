@@ -52,6 +52,18 @@ public final class HypixelMarketPrices {
     private final Map<String, Long> bazaarSellPrice = new ConcurrentHashMap<>();
     private final Map<String, Long> ahLowestBin = new ConcurrentHashMap<>();
 
+    /**
+     * The scan in flight, swapped over {@link #ahLowestBin} when it finishes.
+     *
+     * <p>Pages merged straight into {@code ahLowestBin} with {@code Math::min}, and nothing ever cleared it -
+     * so a price could only ever FALL. Once an item had been listed cheaply an hour ago, every later refresh
+     * kept that figure however far the market moved, and RNG Meter, Chest Profit and Auto Croesus all read it.
+     *
+     * <p>Built separately and swapped at the end rather than cleared at the start, so a read during a refresh
+     * still gets the previous scan's prices instead of a half-filled map.
+     */
+    private volatile Map<String, Long> ahScanInFlight = new ConcurrentHashMap<>();
+
     private volatile boolean refreshing = false;
     private volatile long lastRefreshedAtMs = 0;
     private volatile String lastError = null;
@@ -148,6 +160,12 @@ public final class HypixelMarketPrices {
                     if (err != null) {
                         lastError = err.getMessage() != null ? err.getMessage() : err.toString();
                     }
+                    // Swap the completed scan in, but only if it found anything: a refresh that failed
+                    // part-way through should leave the last good prices standing rather than blank them.
+                    if (!ahScanInFlight.isEmpty()) {
+                        ahLowestBin.clear();
+                        ahLowestBin.putAll(ahScanInFlight);
+                    }
                     lastRefreshedAtMs = System.currentTimeMillis();
                     refreshing = false;
                     LOGGER.info("Price refresh finished in {}ms: {} bazaar prices, {} AH prices, error={}",
@@ -198,6 +216,9 @@ public final class HypixelMarketPrices {
             }
         }
         wantedIds.addAll(RngItemNames.BY_NAME.values());
+
+        // A fresh map per scan - see ahScanInFlight.
+        ahScanInFlight = new ConcurrentHashMap<>();
 
         return CompletableFuture.supplyAsync(() -> getJson(auctionsUrl(0)))
                 .thenCompose(first -> {
@@ -259,7 +280,7 @@ public final class HypixelMarketPrices {
                 continue;
             }
             long price = auction.get("starting_bid").getAsLong();
-            ahLowestBin.merge(id, price, Math::min);
+            ahScanInFlight.merge(id, price, Math::min);
         }
     }
 

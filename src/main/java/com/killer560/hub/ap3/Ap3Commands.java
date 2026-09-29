@@ -134,7 +134,7 @@ public final class Ap3Commands {
 
     /** The node-type words {@code /ap3 add <type>} accepts, in the order they are offered. */
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "fastalign", "path", "nogo", "termaura", "walk", "run", "leap",
-            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block");
+            "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
@@ -364,6 +364,30 @@ public final class Ap3Commands {
                                                 replace(IntegerArgumentType.getInteger(context, "n") - 1, true, false) ? 1 : 0))
                                         .then(ClientCommands.literal("look").executes(context ->
                                                 replace(IntegerArgumentType.getInteger(context, "n") - 1, false, true) ? 1 : 0))))
+                        // "/ap3 edit <n>" - the same per-node fields, on one panel.
+                        //
+                        // killer560 (2026-09-29): "This should pop up a gui showing the coordinates of the
+                        // node the width and length of it any things like jump or edge attached to it and the
+                        // pitch and yaw of it. Everything for that node should be editable there."
+                        //
+                        // Opened with client.execute, not straight from the command: a client command runs
+                        // while the chat screen is still up, and setting a screen from inside that closes the
+                        // new one again on the same tick.
+                        .then(ClientCommands.literal("edit")
+                                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
+                                        .executes(context -> {
+                                            int index = IntegerArgumentType.getInteger(context, "n") - 1;
+                                            Minecraft client = Minecraft.getInstance();
+                                            if (index >= Ap3Feature.currentChainNodes().size()) {
+                                                ModChat.send(FEATURE, ModChat.bad("No node #" + (index + 1)),
+                                                        ModChat.text(" in " + Ap3Feature.currentChainLabel()
+                                                                + "."));
+                                                return 0;
+                                            }
+                                            client.execute(() -> client.setScreen(
+                                                    new Ap3EditScreen(null, index)));
+                                            return 1;
+                                        })))
                         // "/ap3 set <n> length|width|wait|close|precise|count|leap|colour ..." - the per-node fields.
                         .then(ClientCommands.literal("set")
                                 .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))

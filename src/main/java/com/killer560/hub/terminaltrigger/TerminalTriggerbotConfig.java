@@ -25,7 +25,14 @@ public final class TerminalTriggerbotConfig {
     public static final int MAX_DELAY_MS = 1000;
     public static final int MAX_COOLDOWN_MS = 2000;
     /** Hypixel's own interact reach - past this the server refuses the click anyway. */
-    public static final double MAX_RANGE = 4.0;
+    /**
+     * Measured ENTITY reach.
+     *
+     * <p>Was 4.0. A terminal is clicked through its armour stand, which makes this an entity interaction, and
+     * the anticheat names the distance past 3.0 to the entity's box - so this allowed a full block past the
+     * limit while looking like a conservative number.
+     */
+    public static final double MAX_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
 
     private static TerminalTriggerbotConfig instance;
 

@@ -108,12 +108,24 @@ public final class WitherDoorsFeature {
         cacheStampMs = 0L;
     }
 
+    /** "<Name> has obtained Wither Key!" - the server line, not anything a player can type. */
+    private static final java.util.regex.Pattern KEY_OBTAINED_WITHER =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Wither Key!?$");
+
+    private static final java.util.regex.Pattern WITHER_KEY_PICKED_UP =
+            java.util.regex.Pattern.compile("^A Wither Key was picked up!?$");
+
     private static void onChat(String raw) {
         String msg = ChatFormatting.stripFormatting(raw);
         if (msg == null) {
             return;
         }
-        if (msg.contains("has obtained Wither Key") || msg.contains("Wither Key was picked up")
+        // ANCHORED, mirroring AutoDoorOpenerFeature - which this class's own doc says it mirrors, and
+        // which was anchored on 2026-09-29 while this copy was left on contains(). Display only here (it
+        // recolours the nearest door's highlight), so this was never the ban-shaped version of the bug - but
+        // a stranger typing "has obtained Wither Key" turning his door green reads as the mod being wrong
+        // about a key he does not have.
+        if (KEY_OBTAINED_WITHER.matcher(msg).matches() || WITHER_KEY_PICKED_UP.matcher(msg).matches()
                 || msg.startsWith("RIGHT CLICK on a WITHER door")) {
             if (!witherKeyHeld) {
                 witherKeyHeld = true;

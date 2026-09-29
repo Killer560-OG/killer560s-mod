@@ -118,10 +118,27 @@ final class MapPainter {
      *  Package-visible (not {@code private}) so {@link LiveMapFeature.LiveMapHudElement} can reuse this same
      *  server-IP test for its own, separate p3sim rule (killer560: hide the Dungeon Map HUD on p3sim, same
      *  as a boss room) instead of a second copy of the check. */
+    /** The ServerData the cached answer was computed for; a different one recomputes. */
+    private static net.minecraft.client.multiplayer.ServerData p3SimCachedFor;
+    private static boolean p3SimCached;
+
+    /**
+     * Whether the current server is p3sim.
+     *
+     * <p>Cached on the server object. This is called from {@code hideUnrevealed}, which the cell painter asks
+     * per cell - up to 121 times a frame - and each call was {@code getCurrentServer} plus a
+     * {@code toLowerCase} allocation plus a {@code contains}. The answer cannot change without the server
+     * changing, and comparing the ServerData reference catches that exactly.
+     */
     static boolean onP3Sim() {
-        net.minecraft.client.multiplayer.ServerData server = net.minecraft.client.Minecraft.getInstance().getCurrentServer();
-        return server != null && server.ip != null
-                && server.ip.toLowerCase(Locale.ROOT).contains("p3sim");
+        net.minecraft.client.multiplayer.ServerData server =
+                net.minecraft.client.Minecraft.getInstance().getCurrentServer();
+        if (server != p3SimCachedFor) {
+            p3SimCachedFor = server;
+            p3SimCached = server != null && server.ip != null
+                    && server.ip.toLowerCase(Locale.ROOT).contains("p3sim");
+        }
+        return p3SimCached;
     }
 
     private static boolean hideUnrevealed() {

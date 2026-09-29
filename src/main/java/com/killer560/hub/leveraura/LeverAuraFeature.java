@@ -81,8 +81,14 @@ public final class LeverAuraFeature {
             new BlockPos(27, 124, 127), new BlockPos(23, 132, 138));
 
     // Same completion regex as Floor7Tracker / QUOI REGEX_TERM_COMPLETED (optional trailing suffix from other mods).
+    // The name group is a REAL username, not any 16 characters.
+    //
+    // ".{1,16}" is anchored but still matches "[VIP] Bob: a" - twelve characters - so any player typing
+    // "a completed a terminal! (7/7)" forged a stage completion. For Fast Leap that means an automated leap
+    // in P3; for Lever Aura it advances or ends the section counter and levers get clicked out of sequence.
+    // A Minecraft name is letters, digits and underscore, which no chat prefix can be.
     private static final Pattern TERM_COMPLETED =
-            Pattern.compile("^(.{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
+            Pattern.compile("^([A-Za-z0-9_]{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
     private static final String GOLDOR_START = "[BOSS] Goldor: Who dares trespass into my domain?";
     private static final String GATE_DESTROYED = "The gate has been destroyed!";
     private static final String CORE_OPENING = "The Core entrance is opening!";
@@ -333,7 +339,6 @@ public final class LeverAuraFeature {
     }
 
     private static void click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
-        (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
         BlockState st = client.level.getBlockState(pos);
         Direction face = Direction.UP;
         if (st.hasProperty(LeverBlock.FACE) && st.hasProperty(LeverBlock.FACING)) {
@@ -348,8 +353,16 @@ public final class LeverAuraFeature {
         BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos,
                 client.player.getEyePosition());
         if (hit == null) {
-            hit = new BlockHitResult(Vec3.atCenterOf(pos), face, pos, false);
+            // Skip the tick rather than send a hit no ray could produce.
+            //
+            // This used to fall back to Vec3.atCenterOf(pos) with the guessed face, which is precisely the
+            // shape that drew PositionPlace on Secret Aura at a distance the server itself accepted - the
+            // centre is a point INSIDE the block and no raycast returns it. The lever is deliberately not
+            // marked done here, so the next tick tries again once the geometry allows a real hit; marking it
+            // first was what made a skip impossible without losing the lever entirely.
+            return;
         }
+        (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         if (cfg.isSwingHand()) {
             client.player.swing(InteractionHand.MAIN_HAND);

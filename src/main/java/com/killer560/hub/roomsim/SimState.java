@@ -58,6 +58,59 @@ public final class SimState {
     }
 
     /** The map code this session was built from, for showing and for sharing. */
+    /** The floor the current map was generated as, for the sidebar. Defaults to F7, the one he practises. */
+    private static String floorLabel = "F7";
+
+    public static String floorLabel() {
+        return floorLabel;
+    }
+
+    public static void setFloorLabel(String label) {
+        floorLabel = label == null || label.isBlank() ? "F7" : label;
+    }
+
+    /**
+     * The room the player is standing in, worked out from the sim's OWN map code.
+     *
+     * <p>Not from the Live Map, deliberately. The Live Map only scans while {@code DungeonState} believes it is
+     * in a dungeon, and DungeonState decides that by reading the sidebar this feeds - so asking the Live Map
+     * here would be a circle that never starts. The sim already knows exactly what it built.
+     *
+     * @return the room name, or null when outside every room or before a map exists
+     */
+    public static String currentRoomName() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return null;
+        }
+        String code = mapCode();
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        MapCode.Decoded decoded = MapCode.decode(code);
+        if (decoded == null) {
+            return null;
+        }
+        // The grid's own origin and spacing, read from DungeonLayout rather than from LiveMapFeature's
+        // package-private constants - one public accessor beats widening two fields.
+        var origin = com.killer560.hub.livemap.DungeonLayout.cellCenter(0);
+        int step = com.killer560.hub.livemap.DungeonLayout.cellCenter(1).getX() - origin.getX();
+        if (step == 0) {
+            return null;
+        }
+        int gx = Math.round((client.player.getBlockX() - origin.getX()) / (float) step);
+        int gz = Math.round((client.player.getBlockZ() - origin.getZ()) / (float) step);
+        int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
+        if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) {
+            return null;
+        }
+        int id = decoded.cellRoom()[gz * grid + gx];
+        if (id < 0 || id >= decoded.nameTable().length) {
+            return null;
+        }
+        return decoded.nameTable()[id];
+    }
+
     public static String mapCode() {
         return mapCode;
     }

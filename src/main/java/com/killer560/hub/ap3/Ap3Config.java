@@ -299,6 +299,8 @@ public final class Ap3Config {
             case STOP -> 0xFFFF5555;
             case LOOK -> 0xFFFFFF00;
             case BOOM -> 0xFFFF8800;
+            // Amber, a shade off Boom: both are "do something here", and they read as a pair.
+            case USE -> 0xFFFFC04D;
             case STOPWATCH -> 0xFF9A8C80;
             case JUMP -> 0xFF7DD3FC;
             case EDGE -> 0xFF22D3EE;

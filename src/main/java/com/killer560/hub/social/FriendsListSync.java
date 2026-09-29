@@ -112,7 +112,13 @@ public final class FriendsListSync {
             }
             return;
         }
-        if (HEADER.matcher(plain).matches()) {
+        // A bare "Friends" is not a header.
+        //
+        // The pattern allows the dashes and the "(n)" count to be absent, so a chat line that is exactly the
+        // word Friends - which any player can type - started a read block and cleared PENDING, and the empty
+        // line after it committed an empty list over his saved friends. Hypixel's real header always carries
+        // one or the other, so requiring one costs nothing and closes it.
+        if (HEADER.matcher(plain).matches() && (plain.indexOf('-') >= 0 || plain.indexOf('(') >= 0)) {
             reading = true;
             truncatedThisBlock = false;
             PENDING.clear();

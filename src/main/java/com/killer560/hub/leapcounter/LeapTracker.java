@@ -186,6 +186,14 @@ public final class LeapTracker {
         target = 0;
         ticksInSection = 0;
         lastSelfPos = null;
+        // HISTORY too.
+        //
+        // The staleness guard is a TICK delta, and the tick counter only advances inside tick() - which does
+        // not run while the feature is off. So samples taken before it was switched off stayed "recent"
+        // forever: turn the counter off in P3, walk to another section, turn it back on, and every teammate's
+        // last known position is far away but only a few ticks old, which reads as them having just leapt to
+        // you without moving.
+        HISTORY.clear();
     }
 
     static void tick(Minecraft client) {

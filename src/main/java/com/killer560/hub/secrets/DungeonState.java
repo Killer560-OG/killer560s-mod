@@ -48,8 +48,19 @@ public final class DungeonState {
     // pattern above there was no logging on this path to catch it. Matching on the plain text instead
     // (formatting stripped first) is far more robust - color codes are cosmetic, the words are what
     // actually identify the line.
+    /**
+     * ANCHORED, because this is matched with find() against any chat line he can see.
+     *
+     * <p>Unanchored, {@code [VIP] Bob: [BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!} typed by a stranger
+     * in any channel started the boss phase for the rest of the run - which switches OFF every clear-phase
+     * feature (the puzzle solvers, Auto Puzzles, Door Helpers, Wither Doors) and arms the boss-only ones
+     * during the clear. It only clears when the floor changes, so one message ruined the run.
+     *
+     * <p>A real server line begins with the bracket; a player's message always has their name and a colon in
+     * front of it, so anchoring at the start is the whole fix.
+     */
     private static final Pattern BOSS_START_PATTERN =
-            Pattern.compile("\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!");
+            Pattern.compile("^\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!");
 
     /** Logging filter only - e.g. {@code Maxor's Frenzy hit you for 1,959.3 damage.} (real run log). */
     private static final Pattern BOSS_DAMAGE_SPAM_PATTERN = Pattern.compile("^(?!\\[BOSS]).*'s .+ hit you for [\\d,.]+ damage\\.?$");
@@ -402,6 +413,29 @@ public final class DungeonState {
      *  so it could never have matched real text. Confirmed against SkyHanni's own real, working
      *  {@code ScoreboardCompatKt.getPlayerNames} (decompiled 2026-09-09), which reconstructs each line
      *  from {@code scoreboard.getPlayersTeam(entry.owner())}'s prefix/suffix - this mirrors that exactly. */
+    /**
+     * The room name off the sidebar's {@code Room: X} line, or null.
+     *
+     * <p>Ashfall's single-room practice worlds put up a sidebar reading {@code Practice Room / Room: Tombstone}
+     * with no {@code The Catacombs} line, so {@link #isInDungeon()} is correctly false there and the Live Map
+     * never builds a layout. That name is then the only thing identifying the room, which is what the Room
+     * Recorder's single-room capture runs on.
+     */
+    public static String sidebarRoomName() {
+        String raw = readSidebarText();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        for (String line : raw.split("\n")) {
+            String t = line.trim();
+            if (t.startsWith("Room:")) {
+                String name = t.substring("Room:".length()).trim();
+                return name.isEmpty() ? null : name;
+            }
+        }
+        return null;
+    }
+
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {

@@ -73,6 +73,13 @@ public final class DungeonBreakerFeature {
         if (!cfg.isEnabled() || client.player == null || client.level == null) {
             return;
         }
+        // Not in the dungeon sim. SimItems has its own Dungeon Breaker - one that spends a charge, remembers
+        // the block and puts it back - and since 2026-09-29 the sim's item carries a real "Charges: 5/5" lore
+        // line, which is exactly what this reads. Without this gate both would fire on the same click and the
+        // block would be removed twice, once without being remembered.
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            return;
+        }
         if (cfg.isFatigueOnly() && !client.player.hasEffect(MobEffects.MINING_FATIGUE)) {
             logSkipReason("fatigueOnly and no Mining Fatigue");
             return;

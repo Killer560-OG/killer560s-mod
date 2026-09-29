@@ -65,8 +65,17 @@ public final class SimonSaysFeature {
     // "SS 3/5" - deliberately the same wire format Odin's own announceProgress uses (its real chat call
     // is literally `pc SS ${clickInOrder.size}/5`), so this mod's party progress tracker also understands
     // teammates running Odin or QUOI, not just other killer560s-mod users.
-    private static final Pattern PROGRESS_PATTERN = Pattern.compile("(?:^|[:>\\]]\\s*)(\\S+?)\\s*:\\s*SS (\\d+)/(\\d+)");
-    private static final Pattern PROGRESS_PATTERN_SIMPLE = Pattern.compile("SS (\\d+)/(\\d+)");
+    /**
+     * Bounded digits, because this parses what OTHER PLAYERS type.
+     *
+     * <p>These were unbounded and both groups went straight into Integer.parseInt, in a listener on the raw
+     * ClientReceiveMessageEvents - which ChatObserver's per-listener catch does not cover. Minecraft treats a
+     * throw out of a packet listener as a packet error and DISCONNECTS. So anyone in party, guild or all chat
+     * typing "SS 99999999999/5" dropped him out of Hypixel mid-run, and the Party Progress Tracker that reads
+     * it is on by default. Simon Says has seven devices, so three digits is already far past anything real.
+     */
+    private static final Pattern PROGRESS_PATTERN = Pattern.compile("(?:^|[:>\\]]\\s*)(\\S+?)\\s*:\\s*SS (\\d{1,3})/(\\d{1,3})");
+    private static final Pattern PROGRESS_PATTERN_SIMPLE = Pattern.compile("SS (\\d{1,3})/(\\d{1,3})");
 
     // Real chat line (ported from NoammAddons' own SimonSays.kt `startRegex`, confirmed against this
     // exact Minecraft version's F7/M7 boss fight) marking the moment the SS device's boss phase actually
@@ -486,7 +495,10 @@ public final class SimonSaysFeature {
     // comment for the full mechanism. Deliberately larger than IDLE_LOOK_RANGE_SQ (measured from a
     // different, nearby real anchor point) so idle-look's own tighter gate opens no later than this one
     // during a normal walk-up, giving it a real window to pre-aim the camera before this gate does.
-    private static final double REAL_INTERACT_RANGE_SQ = 8.0 * 8.0;
+    // The APPROACH gate - when the walk-up countdown may start. Deliberately looser than the reach
+    // limit so idle-look gets a window to pre-aim, but no longer a bare 8.0: the click itself is now
+    // refused past MEASURED_MAX_REACH in sendNoRotateInteract, so this only decides when to begin.
+    private static final double REAL_INTERACT_RANGE_SQ = 6.0 * 6.0;
     // Wall-clock time of the last tick the reveal-delay accounting below ran - lets it compute exactly
     // how much real time passed since the last check. Renamed from autoSolveLastTickAtMs (2026-09-14) -
     // this tracking is unconditional now (see tickAutoSolveAndTriggerBot's own doc comment), not specific
@@ -647,6 +659,15 @@ public final class SimonSaysFeature {
         if (!GRID_BUTTONS.contains(pos)) {
             return false;
         }
+        // Nothing detected means nothing to protect.
+        //
+        // With clickInOrder empty, "clickNeeded >= size" is true, so EVERY button click was blocked - which
+        // is what happens if the mod missed the reveal because you arrived late or a skip was misread. The
+        // guard exists to stop a misclick on a known sequence; with no sequence it has no opinion, and
+        // silently eating every click is the worst way to have none.
+        if (clickInOrder.isEmpty()) {
+            return false;
+        }
         boolean block = clickNeeded >= clickInOrder.size() || !pos.equals(clickInOrder.get(clickNeeded).west());
         // Diagnostic-only (2026-09-14): the mixin returns FAIL silently, so a blocked BOT click would
         // otherwise look exactly like a sent one that the server just never confirmed.
@@ -712,20 +733,34 @@ public final class SimonSaysFeature {
         String sender;
         int progress;
         int total;
-        if (m.find()) {
-            sender = m.group(1);
-            progress = Integer.parseInt(m.group(2));
-            total = Integer.parseInt(m.group(3));
-        } else {
-            Matcher simple = PROGRESS_PATTERN_SIMPLE.matcher(raw);
-            if (!simple.find()) {
-                return;
+        try {
+            if (m.find()) {
+                sender = m.group(1);
+                progress = Integer.parseInt(m.group(2));
+                total = Integer.parseInt(m.group(3));
+            } else {
+                Matcher simple = PROGRESS_PATTERN_SIMPLE.matcher(raw);
+                if (!simple.find()) {
+                    return;
+                }
+                sender = raw.length() > 20 ? raw.substring(0, 20).trim() : raw.trim();
+                progress = Integer.parseInt(simple.group(1));
+                total = Integer.parseInt(simple.group(2));
             }
-            sender = raw.length() > 20 ? raw.substring(0, 20).trim() : raw.trim();
-            progress = Integer.parseInt(simple.group(1));
-            total = Integer.parseInt(simple.group(2));
+        } catch (RuntimeException e) {
+            // Belt as well as braces. The bounded patterns make a throw unreachable today, but this runs on a
+            // raw packet listener where a throw disconnects him, so it must not rely on a regex staying
+            // correct through a later edit.
+            return;
         }
         long now = System.currentTimeMillis();
+        // Bounded. One entry per name that has ever said "SS n/m" in range, and names are not a closed set -
+        // over a long session in a busy lobby this grew without limit. Anything not updated in ten minutes is
+        // no longer a run in progress.
+        if (partyProgress.size() > 64) {
+            long cutoff = now - 600_000L;
+            partyProgress.entrySet().removeIf(en -> en.getValue().lastUpdateMs < cutoff);
+        }
         PartyProgress p = partyProgress.computeIfAbsent(sender, s -> new PartyProgress());
         if (progress <= 1 || p.total != total) {
             p.startedAtMs = now;
@@ -1490,7 +1525,11 @@ public final class SimonSaysFeature {
         // this schedule does start, the camera's usually already close and the first click lands on time
         // too.
         if (rotateActive(cfg) || autoStartIsRestart) {
-            double distSqToStart = client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON));
+            // Eye to the block's BOX, not feet to a point inside it. The old pairing reads 4.50-to-box as
+            // 5.08-to-centre, which is how a limit that looks conservative ends up sending out-of-range
+            // clicks - the same mistake Auto Water Board made on 2026-09-29.
+            double distSqToStart = com.killer560.hub.util.BlockHits.boxDistanceSq(
+                    client.player.getEyePosition(), START_BUTTON);
             boolean tooFar = distSqToStart > REAL_INTERACT_RANGE_SQ;
             if (tooFar != lastAutoStartTooFarLogged) {
                 verboseLog("[SimonSays][AutoStart] Interact-range gate {} (distSq={}, need<={}).",
@@ -2802,6 +2841,21 @@ public final class SimonSaysFeature {
      *  @return false if the gate held this tick back (nothing sent) */
     private static boolean sendNoRotateInteract(Minecraft client, BlockPos pos) {
         if (client.player == null || client.gameMode == null) {
+            return false;
+        }
+        // REACH, at the one place every Simon Says click goes through.
+        //
+        // Nothing on the No Rotate path checked distance at all. The only gate that ran was the 30-block
+        // passive-tracking radius, so Auto Solve and Auto Start would fire useItemOn at a device twelve
+        // blocks away, once per pacing interval, every one of them an out-of-range interaction the server
+        // refuses and an anticheat can name. Measured limit is 4.5 blocks from the EYE to the block's BOX -
+        // see CheatUtilsConfig.MEASURED_MAX_REACH and BlockHits.
+        //
+        // Here rather than in the callers because there are four of them, two driven from render frames, and
+        // a check per caller is a check that gets missed - this one was missed on three of the four.
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos)
+                > com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
+                        * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH) {
             return false;
         }
         if (!ActionGate.tryAct(ActionGate.Actor.SIMON_SAYS)) {

@@ -69,6 +69,9 @@ public final class SimDoors {
     private static final int OPEN_DELAY_TICKS = 20;
 
     /** Every door this sim session knows about. */
+    /** Secret chests a doorway carve has removed. Reported by the sim's build so this cannot go unnoticed. */
+    public static int CHESTS_CARVED_AWAY;
+
     private static final List<Door> DOORS = new CopyOnWriteArrayList<>();
 
     /** Reverse lookup so a right-click on any one of a door's blocks finds the whole door in O(1). */
@@ -107,9 +110,20 @@ public final class SimDoors {
         // walls plus the seam.
         int halfWidth = 1;
         int depth = 3;
-        boolean barrier = doorType == DungeonLayout.DOOR_BLOOD
-                || doorType == DungeonLayout.DOOR_ENTRANCE
-                || doorType == DungeonLayout.DOOR_WITHER;
+        // The blocks a shut door is actually MADE of on Hypixel, not a barrier.
+        //
+        // killer560 (2026-09-29): "Once the start finishes it needs to remove the blocks for the gate. Those
+        // infested chizzledd blocks." The green room's gate is infested chiseled stone brick - it is what
+        // DoorScanner and WitherDoorScanner both recognise an entrance door by on the real server - and a
+        // wither door is a slab of coal blocks. Filling all three kinds with an invisible barrier meant the
+        // sim's doors were holes you could not walk through with nothing to see, so there was no gate to
+        // watch disappear when the run started.
+        net.minecraft.world.level.block.state.BlockState fill = switch (doorType) {
+            case DungeonLayout.DOOR_ENTRANCE -> Blocks.INFESTED_CHISELED_STONE_BRICKS.defaultBlockState();
+            case DungeonLayout.DOOR_WITHER -> Blocks.COAL_BLOCK.defaultBlockState();
+            case DungeonLayout.DOOR_BLOOD -> Blocks.RED_TERRACOTTA.defaultBlockState();
+            default -> null;
+        };
         java.util.List<BlockPos> filled = new java.util.ArrayList<>();
         for (int d = -depth; d <= depth; d++) {
             for (int w = -halfWidth; w <= halfWidth; w++) {
@@ -117,19 +131,53 @@ public final class SimDoors {
                     BlockPos at = alongX
                             ? new BlockPos(centre.getX() + d, y, centre.getZ() + w)
                             : new BlockPos(centre.getX() + w, y, centre.getZ() + d);
+                    // Recorded, so the next floor's clear reaches it - a carve wrote straight into the level
+                    // and was outside the bounds the paste recorded.
+                    SimBuildQueue.touched(at.getX(), at.getZ());
+                    if (level.getBlockState(at).is(Blocks.CHEST)) {
+                        CHESTS_CARVED_AWAY++;
+                    }
                     level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
-                    if (barrier && d == 0) {
-                        level.setBlockAndUpdate(at, Blocks.BARRIER.defaultBlockState());
+                    if (fill != null && d == 0) {
+                        level.setBlockAndUpdate(at, fill);
                         filled.add(at.immutable());
                     }
                 }
             }
         }
-        if (barrier && !filled.isEmpty()) {
+        if (fill != null && !filled.isEmpty()) {
             Door door = new Door(java.util.List.copyOf(filled));
             DOORS.add(door);
             for (BlockPos p : door.blocks()) {
                 BLOCK_INDEX.put(p, door);
+            }
+        }
+    }
+
+    /**
+     * Bricks up a doorway that leads nowhere.
+     *
+     * <p>A captured room carries its own doorways in its blocks, so a room placed with a doorway facing the
+     * edge of the map - or facing a neighbour that has no doorway back - is a three-by-four hole into the
+     * void. The layout keeps those to about five a floor and cannot always avoid them, so they are filled in.
+     *
+     * <p>Stone brick, which is what the wall around it is made of, and only the wall plane itself: filling the
+     * gap between the two rooms as well would wall off a doorway on the OTHER side of the same seam.
+     */
+    public static void sealDoorway(ServerLevel level, BlockPos centre, boolean alongX) {
+        int floorY = findFloor(level, centre);
+        for (int d = -1; d <= 1; d++) {
+            for (int w = -1; w <= 1; w++) {
+                for (int y = floorY - 1; y < floorY + DOOR_HEIGHT + 1; y++) {
+                    BlockPos at = alongX
+                            ? new BlockPos(centre.getX() + d, y, centre.getZ() + w)
+                            : new BlockPos(centre.getX() + w, y, centre.getZ() + d);
+                    if (!level.getBlockState(at).isAir()) {
+                        continue;   // never overwrite something that is already there
+                    }
+                    SimBuildQueue.touched(at.getX(), at.getZ());
+                    level.setBlockAndUpdate(at, Blocks.STONE_BRICKS.defaultBlockState());
+                }
             }
         }
     }
@@ -141,7 +189,7 @@ public final class SimDoors {
      * height, and a doorway cut at a fixed Y is a hole in a wall halfway up on half the floors.
      */
     private static int findFloor(ServerLevel level, BlockPos near) {
-        for (int y = RoomLibrary.MIN_Y; y < RoomLibrary.MAX_Y - 2; y++) {
+        for (int y = SimAltitude.minWorldY(); y < SimAltitude.maxWorldY() - 2; y++) {
             BlockPos at = new BlockPos(near.getX(), y, near.getZ());
             if (!level.getBlockState(at).isAir()
                     && level.getBlockState(at.above()).isAir()
@@ -149,7 +197,7 @@ public final class SimDoors {
                 return y + 1;
             }
         }
-        return 69;
+        return SimAltitude.toWorld(69);
     }
 
     /**
@@ -286,6 +334,82 @@ public final class SimDoors {
         return true;
     }
 
+    /**
+     * Takes the green room's gate down, the way it drops when a run starts.
+     *
+     * <p>killer560 (2026-09-29): "Once the start finishes it needs to remove the blocks for the gate."
+     *
+     * <p>Two things happen, because either alone leaves a gate standing. The registered entrance door goes
+     * through the normal open sequence, so whatever {@code /start} was handed opens. And then every infested
+     * chiseled stone brick left anywhere on the grid is removed - that is the block the gate is made of, and
+     * sweeping for it catches gates that came in as part of a captured room's own geometry, which nothing
+     * registered and nothing would ever have opened.
+     *
+     * @return how many gate blocks were removed
+     */
+    public static int openEntranceGate(Minecraft client, BlockPos registered) {
+        if (!SimState.canAct(client)) {
+            return 0;
+        }
+        var server = client.getSingleplayerServer();
+        if (server == null) {
+            return 0;
+        }
+        if (registered != null) {
+            openForTest(client, registered);
+        }
+        int[] removed = {0};
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            BlockPos min = DungeonLayout.cellCenter(0);
+            BlockPos max = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
+            int x0 = Math.min(min.getX(), max.getX()) - RoomLibrary.TILE;
+            int x1 = Math.max(min.getX(), max.getX()) + RoomLibrary.TILE;
+            int z0 = Math.min(min.getZ(), max.getZ()) - RoomLibrary.TILE;
+            int z1 = Math.max(min.getZ(), max.getZ()) + RoomLibrary.TILE;
+            // Section by section, skipping any whose palette cannot hold the gate block. A gate is a dozen
+            // blocks in a five-million-block region, and reading all of it on the server thread is the freeze
+            // this mod has already paid for once.
+            for (int cx = x0 >> 4; cx <= (x1 >> 4); cx++) {
+                for (int cz = z0 >> 4; cz <= (z1 >> 4); cz++) {
+                    // Loaded chunks only - force-loading the whole grid on the server thread froze the
+                    // client badly enough to be killed as unresponsive. The gate is in the green room, which
+                    // is where he is standing when /start runs, so it is always loaded.
+                    if (!level.hasChunk(cx, cz)) {
+                        continue;
+                    }
+                    var chunk = level.getChunk(cx, cz);
+                    var sections = chunk.getSections();
+                    for (int i = 0; i < sections.length; i++) {
+                        var section = sections[i];
+                        if (section == null || section.hasOnlyAir()
+                                || !section.maybeHas(st -> st.is(Blocks.INFESTED_CHISELED_STONE_BRICKS))) {
+                            continue;
+                        }
+                        int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
+                        if (baseY + 15 < SimAltitude.minWorldY() || baseY > SimAltitude.maxWorldY()) {
+                            continue;
+                        }
+                        for (int lx = 0; lx < 16; lx++) {
+                            for (int lz = 0; lz < 16; lz++) {
+                                for (int ly = 0; ly < 16; ly++) {
+                                    if (!section.getBlockState(lx, ly, lz)
+                                            .is(Blocks.INFESTED_CHISELED_STONE_BRICKS)) {
+                                        continue;
+                                    }
+                                    BlockPos at = new BlockPos((cx << 4) + lx, baseY + ly, (cz << 4) + lz);
+                                    level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                                    removed[0]++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        return removed[0];
+    }
+
     /** Ticks the pending countdown holds, so a test knows how long to wait rather than guessing. */
     public static int openDelayTicks() {
         return OPEN_DELAY_TICKS;
@@ -303,6 +427,8 @@ public final class SimDoors {
         CompoundTag tag = new CompoundTag();
         tag.putString("id", WITHER_KEY_ID);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        // The same Skyblock tooltip everything else the sim hands him gets.
+        SimItems.applySkyblockTooltip(stack, WITHER_KEY_ID);
         return stack;
     }
 
@@ -326,6 +452,30 @@ public final class SimDoors {
     }
 
     /** Forgets every door and pending barrier removal - call when a run restarts or the sim session ends. */
+    /** Doors still registered and shut, for the sim's sidebar. */
+    public static int doorsRemaining() {
+        return DOORS.size();
+    }
+
+    /** Wither keys in his inventory, counted the same way the real key tracker would. */
+    public static int keysHeld() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null) {
+            return 0;
+        }
+        int n = 0;
+        for (ItemStack stack : client.player.getInventory().getNonEquipmentItems()) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+            if (data != null && WITHER_KEY_ID.equals(data.copyTag().getStringOr("id", ""))) {
+                n += stack.getCount();
+            }
+        }
+        return n;
+    }
+
     public static void clear() {
         DOORS.clear();
         BLOCK_INDEX.clear();

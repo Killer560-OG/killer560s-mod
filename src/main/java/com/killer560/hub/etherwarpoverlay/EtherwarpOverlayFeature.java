@@ -177,9 +177,40 @@ public final class EtherwarpOverlayFeature {
         if (tag == null) {
             return null;
         }
+        String id = tag.contains("id") ? tag.getStringOr("id", null) : null;
+        // killer560 (2026-09-29): "the etehrwarp overlay isnt working with my etherwwarp still."
+        //
+        // Acceptance was ethermerge==1 or the bare conduit's id, and nothing else. That is the tag Hypixel
+        // sets when a conduit is merged INTO an item - but it is not the only way to be holding an etherwarp,
+        // and an item that has one and no ethermerge tag was silently ignored with no way to tell from the
+        // outside. The third test below is the item's own words: a Skyblock item that can etherwarp says
+        // "Ability: Etherwarp" in its lore, so an Aspect of the Void or Aspect of the End that has the ability
+        // is recognised whatever its tags look like.
         boolean isEtherItem = tag.getIntOr("ethermerge", 0) == 1
-                || ETHERWARP_CONDUIT_ID.equals(tag.contains("id") ? tag.getStringOr("id", null) : null);
+                || ETHERWARP_CONDUIT_ID.equals(id)
+                || loreMentionsEtherwarp(stack);
         return isEtherItem ? tag : null;
+    }
+
+    /**
+     * Whether the item's own tooltip says it has Etherwarp.
+     *
+     * <p>Read from the LORE rather than from a list of ids, because the list of items that can etherwarp is
+     * Hypixel's to change and a hard-coded one is wrong the day it does. Lore is short - a dozen lines - and
+     * this only runs for an item that already has CUSTOM_DATA and is in the main hand.
+     */
+    private static boolean loreMentionsEtherwarp(ItemStack stack) {
+        var lore = stack.get(DataComponents.LORE);
+        if (lore == null) {
+            return false;
+        }
+        for (var line : lore.lines()) {
+            String text = line.getString();
+            if (text.contains("Etherwarp") || text.contains("etherwarp")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

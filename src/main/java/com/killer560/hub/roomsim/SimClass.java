@@ -83,11 +83,33 @@ public final class SimClass {
         // room and made every result depend on timing.
         boolean pressed = attacking && !wasAttacking;
         wasAttacking = attacking;
+        redrawLingeringBeam(client);
         if (!pressed || tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) {
             return;
         }
         lastBeamTick = tickCounter;
         fire(client);
+    }
+
+    /**
+     * Keeps the last beam on screen for a few ticks instead of one.
+     *
+     * <p>killer560 (2026-09-29): "for the mage beam have it last a bit longer." It was drawn once, in the tick
+     * it fired, and an ELECTRIC_SPARK lives well under half a second - so at 20 ticks a second the line was
+     * gone almost before he had finished the click that made it. Nothing about the hit depended on the
+     * drawing, so what he was judging his aim by was a flicker.
+     *
+     * <p>Re-emitted from the STORED endpoints rather than re-fired, which matters: re-running {@link #fire}
+     * would re-aim at wherever the camera has drifted to since and would hit again. This draws the same line
+     * the shot actually took, for as long as {@link #BEAM_LINGER_TICKS}, and the particles' own fade does the
+     * rest.
+     */
+    private static void redrawLingeringBeam(Minecraft client) {
+        if (lingerTicks <= 0 || lingerFrom == null || lingerTo == null || client.level == null) {
+            return;
+        }
+        lingerTicks--;
+        drawBeam(client, lingerFrom, lingerTo);
     }
 
     /**
@@ -128,6 +150,18 @@ public final class SimClass {
     private static final double BEAM_PARTICLE_SPACING = 0.4;
     private static final double BEAM_PARTICLE_START = 1.0;
 
+    /**
+     * Ticks the beam keeps being re-drawn after the shot - see {@link #redrawLingeringBeam}.
+     *
+     * <p>Eight, which is a little under half a second and slightly shorter than the beam's own cooldown, so
+     * two shots in a row never overlap into one continuous line.
+     */
+    private static final int BEAM_LINGER_TICKS = 8;
+
+    private static Vec3 lingerFrom;
+    private static Vec3 lingerTo;
+    private static int lingerTicks;
+
     private static void fire(Minecraft client) {
         var player = client.player;
         Vec3 eye = player.getEyePosition();
@@ -167,6 +201,9 @@ public final class SimClass {
                 ? nearest.getBoundingBox().getCenter()
                 : stop;
         drawBeam(client, eye, visibleEnd);
+        lingerFrom = eye;
+        lingerTo = visibleEnd;
+        lingerTicks = BEAM_LINGER_TICKS;
 
         if (nearest == null) {
             return;

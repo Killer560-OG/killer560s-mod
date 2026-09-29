@@ -210,6 +210,12 @@ public final class ClearExecutor {
         compDelay = 2;
         onComplete = null;
         pendingCompletion = null;
+        // The arrival sync belongs to the path being cancelled, so drop it too. Left running it kept
+        // isBusy() true for up to 49 more ticks (the 40-tick position-packet wait plus the 9-tick settle)
+        // with no completion callback left to run - long enough that the Interactive Map's retarget
+        // (killer560, 2026-09-29: "If I click a different room mid path...") would look like it did nothing.
+        syncDelay = 0;
+        syncWaitTicks = 0;
         generation++;
     }
 

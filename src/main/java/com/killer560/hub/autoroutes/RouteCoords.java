@@ -79,7 +79,14 @@ public final class RouteCoords {
     }
 
     public static Vec3 toRelative(Frame f, double x, double y, double z) {
-        double[] r = rotate(x - f.clayX(), z - f.clayZ(), f.rotation());
+        // NEGATED, because this is the inverse of toReal and rotate() is not its own inverse.
+        //
+        // Wrong until 2026-09-28: it passed +rotation, which happens to be right at 0 and 180 (identity, and
+        // a 180 that undoes itself) and is WRONG at 90 and 270, where rotate swaps the axes - the inverse of
+        // the 90 case (x, z) -> (1 - z, x) is the 270 case, not the 90 case again. So every route recorded in
+        // a room the generator had turned a quarter turn came out mirrored around the clay corner, which is
+        // half of all rooms, and the error is invisible in a square room recorded near its middle.
+        double[] r = rotate(x - f.clayX(), z - f.clayZ(), -f.rotation());
         return new Vec3(r[0], y, r[1]);
     }
 

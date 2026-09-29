@@ -89,19 +89,42 @@ public final class PetWheelConfig {
         return instance;
     }
 
+    /** A boolean that tolerates a key of the wrong type, like {@code getInt} beside it. */
+    private static boolean getBool(JsonObject o, String key, boolean fallback) {
+        try {
+            return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsBoolean() : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    /** A string that tolerates a key of the wrong type. */
+    private static String getString(JsonObject o, String key, String fallback) {
+        try {
+            return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
     public static void load() {
         PetWheelConfig cfg = new PetWheelConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject root = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = root.has("enabled") && root.get("enabled").getAsBoolean();
+                // Read through the same helpers the rest of the mod uses, so one key of the wrong type
+                // cannot abandon the rest. This block used raw getAsBoolean/getAsString and the catch below
+                // still published the half-filled object, so a single hand-edited key left everything after it
+                // - including wheelPets and knownPets, which load last - silently at defaults, and the next
+                // save wrote that loss to disk.
+                cfg.enabled = getBool(root, "enabled", false);
                 cfg.sliceCount = clampSlices(getInt(root, "sliceCount", DEFAULT_SLICES));
                 cfg.scalePercent = clampScale(getInt(root, "scalePercent", DEFAULT_SCALE_PCT));
                 cfg.iconScalePercent = clampIconScale(getInt(root, "iconScalePercent", DEFAULT_ICON_SCALE_PCT));
-                cfg.mode = parseMode(root.has("mode") ? root.get("mode").getAsString() : null);
+                cfg.mode = parseMode(getString(root, "mode", null));
                 cfg.keyCode = KeyUtil.sanitizeBind(getInt(root, "keyCode", KeyUtil.NONE));
-                cfg.hideLevel = root.has("hideLevel") && root.get("hideLevel").getAsBoolean();
-                cfg.hideName = root.has("hideName") && root.get("hideName").getAsBoolean();
+                cfg.hideLevel = getBool(root, "hideLevel", false);
+                cfg.hideName = getBool(root, "hideName", false);
                 readPetList(root, "wheelPets", cfg.wheelPets);
                 List<PetEntry> known = new ArrayList<>();
                 readPetList(root, "knownPets", known);
@@ -109,7 +132,9 @@ public final class PetWheelConfig {
                     cfg.knownPets.put(p.uuid(), p);
                 }
             } catch (Exception ignored) {
-                // Corrupt/hand-edited file: fall back to defaults rather than refuse to start.
+                // Corrupt file: defaults WHOLESALE, not whatever was filled in before the throw. Publishing a
+                // half-populated object is worse than defaults, because the next save persists the loss.
+                cfg = new PetWheelConfig();
             }
         }
         instance = cfg;

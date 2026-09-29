@@ -334,7 +334,16 @@ public final class LeapManager {
     }
 
     static void onEndTick(Minecraft client) {
-        poll(client);
+        // Deliberately does NOT poll.
+        //
+        // This was a second poll(client) in the same tick - onStartTick already ends with one, unconditionally
+        // (see the end of that method). The two did the same work, but this one ran AFTER the player's own
+        // movement packet, so the leap-menu container click it sends is exactly the `Post` shape GrimAC
+        // flagged 808 times on Breaker Aura before that feature was moved to START.
+        //
+        // Removing it costs at most one tick of latency: a leap that becomes ready during this tick now fires
+        // at the next tick's START instead of at this tick's END. The poll itself is unchanged and still runs
+        // every tick.
     }
 
     private static void startLeap(Minecraft client, Request req) {

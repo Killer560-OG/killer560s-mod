@@ -102,6 +102,9 @@ public final class RoomPlacer {
 
         /** @return whether the block was written */
         boolean set(int x, int y, int z, BlockState state) {
+            // The whole floor is shifted once - see SimAltitude. Applied HERE, at the one place every pasted
+            // block passes through, rather than at each of the dozen callers that walk a captured y.
+            y += SimAltitude.offset();
             int cx = x >> 4;
             int cz = z >> 4;
             if (cx != chunkX || cz != chunkZ || chunk == null) {
@@ -164,8 +167,16 @@ public final class RoomPlacer {
      * always did - assuming it shifted every one of them a block west, which the sim gametest caught by
      * finding the orientation marker one block off.
      */
-    private static int marginOf(int size) {
-        return size % RoomLibrary.TILE == RoomLibrary.WALL_MARGIN * 2 ? RoomLibrary.WALL_MARGIN : 0;
+    /**
+     * The room's own recorded margin.
+     *
+     * <p>Was inferred from the size with {@code size % TILE == WALL_MARGIN * 2}. That inference was only ever
+     * right by accident - see {@link RoomLibrary#footprint} - and once the footprint was corrected a 97-wide
+     * three-tile room would have failed it and pasted a block off. {@code RoomLibrary} writes the margin into
+     * the file now and fills it in for older ones on load, so this just reads it.
+     */
+    private static int marginOf(RoomLibrary.Room room) {
+        return room.margin;
     }
 
     /** Palette strings already warned about this JVM run, so a renamed/removed block warns once, not per block. */
@@ -236,8 +247,8 @@ public final class RoomPlacer {
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
             // The same offset capture used, including the wall margin. If these two ever disagree every room
             // lands a block off its neighbours and the seams stop lining up.
-            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room.sizeX);
-            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room.sizeZ);
+            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
+            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
         }
 
         @Override
@@ -320,8 +331,8 @@ public final class RoomPlacer {
         Rotation vanillaRotation = toVanillaRotation(rotation);
 
         BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room.sizeX);
-        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room.sizeZ);
+        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
+        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
 
         int sizeX = room.sizeX;
         int sizeZ = room.sizeZ;
@@ -338,7 +349,8 @@ public final class RoomPlacer {
                         continue; // unresolved palette entry - already warned once in resolve()
                     }
                     int[] local = rotateLocal(x, z, sizeX, sizeZ, rotation);
-                    BlockPos pos = new BlockPos(worldX0 + local[0], y, worldZ0 + local[1]);
+                    BlockPos pos = new BlockPos(worldX0 + local[0],
+                            SimAltitude.toWorld(y), worldZ0 + local[1]);
                     level.setBlock(pos, state.rotate(vanillaRotation), PLACE_FLAGS);
                     placed++;
                 }

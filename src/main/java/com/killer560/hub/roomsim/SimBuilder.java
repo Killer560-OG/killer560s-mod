@@ -93,6 +93,11 @@ public final class SimBuilder {
      * <p>Runs on the server thread. Pasting a room is tens of thousands of block writes and doing that from the
      * client thread would freeze the game rather than merely be slow.
      */
+    /** Forgets the door /start opens, so a new map cannot inherit the last one's. */
+    public static void clearEntranceDoor() {
+        entranceDoorPos = null;
+    }
+
     public static void build(Minecraft client, String code) {
         MapCode.Decoded decoded = MapCode.decode(code);
         if (decoded == null) {
@@ -135,6 +140,18 @@ public final class SimBuilder {
             //
             // Cells that share a room index AND touch are one placement, found by flood fill. Two separate
             // copies of the same room on one floor stay separate, because they do not touch.
+            // Cleared HERE, not in wipeWholeGrid: the wipe is queued after this loop has already recorded
+            // every room, so clearing there would throw away the floor that was just indexed.
+            SimRoomIndex.clear();
+            // Clay corner and rotation per NAME TABLE index, for the live map. Collected here because this is
+            // the loop that knows both - SimRoomIndex records placements in flood-fill order, which is not
+            // the order the name table is in, and the map indexes cells by name-table index.
+            final int[][] clayByRoom = new int[decoded.nameTable().length][];
+            // How high the whole floor sits, decided once from the rooms that are in it - and BEFORE any of
+            // them is pasted, because every coordinate below is derived from it.
+            int shift = SimAltitude.plan(level, decoded.nameTable());
+            LOGGER.info("Sim altitude: floor shifted {} block(s), occupying y {}..{}",
+                    shift, SimAltitude.minWorldY(), SimAltitude.maxWorldY());
             boolean[] handled = new boolean[decoded.cellRoom().length];
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
                 if (handled[cell]) {
@@ -146,6 +163,12 @@ public final class SimBuilder {
                 }
                 String name = decoded.nameTable()[nameIndex];
                 RoomLibrary.Room room = RoomLibrary.get(name);
+                // usable(), not merely present: a room captured at an older footprint is a different SIZE from
+                // the one the layout planned for, so pasting it runs over its neighbour. Treated as missing,
+                // which is already handled and reported, rather than pasted wrongly and reported as fine.
+                if (room != null && !room.usable()) {
+                    room = null;
+                }
                 if (room == null) {
                     handled[cell] = true;
                     missing++;
@@ -175,6 +198,12 @@ public final class SimBuilder {
                 // Queued to run after the whole map is placed, for the same reason as a single room: a secret
                 // written before the paste reaches that cell would simply be pasted over.
                 afterBuild.add(() -> SimSecrets.place(level, fr, fgx, fgz, rot));
+                // So Secret Waypoints knows this room is here - see SimRoomIndex.
+                SimRoomIndex.add(room, gx, gz, rot);
+                if (nameIndex >= 0 && nameIndex < clayByRoom.length) {
+                    int[] clay = SimSecrets.clayCorner(room, gx, gz, rot);
+                    clayByRoom[nameIndex] = new int[]{clay[0], clay[1], rot};
+                }
                 if (firstPlacedCell[0] < 0) {
                     firstPlacedCell[0] = anchorCell;
                 }
@@ -184,9 +213,8 @@ public final class SimBuilder {
                     }
                 }
                 roomsPlaced[0]++;
-                spawnMobsFor(client, level, room, gx, gz);
                 if (SimMimic.roomEligible(name)) {
-                    collectChests(level, gx, gz, room);
+                    collectChests(level, gx, gz, room, rot);
                 }
             }
             // One mimic per MAP, chosen once everything is down. Picking while placing would give the first
@@ -205,7 +233,9 @@ public final class SimBuilder {
             entranceDoorPos = null;
             for (int cell = 0; cell < decoded.cellDoor().length; cell++) {
                 if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_ENTRANCE) {
-                    entranceDoorPos = DungeonLayout.cellCenter(cell);
+                    // Shifted with the floor, or the lookup in SimDoors' block index misses: the gate's
+                    // blocks were registered at the y the carve found, which moves with the map.
+                    entranceDoorPos = DungeonLayout.cellCenter(cell).above(SimAltitude.offset());
                     break;
                 }
             }
@@ -222,22 +252,112 @@ public final class SimBuilder {
                 boolean alongX = (gx % 2) == 1;
                 doorCells.add(new int[]{cell, alongX ? 1 : 0, decoded.cellDoor()[cell]});
             }
-            afterBuild.add(() -> {
+            // Doorways this floor does not use, bricked up.
+            //
+            // A room's doorways are part of its captured blocks, so one that faces the edge of the map or a
+            // neighbour's blank wall is a hole into the void - about five of them on a floor. Worked out from
+            // the same measured door masks the layout was built from, so the seal and the layout can never
+            // disagree about where a doorway is.
+            final java.util.List<int[]> sealCells = new java.util.ArrayList<>();
+            for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
+                int nameIndex = decoded.cellRoom()[cell];
+                int gx = cell % DungeonLayout.GRID;
+                int gz = cell / DungeonLayout.GRID;
+                if (nameIndex < 0 || gx % 2 != 0 || gz % 2 != 0) {
+                    continue;
+                }
+                RoomDoors.Mask mask = RoomDoors.of(decoded.nameTable()[nameIndex]);
+                if (mask == null) {
+                    continue;
+                }
+                mask = RoomDoors.rotate(mask, decoded.cellRotation()[cell]);
+                for (int packed : mask.edges()) {
+                    int side = RoomDoors.sideOf(packed);
+                    // Only from the cell this doorway is actually in, or a 2x2 would seal from all four of
+                    // its cells and brick up its own real doors.
+                    int[] anchorCellXz = anchorOf(decoded.cellRoom(), cell, nameIndex);
+                    int[] door = RoomDoors.doorCell(anchorCellXz[0], anchorCellXz[1],
+                            mask.tilesX(), mask.tilesZ(), side, RoomDoors.indexOf(packed));
+                    if (door[0] * 2 != gx || door[1] * 2 != gz) {
+                        continue;
+                    }
+                    int cx = gx + RoomDoors.DX[side];
+                    int cz = gz + RoomDoors.DZ[side];
+                    boolean inGrid = cx >= 0 && cz >= 0 && cx < DungeonLayout.GRID && cz < DungeonLayout.GRID;
+                    if (inGrid && decoded.cellDoor()[cz * DungeonLayout.GRID + cx] != DungeonLayout.DOOR_NONE) {
+                        continue;   // a real door goes here
+                    }
+                    var at = DungeonLayout.cellCenter(cx, cz);
+                    sealCells.add(new int[]{at.getX(), at.getZ(), RoomDoors.DX[side] != 0 ? 1 : 0});
+                }
+            }
+            // Its own list, run BEFORE the secrets - see the whenDone callback below.
+            final java.util.List<Runnable> doorWork = new java.util.ArrayList<>();
+            doorWork.add(() -> {
+                SimDoors.CHESTS_CARVED_AWAY = 0;
                 for (int[] d : doorCells) {
                     SimDoors.carveDoorway(level, DungeonLayout.cellCenter(d[0]), d[1] == 1, d[2]);
                 }
+                for (int[] sc : sealCells) {
+                    SimDoors.sealDoorway(level, new net.minecraft.core.BlockPos(sc[0], 70, sc[1]), sc[2] == 1);
+                }
+                LOGGER.info("Sim doors: {} carved, {} sealed, {} secret chest(s) removed by the carve",
+                        doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY);
             });
             final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
+                // Doorways FIRST, then the secrets.
+                //
+                // It was the other way round, and a carve is 3 wide by 4 high by 7 deep of air - so a secret
+                // chest that happened to sit in a doorway was placed and then deleted. It cost one chest on
+                // about one floor in three, silently, and the only reason it was ever noticed is that the
+                // build now audits its own secret chests. Cutting the hole before the secrets go in cannot
+                // destroy one; the reverse can.
+                for (Runnable r : doorWork) {
+                    r.run();
+                }
                 for (Runnable r : afterBuild) {
                     r.run();
                 }
+                int still = 0;
+                StringBuilder gone = new StringBuilder();
+                for (var cp : SimSecrets.PLACED_CHESTS) {
+                    var st = level.getBlockState(cp);
+                    if (st.is(net.minecraft.world.level.block.Blocks.CHEST)) {
+                        still++;
+                    } else if (gone.length() < 300) {
+                        gone.append(cp.toShortString()).append('=')
+                                .append(net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                                        .getKey(st.getBlock())).append(' ');
+                    }
+                }
+                // A secret chest that does not survive the build is a secret he can never find, and it has
+                // happened twice - so the build checks its own work rather than waiting for a scenario to
+                // notice. Cheap: it is one block read per secret chest, about thirty a floor.
+                if (still < SimSecrets.PLACED_CHESTS.size()) {
+                    LOGGER.warn("Sim build: only {} of {} secret chest(s) survived - the rest were replaced "
+                            + "by {}", still, SimSecrets.PLACED_CHESTS.size(), gone);
+                } else {
+                    LOGGER.info("Sim build: all {} secret chest(s) are in place", still);
+                }
+                // The golden crypts that were already in the rooms, found once the floor is standing.
+                // Not every floor has one - only four rooms in the library carry one.
+                int princes = SimPrince.scan(level);
+                LOGGER.info("Sim prince: {}", princes == 0
+                        ? "none on this floor - only some rooms have one"
+                        : princes + " found, " + SimPrince.size() + " block(s), first at "
+                                + SimPrince.position());
                 SimMimic.chooseForMap();
                 if (firstCell >= 0) {
                     snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
                             firstCell / DungeonLayout.GRID);
                 }
                 client.execute(() -> {
+                // The map, on the client thread where LiveMapFeature's arrays live. Without this the live
+                // map, the interactive map and every pathfinder that reads the layout are blank in the sim -
+                // they all read a grid the world scan can only fill from Hypixel's own markers.
+                com.killer560.hub.livemap.LiveMapFeature.publishSimFloor(
+                        decoded.cellRoom(), decoded.cellDoor(), decoded.nameTable(), clayByRoom);
                 SimWorld.buildFinished(client, null);
                 ModChat.send("Sim", ModChat.text("Built "), ModChat.value(String.valueOf(roomCount)),
                         ModChat.text(" room(s)."));
@@ -275,7 +395,7 @@ public final class SimBuilder {
         // which for a room with a ceiling is the ROOF - killer560 (2026-09-28): "it put me ontop of the room
         // instead of insidde it." Coming up from the floor finds the floor.
         int landing = -1;
-        for (int y = RoomLibrary.MIN_Y; y < RoomLibrary.MAX_Y - 2; y++) {
+        for (int y = SimAltitude.minWorldY(); y < SimAltitude.maxWorldY() - 2; y++) {
             if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()) {
@@ -286,7 +406,7 @@ public final class SimBuilder {
         if (landing < 0) {
             // Nothing to stand on at the centre - a doorway column, or a room whose middle is a pit. Put him
             // above it rather than inside the floor; falling a few blocks is recoverable, suffocating is not.
-            landing = RoomLibrary.MAX_Y;
+            landing = SimAltitude.maxWorldY();
         }
         final int y = landing;
         // The same spot death sends him back to - one definition of "the middle of the room", so the place he
@@ -419,8 +539,65 @@ public final class SimBuilder {
         return entranceDoorPos;
     }
 
+    /**
+     * Removes every mob and armour stand left in the sim world.
+     *
+     * <p>Only dropped items were cleared before, so a build left the last floor's zombies, skeletons, star
+     * name tags and Fel markers standing in the new one's rooms - and because a single-room build never goes
+     * through {@code SimWorld.resetPerMapState} either, they accumulated. killer560 (2026-09-29): "wipe any
+     * mobs that spawn right now."
+     *
+     * <p>The player is not a {@code Mob} and is not touched. Everything else in the sim world was put there by
+     * a build, so there is nothing here worth keeping.
+     */
+    private static void clearFloorMobs(ServerLevel level) {
+        try {
+            java.util.List<net.minecraft.world.entity.Entity> doomed = new java.util.ArrayList<>();
+            for (net.minecraft.world.entity.Entity entity : level.getAllEntities()) {
+                if (entity instanceof net.minecraft.world.entity.Mob
+                        || entity instanceof net.minecraft.world.entity.decoration.ArmorStand) {
+                    doomed.add(entity);
+                }
+            }
+            for (net.minecraft.world.entity.Entity entity : doomed) {
+                entity.discard();
+            }
+            SimMobs.forget();
+        } catch (RuntimeException e) {
+            // A failure to tidy up must never stop the floor being built.
+            LOGGER.warn("Could not clear the sim's mobs: {}", e.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * The top-left ROOM cell of the placement a grid cell belongs to.
+     *
+     * <p>Needed by the doorway sealer: a 2x2's four cells all carry the same room, and a doorway belongs to
+     * exactly one of them, so "which cell of this room am I" has to be answered before the doorway's own cell
+     * can be worked out.
+     */
+    private static int[] anchorOf(int[] cellRoom, int cell, int nameIndex) {
+        int gx = cell % DungeonLayout.GRID;
+        int gz = cell / DungeonLayout.GRID;
+        int minX = gx;
+        int minZ = gz;
+        while (minX - 2 >= 0 && cellRoom[gz * DungeonLayout.GRID + (minX - 2)] == nameIndex) {
+            minX -= 2;
+        }
+        while (minZ - 2 >= 0 && cellRoom[(minZ - 2) * DungeonLayout.GRID + gx] == nameIndex) {
+            minZ -= 2;
+        }
+        return new int[]{minX / 2, minZ / 2};
+    }
+
     private static void wipeWholeGrid(ServerLevel level) {
         clearFloorDrops(level);
+        clearFloorMobs(level);
+        // Before the level is cleared, so a drop that vanishes with the old floor is not counted
+        // as one he picked up.
+        SimSecretItems.reset();
+        SimSecrets.PLACED_CHESTS.clear();
+        SimPrince.reset();
         // Out of the way before a single block is written, so nothing he can see is ever half-built.
         holdPlayer(Minecraft.getInstance(), level);
         // Only what the last build actually wrote, when that is known. Sweeping the whole grid meant four
@@ -456,7 +633,8 @@ public final class SimBuilder {
      * block of the room had been placed, and found nothing. The captured palette has the answer without
      * touching the world at all, and without caring when the paste happens.
      */
-    private static void collectChests(ServerLevel level, int gridX, int gridZ, RoomLibrary.Room room) {
+    private static void collectChests(ServerLevel level, int gridX, int gridZ, RoomLibrary.Room room,
+                                      int rotation) {
         // Which palette entries are chests. A palette is a hundred or so strings, so this is nothing.
         java.util.Set<Integer> chestIds = new java.util.HashSet<>();
         for (int i = 0; i < room.palette.size(); i++) {
@@ -468,14 +646,23 @@ public final class SimBuilder {
         if (chestIds.isEmpty()) {
             return;
         }
+        // The paste's OWN transform, margin and rotation included.
+        //
+        // This took the tile corner and added the raw captured (x, z), so it was one block off on both axes
+        // (the capture starts at the margin corner, one outside the tile) and completely wrong for any room
+        // not at rotation 0 - the mimic highlight sat in a different part of the room from the chest, and with
+        // rooms now rotated that would be most of them. Sharing rotateLocal with RoomPlacer means the two
+        // cannot drift.
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int x0 = origin.getX() - RoomLibrary.TILE / 2;
-        int z0 = origin.getZ() - RoomLibrary.TILE / 2;
+        int x0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
+        int z0 = origin.getZ() - RoomLibrary.TILE / 2 - room.margin;
         for (int x = 0; x < room.sizeX; x++) {
             for (int z = 0; z < room.sizeZ; z++) {
+                int[] local = RoomPlacer.rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
                 for (int y = RoomLibrary.MIN_Y; y <= RoomLibrary.MAX_Y; y++) {
                     if (chestIds.contains((int) room.blocks[room.index(x, y, z)])) {
-                        SimMimic.addCandidate(new net.minecraft.core.BlockPos(x0 + x, y, z0 + z));
+                        SimMimic.addCandidate(new net.minecraft.core.BlockPos(
+                                x0 + local[0], SimAltitude.toWorld(y), z0 + local[1]));
                     }
                 }
             }
@@ -483,38 +670,22 @@ public final class SimBuilder {
     }
 
     /**
-     * Puts the room's captured starred mobs back where they stood.
+     * The captured starred mobs are deliberately NOT spawned.
      *
-     * <p>A room without them is scenery. The positions were recorded room-local so they follow the room
-     * wherever it is placed; they are NOT rotated yet, which is wrong for a rotated room and is called out
-     * here rather than hidden, because the fix needs the same coordinate transform the placer uses and that
-     * is worth doing once rather than twice.
+     * <p>killer560 (2026-09-29): "do not worry about starred mobs spawning in only mimics princes and crypts.
+     * We can do starred mobs much later. Wipe any mobs that spawn right now they are wrong and need reworked
+     * anyways."
+     *
+     * <p>{@code spawnMobsFor} used to put a mob at every position the recorder saw a star name at. Three
+     * things were wrong with that and only the first is cheap to fix: the positions were never rotated, so a
+     * turned room put its mobs through the walls; they are armour-stand positions rather than mob positions,
+     * so they are a tile-and-a-bit off vertically in places; and a one-health no-AI stand-in is not the mob a
+     * route is timed against. The capture is still recorded in the room files, so nothing is lost and this
+     * comes back when the mobs are done properly.
+     *
+     * <p>What still spawns: the mimic (one per floor), a crypt's zombie when its wall is blown, and the bats
+     * that are genuine secrets. {@link #clearFloorMobs} removes anything else that is left over.
      */
-    private static void spawnMobsFor(Minecraft client, ServerLevel level, RoomLibrary.Room room,
-                                     int gridX, int gridZ) {
-        if (room.mobSpawns.isEmpty()) {
-            return;
-        }
-        var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int worldX0 = origin.getX() - RoomLibrary.TILE / 2;
-        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
-        for (String spawn : room.mobSpawns) {
-            String[] parts = spawn.split(",");
-            if (parts.length < 4) {
-                continue;
-            }
-            try {
-                int lx = Integer.parseInt(parts[0]);
-                int ly = Integer.parseInt(parts[1]);
-                int lz = Integer.parseInt(parts[2]);
-                SimMobs.spawnStarred(client,
-                        new net.minecraft.core.BlockPos(worldX0 + lx, ly, worldZ0 + lz), SimMobs.Kind.ZOMBIE);
-            } catch (NumberFormatException ignored) {
-                // a malformed line in a hand-edited room file should skip that mob, not the whole room
-            }
-        }
-    }
-
     /**
      * Builds ONE room in the middle of the grid, for drilling a single room.
      *
@@ -535,7 +706,11 @@ public final class SimBuilder {
             SimWorld.open(client, "", c -> buildSingleRoom(c, roomName), "Loading " + roomName);
             return;
         }
-        int centre = DungeonLayout.GRID / 2;
+        // An EVEN cell. GRID/2 is 5, which is odd, and rooms live on even cells - so a single-room build
+        // landed at -105, half a tile off the lattice every grid-keyed feature measures against (the live
+        // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets
+        // agreed with each other; only anything reading the grid disagreed.
+        int centre = (DungeonLayout.GRID / 2) & ~1;
         SimWorld.buildProgress("Placing " + roomName);
         server.execute(() -> {
             ServerLevel level = server.overworld();
@@ -547,13 +722,23 @@ public final class SimBuilder {
             // leaves the last room still standing wherever it was, and a single-room test with someone else's
             // room over the horizon is not a single-room test.
             wipeWholeGrid(level);
+            // Indexed here too, so Secret Waypoints draws in a single-room drill as well as on a full
+            // floor - which is the mode he spends most time in while learning a room.
+            SimRoomIndex.clear();
+            SimRoomIndex.add(room, centre, centre, 0);
+            SimAltitude.plan(level, new String[]{room.name});
             SimBuildQueue.submit(level, room, centre, centre, 0);
             // After the paste, so the ring it inspects is the room's real wall - before it, every column
             // would still be air and the whole perimeter would come out diamond.
-            SimBuildQueue.submitSeal(level, origin.getX() - room.sizeX / 2, origin.getZ() - room.sizeZ / 2,
-                    origin.getX() + room.sizeX / 2, origin.getZ() + room.sizeZ / 2);
+            // The room's REAL bounds, which are not centred on the origin for anything bigger than one tile.
+            // This sealed origin +- size/2: a 65-wide room spans origin-16 to origin+48, so one diamond wall
+            // stood 16 blocks west in the void and the other cut through the room's interior. Same corner the
+            // paste uses, so the two cannot disagree.
+            int sealX0 = origin.getX() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+            int sealZ0 = origin.getZ() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+            SimBuildQueue.submitSeal(level, sealX0, sealZ0,
+                    sealX0 + room.sizeX - 1, sealZ0 + room.sizeZ - 1);
             SimBuildQueue.whenDone(() -> {
-                spawnMobsFor(client, level, room, centre, centre);
                 // After the geometry, never before: a chest placed first would be overwritten by the paste.
                 int secrets = SimSecrets.place(level, room, centre, centre, 0);
                 SimMimic.chooseForMap();
@@ -575,6 +760,10 @@ public final class SimBuilder {
      * room around it, and reported with its coordinates so he can find it rather than hunt.
      */
     public static void buildFlatTest(Minecraft client) {
+        // The flat room is synthetic and has no captured content to measure, so it builds where the
+        // capture's own coordinates say - no shift. Reset rather than inherited, or it lands wherever
+        // the last real floor happened to sit.
+        SimAltitude.reset();
         var server = client.getSingleplayerServer();
         if (server == null && Minecraft.getInstance().level == null) {
             SimWorld.open(client, "", SimBuilder::buildFlatTest, "Loading the test room");
@@ -585,7 +774,11 @@ public final class SimBuilder {
             return;
         }
         RoomLibrary.Room room = FlatTestRoom.ensure();
-        int centre = DungeonLayout.GRID / 2;
+        // An EVEN cell. GRID/2 is 5, which is odd, and rooms live on even cells - so a single-room build
+        // landed at -105, half a tile off the lattice every grid-keyed feature measures against (the live
+        // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets
+        // agreed with each other; only anything reading the grid disagreed.
+        int centre = (DungeonLayout.GRID / 2) & ~1;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             var origin = DungeonLayout.cellCenter(centre * DungeonLayout.GRID + centre);

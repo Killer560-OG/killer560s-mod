@@ -46,7 +46,12 @@ import java.util.concurrent.ThreadLocalRandom;
  * Breaker Aura on {@code END_CLIENT_TICK} drew <b>808</b> "Post - player digging" violations in one run, one
  * per break, at its default rate of one block a tick; the identical run on {@code START_CLIENT_TICK} drew
  * <b>zero</b>. Secret Triggerbot, a different feature sending a different packet, drew 17 from 17 clicks and
- * the by-hand control was clean both times. So all nineteen interaction-sending features were moved.
+ * the by-hand control was clean both times. So the interaction-sending features were moved - but NOT all of
+ * them, and this line used to claim otherwise. Audited properly 2026-09-29 across all 111
+ * {@code END_CLIENT_TICK} registrations: {@code Ap3Feature} and {@code AutoRoutesFeature} still tick on END
+ * and still send block, item and hotbar packets from there. Fast Leap's END poll was removed in the same
+ * pass (it duplicated one that already ran on START). About seventeen further END features send only chat
+ * or a server command, which is where the "about twenty" in CLAUDE.md came from.
  * <p>
  * This gate observes on {@code START_CLIENT_TICK} as well, and {@link #onClientTick} ROLLS the per-tick want
  * list. An actor whose handler ran before it would ask for the tick and then have the request wiped, and the
@@ -116,7 +121,14 @@ public final class ActionGate {
      * {@link #PUZZLE_SCREEN}. If you add a constant, wire it in the same change.
      */
     public enum Actor {
-        /** AP3 / Auto Routes / auto-clear executors. Reserved - see the notes; not wired up yet. */
+        /**
+         * AP3 / Auto Routes / auto-clear executors.
+         *
+         * <p>This said "reserved, not wired up yet". It IS wired: {@code Ap3Executor} claims the tick as
+         * ROUTE at eight send sites. Note that winning this gate does not make a send Post-safe - the gate
+         * returns immediately and the caller sends synchronously in its own handler, so it arbitrates WHO
+         * acts and never changes WHEN the packet leaves relative to the movement packet.
+         */
         ROUTE(Kind.WORLD),
         /** Class ultimate fired off a chat trigger. Losing the tick loses the ult, so it sits near the top. */
         AUTO_ULT(Kind.WORLD),

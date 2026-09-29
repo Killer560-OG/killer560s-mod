@@ -41,7 +41,7 @@ public final class Ap3Node {
      *  (a modifier and Breaker Aura respectively) - {@link Ap3Store} migrates those, {@link #parse} does not. */
     public enum Type {
         ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK, FAST_ALIGN,
-        PATH, NO_GO, TERM_AURA;
+        PATH, NO_GO, TERM_AURA, USE;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -49,6 +49,9 @@ public final class Ap3Node {
             }
             String key = s.trim().toLowerCase(Locale.ROOT).replace('-', '_');
             return switch (key) {
+                // killer560 (2026-09-29): "add a use node for things to ap3 that uses an item at the angle
+                // the player was looking when they made the node."
+                case "use", "rightclick", "right_click", "u" -> USE;
                 case "align", "line", "l", "a" -> ALIGN;
                 case "axisalign", "axis_align", "axisline", "axis_line", "axis", "al", "aa", "wall" -> AXIS_ALIGN;
                 case "walk", "w" -> WALK;
@@ -85,6 +88,7 @@ public final class Ap3Node {
                 case TERMINAL -> "Terminal";
                 case STOP -> "Stop";
                 case LOOK -> "Look";
+                case USE -> "Use";
                 case BOOM -> "Boom";
                 case STOPWATCH -> "Stopwatch";
                 case JUMP -> "Jump";
@@ -132,6 +136,8 @@ public final class Ap3Node {
                 case LEAP_COUNTER -> 5;
                 case WALK, RUN -> 6;
                 // right after a walk in the same box, so the walk is already driving when the jump goes in
+                // A Use fires in the box like a Boom does, after the movement nodes have had it.
+                case USE -> 7;
                 case JUMP, EDGE, BLOCK -> 7;
                 // A Path node starts / continues the optimised route; No Go is data for the planner and never fires.
                 case PATH -> 6;

@@ -383,6 +383,17 @@ public final class SimMobs {
     }
 
     /** Removes every mob and Fel marker this class spawned, for a run restart. Never touches anything else. */
+    /**
+     * Forgets the tracked mobs without touching the world.
+     *
+     * <p>For {@code SimBuilder}, which discards every mob in the level itself and then only needs the
+     * bookkeeping cleared - calling {@link #clear(Minecraft)} there would try to reach the client from the
+     * server thread mid-build.
+     */
+    public static void forget() {
+        SPAWNED.clear();
+    }
+
     public static void clear(Minecraft client) {
         if (!SimState.canAct(client)) {
             return;

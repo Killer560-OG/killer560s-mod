@@ -98,10 +98,21 @@ public final class TerminalAuraFeature {
         }
         Vec3 eyes = player.getEyePosition();
         double rangeSqr = range * range;
-        List<ArmorStand> stands = TerminalStands.near(client.level, player, range);
+        // Sorted by distance, so "the nearest terminal" is what actually happens.
+        //
+        // This walked getEntitiesOfClass order and took the first one in range, which is chunk and spawn
+        // order - not distance. With two terminals close together it could reach past the one he is standing
+        // at for the one behind it. The class doc already claimed nearest; now it is true.
+        List<ArmorStand> stands = new java.util.ArrayList<>(
+                TerminalStands.near(client.level, player, range));
+        stands.sort(java.util.Comparator.comparingDouble(
+                st -> eyes.distanceToSqr(TerminalStands.center(st))));
         for (ArmorStand stand : stands) {
             Vec3 center = TerminalStands.center(stand);
-            if (eyes.distanceToSqr(center) > rangeSqr) {
+            // To the BOX. The centre reads further than the server measures, so a terminal at the edge of
+            // the 3.0 entity limit was refused when it was really in range.
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eyes,
+                    stand.getBoundingBox()) > rangeSqr) {
                 continue;
             }
             // Aim the interact at where the line from your eyes actually meets the stand's box, the same

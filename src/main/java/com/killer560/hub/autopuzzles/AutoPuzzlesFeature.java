@@ -65,14 +65,25 @@ public final class AutoPuzzlesFeature {
     private static final String WEIRDOS_ROOM = "Three Weirdos";
 
     // QUOI Quiz: player.eyePosition.distanceToSqr(answerPos.vec3) > 36 -> skip.
-    private static final double QUIZ_REACH_SQ = 36.0;
+    /** Measured block reach, squared - was 36.0 (6.0 blocks) to the centre. */
+    private static final double QUIZ_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     // QUOI Quiz: getEntities<ArmorStand>(20.0) { "ⓒ" in name }.
     private static final double QUIZ_HOLOGRAM_RADIUS_SQ = 20.0 * 20.0;
     // QUOI ThreeWeirdos: player.eyePosition.distanceToSqr(pos.vec3) < 30.
-    private static final double WEIRDOS_REACH_SQ = 30.0;
+    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    private static final double WEIRDOS_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     // QUOI ThreeWeirdos NPC clicks: getEntities<ArmorStand>(10.0), entity.distanceToSqr(player) > 30 -> skip, 200ms gap.
     private static final double NPC_SCAN_RADIUS_SQ = 10.0 * 10.0;
-    private static final double NPC_REACH_SQ = 30.0;
+    /**
+     * Measured ENTITY reach, squared.
+     *
+     * <p>Was 30.0 - 5.48 blocks, and measured feet-to-feet at that. Talking to a Weirdos NPC is an entity
+     * interaction, where the anticheat names the distance past 3.0 to the entity's BOX, so this was nearly
+     * twice the real limit against a measure that is itself optimistic.
+     */
+    private static final double NPC_REACH_SQ =
+            com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH
+                    * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
     private static final long NPC_CLICK_GAP_MS = 200L;
 
     // ---- Quiz state ----
@@ -88,6 +99,9 @@ public final class AutoPuzzlesFeature {
     private static long weirdosPendingSinceMs = 0L;
     private static boolean weirdosWaitLogged = false;
     private static boolean weirdosSolverOffWarned = false;
+    /** The Three Weirdos room the clicked-NPC set belongs to. */
+    private static com.killer560.hub.roomdatabase.RoomEntry lastWeirdosRoom;
+
     private static final Set<Integer> clickedNpcIds = new HashSet<>();
     private static long lastNpcClickMs = 0L;
 
@@ -235,9 +249,11 @@ public final class AutoPuzzlesFeature {
             blocker = "sneaking";
         } else if (!answerHologramsUp(client)) {
             blocker = "answer holograms (ⓒ stand) not up yet";
-        } else if (client.player.getEyePosition().distanceToSqr(Vec3.atCenterOf(answer)) > QUIZ_REACH_SQ) {
+        } else if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), answer) > QUIZ_REACH_SQ) {
+            // To the BOX - see the note in AutoWater. Pairing a box-measured limit with a centre-measured
+            // distance refuses blocks the server would accept.
             blocker = String.format(java.util.Locale.US, "out of reach (%.2f blocks)",
-                    Math.sqrt(client.player.getEyePosition().distanceToSqr(Vec3.atCenterOf(answer))));
+                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), answer)));
         }
         if (blocker != null) {
             if (!quizWaitLogged) {
@@ -339,7 +355,8 @@ public final class AutoPuzzlesFeature {
             return;
         }
         BlockState state = client.level.getBlockState(chest);
-        double distSq = client.player.getEyePosition().distanceToSqr(Vec3.atCenterOf(chest));
+        // To the BOX - see the note in AutoWater.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), chest);
         String blocker = null;
         if (client.player.isShiftKeyDown()) {
             blocker = "sneaking";
@@ -368,6 +385,18 @@ public final class AutoPuzzlesFeature {
     }
 
     private static void tryTalkToNpc(Minecraft client, long now) {
+        // The NPCs already talked to belong to ONE room.
+        //
+        // clickedNpcIds was only cleared on a level change, so after three NPCs in the first Three Weirdos
+        // the guard below was permanently satisfied and Auto Three Weirdos never spoke to the NPCs in a
+        // second one at all. Entity ids are not reused across rooms, so clearing on a room change costs
+        // nothing and is the correct scope.
+        com.killer560.hub.roomdatabase.RoomEntry weirdosRoom =
+                com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
+        if (weirdosRoom != lastWeirdosRoom) {
+            lastWeirdosRoom = weirdosRoom;
+            clickedNpcIds.clear();
+        }
         if (clickedNpcIds.size() >= 3 || now - lastNpcClickMs < NPC_CLICK_GAP_MS) {
             return;
         }
@@ -379,7 +408,15 @@ public final class AutoPuzzlesFeature {
             if (!(entity instanceof ArmorStand) || clickedNpcIds.contains(entity.getId())) {
                 continue;
             }
-            double distSq = entity.distanceToSqr(client.player);
+            // EYE to the stand's BOX, not origin to origin.
+            //
+            // The constant was updated to MEASURED_MAX_ENTITY_REACH and the MEASURE was left alone, so this
+            // compared feet-to-feet against a limit the server applies eye-to-box. It sent interacts at
+            // stands the server considers out of range, and skipped stands it would have accepted when the
+            // vertical offset went the other way. Terminal Aura and Terminal Triggerbot already do it this
+            // way; this was the one that did not.
+            double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(
+                    client.player.getEyePosition(), entity.getBoundingBox());
             if (distSq > NPC_SCAN_RADIUS_SQ || distSq > NPC_REACH_SQ || distSq >= bestDistSq) {
                 continue;
             }
@@ -393,7 +430,17 @@ public final class AutoPuzzlesFeature {
         if (best == null || !AutoPuzzleUtil.gateWorldClick()) {
             return; // gate held this tick back - nothing clicked, so the NPC stays unmarked and the gap untouched
         }
-        client.gameMode.interact(client.player, best, new EntityHitResult(best), InteractionHand.MAIN_HAND);
+        // A point ON the stand's box, not the stand's own position.
+        //
+        // new EntityHitResult(entity) reports the entity's origin as the hit location - a point at its feet.
+        // The server measures the reported hit, so a stand that is genuinely in range can be reported as a
+        // hit half a block below where the box is. Clipping the eye ray against the box gives the point a
+        // real click would have produced.
+        net.minecraft.world.phys.Vec3 eye = client.player.getEyePosition();
+        net.minecraft.world.phys.Vec3 aim = best.getBoundingBox().clip(eye,
+                best.getBoundingBox().getCenter()).orElse(best.getBoundingBox().getCenter());
+        client.gameMode.interact(client.player, best, new EntityHitResult(best, aim),
+                InteractionHand.MAIN_HAND);
         client.player.swing(InteractionHand.MAIN_HAND);
         clickedNpcIds.add(best.getId());
         lastNpcClickMs = now;

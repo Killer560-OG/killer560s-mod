@@ -104,6 +104,18 @@ public final class SimBlazePuzzle {
     }
 
     /** Clears any previous arena and spawns a fresh one at {@code origin}. Server thread only. */
+    /**
+     * How many blazes are currently standing in the arena.
+     *
+     * <p>For scenario 78, which cannot count them out of the world: a {@code getEntitiesOfClass} query over
+     * the arena returns nothing at all in a gametest client, for every puzzle, while this puzzle's own log
+     * says it spawned five. Rather than assert on an instrument that reads zero whatever is there, the test
+     * asks the puzzle - and the puzzle only counts a blaze the level actually accepted.
+     */
+    public static int spawnedCount() {
+        return spawnedIds == null ? 0 : spawnedIds.size();
+    }
+
     public static void build(Minecraft client, BlockPos origin) {
         if (!SimState.canAct(client)) {
             return;
@@ -125,13 +137,22 @@ public final class SimBlazePuzzle {
                 blaze.setPersistenceRequired();
                 blaze.setNoAi(true);
                 blaze.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-                level.addFreshEntity(blaze);
+                if (!level.addFreshEntity(blaze)) {
+                    // Said out loud rather than silently skipped. A blaze arena with no blazes in it looks
+                    // exactly like a puzzle that was never built, and scenario 78 found this puzzle building
+                    // nothing with nothing in the log to say why.
+                    org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim")
+                            .warn("Sim blaze puzzle: the level refused a blaze at {}", pos);
+                    continue;
+                }
                 byPlacement[i] = blaze.getUUID();
             }
             List<UUID> ordered = new ArrayList<>(HEALTHS.length);
             for (int idx : KILL_ORDER_INDICES) {
                 ordered.add(byPlacement[idx]);
             }
+            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim")
+                    .info("Sim blaze puzzle: {} blaze(s) spawned at {}", ordered.size(), origin);
             spawnedIds = List.copyOf(ordered);
             nextRequired = 0;
             complete = false;

@@ -94,7 +94,26 @@ public final class ExperimentsFeature {
      *  this), so this stays pinned to the real Experimentation Table entity for as long as killer560
      *  doesn't manually right-click something else while autonomous mode runs. Used to simulate
      *  right-clicking it again after claiming rewards closes the menu - see {@link #maybeReopenTable}. */
+    /**
+     * The table entity, remembered so the reopen can right-click it.
+     *
+     * <p>Cleared on a world change. Holding an Entity holds its whole ClientLevel, so leaving it set kept the
+     * last world in memory for as long as the session lasted - and the reopen could also fire at an entity
+     * from a different world entirely.
+     */
     private static Entity lastInteractedEntity = null;
+
+    /** The world {@link #lastInteractedEntity} belongs to, so a change can drop it. */
+    private static net.minecraft.world.level.Level lastEntityLevel = null;
+
+    /** Drops the remembered entity when the world it came from is gone. */
+    private static void forgetEntityOnWorldChange(net.minecraft.client.Minecraft client) {
+        net.minecraft.world.level.Level now = client == null ? null : client.level;
+        if (now != lastEntityLevel) {
+            lastEntityLevel = now;
+            lastInteractedEntity = null;
+        }
+    }
     /** 0 = no reopen pending; otherwise the timestamp at/after which {@link #maybeReopenTable} should
      *  fire, set to "now + 1s" the moment a claim closes the table - per killer560's "have it right click
      *  again a short amount of time after maybe 1s to reopen the menu." */
@@ -182,6 +201,7 @@ public final class ExperimentsFeature {
         // the table after claiming rewards closes it.
         UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
             lastInteractedEntity = entity;
+            lastEntityLevel = entity.level();
             return InteractionResult.PASS;
         });
 
@@ -904,13 +924,34 @@ public final class ExperimentsFeature {
             return;
         }
         pendingReopenAtMs = 0;
+        forgetEntityOnWorldChange(client);
         Entity entity = lastInteractedEntity;
         if (entity == null || !entity.isAlive() || client.player == null || client.gameMode == null) {
             LOGGER.warn("Wanted to reopen the table but no valid remembered entity to right-click");
             return;
         }
+        // Distance and hit vector, neither of which this had.
+        //
+        // It remembered an entity and right-clicked it a second later with no range check at all, and with
+        // EntityHitResult(entity), whose hit point is the entity's FEET - a point no ray from the eye
+        // produces. A second is long enough to have walked away, so this could fire an out-of-range
+        // interaction at a point that cannot exist.
+        net.minecraft.world.phys.Vec3 eye = client.player.getEyePosition();
+        net.minecraft.world.phys.AABB box = entity.getBoundingBox();
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH) {
+            LOGGER.warn("Wanted to reopen the table but the remembered entity is out of reach now");
+            return;
+        }
+        net.minecraft.world.phys.Vec3 centre = box.getCenter();
+        net.minecraft.world.phys.Vec3 aim = box.clip(eye, eye.add(centre.subtract(eye).normalize().scale(
+                eye.distanceTo(centre) + 1.0))).orElse(null);
+        if (aim == null) {
+            LOGGER.warn("Wanted to reopen the table but no ray from the eye reaches the entity's box");
+            return;
+        }
         LOGGER.info("Reopening the table by right-clicking entity {}", entity.getId());
-        client.gameMode.interact(client.player, entity, new EntityHitResult(entity), InteractionHand.MAIN_HAND);
+        client.gameMode.interact(client.player, entity, new EntityHitResult(entity, aim),
+                InteractionHand.MAIN_HAND);
     }
 
     private static boolean chainLengthAtOrOverMax(ExperimentSolver.Mode mode, ExperimentsConfig cfg) {

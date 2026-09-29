@@ -466,6 +466,26 @@ public final class AutoPuzzleUtil {
      * Teleport Maze / Tic Tac Toe / Higher-Lower) that must aura a chest of their own "even if secret aura is off"
      * (killer560, Auto Boulder). Never depends on Secret Aura being enabled or on its done-tracking.
      */
+    /**
+     * The block reach the server actually enforces, squared.
+     *
+     * <p>Every puzzle auto carried its own constant - 36.0 (6.0 blocks) in Blaze, Boulder, Teleport Maze,
+     * Tic Tac Toe and the Quiz, 30.0 (5.48) in Weirdos and Water - and all of them measured to the block's
+     * CENTRE, which reads up to half a block further still. Measured on a real server, the limit is 4.5 to the
+     * BOX and past it the server refuses the interaction outright. Those numbers were inherited from QUOI and
+     * were never tied to the measurement.
+     *
+     * <p>One constant, derived from {@link CheatUtilsConfig#MEASURED_MAX_REACH}, so it cannot drift again.
+     */
+    public static final double BLOCK_REACH_SQ =
+            com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
+                    * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
+
+    /** Is this block within the reach the server enforces, measured to its box from the eye? */
+    public static boolean inBlockReach(LocalPlayer player, BlockPos pos) {
+        return com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) <= BLOCK_REACH_SQ;
+    }
+
     public static BlockPos nearestChest(Minecraft client, LocalPlayer player, double rangeSq) {
         Vec3 eye = player.getEyePosition();
         double range = Math.sqrt(rangeSq);
@@ -479,7 +499,10 @@ public final class AutoPuzzleUtil {
                     && block != net.minecraft.world.level.block.Blocks.TRAPPED_CHEST) {
                 continue;
             }
-            double distSq = eye.distanceToSqr(Vec3.atCenterOf(pos));
+            // To the BOX, not the centre. The centre reads up to half a block further, so a chest picked by
+            // centre distance can sit outside the 4.5 the server actually enforces - and then every click at
+            // it is refused, or flagged. Same measure BlockHits uses everywhere else.
+            double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if (distSq <= bestDistSq) {
                 bestDistSq = distSq;
                 best = pos.immutable();

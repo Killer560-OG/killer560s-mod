@@ -247,7 +247,13 @@ public final class TerminalQolFeature {
         // Same real click path Custom GUI / Auto Terminals already use, so the click is indistinguishable from
         // a mouse click on that slot (sounds, carried-item bookkeeping, the real network packet) - including
         // its guard against another mod's slot-click mixin throwing (see TerminalSolverFeature#invokeSlotClicked).
-        TerminalSolverFeature.invokeSlotClicked(screen, slot, 0, ContainerInput.PICKUP);
+        // CLONE, like every other terminal click in this mod.
+        //
+        // This was the only PICKUP. On a server-owned GUI the server cancels the click, but the client has
+        // already predicted picking the item UP - so a ghost item rides the cursor until the next resync.
+        // TerminalSolverFeature calls CLONE "the no-op click every other type uses", and those are proven on
+        // Hypixel terminals, so this was the outlier rather than the special case.
+        TerminalSolverFeature.invokeSlotClicked(screen, slot, 0, ContainerInput.CLONE);
         // Consumed either way: if the click was aborted, letting 1-4 fall through to vanilla would SWAP an
         // item into the terminal slot, which is strictly worse than the key doing nothing.
         return true;

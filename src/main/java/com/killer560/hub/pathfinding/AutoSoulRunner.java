@@ -39,7 +39,14 @@ import java.util.List;
 public final class AutoSoulRunner {
 
     private static final String CHAT = "Auto Fairy Souls";
-    private static final double COLLECT_DISTANCE = 4.5;
+    /**
+     * How close to stand before clicking a soul.
+     *
+     * <p>Was 4.5 - the BLOCK reach - for what is an entity interaction, where the anticheat names the distance
+     * past 3.0 to the entity's box. It was also measured feet-to-feet, so collecting stayed active well past
+     * even that. This is the walk-up distance; the click itself is now gated separately on the real limit.
+     */
+    private static final double COLLECT_DISTANCE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
     private static final double SHORTCUT_MIN_SAVING = 15.0;
     private static final double SOUL_SEARCH_RADIUS = 6.0;
     private static final int HOP_TIMEOUT_TICKS = 120;
@@ -327,9 +334,27 @@ public final class AutoSoulRunner {
             }
             return;
         }
-        Vec3 aim = stand.position().add(0, 1.0, 0);
+        // A point ON the stand's box, from the eye - not a point inside it.
+        //
+        // This aimed at stand.position() + 1.0, which is inside the entity and is not a point any ray from
+        // the eye produces. That is the same shape that drew PositionPlace on block clicks, and the entity
+        // equivalent of it. Clipping the eye-to-centre ray against the box gives a hit that could really have
+        // happened; if the clip misses, the tick is skipped rather than faked.
+        Vec3 eye = player.getEyePosition();
+        net.minecraft.world.phys.AABB box = stand.getBoundingBox();
+        Vec3 centre = box.getCenter();
+        java.util.Optional<Vec3> clip = box.clip(eye, eye.add(centre.subtract(eye).normalize().scale(
+                eye.distanceTo(centre) + 1.0)));
+        Vec3 aim = clip.orElse(null);
+        if (aim == null) {
+            return;
+        }
         AutoWalker.lookAt(aim);
         if (AutoWalker.aimError() > 3f) {
+            return;
+        }
+        // And within the reach the anticheat enforces, measured to the BOX like every other check.
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH) {
             return;
         }
         if (waitTicks % 20 == 0) {

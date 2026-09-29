@@ -27,7 +27,14 @@ public final class DoorHelpersConfig {
     public enum OpenerMode { AURA, TRIGGERBOT }
 
     public static final double RANGE_MIN = 2.0;
-    public static final double RANGE_MAX = 6.0;
+    /**
+     * Measured block reach.
+     *
+     * <p>Was 6.0, inherited from QUOI. Only the DEFAULT had been moved to the measurement, so a config saved
+     * at the old 5.0 - or anything up to 6.0 - loaded through this clamp untouched and kept reaching a block
+     * and a half past what the server allows.
+     */
+    public static final double RANGE_MAX = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     public static final int RETRY_MIN_MS = 100;
     public static final int RETRY_MAX_MS = 2000;
 

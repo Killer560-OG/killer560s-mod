@@ -37,7 +37,8 @@ final class AutoWater {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
     private static final String ROOM = "Water Board";
-    private static final double REACH_SQ = 30.0;
+    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    private static final double REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long CLICK_GAP_TICKS = 2;
     /** AutoClearUtils' own "Water Board" room override - the doorway-side spot, not a guess. */
     private static final int[] START_SPOT_RELATIVE = com.killer560.hub.livemap.autoclear.AutoClearUtils.roomOverride(ROOM);
@@ -151,7 +152,11 @@ final class AutoWater {
         if (!due || tick - lastClickTick < CLICK_GAP_TICKS) {
             return;
         }
-        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(next.pos()));
+        // To the BOX, not the centre. The limit is 4.5 to the box; measuring to the centre reads up to half
+        // a block further, so pairing the two made this stricter than the server is and the auto
+        // refused reachable blocks. Caught 2026-09-29 on Auto Water Board, which opened the water and
+        // then stalled on every other lever at a measured 5.08-5.2 to centre.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), next.pos());
         String blocker = player.isShiftKeyDown() ? "sneaking"
                 : distSq > REACH_SQ ? String.format(java.util.Locale.US, "out of reach (%.2f blocks)", Math.sqrt(distSq)) : null;
         if (blocker != null) {

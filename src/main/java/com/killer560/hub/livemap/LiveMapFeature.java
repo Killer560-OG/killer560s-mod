@@ -270,8 +270,16 @@ public final class LiveMapFeature {
         wasInDungeon = inDungeon;
         updateBossState(client, inDungeon);
 
+        // In the SIM the floor is PUBLISHED, not scanned - see publishSimFloor.
+        //
+        // The world scan reads the vanilla dungeon map item and the clay markers Hypixel puts in each room,
+        // and a singleplayer sim has neither. It therefore found nothing, every tick, and overwrote anything
+        // else that tried to fill the grid: "[LiveMap] Room groups rebuilt: rooms=0" in every sim log. That is
+        // why the map, the interactive map and every pathfinder that reads the layout were all blank in
+        // there, and why the map feature could not be tested in the sim at all.
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
         String consumers = scanConsumers();
-        boolean scanning = !consumers.isEmpty() && inDungeon && !isInBoss();
+        boolean scanning = !consumers.isEmpty() && inDungeon && !isInBoss() && !sim;
         String gates = "consumers=[" + consumers + "] inDungeon=" + inDungeon
                 + " bossPhase=" + DungeonState.isBossPhaseActive() + " inBoss=" + isInBoss()
                 + " roomDbReady=" + RoomDatabase.isReady();
@@ -302,6 +310,52 @@ public final class LiveMapFeature {
             groupsDirty = true;
         }
         scan();
+    }
+
+    /**
+     * Fills the grid from a floor the dungeon sim just built.
+     *
+     * <p>The sim knows exactly what it placed - name, cells, clay corner and rotation per room, and a door
+     * type per connector - so it hands that over rather than leaving the map to look for markers that a
+     * singleplayer world does not have. Everything downstream (the HUD map, the interactive map, the teleport
+     * pathfinders, Secret Waypoints) reads the same arrays it always did and needs no sim-specific path.
+     *
+     * <p>Client thread only, like every other writer of these arrays.
+     *
+     * @param roomCells  for each of the 121 cells, the index into {@code names} of the room covering it, or -1
+     * @param doorCells  for each cell, a {@link DungeonLayout} door constant, or DOOR_NONE
+     * @param names      room names, indexed by {@code roomCells}
+     * @param clay       per room name index, {@code {clayX, clayZ, rotation}}
+     */
+    public static void publishSimFloor(int[] roomCells, int[] doorCells, String[] names, int[][] clay) {
+        resetGrid("Sim floor built");
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            int room = idx < roomCells.length ? roomCells[idx] : -1;
+            if (room >= 0 && room < names.length) {
+                // Tiles AND connectors are marked ROOM, which is what lets rebuildGroups union a multi-tile
+                // room back together - the same convention a live capture uses.
+                grid[idx] = Tile.ROOM;
+                if ((idx % GRID) % 2 == 0 && (idx / GRID) % 2 == 0) {
+                    roomEntryGrid[idx] = RoomDatabase.lookupByName(names[room]);
+                    if (clay != null && room < clay.length && clay[room] != null) {
+                        clayXGrid[idx] = clay[room][0];
+                        clayZGrid[idx] = clay[room][1];
+                        rotationGrid[idx] = clay[room][2];
+                    }
+                }
+                continue;
+            }
+            int door = idx < doorCells.length ? doorCells[idx] : DungeonLayout.DOOR_NONE;
+            grid[idx] = switch (door) {
+                case DungeonLayout.DOOR_NORMAL -> Tile.DOOR_NORMAL;
+                case DungeonLayout.DOOR_WITHER -> Tile.DOOR_WITHER;
+                case DungeonLayout.DOOR_BLOOD -> Tile.DOOR_BLOOD;
+                case DungeonLayout.DOOR_ENTRANCE -> Tile.DOOR_ENTRANCE;
+                default -> Tile.UNKNOWN;
+            };
+        }
+        groupsDirty = true;
+        LOGGER.info("[LiveMap] Sim floor published: {} room(s)", names.length);
     }
 
     private static void scan() {
@@ -755,6 +809,11 @@ public final class LiveMapFeature {
         }
     }
 
+    /** {@link #getHighestY} for callers outside this class - the roof probe that decides a cell holds a room. */
+    public static int roofAt(net.minecraft.client.Minecraft client, int worldX, int worldZ) {
+        return getHighestY(client, worldX, worldZ);
+    }
+
     private static int getHighestY(Minecraft client, int x, int z) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, 0, z);
         for (int y = 255; y >= 0; y--) {
@@ -973,6 +1032,20 @@ public final class LiveMapFeature {
 
     static boolean isWorldScanned(int idx) {
         return grid[idx] != Tile.UNKNOWN;
+    }
+
+    /**
+     * The action bar's own per-room secret count, which is the number Hypixel shows HIM.
+     *
+     * <p>Public because {@code DungeonInfoFeature} needs it: that class was deriving a per-room count by
+     * subtracting the tab list's run total, and the tab list's total is the WHOLE TEAM's - so every secret a
+     * teammate found anywhere on the floor was credited to whichever room he happened to be standing in.
+     * The action bar line is per room and is already parsed here.
+     *
+     * @return the count, or -1 when no action bar line has been seen for that room this run
+     */
+    public static int foundSecretsForRoom(String roomName) {
+        return foundSecrets(roomName);
     }
 
     static int foundSecrets(String roomName) {

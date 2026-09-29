@@ -84,6 +84,10 @@ public final class SimSpeed {
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->
                 dispatcher.register(ClientCommands.literal("speed")
+                        // Sim-only, like /map, /fly and /start. Without this the client command claims the
+                        // name globally and swallows the server's own /speed - Hypixel Housing has one - to
+                        // answer "only works inside the dungeon sim".
+                        .requires(src -> SimState.canAct(Minecraft.getInstance()))
                         .then(ClientCommands.argument("amount", IntegerArgumentType.integer(MIN, MAX))
                                 .executes(ctx -> {
                                     set(Minecraft.getInstance(),

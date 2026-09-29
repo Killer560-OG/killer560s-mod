@@ -45,7 +45,8 @@ final class AutoBoulder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
     private static final String ROOM = "Boulder";
-    private static final double AURA_REACH_SQ = 36.0;
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long WALK_TIMEOUT_MS = 15_000L;
     private static final int MAX_AURA_ATTEMPTS = 3;
 
@@ -188,8 +189,24 @@ final class AutoBoulder {
         if (target == null) {
             target = chestReal; // fall back to the known database position itself
         }
-        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(target));
+        // To the box, like the picker above - measuring the gate one way and the choice another is how a
+        // module ends up clicking at something it cannot reach.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
+            // Say WHY, with the number.
+            //
+            // This burned an attempt silently, so "Auto Boulder walked over and then did nothing" was
+            // indistinguishable from "it decided not to". The standing spot is chest + (0,+3,-3), which works
+            // out at somewhere between 4.4 and 5.25 blocks to the chest's box depending on whether that
+            // coordinate is the floor block or the feet - straddling the 4.5 the server enforces. One real
+            // run with this line in it settles which, instead of another round of arithmetic.
+            if (!player.isShiftKeyDown()) {
+                LOGGER.info("[AutoPuzzles] Boulder: chest aura blocked, {} blocks to the box (limit {}) "
+                                + "- attempt {} of {}",
+                        String.format(java.util.Locale.US, "%.2f", Math.sqrt(distSq)),
+                        String.format(java.util.Locale.US, "%.2f", Math.sqrt(AURA_REACH_SQ)),
+                        auraAttempts + 1, MAX_AURA_ATTEMPTS);
+            }
             auraAttempts++;
             return;
         }

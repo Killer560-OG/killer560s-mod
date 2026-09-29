@@ -183,6 +183,14 @@ public final class SimWorld {
         // largest single cost in the whole operation by a wide margin: the build behind it takes one second.
         if (SimState.canAct(client) && client.getSingleplayerServer() != null) {
             LOGGER.info("[SimPhase] already in the sim world - building without reopening it");
+            // Per-MAP state, cleared here as well as on a fresh world load.
+            //
+            // This shortcut exists because reopening the world costs seconds, and it skipped every reset that
+            // onWorldLoaded does. So Change Room / Create New Map / Load a Room from inside the sim kept the
+            // old map's state: mimic candidates pointing at chests that no longer exist, the score's secret
+            // total inflated by the last map's chests, starred mobs from the old floor still alive so the
+            // last-starred-dead key drop never fired, and an armed run left over from before.
+            resetPerMapState(client);
             loadingLabel = label == null ? "Building" : label;
             buildInProgress = true;
             loadingTicks = 0;
@@ -328,6 +336,7 @@ public final class SimWorld {
         // zero, which reads as "unknown" rather than as a perfect run.
         SimScore.reset(0, 0);
         SimMimic.reset();
+        SimSecretItems.reset();
         SimTerminator.reset();
         SimArchitect.reset();
         SimBreakerState.reset();
@@ -361,14 +370,39 @@ public final class SimWorld {
     public static void onWorldUnloaded() {
         pendingCode = null;
         if (SimState.isActive()) {
-            SimState.leave();
+            // Everything that needs canAct() FIRST, then leave().
+            //
+            // leave() was called first, and SimMobs.clear returns early when canAct is false - so it never
+            // ran. Its hadStarred/SPAWNED/STARRED sets survived into the next session, where the first tick
+            // saw "starred mobs all dead" and dropped a Wither Key at his feet in a fresh map.
+            resetPerMapState(Minecraft.getInstance());
             SimAbilities.reset();
-            // Doors belong to the map that was open. Leaving them registered would have the next session's
-            // key-click open a door that is no longer there.
-            SimDoors.clear();
-            SimMobs.clear(Minecraft.getInstance());
-            SimRun.reset();
-            com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
+            SimState.leave();
         }
+        // Outside the isActive() branch: a build abandoned mid-flight leaves jobs holding the OLD ServerLevel,
+        // and the integrated server would keep stepping them in whatever world is opened next - including a
+        // singleplayer world that is not the sim. The loading screen could reassert itself there too.
+        SimBuildQueue.clear();
+        buildInProgress = false;
+        loadingScreen = null;
+        loadingTicks = 0;
+    }
+
+    /**
+     * Forgets everything that belongs to ONE map.
+     *
+     * <p>Called from three places that all used to do different subsets of it: a fresh world load, a rebuild
+     * inside the sim, and leaving. Having one list is the point - the bugs here were all "that path forgot to
+     * reset this one thing".
+     */
+    private static void resetPerMapState(Minecraft client) {
+        SimDoors.clear();
+        SimMobs.clear(client);
+        SimRun.reset();
+        SimMimic.reset();
+        SimBreakerState.reset();
+        SimSidebar.reset();
+        SimBuilder.clearEntranceDoor();
+        com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
     }
 }

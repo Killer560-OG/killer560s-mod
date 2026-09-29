@@ -81,6 +81,14 @@ public final class HypixelLocation {
         if (!lobbyModeNeeded || client.player == null || client.getConnection() == null || isP3Sim(client)) {
             return;
         }
+        // Not in a local world. getConnection() is NOT null in singleplayer - the integrated server is reached
+        // over a connection like any other - so that check alone let this type "/locraw" into the dungeon sim
+        // and into an Ashfall practice room, where the answer is Minecraft's own "Unknown or incomplete
+        // command" in his chat (seen 2026-09-28). Harmless but it is my mod talking nonsense to a world that
+        // has no Hypixel in it, and it happened on every world join.
+        if (client.getSingleplayerServer() != null) {
+            return;
+        }
         if (client.level != lastLevel) {
             lastLevel = client.level;
             serverId = null;

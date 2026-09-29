@@ -1,6 +1,9 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.BuildVariant;
+import com.killer560.hub.livemap.LiveMapFeature;
+import com.killer560.hub.roomdatabase.RoomDatabase;
+import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.FeatureGuard;
@@ -17,6 +20,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.core.BlockPos;
 import net.minecraft.client.Minecraft;
 
 import java.util.Locale;
@@ -75,7 +79,20 @@ public final class RoomRecorderFeature {
         /** Sent /skyblock, waiting before the floor join. */
         REJOIN,
         /** Five-puzzle run: handed over to him, still capturing whatever he walks into. */
-        PAUSED
+        PAUSED,
+        /**
+         * Capture only: read whatever dungeon he is standing in and never touch the controls.
+         *
+         * <p>Added 2026-09-28, when Caleb gave him access to Ashfall and its dungeon maker turned out to build a
+         * real Catacombs floor in a local world. This mod already reads that world correctly with no changes at
+         * all - the crash log from it shows floor detection landing on M7 and the Live Map identifying all
+         * twenty rooms with their rotations and clay corners - so the rooms can be captured straight out of it.
+         *
+         * <p>None of the Hypixel loop applies there: there is no instance to join, no undersized-party menu, no
+         * hub to return to and no cooldown. So this stage sends NOTHING. He places rooms and walks; it reads.
+         * That also makes it the safe way to fill the library, because nothing is automated on a real server.
+         */
+        CAPTURE
     }
 
     private static Stage stage = Stage.OFF;
@@ -137,6 +154,83 @@ public final class RoomRecorderFeature {
         suppressKeyStop = true;
         say("Room Recorder ON. It will run F7 on a loop. Press any key to stop.");
     }
+
+    /**
+     * Starts capture-only mode: scan, never drive.
+     *
+     * <p>Deliberately NOT behind {@link #inRecorderInstance()}. That gate exists because the normal loop enters
+     * dungeons on a repeat, which is not something to have happen in an instance he plays in - and this mode
+     * enters nothing. It reads the world it is given, wherever that is.
+     */
+    public static void startCaptureOnly() {
+        if (!BuildVariant.DEV_TOOLS) {
+            return;
+        }
+        RoomLibrary.loadAsync();
+        stage = Stage.CAPTURE;
+        waitTicks = 1;
+        roomsAddedThisRun = 0;
+        capturedSinceSave = 0;
+        alertTicks = 0;
+        // Not inherited from the last floor: a stale {done,total} that happened to read full would fire "FLOOR
+        // DONE" the instant he arrived in the next one, before anything had been captured at all.
+        floorDone = new int[]{0, 0};
+        // Same reason as start(): the Return that submitted the command is still down next tick.
+        suppressKeyStop = true;
+        say("Room Recorder: CAPTURE ONLY. It will not join, walk or type anything - it reads the rooms you are "
+                + "standing in. Run it again to stop.");
+    }
+
+    public static boolean isCaptureOnly() {
+        return stage == Stage.CAPTURE;
+    }
+
+    /** The world capture last armed itself in, so re-entering a world arms it again but a single world does not
+     *  re-announce every tick. */
+    private static Object autoArmedLevel;
+
+    /**
+     * Arms capture-only by itself in a LOCAL dungeon that is not our own sim.
+     *
+     * <p>killer560 generated a night of floors in Ashfall to harvest rooms (2026-09-29) and nothing was written,
+     * because capture-only existed but is a command he had to remember. The mod had identified 73 distinct rooms
+     * across those floors and threw every one away. A feature that only works when you remember it is the
+     * failure, not him, so this arms itself.
+     *
+     * <p>Three conditions, and all three matter. It requires an INTEGRATED server, so it can never arm on
+     * Hypixel or p3sim - and capture-only sends nothing anyway, but this keeps the two facts independent. It
+     * requires a dungeon, which in a local world means Ashfall's practice floor put up a Catacombs sidebar. And
+     * it refuses our own sim, because the sim is BUILT from this library: capturing there would re-ingest our
+     * own paste and quietly launder a bad room back in as if it had been seen for real.
+     */
+    private static void autoArmCapture(Minecraft client) {
+        if (!BuildVariant.DEV_TOOLS
+                || client.level == null
+                || client.getSingleplayerServer() == null
+                || SimState.isActive()
+                || !DungeonState.isInDungeon()) {
+            return;
+        }
+        if (autoArmedLevel == client.level) {
+            return;
+        }
+        autoArmedLevel = client.level;
+        startCaptureOnly();
+        say("armed automatically - this is a local dungeon, so the rooms are being read as you walk.");
+    }
+
+    /** New columns since the last write, so a long session is not one unsaved buffer. */
+    private static int capturedSinceSave;
+
+    /** The world the "floor done" alert has already fired in, so it says it once and not every tick. */
+    private static Object doneAnnouncedLevel;
+
+    /** A second between writes, and between recounts. Both were per tick and both cost real frames. */
+    private static final int SAVE_INTERVAL_TICKS = 20;
+    private static final int PROGRESS_INTERVAL_TICKS = 20;
+
+    /** Last {@code {done, total}} for the floor he is standing in, recounted on the interval above. */
+    private static int[] floorDone = new int[]{0, 0};
 
     private static int alertTicks;
     private static boolean resumeKeyWasDown;
@@ -268,13 +362,16 @@ public final class RoomRecorderFeature {
     public static void stop(String reason) {
         // Before anything else: a held movement key outliving the feature would walk him into a wall.
         RoomEntryWalk.reset();
+        // Whatever the save interval has not flushed yet. The saveAll below is a full write and covers this
+        // too, but doing it here means the order stops mattering if that ever changes.
+        RoomLibrary.saveDirty();
         if (stage == Stage.OFF) {
             return;
         }
         stage = Stage.OFF;
         RoomLibrary.saveAll();
         say("Room Recorder OFF (" + reason + "). " + RoomLibrary.completeCount() + " of "
-                + RoomLibrary.roomCount() + " rooms complete.");
+                + RoomLibrary.expectedCount() + " rooms complete.");
     }
 
     private static void tick(Minecraft client) {
@@ -284,6 +381,7 @@ public final class RoomRecorderFeature {
         tickCounter++;
         pollResumeKey(client);
         if (stage == Stage.OFF) {
+            autoArmCapture(client);
             return;
         }
         // Tracked in EVERY stage, paused included: the instance cooldown keeps running while he walks a
@@ -302,9 +400,10 @@ public final class RoomRecorderFeature {
             if (!anyKeyDown(client)) {
                 suppressKeyStop = false;
             }
-        } else if (stage != Stage.PAUSED && firstKeyDown(client) != -1) {
-            // Not while paused: the pause exists so he can walk the run himself, and stopping the moment he
-            // touches a movement key would make the feature impossible to use for the thing it is for.
+        } else if (stage != Stage.PAUSED && stage != Stage.CAPTURE && firstKeyDown(client) != -1) {
+            // Not while paused, and not while capture-only: both exist so he can walk the run himself, and
+            // stopping the moment he touches a movement key would make the feature impossible to use for the
+            // thing it is for.
             stop(KeyUtil.bindDisplayName(firstKeyDown(client)) + " pressed");
             return;
         }
@@ -314,7 +413,7 @@ public final class RoomRecorderFeature {
         }
         if (waitTicks > 0) {
             waitTicks--;
-            if (stage == Stage.SCAN || stage == Stage.PAUSED) {
+            if (stage == Stage.SCAN || stage == Stage.PAUSED || stage == Stage.CAPTURE) {
                 // Paused included: he is walking the run to load rooms, and that is exactly when capturing
                 // every tick matters most.
                 scan(client);
@@ -362,7 +461,7 @@ public final class RoomRecorderFeature {
                 runs++;
                 RoomLibrary.saveAll();
                 say(String.format(Locale.US, "run %d: %d new column(s), %d/%d rooms complete",
-                        runs, roomsAddedThisRun, RoomLibrary.completeCount(), RoomLibrary.roomCount()));
+                        runs, roomsAddedThisRun, RoomLibrary.completeCount(), RoomLibrary.expectedCount()));
                 stage = Stage.LEAVING;
                 waitTicks = swapDelay(7);
             }
@@ -380,6 +479,48 @@ public final class RoomRecorderFeature {
                 }
                 waitTicks = 20;
             }
+            case CAPTURE -> {
+                scan(client);
+                // Saved as it goes so a crash cannot lose a session - but NOT every tick.
+                //
+                // killer560 (2026-09-29): "something about this is making it lag my game out when I load in."
+                // That was this. saveAll() rewrites all 47 rooms, about 13 MB of gzipped block arrays, and the
+                // condition above it was true on essentially every tick of an active capture: twenty full
+                // library writes a second, on the render thread, holding RoomLibrary's own lock against the
+                // capture that was filling it. Now it writes only the rooms that changed, once a second.
+                if (alertTicks % SAVE_INTERVAL_TICKS == 0) {
+                    RoomLibrary.saveDirty();
+                }
+                // Likewise not per tick: floorProgress walks every room's seenColumn under the same lock, which
+                // on a 22-room floor of 93x93 rooms is about 190,000 reads a tick for a number that moves
+                // slowly. Once a second is still far more often than he can read it.
+                if (alertTicks % PROGRESS_INTERVAL_TICKS == 0) {
+                    floorDone = RoomLibrary.floorProgress(DungeonLayout.current());
+                }
+                // "Does it send a chat message once I can go to a new map" - it does now, and it is an alert
+                // rather than a chat line, because the whole point is that he is not reading chat while waiting
+                // for a floor to finish. Announced once per floor: the flag clears when the world changes, and
+                // in Ashfall every generated dungeon is a fresh world load.
+                if (floorDone[1] > 0 && floorDone[0] >= floorDone[1] && doneAnnouncedLevel != client.level) {
+                    doneAnnouncedLevel = client.level;
+                    RoomLibrary.saveDirty();
+                    alert(client, String.format(Locale.US,
+                            "FLOOR DONE - all %d room(s) here are fully captured. Generate the next one. "
+                            + "(%d/%d rooms complete overall)",
+                            floorDone[1], RoomLibrary.completeCount(), RoomLibrary.expectedCount()));
+                }
+                alertTicks++;
+                if (alertTicks % 200 == 0) {
+                    // Progress on THIS floor as well as the library total, because the library total barely
+                    // moves and tells him nothing about whether it is worth standing here any longer.
+                    say(String.format(Locale.US,
+                            "capture: this floor %d/%d done, %d new column(s) this session, %d/%d rooms "
+                            + "complete overall",
+                            floorDone[0], floorDone[1], roomsAddedThisRun,
+                            RoomLibrary.completeCount(), RoomLibrary.expectedCount()));
+                }
+                waitTicks = 1;
+            }
             case LIMBO -> {
                 // Back when the client is somewhere real again, not when a number says so.
                 if (!DungeonInstanceCooldown.inPlayableWorld(client)
@@ -396,6 +537,105 @@ public final class RoomRecorderFeature {
     }
 
     /**
+     * Captures the one room in a single-room practice world.
+     *
+     * <p>The name comes off the sidebar, because it is the only identification such a world offers. The extent
+     * is found by probing every ROOM cell of the standard 11x11 grid for a roof: the world is otherwise empty,
+     * so whatever has a roof is this room, and that handles a 1x2 or an L exactly as it handles a 1x1 without
+     * needing to know the shape in advance.
+     *
+     * <p>Requires a local world. It cannot run on Hypixel, where isInDungeon() being false means the hub and
+     * probing 36 columns of it would find buildings and call them a room.
+     *
+     * @return true if this looked like a practice room, whether or not anything new was read
+     */
+    private static boolean captureSingleRoom(Minecraft client) {
+        if (client.getSingleplayerServer() == null || client.level == null) {
+            return false;
+        }
+        String name = DungeonState.sidebarRoomName();
+        if (name == null || name.isBlank() || "Unknown".equals(name)) {
+            return false;
+        }
+        return sweepLattice(client) > 0 || true;
+    }
+
+    /**
+     * Captures every room standing on the dungeon lattice near the player, ignoring the 11x11 grid.
+     *
+     * <p>Rooms always sit on the same lattice - centres at {@code -185 + 32k} on both axes - whether they are
+     * inside {@link DungeonLayout}'s window or 1500 blocks east of it. So this walks that lattice across the
+     * loaded area instead of the grid, which is what lets a 47-cell Ashfall preset be captured at all.
+     *
+     * <p>Each cell is identified on its own through {@link RoomDatabase}: core hash to a name, and the clay
+     * corner to tell one PLACEMENT from another. Grouping on the corner rather than on the name is the whole
+     * trick - three Altars in a row share a name, and merging them would produce one 3-tile "Altar" made of
+     * three different rooms, which is the same class of bug that put half of two rooms in one file before.
+     */
+    private static int sweepLattice(Minecraft client) {
+        if (client.level == null || client.player == null) {
+            return 0;
+        }
+        final int step = RoomLibrary.TILE + 1;
+        final int reach = 160;
+        int px = client.player.blockPosition().getX();
+        int pz = client.player.blockPosition().getZ();
+        // Snap onto the lattice the dungeon grid defines, so this and DungeonLayout agree about where a room
+        // can start even though this is not limited to its window.
+        int originX = DungeonLayout.cellCenter(0).getX();
+        int originZ = DungeonLayout.cellCenter(0).getZ();
+        int firstX = originX + Math.floorDiv(px - reach - originX, step) * step;
+        int firstZ = originZ + Math.floorDiv(pz - reach - originZ, step) * step;
+
+        // corner key -> {name, minCentreX, minCentreZ, maxCentreX, maxCentreZ}
+        java.util.Map<Long, Object[]> placements = new java.util.LinkedHashMap<>();
+        for (int cz = firstZ; cz <= pz + reach; cz += step) {
+            for (int cx = firstX; cx <= px + reach; cx += step) {
+                int roof = LiveMapFeature.roofAt(client, cx, cz);
+                if (roof <= 0) {
+                    continue;
+                }
+                int core = RoomDatabase.getCore(client.level, cx, cz);
+                RoomEntry entry = RoomDatabase.lookup(core);
+                if (entry == null || entry.name == null || entry.name.isBlank()) {
+                    continue;
+                }
+                int[] rot = RoomDatabase.findRotationAndCorner(client.level, cx, cz, roof);
+                if (rot == null) {
+                    // No clay corner: cannot tell this placement from another of the same room, so leave it.
+                    continue;
+                }
+                long key = ((long) rot[1] << 32) ^ (rot[2] & 0xffffffffL);
+                Object[] p = placements.get(key);
+                if (p == null) {
+                    placements.put(key, new Object[]{entry.name, cx, cz, cx, cz});
+                } else {
+                    p[1] = Math.min((int) p[1], cx);
+                    p[2] = Math.min((int) p[2], cz);
+                    p[3] = Math.max((int) p[3], cx);
+                    p[4] = Math.max((int) p[4], cz);
+                }
+            }
+        }
+
+        int budget = COLUMNS_PER_TICK;
+        int added = 0;
+        for (Object[] p : placements.values()) {
+            if (budget <= 0) {
+                break;
+            }
+            String rn = (String) p[0];
+            int tilesX = ((int) p[3] - (int) p[1]) / step + 1;
+            int tilesZ = ((int) p[4] - (int) p[2]) / step + 1;
+            int got = RoomLibrary.captureAt(client.level, rn, (int) p[1], (int) p[2], tilesX, tilesZ, budget);
+            budget -= got;
+            added += got;
+        }
+        roomsAddedThisRun += added;
+        return added;
+    }
+
+    /**
      * Reads whatever of the current room is loaded.
      *
      * <p>Every tick of the scan window rather than once at the end, because the rooms that load are the ones
@@ -403,6 +643,15 @@ public final class RoomRecorderFeature {
      */
     private static void scan(Minecraft client) {
         if (!DungeonState.isInDungeon()) {
+            // A single-room practice world has no dungeon and no layout, but it does have a room.
+            //
+            // killer560 (2026-09-29) went room by room through Ashfall's Dungeon Rooms list - Rare Pillars,
+            // Tombstone, Redstone Warrior, all off the missing list - and captured NOTHING, because those
+            // worlds put up "Practice Room / Room: X" with no "The Catacombs" line. isInDungeon() is correctly
+            // false, so scan() bailed here on every tick and the recorder cheerfully reported "this floor 0/0".
+            if (stage == Stage.CAPTURE && captureSingleRoom(client)) {
+                return;
+            }
             // Not in a run when we expected to be: most often limbo, which has its own long recovery.
             if (DungeonInstanceCooldown.looksLikeLimbo(client)) {
                 stage = Stage.LIMBO;
@@ -442,6 +691,9 @@ public final class RoomRecorderFeature {
         // against the chunk cache and skips the ones that are not loaded, so an out-of-range room contributes
         // nothing rather than a room-shaped block of air. Keeping that the single place load state is judged is
         // what keeps this honest - asking the question twice, in two ways, is how you store air and call it seen.
+        // Beyond the grid as well: an Ashfall preset can be far wider than DungeonLayout's window, and the
+        // rooms out there are identified and captured exactly the same way.
+        sweepLattice(client);
         int rooms = layout.roomCount();
         if (rooms > 0) {
             int budget = COLUMNS_PER_TICK;

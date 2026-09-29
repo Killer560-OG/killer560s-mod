@@ -60,7 +60,9 @@ public final class MissingRoomsHud implements HudElement {
                 continue;
             }
             RoomLibrary.Room have = RoomLibrary.get(entry.name);
-            if (have == null || !have.complete()) {
+            // usable(), not complete(): a room captured at the old footprint has to be walked again, so
+            // listing it as found would hide work that still needs doing.
+            if (have == null || !have.usable()) {
                 out.add(entry.name);
             }
         }

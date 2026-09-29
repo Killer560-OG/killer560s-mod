@@ -69,6 +69,22 @@ public final class KeyUtil {
                 : isKeyDown(window, code);
     }
 
+    /** Compact {@link #bindDisplayName} for a tight readout like the Interactive Map legend, where "Left Button"
+     *  runs straight into the column beside it: "LMB"/"RMB"/"MMB"/"M4"... for a mouse bind, the key's own name
+     *  otherwise. */
+    public static String bindShortName(int code) {
+        if (code == NONE || !isMouseCode(code)) {
+            return bindDisplayName(code);
+        }
+        int button = mouseButton(code);
+        return switch (button) {
+            case 0 -> "LMB";
+            case 1 -> "RMB";
+            case 2 -> "MMB";
+            default -> "M" + (button + 1);
+        };
+    }
+
     /** Display name for either kind of bind ("Left Button", "Middle Button", "R", "Not Set"). */
     public static String bindDisplayName(int code) {
         if (code == NONE) {

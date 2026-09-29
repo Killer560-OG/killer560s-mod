@@ -113,6 +113,22 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // path itself (EtherwarpPathfinder.threadsFor), so Path Timeout takes the full row on its own.
             widgets.add(LiveMapTab.slider("Path Timeout", cfg::getTimeoutMs,
                     v -> cfg.setTimeoutMs((int) (Math.round(v / 50.0) * 50)), 200, 1000, "ms", cfg, contentX, y, contentWidth));
+            y += 20;
+            // killer560, 2026-09-29: "If I double click a room then it should auto pathfind to the start node to
+            // start secreting. If I click a different room mid path then it goes doesn't have to be a double
+            // click same with dooring." Both halves of that are toggles because each changes what an existing
+            // press already did - the mid-path press used to be swallowed, and a second press used to be two
+            // ordinary ones.
+            widgets.add(LiveMapTab.toggle("Retarget Mid-Path", cfg::isMapRetargetMidPath, cfg::setMapRetargetMidPath,
+                    cfg, contentX, y, colW));
+            widgets.add(LiveMapTab.toggle("Double-Press Start Node", cfg::isMapDoublePressStartNode,
+                    cfg::setMapDoublePressStartNode, cfg, colB, y, colW));
+            y += 20;
+            // Shown whether or not the toggle above is on: the window is also what stops two quick presses on
+            // the same room from reading as two separate goals, so it is never dead weight.
+            widgets.add(LiveMapTab.slider("Double-Press Window", cfg::getMapDoublePressMs,
+                    v -> cfg.setMapDoublePressMs((int) (Math.round(v / 50.0) * 50)), 150, 1000, "ms",
+                    cfg, contentX, y, contentWidth));
             y += 24;
 
             // ---------------------------------------------------------------- etherwarp path preview

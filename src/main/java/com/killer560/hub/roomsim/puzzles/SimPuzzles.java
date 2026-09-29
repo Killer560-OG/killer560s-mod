@@ -72,6 +72,28 @@ public final class SimPuzzles {
                         })));
     }
 
+    /** Every puzzle's name, in the order they are offered. */
+    public static java.util.List<String> names() {
+        return java.util.List.copyOf(BUILDERS.keySet());
+    }
+
+    /**
+     * Builds one puzzle at a chosen spot, for tests.
+     *
+     * <p>{@link #build} puts it four blocks in front of the player, which is right for him and useless for a
+     * scenario that needs to know exactly where to look. This is the same builder with the origin handed in.
+     *
+     * @return false when there is no puzzle by that name
+     */
+    public static boolean buildAt(Minecraft client, String rawName, BlockPos origin) {
+        BiConsumer<Minecraft, BlockPos> builder = BUILDERS.get(rawName.toLowerCase(Locale.ROOT));
+        if (builder == null) {
+            return false;
+        }
+        builder.accept(client, origin);
+        return true;
+    }
+
     private static void build(Minecraft client, String rawName) {
         if (!SimState.canAct(client)) {
             ModChat.send("Sim", ModChat.text("Puzzles only build inside the sim."));

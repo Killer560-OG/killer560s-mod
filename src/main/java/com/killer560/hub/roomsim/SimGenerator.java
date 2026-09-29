@@ -42,7 +42,9 @@ public final class SimGenerator {
         List<String> all = new ArrayList<>(RoomLibrary.names());
         all.removeIf(n -> {
             RoomLibrary.Room r = RoomLibrary.get(n);
-            return r == null || !r.complete();
+            // usable(), not complete(): an old-footprint room is a different size from the slot planned for
+            // it, so it pastes over its neighbour.
+            return r == null || !r.usable();
         });
         if (all.isEmpty()) {
             ModChat.send("Sim", ModChat.text("No complete rooms captured yet."));
@@ -56,29 +58,80 @@ public final class SimGenerator {
 
         List<String> nameTable = new ArrayList<>();
         int placed = 0;
-        outer:
+        int skipped = 0;
+        // EVEN cells only, and a room's own connectors filled.
+        //
+        // This walked every cell, so each 33-block room was placed 16 blocks from the last and every room
+        // overlapped its neighbours by half - the "smear" this menu entry produced. It also wrote
+        // DOOR_NORMAL onto the ROOM cells, so a doorway was carved at every one of them. Rooms live on even
+        // cells; the odd cells between them are where doors go, and a multi-tile room owns the connectors
+        // inside its own footprint.
+        for (int row = 0; row < DungeonLayout.GRID && placed < all.size(); row += 2) {
+            for (int col = 0; col < DungeonLayout.GRID && placed < all.size(); col += 2) {
+                String pick = all.get(placed);
+                RoomLibrary.Room room = RoomLibrary.get(pick);
+                int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
+                int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
+                // Needs its whole footprint free and on the grid, or it would run over the next room.
+                if (col + (tilesX - 1) * 2 >= DungeonLayout.GRID
+                        || row + (tilesZ - 1) * 2 >= DungeonLayout.GRID) {
+                    placed++;
+                    skipped++;
+                    continue;
+                }
+                boolean free = true;
+                for (int dz = 0; dz <= (tilesZ - 1) * 2 && free; dz++) {
+                    for (int dx = 0; dx <= (tilesX - 1) * 2 && free; dx++) {
+                        if (cellRoom[(row + dz) * DungeonLayout.GRID + col + dx] != MapCode.NO_ROOM) {
+                            free = false;
+                        }
+                    }
+                }
+                if (!free) {
+                    placed++;
+                    skipped++;
+                    continue;
+                }
+                nameTable.add(pick);
+                int id = nameTable.size() - 1;
+                for (int dz = 0; dz <= (tilesZ - 1) * 2; dz++) {
+                    for (int dx = 0; dx <= (tilesX - 1) * 2; dx++) {
+                        int cell = (row + dz) * DungeonLayout.GRID + col + dx;
+                        cellRoom[cell] = id;
+                        // Unrotated on purpose: this is for writing routes against a room's own layout, and a
+                        // rotation would mean the route he writes does not match the room as he studied it.
+                        cellRotation[cell] = 0;
+                    }
+                }
+                placed++;
+            }
+        }
+        // Doors on the ODD cells between two different rooms, after the rooms are known.
         for (int row = 0; row < DungeonLayout.GRID; row++) {
             for (int col = 0; col < DungeonLayout.GRID; col++) {
-                if (placed >= all.size()) {
-                    break outer;
-                }
-                String pick = all.get(placed);
-                nameTable.add(pick);
                 int cell = row * DungeonLayout.GRID + col;
-                cellRoom[cell] = nameTable.size() - 1;
-                cellDoor[cell] = DungeonLayout.DOOR_NORMAL;
-                // Unrotated on purpose: this is for writing routes against a room's own layout, and a random
-                // rotation would mean the route he writes does not match the room as he studied it.
-                cellRotation[cell] = 0;
-                placed++;
+                if (cellRoom[cell] != MapCode.NO_ROOM) {
+                    continue;
+                }
+                int left = col > 0 ? cellRoom[cell - 1] : MapCode.NO_ROOM;
+                int right = col + 1 < DungeonLayout.GRID ? cellRoom[cell + 1] : MapCode.NO_ROOM;
+                int up = row > 0 ? cellRoom[cell - DungeonLayout.GRID] : MapCode.NO_ROOM;
+                int down = row + 1 < DungeonLayout.GRID
+                        ? cellRoom[cell + DungeonLayout.GRID] : MapCode.NO_ROOM;
+                boolean joinsX = left != MapCode.NO_ROOM && right != MapCode.NO_ROOM && left != right;
+                boolean joinsZ = up != MapCode.NO_ROOM && down != MapCode.NO_ROOM && up != down;
+                if (joinsX || joinsZ) {
+                    cellDoor[cell] = DungeonLayout.DOOR_NORMAL;
+                }
             }
         }
         String code = MapCode.encodeDecoded(new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation));
         ModChat.send("Sim", ModChat.text("All Rooms: "), ModChat.value(String.valueOf(placed)),
                 ModChat.text(" room(s) laid out"));
-        if (placed < all.size()) {
-            ModChat.send("Sim", ModChat.dim((all.size() - placed) + " did not fit on the grid"));
+        if (placed < all.size() || skipped > 0) {
+            ModChat.send("Sim", ModChat.dim(((all.size() - placed) + skipped)
+                    + " did not fit on the grid"));
         }
         SimWorld.open(client, code, c -> SimBuilder.build(c, code), "Generating the map");
     }
@@ -93,7 +146,9 @@ public final class SimGenerator {
         List<String> available = new ArrayList<>(RoomLibrary.names());
         available.removeIf(n -> {
             RoomLibrary.Room r = RoomLibrary.get(n);
-            return r == null || !r.complete();
+            // usable(), not complete(): an old-footprint room is a different size from the slot planned for
+            // it, so it pastes over its neighbour.
+            return r == null || !r.usable();
         });
         if (available.isEmpty()) {
             ModChat.send("Sim", ModChat.text("No complete rooms captured yet - "),

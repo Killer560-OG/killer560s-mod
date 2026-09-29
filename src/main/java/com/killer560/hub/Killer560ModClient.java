@@ -118,7 +118,12 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimBuilder.register();
         com.killer560.hub.roomsim.SimDoors.register();
         com.killer560.hub.roomsim.SimMobs.register();
+        com.killer560.hub.roomsim.SimSecretItems.register();
         com.killer560.hub.roomsim.SimRun.register();
+        // The sim's Catacombs sidebar. Without it DungeonState sees no dungeon inside the sim, and every
+        // feature that gates on it - the live map, secret waypoints, every solver, the timers, the score -
+        // stays switched off there.
+        com.killer560.hub.roomsim.SimSidebar.register();
         com.killer560.hub.roomsim.SimClass.register();
         com.killer560.hub.roomsim.SimSpeed.register();
         com.killer560.hub.roomsim.SimMimic.register();
@@ -388,6 +393,20 @@ public class Killer560ModClient implements ClientModInitializer {
                                         .executes(context -> {
                                             if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
                                                 com.killer560.hub.roomsim.RoomRecorderFeature.resume();
+                                            }
+                                            return 1;
+                                        }))
+                                // Capture out of a local dungeon (Ashfall's dungeon maker) rather than off
+                                // Hypixel. Sends nothing to any server - see Stage.CAPTURE.
+                                .then(ClientCommands.literal("capture")
+                                        .executes(context -> {
+                                            if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                                                return 1;
+                                            }
+                                            if (com.killer560.hub.roomsim.RoomRecorderFeature.isCaptureOnly()) {
+                                                com.killer560.hub.roomsim.RoomRecorderFeature.stop("command");
+                                            } else {
+                                                com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();
                                             }
                                             return 1;
                                         }))

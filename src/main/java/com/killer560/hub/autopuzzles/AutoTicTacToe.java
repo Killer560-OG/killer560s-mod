@@ -50,10 +50,12 @@ final class AutoTicTacToe {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
     private static final String ROOM = "Tic Tac Toe";
-    private static final double REACH_SQ = 30.0;
+    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    private static final double REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long CLICK_GAP_MS = 500L;
     private static final int MAX_ATTEMPTS = 3;
-    private static final double AURA_REACH_SQ = 36.0;
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long WALK_TIMEOUT_MS = 15_000L;
     private static final int MAX_AURA_ATTEMPTS = 3;
     /** AutoClearUtils' own "Tic Tac Toe" room spot - the interior standing spot, not a guess. */
@@ -67,6 +69,8 @@ final class AutoTicTacToe {
     private static boolean wasInRoom = false;
     private static boolean roomSpotAttempted = false;
     private static int totalPlaced = 0;
+    /** The placement count when the current attempt streak began - see the reset below. */
+    private static int attemptPlacedCount = -1;
     /** One attempt per room visit, so a board that reads as finished for many ticks queues a single walk. */
     private static boolean walkOutAttempted = false;
 
@@ -153,12 +157,19 @@ final class AutoTicTacToe {
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
         if (client.screen != null || player.isShiftKeyDown()
-                || player.getEyePosition().distanceToSqr(Vec3.atCenterOf(best)) > REACH_SQ
+                // To the BOX, matching the limit - see the note in AutoWater.
+                || com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best) > REACH_SQ
                 || now - lastClickMs < CLICK_GAP_MS) {
             return;
         }
-        if (!best.equals(attemptPos)) {
+        // Reset on a new ROUND as well as a new cell.
+        //
+        // attempts only reset when the target cell changed, so if a later round's first move happened to be
+        // the same cell that had already used up its three attempts, the auto never clicked again. The board
+        // state moving on is the signal that this is a different problem, not a retry of the old one.
+        if (!best.equals(attemptPos) || totalPlaced != attemptPlacedCount) {
             attemptPos = best;
+            attemptPlacedCount = totalPlaced;
             attempts = 0;
         }
         if (attempts >= MAX_ATTEMPTS) {
@@ -271,7 +282,9 @@ final class AutoTicTacToe {
         if (target == null) {
             target = chestReal;
         }
-        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(target));
+        // To the box, like the picker above - measuring the gate one way and the choice another is how a
+        // module ends up clicking at something it cannot reach.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
             chestAuraAttempts++;
             return;

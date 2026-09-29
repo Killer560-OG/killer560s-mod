@@ -305,7 +305,7 @@ public final class SimBuildQueue {
 
         private int x;
         private int z;
-        private int y = RoomLibrary.MIN_Y;
+        private int y = SimAltitude.minWorldY();
         private boolean done;
         private long visited;
         private final long total;
@@ -341,7 +341,7 @@ public final class SimBuildQueue {
         public int step(int budget) {
             int written = 0;
             while (written < budget) {
-                if (y > RoomLibrary.MAX_Y) {
+                if (y > SimAltitude.maxWorldY()) {
                     done = true;
                     return written;
                 }
@@ -391,7 +391,9 @@ public final class SimBuildQueue {
 
         private int x;
         private int z;
-        private int y = RoomLibrary.MIN_Y;
+        // The band the OLD floor occupies, not the new one: the clear runs before the pastes and its
+        // job is to remove what was there. The next floor may sit somewhere else - see SimAltitude.
+        private int y = SimAltitude.previousMinWorldY();
         private boolean done;
         private long visited;
         private final long total;
@@ -433,7 +435,7 @@ public final class SimBuildQueue {
             // at ten million of them, write nothing, spend no budget and never return. Scanning is work even
             // when it changes nothing.
             while (written < budget && scanned < SCAN_BUDGET) {
-                if (y > RoomLibrary.MAX_Y) {
+                if (y > SimAltitude.previousMaxWorldY()) {
                     done = true;
                     return written;
                 }

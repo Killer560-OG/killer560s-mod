@@ -60,7 +60,8 @@ final class AutoBlaze {
             new BlockPos(24, 62, 14), new BlockPos(9, 45, 18), new BlockPos(10, 68, 23),
             new BlockPos(24, 29, 16), new BlockPos(13, 50, 8), new BlockPos(24, 48, 17)
     };
-    private static final double AURA_REACH_SQ = 36.0;
+    /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
+    private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final long SECRET_WALK_TIMEOUT_MS = 20_000L; // these rooms are tall - the pathfinder needs longer
     private static final int MAX_AURA_ATTEMPTS = 3;
 
@@ -460,7 +461,9 @@ final class AutoBlaze {
         if (target == null) {
             target = secretReal;
         }
-        double distSq = player.getEyePosition().distanceToSqr(Vec3.atCenterOf(target));
+        // To the box, like the picker above - measuring the gate one way and the choice another is how a
+        // module ends up clicking at something it cannot reach.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
             secretAuraAttempts++;
             return;

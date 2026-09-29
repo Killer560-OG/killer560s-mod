@@ -89,6 +89,21 @@ public final class WeirdosSolverFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WeirdosSolverFeature", client -> {
             // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
             boolean inBoss = LiveMapFeature.isInBoss();
+            // The ROOM INSTANCE, like every other solver in this package.
+            //
+            // This was the one solver with no room check, so a solved Three Weirdos stayed solved for the
+            // rest of the run: walk into a SECOND Three Weirdos and the highlight still pointed at the first
+            // room's chest, and Auto Three Weirdos read "two wrong answers already" the moment the new room's
+            // first line arrived and went for a chest thirty blocks away. Keyed on the instance rather than
+            // the name, because a floor can hold two rooms of the same name.
+            com.killer560.hub.roomdatabase.RoomEntry room = LiveMapFeature.currentRoomEntry();
+            if (room != lastRoomEntry) {
+                lastRoomEntry = room;
+                if (correctPos != null || !wrongPositions.isEmpty()) {
+                    LOGGER.info("[WeirdosSolver] Reset - left the room the answer belonged to");
+                }
+                reset();
+            }
             if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || inBoss) {
                 if (correctPos != null || !wrongPositions.isEmpty()) {
                     LOGGER.info("[WeirdosSolver] Reset (enabled={} inDungeon={} inBoss={})",
@@ -101,6 +116,9 @@ public final class WeirdosSolverFeature {
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(WeirdosSolverFeature::onWorldRender);
     }
+
+    /** The room the current answer belongs to, so leaving it drops the answer. */
+    private static com.killer560.hub.roomdatabase.RoomEntry lastRoomEntry;
 
     private static void onMessage(Component message) {
         if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {

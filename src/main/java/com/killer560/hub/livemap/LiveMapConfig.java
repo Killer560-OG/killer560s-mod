@@ -121,6 +121,18 @@ public final class LiveMapConfig {
     /** killer560, 2026-09-27: "it shows a small circle at each etherwarp spot ... and a line from one spot to
      *  another. Make it a toggleable section." Off by default like every other new toggle. */
     private boolean showEtherwarpPath = false;
+    /** killer560, 2026-09-29: "If I click a different room mid path then it goes doesn't have to be a double
+     *  click same with dooring." - a press on another room (or door) while a path is already running cancels
+     *  that path and re-plans to the new goal. Without it the press is swallowed: {@code ClearExecutor.etherPath}
+     *  refuses a second search while one is in flight, and a path planned from a position you have since warped
+     *  away from can never execute ({@code ClearNode.inside} wants you within 0.32 blocks of its first hop). */
+    private boolean mapRetargetMidPath = true;
+    /** killer560, 2026-09-29: "If I double click a room then it should auto pathfind to the start node to start
+     *  secreting." - a second press on the same room inside {@link #mapDoublePressMs} goes to that room's Auto
+     *  Routes START node instead of to the room's own standing spot. */
+    private boolean mapDoublePressStartNode = true;
+    /** How long after a map press a second press on the same room still counts as a double press. */
+    private int mapDoublePressMs = 400;
 
     // ---- Auto Blood Rush (cheat) ----
     private boolean bloodRushEnabled = false;
@@ -208,6 +220,9 @@ public final class LiveMapConfig {
                 cfg.hWeight = Math.max(1.0, Math.min(15.0, ConfigJson.getDouble(obj, "hWeight", 6.7)));
                 cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", 670));
                 cfg.showEtherwarpPath = ConfigJson.getBool(obj, "showEtherwarpPath", false);
+                cfg.mapRetargetMidPath = ConfigJson.getBool(obj, "mapRetargetMidPath", true);
+                cfg.mapDoublePressStartNode = ConfigJson.getBool(obj, "mapDoublePressStartNode", true);
+                cfg.setMapDoublePressMs(ConfigJson.getInt(obj, "mapDoublePressMs", 400));
 
                 cfg.bloodRushEnabled = ConfigJson.getBool(obj, "bloodRushEnabled", false);
                 cfg.bloodRushKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "bloodRushKeyCode", -1));
@@ -282,6 +297,9 @@ public final class LiveMapConfig {
             obj.addProperty("hWeight", hWeight);
             obj.addProperty("timeoutMs", timeoutMs);
             obj.addProperty("showEtherwarpPath", showEtherwarpPath);
+            obj.addProperty("mapRetargetMidPath", mapRetargetMidPath);
+            obj.addProperty("mapDoublePressStartNode", mapDoublePressStartNode);
+            obj.addProperty("mapDoublePressMs", mapDoublePressMs);
 
             obj.addProperty("bloodRushEnabled", bloodRushEnabled);
             obj.addProperty("bloodRushKeyCode", bloodRushKeyCode);
@@ -758,6 +776,33 @@ public final class LiveMapConfig {
 
     public void setShowEtherwarpPath(boolean v) {
         this.showEtherwarpPath = v;
+    }
+
+    public boolean isMapRetargetMidPath() {
+        return mapRetargetMidPath;
+    }
+
+    public void setMapRetargetMidPath(boolean v) {
+        this.mapRetargetMidPath = v;
+    }
+
+    public boolean isMapDoublePressStartNode() {
+        return mapDoublePressStartNode;
+    }
+
+    public void setMapDoublePressStartNode(boolean v) {
+        this.mapDoublePressStartNode = v;
+    }
+
+    public int getMapDoublePressMs() {
+        return mapDoublePressMs;
+    }
+
+    /** Clamped to the slider's own 150-1000 range, which contains the 400 default - a setter that clamps to a
+     *  range its field's default falls outside makes the default unreachable once the setter has run (see the
+     *  Breaker Aura cooldown bug, fixed 2026-09-27). */
+    public void setMapDoublePressMs(int v) {
+        this.mapDoublePressMs = Math.max(150, Math.min(1000, v));
     }
 
     // ---------------------------------------------------------------- auto blood rush (cheat)

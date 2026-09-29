@@ -112,7 +112,14 @@ public final class CrushTimer {
         }
         boolean crushed = CRUSH_LINES.contains(unformatted);
         String extra = cfg.getCrushExtraTrigger();
+        // The line must be a BOSS line, not any chat message containing the phrase.
+        //
+        // This was a case-insensitive contains() over every line, so any player typing the configured
+        // substring restarted the crush countdown and the "Pad Ready" title. The field is free text, so a
+        // short value made it trivial to trip by accident as well as on purpose. A crush line always comes
+        // from the boss.
         boolean extraHit = !extra.isBlank() && unformatted != null
+                && unformatted.startsWith("[BOSS] ")
                 && unformatted.toLowerCase(Locale.ROOT).contains(extra.toLowerCase(Locale.ROOT));
         if (!crushed && !extraHit) {
             return;

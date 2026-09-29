@@ -63,7 +63,7 @@ public final class FeatureGuard {
             try {
                 handler.onStartTick(client);
             } catch (Throwable t) {
-                int count = FAILURES.merge(name, 1, Integer::sum);
+                int count = countFailure(name);
                 // Every throw for the first few, then powers of ten - a handler throwing every tick would
                 // otherwise write twenty log lines a second and bury whatever else went wrong.
                 if (count <= 3 || Integer.toString(count).matches("10*")) {
@@ -91,6 +91,36 @@ public final class FeatureGuard {
     public static void reset(String name) {
         DISABLED.remove(name);
         FAILURES.remove(name);
+        LAST_FAILURE.remove(name);
+    }
+
+    /**
+     * How long a failure counts against a feature.
+     *
+     * <p>The count never decayed, so three errors were three errors however far apart: a feature that threw
+     * once on a bad room early in a session, once an hour later on another, and once more near the end was
+     * switched off for the rest of the session as though it were broken. That is the opposite of the guard's
+     * job - it exists to stop a feature failing NOW from spamming, not to build a life sentence out of
+     * unrelated one-offs.
+     *
+     * <p>Five minutes: three failures inside that really is broken, three across an evening is noise.
+     */
+    private static final long FAILURE_WINDOW_MS = 5 * 60 * 1000L;
+
+    /** When each feature last threw, for the window above. */
+    private static final java.util.Map<String, Long> LAST_FAILURE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Counts one failure against {@code name}, forgetting a tally that has gone stale. */
+    private static int countFailure(String name) {
+        long now = System.currentTimeMillis();
+        Long last = LAST_FAILURE.put(name, now);
+        if (last != null && now - last > FAILURE_WINDOW_MS) {
+            // Too long ago to be the same fault: start again from this one rather than adding to a tally
+            // left over from earlier in the session.
+            FAILURES.remove(name);
+        }
+        return FAILURES.merge(name, 1, Integer::sum);
     }
 
     private static void run(String name, Runnable body) {
@@ -100,7 +130,7 @@ public final class FeatureGuard {
         try {
             body.run();
         } catch (Throwable t) {
-            int count = FAILURES.merge(name, 1, Integer::sum);
+            int count = countFailure(name);
             LOGGER.error("[{}] threw on tick (failure {} of {})", name, count, MAX_FAILURES, t);
             if (count == 1) {
                 notifyUser("§e" + name + " just errored - it will be switched off if it keeps happening. "

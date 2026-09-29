@@ -42,7 +42,21 @@ public final class I4LeapFeature {
             new BlockPos(68, 128, 50), new BlockPos(66, 128, 50), new BlockPos(64, 128, 50),
             new BlockPos(68, 126, 50), new BlockPos(66, 126, 50), new BlockPos(64, 126, 50));
     private static final Set<String> MELODY_PROGRESS = Set.of("1/4", "2/4", "3/4", "25%", "50%", "75%");
-    private static final Pattern MELODY_PLAYER_REGEX = Pattern.compile("([A-Za-z0-9_]{3,16}):");
+    /**
+     * The SENDER of a party line, anchored - not the last name-shaped token anywhere in it.
+     *
+     * <p>This was {@code ([A-Za-z0-9_]{3,16}):} matched unanchored, keeping the LAST match, which reads the
+     * message BODY rather than who sent it. The only two gates were "the line contains Party" and "the line
+     * contains a progress token", neither of which is a channel test - so anyone in public chat typing
+     * {@code Party is 50% done ask Healer_IGN:} set the melody target to whoever they named, and that target
+     * drives an automated Spirit Leap in P3. A stranger steering a leap is the same class of problem as the
+     * boss-phase and wither-key spoofs fixed earlier on 2026-09-29.
+     *
+     * <p>Anchored at the start of the line, with Hypixel's party prefix and an optional rank tag, so the name
+     * captured is the person who spoke.
+     */
+    private static final Pattern MELODY_PARTY_LINE = Pattern.compile(
+            "^Party > (?:\\[[^\\]]+\\] )?([A-Za-z0-9_]{1,16}): (.*)$");
     // QUOI deviceDoneRegex, plus an optional suffix (Odin's Terminal Splits appends times)
     private static final Pattern DEVICE_DONE_REGEX = Pattern.compile("^(\\w+) completed a device! \\((.*?)\\)(?:\\s.*)?$");
     private static final int RELIGHT_GRACE_TICKS = 40;
@@ -76,19 +90,19 @@ public final class I4LeapFeature {
         if (!cfg.isEnabled() || !Floor7Tracker.inF7Boss()) {
             return;
         }
-        if (cfg.getTargetType() == TargetType.MELODY && unformatted.contains("Party")) {
-            for (String token : MELODY_PROGRESS) {
-                if (unformatted.contains(token)) {
-                    Matcher m = MELODY_PLAYER_REGEX.matcher(unformatted);
-                    String last = null;
-                    while (m.find()) {
-                        last = m.group(1);
+        if (cfg.getTargetType() == TargetType.MELODY) {
+            Matcher party = MELODY_PARTY_LINE.matcher(unformatted);
+            if (party.matches()) {
+                String sender = party.group(1);
+                String body = party.group(2);
+                for (String token : MELODY_PROGRESS) {
+                    if (body.contains(token)) {
+                        if (!sender.equalsIgnoreCase(Teammates.selfName())) {
+                            melodyTarget = sender;
+                            FastLeapFeature.LOGGER.info("[I4Leap] Melody player: {}", sender);
+                        }
+                        break;
                     }
-                    if (last != null && !last.equalsIgnoreCase(Teammates.selfName())) {
-                        melodyTarget = last;
-                        FastLeapFeature.LOGGER.info("[I4Leap] Melody player: {}", last);
-                    }
-                    break;
                 }
             }
         }
