@@ -1083,12 +1083,18 @@ public final class LiveMapFeature {
             if ((border >>> 24) != 0) {
                 graphics.outline(x, y, size, size, border);
             }
-            float ox = x + 2;
-            float oy = y + 2;
+            // Automatic zoom for small floors - no toggle, on his instruction. Applied by moving the origin
+            // and multiplying the pixels-per-unit, so every drawing call below is untouched: doors, rooms,
+            // labels, teammates and the player arrow all scale together because they all go through ppu.
+            DungeonLayout fitLayout = DungeonLayout.current();
+            float[] fit = MapPainter.autoFit(groups);
+            ppu *= fit[0];
+            float ox = x + 2 + fit[1] * ppu;
+            float oy = y + 2 + fit[2] * ppu;
 
             // Per-tick snapshot, never per frame: capture() walks all 121 cells and block-checks every wither/blood
             // door (fps report 2026-09-20).
-            DungeonLayout layout = DungeonLayout.current();
+            DungeonLayout layout = fitLayout;
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, -1);
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
 

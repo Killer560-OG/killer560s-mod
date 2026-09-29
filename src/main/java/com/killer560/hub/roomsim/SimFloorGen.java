@@ -50,20 +50,23 @@ public final class SimFloorGen {
     /**
      * Floor sizes, as the number of rooms on the map.
      *
-     * <p>These are the knob he asked for ("entrance, f1, f6, f7, ect") and they are ESTIMATES - the real
-     * per-floor room counts are not something this mod has anywhere, and I would rather have them named in one
-     * place and approximately right than scattered and confidently wrong. Tell me the real numbers and this is
-     * one edit.
+     * <p>MEASURED, not estimated. killer560 ran Entrance through F7 on 2026-09-28 and {@code FloorSizeLog}
+     * recorded each one; these are the largest sample per floor, which is the fully-revealed map - the smaller
+     * samples are the same run seen earlier, before the whole thing was on the map.
+     *
+     * <p>Two of my estimates were wrong in a way worth keeping a note of. I had F6 bigger than F5 and F7
+     * bigger than both; the measurements say F5 and F7 are 21 and F6 is 19, so floor number is not room count
+     * and guessing from it was never going to work.
      */
     public enum Floor {
-        ENTRANCE("Entrance", 8),
-        F1("Floor 1", 12),
-        F2("Floor 2", 14),
+        ENTRANCE("Entrance", 11),
+        F1("Floor 1", 13),
+        F2("Floor 2", 15),
         F3("Floor 3", 16),
-        F4("Floor 4", 18),
-        F5("Floor 5", 20),
-        F6("Floor 6", 23),
-        F7("Floor 7", 26);
+        F4("Floor 4", 19),
+        F5("Floor 5", 21),
+        F6("Floor 6", 19),
+        F7("Floor 7", 21);
 
         public final String label;
         public final int rooms;
@@ -76,7 +79,8 @@ public final class SimFloorGen {
 
     /** His sliders' limits, in one place so the menu and the generator cannot disagree. */
     public static final int MIN_ROOMS_TO_BLOOD = 2;
-    public static final int MAX_ROOMS_TO_BLOOD = 8;
+    /** Measured 5 to 10 across his runs, so the 8 he asked for would have cut off real floors. */
+    public static final int MAX_ROOMS_TO_BLOOD = 10;
     public static final int MIN_PUZZLES = 2;
     public static final int MAX_PUZZLES = 5;
 

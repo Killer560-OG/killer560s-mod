@@ -42,6 +42,57 @@ final class MapPainter {
 
     /** 6 rooms of 16 units + 5 gaps of 4 units. */
     static final int MAP_UNITS = 116;
+
+    /**
+     * How much to blow the map up so a small floor fills the panel, and where to put it.
+     *
+     * <p>killer560 (2026-09-28): "See how the map needs to upscale to take up the whole area on smaller
+     * floors. It should do that automatically. No setting to turn it on or off."
+     *
+     * <p>The panel is sized for the full 11x11 grid, but a floor rarely uses it - his own measurements have
+     * the Entrance at 4x4 cells against F7's 6x6. Drawn at a fixed scale, an Entrance map is a small diagram
+     * in the corner of a large empty box, which wastes the space exactly where the rooms are smallest and
+     * hardest to read.
+     *
+     * <p>Returned as {@code {scale, offsetUnitsX, offsetUnitsY}}. Computed from the rooms that are REVEALED,
+     * so it grows into the space as the floor is discovered rather than jumping to a final layout the moment
+     * one far room appears.
+     *
+     * @return the zoom to apply and the unit offset that centres it, or a 1x identity when there is nothing
+     *         sensible to fit
+     */
+    static float[] autoFit(java.util.List<LiveMapFeature.RoomGroup> groups) {
+        int minU = Integer.MAX_VALUE;
+        int minV = Integer.MAX_VALUE;
+        int maxU = Integer.MIN_VALUE;
+        int maxV = Integer.MIN_VALUE;
+        for (LiveMapFeature.RoomGroup group : groups) {
+            if (!isRevealed(group)) {
+                continue;
+            }
+            for (int cell : group.cells) {
+                int gx = cell % LiveMapFeature.GRID;
+                int gz = cell / LiveMapFeature.GRID;
+                minU = Math.min(minU, cellPos(gx));
+                minV = Math.min(minV, cellPos(gz));
+                maxU = Math.max(maxU, cellPos(gx) + cellSize(gx));
+                maxV = Math.max(maxV, cellPos(gz) + cellSize(gz));
+            }
+        }
+        if (minU > maxU || minV > maxV) {
+            return new float[]{1f, 0f, 0f};
+        }
+        int usedU = Math.max(1, maxU - minU);
+        int usedV = Math.max(1, maxV - minV);
+        // One scale for both axes, or a tall floor would come out stretched and stop matching the real map.
+        float scale = Math.min(MAP_UNITS / (float) usedU, MAP_UNITS / (float) usedV);
+        // Never shrink. A floor that somehow reaches past the grid should overflow rather than be squashed
+        // into something that no longer lines up with the room positions he has learned.
+        scale = Math.max(1f, scale);
+        float offU = -minU + (MAP_UNITS / scale - usedU) / 2f;
+        float offV = -minV + (MAP_UNITS / scale - usedV) / 2f;
+        return new float[]{scale, offU, offV};
+    }
     static final int ROOM_UNITS = 16;
     static final int GAP_UNITS = 4;
 
