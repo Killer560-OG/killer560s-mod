@@ -55,8 +55,25 @@ public final class RoomEntryWalk {
     /** A leg that has not finished in this many ticks has hit something. */
     private static final int LEG_TIMEOUT_TICKS = 140;
 
-    /** Ticks of no forward progress before calling it stuck. */
+    /** Ticks of no forward progress before calling it stuck, once there is nothing left to try. */
     private static final int STUCK_TICKS = 20;
+
+    /**
+     * Ticks of no progress before trying a jump.
+     *
+     * <p>killer560 (2026-09-28): "it does need to jump a few blocks in because their is a railing infront of
+     * it." Handled by jumping WHEN BLOCKED rather than at a hardcoded distance, which is the same thing from
+     * his side and does not quietly stop working the day Hypixel moves the railing a block - a fixed jump point
+     * would then jump at open air and still walk into the obstacle. Stalling is also the signal a person acts
+     * on: you jump because you stopped, not because you counted your steps.
+     */
+    private static final int STALL_BEFORE_JUMP_TICKS = 6;
+
+    /** How many times to try jumping one obstacle before accepting it is not a railing. */
+    private static final int MAX_JUMPS_PER_LEG = 3;
+
+    /** How long to hold jump. One tick is enough to leave the ground; holding longer is not how a hop looks. */
+    private static final int JUMP_HOLD_TICKS = 2;
 
     /** A jump larger than this between ticks is the server moving us, not us walking. */
     private static final double TELEPORT_JUMP = 4.0;
@@ -68,6 +85,8 @@ public final class RoomEntryWalk {
     private static int legTicks;
     private static int stuckTicks;
     private static double bestProgress;
+    private static int jumpsThisLeg;
+    private static int jumpHeldTicks;
 
     /** The facing we entered with. Captured once, never recomputed - the whole path is relative to it. */
     private static float entryYaw;
@@ -133,13 +152,31 @@ public final class RoomEntryWalk {
         }
         lastPos = pos;
 
+        // Let go of a jump that has done its job before anything else looks at progress.
+        if (jumpHeldTicks > 0 && --jumpHeldTicks == 0) {
+            client.options.keyJump.setDown(false);
+        }
+
         double travelled = pos.subtract(legStart).dot(axisFor(leg));
         if (travelled > bestProgress + 0.05) {
             bestProgress = travelled;
             stuckTicks = 0;
-        } else if (++stuckTicks > STUCK_TICKS) {
-            abort("stuck");
-            return;
+        } else {
+            stuckTicks++;
+            if (stuckTicks == STALL_BEFORE_JUMP_TICKS && jumpsThisLeg < MAX_JUMPS_PER_LEG) {
+                // Blocked by something low - the entrance railing, a step, a slab. Hop it and carry on; the
+                // forward key is still held, so this is a jump WHILE walking, which is the only way over
+                // anything and also the only shape of input that makes sense here.
+                jumpsThisLeg++;
+                jumpHeldTicks = JUMP_HOLD_TICKS;
+                client.options.keyJump.setDown(true);
+                stuckTicks = 0;
+                return;
+            }
+            if (stuckTicks > STUCK_TICKS) {
+                abort(jumpsThisLeg > 0 ? "blocked, jumping did not help" : "stuck");
+                return;
+            }
         }
         if (++legTicks > LEG_TIMEOUT_TICKS) {
             abort("took too long");
@@ -168,6 +205,7 @@ public final class RoomEntryWalk {
         legTicks = 0;
         stuckTicks = 0;
         bestProgress = 0;
+        jumpsThisLeg = 0;
     }
 
     /**
@@ -177,12 +215,12 @@ public final class RoomEntryWalk {
      * does not produce when pacing out a fixed number of blocks.
      */
     private static void hold(Minecraft client, Leg which) {
-        releaseKeys();
-        switch (which) {
-            case TO_MORT, FORWARD -> client.options.keyUp.setDown(true);
-            case LEFT -> client.options.keyLeft.setDown(true);
-            default -> { }
-        }
+        // Movement keys only - NOT the jump, which is on its own short timer. Clearing it here would cancel
+        // every hop on the tick after it started and leave the walk pressing into the railing forever.
+        client.options.keyUp.setDown(which == Leg.TO_MORT || which == Leg.FORWARD);
+        client.options.keyLeft.setDown(which == Leg.LEFT);
+        client.options.keyRight.setDown(false);
+        client.options.keyDown.setDown(false);
     }
 
     private static void releaseKeys() {
@@ -194,6 +232,8 @@ public final class RoomEntryWalk {
         client.options.keyLeft.setDown(false);
         client.options.keyRight.setDown(false);
         client.options.keyDown.setDown(false);
+        client.options.keyJump.setDown(false);
+        jumpHeldTicks = 0;
     }
 
     private static void abort(String why) {
