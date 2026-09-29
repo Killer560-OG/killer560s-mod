@@ -163,15 +163,33 @@ public final class SimBuildQueue {
                 if (chunk == null) {
                     continue;
                 }
-                for (var section : chunk.getSections()) {
+                var lights = level.getChunkSource().getLightEngine();
+                var chunkPos = new net.minecraft.world.level.ChunkPos(cx, cz);
+                var sections = chunk.getSections();
+                for (int i = 0; i < sections.length; i++) {
                     // A section written behind its own back does not know how many non-air blocks it holds,
                     // and one that still believes it is empty is not sent at all - which looks like half a
                     // room missing rather than like a lighting bug.
-                    section.recalcBlockCounts();
+                    sections[i].recalcBlockCounts();
+
+                    // And the light engine has to be TOLD the section stopped being empty.
+                    //
+                    // This is what crashed the client. Writing straight into a section skips everything
+                    // setBlock does, including this - so the engine still had no light data allocated for a
+                    // section that now holds a room, and propagateLightSources below walked into a null
+                    // DataLayer and killed the lighting worker thread. The server then could not save, and
+                    // the client froze: exactly the hang killer560 kept having to close by hand.
+                    //
+                    // Found by reading the gametest client's own log (NPE in LayerLightSectionStorage) rather
+                    // than by reasoning about it, after five fixes aimed at the wrong thing.
+                    lights.updateSectionStatus(
+                            net.minecraft.core.SectionPos.of(chunkPos, chunk.getSectionYFromSectionIndex(i)),
+                            sections[i].hasOnlyAir());
                 }
+                // Only once the sections are registered is it safe to ask for light to be propagated.
+                lights.setLightEnabled(chunkPos, true);
+                lights.propagateLightSources(chunkPos);
                 chunk.markUnsaved();
-                level.getChunkSource().getLightEngine()
-                        .propagateLightSources(new net.minecraft.world.level.ChunkPos(cx, cz));
                 // NO chunk packet here, on purpose.
                 //
                 // killer560 (2026-09-28): "It did it again." Sending them myself was the freeze, and pacing
