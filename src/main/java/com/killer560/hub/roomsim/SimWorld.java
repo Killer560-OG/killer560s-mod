@@ -168,9 +168,33 @@ public final class SimWorld {
         // made before the void change is still a superflat, which is the whole complaint. Done once, tracked
         // by a flag next to the other sim settings rather than by guessing at the world's generator.
         if (!SimWorldVersion.isVoidWorld()) {
+            long t0 = System.currentTimeMillis();
             deleteWorld(client);
             SimWorldVersion.markVoidWorld();
+            LOGGER.info("[SimPhase] old sim world deleted in {} ms", System.currentTimeMillis() - t0);
         }
+        long phaseStart = System.currentTimeMillis();
+
+        // Already in the sim? Then there is nothing to open.
+        //
+        // Every generate went through a full world close-and-reopen, even when he was standing in the sim
+        // world at the time - which is what "Create a New Map" and "Change Room" both do. That is several
+        // seconds of vanilla level loading on the render thread for a world he was already in, and it is the
+        // largest single cost in the whole operation by a wide margin: the build behind it takes one second.
+        if (SimState.canAct(client) && client.getSingleplayerServer() != null) {
+            LOGGER.info("[SimPhase] already in the sim world - building without reopening it");
+            loadingLabel = label == null ? "Building" : label;
+            buildInProgress = true;
+            loadingTicks = 0;
+            loadingScreen = SimLoadingScreen.show(client, loadingLabel);
+            if (build != null) {
+                build.accept(client);
+            } else {
+                buildFinished(client, null);
+            }
+            return;
+        }
+
         pendingCode = mapCode == null ? "" : mapCode;
         pendingBuild = build;
         loadingLabel = label == null ? "Opening the sim" : label;
@@ -206,6 +230,7 @@ public final class SimWorld {
                     new WorldOptions(0L, false, false),
                     SimWorld::voidWorldDimensions,
                     null);
+            LOGGER.info("[SimPhase] world open requested in {} ms", System.currentTimeMillis() - phaseStart);
         } catch (Throwable t) {
             pendingCode = null;
             pendingBuild = null;
@@ -274,6 +299,7 @@ public final class SimWorld {
      * begin on a server.
      */
     public static void onWorldLoaded(Minecraft client) {
+        LOGGER.info("[SimPhase] world loaded, starting the build");
         if (pendingCode == null) {
             return;
         }

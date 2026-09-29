@@ -101,7 +101,11 @@ public final class SimFloorGen {
      * @param roomsToBlood how many ordinary rooms stand between the entrance and blood - blood, the entrance
      *                     and the fairy room are given and are not counted, which is how he counts them
      */
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim");
+
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
+        long planStart = System.currentTimeMillis();
         Map<String, RoomLibrary.Room> usable = new HashMap<>();
         for (String name : RoomLibrary.names()) {
             RoomLibrary.Room r = RoomLibrary.get(name);
@@ -232,6 +236,7 @@ public final class SimFloorGen {
             }
         }
 
+        LOGGER.info("[SimPhase] layout planned in {} ms", System.currentTimeMillis() - planStart);
         String code = MapCode.encodeDecoded(new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation));
         ModChat.send("Sim", ModChat.text(floor.label + ": "), ModChat.value(String.valueOf(nameTable.size())),

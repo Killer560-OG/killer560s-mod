@@ -199,36 +199,71 @@ public final class RoomLibrary {
         t.start();
     }
 
+    /**
+     * Forgets the library and reads it again.
+     *
+     * <p>For the gametest, which copies a real library into place AFTER the client has already started and
+     * loaded an empty one. Without this the test measures loading nothing, which is exactly the kind of green
+     * that proves the opposite of what it claims.
+     */
+    public static void forceReload() {
+        synchronized (RoomLibrary.class) {
+            loaded = false;
+            loading = false;
+            readSoFar = 0;
+        }
+        loadAsync();
+    }
+
     /** Whether the library has finished loading. */
     public static synchronized boolean isReady() {
         return loaded;
     }
 
     /** Rooms read so far, for a progress line while it loads. */
-    public static synchronized int loadedSoFar() {
-        return ROOMS.size();
+    /** Reads a volatile counter rather than the map, so a progress line never waits on the loader. */
+    public static int loadedSoFar() {
+        return readSoFar;
     }
 
     private static volatile boolean loading;
 
-    public static synchronized void load() {
-        if (loaded) {
-            return;
-        }
-        long startedAt = System.currentTimeMillis();
-        try {
-            if (!Files.isDirectory(DIR)) {
+    /**
+     * Reads the library from disk.
+     *
+     * <p>Deliberately NOT {@code synchronized}, and that is the whole point of this version. It used to be,
+     * which meant the loading thread held the class monitor for the entire read - and every other method here
+     * is synchronized too, so the render thread calling {@link #completeCount()} to draw the menu blocked
+     * behind it for the full four seconds. Moving the work off the render thread achieved nothing while the
+     * render thread still had to wait for the lock to draw a single frame. That is the freeze killer560 kept
+     * seeing "on creation".
+     *
+     * <p>So the files are read into a local map with no lock held at all, and the lock is taken once at the
+     * end to swap it in. The render thread now waits for a map assignment rather than for a disk read.
+     */
+    public static void load() {
+        synchronized (RoomLibrary.class) {
+            if (loaded) {
                 return;
             }
-            int upgraded = 0;
-            try (var files = Files.list(DIR)) {
-                for (Path f : files.filter(p -> p.toString().endsWith(".json")).toList()) {
+        }
+        long startedAt = System.currentTimeMillis();
+        Map<String, Room> fresh = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        int upgraded = 0;
+        try {
+            if (Files.isDirectory(DIR)) {
+                List<Path> jsons;
+                try (var files = Files.list(DIR)) {
+                    jsons = files.filter(p -> p.toString().endsWith(".json")).toList();
+                }
+                for (Path f : jsons) {
                     try {
                         JsonObject json = JsonParser.parseString(
                                 Files.readString(f, StandardCharsets.UTF_8)).getAsJsonObject();
                         Room r = fromJson(json);
                         if (r != null) {
-                            ROOMS.put(r.name, r);
+                            fresh.put(r.name, r);
+                            readSoFar = fresh.size();
                             if (!json.has("blocksZ")) {
                                 // Written in the old number-array format. Rewritten now, while it is already
                                 // in memory, so this load is the last slow one rather than every load being
@@ -237,24 +272,37 @@ public final class RoomLibrary {
                                 Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
                             }
                         }
-                        loaded = true;
-        } catch (Exception e) {
+                    } catch (Exception e) {
                         // The exception CLASS, not the exception. Gson puts the text it failed to parse into
                         // the message, so logging the throwable wrote the whole file to disk - killer560's log
-                        // reached 50 MB from four corrupt rooms, written synchronously on the render thread.
-                        // The class name and the file name say everything useful.
+                        // reached 50 MB from four corrupt rooms. The class and the file name say everything
+                        // useful.
                         LOGGER.warn("Could not read captured room {} ({}) - moving it aside",
                                 f.getFileName(), e.getClass().getSimpleName());
                         quarantine(f);
                     }
                 }
             }
-            LOGGER.info("Room library: {} room(s) on disk, {} complete, {} upgraded to the compact format, {} ms",
-                    ROOMS.size(), completeCount(), upgraded, System.currentTimeMillis() - startedAt);
         } catch (Exception e) {
             LOGGER.error("Could not load the room library", e);
         }
+        int complete;
+        synchronized (RoomLibrary.class) {
+            ROOMS.clear();
+            ROOMS.putAll(fresh);
+            // Set on EVERY path, including "there is no rooms folder yet". The old code returned early in that
+            // case without setting it, so a first run with nothing captured left the library permanently "not
+            // ready" and every later load refused to start - which is how the gametest found this.
+            loaded = true;
+            loading = false;
+            complete = completeCountLocked();
+        }
+        LOGGER.info("Room library: {} room(s) on disk, {} complete, {} upgraded to the compact format, {} ms",
+                fresh.size(), complete, upgraded, System.currentTimeMillis() - startedAt);
     }
+
+    /** Rooms read so far by an in-progress load, for a progress line. Written by the loader thread only. */
+    private static volatile int readSoFar;
 
     /**
      * Rooms built in code, kept apart from captured ones.
@@ -328,6 +376,17 @@ public final class RoomLibrary {
         } catch (Exception e) {
             LOGGER.warn("Could not move aside the unreadable room {}", f.getFileName());
         }
+    }
+
+    /** {@link #completeCount()} without taking the lock, for callers that already hold it. */
+    private static int completeCountLocked() {
+        int n = 0;
+        for (Room r : ROOMS.values()) {
+            if (r.complete()) {
+                n++;
+            }
+        }
+        return n;
     }
 
     public static synchronized int completeCount() {
