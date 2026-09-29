@@ -342,8 +342,47 @@ public final class SimBuilder {
         }
     }
 
+    /**
+     * Where the player waits while the map is built.
+     *
+     * <p>killer560 (2026-09-28): "it should fully generate everything before I actually can join."
+     *
+     * <p>Far enough from the dungeon grid that not one build chunk is within any render distance, so the
+     * client is never sent them while they are half-written. That makes "fully generated before you join"
+     * literally true rather than merely hidden behind a loading screen - and it is also what fixes the freeze,
+     * because the chunks then arrive through vanilla's own streaming when he is put in the room, a few per
+     * tick, instead of two hundred at once from me.
+     */
+    private static final net.minecraft.core.BlockPos HOLDING_AREA =
+            new net.minecraft.core.BlockPos(8000, 200, 8000);
+
+    /**
+     * Moves the player out to the holding area for the duration of a build.
+     *
+     * <p>A barrier under his feet, because the sim world is void and a player waiting on a loading screen
+     * still falls - and falling would drop him back through the region being built.
+     */
+    static void holdPlayer(Minecraft client, ServerLevel level) {
+        var uuid = client.player == null ? null : client.player.getUUID();
+        if (uuid == null) {
+            return;
+        }
+        level.getServer().execute(() -> {
+            ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
+            if (sp == null) {
+                return;
+            }
+            level.setBlockAndUpdate(HOLDING_AREA.below(),
+                    net.minecraft.world.level.block.Blocks.BARRIER.defaultBlockState());
+            sp.teleportTo(level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
+                    java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
+        });
+    }
+
     private static void wipeWholeGrid(ServerLevel level) {
         clearFloorDrops(level);
+        // Out of the way before a single block is written, so nothing he can see is ever half-built.
+        holdPlayer(Minecraft.getInstance(), level);
         // Only what the last build actually wrote, when that is known. Sweeping the whole grid meant four
         // million block reads, most of them into chunks that had to be LOADED to answer - in a world whose
         // only contents were one room. The full sweep stays as the fallback for the first build after a

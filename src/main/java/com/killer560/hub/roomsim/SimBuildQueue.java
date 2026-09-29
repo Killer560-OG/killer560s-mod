@@ -172,11 +172,15 @@ public final class SimBuildQueue {
                 chunk.markUnsaved();
                 level.getChunkSource().getLightEngine()
                         .propagateLightSources(new net.minecraft.world.level.ChunkPos(cx, cz));
-                var packet = new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
-                        chunk, level.getLightEngine(), null, null);
-                for (var sp : server.getPlayerList().getPlayers()) {
-                    sp.connection.send(packet);
-                }
+                // NO chunk packet here, on purpose.
+                //
+                // killer560 (2026-09-28): "It did it again." Sending them myself was the freeze, and pacing
+                // the sends did not fix it because the cost is on HIS side - the client turns each chunk into
+                // a mesh, and two hundred meshes is a stall however they arrive. Vanilla already solves this:
+                // it streams chunks to a player as they come into range, a few per tick, at a rate tuned for
+                // exactly this. The build now happens while he is held somewhere else entirely (see
+                // SimBuilder.holdPlayer), so these chunks were never sent to him in the first place and
+                // vanilla delivers them normally when he is finally put in the room.
             }
             // Reported as one unit of the write budget per chunk, not as the thousands of blocks it touches -
             // the pacing here is CHUNKS_PER_TICK, and returning the real block count would make the queue
