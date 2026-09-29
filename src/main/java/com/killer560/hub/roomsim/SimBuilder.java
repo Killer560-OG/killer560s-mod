@@ -125,7 +125,21 @@ public final class SimBuilder {
             final int[] entranceCell = {-1};
             final java.util.List<Runnable> afterBuild = new java.util.ArrayList<>();
             StringBuilder missingNames = new StringBuilder();
+            // One paste per ROOM, not per cell.
+            //
+            // killer560 (2026-09-28): "you need to make the rooms auto resize in the regular map as well."
+            // A map code names a room in every cell it covers, and this loop used to paste once for each of
+            // them - so a 2x2 room went down four times on top of itself, each copy anchored a cell further
+            // along, and the result looked like a room smeared across its own footprint. Every floor he loads
+            // has rooms like that, so it is not an edge case.
+            //
+            // Cells that share a room index AND touch are one placement, found by flood fill. Two separate
+            // copies of the same room on one floor stay separate, because they do not touch.
+            boolean[] handled = new boolean[decoded.cellRoom().length];
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
+                if (handled[cell]) {
+                    continue;
+                }
                 int nameIndex = decoded.cellRoom()[cell];
                 if (nameIndex < 0) {
                     continue;
@@ -133,27 +147,41 @@ public final class SimBuilder {
                 String name = decoded.nameTable()[nameIndex];
                 RoomLibrary.Room room = RoomLibrary.get(name);
                 if (room == null) {
+                    handled[cell] = true;
                     missing++;
                     if (missingNames.indexOf(name) < 0) {
                         missingNames.append(missingNames.isEmpty() ? "" : ", ").append(name);
                     }
                     continue;
                 }
-                int gx = cell % DungeonLayout.GRID;
-                int gz = cell / DungeonLayout.GRID;
+                // The whole footprint this placement covers, and its top-left cell - which is the anchor the
+                // capture measured from, so it is the anchor the paste has to use.
+                java.util.List<Integer> footprint = floodFill(decoded.cellRoom(), handled, cell, nameIndex);
+                int anchor = footprint.get(0);
+                for (int fc : footprint) {
+                    if (fc % DungeonLayout.GRID <= anchor % DungeonLayout.GRID
+                            && fc / DungeonLayout.GRID <= anchor / DungeonLayout.GRID) {
+                        anchor = fc;
+                    }
+                }
+                int gx = anchor % DungeonLayout.GRID;
+                int gz = anchor / DungeonLayout.GRID;
                 SimBuildQueue.submit(level, room, gx, gz, decoded.cellRotation()[cell]);
                 final int rot = decoded.cellRotation()[cell];
                 final int fgx = gx;
                 final int fgz = gz;
+                final int anchorCell = anchor;
                 final RoomLibrary.Room fr = room;
                 // Queued to run after the whole map is placed, for the same reason as a single room: a secret
                 // written before the paste reaches that cell would simply be pasted over.
                 afterBuild.add(() -> SimSecrets.place(level, fr, fgx, fgz, rot));
                 if (firstPlacedCell[0] < 0) {
-                    firstPlacedCell[0] = cell;
+                    firstPlacedCell[0] = anchorCell;
                 }
-                if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_ENTRANCE) {
-                    entranceCell[0] = cell;
+                for (int fc : footprint) {
+                    if (decoded.cellDoor()[fc] == DungeonLayout.DOOR_ENTRANCE) {
+                        entranceCell[0] = anchorCell;
+                    }
                 }
                 roomsPlaced[0]++;
                 spawnMobsFor(client, level, room, gx, gz);
@@ -248,6 +276,39 @@ public final class SimBuilder {
                 sp.teleportTo(level, x + 0.5, y, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
             }
         });
+    }
+
+    /**
+     * Every cell reachable from {@code start} that carries the same room, marking them handled as it goes.
+     *
+     * <p>Touching matters as well as matching: a floor can hold two copies of one room, and they are two
+     * placements rather than one enormous misshapen one. Orthogonal only, because a room that meets another
+     * corner to corner is not the same room.
+     */
+    private static java.util.List<Integer> floodFill(int[] cellRoom, boolean[] handled, int start, int nameIndex) {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        java.util.Deque<Integer> queue = new java.util.ArrayDeque<>();
+        queue.add(start);
+        handled[start] = true;
+        while (!queue.isEmpty()) {
+            int at = queue.poll();
+            out.add(at);
+            int gx = at % DungeonLayout.GRID;
+            int gz = at / DungeonLayout.GRID;
+            for (int[] step : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int nx = gx + step[0];
+                int nz = gz + step[1];
+                if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) {
+                    continue;
+                }
+                int n = nz * DungeonLayout.GRID + nx;
+                if (!handled[n] && cellRoom[n] == nameIndex) {
+                    handled[n] = true;
+                    queue.add(n);
+                }
+            }
+        }
+        return out;
     }
 
     /**

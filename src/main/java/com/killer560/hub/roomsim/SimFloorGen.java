@@ -91,16 +91,14 @@ public final class SimFloorGen {
      */
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
         Map<String, RoomLibrary.Room> usable = new HashMap<>();
-        int setAside = 0;
         for (String name : RoomLibrary.names()) {
             RoomLibrary.Room r = RoomLibrary.get(name);
             if (r == null || !r.complete()) {
                 continue;
             }
-            if (!isSingleCell(r)) {
-                setAside++;
-                continue;
-            }
+            // killer560 (2026-09-28): "dont use 1x1 you need to use more than just that." Rooms of every
+            // footprint now, which is only possible because a map code's cells are pasted once per ROOM rather
+            // than once per cell - a 2x2 used to go down four times on top of itself.
             usable.put(name, r);
         }
         if (usable.isEmpty()) {
@@ -127,10 +125,10 @@ public final class SimFloorGen {
         int[] blood = cellAtDistance(shape, distance, wantDistance);
         int[] fairy = pickAwayFrom(shape, entrance, blood);
 
-        int cells = DungeonLayout.GRID * DungeonLayout.GRID;
-        int[] cellRoom = new int[cells];
-        int[] cellDoor = new int[cells];
-        int[] cellRotation = new int[cells];
+        int gridCells = DungeonLayout.GRID * DungeonLayout.GRID;
+        int[] cellRoom = new int[gridCells];
+        int[] cellDoor = new int[gridCells];
+        int[] cellRotation = new int[gridCells];
         java.util.Arrays.fill(cellRoom, MapCode.NO_ROOM);
         List<String> nameTable = new ArrayList<>();
 
@@ -153,14 +151,28 @@ public final class SimFloorGen {
         int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
         int placedPuzzles = 0;
 
+        Set<Long> filled = new HashSet<>();
+        Set<Long> inShape = new HashSet<>();
         for (int[] c : shape) {
+            inShape.add(key(c));
+        }
+        int bigPlaced = 0;
+
+        for (int[] c : shape) {
+            if (filled.contains(key(c))) {
+                continue;   // already covered by a larger room placed from an earlier cell
+            }
             String pick;
+            boolean given = false;
             if (same(c, entrance)) {
                 pick = named(usable, "Entrance", normalPool);
+                given = true;
             } else if (same(c, blood)) {
                 pick = named(usable, "Blood", normalPool);
+                given = true;
             } else if (same(c, fairy)) {
                 pick = named(usable, "Fairy", normalPool);
+                given = true;
             } else if (placedPuzzles < wantPuzzles && !puzzlePool.isEmpty()
                     && free.indexOf(c) < wantPuzzles && free.contains(c)) {
                 pick = puzzlePool.get(RNG.nextInt(puzzlePool.size()));
@@ -168,34 +180,112 @@ public final class SimFloorGen {
             } else {
                 pick = normalPool.get(RNG.nextInt(normalPool.size()));
             }
+
+            // How many cells this room needs, from what was captured. A room that will not fit here without
+            // running off the map or over a neighbour is swapped for one that does, rather than squeezed in -
+            // a 2x2 crammed into a 1x1 hole is the smeared mess this whole change exists to stop.
+            int[] size = cellFootprint(usable.get(pick));
+            List<int[]> cells = footprintCells(c, size, inShape, filled);
+            if (cells == null && !given) {
+                String smaller = firstThatFits(usable, normalPool, c, inShape, filled);
+                if (smaller != null) {
+                    pick = smaller;
+                    size = cellFootprint(usable.get(pick));
+                    cells = footprintCells(c, size, inShape, filled);
+                }
+            }
+            if (cells == null) {
+                cells = List.of(c);   // one cell, even if the room is bigger - better a room than a hole
+            }
+            if (cells.size() > 1) {
+                bigPlaced++;
+            }
+
             int idx = nameTable.indexOf(pick);
             if (idx < 0) {
                 nameTable.add(pick);
                 idx = nameTable.size() - 1;
             }
-            int cell = gridCell(c);
-            cellRoom[cell] = idx;
-            cellRotation[cell] = RNG.nextInt(4) * 90;
-            cellDoor[cell] = same(c, entrance) ? DungeonLayout.DOOR_ENTRANCE
-                    : same(c, blood) ? DungeonLayout.DOOR_BLOOD
-                    : DungeonLayout.DOOR_NORMAL;
+            // Every cell of the footprint carries the same room, and the builder pastes it once across them.
+            // One rotation for the whole room, or its halves would face different ways.
+            int rotation = RNG.nextInt(4) * 90;
+            for (int[] fc : cells) {
+                filled.add(key(fc));
+                int cell = gridCell(fc);
+                cellRoom[cell] = idx;
+                cellRotation[cell] = rotation;
+                cellDoor[cell] = same(fc, entrance) ? DungeonLayout.DOOR_ENTRANCE
+                        : same(fc, blood) ? DungeonLayout.DOOR_BLOOD
+                        : DungeonLayout.DOOR_NORMAL;
+            }
         }
 
         String code = MapCode.encodeDecoded(new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation));
-        ModChat.send("Sim", ModChat.text(floor.label + ": "), ModChat.value(String.valueOf(shape.size())),
+        ModChat.send("Sim", ModChat.text(floor.label + ": "), ModChat.value(String.valueOf(nameTable.size())),
                 ModChat.text(" rooms, "), ModChat.value(String.valueOf(placedPuzzles)),
                 ModChat.text(" puzzle(s), blood "), ModChat.value(String.valueOf(
                         distance.getOrDefault(key(blood), 0))), ModChat.text(" rooms in"));
-        if (setAside > 0) {
-            ModChat.send("Sim", ModChat.dim(setAside + " multi-cell room(s) not used - one room per cell"));
+        if (bigPlaced > 0) {
+            ModChat.send("Sim", ModChat.dim(bigPlaced + " room(s) larger than 1x1"));
         }
         SimWorld.open(client, code, c -> SimBuilder.build(c, code), "Generating " + floor.label);
     }
 
-    /** A room that occupies exactly one grid cell, walls included. */
-    private static boolean isSingleCell(RoomLibrary.Room r) {
-        return r.sizeX <= RoomLibrary.TILE + 2 && r.sizeZ <= RoomLibrary.TILE + 2;
+    /**
+     * How many grid cells a captured room covers, as {width, height}.
+     *
+     * <p>Read from the capture rather than from the database's shape string, because the capture is what will
+     * actually be pasted. If those two ever disagree the paste wins, so the layout has to be planned against
+     * it - planning against the database and pasting the capture is how you get a room overlapping its
+     * neighbour.
+     */
+    private static int[] cellFootprint(RoomLibrary.Room r) {
+        if (r == null) {
+            return new int[]{1, 1};
+        }
+        return new int[]{tilesAcross(r.sizeX), tilesAcross(r.sizeZ)};
+    }
+
+    /** Tiles spanned by a captured dimension - the wall margin is not a tile. */
+    private static int tilesAcross(int size) {
+        int tiles = Math.max(1, (size - 2) / RoomLibrary.TILE);
+        // A tile span covers the door cells between rooms too, so N tiles is (N+1)/2 rooms across.
+        return Math.max(1, (tiles + 1) / 2);
+    }
+
+    /**
+     * The cells a room of this footprint would occupy starting here, or null if it does not fit.
+     *
+     * <p>It must fit entirely inside the shape that was grown and touch nothing already placed. Anchored at the
+     * top-left, which is the corner the capture measured from.
+     */
+    private static List<int[]> footprintCells(int[] at, int[] size, Set<Long> inShape, Set<Long> filled) {
+        List<int[]> cells = new ArrayList<>();
+        for (int dx = 0; dx < size[0]; dx++) {
+            for (int dz = 0; dz < size[1]; dz++) {
+                int[] c = {at[0] + dx, at[1] + dz};
+                long k = key(c);
+                if (!inShape.contains(k) || filled.contains(k)) {
+                    return null;
+                }
+                cells.add(c);
+            }
+        }
+        return cells;
+    }
+
+    /** A room from the pool small enough to fit at this cell, or null when even a 1x1 will not. */
+    private static String firstThatFits(Map<String, RoomLibrary.Room> usable, List<String> pool, int[] at,
+                                        Set<Long> inShape, Set<Long> filled) {
+        List<String> shuffled = new ArrayList<>(pool);
+        Collections.shuffle(shuffled, RNG);
+        for (String name : shuffled) {
+            if (footprintCells(at, cellFootprint(usable.get(name)), inShape, filled) != null) {
+                return name;
+            }
+        }
+        return null;
     }
 
     private static List<String> byType(Map<String, RoomLibrary.Room> usable, String... types) {

@@ -109,6 +109,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimPauseEntry.register();
         com.killer560.hub.roomsim.SimSurvival.register();
         com.killer560.hub.roomsim.MissingRoomsHud.register();
+        com.killer560.hub.roomsim.FloorSizeLog.register();
         com.killer560.hub.roomsim.SimItems.register();
         com.killer560.hub.roomsim.SimBuilder.register();
         com.killer560.hub.roomsim.SimDoors.register();
