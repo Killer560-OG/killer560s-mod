@@ -55,6 +55,13 @@ public final class RoomPlacer {
     /** Same flags for wiping a region before a paste - see {@code SimBuildQueue.ClearJob}. */
     public static final int CLEAR_FLAGS = PLACE_FLAGS;
 
+    /** Stand-in floor for a column the recorder has not seen yet, and the height it goes at. */
+    private static final net.minecraft.world.level.block.state.BlockState MARKER =
+            net.minecraft.world.level.block.Blocks.RED_CONCRETE.defaultBlockState();
+
+    /** Dungeon floors sit here, so a placeholder at this height lines up with the real ones either side. */
+    private static final int MARKER_Y = 69;
+
     /** Palette strings already warned about this JVM run, so a renamed/removed block warns once, not per block. */
     private static final Set<String> WARNED_UNRESOLVED = new HashSet<>();
 
@@ -116,8 +123,10 @@ public final class RoomPlacer {
             this.rotation = rotation;
             this.vanillaRotation = toVanillaRotation(rotation);
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2;
-            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
+            // The same offset capture used, including the wall margin. If these two ever disagree every room
+            // lands a block off its neighbours and the seams stop lining up.
+            this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+            this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
         }
 
         @Override
@@ -141,6 +150,20 @@ public final class RoomPlacer {
                     return placed;
                 }
                 short paletteIdx = room.blocks[room.index(x, y, z)];
+                if (paletteIdx < 0 && y == MARKER_Y && !room.seenColumn[z * room.sizeX + x]) {
+                    // A column that was never captured. Before the sim cleared the ground these showed as
+                    // flat-world dirt; now they would be a hole you fall through, which is how killer560 saw
+                    // "the floor sometimes" missing after the clearing landed.
+                    //
+                    // Marked rather than quietly floored with something that looks real: a room is only
+                    // partly captured because he has not walked that part yet, and a patch that blends in
+                    // would have him practising a route across ground that may not be there. Red concrete
+                    // says "this is not the dungeon" at a glance and is still something to stand on.
+                    int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
+                    level.setBlock(new BlockPos(worldX0 + local[0], y, worldZ0 + local[1]),
+                            MARKER, PLACE_FLAGS);
+                    placed++;
+                }
                 if (paletteIdx >= 0) {
                     BlockState state = resolve(room.palette.get(paletteIdx));
                     if (state != null) {
@@ -170,8 +193,8 @@ public final class RoomPlacer {
         Rotation vanillaRotation = toVanillaRotation(rotation);
 
         BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int worldX0 = origin.getX() - RoomLibrary.TILE / 2;
-        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2;
+        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
 
         int sizeX = room.sizeX;
         int sizeZ = room.sizeZ;

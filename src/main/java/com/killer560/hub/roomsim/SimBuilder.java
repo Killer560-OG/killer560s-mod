@@ -186,8 +186,11 @@ public final class SimBuilder {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
         int x = origin.getX();
         int z = origin.getZ();
+        // Upwards from the bottom. Scanning DOWN from the top finds the first standable surface from above,
+        // which for a room with a ceiling is the ROOF - killer560 (2026-09-28): "it put me ontop of the room
+        // instead of insidde it." Coming up from the floor finds the floor.
         int landing = -1;
-        for (int y = RoomLibrary.MAX_Y; y > RoomLibrary.MIN_Y; y--) {
+        for (int y = RoomLibrary.MIN_Y; y < RoomLibrary.MAX_Y - 2; y++) {
             if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()) {

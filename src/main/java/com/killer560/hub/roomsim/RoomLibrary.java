@@ -50,6 +50,25 @@ public final class RoomLibrary {
     public static final int TILE = 31;
 
     /**
+     * Extra columns captured on each side, to take in the walls.
+     *
+     * <p>killer560 (2026-09-28): "it isnt getting the walls around the room". Correct, and here is why: the
+     * dungeon grid's cells are 32 blocks apart but {@link #TILE} is 31, so a window centred on a cell covers
+     * centre-15 to centre+15 and the boundary column at centre+/-16 is never read. That column is exactly where
+     * the wall between two rooms stands. Checked against his own capture before changing anything: in
+     * Entrance.json the x=0 edge holds chiseled stone brick while x=30 holds plain stone, so the window was
+     * landing inside the wall on one side and out in the rock on the other.
+     *
+     * <p>One column each side makes it 33 across a 32 pitch, so neighbouring rooms overlap by one - which is
+     * right, because they SHARE that wall rather than each owning half of it.
+     *
+     * <p>This changes the shape of a captured room, so rooms captured before it are a different size and are
+     * replaced rather than merged - {@code capture} already rebuilds a Room whose dimensions do not match.
+     * Those older captures keep their missing walls until they are scanned again.
+     */
+    public static final int WALL_MARGIN = 1;
+
+    /**
      * Vertical slice kept per room.
      *
      * <p>Dungeon floors sit at y 69 and the tallest rooms do not reach y 140. Storing the whole world column
@@ -318,16 +337,16 @@ public final class RoomLibrary {
             maxGx = Math.max(maxGx, gx);
             maxGz = Math.max(maxGz, gz);
         }
-        int sizeX = (maxGx - minGx + 1) * TILE;
-        int sizeZ = (maxGz - minGz + 1) * TILE;
+        int sizeX = (maxGx - minGx + 1) * TILE + WALL_MARGIN * 2;
+        int sizeZ = (maxGz - minGz + 1) * TILE + WALL_MARGIN * 2;
         Room r = ROOMS.get(name);
         if (r == null || r.sizeX != sizeX || r.sizeZ != sizeZ) {
             r = new Room(name, sizeX, sizeZ);
             ROOMS.put(name, r);
         }
         BlockPos origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
-        int worldX0 = origin.getX() - TILE / 2;
-        int worldZ0 = origin.getZ() - TILE / 2;
+        int worldX0 = origin.getX() - TILE / 2 - WALL_MARGIN;
+        int worldZ0 = origin.getZ() - TILE / 2 - WALL_MARGIN;
 
         int added = 0;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
