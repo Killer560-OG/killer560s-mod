@@ -191,8 +191,15 @@ public final class RoomRecorderFeature {
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         boolean pressed = down && !resumeKeyWasDown;
         resumeKeyWasDown = down;
-        if (!pressed || client.screen != null) {
-            return; // not while a screen is open: he is typing, not commanding
+        if (client.screen != null) {
+            // Typing, not commanding. Held down as far as the edge detector is concerned, so the key has to be
+            // released and pressed again after the screen closes - otherwise the very keystroke that closes
+            // chat arrives on the next tick as a fresh press.
+            resumeKeyWasDown = true;
+            return;
+        }
+        if (!pressed) {
+            return;
         }
         // A quarter second between toggles, on his request, so a stutter on the key cannot pause and unpause
         // in the same breath - which would look exactly like the key not working.

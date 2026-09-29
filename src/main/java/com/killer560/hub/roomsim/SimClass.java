@@ -101,6 +101,33 @@ public final class SimClass {
      * <p>Now it walks the actual ray, takes the nearest entity whose hitbox it crosses, and stops there - both
      * at that mob and at the first wall, so it cannot reach into the next room through a door he has not opened.
      */
+    /**
+     * Particles along the beam.
+     *
+     * <p>Client side, because it is a picture rather than a fact - nothing about the hit depends on it, and
+     * spawning particles through the server for something only he sees would be a packet per point.
+     *
+     * <p>Spaced by distance rather than a fixed count, so a short beam is not a dense clot and a long one is
+     * not a dotted line. Started slightly out from the eye, or the first particles sit inside his own head.
+     */
+    private static void drawBeam(Minecraft client, Vec3 from, Vec3 to) {
+        Vec3 delta = to.subtract(from);
+        double length = delta.length();
+        if (length < 0.01) {
+            return;
+        }
+        Vec3 dir = delta.scale(1.0 / length);
+        for (double d = BEAM_PARTICLE_START; d < length; d += BEAM_PARTICLE_SPACING) {
+            Vec3 at = from.add(dir.scale(d));
+            client.level.addParticle(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK,
+                    at.x, at.y, at.z, 0.0, 0.0, 0.0);
+        }
+    }
+
+    /** How far apart the beam's particles sit, and how far out the first one starts. */
+    private static final double BEAM_PARTICLE_SPACING = 0.4;
+    private static final double BEAM_PARTICLE_START = 1.0;
+
     private static void fire(Minecraft client) {
         var player = client.player;
         Vec3 eye = player.getEyePosition();
@@ -130,6 +157,17 @@ public final class SimClass {
                 nearest = e;
             }
         }
+        // The line he can see. killer560 (2026-09-28): "the sim needs to generate a particle line for the mage
+        // beam."
+        //
+        // Drawn to where the beam ACTUALLY stopped - the mob it hit, or the wall, or its full range - rather
+        // than always to maximum range. A beam whose particles overshoot the thing it killed would teach the
+        // wrong idea of its reach, and reach is most of what aiming one is.
+        Vec3 visibleEnd = nearest != null
+                ? nearest.getBoundingBox().getCenter()
+                : stop;
+        drawBeam(client, eye, visibleEnd);
+
         if (nearest == null) {
             return;
         }

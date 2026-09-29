@@ -71,6 +71,12 @@ public final class RoomRecorderConfig {
             c.walkInOnEntry = ConfigJson.getBool(o, "walkInOnEntry", true);
             c.resumeKeyCode = com.killer560.hub.util.KeyUtil.sanitize(
                     ConfigJson.getInt(o, "resumeKeyCode", org.lwjgl.glfw.GLFW.GLFW_KEY_APOSTROPHE));
+            // A binding of Enter already saved before that was rejected at the rebind is repaired on load,
+            // rather than left to toggle the recorder on every chat message he sends.
+            if (c.resumeKeyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER
+                    || c.resumeKeyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
+                c.resumeKeyCode = org.lwjgl.glfw.GLFW.GLFW_KEY_APOSTROPHE;
+            }
             instance = c;
         } catch (Exception e) {
             instance = new RoomRecorderConfig();

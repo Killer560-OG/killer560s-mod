@@ -115,10 +115,23 @@ public class RoomLibraryScreen extends Screen {
         if (listeningForKey) {
             listeningForKey = false;
             // Escape means "leave it alone", the same as every other keybind button in this mod.
-            if (keyEvent.key() != org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+            //
+            // Enter is refused for a different reason, found the hard way: killer560 (2026-09-28) "if i press
+            // enter while typing to send a message it starts the auto swapper". His binding had become Enter,
+            // because a rebind prompt is a thing people confirm with Enter and this one took it literally. A
+            // key that opens and sends chat cannot also be a world keybind - binding it means every message he
+            // sends toggles the recorder - so it is rejected rather than accepted and regretted.
+            int key = keyEvent.key();
+            boolean unusable = key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE
+                    || key == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER
+                    || key == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER;
+            if (!unusable) {
                 RoomRecorderConfig cfg = RoomRecorderConfig.getInstance();
-                cfg.setResumeKeyCode(keyEvent.key());
+                cfg.setResumeKeyCode(key);
                 cfg.save();
+            } else if (key != org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+                com.killer560.hub.util.ModChat.send("Room Recorder",
+                        com.killer560.hub.util.ModChat.text("Enter cannot be the pause key - it sends chat."));
             }
             rebuildWidgets();
             return true;

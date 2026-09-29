@@ -137,7 +137,7 @@ public final class FloorSizeLog {
             }
         }
 
-        int roomsToBlood = entranceRoom == null || bloodRoom == null
+        int cellsToBlood = entranceRoom == null || bloodRoom == null
                 ? -1 : distanceBetween(layout, cellToRoom, entranceRoom, bloodRoom);
 
         // Only once the map looks fully revealed. Sampling a half-discovered floor would record a smaller
@@ -147,7 +147,7 @@ public final class FloorSizeLog {
             return;
         }
 
-        String key = floor + ":" + rooms.size() + ":" + roomsToBlood;
+        String key = floor + ":" + rooms.size() + ":" + cellsToBlood;
         if (key.equals(lastSampledKey)) {
             return;
         }
@@ -160,32 +160,46 @@ public final class FloorSizeLog {
         sample.addProperty("gridHeight", (maxGz - minGz) / 2 + 1);
         sample.addProperty("puzzles", puzzles);
         sample.addProperty("traps", traps);
-        sample.addProperty("roomsToBlood", roomsToBlood);
+        sample.addProperty("cellsToBlood", cellsToBlood);
         sample.addProperty("at", System.currentTimeMillis());
         append(sample);
 
-        LOGGER.info("[FloorSize] {}: {} rooms, {}x{} cells, {} puzzle(s), {} trap(s), {} rooms to blood",
+        LOGGER.info("[FloorSize] {}: {} rooms, {}x{} cells, {} puzzle(s), {} trap(s), {} cells to blood",
                 floor, rooms.size(), (maxGx - minGx) / 2 + 1, (maxGz - minGz) / 2 + 1,
-                puzzles, traps, roomsToBlood);
+                puzzles, traps, cellsToBlood);
         ModChat.send("Floor Size", ModChat.text(floor + ": "), ModChat.value(String.valueOf(rooms.size())),
                 ModChat.text(" rooms, "), ModChat.value(String.valueOf(puzzles)),
-                ModChat.text(" puzzles, blood "), ModChat.value(String.valueOf(roomsToBlood)),
-                ModChat.text(" in"));
+                ModChat.text(" puzzles, blood "), ModChat.value(String.valueOf(cellsToBlood)),
+                ModChat.text(" cells in"));
     }
 
     /**
-     * Rooms from one to the other, walking the map.
+     * Grid CELLS from the entrance to the blood door.
      *
-     * <p>Counted in ROOMS rather than cells, so a 2x2 in the way counts once - which is how he counts them, and
-     * the whole reason the number is worth recording.
+     * <p>killer560 (2026-09-28): "it shouldd be in cells not rooms." I had it counting rooms, so a 2x2 in the
+     * way cost one step. Cells is the right unit and the correction matters: a 2x2 is two cells of walking
+     * whichever way you cross it, and the number is meant to describe how far the blood door is, not how many
+     * room names you pass on the way.
+     *
+     * <p>So this walks cells, stepping between adjacent room cells only where the cell between them is a door.
+     * Cells of the same room connect freely - crossing a 2x2 is real distance, but it needs no door.
      */
     private static int distanceBetween(DungeonLayout layout, Map<Integer, Integer> cellToRoom,
                                        int fromRoom, int toRoom) {
-        // Adjacency between rooms, derived from cells that touch.
-        Map<Integer, Set<Integer>> neighbours = new HashMap<>();
+        Map<Integer, Integer> dist = new HashMap<>();
+        Deque<Integer> queue = new ArrayDeque<>();
+        // Start from every cell of the entrance at distance zero: the room itself costs nothing to be in.
         for (Map.Entry<Integer, Integer> e : cellToRoom.entrySet()) {
-            int cell = e.getKey();
-            int room = e.getValue();
+            if (e.getValue() == fromRoom) {
+                dist.put(e.getKey(), 0);
+                queue.add(e.getKey());
+            }
+        }
+        while (!queue.isEmpty()) {
+            int cell = queue.poll();
+            if (cellToRoom.get(cell) == toRoom) {
+                return dist.get(cell);
+            }
             int gx = cell % DungeonLayout.GRID;
             int gz = cell / DungeonLayout.GRID;
             for (int[] step : new int[][]{{2, 0}, {-2, 0}, {0, 2}, {0, -2}}) {
@@ -194,32 +208,20 @@ public final class FloorSizeLog {
                 if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) {
                     continue;
                 }
-                // The cell between them must be a door, or the two rooms merely sit side by side.
-                int between = (gz + step[1] / 2) * DungeonLayout.GRID + (gx + step[0] / 2);
-                if (!layout.isDoor(between)) {
+                int next = nz * DungeonLayout.GRID + nx;
+                Integer otherRoom = cellToRoom.get(next);
+                if (otherRoom == null || dist.containsKey(next)) {
                     continue;
                 }
-                Integer other = cellToRoom.get(nz * DungeonLayout.GRID + nx);
-                if (other != null && other != room) {
-                    neighbours.computeIfAbsent(room, k -> new HashSet<>()).add(other);
+                // Within one room there is no door to pass; between two rooms there has to be one, or they
+                // merely sit side by side with a wall between them.
+                boolean sameRoom = otherRoom.equals(cellToRoom.get(cell));
+                int between = (gz + step[1] / 2) * DungeonLayout.GRID + (gx + step[0] / 2);
+                if (!sameRoom && !layout.isDoor(between)) {
+                    continue;
                 }
-            }
-        }
-
-        Map<Integer, Integer> dist = new HashMap<>();
-        Deque<Integer> queue = new ArrayDeque<>();
-        dist.put(fromRoom, 0);
-        queue.add(fromRoom);
-        while (!queue.isEmpty()) {
-            int at = queue.poll();
-            if (at == toRoom) {
-                return dist.get(at);
-            }
-            for (int n : neighbours.getOrDefault(at, Set.of())) {
-                if (!dist.containsKey(n)) {
-                    dist.put(n, dist.get(at) + 1);
-                    queue.add(n);
-                }
+                dist.put(next, dist.get(cell) + 1);
+                queue.add(next);
             }
         }
         return -1;
