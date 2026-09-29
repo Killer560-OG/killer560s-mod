@@ -187,6 +187,13 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   integrated server is ours. Everything sim-only gates on `SimState.canAct`, which requires a singleplayer world
   AND no connected server. If that gate is ever wrong, those files write positions on Hypixel - treat it as the
   single safety boundary of that package and do not add a second way in.
+- **A negative y is a valid y in the sim.** A bottom-aligned floor occupies y -63..17, so `landing = -1` as a
+  "not found" sentinel made `SimBuilder.snapPlayerTo` throw away every spot it found and drop him in at
+  `maxWorldY` to land on the roof (2026-09-29). Use a flag. `SimDoors.findFloor` was already right.
+- A teleport that walks its bounding box along the look vector must SLIDE when only the vertical part is
+  blocked. Standing on a floor, the box's bottom face is on the floor's top face, so any downward look made
+  `SimAbilities.dash`'s first 0.25 step collide and refused the AOTV teleport outright - 14 refusals in 10
+  seconds of play. Keep the horizontal part and carry on at the starting height.
 - Synthetic sim rooms live in `RoomLibrary`'s separate `TEST_ROOMS` map, are never saved, never counted and never
   listed as missing. A synthetic room in the real map would be written to disk by `saveAll()` and would end up in
   the shipped library looking exactly like a captured one.

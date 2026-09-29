@@ -404,16 +404,28 @@ public final class SimBuilder {
         // Upwards from the bottom. Scanning DOWN from the top finds the first standable surface from above,
         // which for a room with a ceiling is the ROOF - killer560 (2026-09-28): "it put me ontop of the room
         // instead of insidde it." Coming up from the floor finds the floor.
-        int landing = -1;
+        // "Not found" is a FLAG, not a negative y.
+        //
+        // killer560 (2026-09-29): "It isnt teleporting me inside of the starting room either when I create a
+        // map." This was it. The sentinel was -1 and the test below was landing < 0 - which was fine while the
+        // floor was pasted at its captured heights, and became wrong the moment SimAltitude started dropping
+        // the map to the bottom of the void. A bottom-aligned floor occupies y -63..17 (measured in his
+        // 17:57:32 build on 2026-09-29), so EVERY standable spot in it has a negative y: the scan found the
+        // entrance's floor at -52, the fallback then decided nothing had been found, and he was dropped in at
+        // maxWorldY to land on the roof - which is the same symptom as the older "it put me ontop of the room"
+        // bug and nothing to do with its cause.
+        int landing = 0;
+        boolean found = false;
         for (int y = SimAltitude.minWorldY(); y < SimAltitude.maxWorldY() - 2; y++) {
             if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()) {
                 landing = y + 1;
+                found = true;
                 break;
             }
         }
-        if (landing < 0) {
+        if (!found) {
             // Nothing to stand on at the centre - a doorway column, or a room whose middle is a pit. Put him
             // above it rather than inside the floor; falling a few blocks is recoverable, suffocating is not.
             landing = SimAltitude.maxWorldY();

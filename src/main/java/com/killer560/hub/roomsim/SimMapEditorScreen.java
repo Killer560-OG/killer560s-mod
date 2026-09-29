@@ -58,6 +58,19 @@ public class SimMapEditorScreen extends Screen {
     private int scroll;
     private String status = "";
 
+    // The random generator's settings, which used to live on a separate "Create a New Map" page.
+    //
+    // killer560 (2026-09-29): "this screen needs to be the design the map screen. That should be the only one
+    // once you click create a new map." So the settings came here rather than being dropped - Generate below
+    // still calls the real floor generator, NOT the Fill button. Those are different things and must stay
+    // different: a generated floor carries a rotation per room, worked out by matching doorways, while a drawn
+    // one is placed at rotation 0 throughout (SimFloorGen.planExplicit). Filling the drawing grid from the
+    // generator would throw those rotations away, and the room database's secret coordinates are translated
+    // through exactly that rotation.
+    private SimFloorGen.Floor floor = SimFloorGen.Floor.F7;
+    private int roomsToBlood = 5;
+    private int puzzleCount = 3;
+
     private int panelX;
     private int panelY;
     private int panelW;
@@ -75,13 +88,15 @@ public class SimMapEditorScreen extends Screen {
 
     @Override
     protected void init() {
+        RoomLibrary.loadAsync();
         panelW = Math.min(this.width - 40, 640);
-        panelH = Math.min(this.height - 40, 340);
+        // One row taller than it was: the generator settings moved onto this screen.
+        panelH = Math.min(this.height - 40, 366);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
 
         // The grid is square and takes the left half; the list takes the rest.
-        int gridArea = Math.min(panelH - 118, (panelW - 30) / 2);
+        int gridArea = Math.min(panelH - 144, (panelW - 30) / 2);
         cell = Math.max(14, gridArea / GRID);
         gridX = panelX + 14;
         gridY = panelY + 66;
@@ -103,6 +118,34 @@ public class SimMapEditorScreen extends Screen {
         nameBox.setResponder(v -> mapName = v);
         addRenderableWidget(nameBox);
 
+        // Row A - the random floor: its settings and the button that builds one.
+        int ay = panelY + panelH - 52;
+        int aAvail = panelW - 28 - 18;
+        int wFloor = aAvail * 24 / 100;
+        int wSlider = aAvail * 27 / 100;
+        int wGen = aAvail - wFloor - wSlider * 2;
+        int ax = panelX + 14;
+        addRenderableWidget(SettingsButtonWidget.builder(
+                Component.literal("§6" + floor.label), b -> {
+                    var all = SimFloorGen.Floor.values();
+                    floor = all[(floor.ordinal() + 1) % all.length];
+                    rebuildWidgets();
+                }).bounds(ax, ay, wFloor, 20).build());
+        ax += wFloor + 6;
+        addRenderableWidget(new SimSlider(ax, ay, wSlider, "Rooms to blood",
+                SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD, roomsToBlood,
+                v -> roomsToBlood = v));
+        ax += wSlider + 6;
+        addRenderableWidget(new SimSlider(ax, ay, wSlider, "Puzzles",
+                SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
+                v -> puzzleCount = v));
+        ax += wSlider + 6;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aGenerate"), b -> {
+            SimFloorGen.generate(this.minecraft, floor, puzzleCount, roomsToBlood);
+            this.minecraft.setScreen(null);
+        }).bounds(ax, ay, wGen, 20).build());
+
+        // Row B - the drawn floor: the drawing tools, and Play for what is on the grid.
         int by = panelY + panelH - 26;
         int count = 6;
         int bw = (panelW - 28 - 6 * (count - 1)) / count;

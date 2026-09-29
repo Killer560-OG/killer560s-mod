@@ -29,7 +29,6 @@ public class SimMenuScreen extends Screen {
     private enum Mode {
         HOME("Dungeon Sim"),
         PREVIOUS("Load a Previous Run"),
-        GENERATE("Create a New Map"),
         ROOM("Load a Room");
 
         final String title;
@@ -58,13 +57,6 @@ public class SimMenuScreen extends Screen {
     private boolean puzzlesOnly;
     private int scroll;
 
-    /** Generator settings. */
-    private int puzzleCount = 3;
-    /** Defaults are the middle of each range rather than an extreme, so the first generate is a usable floor. */
-    private int roomsToBlood = 5;
-
-    private SimFloorGen.Floor floor = SimFloorGen.Floor.F7;
-
     private List<String> listed = List.of();
 
     private int panelX;
@@ -88,7 +80,6 @@ public class SimMenuScreen extends Screen {
         switch (mode) {
             case HOME -> buildHome();
             case PREVIOUS -> buildPrevious();
-            case GENERATE -> buildGenerate();
             case ROOM -> buildRoomPicker();
         }
     }
@@ -102,10 +93,13 @@ public class SimMenuScreen extends Screen {
             scroll = 0;
             rebuildWidgets();
         }).bounds(x, y, w, 22).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Create a New Map"), b -> {
-            mode = Mode.GENERATE;
-            rebuildWidgets();
-        }).bounds(x, y + 30, w, 22).build());
+        // killer560 (2026-09-29): "this screen needs to be the design the map screen. That should be the only
+        // one once you click create a new map." It goes straight there; the settings page it used to open in
+        // between is gone, and its Floor / Rooms to blood / Puzzles controls and its Generate moved onto the
+        // designer, so nothing it could do was lost.
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Create a New Map"), b ->
+                this.minecraft.setScreen(new SimMapEditorScreen(this)))
+                .bounds(x, y + 30, w, 22).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load a Room"), b -> {
             mode = Mode.ROOM;
             scroll = 0;
@@ -121,50 +115,6 @@ public class SimMenuScreen extends Screen {
 
     private void buildPrevious() {
         listed = SimRunHistory.savedRuns();
-        backButton();
-    }
-
-    /**
-     * The generate panel: which floor, and the two sliders.
-     *
-     * <p>killer560 (2026-09-28): "have an option to choose what map size so for instance entrance, f1, f6, f7",
-     * "Max rooms to blood should be 8 and it should be a sliding bar between 2-8 [...] Make puzzles a bar as
-     * well from 2-5."
-     *
-     * <p>Real sliders rather than buttons that cycle a number. A cycling button made picking 3 out of 0-20 a
-     * matter of clicking eight times and overshooting, which is exactly the interaction a slider exists to
-     * replace - and the ranges are small and bounded, which is what sliders are good at.
-     */
-    private void buildGenerate() {
-        int x = panelX + 20;
-        int y = panelY + 58;
-        int full = panelW - 40;
-
-        addRenderableWidget(SettingsButtonWidget.builder(
-                Component.literal("Floor: \u00a76" + floor.label + " \u00a77(" + floor.rooms + " rooms)"), b -> {
-                    var all = SimFloorGen.Floor.values();
-                    floor = all[(floor.ordinal() + 1) % all.length];
-                    rebuildWidgets();
-                }).bounds(x, y, full, 20).build());
-
-        addRenderableWidget(new SimSlider(x, y + 26, full, "Rooms to blood",
-                SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD, roomsToBlood,
-                v -> roomsToBlood = v));
-
-        addRenderableWidget(new SimSlider(x, y + 52, full, "Puzzles",
-                SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
-                v -> puzzleCount = v));
-
-        // killer560 (2026-09-29): "make this page that map selection instead of the pick specific rooms
-        // thing." The single-room picker still exists behind /simroom for when he wants one room; this row is
-        // the thing he asked for, which is laying out a whole floor by hand.
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Design the map..."), b ->
-                this.minecraft.setScreen(new SimMapEditorScreen(this))).bounds(x, y + 80, full, 20).build());
-
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("\u00a7aGenerate"), b -> {
-            SimFloorGen.generate(this.minecraft, floor, puzzleCount, roomsToBlood);
-            this.minecraft.setScreen(null);
-        }).bounds(x, y + 108, full, 22).build());
         backButton();
     }
 
@@ -280,15 +230,6 @@ public class SimMenuScreen extends Screen {
         g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         g.text(this.font, mode.title.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11,
                 ProfitPanels.ACCENT, false);
-        // "0 rooms captured" while it is still reading would be a lie that looks like lost data.
-        // Both halves, because "87 rooms captured" next to a library of 135 files reads as lost data when it
-        // actually means 87 are usable and the rest still need walking (killer560 saw exactly that).
-        String count = RoomLibrary.isReady()
-                ? RoomLibrary.completeCount() + " of " + RoomLibrary.expectedCount() + " rooms ready"
-                : "loading rooms... " + RoomLibrary.loadedSoFar();
-        g.text(this.font, count, panelX + panelW - 10 - this.font.width(count), panelY + 11,
-                ProfitPanels.DIM, false);
-
         if (mode == Mode.HOME) {
             String hint = RoomLibrary.roomCount() == 0
                     ? "No rooms captured yet - the Room Recorder fills these"

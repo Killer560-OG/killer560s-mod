@@ -199,6 +199,20 @@ public final class SimAbilities {
      * block, it cannot pass through a wall, and it needs no special case for looking down - the floor stops
      * the box the same way a wall does. A quarter block is fine enough that the stop is never visibly short
      * and coarse enough to be 48 checks at the longest range.
+     *
+     * <p><b>A blocked step SLIDES rather than cancelling the teleport.</b> killer560 (2026-09-29): "if it is a
+     * regular teleport that wouldd bring me into a block then it shouldnt just not let me teleport but it
+     * should get me as close as possible to the block. So if it is one block infront of me then i go 1 block
+     * forward."
+     *
+     * <p>The version above refused outright whenever the FIRST quarter-block step collided, and standing on a
+     * floor and looking down even a degree is exactly that case: the box rests with its bottom face on the
+     * floor's top face, so any downward component at all puts it inside the floor. So nearly every teleport he
+     * made was refused - fourteen "no room to teleport that way" in ten seconds in his 17:57 run on 2026-09-29.
+     * When the vertical part of a step is what is blocked, the horizontal part is kept and the slide continues
+     * at the height he started at, which is what the ability does on Hypixel: aiming at the ground ahead moves
+     * you along the ground rather than doing nothing. Only a step that cannot move him horizontally either -
+     * flush against a wall - ends the walk, and only a walk that never moved him at all reports a failure.
      */
     private static boolean dash(Minecraft client, double range) {
         var player = client.player;
@@ -206,12 +220,25 @@ public final class SimAbilities {
         Vec3 from = player.position();
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         Vec3 best = null;
+        // Once the vertical part of the move is blocked it stays blocked for the rest of the walk: the next
+        // step reaches further down into the same floor, so re-testing it every step would only ever fail.
+        boolean verticalBlocked = false;
         for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
-            Vec3 candidate = from.add(look.scale(d));
-            if (!client.level.noCollision(player, box.move(candidate.subtract(from)))) {
-                break;
+            Vec3 full = from.add(look.scale(d));
+            Vec3 candidate = verticalBlocked ? new Vec3(full.x, from.y, full.z) : full;
+            if (fits(client, player, box, from, candidate)) {
+                best = candidate;
+                continue;
             }
-            best = candidate;
+            if (!verticalBlocked) {
+                Vec3 flat = new Vec3(full.x, from.y, full.z);
+                if (fits(client, player, box, from, flat)) {
+                    verticalBlocked = true;
+                    best = flat;
+                    continue;
+                }
+            }
+            break;
         }
         if (best == null) {
             fail(client, "no room to teleport that way");
@@ -219,6 +246,12 @@ public final class SimAbilities {
         }
         teleport(client, best.x, best.y, best.z);
         return true;
+    }
+
+    /** Whether the player's own box fits at {@code to}. */
+    private static boolean fits(Minecraft client, net.minecraft.world.entity.player.Player player,
+                                net.minecraft.world.phys.AABB box, Vec3 from, Vec3 to) {
+        return client.level.noCollision(player, box.move(to.subtract(from)));
     }
 
     /** How finely {@link #dash} walks the look vector. */
