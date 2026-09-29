@@ -44,6 +44,22 @@ public final class SimRun {
                 FeatureGuard.start("SimRun.tick", SimRun::tick));
     }
 
+    /** Registers the /start command. Kept apart from the tick registration, which already exists. */
+    public static void registerStartCommand() {
+        net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
+                (dispatcher, access) -> dispatcher.register(
+                        net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("start")
+                                // Sim-only, like /map and /fly: an ungated /start would claim the name on
+                                // Hypixel, where the server has its own idea of what it means.
+                                .requires(src -> SimState.canAct(Minecraft.getInstance()))
+                                .executes(ctx -> {
+                                    // The door the builder recorded, so this finds the right one rather than
+                                    // the nearest one - the nearest is whichever he happens to be standing by.
+                                    begin(Minecraft.getInstance(), SimBuilder.entranceDoor());
+                                    return 1;
+                                })));
+    }
+
     /**
      * Starts the countdown, with the entrance door shut.
      *

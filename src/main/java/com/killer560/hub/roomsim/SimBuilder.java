@@ -179,7 +179,7 @@ public final class SimBuilder {
                     firstPlacedCell[0] = anchorCell;
                 }
                 for (int fc : footprint) {
-                    if (decoded.cellDoor()[fc] == DungeonLayout.DOOR_ENTRANCE) {
+                    if ("Entrance".equalsIgnoreCase(name)) {
                         entranceCell[0] = anchorCell;
                     }
                 }
@@ -201,6 +201,14 @@ public final class SimBuilder {
             final int roomCount = roomsPlaced[0];
             // Everything that was here before, so a new map never shows the last one's rooms in its gaps.
             wipeWholeGrid(level);
+            // The door out of the green room, for /start.
+            entranceDoorPos = null;
+            for (int cell = 0; cell < decoded.cellDoor().length; cell++) {
+                if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_ENTRANCE) {
+                    entranceDoorPos = DungeonLayout.cellCenter(cell);
+                    break;
+                }
+            }
             final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
                 for (Runnable r : afterBuild) {
@@ -377,6 +385,20 @@ public final class SimBuilder {
             sp.teleportTo(level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
                     java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
         });
+    }
+
+    /**
+     * The door out of the green room on the map that was just built, in world coordinates.
+     *
+     * <p>Remembered so {@code /start} knows which door to drop without searching for it. killer560
+     * (2026-09-28): "After loading in i should be able to do /start and then it will automatically drop teh
+     * door between green room and the room after it."
+     */
+    private static net.minecraft.core.BlockPos entranceDoorPos;
+
+    /** Where the run's first door is, or null when the map has none. */
+    public static net.minecraft.core.BlockPos entranceDoor() {
+        return entranceDoorPos;
     }
 
     private static void wipeWholeGrid(ServerLevel level) {

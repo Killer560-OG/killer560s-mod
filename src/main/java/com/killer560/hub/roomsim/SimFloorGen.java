@@ -44,6 +44,12 @@ public final class SimFloorGen {
 
     private static final Random RNG = new Random();
 
+    /** Catacombs puzzle rooms, by name, for when the database cannot say. */
+    private static final String[] PUZZLE_NAMES = {
+        "boulder", "ice fill", "ice_fill", "ice path", "ice_path", "creeper", "beams", "water",
+        "quiz", "weirdos", "teleport", "maze", "blaze", "tic tac toe", "tic_tac_toe", "bomb",
+    };
+
     /** The room grid inside {@link DungeonLayout}'s 11x11: rooms sit on even coordinates, doors between. */
     private static final int ROOM_GRID = (DungeonLayout.GRID + 1) / 2;
 
@@ -149,6 +155,20 @@ public final class SimFloorGen {
         List<String> nameTable = new ArrayList<>();
 
         List<String> puzzlePool = byType(usable, "PUZZLE");
+        if (puzzlePool.isEmpty()) {
+            // The database was not loaded, or those rooms are not in it. His last floor came out with zero
+            // puzzles for this reason, which is worse than a wrong puzzle: a floor with none is not a floor
+            // he can practise a route on. Falling back to the names the puzzles actually have.
+            for (String name : usable.keySet()) {
+                String lower = name.toLowerCase(Locale.ROOT);
+                for (String p : PUZZLE_NAMES) {
+                    if (lower.contains(p)) {
+                        puzzlePool.add(name);
+                        break;
+                    }
+                }
+            }
+        }
         List<String> normalPool = byType(usable, "NORMAL", "RARE", "TRAP", "CHAMPION");
         if (normalPool.isEmpty()) {
             // Nothing classified: use whatever is captured rather than refuse. A floor of unclassified rooms
@@ -230,13 +250,52 @@ public final class SimFloorGen {
                 int cell = gridCell(fc);
                 cellRoom[cell] = idx;
                 cellRotation[cell] = rotation;
-                cellDoor[cell] = same(fc, entrance) ? DungeonLayout.DOOR_ENTRANCE
-                        : same(fc, blood) ? DungeonLayout.DOOR_BLOOD
-                        : DungeonLayout.DOOR_NORMAL;
+                // Rooms are not doors. Doors go in the cells BETWEEN rooms, which is done once below.
+                cellDoor[cell] = DungeonLayout.DOOR_NONE;
             }
         }
 
         LOGGER.info("[SimPhase] layout planned in {} ms", System.currentTimeMillis() - planStart);
+        // Doors, in the cells between adjacent rooms.
+        //
+        // killer560 (2026-09-28): "the map is not propperly linking things." This is why. The generator was
+        // writing door types onto the ROOM cells and never onto the odd cells between them, which is where a
+        // door actually lives - so the map had nothing to draw a connector from and every room looked like an
+        // island. The same gap made the floor logger report "blood -1 cells in": its search steps between
+        // rooms only through a door, and there were none, so no path to blood existed.
+        //
+        // The door out of the entrance is marked DOOR_ENTRANCE and the ones into blood DOOR_BLOOD, so both the
+        // map and anything that reasons about the route can tell them apart.
+        int doors = 0;
+        for (int[] c : shape) {
+            long here = key(c);
+            if (!filled.contains(here)) {
+                continue;
+            }
+            for (int[] step : new int[][]{{1, 0}, {0, 1}}) {
+                int[] n = {c[0] + step[0], c[1] + step[1]};
+                if (!filled.contains(key(n))) {
+                    continue;
+                }
+                int a = gridCell(c);
+                int bCell = gridCell(n);
+                if (cellRoom[a] < 0 || cellRoom[bCell] < 0) {
+                    continue;
+                }
+                // Inside one room there is no door - a 2x2's own halves are not connected by one.
+                if (cellRoom[a] == cellRoom[bCell]) {
+                    continue;
+                }
+                int between = (gridCell(c) + gridCell(n)) / 2;
+                boolean toBlood = same(c, blood) || same(n, blood);
+                boolean fromEntrance = same(c, entrance) || same(n, entrance);
+                cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
+                        : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
+                        : DungeonLayout.DOOR_NORMAL;
+                doors++;
+            }
+        }
+
         String code = MapCode.encodeDecoded(new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation));
         ModChat.send("Sim", ModChat.text(floor.label + ": "), ModChat.value(String.valueOf(nameTable.size())),
