@@ -71,6 +71,13 @@ public class RoomRecorderTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
+        w.add(SettingsButtonWidget.builder(onOff("Walk In On Entry", cfg.isWalkInOnEntry()), btn -> {
+                    cfg.setWalkInOnEntry(!cfg.isWalkInOnEntry());
+                    cfg.save();
+                    btn.setMessage(onOff("Walk In On Entry", cfg.isWalkInOnEntry()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+
         w.add(SettingsButtonWidget.builder(
                         Component.literal("Pause / Resume Key: §6" + KeyUtil.bindDisplayName(cfg.getResumeKeyCode())),
                         btn -> Minecraft.getInstance().setScreen(

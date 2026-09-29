@@ -31,6 +31,15 @@ public final class RoomRecorderConfig {
     private boolean pauseOnFivePuzzles = true;
 
     /**
+     * Walk a few steps into the spawn room on entering, to pull an extra ring of rooms into range.
+     *
+     * <p>killer560 asked for it (2026-09-28) and it is the difference between scanning what you can see from
+     * the doorway and what you can see from inside, so it defaults ON. It is also the only thing the recorder
+     * does that moves the player, which is why it has its own switch rather than being unconditional.
+     */
+    private boolean walkInOnEntry = true;
+
+    /**
      * Key that resumes a paused run, or starts the recorder when it is off.
      *
      * <p>A key rather than only the command because the pause exists while he is playing the run by hand, and
@@ -59,6 +68,7 @@ public final class RoomRecorderConfig {
                     .getAsJsonObject();
             RoomRecorderConfig c = new RoomRecorderConfig();
             c.pauseOnFivePuzzles = ConfigJson.getBool(o, "pauseOnFivePuzzles", true);
+            c.walkInOnEntry = ConfigJson.getBool(o, "walkInOnEntry", true);
             c.resumeKeyCode = com.killer560.hub.util.KeyUtil.sanitize(
                     ConfigJson.getInt(o, "resumeKeyCode", org.lwjgl.glfw.GLFW.GLFW_KEY_APOSTROPHE));
             instance = c;
@@ -72,10 +82,19 @@ public final class RoomRecorderConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
             o.addProperty("pauseOnFivePuzzles", pauseOnFivePuzzles);
+            o.addProperty("walkInOnEntry", walkInOnEntry);
             o.addProperty("resumeKeyCode", resumeKeyCode);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    public boolean isWalkInOnEntry() {
+        return walkInOnEntry;
+    }
+
+    public void setWalkInOnEntry(boolean v) {
+        walkInOnEntry = v;
     }
 
     public boolean isPauseOnFivePuzzles() {

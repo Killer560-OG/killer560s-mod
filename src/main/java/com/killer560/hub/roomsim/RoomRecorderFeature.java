@@ -259,6 +259,8 @@ public final class RoomRecorderFeature {
     }
 
     public static void stop(String reason) {
+        // Before anything else: a held movement key outliving the feature would walk him into a wall.
+        RoomEntryWalk.reset();
         if (stage == Stage.OFF) {
             return;
         }
@@ -326,6 +328,7 @@ public final class RoomRecorderFeature {
                 stage = Stage.CONFIRM;
                 confirmTicks = 0;
                 confirmClickTick = -1;
+                RoomEntryWalk.reset();
                 waitTicks = 2;
             }
             case CONFIRM -> {
@@ -410,6 +413,15 @@ public final class RoomRecorderFeature {
             alert(client, "FIVE PUZZLE RUN - paused. Walk it yourself to load rare rooms, then "
                     + "/killer560 roomrecorder resume");
             return;
+        }
+        // The walk-in runs alongside the scan rather than before it: the whole reason to move is to load more
+        // rooms, and the sweep should be picking them up as they arrive rather than waiting for the walk to end.
+        if (RoomRecorderConfig.getInstance().isWalkInOnEntry() && stage == Stage.SCAN) {
+            if (RoomEntryWalk.isWalking()) {
+                RoomEntryWalk.tick(client);
+            } else {
+                RoomEntryWalk.begin(client);
+            }
         }
         DungeonLayout layout = DungeonLayout.current();
         if (layout == null) {
