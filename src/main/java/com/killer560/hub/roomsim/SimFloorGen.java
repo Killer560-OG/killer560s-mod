@@ -257,23 +257,59 @@ public final class SimFloorGen {
         // Doors go in the cell BETWEEN two rooms, which is where a door lives on the grid - writing them onto
         // the room cells, as an older version did, left the map with nothing to draw a connector from and made
         // the floor logger report "blood -1 cells in" because its search steps between rooms only through one.
+        // NO LOOPS, and this is the pass that decides it.
+        //
+        // killer560 (2026-09-30): "there should only be 1 way to enter a room for the first time [...] see how
+        // i can essentially make an infinate loop by running through flags into supertall into slime then back
+        // to flags."
+        //
+        // {@code laid.links()} is every adjacency the layout found, which is not a tree: measured over 120
+        // planned floors (2026-09-29) every single one carried between 3 and 8 links more than a tree, and each
+        // of those extra links IS one of his loops. The first attempt at this put the union-find in
+        // {@code linkDoors}, which only the designer's explicitly-drawn path calls - so the generated floors,
+        // the ones he was actually complaining about, were untouched and the scenario still reported all 120.
+        // The check has to be here, where the generated floor's doors are written.
+        //
+        // Blood and entrance links go first and always survive, because they are the run's structure and
+        // dropping one would move where the floor starts or ends; only an ordinary link is ever refused. A link
+        // between two cells of ONE multi-tile room is not an edge between rooms at all, so it neither unions
+        // nor counts against the tree.
+        Map<Integer, Integer> connected = new HashMap<>();
         int doors = 0;
-        for (SimFloorLayout.Link link : laid.links()) {
-            int a = gridCell(new int[]{link.aX(), link.aZ()});
-            int bCell = gridCell(new int[]{link.bX(), link.bZ()});
-            int between = (a + bCell) / 2;
-            if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
-                continue;
+        for (int pass = 0; pass < 2; pass++) {
+            for (SimFloorLayout.Link link : laid.links()) {
+                int a = gridCell(new int[]{link.aX(), link.aZ()});
+                int bCell = gridCell(new int[]{link.bX(), link.bZ()});
+                int between = (a + bCell) / 2;
+                if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
+                    continue;
+                }
+                boolean toBlood = bloodCell != null
+                        && (cellRoom[a] == cellRoom[gridCell(bloodCell)]
+                            || cellRoom[bCell] == cellRoom[gridCell(bloodCell)]);
+                boolean fromEntrance = entranceCell != null
+                        && (cellRoom[a] == cellRoom[gridCell(entranceCell)]
+                            || cellRoom[bCell] == cellRoom[gridCell(entranceCell)]);
+                boolean special = toBlood || fromEntrance;
+                if (special != (pass == 0)) {
+                    continue;
+                }
+                boolean sameRoom = cellRoom[a] != MapCode.NO_ROOM && cellRoom[a] == cellRoom[bCell];
+                if (!sameRoom) {
+                    // Checked on the special pass too. Pass 0 runs before any ordinary door exists, so the
+                    // first way into blood or out of the entrance is always kept; what this refuses is a
+                    // SECOND one, and a second blood door is a loop through the blood room - Hypixel's has
+                    // exactly one way in.
+                    if (find(connected, cellRoom[a]) == find(connected, cellRoom[bCell])) {
+                        continue;   // already reachable: a door here would be a second way in
+                    }
+                    union(connected, cellRoom[a], cellRoom[bCell]);
+                }
+                cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
+                        : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
+                        : DungeonLayout.DOOR_NORMAL;
+                doors++;
             }
-            boolean toBlood = bloodCell != null
-                    && (cellRoom[a] == cellRoom[gridCell(bloodCell)] || cellRoom[bCell] == cellRoom[gridCell(bloodCell)]);
-            boolean fromEntrance = entranceCell != null
-                    && (cellRoom[a] == cellRoom[gridCell(entranceCell)]
-                        || cellRoom[bCell] == cellRoom[gridCell(entranceCell)]);
-            cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
-                    : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
-                    : DungeonLayout.DOOR_NORMAL;
-            doors++;
         }
 
         LOGGER.info("[SimPhase] layout planned in {} ms: {} room(s) over {}/{} cell(s), {} door(s), "
@@ -453,23 +489,53 @@ public final class SimFloorGen {
      */
     private static int linkDoors(int[] cellRoom, int[] cellDoor, List<int[]> occupied, Set<Long> filled,
                                  int[] entrance, int[] blood) {
-        // Seeded with the doors the growth pass already placed, so this cannot undo the floor's own tree.
+        // The doors the growth pass already placed - and they are NOT all keepers.
+        //
+        // This used to only SEED the union-find from them, on the assumption that the growth pass produced a
+        // tree and that all this had to do was refuse to add a second way in. It does not: measured over 120
+        // planned floors (2026-09-29) EVERY floor already carried between 3 and 8 doors more than a tree, so
+        // refusing to add more left every loop in place. killer560 (2026-09-30): "there should only be 1 way
+        // to enter a room for the first time" - so a door that closes a cycle has to be REMOVED, not merely
+        // not-added.
+        //
+        // Two passes, because which door of a cycle gets dropped matters. Wither, blood and entrance doors are
+        // the run's structure: they are seeded first and always survive, so the pruning can only ever fall on
+        // an ordinary door. Interior doors - both sides the same multi-tile room - are not edges at all and
+        // are left alone.
         Map<Integer, Integer> parent = new HashMap<>();
-        for (int cell = 0; cell < cellDoor.length; cell++) {
-            if (cellDoor[cell] == DungeonLayout.DOOR_NONE) {
-                continue;
-            }
-            int gx = cell % DungeonLayout.GRID;
-            int gz = cell / DungeonLayout.GRID;
-            int left = gx > 0 ? cellRoom[cell - 1] : MapCode.NO_ROOM;
-            int right = gx + 1 < DungeonLayout.GRID ? cellRoom[cell + 1] : MapCode.NO_ROOM;
-            int up = gz > 0 ? cellRoom[cell - DungeonLayout.GRID] : MapCode.NO_ROOM;
-            int down = gz + 1 < DungeonLayout.GRID ? cellRoom[cell + DungeonLayout.GRID] : MapCode.NO_ROOM;
-            if (left != MapCode.NO_ROOM && right != MapCode.NO_ROOM) {
-                union(parent, left, right);
-            }
-            if (up != MapCode.NO_ROOM && down != MapCode.NO_ROOM) {
-                union(parent, up, down);
+        for (int pass = 0; pass < 2; pass++) {
+            for (int cell = 0; cell < cellDoor.length; cell++) {
+                int type = cellDoor[cell];
+                if (type == DungeonLayout.DOOR_NONE) {
+                    continue;
+                }
+                boolean special = type != DungeonLayout.DOOR_NORMAL;
+                if (special != (pass == 0)) {
+                    continue;
+                }
+                int gx = cell % DungeonLayout.GRID;
+                int gz = cell / DungeonLayout.GRID;
+                int left = gx > 0 ? cellRoom[cell - 1] : MapCode.NO_ROOM;
+                int right = gx + 1 < DungeonLayout.GRID ? cellRoom[cell + 1] : MapCode.NO_ROOM;
+                int up = gz > 0 ? cellRoom[cell - DungeonLayout.GRID] : MapCode.NO_ROOM;
+                int down = gz + 1 < DungeonLayout.GRID ? cellRoom[cell + DungeonLayout.GRID] : MapCode.NO_ROOM;
+                int a = MapCode.NO_ROOM;
+                int b = MapCode.NO_ROOM;
+                if (left != MapCode.NO_ROOM && right != MapCode.NO_ROOM) {
+                    a = left;
+                    b = right;
+                } else if (up != MapCode.NO_ROOM && down != MapCode.NO_ROOM) {
+                    a = up;
+                    b = down;
+                }
+                if (a == MapCode.NO_ROOM || a == b) {
+                    continue; // a door into nothing, or the inside of one multi-tile room
+                }
+                if (!special && find(parent, a) == find(parent, b)) {
+                    cellDoor[cell] = DungeonLayout.DOOR_NONE;
+                    continue;
+                }
+                union(parent, a, b);
             }
         }
 

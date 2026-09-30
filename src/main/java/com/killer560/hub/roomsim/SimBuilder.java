@@ -701,8 +701,10 @@ public final class SimBuilder {
         for (int x = 0; x < room.sizeX; x++) {
             for (int z = 0; z < room.sizeZ; z++) {
                 int[] local = RoomPlacer.rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
-                for (int y = RoomLibrary.MIN_Y; y <= RoomLibrary.MAX_Y; y++) {
-                    if (chestIds.contains((int) room.blocks[room.index(x, y, z)])) {
+                // The room's own band. Walking the global constants indexed a trimmed capture out of
+                // bounds and crashed the server on the first floor built.
+                for (int y = room.minY; y <= room.maxY; y++) {
+                    if (chestIds.contains((int) room.at(x, y, z))) {
                         SimMimic.addCandidate(new net.minecraft.core.BlockPos(
                                 x0 + local[0], SimAltitude.toWorld(y), z0 + local[1]));
                     }

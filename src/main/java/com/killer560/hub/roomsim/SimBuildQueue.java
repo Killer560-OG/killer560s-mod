@@ -223,6 +223,25 @@ public final class SimBuildQueue {
     }
 
     /**
+     * How many builds have RUN TO COMPLETION since the game started.
+     *
+     * <p>Exists because {@link #isBusy} alone cannot tell "the build has finished" from "the build has not
+     * started yet", and both read as not-busy. Every sim scenario in the testkit waited on {@code !isBusy()}
+     * straight after asking for a floor, so it sailed through the gap before the jobs were queued and then
+     * measured an empty world: on 2026-09-29 that reported "found 0 chest(s) in the built floor" three runs
+     * in a row while the log showed the build starting a second later and 21 rooms queued. A counter that only
+     * ever goes up is unambiguous - snapshot it, ask for the floor, wait for it to change.
+     *
+     * <p>{@code progress()} cannot serve here: {@code finishedWork} is zeroed the moment the queue empties, so
+     * it reads 0 before a build and 0 after one.
+     */
+    public static synchronized long buildsFinished() {
+        return buildsFinished;
+    }
+
+    private static long buildsFinished;
+
+    /**
      * How far through the whole build we are, 0 to 1.
      *
      * <p>Counts jobs already finished as complete rather than forgetting them, or the bar would jump backwards
@@ -535,6 +554,7 @@ public final class SimBuildQueue {
                 long ms = System.currentTimeMillis() - startedAtMs;
                 LOGGER.info("Sim build took {} ms for {} block(s) across {} job(s)", ms, placedTotal, jobsTotal);
                 finishedWork = 0;
+                buildsFinished++;
                 done = onDone;
                 onDone = null;
                 LOGGER.info("Sim build finished: {} block(s) across {} room(s)", placedTotal, jobsTotal);

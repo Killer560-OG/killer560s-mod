@@ -260,6 +260,26 @@ public final class RoomLibrary {
         }
 
         /**
+         * The captured palette index at these room-local coordinates, or -1 outside the capture.
+         *
+         * <p>Reads that go through this cannot crash, and that is the whole point. Every read site used to
+         * walk {@code MIN_Y..MAX_Y} because those constants WERE the band every room was indexed against;
+         * once each room carried its own band, a caller still using the constants indexed a room whose band
+         * starts at 60 with y -64 and got element -135,036 of an 88,209-long array. That crashed the sim
+         * server outright on the first floor built (2026-09-29). Widening the constants without giving the
+         * reads a bound is what made it possible, so the bound lives here where no caller can forget it.
+         *
+         * <p>-1 for "outside" is not a special case: it is the same value a column that was never captured
+         * already carries, and every caller already had to handle that.
+         */
+        public short at(int x, int y, int z) {
+            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
+                return -1;
+            }
+            return blocks[index(x, y, z)];
+        }
+
+        /**
          * Writes one block, for rooms built in code rather than captured.
          *
          * <p>Also marks the column read, because a synthetic room is complete by construction - there is no
@@ -1054,7 +1074,27 @@ public final class RoomLibrary {
                 if (!com.killer560.hub.chunkcache.ChunkCacheManager.isLoadedOrCached(level, cursor)) {
                     continue; // not loaded: recording air here would be a lie that never gets corrected
                 }
+                // SKIP WHOLE EMPTY SECTIONS instead of reading them block by block.
+                //
+                // The scan covers the full world column now, and most of that is the sky above the dungeon.
+                // Read naively that is 385 reads a column against the old 81 - nearly five times the budget
+                // the recorder was tuned for (256 columns a tick, "about 21k block reads"), which is the kind
+                // of cost that shows up as a stutter while he plays. A chunk section that is all air says so
+                // in one call, and 16 layers of it are then written as air without touching the level at all.
+                // The same trick the lever scan uses, for the same reason.
+                // CHUNK coordinates, not block coordinates - getChunk(int,int) takes the former, and passing
+                // block coords would have fetched a chunk 16 times too far out and skipped sections that
+                // belong to a completely different place.
+                var chunkHere = level.getChunk((worldX0 + x) >> 4, (worldZ0 + z) >> 4).getSections();
+                int bottomSection = level.getMinSectionY();
+                short airId = r.paletteFor("minecraft:air");
                 for (int y = r.minY; y <= r.maxY; y++) {
+                    int sectionIdx = (y >> 4) - bottomSection;
+                    if (sectionIdx >= 0 && sectionIdx < chunkHere.length
+                            && chunkHere[sectionIdx] != null && chunkHere[sectionIdx].hasOnlyAir()) {
+                        r.blocks[r.index(x, y, z)] = airId;
+                        continue;
+                    }
                     cursor.set(worldX0 + x, y, worldZ0 + z);
                     BlockState state = level.getBlockState(cursor);
                     // The FULL state, not just the block id. Storing only the id threw away every stair's

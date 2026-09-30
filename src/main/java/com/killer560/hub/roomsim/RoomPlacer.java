@@ -238,13 +238,21 @@ public final class RoomPlacer {
         private final int worldX0;
         private final int worldZ0;
 
-        private int y = RoomLibrary.MIN_Y;
+        private int y;
         private int x;
         private int z;
         private boolean done;
         private long visited;
         private final long total;
         private final SectionWriter writer;
+        /**
+         * Where the "never captured" marker goes for THIS room.
+         *
+         * <p>{@link #MARKER_Y} is the dungeon floor line, but a room's capture band no longer has to contain
+         * it - a trimmed capture can start above it or end below it - so it is clamped into the band. A y
+         * outside the band would place no marker at all and the missing column would be a hole again.
+         */
+        private final int markerY;
 
         public PasteJob(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
             if (room == null) {
@@ -254,7 +262,12 @@ public final class RoomPlacer {
             this.room = room;
             this.rotation = rotation;
             this.vanillaRotation = toVanillaRotation(rotation);
-            this.total = (long) room.sizeX * room.sizeZ * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
+            // The ROOM's band, not the global one. A capture is trimmed to its own content, so walking
+            // -64..320 for a room that holds y 60..140 both crashed on the read and made the progress bar
+            // five times longer than the work.
+            this.y = room.minY;
+            this.markerY = Math.min(room.maxY, Math.max(room.minY, MARKER_Y));
+            this.total = (long) room.sizeX * room.sizeZ * (room.maxY - room.minY + 1);
             this.writer = new SectionWriter(level);
             BlockPos origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
             // The same offset capture used, including the wall margin. If these two ever disagree every room
@@ -295,12 +308,12 @@ public final class RoomPlacer {
             while (placed < budget && scanned < SCAN_BUDGET) {
                 scanned++;
                 visited++;
-                if (y > RoomLibrary.MAX_Y) {
+                if (y > room.maxY) {
                     done = true;
                     return placed;
                 }
-                short paletteIdx = room.blocks[room.index(x, y, z)];
-                if (paletteIdx < 0 && y == MARKER_Y && !room.seenColumn[z * room.sizeX + x]) {
+                short paletteIdx = room.at(x, y, z);
+                if (paletteIdx < 0 && y == markerY && !room.seenColumn[z * room.sizeX + x]) {
                     // A column that was never captured. Before the sim cleared the ground these showed as
                     // flat-world dirt; now they would be a hole you fall through, which is how killer560 saw
                     // "the floor sometimes" missing after the clearing landed.
@@ -349,10 +362,10 @@ public final class RoomPlacer {
         int sizeX = room.sizeX;
         int sizeZ = room.sizeZ;
         int placed = 0;
-        for (int y = RoomLibrary.MIN_Y; y <= RoomLibrary.MAX_Y; y++) {
+        for (int y = room.minY; y <= room.maxY; y++) {
             for (int x = 0; x < sizeX; x++) {
                 for (int z = 0; z < sizeZ; z++) {
-                    short paletteIdx = room.blocks[room.index(x, y, z)];
+                    short paletteIdx = room.at(x, y, z);
                     if (paletteIdx < 0) {
                         continue; // never read at capture time - leave whatever is already there
                     }
@@ -457,7 +470,7 @@ public final class RoomPlacer {
         RoomLibrary.Room room = new RoomLibrary.Room("selfcheck", size, size);
         String marker = "killer560smod:selfcheck_marker";
         int markerIdx = room.paletteFor(marker);
-        room.blocks[room.index(0, RoomLibrary.MIN_Y, 0)] = (short) markerIdx;
+        room.blocks[room.index(0, room.minY, 0)] = (short) markerIdx;
 
         int[][] expected = {
                 {0, 0}, // 0 deg:  NW stays NW
@@ -476,7 +489,7 @@ public final class RoomPlacer {
             int foundZ = -1;
             for (int x = 0; x < room.sizeX && foundX < 0; x++) {
                 for (int z = 0; z < room.sizeZ; z++) {
-                    if (room.blocks[room.index(x, RoomLibrary.MIN_Y, z)] == markerIdx) {
+                    if (room.at(x, room.minY, z) == markerIdx) {
                         int[] rotated = rotateLocal(x, z, room.sizeX, room.sizeZ, degrees);
                         foundX = rotated[0];
                         foundZ = rotated[1];
