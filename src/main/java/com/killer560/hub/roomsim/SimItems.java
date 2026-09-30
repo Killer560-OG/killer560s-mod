@@ -432,7 +432,34 @@ public final class SimItems {
             }
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);
             case "SUPERBOOM_TNT" -> superboomTnt(client);
-            case "DUNGEONBREAKER" -> dungeonBreak(client);
+            // NO DUNGEONBREAKER HERE. It is a left-click tool and it is handled on AttackBlockCallback.
+            //
+            // It used to be on this right-click path as well, which meant right-clicking ANYTHING while
+            // holding the breaker broke the block in front of him instead - killer560 (2026-09-30): "if i
+            // right click a chest it tries to mine it instead. It does that for everything." The breaker is
+            // the item in his hand most of the time, so "everything" is right.
+            default -> false;
+        };
+    }
+
+    /**
+     * Whether a right-click with this item is one of ours, and so must not reach vanilla.
+     *
+     * <p>Separate from {@link #tryUse} because the answer is needed on the SERVER side too, where the ability
+     * itself must not run - {@code UseBlockCallback} is a common event and fires once per side. Asking
+     * tryUse there would fire every ability twice.
+     *
+     * <p>An id that is NOT in here falls through to vanilla, which is what makes a chest open while the
+     * Dungeon Breaker is in his hand.
+     */
+    public static boolean consumesUse(String skyblockId) {
+        if (skyblockId == null) {
+            return false;
+        }
+        return switch (skyblockId) {
+            case "BAT_WAND", "TERMINATOR", "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT" -> true;
+            // Ender pearls and the Dungeon Breaker are deliberately absent: the pearl is plain vanilla and
+            // the breaker is a left-click tool.
             default -> false;
         };
     }

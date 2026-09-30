@@ -153,6 +153,17 @@ public final class SimAbilities {
             if (id == null) {
                 return InteractionResult.PASS;
             }
+            // Ours, or vanilla's? Asked BEFORE anything is consumed.
+            //
+            // This used to consume every click whose item had a skyblock id at all, and then run the ability
+            // list. Anything with an id but no right-click ability - the Dungeon Breaker above all, which is
+            // in his hand most of the time - had its click swallowed and, worse, fell through to
+            // SimItems.tryUse's old DUNGEONBREAKER case and broke the block he was trying to open.
+            boolean ours = ETHERWARP_ITEMS.contains(id) || WITHER_BLADES.contains(id)
+                    || TACTICAL_INSERTION.equals(id) || SimItems.consumesUse(id);
+            if (!ours) {
+                return InteractionResult.PASS;
+            }
             markAbilityUsed();
             if (!clientSide) {
                 // The server's job here is only to NOT place the block.
