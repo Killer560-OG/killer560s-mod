@@ -117,10 +117,19 @@ public final class LyricsEngine {
                 lastTrackTitle = title;
                 playedMs = 0;
                 playingSinceMs = now;
-                // No lyrics to look up for an advert, and no point asking lrclib for one.
-                syncedLyrics = isAd ? List.of() : fetchLyrics(nowPlaying.artist(), nowPlaying.title());
-                SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}' -> {} synced lines found",
-                        nowPlaying.artist(), title, syncedLyrics.size());
+                syncedLyrics = List.of();
+                // Fetched OFF this thread, because the clock is already running.
+                //
+                // lrclib is an HTTP round trip with a ten-second timeout, and it used to happen inline here -
+                // inside a synchronized poll - so every track change stalled the poll loop for however long
+                // the request took while the song played on. The clock is correct either way, but no line
+                // could be emitted until it returned, so the first lyrics of every song arrived late by the
+                // request time. Now the poll returns immediately and the lines appear the moment they land.
+                if (!isAd) {
+                    requestLyrics(trackKey, nowPlaying.artist(), nowPlaying.title());
+                }
+                SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}'",
+                        nowPlaying.artist(), title);
             } else if (playingSinceMs == null) {
                 playingSinceMs = now;   // resumed after a pause, same track
             }
@@ -141,9 +150,9 @@ public final class LyricsEngine {
                 // A source that knows the real playback position is believed over the stopwatch. Nothing
                 // supplies one yet - a window title has no clock - so this is the branch a Spotify login
                 // would light up.
-                double elapsed = nowPlaying.positionMs() != null
+                double elapsed = (nowPlaying.positionMs() != null
                         ? nowPlaying.positionMs() / 1000.0
-                        : elapsedSeconds(now);
+                        : elapsedSeconds(now)) + SEND_LEAD_SECONDS;
                 currentLyric = currentLyricAt(elapsed);
                 currentIsTransition = false;
             }
@@ -154,6 +163,42 @@ public final class LyricsEngine {
 
     /** What the title portion says while an advert plays. */
     private static final String AD_TITLE = "an ad";
+
+    /**
+     * How far ahead of a line's own timestamp it is sent.
+     *
+     * <p>A lyric timestamp is when the line STARTS being sung, and a message sent at that instant still has to
+     * reach Hypixel and come back before it is on screen. Sending it a quarter-second early spends that on the
+     * round trip instead of on the reader noticing it is behind. Deliberately small: overshooting reads as the
+     * lyric arriving before the vocal, which is more obviously wrong than arriving a moment after it.
+     */
+    private static final double SEND_LEAD_SECONDS = 0.25;
+
+    /** Lyrics are fetched off the poll thread; one thread is plenty for one request per track. */
+    private static final java.util.concurrent.ExecutorService LYRIC_FETCH =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "killer560smod-spotify-lyrics-fetch");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /**
+     * Looks the track's lyrics up in the background and installs them if it is still the current track.
+     *
+     * <p>The track check on the way back matters: skipping through three songs fires three requests, and
+     * without it the slowest reply could land last and leave the wrong song's lyrics installed.
+     */
+    private void requestLyrics(String forTrackKey, String artist, String title) {
+        LYRIC_FETCH.submit(() -> {
+            List<LyricLine> lines = fetchLyrics(artist, title);
+            synchronized (this) {
+                if (forTrackKey.equals(lastTrackKey)) {
+                    syncedLyrics = lines;
+                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} synced line(s)", title, lines.size());
+                }
+            }
+        });
+    }
 
     /** Playing time on this track, with any paused stretches excluded. */
     private double elapsedSeconds(long now) {

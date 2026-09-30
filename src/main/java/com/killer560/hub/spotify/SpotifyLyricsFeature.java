@@ -51,6 +51,9 @@ public final class SpotifyLyricsFeature {
 
     private static final LyricsEngine ENGINE = new LyricsEngine();
     private static final SpotifyDesktopSource DESKTOP = new SpotifyDesktopSource();
+
+    /** How often the Spotify window is read. See the scheduling call for why it is this small. */
+    private static final long POLL_MS = 250;
     private static volatile boolean inParty = false;
     private static volatile String lastSentLyric = "";
 
@@ -66,7 +69,17 @@ public final class SpotifyLyricsFeature {
     public static void init() {
         loadConfig();
         registerChatListeners();
-        SCHEDULER.scheduleAtFixedRate(SpotifyLyricsFeature::tick, 1, 2, TimeUnit.SECONDS);
+        // 250 ms, not 2 s.
+        //
+        // killer560 (2026-09-30): "the spotify mod lyrics are still delayed a little bit ingame." A two-second
+        // poll put the delay in twice over. The lyric clock starts when the title CHANGE IS SEEN, so a track
+        // spotted up to two seconds late makes every line in that song late by the same amount for its whole
+        // length; and the current line was only recomputed on the same two-second beat, so each line could be
+        // up to two seconds late again on top. At 250 ms both errors are a quarter-second at worst.
+        //
+        // Affordable because the window handle is cached in SpotifyDesktopSource and the process-id lookup for
+        // five seconds, so a poll that finds nothing new is two syscalls.
+        SCHEDULER.scheduleAtFixedRate(SpotifyLyricsFeature::tick, 250, POLL_MS, TimeUnit.MILLISECONDS);
     }
 
     // ---- Config persistence ----

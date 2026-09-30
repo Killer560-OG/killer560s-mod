@@ -1,4 +1,4 @@
-﻿Admin
+Admin
 Altar
 Andesite
 Archway
@@ -93,15 +93,15 @@ Quad_Lava
 Quartz_Knight
 Quiz
 Raccoon
-Rails
 Rail_Track
+Rails
 Rare_Overgrown
 Rare_Pillars
+Red_Blue
+Red_Green
 Redstone_Crypt
 Redstone_Key
 Redstone_Warrior
-Red_Blue
-Red_Green
 Ritual
 Sarcophagus
 Scaffolding
@@ -127,8 +127,8 @@ Tic_Tac_Toe
 Tombstone
 Tomioka
 Water
-Waterfall
 Water_Board
+Waterfall
 Well
 Withermancer
 Wizard
