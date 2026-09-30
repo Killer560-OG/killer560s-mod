@@ -308,18 +308,93 @@ public final class SimBuilder {
                     sealCells.add(new int[]{at.getX(), at.getZ(), RoomDoors.DX[side] != 0 ? 1 : 0});
                 }
             }
+            // AUDIT: is every door this floor carves actually backed by a doorway in BOTH rooms?
+            //
+            // This is the measurement for the intermittent unwalkable doorway. Scenario 81 reproduced one
+            // between "Crypt" and "Mines" where the opening was completely clear - every column air at foot
+            // and head height - and the floor on the approach side was two blocks lower, so he walked in and
+            // fell into a trench. The carve only ever removes the air ABOVE a floor it searches for; it never
+            // lays one. So a carve at a spot where a room has no doorway punches through the wall into
+            // whatever is behind it, and what is behind can be a drop.
+            //
+            // The room-wide capture heights do NOT explain that case - both those rooms measure at y69 - so
+            // this checks the other candidate directly rather than by reading the planner. Built from the same
+            // rotated masks the seal above uses, so the audit and the layout cannot disagree about where a
+            // doorway is.
+            //
+            // A warning, not a refusal: a floor with one awkward doorway is still worth practising in, and
+            // failing the build would turn an occasional annoyance into a dead feature.
+            if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                java.util.Map<Long, java.util.List<String>> backing = new java.util.HashMap<>();
+                for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
+                    int nameIndex = decoded.cellRoom()[cell];
+                    int gx = cell % DungeonLayout.GRID;
+                    int gz = cell / DungeonLayout.GRID;
+                    if (nameIndex < 0 || gx % 2 != 0 || gz % 2 != 0) {
+                        continue;
+                    }
+                    RoomDoors.Mask mask = RoomDoors.of(decoded.nameTable()[nameIndex]);
+                    if (mask == null) {
+                        continue;
+                    }
+                    mask = RoomDoors.rotate(mask, decoded.cellRotation()[cell]);
+                    int[] anchorCellXz = anchorOf(decoded.cellRoom(), cell, nameIndex);
+                    for (int packed : mask.edges()) {
+                        int side = RoomDoors.sideOf(packed);
+                        int[] door = RoomDoors.doorCell(anchorCellXz[0], anchorCellXz[1],
+                                mask.tilesX(), mask.tilesZ(), side, RoomDoors.indexOf(packed));
+                        if (door[0] * 2 != gx || door[1] * 2 != gz) {
+                            continue;
+                        }
+                        int cx = gx + RoomDoors.DX[side];
+                        int cz = gz + RoomDoors.DZ[side];
+                        backing.computeIfAbsent((long) cz * DungeonLayout.GRID + cx,
+                                k -> new java.util.ArrayList<>()).add(decoded.nameTable()[nameIndex]);
+                    }
+                }
+                int unbacked = 0;
+                for (int[] d : doorCells) {
+                    int gx = d[0] % DungeonLayout.GRID;
+                    int gz = d[0] / DungeonLayout.GRID;
+                    java.util.List<String> from = backing.getOrDefault(
+                            (long) gz * DungeonLayout.GRID + gx, java.util.List.of());
+                    if (from.size() >= 2) {
+                        continue;
+                    }
+                    unbacked++;
+                    // NAME both rooms, because the one that is missing its doorway is the one to look at, and
+                    // which of the two it is cannot be worked out from the cell number afterwards.
+                    int ax = (gx % 2 == 1) ? gx - 1 : gx;
+                    int az = (gz % 2 == 1) ? gz - 1 : gz;
+                    int bx = (gx % 2 == 1) ? gx + 1 : gx;
+                    int bz = (gz % 2 == 1) ? gz + 1 : gz;
+                    LOGGER.warn("Sim doors: the door at cell {} ({},{}) is backed by {} of its two rooms {} - "
+                                    + "between \"{}\" and \"{}\". The carve will punch through the wall of "
+                                    + "whichever has no doorway there, and whatever is behind it becomes the "
+                                    + "floor - which is how a doorway ends up clear but unwalkable.",
+                            d[0], gx, gz, from.size(), from,
+                            roomNameAtCell(decoded, ax, az), roomNameAtCell(decoded, bx, bz));
+                }
+                if (unbacked == 0) {
+                    LOGGER.info("Sim doors: all {} door(s) are backed by a measured doorway in both rooms",
+                            doorCells.size());
+                }
+            }
+
             // Its own list, run BEFORE the secrets - see the whenDone callback below.
             final java.util.List<Runnable> doorWork = new java.util.ArrayList<>();
             doorWork.add(() -> {
                 SimDoors.CHESTS_CARVED_AWAY = 0;
+                SimDoors.FLOORED = 0;
                 for (int[] d : doorCells) {
                     SimDoors.carveDoorway(level, DungeonLayout.cellCenter(d[0]), d[1] == 1, d[2]);
                 }
                 for (int[] sc : sealCells) {
                     SimDoors.sealDoorway(level, new net.minecraft.core.BlockPos(sc[0], 70, sc[1]), sc[2] == 1);
                 }
-                LOGGER.info("Sim doors: {} carved, {} sealed, {} secret chest(s) removed by the carve",
-                        doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY);
+                LOGGER.info("Sim doors: {} carved, {} sealed, {} secret chest(s) removed by the carve, "
+                                + "{} block(s) of floor laid where a doorway had none",
+                        doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY, SimDoors.FLOORED);
             });
             final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
@@ -470,6 +545,15 @@ public final class SimBuilder {
                 sp.teleportTo(level, x + 0.5, y, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
             }
         });
+    }
+
+    /** The room name at a grid cell, or "(none)", for a log line that has to name both sides of a door. */
+    private static String roomNameAtCell(MapCode.Decoded decoded, int gx, int gz) {
+        if (gx < 0 || gz < 0 || gx >= DungeonLayout.GRID || gz >= DungeonLayout.GRID) {
+            return "(off the grid)";
+        }
+        int nameIndex = decoded.cellRoom()[gz * DungeonLayout.GRID + gx];
+        return nameIndex < 0 ? "(none)" : decoded.nameTable()[nameIndex];
     }
 
     /**

@@ -72,6 +72,9 @@ public final class SimDoors {
     /** Secret chests a doorway carve has removed. Reported by the sim's build so this cannot go unnoticed. */
     public static int CHESTS_CARVED_AWAY;
 
+    /** How many blocks of floor the carve had to lay this build, because the doorway had none. */
+    public static int FLOORED;
+
     /**
      * Every position a doorway carve opened, so nothing gets put back into a doorway afterwards.
      *
@@ -175,6 +178,41 @@ public final class SimDoors {
                         filled.add(at.immutable());
                     }
                 }
+            }
+        }
+        // LAY A FLOOR where the carve leaves none.
+        //
+        // The carve only ever removes the air ABOVE a floor it searched for; it never puts one down. So a
+        // doorway can be completely clear and still impossible to walk through, because what is under it is a
+        // hole. Measured 2026-09-30 by scenario 81, twice: between "Crypt" and "Mines" the floor was two
+        // blocks lower for the three blocks on the approach side, and between "Balcony" and "Archway" the whole
+        // 3x7 box was open from four below the doorway to nine above it - 21 of 21 columns air at every layer.
+        // He walked in and fell. The report said "nothing solid across the seam", which was true and was the
+        // point.
+        //
+        // The other two explanations were eliminated first rather than assumed away: every column of all 135
+        // captures was read, so it is not missing capture data, and the build's own audit says every carved
+        // door is backed by a measured doorway in both rooms, so it is not punching through a wall. What is
+        // left is that the two rooms genuinely meet at different heights, and a real Catacombs connector is
+        // always floored - you never walk out of a door into a void.
+        //
+        // Only where it is NOT already solid, and only the one layer directly under the doorway, so a room's
+        // own floor is never overwritten and a pit deeper in the room is untouched apart from being capped at
+        // the doorway's own level.
+        for (int d = -depth; d <= depth; d++) {
+            for (int w = -halfWidth; w <= halfWidth; w++) {
+                BlockPos under = alongX
+                        ? new BlockPos(centre.getX() + d, floorY - 1, centre.getZ() + w)
+                        : new BlockPos(centre.getX() + w, floorY - 1, centre.getZ() + d);
+                if (!level.getBlockState(under).getCollisionShape(level, under).isEmpty()) {
+                    continue;
+                }
+                level.setBlockAndUpdate(under, Blocks.STONE_BRICKS.defaultBlockState());
+                // Recorded like the carve itself, or the next floor's clear does not reach it and the block is
+                // left standing in the middle of the next map.
+                SimBuildQueue.touched(under.getX(), under.getZ());
+                CARVED.add(under.immutable());
+                FLOORED++;
             }
         }
         if (fill != null && !filled.isEmpty()) {
