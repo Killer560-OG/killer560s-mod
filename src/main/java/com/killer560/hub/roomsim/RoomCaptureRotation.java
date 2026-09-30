@@ -94,9 +94,23 @@ public final class RoomCaptureRotation {
             return candidates.get(0);
         }
         if (WARNED.add(room.name)) {
-            LOGGER.warn("Capture rotation for \"{}\" could not be determined ({} candidate(s)); assuming 0. "
-                    + "Its secrets may be placed in the wrong corner of the room.",
-                    room.name, candidates.size());
+            // Which of the two failures this is matters, and "4 candidates" hid the difference.
+            //
+            // No marker anywhere is not necessarily a fault: LiveMapFeature records that Fairy has no marker
+            // and is rotation 0 by definition, so for a room like that assuming 0 is the right answer rather
+            // than a guess. Several markers IS a fault - decorative blue terracotta outvoting the real one -
+            // and it is the case worth acting on.
+            int markers = markerCorners(room).size();
+            if (markers == 0) {
+                LOGGER.warn("Capture rotation for \"{}\": no roof marker in the capture, so rotation 0 is "
+                        + "assumed. That is correct for rooms which genuinely have no marker (Fairy is one); "
+                        + "if this room does have one, its capture is missing the roof corner and a rescan "
+                        + "would fix it.", room.name);
+            } else {
+                LOGGER.warn("Capture rotation for \"{}\" is ambiguous: {} of the four roof corners carry a "
+                        + "marker, and the database secrets did not separate them; assuming 0. Its secrets "
+                        + "may be placed in the wrong corner of the room.", room.name, markers);
+            }
         }
         return 0;
     }
@@ -275,4 +289,33 @@ public final class RoomCaptureRotation {
     private static List<Integer> allFour() {
         return new ArrayList<>(List.of(0, 90, 180, 270));
     }
+    /**
+     * Which of the four roof corners actually carry the marker - the raw answer, before
+     * {@link #fromRoofMarker} turns "none" into "all four".
+     *
+     * <p>Separated out only so the warning can tell no-marker from several-markers. Those are different
+     * problems with different answers and the old message conflated them.
+     */
+    private static List<Integer> markerCorners(RoomLibrary.Room room) {
+        int m = room.margin;
+        int[][] corners = {
+            {m, m},
+            {room.sizeX - 1 - m, m},
+            {room.sizeX - 1 - m, room.sizeZ - 1 - m},
+            {m, room.sizeZ - 1 - m},
+        };
+        int roof = roofLine(room, corners);
+        List<Integer> hits = new ArrayList<>(4);
+        if (roof == Integer.MIN_VALUE) {
+            return hits;
+        }
+        for (int i = 0; i < 4; i++) {
+            String block = blockAt(room, corners[i][0], roof, corners[i][1]);
+            if (block != null && block.startsWith("minecraft:blue_terracotta")) {
+                hits.add(i * 90);
+            }
+        }
+        return hits;
+    }
+
 }

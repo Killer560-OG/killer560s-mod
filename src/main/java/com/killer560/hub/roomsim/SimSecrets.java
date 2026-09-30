@@ -374,13 +374,38 @@ public final class SimSecrets {
             return 0;
         }
         int n = 0;
+        int blocked = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (checkInside(at) && level.getBlockState(at).isAir()) {
-                SimBuildQueue.touched(at.getX(), at.getZ());
-                level.setBlockAndUpdate(at, marker);
-                n++;
+            if (!checkInside(at)) {
+                continue;
             }
+            // NOT "only if the spot is already air".
+            //
+            // killer560 (2026-09-30): "wither essences are not loading in." The database's coordinate is the
+            // essence's own position, and in a real room that is often INSIDE the geometry - tucked in a wall
+            // or under a floor - so requiring air there silently dropped exactly the secrets that are hidden,
+            // which is most of them. A marker has to be visible to be worth placing, so this walks up to two
+            // blocks up looking for somewhere it can actually be seen, and says so when it cannot.
+            BlockPos spot = null;
+            for (int up = 0; up <= 2; up++) {
+                BlockPos candidate = at.above(up);
+                if (level.getBlockState(candidate).isAir()) {
+                    spot = candidate;
+                    break;
+                }
+            }
+            if (spot == null) {
+                blocked++;
+                continue;
+            }
+            SimBuildQueue.touched(spot.getX(), spot.getZ());
+            level.setBlockAndUpdate(spot, marker);
+            n++;
+        }
+        if (blocked > 0) {
+            LOGGER.warn("Sim secrets: {} marker(s) had no air within two blocks of the database position and "
+                    + "were skipped", blocked);
         }
         return n;
     }
