@@ -476,33 +476,49 @@ only when something reads a fixed local coordinate: scenario 70 found a chest wh
 marker belongs and called it a rotation fault. `createTestRoom` does not set a margin, so any future synthetic
 room must set its own.
 
-## One offset for the whole map means every capture's floor must be at the same height
+## A doorway can be completely clear and still impossible to cross
 
-`SimAltitude` shifts the whole floor by a single offset and deliberately never moves a room on its own, so
-two rooms whose captures disagree about where the floor is meet at a step. The doorway carve does not fix
-that: `carveDoorway` only removes the air space above a floor it searches for, and never lays one. The result
-is a doorway with nothing solid in it that the player still cannot cross, because he walks into a trench.
+`carveDoorway` removes the air ABOVE a floor it searches for. It never lays one. So where two rooms meet at
+different heights the connector has no floor, and the player walks into a hole - while every report says
+"nothing solid across the seam", which is true and is the point.
 
-Measured 2026-09-30 by scenario 81: between "Crypt" and "Mines", every column of the doorway at foot and head
-height was air, the seam itself was floored, and the floor was two blocks LOWER for the three blocks on the
-approach side. He walked 3.2 blocks and fell in; a two-block step back up is not climbable.
+Three explanations were possible and two were eliminated by measurement rather than argument:
 
-**The room-wide audit does not explain that case, and saying it did was wrong.** Scenario 92 measures each
-capture's modal floor and both Crypt and Mines come out at y69, so they pass it. The disagreement at that
-doorway is LOCAL - a room can sit at y69 over most of its area and still be two blocks low in the corner a
-door lands in, which is precisely what a modal measurement cannot see. Scenario 92 is still worth having (99
-of 135 agree at y69, and fourteen sit within five blocks) but it is a separate observation, and no room on
-its list has been shown to break a doorway.
+- **Missing capture data.** Ruled out. Scenario 92 counts unread columns exactly and every column of all 135
+  rooms was read. Note `RoomLibrary.complete()` could NOT have ruled it out - it is completeness >= 0.999, and
+  on a three-tile room (9409 columns) nine unread columns still passes, nine being exactly the size of the
+  hole that was measured.
+- **The carve punching through a wall** where a room has no doorway. Ruled out. `SimBuilder` now audits every
+  carved door against both rooms' rotated masks at build time, and it reported "all 21 doors are backed by a
+  measured doorway in both rooms" on a run that still had an impassable one. The audit stays, because it is
+  what would catch this case if it ever does happen.
+- **The rooms genuinely meeting at different heights.** What is left, and what the carve now handles: it lays
+  stone bricks at `floorY - 1` across the 3x7 wherever that is not already solid. In practice that is 9 to 79
+  blocks a floor, so the holes were common. Only the one layer, and only where it is air, so a room's own
+  floor is never overwritten.
 
-Three causes remain open for the local case and they have not been separated: real lowered geometry just
-inside the doorway, a capture missing blocks there (an unread column pastes nothing and leaves air), or
-`findFloor` taking the height from one room while the other's floor by that door is genuinely lower. The
-middle one is cheaply decidable because `Room.seenColumn` records which columns were ever read. The
-measurement that would settle it is floor height **per doorway**, not per room, because that is what the
-carve depends on.
+The room-wide capture heights are a SEPARATE observation and do not explain any of this: Crypt, Mines,
+Balcony and Archway all pass scenario 92. A room can sit at y69 over most of its area and still be two blocks
+low in the corner a door lands in, which is exactly what a modal measurement cannot see.
 
-Note "Criss Cross" and "Criss-Cross" are both in the library at the same height - almost certainly one room
-captured twice under two spellings.
+## Three different bugs were all reporting as "one doorway in eight is impassable"
+
+Worth knowing before chasing the next one, because each looked identical from the verdict line and only the
+numbers told them apart.
+
+- **The report named the wrong block.** `seamBlocks` scanned the seam +/-2 while a doorway is three wide, so
+  every "blocked by ..." it ever printed was naming the door FRAME. "blocked by red_carpet" was a carpet in
+  the frame, and a carpet cannot stop anyone.
+- **The player was placed in mid-air.** The walk started at a fixed four blocks back on a fixed side, which
+  outside an Entrance room at the edge of the map is open space: "feet=air head=air under=air", he fell,
+  moved 0.2 across, and it was filed as an impassable doorway over a perfect one. The scenario now looks for a
+  standable spot on either side and says so when there is none.
+- **The crossing was measured along +X/+Z rather than along travel.** Added with the two-sided approach: a
+  clean crossing from the positive side reads as "moved -16.5 across" and fails.
+
+And a fourth that is not a bug at all: a doorway whose opening sits one block above the approach. Walking
+cannot climb a full block, so the harness stopped; in game he hops over it. The walk now holds jump as well,
+which still leaves a two-block step and a real wall failing.
 
 ## Measuring a captured room's floor is harder than it looks
 
