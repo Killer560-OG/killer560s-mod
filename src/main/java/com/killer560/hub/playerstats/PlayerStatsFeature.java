@@ -1,6 +1,7 @@
 package com.killer560.hub.playerstats;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -190,7 +191,7 @@ public final class PlayerStatsFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return PlayerStatsConfig.getInstance().isEnabled();
         }
 
@@ -209,6 +210,7 @@ public final class PlayerStatsFeature {
                     rowY = drawBar(graphics, x, rowY, MANA_BAR_BG, MANA_BAR_FILL, fraction(mana));
                 }
             }
+            boolean drew = rowY != y;
             if (cfg.isShowText()) {
                 StringBuilder text = new StringBuilder();
                 if (cfg.isShowHealth() && health != null) {
@@ -222,7 +224,13 @@ public final class PlayerStatsFeature {
                 }
                 if (!text.isEmpty()) {
                     graphics.text(Minecraft.getInstance().font, text.toString(), x, rowY, 0xFFFFFFFF, false);
+                    drew = true;
                 }
+            }
+            // Bars and text are both optional and both can come out empty (no health/mana scraped yet), so
+            // the stamp has to follow what was actually put on screen, not just the enabled checks.
+            if (drew) {
+                HudSeen.markDrawn(id());
             }
         }
 

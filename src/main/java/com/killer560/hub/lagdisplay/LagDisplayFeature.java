@@ -2,6 +2,7 @@ package com.killer560.hub.lagdisplay;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -234,7 +235,7 @@ public final class LagDisplayFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return LagDisplayConfig.getInstance().isEnabled();
         }
 
@@ -248,6 +249,9 @@ public final class LagDisplayFeature {
             for (Line line : lines()) {
                 graphics.text(font, line.text(), x, lineY, line.color(), false);
                 lineY += 12;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
 

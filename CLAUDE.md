@@ -29,6 +29,13 @@ Boot-test only in the Prism instance **26.1.2 (Mod Only Test)**, and close the g
 instance **26.1.2 (Dungeons)** is him actually playing — never install a test jar there, never boot it, and
 never draw a conclusion from its log.
 
+**Never use `prismlauncher.exe --launch`.** On 2026-09-30 `--launch "26.2 mod only"` was given to an
+already-running Prism that did not yet know that folder, and instead of failing it started **`26.2`, one of
+his play instances** (17:35:35 to 17:39:54 in its own log). A new instance folder is invisible to a running
+Prism until it rescans, and `--launch` does not report a miss. Boot-test through the gametest harness, which
+starts its own client and needs no launcher, or ask him to launch it. killer560, the same day: "make sure you
+are only ever boot testing on the mod only variant."
+
 Never swap a jar over a running game; stage it as `.jar.pending`. Never blanket `taskkill javaw` — kill
 only the PID that was launched, and if the log shows a server join, he took the window, so leave it.
 
@@ -172,6 +179,15 @@ physics. Read the relevant one before touching either area.
   palette first (`section.maybeHas(...)`, plus `hasOnlyAir()`) does the same job in 0.7% of the reads -
   10,240 against 1,527,209 over a whole floor, verified equivalent by scenario 77 which runs BOTH algorithms
   and requires identical results. Also hoist `isLoaded`/`getChunk` out of the y loop: they depend only on x,z.
+- **A `HudElement`'s `render()` is not always where it draws.** For `croesus_start_button`,
+  `experiments_start_button`, `rng_meter_ranking`, `storage_overlay`, `inventory_hud` and `custom_scoreboard`,
+  `render()` is ONLY the HUD editor's preview and the real pixels come from a container-screen or Fabric HUD
+  layer elsewhere in the feature; `etherwarp_waypoints` never draws at all (`isVisible()` is hardcoded false).
+  So anything that needs to know "was this on screen" must be placed at each feature's own draw site, not on
+  the interface method. That is what `hud/HudSeen` does, and why `isRelevantNow` was split into
+  `isEnabledInSettings()` (the toggle) plus the draw stamp on 2026-09-30 - the old single predicate had
+  already drifted from the render path it mirrored in four places (Split Timers' tested `isInDungeon()` and
+  its `render` did not).
 - `Map.getOrDefault` EVALUATES its default eagerly. `HudConfig.getPosition` allocated a throwaway `int[2]` on
   every call even when a saved value existed - about 110 allocations a frame across the HUD.
 - An early-out that reads "not enabled AND no key bound" is not an early-out when the key has a DEFAULT
@@ -218,6 +234,20 @@ physics. Read the relevant one before touching either area.
   `stoppedByUser`/`justFinished`, and both make `AutoRoutesFeature` latch instead of arming *while the player
   stands inside a node* - which is exactly where a map warp puts him. Clear them whenever something other than
   the player cancels a route.
+- **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
+  looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
+  entry stops being found the moment that button is built by a different tab - no error, the hover text just
+  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
+- **A HUD element's `width()` must be in the registry's unit, and the HUD editor saves on a zero-pixel
+  click.** `HudElementRegistry` defines an element's on-screen size as `width() * HudConfig` scale, but the
+  Storage Overlay's `defaultX()` centred against `width() * its own slider scale` and its render pose used a
+  third combination, so the clamp, the editor box and the drawn panel measured three different panels
+  (2026-09-30). A clamp also cannot rescue a panel *wider* than the screen - it only picks which columns to
+  hide - so `gridWidthLocal()` now drops columns until the grid fits. Separately, `HudEditorScreen.
+  mouseReleased` persists a position for any press-release on a box, drag or not: one click in the editor
+  while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
+  2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
+  never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`.
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9

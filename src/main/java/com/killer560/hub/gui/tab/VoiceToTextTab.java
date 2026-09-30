@@ -71,15 +71,26 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(
-                    Component.literal("Send to: " + (cfg.isSendToPartyChat() ? "Party" : "Guild")), btn -> {
-                        cfg.setSendToPartyChat(!cfg.isSendToPartyChat());
-                        cfg.save();
-                        btn.setMessage(Component.literal("Send to: " + (cfg.isSendToPartyChat() ? "Party" : "Guild")));
-                    }).bounds(contentX, y, col2W, 18).build());
+        // All Chat (and Co-op / Plain) joined Party and Guild here 2026-09-30, per killer560: "make push to
+        // talk have an option to go to allchat as well". Cycles ChatDestination - the same enum, in the same
+        // order, that the Spotify lyrics feature's own destination button cycles - left-click forward,
+        // right-click back, which is how every other cycling button in this menu behaves.
+        widgets.add(SettingsButtonWidget.builder(sendToText(cfg), btn -> {
+                    cfg.setChatDestination(cfg.getChatDestination().next());
+                    cfg.save();
+                    btn.setMessage(sendToText(cfg));
+                }).secondaryPress(btn -> {
+                    cfg.setChatDestination(cfg.getChatDestination().previous());
+                    cfg.save();
+                    btn.setMessage(sendToText(cfg));
+                }).bounds(contentX, y, col2W, 18).build());
         y += 24;
 
         return widgets;
+    }
+
+    private static Component sendToText(VoiceToTextConfig cfg) {
+        return Component.literal("Send to: §b" + cfg.getChatDestination().displayName);
     }
 
     private static Component modeText(VoiceToTextConfig cfg) {

@@ -2,6 +2,7 @@ package com.killer560.hub.dungeonalerts;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -151,8 +152,8 @@ final class SpringBootsOverlay {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return DungeonAlertsConfig.getInstance().springBootsEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        public boolean isEnabledInSettings() {
+            return DungeonAlertsConfig.getInstance().springBootsEnabled;
         }
 
         @Override
@@ -163,6 +164,7 @@ final class SpringBootsOverlay {
             }
             var font = Minecraft.getInstance().font;
             String label = "Height: ";
+            HudSeen.markDrawn(id());
             graphics.text(font, label, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
             graphics.text(font, colored(example ? 33.0f : blockAmount), x + 1 + font.width(label), y + 1, 0xFFFFFFFF, true);
         }

@@ -2,6 +2,7 @@ package com.killer560.hub.livemap;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.puzzlesolvers.BeamsSolverConfig;
@@ -985,9 +986,10 @@ public final class LiveMapFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return LiveMapConfig.getInstance().isEnabled() && DungeonState.isInDungeon() && !isInBoss()
-                    && !MapPainter.onP3Sim();
+        public boolean isEnabledInSettings() {
+            // Setting only - in a dungeon, out of the boss and off p3sim are all gates render() applies, and
+            // the draw stamp there is what tells the HUD editor whether the map was actually up.
+            return LiveMapConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -1022,6 +1024,7 @@ public final class LiveMapFeature {
                 graphics.pose().scale(peek, peek);
             }
             try {
+                HudSeen.markDrawn(id());
                 renderMap(graphics, x, y, cfg, client);
             } finally {
                 if (peeking) {

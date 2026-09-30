@@ -1,5 +1,6 @@
 package com.killer560.hub.realtime;
 
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import net.minecraft.client.Minecraft;
@@ -100,7 +101,7 @@ public final class RealTimeFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return RealTimeConfig.getInstance().isEnabled();
         }
 
@@ -115,6 +116,7 @@ public final class RealTimeFeature {
             if ((color >>> 24) == 0) {
                 color |= 0xFF000000;
             }
+            HudSeen.markDrawn(id());
             graphics.text(client.font, buildText(cfg), x, y, color, cfg.isTextShadow());
         }
     }

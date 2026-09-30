@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.spotify.ChatDestination;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -41,7 +42,13 @@ public final class VoiceToTextConfig {
     private boolean enabled = false;
     private Mode mode = Mode.PUSH_TO_TALK;
     private int pushToTalkKeyCode = -1;
-    private boolean sendToPartyChat = true;
+    /** Where a transcription is sent. Was a plain {@code sendToPartyChat} boolean (Party or Guild) until
+     *  2026-09-30, when killer560 asked for "push to talk have an option to go to allchat as well" - rather
+     *  than bolt a third state onto a boolean, this reuses {@link ChatDestination}, the enum the Spotify
+     *  lyrics feature already uses for exactly this job, so both features cycle the same destinations in
+     *  the same order with the same display names. Its own {@code chatDestination} JSON key, with the old
+     *  boolean migrated on read - see {@link #load()}. */
+    private ChatDestination chatDestination = ChatDestination.PARTY;
     /** Java Sound mixer name of the microphone to record from; empty = the system default (2026-09-21). */
     private String microphone = "";
 
@@ -67,7 +74,13 @@ public final class VoiceToTextConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.PUSH_TO_TALK);
             cfg.pushToTalkKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "pushToTalkKeyCode", -1));
-            cfg.sendToPartyChat = ConfigJson.getBool(obj, "sendToPartyChat", true);
+            // 2026-09-30 migration, explicit so nobody's destination silently reverts: a file written
+            // before All Chat existed has only the old boolean, which meant Party when true and Guild when
+            // false. Read it whenever the new key is absent; once anything is saved the new key is there
+            // and the old one is never consulted again.
+            ChatDestination legacy = ConfigJson.getBool(obj, "sendToPartyChat", true)
+                    ? ChatDestination.PARTY : ChatDestination.GUILD;
+            cfg.chatDestination = ConfigJson.getEnum(obj, "chatDestination", ChatDestination.class, legacy);
             cfg.microphone = obj.has("microphone") && obj.get("microphone").isJsonPrimitive() ? obj.get("microphone").getAsString() : "";
             instance = cfg;
         } catch (Exception e) {
@@ -82,7 +95,11 @@ public final class VoiceToTextConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("mode", mode.name());
             obj.addProperty("pushToTalkKeyCode", pushToTalkKeyCode);
-            obj.addProperty("sendToPartyChat", sendToPartyChat);
+            obj.addProperty("chatDestination", chatDestination.name());
+            // Still written so downgrading to a jar from before 2026-09-30 keeps Party/Guild rather than
+            // resetting to Party. All Chat and Co-op have no boolean equivalent, so they read back as Guild
+            // on such a jar - the closest "not Party" it has.
+            obj.addProperty("sendToPartyChat", chatDestination == ChatDestination.PARTY);
             obj.addProperty("microphone", microphone);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -121,11 +138,11 @@ public final class VoiceToTextConfig {
         this.microphone = microphone == null ? "" : microphone;
     }
 
-    public boolean isSendToPartyChat() {
-        return sendToPartyChat;
+    public ChatDestination getChatDestination() {
+        return chatDestination;
     }
 
-    public void setSendToPartyChat(boolean sendToPartyChat) {
-        this.sendToPartyChat = sendToPartyChat;
+    public void setChatDestination(ChatDestination chatDestination) {
+        this.chatDestination = chatDestination == null ? ChatDestination.PARTY : chatDestination;
     }
 }

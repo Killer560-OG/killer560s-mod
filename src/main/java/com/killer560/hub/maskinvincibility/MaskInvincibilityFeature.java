@@ -2,6 +2,7 @@ package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
@@ -296,8 +297,9 @@ public final class MaskInvincibilityFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return MaskInvincibilityConfig.getInstance().isEnabled() && passesLocationGates();
+        public boolean isEnabledInSettings() {
+            // Setting only; passesLocationGates() is a location test, which the draw stamp reports instead.
+            return MaskInvincibilityConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -334,6 +336,9 @@ public final class MaskInvincibilityFeature {
                 graphics.text(Minecraft.getInstance().font, names ? t.label + ": " + status : status,
                         textX, textY, color, false);
                 lineY += row;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
 

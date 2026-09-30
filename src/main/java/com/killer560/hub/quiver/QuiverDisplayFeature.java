@@ -2,6 +2,7 @@ package com.killer560.hub.quiver;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -121,7 +122,7 @@ public final class QuiverDisplayFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return QuiverDisplayConfig.getInstance().isEnabled();
         }
 
@@ -133,6 +134,7 @@ public final class QuiverDisplayFeature {
             }
             String text = (QuiverDisplayConfig.getInstance().isShowName() && cachedName != null
                     ? cachedName + " §8x" : "§8x") + "§a" + cachedCount;
+            HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
         }
     }

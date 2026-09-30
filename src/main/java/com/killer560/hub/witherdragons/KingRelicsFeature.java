@@ -2,6 +2,7 @@ package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.secrets.DungeonState;
@@ -357,9 +358,10 @@ public final class KingRelicsFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
+            // Settings only - F7/M7 is the draw stamp's half of the answer.
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-            return cfg.isRelicsEnabled() && cfg.isRelicSpawnTimer() && DungeonState.isF7OrM7();
+            return cfg.isRelicsEnabled() && cfg.isRelicSpawnTimer();
         }
 
         @Override
@@ -377,6 +379,7 @@ public final class KingRelicsFeature {
             } else {
                 return;
             }
+            HudSeen.markDrawn(id());
             graphics.text(client.font, text, x, y, 0xFFFFFFFF, true);
         }
     }

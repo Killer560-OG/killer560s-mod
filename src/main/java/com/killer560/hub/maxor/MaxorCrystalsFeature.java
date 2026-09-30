@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
@@ -351,10 +352,10 @@ public final class MaxorCrystalsFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
+            // Settings only - F7/M7 is the draw stamp's half of the answer.
             MaxorConfig cfg = MaxorConfig.getInstance();
-            return (cfg.isSpawnTimerEnabled() || cfg.isPlaceAlertEnabled() || cfg.isActiveCounterEnabled())
-                    && com.killer560.hub.secrets.DungeonState.isF7OrM7();
+            return cfg.isSpawnTimerEnabled() || cfg.isPlaceAlertEnabled() || cfg.isActiveCounterEnabled();
         }
 
         @Override
@@ -380,6 +381,11 @@ public final class MaxorCrystalsFeature {
             if (cfg.isActiveCounterEnabled() && totalCrystals > 0) {
                 graphics.text(client.font, "§6Active: §e" + activeCrystals + "§7/§e" + totalCrystals,
                         x, y + row * 10, 0xFFFFFFFF, true);
+                row++;
+            }
+            // All three rows are optional, so row is the only honest "did anything land on screen" answer.
+            if (row > 0) {
+                HudSeen.markDrawn(id());
             }
         }
     }

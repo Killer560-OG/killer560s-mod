@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -394,6 +395,8 @@ public final class CustomScoreboardFeature {
         }
         graphics.pose().pushMatrix();
         try {
+            // The real board; Element#render is only the HUD editor's preview and does not stamp.
+            HudSeen.markDrawn(ELEMENT_ID);
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
             drawBoard(graphics, font, 0, 0, lines, cfg, true);
@@ -796,8 +799,10 @@ public final class CustomScoreboardFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return isActive() || minimalActive();
+        public boolean isEnabledInSettings() {
+            // Setting only - isActive()/minimalActive() both fold in a SkyblockGate check, which is a
+            // location test and so belongs to the draw stamp in drawInGame.
+            return CustomScoreboardConfig.getInstance().isEnabled();
         }
 
         @Override

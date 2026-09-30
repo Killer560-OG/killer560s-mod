@@ -1,9 +1,9 @@
 package com.killer560.hub.leapcounter;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.SkyblockGate;
@@ -190,9 +190,10 @@ public final class LeapCounterFeature {
         /** Listed in the HUD editor only while the feature is on and you're in the F7/M7 boss - the same gate the
          *  count itself has, so it can't show up while editing HUDs in, say, the Hub. */
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
+            // Settings only - being in the F7 boss is what the draw stamp in render() reports.
             LeapCounterConfig cfg = LeapCounterConfig.getInstance();
-            return cfg.isEnabled() && cfg.isHud() && Floor7Tracker.inF7Boss();
+            return cfg.isEnabled() && cfg.isHud();
         }
 
         @Override
@@ -207,6 +208,7 @@ public final class LeapCounterFeature {
                     return;
                 }
             }
+            HudSeen.markDrawn(id());
             graphics.text(client.font, line, x, y, 0xFFFFFFFF, true);
         }
     }

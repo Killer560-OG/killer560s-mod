@@ -3,6 +3,7 @@ package com.killer560.hub.dungeonalerts;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
@@ -138,8 +139,8 @@ final class RoomAlerts {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return DungeonAlertsConfig.getInstance().roomAlertsEnabled && DungeonState.isInDungeon();
+        public boolean isEnabledInSettings() {
+            return DungeonAlertsConfig.getInstance().roomAlertsEnabled;
         }
 
         @Override
@@ -149,6 +150,7 @@ final class RoomAlerts {
                 return;
             }
             String text = example ? "Water Board Cleared!" : alertText;
+            HudSeen.markDrawn(id());
             graphics.centeredText(Minecraft.getInstance().font, text, x + width() / 2, y + 1, 0xFF000000 | ModChat.LIGHT_ORANGE);
         }
     };

@@ -2,6 +2,7 @@ package com.killer560.hub.pathfinding;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.util.KeyUtil;
@@ -371,7 +372,7 @@ public final class PathfindingFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return PathfindingConfig.getInstance().isEnabled();
         }
 
@@ -386,6 +387,9 @@ public final class PathfindingFeature {
             List<String> lines = hudLines();
             if (lines.isEmpty() && editor) {
                 lines = List.of("§6Fairy Souls §f0/80");
+            }
+            if (!lines.isEmpty()) {
+                HudSeen.markDrawn(id());
             }
             int row = y;
             for (String line : lines) {

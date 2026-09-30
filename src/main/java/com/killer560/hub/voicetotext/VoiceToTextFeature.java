@@ -375,8 +375,7 @@ public final class VoiceToTextFeature {
                         ModOverlayMessage.show("[Voice] \"" + text + "\"", 3000);
                         Minecraft client = Minecraft.getInstance();
                         if (client.player != null) {
-                            String prefix = VoiceToTextConfig.getInstance().isSendToPartyChat() ? "pc " : "gc ";
-                            client.player.connection.sendCommand(prefix + text);
+                            send(client, text);
                         }
                     }
                     VoiceToTextConfig cfg = VoiceToTextConfig.getInstance();
@@ -391,6 +390,24 @@ public final class VoiceToTextFeature {
                         ModOverlayMessage.show("§c[Voice] Transcription failed: " + t.getMessage(), 3000));
             }
         }, "killer560smod-voice-transcribe").start();
+    }
+
+    /** Sends a finished transcription to whichever {@link com.killer560.hub.spotify.ChatDestination} is
+     *  configured. All Chat joined Party and Guild on 2026-09-30, per killer560's "make push to talk have an
+     *  option to go to allchat as well"; the destination itself is the same enum the Spotify lyrics feature
+     *  already cycles, so there is one list of destinations in the mod rather than two.
+     *  <p>
+     *  The prefix in that enum is a chat-line prefix ({@code "/pc "}), and this feature has always sent
+     *  through {@code sendCommand}, which wants the command WITHOUT its slash - hence the strip. Co-op /
+     *  Plain has no command form at all (its prefix is empty), so it goes out as an ordinary chat line. */
+    private static void send(Minecraft client, String text) {
+        com.killer560.hub.spotify.ChatDestination dest = VoiceToTextConfig.getInstance().getChatDestination();
+        String prefix = dest.prefix;
+        if (prefix.isEmpty()) {
+            client.player.connection.sendChat(text);
+            return;
+        }
+        client.player.connection.sendCommand(prefix.substring(1).trim() + " " + text);
     }
 
     /** Isolated in its own method (never called except from a background thread, and only once the

@@ -26,9 +26,11 @@ public final class HudConfig {
     private final Map<String, Float> scales = new HashMap<>();
     /** GLFW key code for opening the HUD editor, or -1 if unbound. */
     private int editKeyCode = -1;
-    /** HUD editor "Show All" toggle: list every registered element instead of only the ones relevant to
-     *  what the player is doing right now (see {@link HudElement#isRelevantNow()}). Persisted like every
-     *  other setting so the editor reopens the way it was left. Default off - killer560 asked for the
+    /** HUD editor "Show Unseen" toggle: make every element whose setting is ON draggable, not just the ones
+     *  that were actually on screen within {@link HudSeen#GRACE_MS} of the editor opening. A switched-off
+     *  element is never listed either way (see {@link HudElement#isEnabledInSettings()}). Persisted like
+     *  every other setting so the editor reopens the way it was left; the key keeps its old
+     *  {@code editorShowAll} name so existing configs still load. Default off - killer560 asked for the
      *  filtered view. */
     private boolean editorShowAll = false;
 

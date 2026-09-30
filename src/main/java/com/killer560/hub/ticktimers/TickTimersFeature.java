@@ -2,6 +2,7 @@ package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
@@ -343,8 +344,9 @@ public final class TickTimersFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return TickTimersConfig.getInstance().isEnabled() && DungeonState.isF7OrM7();
+        public boolean isEnabledInSettings() {
+            // Setting only - F7/M7 is the draw stamp's half of the answer.
+            return TickTimersConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -356,6 +358,9 @@ public final class TickTimersFeature {
             for (String line : activeLines()) {
                 graphics.text(Minecraft.getInstance().font, line, x, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
     }

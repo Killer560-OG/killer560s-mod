@@ -1,6 +1,7 @@
 package com.killer560.hub.position;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -241,7 +242,7 @@ public final class PositionFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return PositionConfig.getInstance().isEnabled();
         }
 
@@ -260,6 +261,9 @@ public final class PositionFeature {
             for (String line : lines(cfg, player)) {
                 graphics.text(font, line, x, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
     }

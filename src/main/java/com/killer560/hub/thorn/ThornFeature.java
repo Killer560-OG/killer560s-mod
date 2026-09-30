@@ -2,6 +2,7 @@ package com.killer560.hub.thorn;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
@@ -180,9 +181,9 @@ public final class ThornFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            // Floor 4 only - Thorn is the F4/M4 boss.
-            return ThornConfig.getInstance().isBearHudEnabled() && thornFloor() != null;
+        public boolean isEnabledInSettings() {
+            // Setting only. Thorn is the F4/M4 boss, but that floor test is the draw stamp's half now.
+            return ThornConfig.getInstance().isBearHudEnabled();
         }
 
         @Override
@@ -201,6 +202,7 @@ public final class ThornFeature {
                 line1 = "§6Bear: " + SpiritBearTracker.stateText();
                 line2 = cfg.isShowOverkill() ? SpiritBearTracker.overkillText() : null;
             }
+            HudSeen.markDrawn(id());
             graphics.text(client.font, line1, x, y, 0xFFFFFFFF, true);
             if (line2 != null) {
                 graphics.text(client.font, line2, x, y + 11, 0xFFFFFFFF, true);

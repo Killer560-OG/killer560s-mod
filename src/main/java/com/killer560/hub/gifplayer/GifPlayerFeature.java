@@ -3,6 +3,7 @@ package com.killer560.hub.gifplayer;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -188,7 +189,7 @@ public final class GifPlayerFeature {
             }
 
             @Override
-            public boolean isRelevantNow() {
+            public boolean isEnabledInSettings() {
                 return GifPlayerConfig.getInstance().isEnabled();
             }
 
@@ -218,6 +219,9 @@ public final class GifPlayerFeature {
             }
             int[] pos = HudElementRegistry.resolvePosition(element);
             float scale = HudElementRegistry.resolveScale(element);
+            // The element's render() just forwards to drawFrame, so it is also the HUD editor's preview -
+            // this in-game loop is the call that means the GIF was really on screen.
+            HudSeen.markDrawn(entry.elementId);
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);

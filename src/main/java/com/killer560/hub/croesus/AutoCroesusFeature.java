@@ -7,6 +7,7 @@ import com.killer560.hub.croesus.DungeonChestValuer.ChestType;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestValue;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
@@ -240,6 +241,9 @@ public final class AutoCroesusFeature {
         }
         int[] pos = resolveStartButtonPosition();
         float scale = resolveStartButtonScale();
+        // This, not the element's render(), is where the button really appears - render() is only the HUD
+        // editor's preview. So this is where the "it was on screen" stamp has to be taken.
+        HudSeen.markDrawn(START_BUTTON_ELEMENT_ID);
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
@@ -297,11 +301,8 @@ public final class AutoCroesusFeature {
             }
 
             @Override
-            public boolean isRelevantNow() {
-                // The Croesus menu can't be open while the HUD editor is, so "relevant" means "where you'd
-                // use it": the feature is on and you're on Skyblock - same rule the ETable button uses.
-                return CroesusConfig.getInstance().getAutoCroesusEnabledRaw()
-                        && com.killer560.hub.util.SkyblockGate.isOnSkyblock();
+            public boolean isEnabledInSettings() {
+                return CroesusConfig.getInstance().getAutoCroesusEnabledRaw();
             }
 
             @Override

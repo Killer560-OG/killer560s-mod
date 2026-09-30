@@ -3,6 +3,7 @@ package com.killer560.hub.blessings;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -94,8 +95,9 @@ public final class BlessingsFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return BlessingsConfig.getInstance().isHudEnabled() && com.killer560.hub.secrets.DungeonState.isInDungeon();
+        public boolean isEnabledInSettings() {
+            // Setting only - being in a dungeon is what the draw stamp in render() below reports.
+            return BlessingsConfig.getInstance().isHudEnabled();
         }
 
         @Override
@@ -120,6 +122,9 @@ public final class BlessingsFeature {
                 graphics.text(client.font, lineFor(blessing, level, cfg), x, y + row * 9,
                         0xFF000000 | cfg.getColor(blessing), true);
                 row++;
+            }
+            if (row > 0) {
+                HudSeen.markDrawn(id());
             }
         }
     }

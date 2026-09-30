@@ -6,6 +6,7 @@ import com.killer560.hub.bridge.MelodyIntel;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.terminals.TerminalType;
@@ -272,8 +273,9 @@ public final class MelodyTrackerFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return MelodyHudConfig.getInstance().isHudEnabled() && Floor7Tracker.inPhase(Floor7Tracker.Phase.P3);
+        public boolean isEnabledInSettings() {
+            // Setting only - being in P3 is what the draw stamp in render() reports.
+            return MelodyHudConfig.getInstance().isHudEnabled();
         }
 
         @Override
@@ -282,6 +284,9 @@ public final class MelodyTrackerFeature {
                 return;
             }
             Font font = Minecraft.getInstance().font;
+            // Both branches below draw something, and drawHudInGame is what applies the P3 gate before
+            // calling this at all, so past this point the element really is on screen.
+            HudSeen.markDrawn(id());
             if (rowCount == 0) {
                 graphics.text(font, "Team Melody: waiting...", x, y, COLOR_DIM, false);
                 return;

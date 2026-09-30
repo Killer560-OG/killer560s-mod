@@ -250,6 +250,55 @@ What is still unexplained is the picture. The likeliest remaining reading is tha
 the single-room bug above - the previous floor still drawn over a world holding one room - which is fixed.
 To go further, what is needed is that floor's map code (`SimState.mapCode()`), not another guess.
 
+## A crypt wall is NOT a solid slab of cracked brick, and decoration is speckled
+
+Measured 2026-09-30 by decoding all 135 shipped captures in
+`src/main/resources/assets/killer560smod/rooms/`, which is the only honest way to answer "why does Superboom
+delete one block".
+
+- The library holds **119,343 cracked stone bricks** and 3,666 chiseled. Walked as orthogonally connected runs
+  over `SimItems.isFragile`'s own block set, that is **90,226 separate clusters, 71,260 of them a SINGLE
+  block** (79%) and only 661 of six blocks or more. Cracked brick is Catacombs' floor and wall SPECKLE, not a
+  crypt marker. So `connectedFragile` breaking one block is the correct output of a correct flood fill aimed at
+  decoration, and it is what he will get almost every time: only **411** cracked bricks in the whole library
+  seal a small air pocket, against 119,343 that do not.
+- A real crypt wall is **mixed**. `Redstone_Crypt` at room-local x=25, z=27..29, y 69..72 is
+  `cracked_stone_bricks` with `stone_bricks`, `mossy_stone_bricks` and plain `stone` set through it. A fill that
+  may only step on fragile blocks cannot cross those, so it takes 8 blocks of that wall at best and 1 at worst.
+  Over all 411 chamber-sealing bricks: median **2** blocks broken, and the chamber ends up joined to the room
+  **205 of 411 times (50%)** — so even aiming dead on a genuine crypt, half of them stay sealed.
+- What does work is a thin SLAB across the wall rather than a run of fragile blocks: flood the stone-brick
+  family (cracked, plain, mossy, their stairs and slabs) bounded to 2 blocks across the face he is looking at
+  and 2 deep into it. Median **34** blocks broken, chamber opened **362/411 (88%)**. Adding plain `stone` to the
+  set lifts it to 95% at 51 blocks, but a cracked brick set into a stone wall then punches into the room's own
+  stonework, which is the "it shouldnt just break blocks in its way" complaint again.
+- **`Crypts: 0/5` on the score HUD can never move in the sim.** That readout is
+  `ScoreCalculatorFeature.getCrypts()`, which is only ever written from the **TAB LIST**
+  (`TAB_CRYPTS` in `pollTabList`). `SimScore.cryptBlown()` feeds `SimScore.summary()` and nothing else, and
+  `SimSidebar` writes a scoreboard sidebar with no crypt line at all. So "no crypt spawns" is partly a counter
+  that is not wired to the sim, independent of whether a crypt opened.
+- A crypt DOES exist behind the wall - it is not a missing feature. The chamber is part of the capture, because
+  it was captured out of a real dungeon: 70 of the 135 rooms hold at least one cracked brick sealing a pocket of
+  48 air blocks or fewer. What the sim has no record of is WHICH brick, so `sealsAChamber` has to re-derive it at
+  detonation time and that test has false positives (gaps under stairs, voids inside stonework, pockets behind
+  leaves). Nothing in a capture says "crypt".
+
+## The Terminator's three arrows were hitscan, so there was nothing to see
+
+killer560 (2026-09-30): "The terminator still does not shoot 3 arrows or shoot like a normal shortbow would."
+It already fired three and already needed no ammunition; `SimTerminator.shoot` said so in its own javadoc.
+Three invisible arrows and no arrows look identical from where he stands. Fixed by spawning real
+`net.minecraft.world.entity.projectile.arrow.Arrow` entities on the integrated server thread at `shoot(dx, dy,
+dz, 3.0f, 0.0f)` — 3.0 is `BowItem`'s fully-drawn velocity — with the hitscan damage deleted, because leaving
+both would double-hit invisibly on 1 HP mobs. Salvation's arming moved onto
+`ServerLivingEntityEvents.ALLOW_DAMAGE`, the hook `SimSurvival` already uses, filtered on the damage's DIRECT
+entity being a private `TerminatorArrow` subclass; distinct-mobs-across-shots is unchanged. The subclass is the
+whole tagging mechanism (no UUID bookkeeping to leak), its entity type is still `EntityType.ARROW` because the
+four-argument `Arrow` constructor hard-codes it, and it discards itself after 10 ticks in the ground so four
+shots a second do not carpet the floor. `Arrow`, `AbstractArrow`, `AbstractArrow.Pickup` and
+`Direction.Axis.choose(int,int,int)` are signature-identical in the 26.1.2 and 26.2 merged jars, so none of this
+needs the compat facade.
+
 ## The Spirit Sceptre fired all along; it just could not be seen
 
 "the sim spirit scepter doesnt work" (2026-09-30), and his log has six `[Sim] Spirit Sceptre bats fired`

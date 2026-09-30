@@ -13,6 +13,12 @@ import java.nio.file.Path;
 /** Persisted Experimentation Table solver settings. */
 public final class ExperimentsConfig {
 
+    /** Bumped when a saved file needs rewriting under new meaning. 1 = the 2026-09-30 split of the solver
+     *  from the automation (see {@link #enabled} and {@link #isAutonomousMode()}). Written by every
+     *  {@link #save()}; a file without it is pre-split and gets the one-time fix-up in {@link #load()}.
+     *  No setting's KEY changed in that split - only which of two now-independent toggles owns it. */
+    private static final int CURRENT_CONFIG_VERSION = 1;
+
     public static final int MIN_DELAY_MS = 0;
     public static final int MAX_DELAY_MS = 1000;
     public static final int MIN_AUTO_RENEW_COUNT = 0;
@@ -29,6 +35,11 @@ public final class ExperimentsConfig {
 
     private static ExperimentsConfig instance;
 
+    /** The SOLVER: slot highlighting, the solver's own game-state observation, click protection. Since
+     *  the 2026-09-30 split (killer560: "The solver should be its own setting") this is no longer a master
+     *  switch over the automation as well - {@link #isAutonomousMode()} is now independent of it, so the
+     *  solver can be run with no automation (the old "Solver Only" mode), the automation with no
+     *  highlights, or both. Same {@code "enabled"} JSON key and same default as before the split. */
     private boolean enabled = true;
     private boolean superpairsEnabled = true;
     /** false (default) = pair every revealed match; true = skip the plain "Experience" reward tiles
@@ -38,9 +49,12 @@ public final class ExperimentsConfig {
      *  pairs instead. */
     private boolean superpairsValuableOnly = false;
     private int delayMs = 200;
-    /** false = solver only (killer560 navigates into a game manually, the mod just plays it);
-     *  true = autonomous (the mod also opens Chronomatron/Ultrasequencer and picks the highest
-     *  tier itself, so the whole thing can be left running AFK). */
+    /** The AUTOMATION ("Auto E-Table"): the mod opens Chronomatron/Ultrasequencer, picks the highest tier
+     *  itself, clicks the puzzles, claims rewards and buys renews, so the whole thing can be left running
+     *  AFK. Until 2026-09-30 this was one half of a two-way Mode switch under {@link #enabled} - the other
+     *  half being "Solver Only" - which made the solver unreachable as a setting of its own. It is now an
+     *  independent toggle: same {@code "autonomousMode"} JSON key, same default (off), but no longer
+     *  requires {@code enabled}. */
     private boolean autonomousMode = false;
     /** Extra one-time wait before the first click of EACH newly-revealed round inside Chronomatron/
      *  Ultrasequencer specifically (see {@link ExperimentSolver}) - every other click, and every
@@ -148,6 +162,16 @@ public final class ExperimentsConfig {
             cfg.superpairsAdaptiveTimeout = obj.has("superpairsAdaptiveTimeout") && obj.get("superpairsAdaptiveTimeout").getAsBoolean();
             cfg.superpairsTimeoutMarginMs = obj.has("superpairsTimeoutMarginMs")
                     ? clampMargin(obj.get("superpairsTimeoutMarginMs").getAsInt()) : DEFAULT_SUPERPAIRS_TIMEOUT_MARGIN_MS;
+            // One-time fix-up for a file written before the 2026-09-30 solver/automation split. Back then
+            // "enabled: false" meant the WHOLE Experimentation Table feature was off and "autonomousMode"
+            // was a dead leftover underneath it; now the two are independent, so that file would otherwise
+            // come back with the automation newly live. Keyed off the version so it can only ever happen
+            // once - applying it on every load would permanently couple the two toggles back together and
+            // silently undo "solver off, automation on".
+            int version = com.killer560.hub.util.ConfigJson.getInt(obj, "configVersion", 0);
+            if (version < 1 && !cfg.enabled) {
+                cfg.autonomousMode = false;
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new ExperimentsConfig();
@@ -158,6 +182,7 @@ public final class ExperimentsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("configVersion", CURRENT_CONFIG_VERSION);
             obj.addProperty("enabled", enabled);
             obj.addProperty("superpairsEnabled", superpairsEnabled);
             obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
@@ -181,6 +206,8 @@ public final class ExperimentsConfig {
         }
     }
 
+    /** @return whether the SOLVER (highlights, observation, click protection) is on. Since 2026-09-30 this
+     *  no longer gates the automation - see {@link #isAutonomousMode()}. */
     public boolean isEnabled() {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
@@ -219,9 +246,15 @@ public final class ExperimentsConfig {
      *  Deliberately gated HERE, the single real source every autonomous code path already checks
      *  through {@code isAutonomousMode()}, rather than at each individual call site - means the legit
      *  jar can never run Autonomous mode even if a saved config.json has {@code autonomousMode: true}
-     *  in it (e.g. copied from a cheat-build install), since the raw field is never what gets read. */
+     *  in it (e.g. copied from a cheat-build install), since the raw field is never what gets read.
+     *  <p>
+     *  The Skyblock gate moved INTO this method on 2026-09-30, when the automation stopped hanging off
+     *  {@link #isEnabled()}: it used to inherit that gate for free because every autonomous code path went
+     *  through {@code isEnabled()} first, and an independent toggle would otherwise have been able to run
+     *  off Skyblock entirely. Same reason it is gated here and not at each call site. */
     public boolean isAutonomousMode() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autonomousMode;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autonomousMode
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutonomousMode(boolean autonomousMode) {

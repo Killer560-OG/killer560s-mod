@@ -1,6 +1,7 @@
 package com.killer560.hub.abilitycooldown;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -118,7 +119,7 @@ public final class AbilityCooldownFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return AbilityCooldownConfig.getInstance().isEnabled();
         }
 
@@ -138,6 +139,10 @@ public final class AbilityCooldownFeature {
                 graphics.text(font, line.text, textOnly ? x : x + 12, lineY,
                         textOnly ? line.color : COLOR_FAR, false);
                 lineY += 12;
+            }
+            // lineY only moves if a row was actually drawn, so this is the draw itself reporting in.
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
 

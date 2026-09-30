@@ -106,7 +106,7 @@ public final class MissingRoomsHud implements HudElement {
     }
 
     @Override
-    public boolean isRelevantNow() {
+    public boolean isEnabledInSettings() {
         return MissingRoomsConfig.getInstance().isEnabled();
     }
 
@@ -115,6 +115,10 @@ public final class MissingRoomsHud implements HudElement {
         if (!MissingRoomsConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
             return;
         }
+        // Past every gate, which is the whole point of stamping here rather than beside the enabled check:
+        // the HUD editor offers this element only if it has actually drawn in the last ten seconds, and
+        // "enabled" is already asked separately.
+        com.killer560.hub.hud.HudSeen.markDrawn(id());
         var font = Minecraft.getInstance().font;
 
         if (!RoomDatabase.isReady()) {

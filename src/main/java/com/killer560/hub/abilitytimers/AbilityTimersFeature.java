@@ -2,6 +2,7 @@ package com.killer560.hub.abilitytimers;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -103,7 +104,7 @@ public final class AbilityTimersFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return AbilityTimersConfig.getInstance().isEnabled();
         }
 
@@ -120,6 +121,9 @@ public final class AbilityTimersFeature {
                 graphics.text(Minecraft.getInstance().font,
                         String.format(Locale.US, "%s: %.1fs", e.name, remaining), x + 12, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
     }

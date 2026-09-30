@@ -42,8 +42,13 @@ public final class EtherwarpHudElement implements HudElement {
     }
 
     @Override
-    public boolean isRelevantNow() {
-        return EtherwarpWaypointsConfig.getInstance().isEnabled();
+    public boolean isEnabledInSettings() {
+        // Deliberately false, not isEnabled(): the HUD list option was removed (killer560, 2026-09-21,
+        // "remove the hud list option to etherwarp waypoints") and isVisible() below always returns false,
+        // so this element can never appear in game. Reporting it as "on" would leave the HUD editor
+        // permanently showing it as "on but never seen", which is the opposite of informative. It stays
+        // registered only so old saved layouts still load.
+        return false;
     }
 
     /** In-game gate used by {@code EtherwarpGuiMixin}: any real menu hides the list, chat does not (killer560:

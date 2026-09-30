@@ -47,6 +47,10 @@ public final class HudInGameRenderer {
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
+        // Past every gate that can stop this mod's HUD drawing, so this is the "the HUD is live" heartbeat the
+        // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
+        // time. One call per frame, not per element.
+        HudSeen.markHudFrame();
         for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {
             if (!UNDRAWN_ELEMENT_IDS.contains(element.id())) {
                 continue;

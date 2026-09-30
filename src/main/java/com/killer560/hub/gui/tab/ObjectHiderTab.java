@@ -151,20 +151,10 @@ public class ObjectHiderTab extends BaseTab {
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Cancel Vanilla Nametags", cfg::getCancelVanillaNametagsRaw, cfg::setCancelVanillaNametags);
 
-        header(widgets, contentX, contentWidth, y, "Player Display: Hide");
-
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Health", cfg::getHideHealthBarRaw, cfg::setHideHealthBar);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Absorption", cfg::getHideAbsorptionHeartsRaw, cfg::setHideAbsorptionHearts);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Mount Health", cfg::getHideMountHealthBarRaw, cfg::setHideMountHealthBar);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Regeneration Bounce", cfg::getHideRegenBounceRaw, cfg::setHideRegenBounce);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Armour", cfg::getHideArmorBarRaw, cfg::setHideArmorBar);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hunger", cfg::getHideHungerBarRaw, cfg::setHideHungerBar);
+        // "Player Display: Hide" moved out 2026-09-30, per killer560: "move the player display hide to
+        // another section ... where we will reskin the health hearts into a custom health bar and make a
+        // mana bar" - it now lives in HealthAndManaBarsTab, which is where the custom bars will be built.
+        // Every toggle still reads and writes the same ObjectHiderConfig keys, so nothing resets.
 
         header(widgets, contentX, contentWidth, y, "Tweaks");
 
@@ -178,59 +168,24 @@ public class ObjectHiderTab extends BaseTab {
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "No Shortbow Swing", cfg::getNoShortbowSwingRaw, cfg::setNoShortbowSwing);
 
-        header(widgets, contentX, contentWidth, y, "Chat Replacements");
-
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Useless Messages", cfg::getHideUselessMessagesRaw, cfg::setHideUselessMessages);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Discord Warnings", cfg::getHideDiscordWarningsRaw, cfg::setHideDiscordWarnings);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Microsoft Warnings", cfg::getHideMicrosoftWarningsRaw, cfg::setHideMicrosoftWarnings);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Empty Chat Messages", cfg::getHideEmptyChatMessagesRaw, cfg::setHideEmptyChatMessages);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Actionbar", cfg::getHideActionbarRaw, cfg::setHideActionbar);
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Non-Rank Invites", cfg::getHideNonRankInvitesRaw, cfg::setHideNonRankInvites);
-
-        header(widgets, contentX, contentWidth, y, "Hide Players");
-
-        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hide Players", cfg::getHidePlayersRaw, cfg::setHidePlayers);
-        if (cfg.getHidePlayersRaw()) {
-            int min = 0;
-            int max = 128;
-            widgets.add(new ThemedSliderButton(contentX + 12, y[0], contentWidth - 12, 18,
-                    hidePlayersDistanceText(cfg), (cfg.getHidePlayersDistance() - min) / (double) (max - min)) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(hidePlayersDistanceText(cfg));
-                }
-
-                @Override
-                protected void applyValue() {
-                    cfg.setHidePlayersDistance((int) Math.round(min + this.value * (max - min)));
-                    cfg.save();
-                }
-            });
-            y[0] += 22;
-            toggle(widgets, contentX + 12, contentWidth - 12, y, cfg, requestRebuild,
-                    "Dungeon Only", cfg::isHidePlayersDungeonOnly, cfg::setHidePlayersDungeonOnly);
-            toggle(widgets, contentX + 12, contentWidth - 12, y, cfg, requestRebuild,
-                    "Boss Only", cfg::isHidePlayersBossOnly, cfg::setHidePlayersBossOnly);
-        }
+        // "Chat Replacements" moved out 2026-09-30, per killer560: "move the hide chat stuff into the chat
+        // section" - it is now HideChatMessagesTab, an accordion section of the Chat folder. "Hide Players"
+        // left at the same time to become its own HidePlayersTab section. Both still read and write the
+        // same ObjectHiderConfig keys, so nothing resets.
 
         return widgets;
     }
 
-    private void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
+    static void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
         y[0] += 6;
         widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false),
                 Minecraft.getInstance().font));
         y[0] += 16;
     }
 
-    private void toggle(List<AbstractWidget> widgets, int x, int width, int[] y, ObjectHiderConfig cfg,
+    /** Package-private so the sections split out of this tab (Health and Mana Bars, Hide Chat Messages,
+     *  Hide Players) keep the exact same row shape instead of each re-implementing it. */
+    static void toggle(List<AbstractWidget> widgets, int x, int width, int[] y, ObjectHiderConfig cfg,
                         Runnable requestRebuild, String label, BooleanSupplier get, Consumer<Boolean> set) {
         widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
                     set.accept(!get.getAsBoolean());
@@ -240,16 +195,11 @@ public class ObjectHiderTab extends BaseTab {
         y[0] += 24;
     }
 
-    private static Component onOff(String label, boolean on) {
+    static Component onOff(String label, boolean on) {
         return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static Component orbRadiusText(ObjectHiderConfig cfg) {
         return Component.literal("Keep Radius: " + cfg.getKeepOrbRadius() + " blocks");
-    }
-
-    private static Component hidePlayersDistanceText(ObjectHiderConfig cfg) {
-        int distance = cfg.getHidePlayersDistance();
-        return Component.literal("Distance: " + (distance <= 0 ? "No Limit" : distance + " blocks"));
     }
 }

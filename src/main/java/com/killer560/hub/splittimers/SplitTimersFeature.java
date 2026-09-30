@@ -2,6 +2,7 @@ package com.killer560.hub.splittimers;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
@@ -786,8 +787,11 @@ public final class SplitTimersFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return SplitTimersConfig.getInstance().isEnabled() && DungeonState.isInDungeon();
+        public boolean isEnabledInSettings() {
+            // Setting only. This is the pair that proved the point: the old predicate tested isInDungeon()
+            // and render() below never did, so the two disagreed about the same element. Now render()'s draw
+            // stamp is the only thing that answers "was it on screen".
+            return SplitTimersConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -796,12 +800,16 @@ public final class SplitTimersFeature {
                 return;
             }
             int lineY = y;
+            // Every block below is optional and any of them can come out empty, so "did this element put
+            // anything on screen" is counted, not assumed - see HudSeen for why the count has to be real.
+            int drawnRows = 0;
             // Real rows in game (chat included - killer560: "dont make it hide the gui if i open chat"); the
             // editor shows only the sample P5 / core-entry blocks below.
             if (!HudVisibility.editorOpen()) {
                 for (SplitRow row : displayRows()) {
                     graphics.text(Minecraft.getInstance().font, rowText(row), x, lineY, 0xFFFFFFFF, false);
                     lineY += ROW_HEIGHT;
+                    drawnRows++;
                 }
             }
             boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
@@ -810,6 +818,7 @@ public final class SplitTimersFeature {
             for (String line : p5Lines()) {
                 graphics.text(Minecraft.getInstance().font, line, p5X, p5Y, 0xFFFFFFFF, false);
                 p5Y += ROW_HEIGHT;
+                drawnRows++;
             }
             // Core entry / totals / slowest-into-core rows always sit in the left column, under whatever
             // is already there, in that order - the last two are the "very bottom" blocks killer560 asked for.
@@ -817,14 +826,20 @@ public final class SplitTimersFeature {
             for (String line : coreLines()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
                 coreY += ROW_HEIGHT;
+                drawnRows++;
             }
             for (String line : totalsLines()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
                 coreY += ROW_HEIGHT;
+                drawnRows++;
             }
             for (String line : slowestCoreLine()) {
                 graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
                 coreY += ROW_HEIGHT;
+                drawnRows++;
+            }
+            if (drawnRows > 0) {
+                HudSeen.markDrawn(id());
             }
         }
     }

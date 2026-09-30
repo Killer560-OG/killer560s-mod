@@ -2,6 +2,7 @@ package com.killer560.hub.storageoverlay;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.storageoverlay.mixin.ScreenWidgetInvoker;
 import com.killer560.hub.storageoverlay.mixin.SlotClickInvoker;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -155,10 +156,18 @@ public final class StorageOverlayFeature {
             // width() - correct at 100%, but every other scale renders at width()*scale (the pose
             // transform in onContainerScreenRender), so the panel's actual right edge drifted further
             // from center the more it was scaled up, with nothing added back on the left to compensate.
+            //
+            // Second half of that same mistake, found 2026-09-30: the fix above put the SLIDER scale in
+            // here, but HudElementRegistry.clampIntoScreen measures this element as width() * the
+            // element's HudConfig scale. So defaultX() and the clamp were multiplying by two different
+            // numbers and disagreeing about how wide this element is at any slider setting other than
+            // 1.0. There is now exactly one unit: width()/height() report local size * slider scale, and
+            // everything else (the clamp, the HUD editor's box, the render pose) multiplies that by the
+            // HudConfig scale - see width() and totalScale().
             @Override
             public int defaultX() {
-                float scale = StorageOverlayConfig.getInstance().getScale();
-                return (int) ((Minecraft.getInstance().getWindow().getGuiScaledWidth() - width() * scale) / 2);
+                int screenWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
+                return Math.max(0, (screenWidth - Math.round(width() * hudEditorScale())) / 2);
             }
 
             @Override
@@ -168,20 +177,28 @@ public final class StorageOverlayFeature {
 
             @Override
             public int width() {
-                return gridWidthLocal();
+                // Slider scale lives INSIDE width() because HudElementRegistry's contract is
+                // "on-screen size == width() * HudConfig scale" - see defaultX(). gridWidthLocal() also
+                // never returns a grid wider than the screen any more, so a centered default can no
+                // longer land at a negative x and get pinned to 0 by the clamp with a column off-screen.
+                return Math.max(1, Math.round(gridWidthLocal() * StorageOverlayConfig.getInstance().getScale()));
             }
 
             @Override
             public int height() {
-                return 160;
+                // Same unit as width(): local size * slider scale, HudConfig's scale applied by the
+                // registry on top. NOTE (2026-09-30): 160 is NOT the height this panel really draws at -
+                // the viewport runs from the resolved y down to just above the relocated Inventory panel
+                // (~360 at GUI scale 3 on 2560x1441, see onContainerScreenRender). Left as-is on purpose:
+                // reporting the real height would more than double the HUD editor's click box for this
+                // element, and that box is already big enough to swallow clicks meant for HUDs under it.
+                return Math.max(1, Math.round(160 * StorageOverlayConfig.getInstance().getScale()));
             }
 
             @Override
-            public boolean isRelevantNow() {
-                // Only ever drawn over a storage menu, which can't be open while the HUD editor is - so
-                // "relevant" means where you'd use it: enabled, on Skyblock, not in a dungeon.
-                return StorageOverlayConfig.getInstance().isEnabled() && com.killer560.hub.util.SkyblockGate.isOnSkyblock()
-                        && !com.killer560.hub.secrets.DungeonState.isInDungeon();
+            public boolean isEnabledInSettings() {
+                // Setting only; where you were is the draw stamp's half (see onContainerScreenRender).
+                return StorageOverlayConfig.getInstance().isEnabled();
             }
 
             @Override
@@ -494,12 +511,16 @@ public final class StorageOverlayFeature {
             if (element == null) {
                 return;
             }
+            // The real grid, over a real storage menu; the element's render() only draws a label for the HUD
+            // editor. Open a storage, then the editor within HudSeen.GRACE_MS, and it becomes draggable.
+            HudSeen.markDrawn(ELEMENT_ID);
             lastPos = HudElementRegistry.resolvePosition(element);
             // Per killer560's "add a scale bar... rescale everything" request (2026-09-08): one
             // explicit setting-tab control for the whole feature's scale, grid and Inventory panel
             // alike (see renderInventoryPanel), instead of the grid's own separate HUD-editor
-            // scroll-to-resize.
-            lastScale = StorageOverlayConfig.getInstance().getScale();
+            // scroll-to-resize. Times the HUD editor's own per-element scale since 2026-09-30, because
+            // that is the number HudElementRegistry clamps this element with - see totalScale().
+            lastScale = totalScale();
 
             String prefix = accountProfilePrefix();
             List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
@@ -703,12 +724,24 @@ public final class StorageOverlayFeature {
         }
         int w = 58;
         int h = 16;
-        int x = Math.max(2, lastPos[0] - w - 6);
-        int y = lastPos[1];
+        // Real bug found 2026-09-30, from killer560's screenshot ("the Search box is drawn on top of the
+        // Ender Chest #1 title"): this used to be Math.max(2, lastPos[0] - w - 6), so whenever the grid
+        // sat closer than w+6 to the left edge the max() silently gave up and parked the buttons ON the
+        // grid instead of beside it. There is no room on the left in that case, so go above the grid
+        // instead and lay the two out side by side - the viewport's own background starts at
+        // lastPos[1] - 4, so a row of buttons ending there touches nothing.
+        int leftX = lastPos[0] - w - 6;
+        boolean besideGrid = leftX >= 2;
+        int x = besideGrid ? leftX : lastPos[0];
+        int y = besideGrid ? lastPos[1] : Math.max(0, lastPos[1] - h - 6);
         if (focusKey != null) {
             drawSideButton(graphics, x, y, w, h, "< Back", mouseX, mouseY);
             lastBackButton = new int[]{x, y, w, h};
-            y += h + 4;
+            if (besideGrid) {
+                y += h + 4;
+            } else {
+                x += w + 4;
+            }
         }
         if (searchOpener != null) {
             drawSideButton(graphics, x, y, w, h, "Search", mouseX, mouseY);
@@ -1086,12 +1119,65 @@ public final class StorageOverlayFeature {
     private record PanelLayout(String key, List<ItemStack> contents, int x, int y, int height) {
     }
 
-    /** The grid's LOCAL (pre-scale) total width for the current column count - per killer560's "add a
-     *  new slider to dictate the amount of columns shown from 1-5" request (2026-09-08), shared by
-     *  {@code width()}, the viewport calculation, and {@link #layoutPanels} so all three always agree. */
-    private static int gridWidthLocal() {
-        int columns = StorageOverlayConfig.getInstance().getColumns();
+    /** The scroll-to-resize scale the HUD editor stores for this element (1.0 unless it has been
+     *  scrolled). {@code HudElementRegistry} multiplies {@code width()}/{@code height()} by it when it
+     *  clamps and when it draws the editor box, so the render path has to as well - see
+     *  {@link #totalScale()}. */
+    private static float hudEditorScale() {
+        return com.killer560.hub.hud.HudConfig.getInstance().getScale(ELEMENT_ID, 1.0f);
+    }
+
+    /** The one scale the grid is actually drawn at: killer560's Storage Overlay scale slider times the
+     *  HUD editor's per-element scale. Before 2026-09-30 the render used only the slider while the
+     *  registry's clamp and the editor's box used only the editor scale, so the three measured three
+     *  different panels; the editor's scroll-resize was also being persisted and then ignored. The
+     *  relocated Inventory panel is deliberately NOT part of this element, so it stays on the slider
+     *  alone (see {@link #renderInventoryPanel}). */
+    private static float totalScale() {
+        float scale = StorageOverlayConfig.getInstance().getScale() * hudEditorScale();
+        return scale > 0f ? scale : StorageOverlayConfig.getInstance().getScale();
+    }
+
+    private static int columnsWidthLocal(int columns) {
         return PANEL_WIDTH * columns + PADDING * (columns - 1);
+    }
+
+    /**
+     * killer560's configured column count, reduced until the grid actually fits the screen it is drawn
+     * on - per his "add a new slider to dictate the amount of columns shown from 1-5... always use the
+     * centermost point as the middle" request (2026-09-08).
+     * <p>
+     * Found 2026-09-30: nothing checked that the configured count fits. At GUI scale 3 the widest
+     * setting (5 columns) is exactly 854 local units, and a small window is far narrower than that -
+     * MC's own default 854x480 window is 285 GUI-scaled units wide, where even TWO columns (338) does
+     * not fit. {@code defaultX()} then computed a negative centre, {@code clampIntoScreen} pinned it to
+     * x=0, and the columns past the right edge were simply unreachable: a clamp cannot rescue a panel
+     * that is wider than the screen, it can only choose which part of it to hide. Dropping a column
+     * instead keeps every column he can see usable and keeps the grid centred.
+     */
+    private static int effectiveColumns() {
+        int columns = StorageOverlayConfig.getInstance().getColumns();
+        Minecraft client = Minecraft.getInstance();
+        var window = client == null ? null : client.getWindow();
+        if (window == null) {
+            return columns;
+        }
+        float scale = totalScale();
+        int screenWidth = window.getGuiScaledWidth();
+        while (columns > StorageOverlayConfig.MIN_COLUMNS
+                && Math.round(columnsWidthLocal(columns) * scale) > screenWidth) {
+            columns--;
+        }
+        return columns;
+    }
+
+    /** The grid's LOCAL (pre-scale) total width for the column count that actually fits - per
+     *  killer560's "add a new slider to dictate the amount of columns shown from 1-5" request
+     *  (2026-09-08), shared by {@code width()}, the viewport calculation, and {@link #layoutPanels} so
+     *  all three always agree (and, since 2026-09-30, so all three drop the same column when the
+     *  configured count does not fit - see {@link #effectiveColumns()}). */
+    private static int gridWidthLocal() {
+        return columnsWidthLocal(effectiveColumns());
     }
 
     /** Lays out every known storage into the grid (column count from
@@ -1101,7 +1187,7 @@ public final class StorageOverlayFeature {
     private static List<PanelLayout> layoutPanels(Map<String, List<ItemStack>> storages) {
         var font = Minecraft.getInstance().font;
         List<PanelLayout> result = new ArrayList<>();
-        int columns = StorageOverlayConfig.getInstance().getColumns();
+        int columns = effectiveColumns();
         int col = 0;
         int rowX = 0;
         int rowY = 0;

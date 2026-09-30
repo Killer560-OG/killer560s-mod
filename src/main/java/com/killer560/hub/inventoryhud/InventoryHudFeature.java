@@ -3,6 +3,7 @@ package com.killer560.hub.inventoryhud;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -90,6 +91,9 @@ public final class InventoryHudFeature {
         InventoryHudElement element = InventoryHudElement.INSTANCE;
         int[] pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(element);
         float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(element);
+        // Past every visibility gate above, so this is the panel really going on screen. The element's own
+        // render() is the HUD editor's preview and deliberately does not stamp.
+        HudSeen.markDrawn(ELEMENT_ID);
         graphics.pose().pushMatrix();
         try {
             graphics.pose().translate(pos[0], pos[1]);
@@ -347,7 +351,7 @@ public final class InventoryHudFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return InventoryHudConfig.getInstance().isEnabled();
         }
 

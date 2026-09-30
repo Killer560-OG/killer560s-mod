@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
@@ -48,15 +49,18 @@ import java.util.concurrent.ThreadLocalRandom;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Runs off the client tick, reads whatever container screen is open, and does one of two completely
- * different things depending on {@link ExperimentsConfig#isAutonomousMode()}:
+ * Runs off the client tick, reads whatever container screen is open, and does two completely different
+ * things that are, since 2026-09-30, two INDEPENDENT settings rather than the two halves of one Mode
+ * switch (killer560: "The solver should be its own setting"). {@link ExperimentsConfig#isEnabled()} owns
+ * the solver, {@link ExperimentsConfig#isAutonomousMode()} owns the automation, and either, both or
+ * neither can be on:
  * <ul>
  *   <li><b>Autonomous</b> - the real auto-clicking bot: clicks the required slot via the CLONE (Pick
  *   Block) interaction, which doesn't move/consume items, and also auto-navigates menus, claims
  *   rewards, and buys renews/XP bottles (see {@link ExperimentNavigator}). This is real automated
  *   input with no human action behind each click, the kind of thing Hypixel's rules on macros/
  *   autoclickers target directly.</li>
- *   <li><b>Solver Only</b> - per killer560's explicit correction (2026-09-06): this mode must never click
+ *   <li><b>Solver</b> - per killer560's explicit correction (2026-09-06): this must never click
  *   anything. It only calls {@link ExperimentSolver#observe} (the same tested game-state tracking the
  *   bot itself relies on) and highlights the correct slot(s) on screen - the exact same idea as
  *   SkyHanni's own "Next Click Helper." A human using only this mode is doing 100% manual clicking; the
@@ -249,11 +253,13 @@ public final class ExperimentsFeature {
             }
 
             @Override
-            public boolean isRelevantNow() {
-                // Only ever drawn inside the Experimentation Table menu, which can't be open while the HUD editor
-                // is - so "relevant" here means "where you'd use it": enabled, on Skyblock, not in a dungeon.
-                return ExperimentsConfig.getInstance().isEnabled() && com.killer560.hub.util.SkyblockGate.isOnSkyblock()
-                        && !com.killer560.hub.secrets.DungeonState.isInDungeon();
+            public boolean isEnabledInSettings() {
+                // Setting only. This button is only ever drawn inside the Experimentation Table menu, which
+                // can't be open while the HUD editor is - so it becomes editable by opening the table and
+                // then the editor within HudSeen.GRACE_MS, which is exactly the case killer560 described.
+                // Automation only - this button exists to arm the macro, so it follows the automation
+                // toggle rather than the solver one (2026-09-30 split).
+                return ExperimentsConfig.getInstance().isAutonomousMode();
             }
 
             @Override
@@ -303,16 +309,19 @@ public final class ExperimentsFeature {
      */
     public static void renderStartButtonOverContainer(GuiGraphicsExtractor graphics) {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
         // Moved here (2026-09-07) from the old renderOverlay - see that method's doc for the real
         // z-order bug this fixes (highlights were drawing, then getting covered by the container's own
         // darkened background, invisible the whole time).
-        renderHighlights(graphics, cfg);
+        // The highlights ARE the solver, so they follow the solver toggle; the Start button follows the
+        // automation toggle (2026-09-30 split) and each is now drawn independently of the other.
+        if (cfg.isEnabled()) {
+            renderHighlights(graphics, cfg);
+        }
         if (shouldShowStartButton()) {
             int[] pos = resolveStartButtonPosition();
             float scale = resolveStartButtonScale();
+            // Where the button really appears; the element's render() is only the HUD editor's preview.
+            HudSeen.markDrawn(START_BUTTON_ELEMENT_ID);
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
@@ -348,16 +357,18 @@ public final class ExperimentsFeature {
         return element == null ? 1.0f : HudElementRegistry.resolveScale(element);
     }
 
-    /** @return whether the "Start ETable" button should currently be shown/clickable: the whole
-     *  feature and Autonomous mode are on, the run hasn't been armed yet, and the open screen is
+    /** @return whether the "Start ETable" button should currently be shown/clickable: the automation
+     *  (Auto E-Table) is on, the run hasn't been armed yet, and the open screen is
      *  actually the table's own main menu. Per killer560's explicit correction, this does NOT wait on
      *  the Guardian-pet swap - that only starts AFTER this button is pressed (see {@link #armed}),
      *  so it's never a reason to hide the button itself, only a reason to hold off on macro clicking
-     *  once armed. Also per killer560's explicit request, this must never show at all outside Autonomous
-     *  mode - {@code cfg.isAutonomousMode()} below is exactly that gate. */
+     *  once armed. Also per killer560's explicit request, this must never show at all when the automation
+     *  is off - {@code cfg.isAutonomousMode()} below is exactly that gate. It no longer also requires the
+     *  solver toggle (2026-09-30 split): running the macro with the highlights switched off is a real
+     *  combination now, and the button has to stay reachable in it. */
     static boolean shouldShowStartButton() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isAutonomousMode() || armed) {
+        if (!cfg.isAutonomousMode() || armed) {
             return false;
         }
         return McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen
@@ -636,7 +647,10 @@ public final class ExperimentsFeature {
     }
 
     private static void tick() {
-        if (!ExperimentsConfig.getInstance().isEnabled()) {
+        // Either half can keep this ticking on its own since the 2026-09-30 split - the solver for its
+        // highlights and observation, the automation for its clicking and menu navigation.
+        ExperimentsConfig gate = ExperimentsConfig.getInstance();
+        if (!gate.isEnabled() && !gate.isAutonomousMode()) {
             return;
         }
         try {
@@ -699,8 +713,12 @@ public final class ExperimentsFeature {
             // while click protection is active, it's immediately cleared the same real way clicking
             // outside any inventory slot does (ContainerInput.PICKUP at slot -999 - well-established
             // vanilla behavior, not Hypixel-specific) - fast enough that it can't be seen. */
+            // Gate kept identical to shouldBlockManualMisclick's - this only exists to clean up after that
+            // block, so the two must agree on when it is active. cfg.isEnabled() added 2026-09-30 with the
+            // solver/automation split: the tick can now run with the solver off, and this reacted to a
+            // carried item in that state while the block itself never applied.
             if ((mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER)
-                    && ExperimentsConfig.getInstance().isClickProtectionEnabled() && !cfg.isAutonomousMode()) {
+                    && cfg.isEnabled() && cfg.isClickProtectionEnabled() && !cfg.isAutonomousMode()) {
                 ItemStack carried = menu.getCarried();
                 boolean holdingNow = carried != null && !carried.isEmpty();
                 if (holdingNow && !wasHoldingCarriedItem) {
@@ -742,10 +760,13 @@ public final class ExperimentsFeature {
                     scheduleClick(menu.containerId, slot, now, cfg);
                 }
             } else {
-                // Solver Only: observe the exact same tested game state so the highlight overlay
-                // (renderHighlights) is accurate, but NEVER click anything - per killer560's explicit
-                // "that mode shouldn't click at all inside of the exp table. It should only
-                // highlight the correct blocks the exact same way skyhanni does."
+                // Not clicking right now (the automation is off, or on but not yet armed): observe the
+                // exact same tested game state so the highlight overlay (renderHighlights) is accurate,
+                // but NEVER click anything - per killer560's explicit "that mode shouldn't click at all
+                // inside of the exp table. It should only highlight the correct blocks the exact same way
+                // skyhanni does." Observation still runs while the automation is on-but-unarmed even with
+                // the solver's highlights switched off, exactly as it did before the 2026-09-30 split -
+                // only the DRAWING is what the solver toggle now controls.
                 SOLVER.observe(cells, cfg.isSuperpairsValuableOnly(), now);
                 maybeNotifyMaxClicksReached(mode, cfg);
             }
@@ -1090,7 +1111,9 @@ public final class ExperimentsFeature {
      *  screens aren't container screens, so they're never affected regardless. */
     public static boolean shouldBlockInput() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        return cfg.isEnabled() && cfg.isAutonomousMode() && cfg.isBlockInputEnabled() && armed;
+        // No longer also requires the solver toggle (2026-09-30 split) - this protects the AUTOMATION's
+        // clicks, so the automation being armed is the whole condition.
+        return cfg.isAutonomousMode() && cfg.isBlockInputEnabled() && armed;
     }
 
     /** Per killer560's explicit request (2026-09-08): in Solver Only mode, prevent clicking anything
@@ -1348,7 +1371,10 @@ public final class ExperimentsFeature {
                 // never have been rendered for a tick - treat "last seen <= 1, then the reward screen"
                 // as the clicks being used up (reward-screen title per SkyHanni's repo pattern).
                 ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-                if (cfg.isEnabled() && cfg.isNotifyMaxClicksReached() && !maxClicksNotifiedThisRound
+                // Its own setting, not a sub-setting of the solver: it fires in both halves, so after the
+                // 2026-09-30 split it asks for either half rather than for the solver specifically.
+                if ((cfg.isEnabled() || cfg.isAutonomousMode()) && cfg.isNotifyMaxClicksReached()
+                        && !maxClicksNotifiedThisRound
                         && superpairsMaxRemainingClicksSeen > 0
                         && superpairsLastRemainingClicks >= 0 && superpairsLastRemainingClicks <= 1
                         && (title.contains("Superpairs Rewards") || title.contains("Experiment Over")

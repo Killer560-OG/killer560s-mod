@@ -2,6 +2,7 @@ package com.killer560.hub.simonsays;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
@@ -2918,8 +2919,9 @@ public final class SimonSaysFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() && DungeonState.isF7OrM7();
+        public boolean isEnabledInSettings() {
+            // Setting only - F7/M7 is the draw stamp's half of the answer.
+            return SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled();
         }
 
         @Override
@@ -2942,6 +2944,9 @@ public final class SimonSaysFeature {
                         String.format(Locale.US, "%s: %d/%d%s", e.getKey(), p.progress, p.total, eta),
                         x, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
     }

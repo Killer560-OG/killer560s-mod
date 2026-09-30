@@ -422,8 +422,8 @@ public final class SimItems {
             // Always returns true, so the caller consumes the click and vanilla never starts drawing the
             // bow. killer560 (2026-09-30): "The terminator still doesnt insta shoot nor does it work without
             // an arrow." Both were the same cause - the click fell through to vanilla, which wants arrows and
-            // a draw time. The shot itself is hitscan and needs no ammunition at all; the fire rate just
-            // decides whether this particular click produces one.
+            // a draw time. The shot spawns real arrows on the server and consumes no ammunition at all;
+            // the fire rate just decides whether this particular click produces one.
             case "TERMINATOR" -> {
                 if (SimTerminator.readyToFire()) {
                     SimTerminator.use(client);
@@ -521,6 +521,9 @@ public final class SimItems {
             return false;
         }
         BlockPos center = hit.getBlockPos().immutable();
+        // Which way he is looking at it. getDirection() points OUT of the block, towards him, so the
+        // chamber is behind it and the wall runs across it.
+        final net.minecraft.core.Direction face = hit.getDirection();
         var server = client.getSingleplayerServer();
         if (server == null) {
             return false;
@@ -537,22 +540,25 @@ public final class SimItems {
             // least one direction, so a cube either left part of it standing or chewed into the room around
             // it. This walks the connected run of fragile blocks outward from the one he is looking at, which
             // is exactly the wall and nothing else.
-            java.util.List<BlockPos> targets = connectedFragile(level, center);
-            // A crypt is a cracked-stone-brick wall, so a superboom that removes one is a crypt opened.
-            // Counted ONCE per detonation rather than per block: a crypt wall is several blocks and counting
-            // each of them would hand out the bonus five points from a single charge.
-            boolean openedCrypt = false;
-            BlockPos cryptAt = null;
+            // ONE crypt test, on the block he AIMED at, and BEFORE anything is destroyed.
+            //
+            // Asking afterwards cannot work: the blast is what joins the chamber to the room, so by the time
+            // the loop runs nothing is sealed any more. Counted once per detonation rather than per block, or
+            // a single charge would hand out the bonus five points several times over.
+            BlockState aimed = level.getBlockState(center);
+            boolean openedCrypt = (aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                    || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
+                    && sealsAChamber(level, center);
+            BlockPos cryptAt = openedCrypt ? center : null;
+            // A crypt gets the SLAB; anything else keeps the fragile-only fill. See docs/SIM.md for the
+            // census behind that - cracked brick is decoration almost everywhere, and a crypt wall is cracked
+            // brick interleaved with plain and mossy brick that a fragile-only fill cannot cross.
+            java.util.List<BlockPos> targets = openedCrypt
+                    ? wallSlab(level, center, face)
+                    : connectedFragile(level, center);
             BlockPos princeAt = null;
             int broken = 0;
             for (BlockPos here : targets) {
-                BlockState state = level.getBlockState(here);
-                if ((state.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                        || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
-                        && sealsAChamber(level, here)) {
-                    openedCrypt = true;
-                    cryptAt = here;
-                }
                 // The prince: the golden crypt that was already in the room. Blowing one opens it and drops
                 // its zombie; only the FIRST prince of the run scores, on his word "multiple princes still
                 // the first one only gives 1 score".
@@ -576,7 +582,10 @@ public final class SimItems {
                 SimScore.cryptBlown();
                 // The zombie that is standing in the crypt. killer560 (2026-09-29): "It should break crypts
                 // and have the zombie spawn."
-                SimMobs.spawnStarred(client, cryptAt.above(), SimMobs.Kind.ZOMBIE);
+                // BEHIND the wall, in the chamber. above() put it inside the stonework, where it either
+                // suffocated or never appeared - getDirection() points out towards him, so the opposite
+                // of it is the air the crypt was sealing.
+                SimMobs.spawnStarred(client, cryptAt.relative(face.getOpposite()), SimMobs.Kind.ZOMBIE);
             }
             if (princeAt != null) {
                 boolean scored = SimPrince.takeScore();
@@ -850,5 +859,71 @@ public final class SimItems {
 
     /** A ceiling on one detonation, so connected stonework cannot turn a click into a server stall. */
     private static final int SUPERBOOM_MAX_BLOCKS = 256;
+
+    /** How wide across the wall one charge reaches, from the block he aimed at. */
+    private static final int SUPERBOOM_WALL_PLANE = 2;
+
+    /** How deep INTO the wall one charge reaches. Two is a wall; more is a tunnel. */
+    private static final int SUPERBOOM_WALL_DEPTH = 2;
+
+    /**
+     * The stone-brick family a crypt wall is actually built from.
+     *
+     * <p>Plain {@code STONE} is deliberately out. Including it lifts the open rate from 88% to 95% across
+     * the library, but a cracked brick set into a stone wall then takes a bite out of the room - which is
+     * killer560's "it shouldnt just break blocks in its way", the complaint the whole change started from.
+     */
+    private static boolean isWallMaterial(BlockState state) {
+        return isFragile(state)
+                || state.is(net.minecraft.world.level.block.Blocks.STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICKS)
+                || state.is(net.minecraft.world.level.block.Blocks.STONE_BRICK_STAIRS)
+                || state.is(net.minecraft.world.level.block.Blocks.STONE_BRICK_SLAB)
+                || state.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICK_STAIRS)
+                || state.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICK_SLAB);
+    }
+
+    /**
+     * The wall around {@code start}: a slab thin along the face he is looking at and wide across it.
+     *
+     * <p>Measured over the 411 cracked bricks in the library that actually seal a chamber (2026-09-30): this
+     * opens 362 of them, a median of 34 blocks each, against 205 and a median of 2 for the fragile-only fill.
+     * The bound is what keeps it a wall rather than a tunnel into the room behind.
+     */
+    private static java.util.List<BlockPos> wallSlab(ServerLevel level, BlockPos start,
+                                                     net.minecraft.core.Direction face) {
+        net.minecraft.core.Direction.Axis normal = face.getAxis();
+        java.util.List<BlockPos> found = new java.util.ArrayList<>();
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        queue.add(start.immutable());
+        seen.add(start.immutable());
+        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
+            BlockPos here = queue.poll();
+            found.add(here);
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+                BlockPos next = here.relative(dir).immutable();
+                if (!seen.add(next) || !withinSlab(start, next, normal)) {
+                    continue;
+                }
+                if (isWallMaterial(level.getBlockState(next)) || SimPrince.isPrince(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        return found;
+    }
+
+    /** Whether this position is still inside the slab: near the aimed face, and shallow into it. */
+    private static boolean withinSlab(BlockPos start, BlockPos at, net.minecraft.core.Direction.Axis normal) {
+        int dx = Math.abs(at.getX() - start.getX());
+        int dy = Math.abs(at.getY() - start.getY());
+        int dz = Math.abs(at.getZ() - start.getZ());
+        int alongNormal = normal.choose(dx, dy, dz);
+        int acrossA = normal == net.minecraft.core.Direction.Axis.X ? dy : dx;
+        int acrossB = normal == net.minecraft.core.Direction.Axis.Z ? dy : dz;
+        return alongNormal < SUPERBOOM_WALL_DEPTH
+                && acrossA <= SUPERBOOM_WALL_PLANE && acrossB <= SUPERBOOM_WALL_PLANE;
+    }
 
 }

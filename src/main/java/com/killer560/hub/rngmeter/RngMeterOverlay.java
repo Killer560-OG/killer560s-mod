@@ -2,6 +2,7 @@ package com.killer560.hub.rngmeter;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -113,12 +114,11 @@ public final class RngMeterOverlay {
             }
 
             @Override
-            public boolean isRelevantNow() {
-                // killer560's own example: "if i am in dungeons i dont need to edit the rng meter hud". Only ever
-                // drawn over the RNG Meter menu, which can't be open while the HUD editor is - so "relevant" means
-                // where you'd use it: enabled, on Skyblock, not in a dungeon.
-                return RngMeterConfig.getInstance().isEnabled() && com.killer560.hub.util.SkyblockGate.isOnSkyblock()
-                        && !com.killer560.hub.secrets.DungeonState.isInDungeon();
+            public boolean isEnabledInSettings() {
+                // Setting only. killer560's own example was "if i am in dungeons i dont need to edit the rng
+                // meter hud" - that part is now answered by the draw stamp: this only ever draws over the RNG
+                // Meter menu, so it is editable if he had that menu open within HudSeen.GRACE_MS.
+                return RngMeterConfig.getInstance().isEnabled();
             }
 
             @Override
@@ -175,6 +175,8 @@ public final class RngMeterOverlay {
             HudElement element = java.util.Objects.requireNonNull(HudElementRegistry.byId(ELEMENT_ID));
             int[] pos = HudElementRegistry.resolvePosition(element);
             float scale = HudElementRegistry.resolveScale(element);
+            // The real overlay, over the real menu; the element's render() is only the editor's sample rows.
+            HudSeen.markDrawn(ELEMENT_ID);
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);

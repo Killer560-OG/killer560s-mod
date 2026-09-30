@@ -21,17 +21,23 @@ public interface HudElement {
     int height();
 
     /**
-     * Whether this element belongs to what the player is doing right now - the HUD editor only lists
-     * elements for which this is true (unless its "Show All" toggle is on). killer560: "for editing huds
-     * have it only edit huds that are supposed to be open right now. So for instance if i am in dungeons
-     * i dont need to edit the rng meter hud." Elements override this with the same gate their render
-     * path uses (feature enabled + Skyblock / dungeon / floor / boss-phase check); the default keeps an
-     * element that has no such gate always listed. Must never throw - the editor treats an exception as
-     * "relevant" so a broken check can't make an element uneditable.
+     * Whether this element's own setting is switched on - the feature toggle and nothing else. No location,
+     * floor, boss-phase or "is there anything to show" test belongs here: that half of the question is
+     * answered by {@link HudSeen}, from the element's real draw call.
+     * <p>
+     * killer560 (2026-09-30): "if a setting is disabled i shouldn't be able to edit its gui." So a false
+     * here keeps the element out of the HUD editor entirely, however recently it drew. Must never throw -
+     * an exception counts as enabled, so a broken check can't make an element uneditable.
      */
-    default boolean isRelevantNow() {
-        return true;
-    }
+    /**
+     * Whether this element's own setting is switched on.
+     *
+     * <p>Only the setting. Where he has to be standing for it to appear is NOT asked here - that half is the
+     * {@link HudSeen} draw stamp, taken at the point the element really draws. One predicate answering both
+     * questions drifted from the render path it was meant to mirror: Split Timers' copy tested
+     * {@code isInDungeon()} while its own {@code render()} never did.
+     */
+    boolean isEnabledInSettings();
 
     /** Draws the element's real content at the given top-left position (already resolved from config). */
     void render(GuiGraphicsExtractor graphics, int x, int y);

@@ -2,6 +2,7 @@ package com.killer560.hub.scorecalc;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonArray;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -822,10 +823,11 @@ public final class ScoreCalculatorFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            // Hidden on p3sim (killer560, 2026-09-21): it is a boss-practice server with no real run to score.
-            return ScoreCalculatorConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
-                    && !com.killer560.hub.cheatutils.CheatUtils.isOnP3Sim();
+        public boolean isEnabledInSettings() {
+            // Setting only. In a dungeon and not on p3sim (killer560, 2026-09-21: it is a boss-practice
+            // server with no real run to score) are both still enforced in render(), which is where the draw
+            // stamp is taken - so the HUD editor gets them from the drawing rather than from a copy here.
+            return ScoreCalculatorConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -848,6 +850,9 @@ public final class ScoreCalculatorFeature {
                     lineX += font.width(s.text());
                 }
                 lineY += 10;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
     }

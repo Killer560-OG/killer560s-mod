@@ -1385,9 +1385,14 @@ final class SettingTooltipsData {
         d.put("dvd/set height", "Saves the height typed in the box to its left.");
         d.put("dvd/set scale", "Saves the scale typed in the box to its left.");
         d.put("etherwarp waypoints/x", "Removes this one waypoint from this run's list.");
-        d.put("experiments/mode", "Solver Only highlights the correct slots; Autonomous also clicks, opens games and claims rewards (cheat build only).");
-        d.put("experiments/set", "Applies the coin amount typed in the Max Titanic Price box (cheat build only).");
-        d.put("experiments/press any key...", "Press the key to use as the Emergency Cancel Key.");
+        // Re-keyed when the automation moved into its own section on 2026-09-30. A tooltip key is scoped by
+        // the SUB-TAB that built the widget, so a widget that moves to another sub-tab silently loses its
+        // tooltip - describe() falls back rather than erroring, so nothing complains.
+        //
+        // "experiments/mode" is gone with the Mode button: the solver and the automation are two independent
+        // settings now, not two positions of one switch.
+        d.put("auto experimentation table/set", "Applies the coin amount typed in the Max Titanic Price box (cheat build only).");
+        d.put("auto experimentation table/press any key...", "Press the key to use as the Emergency Cancel Key.");
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
         d.put("fast/auto leap/leaps", "One row per leap spot; Edit opens that leap's settings.");
         d.put("fast/auto leap/edit", "Opens this leap's own settings page.");

@@ -2,6 +2,7 @@ package com.killer560.hub.boss;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.puzzlesolvers.SolverEspRender;
 import com.killer560.hub.secrets.DungeonState;
@@ -238,11 +239,11 @@ public final class LividSolverFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
+            // Settings only. Livid only exists on floor 5, but that is the draw stamp's half of the answer -
+            // render() below is what knows whether the timer was actually on screen.
             LividSolverConfig cfg = LividSolverConfig.getInstance();
-            String floor = DungeonState.getFloor();
-            // Livid only exists on floor 5.
-            return cfg.isEnabled() && cfg.isShowTimer() && floor != null && floor.endsWith("5");
+            return cfg.isEnabled() && cfg.isShowTimer();
         }
 
         @Override
@@ -253,6 +254,7 @@ public final class LividSolverFeature {
             }
             String color = invulnTicks > 260 ? "§a" : invulnTicks > 130 ? "§e" : "§c";
             String text = color + "Livid: " + invulnTicks + "t";
+            HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
         }
     }

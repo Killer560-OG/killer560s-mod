@@ -9,6 +9,7 @@ import com.killer560.hub.fastleap.Floor7Tracker.Stage;
 import com.killer560.hub.fastleap.Teammates;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.util.ChatObserver;
@@ -917,7 +918,7 @@ public final class Ap3Feature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             Ap3Config cfg = Ap3Config.getInstance();
             return cfg.isEnabled() && cfg.isStopwatchHud();
         }
@@ -943,6 +944,7 @@ public final class Ap3Feature {
             }
             var font = Minecraft.getInstance().font;
             String label = "Stopwatch: ";
+            HudSeen.markDrawn(id());
             graphics.text(font, label, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
             graphics.text(font, value, x + 1 + font.width(label), y + 1, running >= 0 ? 0xFFFFFFFF : (0xFF000000 | ModChat.GOOD), true);
         }

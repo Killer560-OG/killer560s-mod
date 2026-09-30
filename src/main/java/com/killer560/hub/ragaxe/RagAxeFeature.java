@@ -2,6 +2,7 @@ package com.killer560.hub.ragaxe;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
@@ -205,7 +206,7 @@ public final class RagAxeFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
             return RagAxeConfig.getInstance().isEnabled();
         }
 
@@ -235,7 +236,12 @@ public final class RagAxeFeature {
                 long left = example ? 12_100L : RagAxeState.cooldownRemainingMs();
                 if (left > 0) {
                     line(graphics, x, y + row * 10, "Rag CD: ", left);
+                    row++;
                 }
+            }
+            // All three rows are optional, so row is the only honest "did anything land on screen" answer.
+            if (row > 0) {
+                HudSeen.markDrawn(id());
             }
         }
 
@@ -283,8 +289,9 @@ public final class RagAxeFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return RagAxeConfig.getInstance().isEnabled() && com.killer560.hub.secrets.DungeonState.isF7OrM7();
+        public boolean isEnabledInSettings() {
+            // Setting only - F7/M7 is the draw stamp's half of the answer.
+            return RagAxeConfig.getInstance().isEnabled();
         }
 
         @Override
@@ -294,6 +301,7 @@ public final class RagAxeFeature {
             if (!example && (promptTicks <= 0 || !cfg.isEnabled())) {
                 return;
             }
+            HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, cfg.getPromptText(), x + 1, y + 1, 0xFFFFFFFF, true);
         }
     };

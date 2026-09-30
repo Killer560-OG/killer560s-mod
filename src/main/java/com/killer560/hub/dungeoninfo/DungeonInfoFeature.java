@@ -2,6 +2,7 @@ package com.killer560.hub.dungeoninfo;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -300,8 +301,8 @@ public final class DungeonInfoFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return DungeonInfoConfig.getInstance().isSecretsHudEnabled() && DungeonState.isInDungeon();
+        public boolean isEnabledInSettings() {
+            return DungeonInfoConfig.getInstance().isSecretsHudEnabled();
         }
 
         @Override
@@ -313,6 +314,7 @@ public final class DungeonInfoFeature {
             RoomEntry entry = LiveMapFeature.currentRoomEntry();
             String found = roomSecretsFound >= 0 ? String.valueOf(roomSecretsFound) : "?";
             String total = entry != null ? String.valueOf(entry.secrets) : "?";
+            HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, "Secrets: " + found + "/" + total, x, y, 0xFFFFFFFF, false);
         }
     }

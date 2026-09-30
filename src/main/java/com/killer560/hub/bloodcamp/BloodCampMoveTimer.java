@@ -1,6 +1,7 @@
 package com.killer560.hub.bloodcamp;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
@@ -200,8 +201,10 @@ public final class BloodCampMoveTimer {
         }
 
         @Override
-        public boolean isRelevantNow() {
-            return relevant();
+        public boolean isEnabledInSettings() {
+            // Setting only; relevant() also tests isInDungeon(), which the draw stamp reports instead.
+            BloodCampConfig cfg = BloodCampConfig.getInstance();
+            return cfg.isEnabled() && cfg.isKillPopup();
         }
 
         @Override
@@ -233,6 +236,7 @@ public final class BloodCampMoveTimer {
             // draw behind the text is gone. The text itself is drawn scaled up around the box's own centre,
             // in the OLD 76x14 coordinate space (BASE_W/BASE_H), so the same centring math as before just
             // ends up SCALE times bigger instead of being rewritten for the new footprint.
+            HudSeen.markDrawn(id());
             graphics.pose().pushMatrix();
             graphics.pose().translate(x + width() / 2f, y + height() / 2f);
             graphics.pose().scale(SCALE, SCALE);

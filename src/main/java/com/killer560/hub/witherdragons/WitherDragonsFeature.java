@@ -2,6 +2,7 @@ package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.splittimers.P5Splits;
@@ -535,9 +536,10 @@ public final class WitherDragonsFeature {
         }
 
         @Override
-        public boolean isRelevantNow() {
+        public boolean isEnabledInSettings() {
+            // Settings only - F7/M7 is the draw stamp's half of the answer.
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-            return cfg.isEnabled() && cfg.isDragonTimer() && com.killer560.hub.secrets.DungeonState.isF7OrM7();
+            return cfg.isEnabled() && cfg.isDragonTimer();
         }
 
         @Override
@@ -550,6 +552,9 @@ public final class WitherDragonsFeature {
             for (String line : lines()) {
                 graphics.text(client.font, line, x, lineY, 0xFFFFFFFF, true);
                 lineY += 12;
+            }
+            if (lineY != y) {
+                HudSeen.markDrawn(id());
             }
         }
     }

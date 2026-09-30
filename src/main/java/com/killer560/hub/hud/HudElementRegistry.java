@@ -23,6 +23,7 @@ public final class HudElementRegistry {
     public static void unregister(String id) {
         ELEMENTS.removeIf(e -> e.id().equals(id));
         CLAMP_MEMOS.remove(id);
+        HudSeen.forget(id);
     }
 
     public static List<HudElement> all() {
@@ -83,9 +84,10 @@ public final class HudElementRegistry {
      * <p>
      * The clamp result can only change when the raw position, the scale, the screen size or the element's
      * own measured size changes. The first three are cheap and are compared exactly; the fourth is covered
-     * by re-measuring at most once per {@link #CLAMP_REFRESH_MS} - and not at all while the element is not
-     * relevant right now (its feature off / wrong floor), because an element that is not drawing cannot be
-     * growing either. So a switched-off element measures itself once and then costs a map lookup and four
+     * by re-measuring at most once per {@link #CLAMP_REFRESH_MS} - and not at all while the element has not
+     * drawn recently ({@link HudSeen}), because an element that is not drawing cannot be growing either.
+     * (That test used to be {@code isRelevantNow()}, a predicate that guessed at the same thing; the draw
+     * stamp is the thing itself.) So a switched-off element measures itself once and then costs a map lookup and four
      * int compares per frame, and a live one re-clamps within {@link #CLAMP_REFRESH_MS} of changing size.
      */
     private static final class ClampMemo {
@@ -115,7 +117,7 @@ public final class HudElementRegistry {
                 // live (or being previewed in the HUD editor, where a disabled element draws demo content
                 // and so does have a size) can have changed size.
                 && (System.currentTimeMillis() - memo.measuredAtMs < CLAMP_REFRESH_MS
-                    || (!editorOpen() && !isRelevantNow(element)))) {
+                    || (!editorOpen() && !HudSeen.drawnRecently(element.id())))) {
             return memo.result;
         }
         if (memo == null) {
@@ -190,11 +192,12 @@ public final class HudElementRegistry {
         return visible ? pos : clampIntoScreen(element, pos);
     }
 
-    /** Whether {@code element} should be listed in the HUD editor right now; an exception counts as yes so a
-     *  broken check can never hide an element from the editor (see {@link HudElement#isRelevantNow()}). */
-    public static boolean isRelevantNow(HudElement element) {
+    /** Whether {@code element}'s own setting is on; an exception counts as yes so a broken check can never
+     *  make an element uneditable (see {@link HudElement#isEnabledInSettings()}). This is only half of what
+     *  the HUD editor asks - the other half is {@link HudSeen}, which says whether it has actually drawn. */
+    public static boolean isEnabledInSettings(HudElement element) {
         try {
-            return element.isRelevantNow();
+            return element.isEnabledInSettings();
         } catch (RuntimeException e) {
             return true;
         }
