@@ -4,62 +4,105 @@ import com.killer560.hub.roomsim.SimRoomPuzzles;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A small standalone practice arena for the real Hypixel dungeon "Ice Fill" puzzle, playable inside the room
- * sim: cross the ice by tracing the correct path without repeating a tile.
+ * The real Hypixel dungeon "Ice Fill" puzzle, playable inside the room sim: cross the three sheets of ice
+ * without stepping on a block you have already used.
  *
- * <p><b>What is real data, not invented:</b> the waypoints in {@link #FLOOR_0}, {@link #FLOOR_1} and
- * {@link #FLOOR_2} are copied verbatim (same x/y/z, same order) from the "easy" path, pattern index 0, for
- * floors 0/1/2 of the bundled {@code data/killer560smod/puzzles/ice-fill-floors.json} - the exact resource
- * {@code puzzlesolvers.IceFillSolverFeature} reads to draw the real solver's line. That file has several
- * patterns per floor because the real room randomly generates one of several ice layouts and identifies which
- * one live from two fixed block checks; this arena has no real block state to identify from (it is not a
- * captured room), so it always builds pattern 0 for every floor rather than picking one at random, which would
- * not correspond to anything real. The three floors keep their real relative Y (70/71/72), so the whole climb
- * is the real shape, just re-based onto {@code origin} instead of the real room's own coordinates.
+ * <h2>The rules, as killer560 described them on 2026-09-30</h2>
  *
- * <p><b>What is this file's own invention:</b> the bundled waypoints are corner-to-corner turning points on a
- * straight line (as {@code IceFillSolverFeature} itself draws them: "drawn as a connected line"), not
- * individually adjacent tiles - {@link #buildPath} fills every unit step between one waypoint and the next
- * (walking Y, then X, then Z) so the arena has an actual walkable tile at every block of the real line,
- * including the step up between floors, which the bundled data does not itself specify a tile for. Which
- * exact single tile bridges "top of floor 0" to "bottom of floor 1" is this file's choice, not bundled data.
+ * "For icefill it shouldnt teleport me. Those blocks for the path should be regular ice. ONce i walk on them
+ * they go to packed ice. If i step on packed ice again it breaks that section of the ice fill and it
+ * regenerates 2 seconds later for me to try again no teleporting."
  *
- * <p><b>The fail rule is the real one, not invented:</b> Ice Fill's ice is gone once you have crossed it, so
- * doubling back drops you through nothing rather than solid ground. {@link #tick} reproduces exactly that:
- * the tile you just left is melted back to air (removing it from {@link #TILE_INDEX} too) the moment you land
- * on the next one, so repeating a tile is not just against the rules, it is physically impossible - you fall.
- * Landing on any tracked tile out of order (only reachable by jumping a gap) rebuilds the whole arena the same
- * way {@code SimBlazePuzzle#failAndRebuild} does for an out-of-order kill; falling below where the path
- * currently is (nothing left underneath, since only the path itself is solid) does the same.
+ * So: every tile of the fill starts as {@code minecraft:ice}; standing on one turns it to
+ * {@code minecraft:packed_ice}, which is the "you have used this one" mark; standing on a packed tile is the
+ * failure, and the failure breaks THAT SECTION - every one of its blocks goes to air - and lays it back as
+ * fresh regular ice {@link #REGEN_TICKS} ticks later. <b>Nothing teleports the player, ever.</b>
  *
- * <p>Gated on {@link SimState#canAct} throughout. Every write to the world or the player happens on the
- * integrated server via {@code server.execute(...)}, never the client thread - same rule as the rest of
- * {@code roomsim}, see {@code SimDoors}' class doc.
+ * <h2>What a "section" is, and why</h2>
+ *
+ * A section is one of the three bundled FLOORS, which is also one physical slab of ice in the room. That is
+ * not a reading of the sentence, it is what the room and the data both are:
+ *
+ * <ul>
+ *   <li>{@code data/killer560smod/puzzles/ice-fill-floors.json}'s own top-level shape is
+ *       {@code [floor][pattern][waypoint]} - three floors, each with several possible layouts.
+ *       {@code IceFillSolverFeature}'s class doc says the same in words: "3 real floors, each with several
+ *       possible real ice layouts".</li>
+ *   <li>Every pattern of a given floor starts and ends on the same tile - floor 0 (15,70,7) to (15,70,10),
+ *       floor 1 (15,71,12) to (15,71,17), floor 2 (15,72,19) to (15,72,26) - so a floor's entry and exit are
+ *       fixed properties of the room and only the route between them varies.</li>
+ *   <li>Decoding the shipped {@code Ice_Path}-style capture {@code assets/killer560smod/rooms/Ice_Fill.json}
+ *       shows exactly three separate slabs of {@code minecraft:ice}, one per floor, at three different
+ *       heights, and each slab's footprint is exactly the bounding box of one floor's waypoints (3x4 / 5x6 /
+ *       7x8, rotated). There is a solid non-ice step between one slab and the next.</li>
+ * </ul>
+ *
+ * A section is therefore the unit the room is physically built out of, and "that section breaks" means that
+ * slab disappears - not the whole fill, and not one tile.
+ *
+ * <h2>What changed from the first version of this class, and why</h2>
+ *
+ * The first version laid the bundled route as packed ice, melted the rest of each slab so only the route was
+ * left, and on a failure teleported the player back to the first tile. All three are gone:
+ *
+ * <ul>
+ *   <li><b>The teleport was the "walk off any ledge and end up in Ice Fill" bug.</b> Its fall check was
+ *       {@code if (player.getY() < requiredTile.getY() - 1.5) fail()} with no test that the player was
+ *       anywhere near this room, so any drop of about two blocks anywhere on the floor - any room, any ledge -
+ *       failed the Ice Fill and teleported him onto its first tile. There is no fall check at all now: the only
+ *       thing that can fire a rule is the block under the player's feet being one of this fill's own blocks,
+ *       which cannot happen outside the room.</li>
+ *   <li><b>Melting the slab down to the route</b> was needed only because the old fail rule ("the tile you
+ *       left is gone") cannot bite while there is solid ice either side of the route. The new rule marks tiles
+ *       instead of removing them, so the slabs are left exactly as captured - which is also the real puzzle:
+ *       a full sheet you have to cross without repeating yourself, rather than a corridor with the answer
+ *       already carved into it.</li>
+ *   <li><b>The route is no longer written into a bound room at all.</b> Arming only resets the slabs to
+ *       regular ice, so a capture taken part-walked starts fresh.</li>
+ * </ul>
+ *
+ * <p>The bundled waypoints are still real data and still used, for two things: identifying the anchor (every
+ * pattern of all three floors lands on ice at database rotation 270 and one block lower - see
+ * {@link SimRoomPuzzles#bestAnchor}) and giving each section its bounding box and its exit tile.
+ *
+ * <p>Gated on {@link SimState#canAct} throughout. Every write to the world happens on the integrated server
+ * via {@code server.execute(...)}, never the client thread - same rule as the rest of {@code roomsim}, see
+ * {@code SimDoors}' class doc.
  */
 public final class SimIceFillPuzzle {
+
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
+
+    /** How long a broken section stays broken. killer560: "regenerates 2 seconds later" - 2s at 20 tps. */
+    private static final int REGEN_TICKS = 40;
 
     private record Pt(int x, int y, int z) {
     }
 
-    // Copied verbatim from ice-fill-floors.json: easy[floor][pattern 0]. See class doc.
+    // Copied verbatim from ice-fill-floors.json: easy[floor][pattern 0]. Pattern 0 of each floor, because the
+    // real room generates one of several layouts and identifies which live from two fixed block checks; a bind
+    // has no need to pick one at all now (the whole slab is live), and the standalone arena has nothing to
+    // identify from, so it lays pattern 0 rather than a layout that corresponds to nothing.
     private static final Pt[] FLOOR_0 = {
             new Pt(15, 70, 7), new Pt(16, 70, 7), new Pt(16, 70, 8), new Pt(14, 70, 8),
             new Pt(14, 70, 9), new Pt(15, 70, 9), new Pt(15, 70, 10),
@@ -80,6 +123,9 @@ public final class SimIceFillPuzzle {
             new Pt(12, 72, 21), new Pt(12, 72, 25), new Pt(15, 72, 25), new Pt(15, 72, 26),
     };
 
+    /** The three floors, in crossing order. One entry here is one SECTION - see the class doc. */
+    private static final Pt[][] FLOORS = {FLOOR_0, FLOOR_1, FLOOR_2};
+
     /** All three floors' waypoints in real order - the anchor ({@link #ANCHOR}) is the very first one. */
     private static final Pt[] WAYPOINTS = concat(FLOOR_0, FLOOR_1, FLOOR_2);
     private static final Pt ANCHOR = WAYPOINTS[0];
@@ -92,15 +138,29 @@ public final class SimIceFillPuzzle {
         return out.toArray(new Pt[0]);
     }
 
-    /** The full ordered, unit-step tile path for the current build, real-world positions. Empty until built. */
-    private static volatile List<BlockPos> pathTiles = List.of();
+    /** Each section's own blocks, world positions, in crossing order. Empty until built or bound. */
+    private static volatile List<Set<BlockPos>> sections = List.of();
 
-    /** Feet-level position -> index into {@link #pathTiles}. Entries are removed as their tile melts. */
-    private static final Map<BlockPos, Integer> TILE_INDEX = new HashMap<>();
+    /** Which section a tile belongs to. Written on the server thread, read on the client thread. */
+    private static final Map<BlockPos, Integer> TILE_SECTION = new ConcurrentHashMap<>();
 
-    private static volatile int nextRequired = 0;
+    /** Each section's exit tile - the last waypoint of that bundled floor, which every pattern shares. */
+    private static volatile List<BlockPos> exitTiles = List.of();
+
+    /** Blocks this class PLACED, for a standalone arena's {@link #reset} to take away again. */
+    private static volatile List<BlockPos> placedBlocks = List.of();
+
+    /** The tile the player is already standing on, so marking it does not immediately read as a repeat. */
+    private static volatile BlockPos currentTile = null;
+
+    private static volatile int sectionReached = 0;
     private static volatile boolean complete = false;
+    private static volatile int brokenSection = -1;
+    private static volatile int regenCountdown = 0;
     private static volatile BlockPos storedOrigin = null;
+
+    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
+    private static volatile SimRoomPuzzles.Anchor boundAnchor = null;
 
     private static boolean registered = false;
 
@@ -113,10 +173,17 @@ public final class SimIceFillPuzzle {
             return;
         }
         registered = true;
-        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimIceFillPuzzle.tick", SimIceFillPuzzle::tick));
+        ClientTickEvents.START_CLIENT_TICK.register(
+                FeatureGuard.start("SimIceFillPuzzle.tick", SimIceFillPuzzle::tick));
     }
 
-    /** Clears any previous arena and lays a fresh ice path anchored so {@code origin} is the first tile. */
+    /**
+     * Clears any previous arena and lays a fresh ice path anchored so {@code origin} is the first tile.
+     *
+     * <p>A standalone arena is the bundled route and nothing else, so there is nowhere to step wrong except
+     * backwards - which is exactly the mistake this puzzle is about. Same rules as a bound room: regular ice,
+     * packed once walked, and a repeat breaks that section for {@link #REGEN_TICKS} ticks.
+     */
     public static void build(Minecraft client, BlockPos origin) {
         if (!SimState.canAct(client) || origin == null) {
             return;
@@ -125,46 +192,55 @@ public final class SimIceFillPuzzle {
         if (server == null) {
             return;
         }
-        clearBlocks(client);
+        clearPlaced(client);
+        forget();
         storedOrigin = origin;
-        boundAnchor = null;   // a standalone arena, not a bind to a captured room
-        BlockPos anchorBlock = origin.below(); // player's feet sit at origin, the ice tile sits below
+        BlockPos anchorBlock = origin.below(); // the player's feet sit at origin, the ice tile sits below
 
-        List<BlockPos> path = buildPath(anchorBlock);
-        pathTiles = path;
-        TILE_INDEX.clear();
-        for (int i = 0; i < path.size(); i++) {
-            TILE_INDEX.put(path.get(i).above(), i);
+        List<int[]> rel = relativePath();
+        List<Set<BlockPos>> built = newSectionList();
+        // Sized and pre-filled so a section's exit can be overwritten as the walk passes through it; the last
+        // tile of a section in path order IS that section's exit. relativePath() covers all three floors, so
+        // none of these stays at its placeholder.
+        List<BlockPos> exits = new ArrayList<>(FLOORS.length);
+        for (int i = 0; i < FLOORS.length; i++) {
+            exits.add(anchorBlock);
         }
-        nextRequired = 0;
-        complete = false;
-
+        List<BlockPos> all = new ArrayList<>(rel.size());
+        for (int[] step : rel) {
+            BlockPos pos = offsetFromAnchor(anchorBlock, step[0], step[1], step[2]);
+            int section = sectionOfRelativeY(step[1]);
+            built.get(section).add(pos);
+            TILE_SECTION.put(pos, section);
+            exits.set(section, pos);   // the last tile of a section, in path order, is that section's exit
+            all.add(pos);
+        }
+        sections = List.copyOf(built);
+        exitTiles = List.copyOf(exits);
+        placedBlocks = List.copyOf(all);
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (BlockPos tile : path) {
-                level.setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState());
+            for (BlockPos tile : all) {
+                level.setBlockAndUpdate(tile, Blocks.ICE.defaultBlockState());
             }
         });
-        ModChat.send("Sim", ModChat.text("Ice Fill built - "), ModChat.value(path.size() + " tiles"),
-                ModChat.text(", don't repeat one."));
+        ModChat.send("Sim", ModChat.text("Ice Fill built - "), ModChat.value(all.size() + " tiles"),
+                ModChat.text(", don't step on ice you have already used."));
     }
 
     /**
      * Arms this puzzle on a REAL captured Ice Fill room, on the room's own ice.
      *
-     * <p>The waypoints above are {@code ice-fill-floors.json}'s own, in room-relative coordinates, and the
-     * capture holds ice at every one of them - measured by trying all four rotations against all five nearby
-     * heights: at database rotation 270 and <b>one block lower</b>, every pattern of all three bundled floors
-     * lands entirely on ice. (Every pattern, because the unsolved room is a solid slab per floor and a pattern
-     * is a route across it.) That one-block drop is real and is a property of THIS capture - the other five
-     * bound puzzles need no nudge at all - so it is searched for by {@link SimRoomPuzzles#bestAnchor} and
+     * <p>The anchor is found the way it always was: the bundled waypoints are the room database's own
+     * coordinates and the capture holds ice at every one of them, measured at database rotation 270 and
+     * <b>one block lower</b> than the solver's y. That one-block drop is a property of THIS capture - the
+     * other bound puzzles need no nudge - so it is searched for by {@link SimRoomPuzzles#bestAnchor} and
      * logged when it is used, rather than written in as a constant nobody could check.
      *
-     * <p><b>Why this one writes.</b> The room's three floors are solid slabs of ice, and the fail rule this
-     * class exists to drill - "the tile you left is gone, so you cannot double back" - cannot bite while there
-     * is solid ice either side of the route. So the slab is carved down to the bundled route: ice inside each
-     * floor's own bounding box that is not on the route is melted, and the route itself is laid as packed ice.
-     * Nothing outside those three boxes is touched, and no block that was not already ice is removed.
+     * <p><b>Nothing is carved.</b> Each section is every ice block inside that floor's own bounding box (grown
+     * a block, so a slab slightly wider than its route is caught whole) at that floor's own height, and the
+     * only write is setting them all back to plain ice so a part-walked capture starts fresh. Nothing outside
+     * those three boxes is read or written, and no block that was not already ice is touched.
      *
      * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
      *
@@ -175,28 +251,22 @@ public final class SimIceFillPuzzle {
         for (Pt pt : WAYPOINTS) {
             rels.add(new int[]{pt.x(), pt.y(), pt.z()});
         }
-        java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> isIce =
+        java.util.function.Predicate<BlockState> isIce =
                 SimRoomPuzzles.is(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
         SimRoomPuzzles.Anchor anchor = SimRoomPuzzles.bestAnchor(level, p, rels, isIce,
                 new int[]{0, -1, 1, -2, 2}, rels.size() * 3 / 4);
         if (anchor == null) {
             return false;
         }
-        // In-memory only, NOT clearBlocks(): that queues air writes at the PREVIOUS path's positions for the
-        // next server tick, and if this is the same room being rebuilt those are the positions about to be
-        // laid - it would air out the ice this method just placed. The previous floor's blocks are gone with
-        // the build's own wipe.
-        pathTiles = List.of();
-        List<int[]> relPath = relativePath();
-        List<BlockPos> path = new ArrayList<>(relPath.size());
-        Set<BlockPos> onPath = new java.util.HashSet<>();
-        for (int[] rel : relPath) {
-            BlockPos pos = anchor.world(rel);
-            path.add(pos);
-            onPath.add(pos);
-        }
-        // Melt the rest of each floor's slab, inside that floor's own bounding box and nowhere else.
-        for (Pt[] floor : new Pt[][]{FLOOR_0, FLOOR_1, FLOOR_2}) {
+        // In-memory only. clearPlaced() would queue air writes at the PREVIOUS arena's positions for the next
+        // server tick, and on a rebuild of the same room those are inside the room just pasted.
+        placedBlocks = List.of();
+        forget();
+
+        List<Set<BlockPos>> found = newSectionList();
+        List<BlockPos> exits = new ArrayList<>(FLOORS.length);
+        for (int f = 0; f < FLOORS.length; f++) {
+            Pt[] floor = FLOORS[f];
             int minX = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;
             int minZ = Integer.MAX_VALUE;
@@ -208,34 +278,62 @@ public final class SimIceFillPuzzle {
                 minZ = Math.min(minZ, pt.z());
                 maxZ = Math.max(maxZ, pt.z());
             }
+            Set<BlockPos> tiles = found.get(f);
             for (int x = minX - 1; x <= maxX + 1; x++) {
                 for (int z = minZ - 1; z <= maxZ + 1; z++) {
                     BlockPos pos = anchor.world(x, y, z);
-                    if (!onPath.contains(pos) && isIce.test(level.getBlockState(pos))) {
-                        level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    if (isIce.test(level.getBlockState(pos))) {
+                        tiles.add(pos);
                     }
                 }
             }
+            if (tiles.isEmpty()) {
+                LOGGER.warn("Sim ice fill: section {} of {} holds no ice at the chosen anchor - not armed",
+                        f, p.room().name);
+                forget();
+                return false;
+            }
+            Pt last = floor[floor.length - 1];
+            exits.add(anchor.world(last.x(), last.y(), last.z()));
         }
-        for (BlockPos tile : path) {
-            level.setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState());
+        for (Set<BlockPos> tiles : found) {
+            for (BlockPos pos : tiles) {
+                level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
+            }
         }
-        pathTiles = List.copyOf(path);
-        TILE_INDEX.clear();
-        for (int i = 0; i < path.size(); i++) {
-            TILE_INDEX.put(path.get(i).above(), i);
+        for (int f = 0; f < found.size(); f++) {
+            for (BlockPos pos : found.get(f)) {
+                TILE_SECTION.put(pos, f);
+            }
         }
-        nextRequired = 0;
-        complete = false;
-        storedOrigin = path.get(0).above();
+        sections = List.copyOf(found);
+        exitTiles = List.copyOf(exits);
+        storedOrigin = null;
         boundAnchor = anchor;
+        LOGGER.info("Sim ice fill: armed in {} - section sizes {}/{}/{}, exits {}", p.room().name,
+                found.get(0).size(), found.get(1).size(), found.get(2).size(), exits);
         return true;
     }
 
-    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
-    private static volatile SimRoomPuzzles.Anchor boundAnchor = null;
+    private static List<Set<BlockPos>> newSectionList() {
+        List<Set<BlockPos>> out = new ArrayList<>(FLOORS.length);
+        for (int i = 0; i < FLOORS.length; i++) {
+            out.add(new LinkedHashSet<>());
+        }
+        return out;
+    }
 
-    /** The same walk {@link #buildPath} does, in ROOM-RELATIVE coordinates, for {@link #bindAt} to transform. */
+    /** Which section a bundled relative Y belongs to. The three floors are at three distinct heights. */
+    private static int sectionOfRelativeY(int relY) {
+        for (int f = FLOORS.length - 1; f >= 0; f--) {
+            if (relY >= FLOORS[f][0].y()) {
+                return f;
+            }
+        }
+        return 0;
+    }
+
+    /** The unit-step tile path of the bundled route, in ROOM-RELATIVE coordinates. Standalone arena only. */
     private static List<int[]> relativePath() {
         List<int[]> path = new ArrayList<>();
         int curX = ANCHOR.x();
@@ -260,69 +358,58 @@ public final class SimIceFillPuzzle {
         return path;
     }
 
-    /** Walks every waypoint pair one axis at a time (Y, then X, then Z) into a full unit-step tile list. */
-    private static List<BlockPos> buildPath(BlockPos anchorBlock) {
-        List<BlockPos> path = new ArrayList<>();
-        path.add(anchorBlock);
-        int curX = ANCHOR.x(), curY = ANCHOR.y(), curZ = ANCHOR.z();
-        for (int i = 1; i < WAYPOINTS.length; i++) {
-            Pt target = WAYPOINTS[i];
-            while (curY != target.y()) {
-                curY += Integer.signum(target.y() - curY);
-                path.add(offsetFromAnchor(anchorBlock, curX, curY, curZ));
-            }
-            while (curX != target.x()) {
-                curX += Integer.signum(target.x() - curX);
-                path.add(offsetFromAnchor(anchorBlock, curX, curY, curZ));
-            }
-            while (curZ != target.z()) {
-                curZ += Integer.signum(target.z() - curZ);
-                path.add(offsetFromAnchor(anchorBlock, curX, curY, curZ));
-            }
-        }
-        return path;
-    }
-
     private static BlockPos offsetFromAnchor(BlockPos anchorBlock, int x, int y, int z) {
         return anchorBlock.offset(x - ANCHOR.x(), y - ANCHOR.y(), z - ANCHOR.z()).immutable();
     }
 
-    /** True once every tile has been crossed in order. */
+    /** True once the last section's exit tile has been reached. */
     public static boolean isComplete() {
         return complete;
     }
 
-    /** Clears the ice path and its bookkeeping. Safe with nothing built. */
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.
      *
-     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
-     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
-     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
-     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
-     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
-     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     * <p>{@link #reset} is the right thing while the arena is still standing. It is the wrong thing when the
+     * floor those blocks belonged to no longer exists, which is exactly the case
+     * {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and the next floor
+     * is built over them, so a queued write lands inside the new floor. Just as bad the other way: a stale
+     * tile index left in place makes a step on some unrelated block on the new floor count as a move in a
+     * puzzle that is not on it.
      */
     public static void forget() {
-        pathTiles = List.of();
-        TILE_INDEX.clear();
-        nextRequired = 0;
+        sections = List.of();
+        exitTiles = List.of();
+        TILE_SECTION.clear();
+        currentTile = null;
+        sectionReached = 0;
         complete = false;
+        brokenSection = -1;
+        regenCountdown = 0;
         storedOrigin = null;
         boundAnchor = null;
     }
 
+    /** Puts the fill back the way arming left it - all plain ice - and clears progress. */
     public static void reset() {
-        clearBlocks(Minecraft.getInstance());
-        TILE_INDEX.clear();
-        nextRequired = 0;
+        Minecraft client = Minecraft.getInstance();
+        clearPlaced(client);
+        restoreAll(client);
+        sections = List.of();
+        exitTiles = List.of();
+        TILE_SECTION.clear();
+        currentTile = null;
+        sectionReached = 0;
         complete = false;
+        brokenSection = -1;
+        regenCountdown = 0;
         boundAnchor = null;
     }
 
-    private static void clearBlocks(Minecraft client) {
-        List<BlockPos> old = pathTiles;
-        pathTiles = List.of();
+    /** Takes away the blocks a STANDALONE arena placed. A bound room's ice is the room's, and is left alone. */
+    private static void clearPlaced(Minecraft client) {
+        List<BlockPos> old = placedBlocks;
+        placedBlocks = List.of();
         if (old.isEmpty() || !SimState.canAct(client)) {
             return;
         }
@@ -339,92 +426,123 @@ public final class SimIceFillPuzzle {
     }
 
     private static void tick(Minecraft client) {
-        List<BlockPos> path = pathTiles;
-        if (!SimState.canAct(client) || path.isEmpty() || complete) {
+        if (!SimState.canAct(client)) {
             return;
         }
-        BlockPos feet = client.player.blockPosition();
-        Integer idx = TILE_INDEX.get(feet);
-        if (idx != null) {
-            if (idx == nextRequired) {
-                advance(client, path);
-            } else {
-                // Only reachable by jumping over the gap left by an already-melted tile.
-                failAndRebuild(client);
+        if (regenCountdown > 0) {
+            regenCountdown--;
+            if (regenCountdown == 0) {
+                regenerate(client);
             }
             return;
         }
-        // Not standing on any tracked tile - if that's because they fell through, the required tile's own
-        // floor is the only thing that was ever solid there, so a real drop below it means nothing caught them.
-        BlockPos required = path.get(Math.min(nextRequired, path.size() - 1));
-        if (client.player.getY() < required.getY() - 1.5) {
-            failAndRebuild(client);
+        if (TILE_SECTION.isEmpty() || complete) {
+            return;
         }
-    }
-
-    private static void advance(Minecraft client, List<BlockPos> path) {
-        int landed = nextRequired;
-        TILE_INDEX.remove(path.get(landed).above()); // stop standing still here from re-firing this method
-        if (landed > 0) {
-            MinecraftServer server = client.getSingleplayerServer();
-            if (server != null) {
-                BlockPos melt = path.get(landed - 1);
-                server.execute(() -> server.overworld().setBlockAndUpdate(melt, Blocks.AIR.defaultBlockState()));
-            }
+        // The ONLY trigger: the block the player is standing on is one of this fill's own blocks. That is what
+        // confines this puzzle to its own room - see the class doc on the fall-teleport bug this replaced.
+        BlockPos tile = client.player.blockPosition().below();
+        Integer section = TILE_SECTION.get(tile);
+        if (section == null) {
+            currentTile = null;
+            return;
         }
-        nextRequired = landed + 1;
-        if (nextRequired >= path.size()) {
+        if (tile.equals(currentTile)) {
+            return;   // already judged; marking it packed must not read as stepping on packed ice
+        }
+        currentTile = tile;
+        BlockState state = client.level.getBlockState(tile);
+        if (state.is(Blocks.PACKED_ICE)) {
+            breakSection(client, section);
+            return;
+        }
+        if (!state.is(Blocks.ICE)) {
+            return;   // air (a section mid-break) or the solid step between two slabs
+        }
+        mark(client, tile);
+        if (section > sectionReached) {
+            sectionReached = section;
+            ModChat.send("Sim", ModChat.text("Ice Fill - section "), ModChat.value((section + 1) + " of "
+                    + FLOORS.length));
+        }
+        List<BlockPos> exits = exitTiles;
+        if (exits.size() == FLOORS.length && tile.equals(exits.get(FLOORS.length - 1))) {
             complete = true;
             ModChat.send("Sim", ModChat.good("Ice Fill crossed!"));
         }
     }
 
-    private static void failAndRebuild(Minecraft client) {
-        // Tells the Architect's First Draft feature a puzzle failed, so his existing
-        // auto-get setting works in here the same as it does on Hypixel.
-        SimPuzzles.reportFail("Ice Fill");
-        ModChat.send("Sim", ModChat.bad("Fell through the ice - resetting."));
-        SimRoomPuzzles.Anchor bound = boundAnchor;
-        if (bound != null) {
-            // Bound to a real room: re-lay the same route in place and put him back at its first tile.
-            // build() here would lay the standalone arena inside the captured room.
-            rearmBound(client, bound);
-            return;
-        }
-        BlockPos origin = storedOrigin;
-        if (origin != null) {
-            client.execute(() -> build(client, origin));
-        }
-    }
-
-    /** Re-lays the route of a bound room and starts it over. */
-    private static void rearmBound(Minecraft client, SimRoomPuzzles.Anchor bound) {
+    /** The "you have used this one" mark: regular ice becomes packed ice under the player's feet. */
+    private static void mark(Minecraft client, BlockPos tile) {
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
         }
-        List<int[]> relPath = relativePath();
-        List<BlockPos> path = new ArrayList<>(relPath.size());
-        for (int[] rel : relPath) {
-            path.add(bound.world(rel));
+        server.execute(() -> server.overworld().setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState()));
+    }
+
+    /**
+     * Stepped on ice already used: that section breaks now and comes back in {@link #REGEN_TICKS} ticks.
+     *
+     * <p>Only the failed section is aired out, which is what he asked for. The regeneration then puts EVERY
+     * section back to plain ice rather than just that one, because "for me to try again" means the fill has to
+     * be walkable again: leaving the earlier sections packed would make the first step back onto section 1 a
+     * second instant failure, and he would never get another attempt at the section he actually failed.
+     */
+    private static void breakSection(Minecraft client, int section) {
+        List<Set<BlockPos>> all = sections;
+        if (section < 0 || section >= all.size()) {
+            return;
         }
-        pathTiles = List.copyOf(path);
-        TILE_INDEX.clear();
-        for (int i = 0; i < path.size(); i++) {
-            TILE_INDEX.put(path.get(i).above(), i);
+        // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get setting works in
+        // here the same as it does on Hypixel.
+        SimPuzzles.reportFail("Ice Fill");
+        ModChat.send("Sim", ModChat.bad("Stepped on ice you had already used - section "),
+                ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s."));
+        brokenSection = section;
+        regenCountdown = REGEN_TICKS;
+        currentTile = null;
+        sectionReached = 0;
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
         }
-        nextRequired = 0;
-        complete = false;
-        BlockPos start = path.get(0);
+        Set<BlockPos> broken = Set.copyOf(all.get(section));
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (BlockPos tile : path) {
-                level.setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState());
+            for (BlockPos pos : broken) {
+                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
             }
-            ServerPlayer sp = server.getPlayerList().getPlayer(client.player.getUUID());
-            if (sp != null) {
-                sp.teleportTo((ServerLevel) sp.level(), start.getX() + 0.5, start.getY() + 1,
-                        start.getZ() + 0.5, Set.<Relative>of(), sp.getYRot(), sp.getXRot(), false);
+        });
+    }
+
+    private static void regenerate(Minecraft client) {
+        brokenSection = -1;
+        currentTile = null;
+        sectionReached = 0;
+        complete = false;
+        restoreAll(client);
+        ModChat.send("Sim", ModChat.text("Ice Fill regenerated - try again."));
+    }
+
+    /** Every section back to plain, unwalked ice. */
+    private static void restoreAll(Minecraft client) {
+        List<Set<BlockPos>> all = sections;
+        if (all.isEmpty() || !SimState.canAct(client)) {
+            return;
+        }
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        List<BlockPos> every = new ArrayList<>();
+        for (Set<BlockPos> tiles : all) {
+            every.addAll(tiles);
+        }
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            for (BlockPos pos : every) {
+                level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
             }
         });
     }

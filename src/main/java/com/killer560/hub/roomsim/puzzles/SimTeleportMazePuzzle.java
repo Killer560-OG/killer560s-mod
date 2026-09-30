@@ -99,7 +99,20 @@ public final class SimTeleportMazePuzzle {
     /** Which pad (0-3) is correct for each cell, chosen fresh every {@link #build}. */
     private static volatile int[] correctPad = new int[0];
 
-    /** Feet-level position -> {cell, padIndex}, rebuilt every {@link #build}. */
+    /**
+     * Feet-level position -> {cell, padIndex}, rebuilt every {@link #build} and every {@link #bindAt}.
+     *
+     * <p><b>A pad is indexed at TWO positions, and that is the bug killer560 reported on 2026-09-30</b> ("for
+     * teleport maze the pads are not working"). The bind found all 30 pads correctly; what it got wrong was
+     * which block the player is standing in while on one. {@code EndPortalFrameBlock}'s collision shape is
+     * {@code column(16, 0, 13)} - checked with {@code javap} on 26.1.2's {@code SHAPE_EMPTY}, 13/16 of a block
+     * - so a player on an eyeless frame sits at {@code y + 0.8125} and {@code blockPosition()} floors to the
+     * FRAME'S OWN y, not one above it. The bound room indexed only {@code pad.above()}, so
+     * {@code PAD_INDEX.get(player.blockPosition())} could never match and standing on a pad did nothing at
+     * all. The standalone arena hid it: its pads are full-height gold blocks, where {@code above()} is right.
+     * Both positions are indexed now, so neither block height can miss - and the chamber floor around the
+     * pads is a full block, so nothing else in the room lands on either key.
+     */
     private static final Map<BlockPos, int[]> PAD_INDEX = new HashMap<>();
 
     /** Every block position this session has placed, for {@link #reset} to clear. */
@@ -235,12 +248,14 @@ public final class SimTeleportMazePuzzle {
                 sx += pad.getX();
                 sz += pad.getZ();
                 y = pad.getY();
-                // The feet block is the one ABOVE the pad, same convention build() uses.
-                PAD_INDEX.put(pad.above(), new int[]{c, i});
+                indexPad(pad, c, i);
             }
-            anchors[c] = new BlockPos(sx / PADS_PER_CELL, y, sz / PADS_PER_CELL);
+            // The pads sit IN the chamber floor - the room's solid floor is the block below them - so a
+            // cellAnchor, which every landing adds one to, is the block below the walking level. Same
+            // convention build() uses, where the anchor is the floor it places and the player stands on top.
+            anchors[c] = new BlockPos(sx / PADS_PER_CELL, y - 1, sz / PADS_PER_CELL);
         }
-        anchors[CELL_COUNT] = anchor.world(REAL_PADS[28]);   // the end pad
+        anchors[CELL_COUNT] = anchor.world(REAL_PADS[28]).below();   // the end pad
         cellAnchor = anchors;
         int[] chosen = new int[CELL_COUNT];
         for (int c = 0; c < CELL_COUNT; c++) {
@@ -333,11 +348,28 @@ public final class SimTeleportMazePuzzle {
             return;
         }
         // Remove immediately so standing still on the same pad for more than one tick can't re-fire this.
-        PAD_INDEX.remove(feet);
+        // Both of the pad's keys go, or the other one fires on the very next tick - see PAD_INDEX's doc.
+        forgetPad(feet, cell, padIndex);
         if (padIndex == correctPad[cell]) {
             advanceToNextCell(client);
         } else {
             failAndRebuild(client);
+        }
+    }
+
+    /** Indexes one pad at both feet positions a player standing on it can have - see {@link #PAD_INDEX}. */
+    private static void indexPad(BlockPos pad, int cell, int padIndex) {
+        PAD_INDEX.put(pad.immutable(), new int[]{cell, padIndex});
+        PAD_INDEX.put(pad.above().immutable(), new int[]{cell, padIndex});
+    }
+
+    /** Drops every key that pointed at the pad the player has just stood on. */
+    private static void forgetPad(BlockPos feet, int cell, int padIndex) {
+        for (BlockPos candidate : new BlockPos[]{feet, feet.above(), feet.below()}) {
+            int[] hit = PAD_INDEX.get(candidate);
+            if (hit != null && hit[0] == cell && hit[1] == padIndex) {
+                PAD_INDEX.remove(candidate);
+            }
         }
     }
 
@@ -378,7 +410,7 @@ public final class SimTeleportMazePuzzle {
         PAD_INDEX.clear();
         for (int c = 0; c < CELL_COUNT; c++) {
             for (int i = 0; i < PADS_PER_CELL; i++) {
-                PAD_INDEX.put(bound.world(REAL_PADS[c * PADS_PER_CELL + i]).above(), new int[]{c, i});
+                indexPad(bound.world(REAL_PADS[c * PADS_PER_CELL + i]), c, i);
             }
         }
         int[] chosen = new int[CELL_COUNT];
