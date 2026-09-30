@@ -169,8 +169,13 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
+        // 0..20, not 1..20. setBreakerAuraCooldownTicks was widened to accept the field's own default of 0
+        // (no cooldown) but this slider was left mapping onto 1..20, so the GUI half of that bug survived it:
+        // 0 was unreachable, and on a fresh config the start position was (0 - 1) / 19 = -0.05, off the
+        // widget's own scale, so the knob sat pinned left reading "0 ticks" and the first drag silently threw
+        // the shipped default away for good.
         widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, cooldownText(cfg),
-                (cfg.getBreakerAuraCooldownTicks() - 1) / 19.0) {
+                cfg.getBreakerAuraCooldownTicks() / 20.0) {
             @Override
             protected void updateMessage() {
                 setMessage(cooldownText(cfg));
@@ -178,7 +183,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
             @Override
             protected void applyValue() {
-                cfg.setBreakerAuraCooldownTicks((int) Math.round(1 + this.value * 19));
+                cfg.setBreakerAuraCooldownTicks((int) Math.round(this.value * 20));
                 cfg.save();
             }
         });

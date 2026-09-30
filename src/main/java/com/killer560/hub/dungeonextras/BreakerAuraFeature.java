@@ -236,8 +236,11 @@ public final class BreakerAuraFeature {
     /**
      * Draw the picked blocks, so choosing them is something he can see rather than something he has to remember.
      * Orange, like the rest of this mod's world markers, and outlined rather than filled so he can still see the
-     * block he picked. Only while Breaker Aura is switched on, or while the pick key is bound and he is in a
-     * dungeon - there is no point drawing a wall he marked three floors ago.
+     * block he picked. Only in a dungeon, and only while Breaker Aura is switched on or the list is being
+     * edited - there is no point drawing a wall he marked three floors ago.
+     *
+     * <p>This used to say "while the pick key is bound", which is what the code below no longer does and
+     * must not go back to doing: the key defaults to semicolon, so that read as "always".
      */
     static void onWorldRender(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
