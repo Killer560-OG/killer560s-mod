@@ -40,6 +40,28 @@ public final class CrystalHollowsMapConfig {
 
     private boolean enabled = false;
     private float mapScale = 1.5f;
+
+    /**
+     * Sharing, with its own switch under the map.
+     *
+     * <p>killer560 (2026-09-30): "there should be an option for sharing the waypoints under the map
+     * specifically so if I don't want to share way points than it won't." So these are NOT the mod-wide
+     * sharing settings - that is the whole point of what he asked for - and turning the send half off still
+     * lets him receive.
+     *
+     * <p>Both default ON, which is this project's standing rule for sharing settings.
+     */
+    private boolean shareWaypoints = true;
+    private boolean receiveWaypoints = true;
+
+    /**
+     * Draw a border round each discovered structure, and a waypoint for it.
+     *
+     * <p>Two switches because he asked for two things: "it should show the border for [it] on the map. I
+     * should have an option to show the waypoint for [it] as well."
+     */
+    private boolean showBorders = true;
+    private boolean showStructureWaypoints = true;
     private final List<CrystalHollowsWaypoint> waypoints = new ArrayList<>();
 
     private CrystalHollowsMapConfig() {
@@ -61,6 +83,10 @@ public final class CrystalHollowsMapConfig {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             instance.enabled = ConfigJson.getBool(obj, "enabled", false);
             instance.mapScale = ConfigJson.getFloat(obj, "mapScale", 1.5f);
+            instance.shareWaypoints = ConfigJson.getBool(obj, "shareWaypoints", true);
+            instance.receiveWaypoints = ConfigJson.getBool(obj, "receiveWaypoints", true);
+            instance.showBorders = ConfigJson.getBool(obj, "showBorders", true);
+            instance.showStructureWaypoints = ConfigJson.getBool(obj, "showStructureWaypoints", true);
             JsonArray arr = ConfigJson.getArray(obj, "waypoints");
             if (arr != null) {
                 for (JsonElement e : arr) {
@@ -86,6 +112,10 @@ public final class CrystalHollowsMapConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("mapScale", mapScale);
+            obj.addProperty("shareWaypoints", shareWaypoints);
+            obj.addProperty("receiveWaypoints", receiveWaypoints);
+            obj.addProperty("showBorders", showBorders);
+            obj.addProperty("showStructureWaypoints", showStructureWaypoints);
             JsonArray arr = new JsonArray();
             for (CrystalHollowsWaypoint w : waypoints) {
                 JsonObject o = new JsonObject();
@@ -109,6 +139,42 @@ public final class CrystalHollowsMapConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public boolean isShareWaypoints() {
+        return shareWaypoints;
+    }
+
+    public void setShareWaypoints(boolean value) {
+        this.shareWaypoints = value;
+    }
+
+    public boolean isReceiveWaypoints() {
+        return receiveWaypoints;
+    }
+
+    public void setReceiveWaypoints(boolean value) {
+        this.receiveWaypoints = value;
+    }
+
+    public boolean isShowBorders() {
+        return showBorders;
+    }
+
+    public void setShowBorders(boolean value) {
+        this.showBorders = value;
+    }
+
+    public boolean isShowStructureWaypoints() {
+        return showStructureWaypoints;
+    }
+
+    public void setShowStructureWaypoints(boolean value) {
+        this.showStructureWaypoints = value;
     }
 
     public float getMapScale() {
