@@ -97,8 +97,16 @@ public final class RoomPlacer {
         private net.minecraft.world.level.chunk.LevelChunkSection section;
         private int sectionIndex = Integer.MIN_VALUE;
 
+        /** Blocks this writer could not place because they fell outside the world's build range. */
+        private int outsideWorld;
+
         SectionWriter(ServerLevel level) {
             this.level = level;
+        }
+
+        /** How many blocks were dropped for being outside the world. Zero on a healthy build. */
+        int outsideWorld() {
+            return outsideWorld;
         }
 
         /** @return whether the block was written */
@@ -116,6 +124,16 @@ public final class RoomPlacer {
             }
             int idx = chunk.getSectionIndex(y);
             if (idx < 0 || idx >= chunk.getSections().length) {
+                // OUTSIDE THE WORLD, and counted rather than dropped in silence.
+                //
+                // This returned false and said nothing, so a floor whose offset pushed a tall room past the
+                // build limit came out with its top simply missing and every check still passed - the paste
+                // reported the blocks it wrote, not the ones it could not. killer560 (2026-09-30) has now
+                // described two rooms that way: "Here is half of supertall" and "Balcony was missing part of
+                // it with the high up chest and was mangled". SimAltitude has a guard meant to prevent it,
+                // so if this counter is ever non-zero that guard is wrong, and a number is how anyone finds
+                // that out.
+                outsideWorld++;
                 return false;
             }
             if (idx != sectionIndex) {
@@ -311,6 +329,15 @@ public final class RoomPlacer {
                 visited++;
                 if (y > room.maxY) {
                     done = true;
+                    if (writer.outsideWorld() > 0) {
+                        // Loud, and naming the room, because this is what "half of supertall" looks like
+                        // from the inside. A build that cannot reach the top of a room is not a build that
+                        // went slightly wrong, it is a room he cannot practise in.
+                        LOGGER.warn("Sim build: \"{}\" lost {} block(s) that fell outside the world - the "
+                                + "floor's offset puts part of this room past the build limit, so what is "
+                                + "standing there is only the part that fitted", room.name,
+                                writer.outsideWorld());
+                    }
                     return placed;
                 }
                 short paletteIdx = room.at(x, y, z);

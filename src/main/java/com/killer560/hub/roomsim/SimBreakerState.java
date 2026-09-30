@@ -43,13 +43,18 @@ public final class SimBreakerState {
     private static final int RECHARGE_TICKS = 10;
 
     /**
-     * Server ticks before a broken block comes back.
+     * Server ticks before a broken block comes back. Ten seconds.
      *
-     * <p>One, not zero: the block has to actually leave before it returns, or the break never happens at all
-     * and the charge is spent on nothing. A single tick is "instantly" as far as anyone can see, and it keeps
-     * the restore going through the same queue as everything else.
+     * <p>From the item's own page, checked 2026-09-30: "While in The Catacombs, consume 1 charge to break a
+     * block. 20 blocks can be broken at a time, and re-appear after 10s. 2 charges are regenerated each
+     * second." All three numbers here are that sentence.
+     *
+     * <p>This was ONE tick, on his 2026-09-28 "for sim make it so it breaks but instantly comes back", and he
+     * reversed it on 2026-09-30: "they insta come back and dont wait like they should". Ten seconds is the
+     * real behaviour, and it is the part that makes a breaker route a route - a hole that closes behind you
+     * is a timing problem, and one that never closes is not.
      */
-    private static final int RESTORE_TICKS = 1;
+    private static final int RESTORE_TICKS = 200;
 
     private static int charges = MAX_CHARGES;
     private static int rechargeCounter;

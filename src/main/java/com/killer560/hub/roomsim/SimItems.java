@@ -740,7 +740,9 @@ public final class SimItems {
         // the breaker back in its locked state mid-session - killer560 (2026-09-30): "the breaker doesnt
         // become a normal breaker again after /start finishes."
         if (SimState.isGeneratedFloor() && !SimRun.hasStarted()) {
-            fail(client, "the Dungeon Breaker is locked until the run starts");
+            // Silent. killer560 (2026-09-30): "Remove the chat line about it being locked until start."
+            // Nothing breaking is already the answer, and holding the button printed it twenty times a
+            // second before the per-press guard landed.
             return false;
         }
         BlockHitResult hit = lookedAtBlock(client);
