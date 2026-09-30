@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Blood Camp - killer560's request: "use noamm's blood mob tracer thing it already has, then add a
@@ -614,10 +615,6 @@ public final class BloodCampFeature {
     }
 
     private static void renderTimerText(LevelRenderContext context, double worldX, double worldY, double worldZ, double seconds) {
-        var bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         var mainCamera = client.gameRenderer.getMainCamera();
@@ -642,8 +639,7 @@ public final class BloodCampFeature {
         // -width/2 and -lineHeight/2 centre the text on its anchor point both ways; the anchor itself is
         // now the box's own world-space middle (see the call site), so this is centred on the box - "and
         // in the middle of the drawn box" - regardless of scale.
-        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
-                bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
+        McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();
     }

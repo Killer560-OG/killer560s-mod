@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Waypoint Routes - ColeWeight/SkyHanni-style ordered routes. The active route for the current Skyblock area
@@ -413,8 +414,7 @@ public final class WaypointRoutesFeature {
      *  numbers show through terrain. Grows with distance so far points stay readable. */
     private static void renderText(LevelRenderContext context, Camera camera, double x, double y, double z,
                                    String line1, int color1, String line2, int color2, float scaleMul) {
-        var bufferSource = context.bufferSource();
-        if (bufferSource == null || (line1 == null && line2 == null)) {
+        if ((line1 == null && line2 == null)) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -433,13 +433,11 @@ public final class WaypointRoutesFeature {
             poseStack.scale(s, -s, s);
             float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
             if (line1 != null) {
-                font.drawInBatch(line1, -font.width(line1) / 2f, yOff, color1, false, poseStack.last().pose(),
-                        bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                McRender.drawText(context, font, line1, -font.width(line1) / 2f, yOff, color1, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
                 yOff += font.lineHeight + 1;
             }
             if (line2 != null) {
-                font.drawInBatch(line2, -font.width(line2) / 2f, yOff, color2, false, poseStack.last().pose(),
-                        bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                McRender.drawText(context, font, line2, -font.width(line2) / 2f, yOff, color2, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
             }
         } finally {
             // Review fix (2026-09-15): never leave the shared level PoseStack unbalanced if a draw throws.

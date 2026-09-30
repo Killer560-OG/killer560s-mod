@@ -15,6 +15,7 @@ import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Real, preloaded per-room secret waypoints - killer560's "preloaded waypoints for each room" request.
@@ -532,9 +533,8 @@ public final class SecretWaypointsFeature {
 
     /** The secret's name floating just above its box, always facing you, drawn through walls. */
     private static void drawNames(LevelRenderContext ctx) {
-        var bufferSource = ctx.bufferSource();
         var poseStack = ctx.poseStack();
-        if (bufferSource == null || poseStack == null) {
+        if (poseStack == null) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -556,8 +556,8 @@ public final class SecretWaypointsFeature {
                 poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
                 poseStack.mulPose(camera.rotation());
                 poseStack.scale(s, -s, s);
-                font.drawInBatch(w.label(), -font.width(w.label()) / 2f, -font.lineHeight / 2f, color, false,
-                        poseStack.last().pose(), bufferSource, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
+                McRender.drawText(ctx, font, w.label(), -font.width(w.label()) / 2f, -font.lineHeight / 2f, color, false,
+                        poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
                         0, 0xF000F0);
             } finally {
                 poseStack.popPose();

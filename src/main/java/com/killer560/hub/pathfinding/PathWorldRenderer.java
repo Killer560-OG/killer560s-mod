@@ -13,6 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Draws the route in the world, SkyHanni-style ({@code data/navigation/PathRenderer.kt}): the path is subdivided with
@@ -176,9 +177,8 @@ public final class PathWorldRenderer {
     /** Billboard text - same 26.1.2 nametag transform Waypoint Routes uses (camera rotation, then (+s, -s, +s)). */
     private static void renderText(LevelRenderContext context, Camera camera, double x, double y, double z,
                                    String line1, int color1, String line2, int color2, float scaleMul) {
-        var bufferSource = context.bufferSource();
         PoseStack poseStack = context.poseStack();
-        if (bufferSource == null || poseStack == null || (line1 == null && line2 == null)) {
+        if (poseStack == null || (line1 == null && line2 == null)) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -192,13 +192,11 @@ public final class PathWorldRenderer {
             poseStack.scale(s, -s, s);
             float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
             if (line1 != null) {
-                font.drawInBatch(line1, -font.width(line1) / 2f, yOff, color1, false, poseStack.last().pose(),
-                        bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                McRender.drawText(context, font, line1, -font.width(line1) / 2f, yOff, color1, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
                 yOff += font.lineHeight + 1;
             }
             if (line2 != null) {
-                font.drawInBatch(line2, -font.width(line2) / 2f, yOff, color2, false, poseStack.last().pose(),
-                        bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+                McRender.drawText(context, font, line2, -font.width(line2) / 2f, yOff, color2, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
             }
         } finally {
             poseStack.popPose();

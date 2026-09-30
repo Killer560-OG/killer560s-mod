@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McRender;
 
 /**
  * M7 Phase 5 Wither Dragons - port of Odin's {@code WitherDragons} module
@@ -461,10 +462,6 @@ public final class WitherDragonsFeature {
     /** Billboarded see-through world text - same transform as DungeonAlertsFeature.renderWorldText /
      *  BloodCampFeature (proven on 26.1.2). */
     static void renderWorldText(LevelRenderContext context, String text, double x, double y, double z, float scale) {
-        var bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         var camera = client.gameRenderer.getMainCamera();
@@ -478,8 +475,7 @@ public final class WitherDragonsFeature {
         Component component = Component.literal(text);
         float width = font.width(component);
         int background = (int) (0.25f * 255f) << 24;
-        font.drawInBatch(component, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
-                bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
+        McRender.drawText(context, font, component, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
         poseStack.popPose();
     }
 

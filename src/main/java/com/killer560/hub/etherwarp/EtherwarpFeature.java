@@ -18,6 +18,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Personal secret/etherwarp-spot bookmarks - killer560's "secret waypoints" request, using
@@ -140,9 +141,8 @@ public final class EtherwarpFeature {
      *  order of the room" note. Same camera-relative billboard text {@code SecretWaypointsFeature.drawNames}
      *  uses, kept a separate pass from the boxes above since text always goes through the font's own buffer. */
     private static void drawNumbers(LevelRenderContext ctx, List<EtherwarpWaypoint> waypoints, List<AABB> boxes) {
-        var bufferSource = ctx.bufferSource();
         var poseStack = ctx.poseStack();
-        if (bufferSource == null || poseStack == null || waypoints.isEmpty()) {
+        if (poseStack == null || waypoints.isEmpty()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -162,8 +162,8 @@ public final class EtherwarpFeature {
                 poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
                 poseStack.mulPose(camera.rotation());
                 poseStack.scale(s, -s, s);
-                font.drawInBatch(label, -font.width(label) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
-                        poseStack.last().pose(), bufferSource, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
+                McRender.drawText(ctx, font, label, -font.width(label) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
+                        poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
                         0, 0xF000F0);
             } finally {
                 poseStack.popPose();

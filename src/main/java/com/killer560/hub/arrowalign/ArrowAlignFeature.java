@@ -25,6 +25,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Arrow Align - the F7/M7 P3 third device: a 5x5 wall of item frames holding arrows at x=-2, y 120-124, z 75-79
@@ -487,13 +488,9 @@ public final class ArrowAlignFeature {
      *  rotationYXZ(PI - PI/2, 0, 0), then (+s, -s, +s) - see that method for why not (-s, -s, s). */
     private static void renderNumber(LevelRenderContext context, double worldX, double worldY, double worldZ,
                                      int number, int argb, float scaleMultiplier) {
-        var bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        Vec3 cam = client.gameRenderer.getMainCamera().position();
+        Vec3 cam = McRender.cameraPos(context);
         String text = String.valueOf(number);
         float scale = 0.03f * scaleMultiplier;
 
@@ -503,8 +500,7 @@ public final class ArrowAlignFeature {
         poseStack.mulPose(new org.joml.Quaternionf().rotationYXZ((float) (Math.PI / 2.0), 0f, 0f));
         poseStack.scale(scale, -scale, scale);
         float width = font.width(text);
-        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, argb, false, poseStack.last().pose(),
-                bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+        McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, argb, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         poseStack.popPose();
     }
 }

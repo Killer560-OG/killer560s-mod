@@ -12,6 +12,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Node markers for the current room's route (QUOI Box / Filled box / Cylinder styles, per-type or uniform colours,
@@ -147,9 +148,8 @@ public final class AutoRoutesRenderer {
     /** Camera-facing text at a world position - {@code posmsg/PosmsgRenderer.renderLabel}. */
     private static void renderLabel(LevelRenderContext ctx, Camera camera, double x, double y, double z, String text,
                                     int color) {
-        var bufferSource = ctx.bufferSource();
         PoseStack poseStack = ctx.poseStack();
-        if (bufferSource == null || poseStack == null || text == null || text.isBlank()) {
+        if (poseStack == null || text == null || text.isBlank()) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -161,8 +161,8 @@ public final class AutoRoutesRenderer {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             poseStack.mulPose(camera.rotation());
             poseStack.scale(s, -s, s);
-            font.drawInBatch(text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
-                    poseStack.last().pose(), bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            McRender.drawText(ctx, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
+                    poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();
         }

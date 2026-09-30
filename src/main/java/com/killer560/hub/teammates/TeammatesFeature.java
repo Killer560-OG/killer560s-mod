@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Teammate Highlight - boxes your dungeon party in the world, coloured by their dungeon class, with optional name and
@@ -191,9 +192,8 @@ public final class TeammatesFeature {
     /** {@code F7SpotsRenderer.renderLabel} - the same billboard transform Thorn's stun spots use. */
     private static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
                                     String text, int color) {
-        var bufferSource = context.bufferSource();
         PoseStack poseStack = context.poseStack();
-        if (bufferSource == null || poseStack == null) {
+        if (poseStack == null) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -205,8 +205,7 @@ public final class TeammatesFeature {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             poseStack.mulPose(camera.rotation());
             poseStack.scale(s, -s, s);
-            font.drawInBatch(text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack.last().pose(),
-                    bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();
         }

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McRender;
 
 /**
  * F7/M7 boss-fight Simon Says solver.
@@ -2822,10 +2823,6 @@ public final class SimonSaysFeature {
      *  and east is yaw -90 - so the same (+s, -s, +s) text transform as the nametag path below stays correct. */
     private static void renderNumber(LevelRenderContext context, double worldX, double worldY, double worldZ,
                                       int number, float scaleMultiplier) {
-        var bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         var mainCamera = client.gameRenderer.getMainCamera();
@@ -2862,8 +2859,7 @@ public final class SimonSaysFeature {
         // NoammAddons and Odin render their own equivalent Simon Says numbers: both explicitly pass a
         // "through walls"/"phase" flag to their text renderer for exactly this reason.
         // -lineHeight/2 so the digit is vertically centered on the button face, not hanging below it.
-        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
-                bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
+        McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();
     }

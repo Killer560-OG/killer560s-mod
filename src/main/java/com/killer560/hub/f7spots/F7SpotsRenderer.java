@@ -16,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McRender;
 
 /**
  * All of F7 Spots' world rendering: walk-to waypoint boxes + beams and aim-spot crosshairs. (Storm's crush pad
@@ -155,9 +156,8 @@ public final class F7SpotsRenderer {
     /** Same billboard transform as Thorn's stun spots / Waypoint Routes' numbers (26.1.2 nametag transform). */
     static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
                             String text, int color) {
-        var bufferSource = context.bufferSource();
         PoseStack poseStack = context.poseStack();
-        if (bufferSource == null || poseStack == null) {
+        if (poseStack == null) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -169,8 +169,7 @@ public final class F7SpotsRenderer {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             poseStack.mulPose(camera.rotation());
             poseStack.scale(s, -s, s);
-            font.drawInBatch(text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack.last().pose(),
-                    bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();
         }

@@ -31,6 +31,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Real Hypixel dungeon "Water Board" puzzle solver, ported from Odin's own {@code WaterSolver.kt}. This
@@ -403,10 +404,6 @@ public final class WaterSolverFeature {
 
     private static void renderWorldText(LevelRenderContext context, double worldX, double worldY, double worldZ,
                                          String text) {
-        var bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         var mainCamera = client.gameRenderer.getMainCamera();
@@ -425,8 +422,7 @@ public final class WaterSolverFeature {
 
         float width = font.width(text);
         int background = (int) (0.4f * 255f) << 24;
-        font.drawInBatch(text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack.last().pose(),
-                bufferSource, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
+        McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
 
         poseStack.popPose();
     }

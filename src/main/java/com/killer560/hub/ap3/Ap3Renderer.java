@@ -11,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Node markers for the current area's chain: one box per node (the small marker for a 1x1 node, the full trigger
@@ -252,9 +253,8 @@ public final class Ap3Renderer {
      *  {@code textScale} multiplier on top of the distance-based size. */
     private static void renderLabel(LevelRenderContext ctx, Camera camera, double x, double y, double z, String text,
                                     int color, float textScale) {
-        var bufferSource = ctx.bufferSource();
         PoseStack poseStack = ctx.poseStack();
-        if (bufferSource == null || poseStack == null || text == null || text.isBlank()) {
+        if (poseStack == null || text == null || text.isBlank()) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -266,8 +266,8 @@ public final class Ap3Renderer {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             poseStack.mulPose(camera.rotation());
             poseStack.scale(s, -s, s);
-            font.drawInBatch(text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
-                    poseStack.last().pose(), bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            McRender.drawText(ctx, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
+                    poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();
         }

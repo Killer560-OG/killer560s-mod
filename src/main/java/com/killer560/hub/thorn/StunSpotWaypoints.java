@@ -10,6 +10,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Stun-spot waypoints for the Thorn fight - the extension point for killer560's coordinates (none are built in; the
@@ -55,9 +56,8 @@ public final class StunSpotWaypoints {
     /** Same billboard transform as {@code WaypointRoutesFeature.renderText} (26.1.2 nametag transform, SEE_THROUGH). */
     private static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
                                     String text, int color) {
-        var bufferSource = context.bufferSource();
         PoseStack poseStack = context.poseStack();
-        if (bufferSource == null || poseStack == null) {
+        if (poseStack == null) {
             return;
         }
         Font font = Minecraft.getInstance().font;
@@ -69,8 +69,7 @@ public final class StunSpotWaypoints {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
             poseStack.mulPose(camera.rotation());
             poseStack.scale(s, -s, s);
-            font.drawInBatch(text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack.last().pose(),
-                    bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
+            McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {
             poseStack.popPose();
         }
