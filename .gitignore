@@ -41,3 +41,6 @@ HANDOFF.md
 /scratchpad/
 # A scratchpad PATH once got used as a literal directory name, committing a .class file with it.
 /UsersHunter*/
+
+# Agent worktrees are separate checkouts of this repo; never track them.
+.claude/worktrees/

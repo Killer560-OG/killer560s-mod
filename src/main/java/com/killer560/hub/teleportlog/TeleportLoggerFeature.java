@@ -85,7 +85,7 @@ public final class TeleportLoggerFeature {
     }
 
     private record Snapshot(Vec3 pos, float yaw, float pitch, boolean onGround, boolean sneaking,
-                            String itemId, double range, Vec3 predicted,
+                            String itemId, double range, Vec3 predicted, String rayHit,
                             String feet, String head, String below) {
     }
 
@@ -156,7 +156,7 @@ public final class TeleportLoggerFeature {
         Vec3 predicted = sneak ? null : SimAbilities.dashTarget(client, range);
         BlockPos feet = BlockPos.containing(now.x, now.y, now.z);
         previous = new Snapshot(now, player.getYRot(), player.getXRot(), player.onGround(), sneak,
-                ItemIdentity.skyblockId(held), range, predicted,
+                ItemIdentity.skyblockId(held), range, predicted, rayHit(client, range),
                 blockName(client, feet), blockName(client, feet.above()), blockName(client, feet.below()));
     }
 
@@ -196,6 +196,7 @@ public final class TeleportLoggerFeature {
                 "    stood in feet=%s head=%s below=%s   landed in feet=%s below=%s%n",
                 from.feet(), from.head(), from.below(),
                 blockName(client, land), blockName(client, land.below())));
+        sb.append("    crosshair ray: ").append(from.rayHit()).append('\n');
         append(sb.toString());
         if (TeleportLogConfig.getInstance().isChatEcho()) {
             boolean agree = q != null && q.distanceTo(to) <= 0.25;
@@ -227,6 +228,7 @@ public final class TeleportLoggerFeature {
         }
         sb.append(String.format(Locale.ROOT, "    stood in feet=%s head=%s below=%s%n",
                 from.feet(), from.head(), from.below()));
+        sb.append("    crosshair ray: ").append(from.rayHit()).append('\n');
         append(sb.toString());
     }
 
@@ -280,4 +282,34 @@ public final class TeleportLoggerFeature {
     public static int recorded() {
         return written;
     }
+    /**
+     * What the crosshair ray hits within the ability's range, and how far away it is.
+     *
+     * <p>Added after the first 52 samples showed the sim's model was wrong (it agreed on one of them) but did
+     * NOT settle what the right one is. The landings clearly snap to a block - 51 of 52 on a block centre in
+     * x/z and 52 of 52 on a whole y - and travel tracks the look vector, but the distance does not simply
+     * equal the range, so something is stopping it short. This is the missing datum: if the landing turns out
+     * to be keyed to where the crosshair ray lands, this line will show it directly instead of leaving it to
+     * be inferred from geometry.
+     */
+    private static String rayHit(Minecraft client, double range) {
+        if (client.player == null || client.level == null) {
+            return "no level";
+        }
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 end = eye.add(client.player.getViewVector(1.0f).scale(range));
+        var hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, end,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
+        if (hit == null || hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
+            if (hit == null) {
+                return "none";
+            }
+            return String.format(Locale.ROOT, "%s at %s, %.3f blocks from the eye, face %s",
+                    blockName(client, hit.getBlockPos()), hit.getBlockPos().toShortString(),
+                    eye.distanceTo(hit.getLocation()), hit.getDirection());
+        }
+        return String.format(Locale.ROOT, "nothing within %.1f blocks", range);
+    }
+
 }

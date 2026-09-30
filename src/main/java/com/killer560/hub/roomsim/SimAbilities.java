@@ -235,88 +235,68 @@ public final class SimAbilities {
      * logger comparing Hypixel against a copy of the model would agree with the model no matter how wrong the
      * model was - it has to call the real thing or it measures nothing.
      */
+    /**
+     * Where {@link #dash} would land, or null when the player cannot move at all.
+     *
+     * <p><b>This model was MEASURED, not reasoned about.</b> killer560 ran 52 Instant Transmissions on real
+     * Hypixel on 2026-09-30 with the teleport logger, and the previous model - walk the player's bounding box
+     * along the look vector in quarter-block steps, lifting over anything in the way - agreed with the server
+     * on exactly ONE of the 52. It was wrong in a way no amount of reasoning had caught over three rewrites.
+     *
+     * <p>What the log shows Hypixel actually does:
+     * <ul>
+     *   <li><b>It lands you on a block.</b> 51 of 52 landings sat exactly on a block centre in x and z, and
+     *       52 of 52 on a whole y. The old model landed wherever the walk happened to stop, which is why
+     *       almost every sample disagreed even when the direction and distance were close.</li>
+     *   <li><b>It travels along the look vector, not along the ground.</b> For the shots that went the full
+     *       distance, the horizontal travel tracks {@code range * cos(pitch)} to within half a block.</li>
+     *   <li><b>It never lifts you.</b> Looking down 35 degrees moved him 1.6 blocks with no change in height;
+     *       the old model wanted to put him SIX BLOCKS UP, because a blocked step would raise the walk's
+     *       origin and the raises accumulated. Looking straight up moved him straight up (dy +4 to +7.8),
+     *       which is the same rule seen from the other end - it simply follows where you are pointing.</li>
+     * </ul>
+     *
+     * <p>So: step along the look vector, keep the furthest point the player still fits at, and snap that to
+     * the block. No step-ups, no sliding along the floor, no last-resort lift.
+     */
     public static Vec3 dashTarget(Minecraft client, double range) {
         var player = client.player;
         if (player == null || client.level == null) {
             return null;
         }
         Vec3 look = player.getViewVector(1.0f);
-        Vec3 from = player.position();   // reassigned when a step lifts over a block
+        Vec3 from = player.position();
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         Vec3 best = null;
-        // Once the vertical part of the move is blocked it stays blocked for the rest of the walk: the next
-        // step reaches further down into the same floor, so re-testing it every step would only ever fail.
-        boolean verticalBlocked = false;
         for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
-            Vec3 full = from.add(look.scale(d));
-            Vec3 candidate = verticalBlocked ? new Vec3(full.x, from.y, full.z) : full;
-            if (fits(client, player, box, from, candidate)) {
-                best = candidate;
-                continue;
+            Vec3 candidate = snap(from.add(look.scale(d)));
+            if (candidate.equals(best)) {
+                continue;   // the same block as the last step - nothing new to test
             }
-            if (!verticalBlocked) {
-                Vec3 flat = new Vec3(full.x, from.y, full.z);
-                if (fits(client, player, box, from, flat)) {
-                    verticalBlocked = true;
-                    best = flat;
-                    continue;
-                }
+            if (!fits(client, player, box, from, candidate)) {
+                break;      // the first thing in the way ends the travel, exactly as it does on Hypixel
             }
-            // STEP UP rather than stop.
-            //
-            // killer560 (2026-09-29): "if i am looking at a block it should still teleport me towards it and
-            // up a block if it is something i am touching already." Standing against a block, the very first
-            // step collides with it and the walk ended there - so looking at the thing right in front of him
-            // teleported him nowhere. Raising the step clears a block he is up against, the way walking into
-            // one steps onto it, and the walk carries on from there.
-            //
-            // Tried in halves: 0.5 first for a slab or a stair, then a full block. A raised step has to clear
-            // the same full box test as any other, so this cannot put him inside anything.
-            boolean stepped = false;
-            for (double lift : STEP_UPS) {
-                Vec3 raised = new Vec3(full.x, from.y + lift, full.z);
-                if (fits(client, player, box, from, raised)) {
-                    best = raised;
-                    from = new Vec3(from.x, from.y + lift, from.z);
-                    verticalBlocked = true;
-                    stepped = true;
-                    break;
-                }
-            }
-            if (stepped) {
-                continue;
-            }
-            break;
+            best = candidate;
         }
         return best;
     }
 
+    /**
+     * Puts a position on the block Hypixel would have landed you on: centred in x and z, whole in y.
+     *
+     * <p>{@code floor} rather than {@code round} on y because the landing is the block you stand ON, and a
+     * candidate part-way up a block belongs to that block's floor.
+     */
+    private static Vec3 snap(Vec3 at) {
+        return new Vec3(Math.floor(at.x) + 0.5, Math.floor(at.y), Math.floor(at.z) + 0.5);
+    }
+
     private static boolean dash(Minecraft client, double range) {
-        var player = client.player;
         Vec3 best = dashTarget(client, range);
         if (best == null) {
-            // LAST RESORT: straight up a block.
-            //
-            // killer560 (2026-09-30): "in that instance if i teleport it should move my character up a block.
-            // Not etherwarp but normal teleporting." Standing hard against a wall, every step along his look
-            // collides on the first try and every lift collides too, so the walk produced nothing and he got
-            // "no room to teleport that way" fourteen times in a row. Lifting him instead is what he asked
-            // for, and it is what unsticks the case - from a block higher the next teleport has somewhere to
-            // go. It still has to pass the same box test, so it can never put him inside anything.
-            //
-            // `from` is the player's own position here rather than the walk's running one: the walk only moves
-            // `from` when a lift SUCCEEDS, and a successful lift sets `best`, so reaching this branch means it
-            // never moved.
-            Vec3 from = player.position();
-            net.minecraft.world.phys.AABB box = player.getBoundingBox();
-            for (double lift : STEP_UPS) {
-                Vec3 up = new Vec3(from.x, from.y + lift, from.z);
-                if (fits(client, player, box, from, up)) {
-                    teleport(client, up.x, up.y, up.z);
-                    return true;
-                }
-            }
-            fail(client, "no room to teleport that way");
+            // Nothing along the look vector fits, so he stays put - which is what the server does too. Three
+            // of the 54 logged clicks produced no movement at all. The old code lifted him a block here; the
+            // measurements show Hypixel never does that, so neither does this.
             return false;
         }
         teleport(client, best.x, best.y, best.z);
