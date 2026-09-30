@@ -41,21 +41,26 @@ import java.util.Set;
  * {@link Throwable} from loading it turns the source off rather than breaking the feature. Minecraft ships
  * JNA (oshi needs it) so it is there in practice, but "in practice" is not something to crash a client on.
  */
-public final class SpotifyDesktopSource implements NowPlayingSource {
+public final class SpotifyDesktopSource {
 
     /** Titles Spotify shows when nothing is playing. Lower-cased before comparison. */
     private static final Set<String> IDLE_TITLES = Set.of(
-            "spotify", "spotify premium", "spotify free", "spotify - web player",
-            "advertisement", "spotify advertisement");
+            "spotify", "spotify premium", "spotify free", "spotify - web player");
+
+    /**
+     * Titles Spotify shows while an advert plays.
+     *
+     * <p>Separate from the idle titles on purpose: an advert is not "nothing playing". Treating it as idle
+     * left the last lyric line of the previous song sitting in chat for the length of the advert.
+     */
+    private static final Set<String> AD_TITLES = Set.of("advertisement", "spotify advertisement");
 
     private volatile String reason = "";
 
-    @Override
     public String displayName() {
         return "Spotify App";
     }
 
-    @Override
     public boolean available() {
         if (!Win.supported()) {
             reason = Win.why();
@@ -69,40 +74,43 @@ public final class SpotifyDesktopSource implements NowPlayingSource {
         return true;
     }
 
-    @Override
     public String unavailableReason() {
         return reason;
     }
 
-    @Override
+    /** @return what Spotify is doing, never null. Never throws; a failure reads as paused. */
     public NowPlaying fetch() {
         try {
             Set<Long> pids = spotifyPids();
             if (pids.isEmpty()) {
                 reason = "Spotify is not running on this PC";
-                return null;
+                return NowPlaying.paused();
             }
             String title = Win.titleOfProcess(pids);
             if (title == null || title.isBlank()) {
                 // Spotify running but no titled top-level window: minimised to tray on some builds.
-                return null;
+                return NowPlaying.paused();
             }
-            if (IDLE_TITLES.contains(title.toLowerCase(Locale.ROOT))) {
-                return null;   // paused, or an ad is playing - either way there are no lyrics to show
+            String lower = title.toLowerCase(Locale.ROOT);
+            if (AD_TITLES.contains(lower)) {
+                return NowPlaying.ad();
+            }
+            if (IDLE_TITLES.contains(lower)) {
+                return NowPlaying.paused();
             }
             // Spotify writes "Artist - Title". Split on the FIRST separator: a title is far more likely to
             // contain " - " than an artist name is, so splitting on the last one would cut songs in half.
             int dash = title.indexOf(" - ");
             if (dash <= 0 || dash + 3 >= title.length()) {
-                return new NowPlaying("", title.trim());
+                return NowPlaying.track("", title.trim());
             }
-            return new NowPlaying(title.substring(0, dash).trim(), title.substring(dash + 3).trim());
+            return NowPlaying.track(title.substring(0, dash).trim(), title.substring(dash + 3).trim());
         } catch (Throwable t) {
             // Throwable, not Exception: a missing or mismatched JNA is a LinkageError, and the feature going
             // quiet is a better outcome than a poll thread dying silently.
             SpotifyLyricsFeature.LOGGER.warn("Could not read the Spotify window: {}", String.valueOf(t));
             reason = "could not read the Spotify window";
-            return null;
+            return NowPlaying.paused();
         }
     }
 
@@ -225,7 +233,11 @@ public final class SpotifyDesktopSource implements NowPlayingSource {
             }, null);
             String fallback = null;
             for (String title : titles) {
-                if (IDLE_TITLES.contains(title.toLowerCase(java.util.Locale.ROOT))) {
+                String lower = title.toLowerCase(java.util.Locale.ROOT);
+                if (AD_TITLES.contains(lower)) {
+                    return title;   // an advert is a real state, not a window to skip past
+                }
+                if (IDLE_TITLES.contains(lower)) {
                     fallback = fallback == null ? title : fallback;
                     continue;
                 }

@@ -1,23 +1,47 @@
 package com.killer560.hub.spotify;
 
 /**
- * What is playing right now, from whichever source found it.
+ * What Spotify is doing right now.
  *
- * @param artist    the performer, or "" when the source cannot separate it from the title
- * @param title     the track title - never blank for a real result
- * @param positionMs how far into the track playback is, or null when the source cannot say. Only the Spotify
- *                   Web API can; the desktop window title carries no clock, so the lyric timer falls back to
- *                   "when the title changed, plus the offset slider" for that source.
- * @param playing   false when the source can tell playback is paused. A source that cannot tell says true.
+ * @param kind       a song, an advert, or nothing
+ * @param artist     the performer, or "" when the source cannot separate it from the title
+ * @param title      the track title - blank unless {@code kind} is {@link Kind#TRACK}
+ * @param positionMs how far into the track playback is, or null when the source cannot say. The desktop
+ *                   window title carries no clock, so it is always null there and the lyric timer runs its
+ *                   own stopwatch from the moment the track changed. A Spotify login is what would fill it in.
  */
-public record NowPlaying(String artist, String title, Long positionMs, boolean playing) {
+public record NowPlaying(Kind kind, String artist, String title, Long positionMs) {
 
-    public NowPlaying(String artist, String title) {
-        this(artist, title, null, true);
+    public enum Kind {
+        /** A real song, with an artist and a title. */
+        TRACK,
+        /**
+         * An advert.
+         *
+         * <p>killer560 (2026-09-30): "if it is playing an ad then it says I'm listening to an ad now for the
+         * song title portion." Spotify Free puts "Advertisement" in the window title, which used to read as
+         * "nothing playing" - so the lyric line just froze on the last line of the previous song for thirty
+         * seconds and then a new song appeared out of nowhere.
+         */
+        AD,
+        /** Paused, closed, or between tracks. The lyric clock stops rather than running on. */
+        PAUSED,
+    }
+
+    public static NowPlaying track(String artist, String title) {
+        return new NowPlaying(Kind.TRACK, artist, title, null);
+    }
+
+    public static NowPlaying ad() {
+        return new NowPlaying(Kind.AD, "", "", null);
+    }
+
+    public static NowPlaying paused() {
+        return new NowPlaying(Kind.PAUSED, "", "", null);
     }
 
     /** The key a track change is detected on. Artist and title together, because titles repeat. */
     public String key() {
-        return artist + "|||" + title;
+        return kind + "|||" + artist + "|||" + title;
     }
 }

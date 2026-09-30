@@ -20,10 +20,9 @@ import java.util.regex.Pattern;
 /**
  * Turns "what is playing" into "which lyric line is now", in-process.
  *
- * <p>It no longer knows WHERE the now-playing came from: it is handed a {@link NowPlayingSource} and asks it.
- * That split is what let the Last.fm account, API key and website steps become optional on 2026-09-30 - the
- * Spotify desktop app can answer the same question with nothing set up at all. Only the lyrics themselves
- * still come off the network, from lrclib.net, and those need no key.
+ * <p>Now-playing comes from {@link SpotifyDesktopSource} and nothing else. Last.fm, the API key, the username
+ * and the website steps behind them are gone (killer560, 2026-09-30: "it should only ever be able to read
+ * spotify"). Only the lyrics themselves still come off the network, from lrclib.net, and those need no key.
  *
  * <p>This is also what used to be a separate Node.js companion server (server.js) that had to be started
  * outside Minecraft; everything it did happens here instead.
@@ -40,54 +39,93 @@ public final class LyricsEngine {
     private String currentLyric = "";
     private boolean currentIsTransition = false;
     private String lastTrackKey = null;
+    private String lastTrackTitle = null;
     private List<LyricLine> syncedLyrics = List.of();
-    private Long trackDetectTimeMs = null;
     private long transitionMessageUntilMs = 0;
+
+    /**
+     * The lyric clock, which stops when Spotify does.
+     *
+     * <p>killer560 (2026-09-30): "is it possible to make it so you no longer need the delay since it reads
+     * automatically for when the lyrics come out." Yes, and the offset slider is gone. It only ever existed to
+     * compensate for Last.fm taking about five seconds to report a track change; the window title flips within
+     * a frame of the track actually changing, so the right offset is zero.
+     *
+     * <p>What still has to be handled is PAUSING, and that is what these two fields do: {@code playingSinceMs}
+     * is when playback last resumed and {@code playedMs} is everything before that. A paused Spotify shows
+     * "Spotify Premium" in its title, so the pause is visible and the clock can stop instead of running on -
+     * without which a two-minute pause would leave every later line two minutes early for the rest of the song.
+     *
+     * <p>The one case this cannot get right is SEEKING, or starting the mod part-way through a track: a window
+     * title carries no playback position, so the stopwatch begins when the title was first seen. A Spotify
+     * login would supply a real position and fix it; nothing short of that can.
+     */
+    private Long playingSinceMs = null;
+    private long playedMs = 0;
 
     public record LyricLine(double timeSeconds, String text) {
     }
 
-    /** Call roughly every 2 seconds. Never throws - a failed poll just keeps showing the last known lyric.
-     *  {@code fullLyricsMode} controls only the WORDING of the track-change announcement: "And that was
-     *  ___" reads fine when the listener has actually been seeing lyric lines, but makes no sense in
-     *  Song-Title-Only mode where they never saw any - that mode gets "I just finished listening to ___,
-     *  now I'm listening to ___" instead. Which one fired is exposed via {@link #isCurrentLyricTransition()}
-     *  so the caller can detect a track-change message without depending on its exact wording. */
-    public synchronized void poll(NowPlayingSource source, int timingOffsetMs, boolean fullLyricsMode) {
+    /**
+     * Call roughly every 2 seconds. Never throws - a failed poll just keeps showing the last known lyric.
+     *
+     * <p>{@code fullLyricsMode} controls only the WORDING of the track-change announcement: "And that was
+     * ___" reads fine when the listener has actually been seeing lyric lines, but makes no sense in
+     * Song-Title-Only mode where they never saw any - that mode gets "I just finished listening to ___, now
+     * I'm listening to ___" instead. Which one fired is exposed via {@link #isCurrentLyricTransition()} so the
+     * caller can detect a track-change message without depending on its exact wording.
+     */
+    public synchronized void poll(SpotifyDesktopSource source, boolean fullLyricsMode) {
         if (source == null) {
             return;
         }
         try {
             NowPlaying nowPlaying = source.fetch();
+            long now = System.currentTimeMillis();
 
-            if (nowPlaying == null) {
+            if (nowPlaying.kind() == NowPlaying.Kind.PAUSED) {
+                // The clock stops; the track is REMEMBERED. Forgetting it would announce the same song again
+                // as a brand new track every time he paused and un-paused.
+                if (playingSinceMs != null) {
+                    playedMs += now - playingSinceMs;
+                    playingSinceMs = null;
+                }
                 currentLyric = "";
                 currentIsTransition = false;
-                lastTrackKey = null;
-                syncedLyrics = List.of();
-                trackDetectTimeMs = null;
                 return;
             }
 
-            String trackKey = nowPlaying.artist() + "|||" + nowPlaying.title();
+            String trackKey = nowPlaying.key();
+            boolean isAd = nowPlaying.kind() == NowPlaying.Kind.AD;
+            String title = isAd ? AD_TITLE : nowPlaying.title();
 
             if (!trackKey.equals(lastTrackKey)) {
                 if (lastTrackKey != null) {
-                    String lastTitle = lastTrackKey.substring(lastTrackKey.indexOf("|||") + 3);
                     currentLyric = fullLyricsMode
-                            ? "And that was " + lastTitle + ", now playing " + nowPlaying.title()
-                            : "I just finished listening to " + lastTitle + ", now I'm listening to " + nowPlaying.title();
+                            ? "And that was " + lastTrackTitle + ", now playing " + title
+                            : "I just finished listening to " + lastTrackTitle
+                              + ", now I'm listening to " + title;
                     currentIsTransition = true;
-                    transitionMessageUntilMs = System.currentTimeMillis() + 5000;
+                    transitionMessageUntilMs = now + 5000;
+                } else if (isAd) {
+                    // First thing heard this session is an advert: say so rather than sitting silent.
+                    currentLyric = "Now I'm listening to " + AD_TITLE;
+                    currentIsTransition = true;
+                    transitionMessageUntilMs = now + 5000;
                 }
                 lastTrackKey = trackKey;
-                trackDetectTimeMs = System.currentTimeMillis();
-                syncedLyrics = fetchLyrics(nowPlaying.artist(), nowPlaying.title());
+                lastTrackTitle = title;
+                playedMs = 0;
+                playingSinceMs = now;
+                // No lyrics to look up for an advert, and no point asking lrclib for one.
+                syncedLyrics = isAd ? List.of() : fetchLyrics(nowPlaying.artist(), nowPlaying.title());
                 SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}' -> {} synced lines found",
-                        nowPlaying.artist(), nowPlaying.title(), syncedLyrics.size());
+                        nowPlaying.artist(), title, syncedLyrics.size());
+            } else if (playingSinceMs == null) {
+                playingSinceMs = now;   // resumed after a pause, same track
             }
 
-            if (transitionMessageUntilMs != 0 && System.currentTimeMillis() >= transitionMessageUntilMs) {
+            if (transitionMessageUntilMs != 0 && now >= transitionMessageUntilMs) {
                 transitionMessageUntilMs = 0;
                 currentLyric = "";
                 currentIsTransition = false;
@@ -95,27 +133,32 @@ public final class LyricsEngine {
 
             // Skipped while a transition message is still actively showing (transitionMessageUntilMs != 0)
             // - otherwise this would overwrite it with the new track's first lyric line on the very same
-            // poll call it was just set, since trackDetectTimeMs/syncedLyrics are already populated above
-            // by then. That silently ate the transition message on every track change into a song that
-            // had synced lyrics - especially bad for Song-Title-Only mode, where the transition message is
-            // the ONLY thing that mode ever sends.
-            if (transitionMessageUntilMs == 0 && trackDetectTimeMs != null && !syncedLyrics.isEmpty()) {
-                // A source that knows the real playback position is believed over the stopwatch.
-                //
-                // Counting from "when we first saw this track" only works if we saw it at second zero, and it
-                // drifts the moment the user seeks, pauses or joins a song part-way through - which is what the
-                // offset slider was papering over. Nothing supplies a position yet (a window title has no
-                // clock), so this is the branch a Spotify login would light up; until then it falls through to
-                // the stopwatch exactly as before.
+            // poll call it was just set, since the clock and syncedLyrics are already populated above by
+            // then. That silently ate the transition message on every track change into a song that had
+            // synced lyrics - especially bad for Song-Title-Only mode, where the transition message is the
+            // ONLY thing that mode ever sends.
+            if (transitionMessageUntilMs == 0 && !syncedLyrics.isEmpty()) {
+                // A source that knows the real playback position is believed over the stopwatch. Nothing
+                // supplies one yet - a window title has no clock - so this is the branch a Spotify login
+                // would light up.
                 double elapsed = nowPlaying.positionMs() != null
                         ? nowPlaying.positionMs() / 1000.0
-                        : (System.currentTimeMillis() - trackDetectTimeMs) / 1000.0 + timingOffsetMs / 1000.0;
+                        : elapsedSeconds(now);
                 currentLyric = currentLyricAt(elapsed);
                 currentIsTransition = false;
             }
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Poll failed: {}", String.valueOf(e), e);
         }
+    }
+
+    /** What the title portion says while an advert plays. */
+    private static final String AD_TITLE = "an ad";
+
+    /** Playing time on this track, with any paused stretches excluded. */
+    private double elapsedSeconds(long now) {
+        long total = playedMs + (playingSinceMs == null ? 0 : now - playingSinceMs);
+        return total / 1000.0;
     }
 
     public synchronized String getCurrentLyric() {
