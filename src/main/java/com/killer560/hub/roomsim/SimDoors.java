@@ -225,9 +225,18 @@ public final class SimDoors {
         return SimAltitude.toWorld(69);
     }
 
-    /** The band a doorway's floor can be in, in CAPTURE coordinates. See {@link #findFloor}. */
-    private static final int DOORWAY_SEARCH_TOP = 90;
-    private static final int DOORWAY_SEARCH_BOTTOM = 55;
+    /**
+     * The band a doorway's floor can be in, in CAPTURE coordinates. See {@link #findFloor}.
+     *
+     * <p>Tight on purpose, and both ends were found by being wrong. Searching UP from the bottom of the world
+     * found basements. Searching DOWN from y90 found a room's internal upper floor instead of its ground
+     * floor, which is still a surface with air above it - scenario 81 went from two doorways impassable to
+     * two different ones, both blocked by plain stone brick with the player having moved a fifth of a block.
+     * A Catacombs doorway is on the dungeon floor at y68-70, and a player standing there occupies y69-70, so
+     * y75 is above the opening and below any mezzanine, and y58 is below the floor and above any basement.
+     */
+    private static final int DOORWAY_SEARCH_TOP = 75;
+    private static final int DOORWAY_SEARCH_BOTTOM = 58;
 
     /**
      * Registers a wither door centred on {@code centre}. See {@link #DOOR_WIDTH}/{@link #DOOR_HEIGHT} for
