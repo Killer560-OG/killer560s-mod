@@ -341,30 +341,33 @@ so the old rule looked a hundred blocks above the marker - Redstone Warrior), an
 back to SCORING the rotations and taking a clear winner instead of requiring every secret to land, which
 settles Catwalk, Pedestal and Slime.
 
-## A doorway's floor is found DOWNWARD, in a band
+## Where a doorway's floor is, and three wrong answers about it
 
-`SimDoors.findFloor` scanned upward from the bottom of the world and took the first solid block with two air
-above it - the LOWEST surface in the column. For any room with a basement that is the basement floor, so the
-carve opened a doorway down there and left the real one solid. It only ever worked because captures used to
-start at y60, which put the lowest surface at the walking floor by luck; once rooms were captured at full
-height, with content down to y15, scenario 81 found two of eight doorways impassable on one floor, blocked at
-head height with a useless opening below them. Every Catacombs doorway is on the dungeon floor around y68-70
-with roofs at y99-107, so the search now runs DOWN from capture y90 to y55 and takes the highest surface in
-that band.
+`SimDoors.findFloor` decides where the 3x4x7 carve starts, and it was wrong three times on 2026-09-30, each
+time in a way that produced a doorway nobody could walk through. Kept as one entry because they are one
+story - the band is narrow for reasons, and widening either end reintroduces a specific failure.
 
-## The doorway carve was landing five blocks above the floor
+1. **Upward from the bottom of the world.** That finds the LOWEST surface in the column, which for any room
+   with a basement is the basement floor - so the carve opened a doorway down there and left the real one
+   solid. It only ever worked because captures used to stop at y60, which put the lowest surface at the
+   walking floor by luck; once rooms were captured at full height with content down to y15, scenario 81
+   found two of eight doorways impassable on one floor.
+2. **Downward from y90.** Better, but a room's internal upper floor is also a surface with air above it, so
+   the carve opened a doorway on the mezzanine. Two impassable doorways became two DIFFERENT ones.
+3. **Downward from y75.** y75 is above a doorway's four-block opening rather than inside it, and the seam
+   above a door is usually open to the roof - so the first surface met coming down was the top of the door's
+   own LINTEL, and the carve cut a perfect opening five blocks over the walking floor. Measured by printing
+   the carve volume layer by layer, which scenario 81 now does for every doorway it cannot walk:
+   `-1=0 0=13 1=13 2=14 3=14 4=5 5=21 6=21 7=21 8=21` - the 21s are the carve, five layers up.
 
-`SimDoors.findFloor` searched DOWN from capture y75, and y75 is above a doorway's four-block opening rather
-than inside it. The seam above a door is usually open, often all the way to the roof, so the first surface
-the scan met coming down was the top of the door's own LINTEL - and the carve then cut a perfect 3x4x7
-opening five blocks over the walking floor while the floor itself stayed solid. Measured 2026-09-30 by
-printing the carve volume layer by layer (scenario 81 now does this for every doorway it cannot walk):
-`-1=0 0=13 1=13 2=14 3=14 4=5 5=21 6=21 7=21 8=21` - the 21s are the carve, five layers up.
+`DOORWAY_SEARCH_TOP` is **72**, the top block OF an opening whose floor is y69, so the scan starts inside the
+opening and walks down to its floor; the bottom is 58, below the floor and above any basement. That covers
+every Catacombs doorway, which all sit on the dungeon floor around y68-70. A chest in a room's perimeter at
+doorway height is stepped past rather than treated as the floor - Pedestal has one at y70 on its z=0 edge -
+because returning y71 left the chest sitting in the opening.
 
-`DOORWAY_SEARCH_TOP` is now 72, the top block OF an opening whose floor is y69, so the scan starts inside
-the opening and walks down to its floor. It still covers floors y67..y72, which is every Catacombs doorway.
-Over three runs of scenario 81 afterwards the five-blocks-up pattern is gone; impassable doorways went from
-2, 1, 1 of 8 to 1, 1, 0 of 8, and what is left is the cluster below.
+Over three runs of scenario 81 after the third fix the five-blocks-up pattern is gone and impassable doorways
+went from 2, 1, 1 of 8 to 1, 1, 0 of 8. What is left is the cluster below.
 
 ## The single-room load never published its own map, and the build timer lied about it
 
