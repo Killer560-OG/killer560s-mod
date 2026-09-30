@@ -19,10 +19,10 @@ import java.util.Locale;
  * <p>
  * <b>What is real on this map</b>, and what is NOT:
  * <ul>
- *   <li>The Crystal Nucleus is drawn at its real, fixed world coordinate - {@code (495.5, 106, 556.5)},
- *   confirmed from the public Hypixel Skyblock wiki (hypixelskyblock.minecraft.wiki/wiki/Crystal_Hollows,
- *   which also gives the cave's overall bounding size as 621x157x621). Every other position on this map is
- *   plotted relative to that one real, fixed point.</li>
+ *   <li>The Crystal Nucleus is drawn at its real, fixed world coordinate - {@code (512, 106, 512)}, the
+ *   centre of the cave, whose bounds are x/z 202..823 (621x157x621, matching the wiki). Every other position
+ *   on this map is plotted relative to that one real, fixed point. It was {@code (495.5, 106, 556.5)} until
+ *   2026-09-30, which is Emissary Sisko's position rather than the Nucleus - see the constants below.</li>
  *   <li>The player marker is your REAL live position (world x/z minus the Nucleus's), updated every frame.</li>
  *   <li>Waypoints are exactly what you added, at the real coordinates you were standing at.</li>
  *   <li>The current zone name (top-left) is read live from the sidebar via
@@ -47,10 +47,26 @@ import java.util.Locale;
  */
 public class CrystalHollowsMapScreen extends Screen {
 
-    /** Crystal Nucleus's real, fixed world coordinate - see the class doc for the source. */
-    public static final double NUCLEUS_X = 495.5;
+    /**
+     * The Crystal Nucleus's real, fixed world coordinate.
+     *
+     * <p>Was {@code 495.5, 106, 556.5}, which the class doc cited as the Nucleus and which is in fact
+     * <b>Emissary Sisko's</b> position - about 47 blocks away from it. Found on 2026-09-30 while checking
+     * the Crystal Hollows facts against hypixelskyblock.minecraft.wiki.
+     *
+     * <p>Corroborated rather than swapped on one source's say-so: the cave's own bounds are x/z 202..823
+     * (Skyblocker and QUOI both hardcode that pair, and it reproduces the wiki's stated 621x157x621 exactly),
+     * whose midpoint is 512.5. The Nucleus sits at the centre of the Crystal Hollows, so 512 is where it has
+     * to be and 495.5 cannot have been.
+     *
+     * <p>Safe to change. This constant is only the map's centring reference - {@code screenX} plots
+     * {@code (worldX - NUCLEUS_X)} - and every waypoint is stored in absolute world coordinates. So moving
+     * it moves the VIEW, not the data: saved waypoints keep their real positions and their positions
+     * relative to the player, and the Nucleus marker stops being drawn 47 blocks from the Nucleus.
+     */
+    public static final double NUCLEUS_X = 512.0;
     public static final double NUCLEUS_Y = 106.0;
-    public static final double NUCLEUS_Z = 556.5;
+    public static final double NUCLEUS_Z = 512.0;
 
     private static final int ORANGE = 0xFFCC6600;
     private static final int LIGHT_ORANGE = 0xFFFFA040;
