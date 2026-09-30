@@ -31,9 +31,12 @@ public final class SpotifyLyricsFeature {
     public static final Logger LOGGER = ModLog.get("killer560smod-spotify");
 
     // Persistent settings
-    public static volatile boolean enabled = true;
+    // Off by default, and "Song Title Only" by default (killer560, 2026-09-30). This is one of the few
+    // settings that does NOT follow the usual "defaults ON" rule; he asked for it off. The same two defaults
+    // are repeated in loadConfig() as the fallback for a missing key, so keep all three in agreement.
+    public static volatile boolean enabled = false;
     public static volatile ChatDestination chatDestination = ChatDestination.PARTY;
-    public static volatile boolean fullLyrics = true;
+    public static volatile boolean fullLyrics = false;
     public static volatile ProfanityLevel profanityLevel = ProfanityLevel.ALL;
     // No source setting and no Last.fm credentials.
     //
@@ -91,9 +94,9 @@ public final class SpotifyLyricsFeature {
                 // Per-key reads (2026-09-15 persistence audit): every key used to share one try/catch, so a
                 // single malformed value skipped every later key - and the next saveConfig() then wrote
                 // blank Last.fm credentials back to disk. Now only the bad key falls back to its default.
-                enabled = ConfigJson.getBool(obj, "enabled", true);
+                enabled = ConfigJson.getBool(obj, "enabled", false);
                 chatDestination = ConfigJson.getEnum(obj, "chatDestination", ChatDestination.class, ChatDestination.PARTY);
-                fullLyrics = ConfigJson.getBool(obj, "fullLyrics", true);
+                fullLyrics = ConfigJson.getBool(obj, "fullLyrics", false);
                 profanityLevel = ConfigJson.getEnum(obj, "profanityLevel", ProfanityLevel.class, ProfanityLevel.ALL);
             }
         } catch (Exception e) {
@@ -182,9 +185,9 @@ public final class SpotifyLyricsFeature {
         sendToChat(applyProfanityFilter(lyric), inSim);
     }
 
-    /** One line for the settings tab: whether Spotify is being read, or why it is not. */
-    public static String sourceStatus() {
-        return DESKTOP.available() ? "Reading Spotify" : DESKTOP.unavailableReason();
+    /** Why Spotify cannot be read right now, or an empty string when it can (nothing to show then). */
+    public static String sourceProblem() {
+        return DESKTOP.available() ? "" : DESKTOP.unavailableReason();
     }
 
     private static void sendToChat(String message, boolean localOnly) {
