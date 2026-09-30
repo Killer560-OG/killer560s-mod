@@ -213,10 +213,21 @@ public final class SimClass {
             return;
         }
         java.util.UUID id = nearest.getUUID();
+        java.util.UUID shooter = player.getUUID();
         server.execute(() -> {
             ServerLevel level = server.overworld();
+            var sp = server.getPlayerList().getPlayer(shooter);
+            if (sp == null) {
+                return;
+            }
             if (level.getEntity(id) instanceof LivingEntity living && living.isAlive()) {
-                living.hurtServer(level, level.damageSources().magic(), BEAM_DAMAGE);
+                // playerAttack, NOT magic(). A sim mob has 1 HP, so SimMobs blocks every damage source with no
+                // entity behind it - otherwise a practice target suffocates on the ceiling before he reaches
+                // it. damageSources().magic() has neither an entity nor a direct entity, so it was classified
+                // as environmental and the beam was silently harmless: scenario 70 fired at a mob five blocks
+                // in front, with the client holding all four mobs, and nothing died. The sceptre and superboom
+                // already name the player here; these two call sites were left behind.
+                living.hurtServer(level, level.damageSources().playerAttack(sp), BEAM_DAMAGE);
             }
         });
     }

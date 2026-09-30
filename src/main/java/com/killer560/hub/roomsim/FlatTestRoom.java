@@ -56,6 +56,16 @@ public final class FlatTestRoom {
     /** Builds it (replacing any previous copy) and returns it. */
     public static RoomLibrary.Room build() {
         RoomLibrary.Room r = RoomLibrary.createTestRoom(NAME, SIZE, SIZE);
+        // NO MARGIN. This room is exactly one tile wide and draws its own walls INSIDE that tile, so it has
+        // no captured blocks outside it - unlike a real capture, which is TILE + 2 across because it shares a
+        // wall column with each neighbour.
+        //
+        // Room.margin defaults to WALL_MARGIN, and this room was written before that default existed and never
+        // updated. RoomPlacer anchors at `origin - TILE / 2 - margin`, so the whole room was pasted one block
+        // negative on both axes: its gold orientation marker at local (2, 2) landed where local (3, 3) should
+        // be, which is the chest. Scenario 70 read a chest where the marker belongs and called it a rotation
+        // fault - the rotation was right and the anchor was one block out.
+        r.margin = 0;
 
         // Floor and a five-high wall around the edge, so the room has real boundaries to path against.
         for (int x = 0; x < SIZE; x++) {

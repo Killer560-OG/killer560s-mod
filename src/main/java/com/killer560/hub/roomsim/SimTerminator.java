@@ -163,11 +163,23 @@ public final class SimTerminator {
             return;
         }
         List<UUID> copy = List.copyOf(ids);
+        UUID shooter = client.player == null ? null : client.player.getUUID();
+        if (shooter == null) {
+            return;
+        }
         server.execute(() -> {
             ServerLevel level = server.overworld();
+            var sp = server.getPlayerList().getPlayer(shooter);
+            if (sp == null) {
+                return;
+            }
+            // playerAttack, NOT magic() - see the same note in SimClass.fire. SimMobs treats a source with no
+            // entity behind it as environmental and makes every 1 HP sim mob invulnerable to it, so the
+            // terminator's shots landed and did nothing.
+            var source = level.damageSources().playerAttack(sp);
             for (UUID id : copy) {
                 if (level.getEntity(id) instanceof LivingEntity living && living.isAlive()) {
-                    living.hurtServer(level, level.damageSources().magic(), DAMAGE);
+                    living.hurtServer(level, source, DAMAGE);
                 }
             }
         });
