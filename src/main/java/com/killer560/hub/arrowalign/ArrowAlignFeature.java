@@ -325,6 +325,17 @@ public final class ArrowAlignFeature {
         if (frame == null || frame.isRemoved() || client.player == null || client.gameMode == null) {
             return false;
         }
+        AABB box = frame.getBoundingBox();
+        // The reach check belongs HERE, at the one place the interact packet leaves, not in each caller. Aura
+        // checked its own range and Trigger Bot did not - it was safe only because it reads client.hitResult,
+        // which is a coincidence of how it picks a target rather than a guarantee about what gets sent. This is
+        // the server's hard entity limit, not the user's aura range: a tighter aura range is a preference, this
+        // is the line that draws a Reach flag. It sits BEFORE the ActionGate claim so an out-of-range frame
+        // does not burn this tick's one interaction on a packet that is never sent.
+        double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), box) > reach * reach) {
+            return false;
+        }
         // Mod-wide one-interaction-per-tick gate (killer560, 2026-09-20: "make sure every type of aura has some
         // sort of coordination"). Trigger Bot and Aura are both allowed to run on the same tick above, so this is
         // also what stops THIS feature putting two interact packets in one tick. A denial must leave the caller's
@@ -332,7 +343,6 @@ public final class ArrowAlignFeature {
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ARROW_ALIGN)) {
             return false;
         }
-        AABB box = frame.getBoundingBox();
         // Centre of the east (+X, player-facing) face - where a real crosshair ray lands on the frame.
         Vec3 hit = new Vec3(box.maxX, (box.minY + box.maxY) / 2.0, (box.minZ + box.maxZ) / 2.0);
         syntheticClickInProgress = true;
@@ -426,8 +436,11 @@ public final class ArrowAlignFeature {
 
     private static boolean isAuraClickable(int index, Vec3 eye, double rangeSq) {
         ItemFrame frame = frames[index];
+        // To the frame's BOX, not its centre. A frame is about 0.75 wide and 1/16 deep, so the centre reads up
+        // to ~0.53 further and the effective aura range was nearer 2.5 than the 3.0 the config clamps to -
+        // frames the server would have accepted looked out of range.
         return frame != null && !frame.isRemoved() && clicksNeeded(index) > 0
-                && eye.distanceToSqr(frame.getBoundingBox().getCenter()) <= rangeSq;
+                && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, frame.getBoundingBox()) <= rangeSq;
     }
 
     // ------------------------------------------------------------------

@@ -910,7 +910,11 @@ public final class AutoCroesusFeature {
                     || !DungeonChestValuer.strip(entity.getCustomName().getString()).trim().equals("Croesus")) {
                 continue;
             }
-            double distance = client.player.distanceToSqr(entity);
+            // EYE to the stand's BOX, not origin to origin - the same fix AutoPuzzlesFeature's NPC path got.
+            // The constant above was tightened to MEASURED_MAX_ENTITY_REACH and the measure was left on
+            // distanceToSqr(Entity), which is feet to feet, against a limit the server applies eye to box.
+            double distance = com.killer560.hub.util.BlockHits.boxDistanceSq(
+                    client.player.getEyePosition(), entity.getBoundingBox());
             if (distance <= NPC_RANGE_SQ && distance < bestPlate) {
                 bestPlate = distance;
                 plate = entity;
@@ -939,8 +943,12 @@ public final class AutoCroesusFeature {
     }
 
     private static boolean inRange(Minecraft client, Entity entity) {
+        // Eye to box, matching the picker above - this is the gate on the interact/attack packets, so the two
+        // must not disagree about what "in range" means.
         return entity != null && entity.isAlive() && client.player != null
-                && entity.level() == client.level && client.player.distanceToSqr(entity) <= NPC_RANGE_SQ;
+                && entity.level() == client.level
+                && com.killer560.hub.util.BlockHits.boxDistanceSq(
+                        client.player.getEyePosition(), entity.getBoundingBox()) <= NPC_RANGE_SQ;
     }
 
     /** @return whether the "go back" actually happened. False means the {@link ActionGate} denied the click

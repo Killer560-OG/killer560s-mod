@@ -962,7 +962,10 @@ public final class RouteExecutor {
                     if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
                         continue;
                     }
-                    if (pos.distToCenterSqr(eye.x, eye.y, eye.z) > BREAKER_RANGE_SQ) {
+                    // To the BOX, not the centre. The constant above was tightened to the real 4.5 and this
+                    // measure was left on distToCenterSqr, which reads up to sqrt(0.75) further - so the gate
+                    // its own javadoc describes was still off by that much, refusing blocks well inside reach.
+                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
                         LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                         continue;
                     }

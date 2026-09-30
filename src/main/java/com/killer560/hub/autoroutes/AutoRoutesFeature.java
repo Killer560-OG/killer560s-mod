@@ -158,7 +158,11 @@ public final class AutoRoutesFeature {
         }
         BlockPos rel = RouteCoords.toRelativeBlock(frame, pos);
         Vec3 nodeReal = RouteCoords.toReal(frame, editBreakerNode.relativePos());
-        if (pos.distToCenterSqr(nodeReal.x, nodeReal.y + 1.6, nodeReal.z) > EDIT_MAX_DIST_SQ) {
+        // To the BOX, like RouteExecutor's own breaker gate. These two constants are meant to agree, so the
+        // measures have to as well: measuring the editor to the centre refused picks the executor would then
+        // have been perfectly happy to break.
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(
+                new Vec3(nodeReal.x, nodeReal.y + 1.6, nodeReal.z), pos) > EDIT_MAX_DIST_SQ) {
             chatBad("Block is too far from breaker #" + breakerIndex() + ".");
             return true;
         }
