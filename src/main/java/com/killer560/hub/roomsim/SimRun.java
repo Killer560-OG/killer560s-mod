@@ -34,6 +34,13 @@ public final class SimRun {
     private static int lastSecondAnnounced = -1;
     private static long startedAtMs;
     private static boolean running;
+    /**
+     * Whether the countdown has ever reached GO on this floor.
+     *
+     * <p>Separate from {@link #running} because anything asking "is this floor still locked down" wants a
+     * latch, not the live flag - {@link #begin} sets running back to false every time it re-arms.
+     */
+    private static boolean everStarted;
     private static BlockPos entranceDoor;
 
     private SimRun() {
@@ -84,6 +91,7 @@ public final class SimRun {
     public static void reset() {
         armed = false;
         running = false;
+        everStarted = false;
         ticksLeft = 0;
         lastSecondAnnounced = -1;
         entranceDoor = null;
@@ -91,6 +99,11 @@ public final class SimRun {
 
     public static boolean isRunning() {
         return running;
+    }
+
+    /** Whether a run has started on this floor - true from GO until the next map is built. */
+    public static boolean hasStarted() {
+        return everStarted;
     }
 
     /** Ticks left on the countdown, 0 once the door has opened. Also what the HUD reads. */
@@ -124,6 +137,7 @@ public final class SimRun {
         }
         if (!running) {
             running = true;
+            everStarted = true;
             startedAtMs = System.currentTimeMillis();
             // The gate, not just the one door that was registered. killer560 (2026-09-29): "Once the start
             // finishes it needs to remove the blocks for the gate. Those infested chizzledd blocks."

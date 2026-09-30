@@ -121,6 +121,9 @@ public final class SimItems {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}, alongside {@code SimAbilities.register()}. */
     public static void register() {
+        // START, not END: the house rule for anything on the interaction path.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(
+                SimItems::clientTick);
         // The Dungeon Breaker is a LEFT-click mining tool on Hypixel, so UseItemCallback - which is the
         // right-click path everything else here goes through - never fires for it. AttackBlockCallback is the
         // left-click equivalent and needs no mixin, which matters: a mixin on the break path is a thing that
@@ -133,7 +136,26 @@ public final class SimItems {
                     }
                     String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getItemInHand(hand));
                     if ("DUNGEONBREAKER".equals(id)) {
-                        dungeonBreak(client);
+                        // ONE charge per block per press, which is what the real item costs.
+                        //
+                        // This callback fires every TICK while the button is held, not once per click.
+                        // Cancelling the break means MultiPlayerGameMode never latches isDestroying, so its
+                        // continueDestroyBlock falls straight back into startDestroyBlock - and that is where
+                        // AttackBlockCallback lives. Twenty ticks of holding the button was twenty charges,
+                        // the whole bar in one second: killer560 (2026-09-30) "Dungeonbreaker still loses
+                        // charges before i do /start."
+                        //
+                        // Keyed on the BLOCK, not on a cooldown: sweeping the crosshair along a wall while
+                        // holding the button should break each block it crosses and pay for each one, the way
+                        // it does on Hypixel. Only re-breaking the same block without letting go is refused,
+                        // and lastBreakPos is cleared the moment the button comes up - see clientTick.
+                        BlockPos aimed = aimedBlock(client);
+                        if (aimed != null && aimed.equals(lastBreakPos)) {
+                            return net.minecraft.world.InteractionResult.SUCCESS;
+                        }
+                        if (dungeonBreak(client)) {
+                            lastBreakPos = aimed;
+                        }
                         return net.minecraft.world.InteractionResult.SUCCESS;
                     }
                     // killer560 (2026-09-29): "Superboom should be able to be activated on left click as
@@ -676,7 +698,11 @@ public final class SimItems {
         // If i only choose one room thought then the breaker should work." A generated floor is a clear he is
         // about to practise, and breaking its walls while locked in the entrance would let him cut the route
         // before the timer even starts. A single loaded room is a sandbox, so it stays free.
-        if (SimState.isGeneratedFloor() && !SimRun.isRunning()) {
+        // hasStarted, not isRunning: the lock means "this floor has not been started yet", and it must not
+        // come back once it has. isRunning goes false again whenever a run is stopped or re-armed, which put
+        // the breaker back in its locked state mid-session - killer560 (2026-09-30): "the breaker doesnt
+        // become a normal breaker again after /start finishes."
+        if (SimState.isGeneratedFloor() && !SimRun.hasStarted()) {
             fail(client, "the Dungeon Breaker is locked until the run starts");
             return false;
         }
@@ -719,6 +745,30 @@ public final class SimItems {
             return;
         }
         level.destroyBlock(pos, false, breaker, 512);
+    }
+
+    /**
+     * The block the attack button is currently being held against, or null.
+     *
+     * <p>Cleared as soon as the button is released, so a second press on the same block breaks it again. See
+     * the comment at the AttackBlockCallback registration for why this exists.
+     */
+    private static BlockPos lastBreakPos;
+
+    /** Clears {@link #lastBreakPos} when the attack button comes up. Registered in {@link #register}. */
+    private static void clientTick(Minecraft client) {
+        if (client.options == null || !client.options.keyAttack.isDown()) {
+            lastBreakPos = null;
+        }
+    }
+
+    /** What the player is aiming at, as a position, or null when it is not a block. */
+    private static BlockPos aimedBlock(Minecraft client) {
+        if (client.player == null || client.level == null) {
+            return null;
+        }
+        BlockHitResult hit = lookedAtBlock(client);
+        return hit == null ? null : hit.getBlockPos().immutable();
     }
 
     /** Raycast on the CLIENT's level - purely to find what the player is aiming at. Nothing here writes to

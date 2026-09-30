@@ -84,6 +84,44 @@ public final class RoomCaptureRotation {
 
     private static int derive(RoomLibrary.Room room) {
         List<Integer> candidates = fromRoofMarker(room);
+        // THE ROOF MARKER CAN BE OVERRULED, and has to be.
+        //
+        // It was trusted outright whenever it named exactly one corner, and for three rooms on killer560's
+        // 2026-09-30 floor it named the wrong one: Waterfall came out at 90, Skull and Purple Flags at 270.
+        // All three are long rooms, and a quarter turn on a long room swaps its long axis - so the database's
+        // secrets were rotated across the room's short side and fell out of it. Waterfall lost seven of its
+        // eight secrets that way, which is the whole room.
+        //
+        // The check is arithmetic and needs no blocks: at 0 and 180 the database's own coordinates must fit
+        // inside the capture as it stands, and at 90 and 270 inside the capture with its sides swapped. For a
+        // room four tiles long and one deep only one of those two is even possible, so a marker answer of the
+        // wrong parity is provably wrong whatever the block at that corner is - decoration, most likely.
+        // Square rooms admit all four, so nothing there changes.
+        List<Integer> fitting = new ArrayList<>(candidates.size());
+        for (int degrees : candidates) {
+            if (secretsFitTheCapture(room, degrees)) {
+                fitting.add(degrees);
+            }
+        }
+        if (fitting.isEmpty() && !candidates.isEmpty() && hasMeasurableSecrets(room)) {
+            // Every corner the marker named is impossible. Start again from all four and keep the possible
+            // ones - that is how Waterfall gets from "90, and every secret outside the room" to "0 or 180,
+            // and the secrets decide which".
+            for (int degrees : new int[]{0, 90, 180, 270}) {
+                if (secretsFitTheCapture(room, degrees)) {
+                    fitting.add(degrees);
+                }
+            }
+            if (!fitting.isEmpty() && OVERRULED.add(room.name)) {
+                LOGGER.warn("Capture rotation for \"{}\": the roof marker says {}, but the database's secrets "
+                        + "cannot fit the capture at that turn - it is a {}x{} room and a quarter turn would "
+                        + "lay its secrets across the short side. Ignoring the marker and choosing from {}.",
+                        room.name, candidates, tiles(room.sizeX), tiles(room.sizeZ), fitting);
+            }
+        }
+        if (!fitting.isEmpty()) {
+            candidates = fitting;
+        }
         if (candidates.size() > 1) {
             List<Integer> narrowed = narrowBySecrets(room, candidates);
             if (narrowed.size() == 1) {
@@ -317,5 +355,70 @@ public final class RoomCaptureRotation {
         }
         return hits;
     }
+
+    /** Rooms whose roof marker has been overruled, so that is said once and not once per build. */
+    private static final java.util.Set<String> OVERRULED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Tiles across, from a captured size - 33 is one tile, 65 two, 129 four. */
+    private static int tiles(int size) {
+        return (size - 1) / (RoomLibrary.TILE + 1);
+    }
+
+    /** Whether this room has database secrets whose spread can be measured at all. */
+    private static boolean hasMeasurableSecrets(RoomLibrary.Room room) {
+        return secretSpan(room) != null;
+    }
+
+    /**
+     * How far the database's secrets reach from the room's corner, as {@code {maxX, maxZ}}, or null.
+     *
+     * <p>Every secret list counts, not just chests: the question is how big the room is in the database's own
+     * frame, and a bat or an item marks that out as well as a chest does. Y is irrelevant here.
+     */
+    private static int[] secretSpan(RoomLibrary.Room room) {
+        RoomEntry entry = RoomDatabase.lookupByName(room.name);
+        if (entry == null || entry.secretCoords == null) {
+            return null;
+        }
+        int maxX = -1;
+        int maxZ = -1;
+        for (List<RoomEntry.Pos> list : List.of(
+                nullToEmpty(entry.secretCoords.chest), nullToEmpty(entry.secretCoords.bat),
+                nullToEmpty(entry.secretCoords.item), nullToEmpty(entry.secretCoords.wither),
+                nullToEmpty(entry.secretCoords.redstoneKey))) {
+            for (RoomEntry.Pos p : list) {
+                maxX = Math.max(maxX, p.x);
+                maxZ = Math.max(maxZ, p.z);
+            }
+        }
+        return maxX < 0 ? null : new int[]{maxX, maxZ};
+    }
+
+    private static List<RoomEntry.Pos> nullToEmpty(List<RoomEntry.Pos> list) {
+        return list == null ? List.of() : list;
+    }
+
+    /**
+     * Whether the database's secrets still land inside the capture once turned by {@code degrees}.
+     *
+     * <p>A bound, not a placement: it asks only whether the room is the right shape for them. That is enough
+     * to rule out a quarter turn on a long room, which is the failure this exists for, and it deliberately
+     * rules out nothing on a square one.
+     */
+    private static boolean secretsFitTheCapture(RoomLibrary.Room room, int degrees) {
+        int[] span = secretSpan(room);
+        if (span == null) {
+            return true;   // nothing to measure against is not a reason to reject a rotation
+        }
+        boolean quarter = degrees == 90 || degrees == 270;
+        int alongX = quarter ? span[1] : span[0];
+        int alongZ = quarter ? span[0] : span[1];
+        // The capture takes in one column of wall on each side, so its own size is the tile area plus the
+        // margins; a secret embedded in a wall is allowed for by the same tolerance SimSecrets uses.
+        return alongX < room.sizeX + OUTSIDE_TOLERANCE && alongZ < room.sizeZ + OUTSIDE_TOLERANCE;
+    }
+
+    /** The same tolerance {@code SimSecrets} places with - a few real secrets sit inside a room's wall. */
+    private static final int OUTSIDE_TOLERANCE = 2;
 
 }

@@ -141,7 +141,14 @@ public final class SimFloorGen {
     }
 
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
-        SimState.setGeneratedFloor(true);
+        // The "this is a whole floor" flag is NOT set here any more; SimBuilder.build sets it.
+        //
+        // Setting it here set it too early and in too few places. Too early because SimWorld.open below
+        // unloads whatever world is open first, and SimWorld.onWorldUnloaded calls SimState.leave(), which
+        // clears the flag - so from the second generation of a session onwards it was already false by the
+        // time the floor was built. Too few places because four other paths build a floor without coming
+        // through here at all: SimGenerator's two map-code entries, the map editor's Build, and
+        // SimRunHistory's rebuild. All five go through SimBuilder.build, so that is where it belongs.
         Planned planned = plan(floor, puzzles, roomsToBlood);
         if (planned == null) {
             return;   // plan() has already said why

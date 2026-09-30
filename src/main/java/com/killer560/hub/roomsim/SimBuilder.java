@@ -161,6 +161,11 @@ public final class SimBuilder {
             SimDoors.clear();
             SimBuilder.clearEntranceDoor();
             SimRoomIndex.clear();
+            // A whole floor, as opposed to the single room buildSingleRoom pastes. Set HERE because this is
+            // the one place all five floor-building paths meet, and because it has to survive SimState.leave()
+            // - opening the sim world unloads the previous one, and leave() clears this. Set before the open,
+            // the way SimFloorGen.generate used to, it was true only for the first floor of a session.
+            SimState.setGeneratedFloor(true);
             // Clay corner and rotation per NAME TABLE index, for the live map. Collected here because this is
             // the loop that knows both - SimRoomIndex records placements in flood-fill order, which is not
             // the order the name table is in, and the map indexes cells by name-table index.
