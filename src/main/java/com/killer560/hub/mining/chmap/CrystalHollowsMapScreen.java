@@ -157,6 +157,8 @@ public class CrystalHollowsMapScreen extends Screen {
         // Nucleus marker - the one real fixed reference point everything else is drawn relative to.
         drawMarker(graphics, screenX(NUCLEUS_X), screenY(NUCLEUS_Z), NUCLEUS_COLOR, "Nucleus", p);
 
+        drawDiscoveredStructures(graphics, p);
+
         for (CrystalHollowsWaypoint w : CrystalHollowsMapConfig.getInstance().getWaypoints()) {
             drawMarker(graphics, screenX(w.x), screenY(w.z), WAYPOINT_COLOR, w.name, p);
         }
@@ -186,6 +188,71 @@ public class CrystalHollowsMapScreen extends Screen {
 
         graphics.text(font, "Left-click: set target  |  Right-click: clear target  |  Scroll: zoom  |  Drag: pan",
                 p[0], p[3] + (targetX != null ? 26 : 14), DIM, false);
+    }
+
+    /**
+     * Draws the border and waypoint of every structure found in this lobby.
+     *
+     * <p>killer560 (2026-09-30): "if I find a area like the [Mines of Divan] then it should show the border
+     * for [it] on the map. I should have an option to show the waypoint for [it] as well."
+     *
+     * <p>The box drawn is the part he has ESTABLISHED is there, not a guess at the structure's real shape -
+     * see {@link ChFind} for why it grows rather than being fixed. A find that is still a single point has
+     * no border worth drawing, so it gets the waypoint alone until he has walked far enough inside for the
+     * box to mean something.
+     *
+     * <p>A structure found by the cheat scanner, or sent by someone else, is drawn with a DASHED border.
+     * That is not decoration: he asked for a legit map that only knows what he has walked into, so the map
+     * has to be able to tell him which of these he actually established himself.
+     */
+    private void drawDiscoveredStructures(GuiGraphicsExtractor graphics, int[] p) {
+        CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
+        if (!cfg.isShowBorders() && !cfg.isShowStructureWaypoints()) {
+            return;
+        }
+        for (ChFind f : ChDiscovery.all()) {
+            int x0 = screenX(f.minX);
+            int x1 = screenX(f.maxX);
+            int y0 = screenY(f.minZ);
+            int y1 = screenY(f.maxZ);
+            boolean firsthand = f.source == ChFind.Source.VISITED;
+            if (cfg.isShowBorders() && f.hasExtent()) {
+                clippedBorder(graphics, p, Math.min(x0, x1), Math.min(y0, y1),
+                        Math.max(x0, x1), Math.max(y0, y1), f.structure.colour, firsthand);
+            }
+            if (cfg.isShowStructureWaypoints()) {
+                drawMarker(graphics, screenX(f.centreX()), screenY(f.centreZ()),
+                        f.structure.colour, f.structure.displayName, p);
+            }
+        }
+    }
+
+    /**
+     * A rectangle outline clipped to the map panel, solid for a first-hand find and dashed otherwise.
+     *
+     * <p>Clipped rather than scissored because the map pans: a border whose structure is half off the edge
+     * should stop at the edge, not paint over the panel's own frame and the text around it.
+     */
+    private void clippedBorder(GuiGraphicsExtractor graphics, int[] p,
+                               int x0, int y0, int x1, int y1, int colour, boolean solid) {
+        for (int x = Math.max(x0, p[0]); x <= Math.min(x1, p[2] - 1); x++) {
+            if (solid || ((x - x0) / 3) % 2 == 0) {
+                plot(graphics, p, x, y0, colour);
+                plot(graphics, p, x, y1, colour);
+            }
+        }
+        for (int y = Math.max(y0, p[1]); y <= Math.min(y1, p[3] - 1); y++) {
+            if (solid || ((y - y0) / 3) % 2 == 0) {
+                plot(graphics, p, x0, y, colour);
+                plot(graphics, p, x1, y, colour);
+            }
+        }
+    }
+
+    private void plot(GuiGraphicsExtractor graphics, int[] p, int x, int y, int colour) {
+        if (x >= p[0] && x < p[2] && y >= p[1] && y < p[3]) {
+            graphics.fill(x, y, x + 1, y + 1, colour);
+        }
     }
 
     private void drawMarker(GuiGraphicsExtractor graphics, int x, int y, int color, String label, int[] p) {
