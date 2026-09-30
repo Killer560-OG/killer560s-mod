@@ -176,8 +176,17 @@ physics. Read the relevant one before touching either area.
   immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
   pressed" cannot tell a walk from the feature killing itself.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
-  could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
-  mismatch between setter clamp and field default.
+  could never be restored once the setter ran. Fixed 2026-09-27; the SLIDER driving it still mapped onto
+  1-20 and was fixed 2026-09-30. A clamp has two halves - the setter and whatever widget feeds it - and a
+  slider whose start position computes negative (`(0 - 1) / 19`) is the tell. Every other numeric setter in
+  the repo was swept on 2026-09-30 and has its field default inside its clamp.
+- **A fix applied to one of a set is the thing to go looking for.** The 2026-09-30 audit found four, all of
+  the same shape: the Wither Key line was anchored and the Blood Key line beside it left on `contains()`;
+  `Floor7Tracker` and `LeverAura` got the `[A-Za-z0-9_]{1,16}` name group and `Ap3Feature`'s copy of the same
+  line kept `(.{1,16})`; three reach CONSTANTS were tightened to 4.5/3.0 and the MEASURES under them left on
+  centre/feet (the javadoc describing the fault sat directly above the code still doing it); the cooldown
+  setter above. When fixing one instance, grep the sibling call sites and fix the set, and update the comment
+  that claims they match - two of these said "the same regex as X" after they had stopped being that.
 - `RouteExecutor.stop()` is already a real cancel - it drops the step machine, `releaseKeys()` zeroes the
   want-flags the input mixin reads, `RouteRotation.clear()` releases the camera, and every per-node buildup
   (breaker queue, boom snapshot, swap/await state) is rebuilt by `beginAction`. BOOM and BREAKER send their
