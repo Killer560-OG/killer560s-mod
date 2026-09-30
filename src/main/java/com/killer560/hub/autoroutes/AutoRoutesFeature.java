@@ -57,8 +57,13 @@ public final class AutoRoutesFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
     private static final String CHAT = "Auto Routes";
-    /** NoammAddons {@code ActionBarParser} / {@code LiveMapFeature.ACTION_BAR_SECRETS}. */
-    private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d+)/(\\d+) Secrets");
+    /** NoammAddons {@code ActionBarParser} / {@code LiveMapFeature.ACTION_BAR_SECRETS}.
+     *
+     *  <p>Bounded, like {@code SelfDerivation.ACTION_BAR_SECRETS} already is. Only the action bar reaches this
+     *  (the listener below drops everything with {@code overlay == false}), so nothing a player types gets here
+     *  and the onActionBar try/catch is the real safety net - but the house rule after the "SS 99999999999/5"
+     *  disconnect is that no quantifier feeding parseInt is left unbounded, whatever the source. */
+    private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d{1,3})/(\\d{1,3}) Secrets");
     /** QUOI DB editor: a block further than this (squared) from the breaker node is refused. */
     /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
     private static final double EDIT_MAX_DIST_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;

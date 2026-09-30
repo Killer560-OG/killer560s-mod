@@ -114,6 +114,13 @@ public final class WitherDoorsFeature {
     private static final java.util.regex.Pattern WITHER_KEY_PICKED_UP =
             java.util.regex.Pattern.compile("^A Wither Key was picked up!?$");
 
+    /** "<Name> has obtained Blood Key!" - the Blood half of the pair above, same shape for the same reason. */
+    private static final java.util.regex.Pattern KEY_OBTAINED_BLOOD =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Blood Key!?$");
+
+    private static final java.util.regex.Pattern BLOOD_KEY_PICKED_UP =
+            java.util.regex.Pattern.compile("^A Blood Key was picked up!?$");
+
     private static void onChat(String raw) {
         String msg = ChatFormatting.stripFormatting(raw);
         if (msg == null) {
@@ -130,7 +137,10 @@ public final class WitherDoorsFeature {
                 witherKeyHeld = true;
                 invalidateCache();
             }
-        } else if (msg.contains("has obtained Blood Key") || msg.contains("Blood Key was picked up")
+        // The Blood half was left on contains() when the Wither half above was anchored, so the fix only ever
+        // covered one of the two keys: a stranger typing "has obtained Blood Key" anywhere still turned his
+        // blood door green. Same shape, same reason.
+        } else if (KEY_OBTAINED_BLOOD.matcher(msg).matches() || BLOOD_KEY_PICKED_UP.matcher(msg).matches()
                 || msg.startsWith("RIGHT CLICK on the BLOOD DOOR")) {
             if (!bloodKeyHeld) {
                 bloodKeyHeld = true;

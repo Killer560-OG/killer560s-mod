@@ -54,9 +54,17 @@ public final class Ap3Feature {
     private static final Logger LOGGER = ModLog.get("killer560smod-ap3");
     private static final String CHAT = "AP3";
     /** Hypixel's own line, the same regex {@code Floor7Tracker.Stage} parses (kept private there), with the optional
-     *  trailing suffix so a line annotated by another mod (Odin's terminal splits) still matches. */
+     *  trailing suffix so a line annotated by another mod (Odin's terminal splits) still matches.
+     *
+     *  <p>The name group is {@code [A-Za-z0-9_]{1,16}}, not {@code .{1,16}}. An anchored {@code .{1,16}} is still
+     *  forgeable - {@code [VIP] Bob:} is ten characters, so a stranger typing "activated a terminal! (1/7)" in any
+     *  channel produces a line this matched, with the whole chat prefix sitting in group 1. Here the self-name test
+     *  below happened to reject it, but the two copies of this line that DO act on group 1 directly
+     *  ({@code Floor7Tracker.Stage}, {@code LeverAuraFeature}) were tightened to the character class on 2026-09-29
+     *  and this one was missed, which also made the "same regex" the comment above claims untrue. A Minecraft name
+     *  is exactly this character class, so no chat prefix can ever be one. */
     private static final Pattern TERM_COMPLETED =
-            Pattern.compile("^(.{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
+            Pattern.compile("^([A-Za-z0-9_]{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
     /** Hypixel's line when a P3 gate goes down - a boom node's authoritative success signal. */
     private static final String GATE_DESTROYED = "The gate has been destroyed!";
     /** {@code /ap3 delete} with no number: the nearest node has to be this close ... */
