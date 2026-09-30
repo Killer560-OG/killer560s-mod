@@ -475,3 +475,32 @@ That is invisible from inside the room, because the paste and its own contents a
 only when something reads a fixed local coordinate: scenario 70 found a chest where the gold orientation
 marker belongs and called it a rotation fault. `createTestRoom` does not set a margin, so any future synthetic
 room must set its own.
+
+## One offset for the whole map means every capture's floor must be at the same height
+
+`SimAltitude` shifts the whole floor by a single offset and deliberately never moves a room on its own, so
+two rooms whose captures disagree about where the floor is meet at a step. The doorway carve does not fix
+that: `carveDoorway` only removes the air space above a floor it searches for, and never lays one. The result
+is a doorway with nothing solid in it that the player still cannot cross, because he walks into a trench.
+
+Measured 2026-09-30 by scenario 81: between "Crypt" and "Mines", every column of the doorway at foot and head
+height was air, and the floor was missing for the three blocks on the approach side. He walked 3.2 blocks and
+fell in. Scenario 92 audits all 135 captures for this in about four seconds and 99 of them agree at y69.
+
+Note "Criss Cross" and "Criss-Cross" are both in the library at the same height - almost certainly one room
+captured twice under two spellings.
+
+## Measuring a captured room's floor is harder than it looks
+
+Three different methods each produced a confident list of rooms to rescan that was really a list of the
+probe's own mistakes, and all three are recorded in scenario 92's method comment so the fourth reader does
+not repeat them.
+
+Scanning DOWN from the top finds the roof: a room is captured up to y140, so its ceiling has open air above
+it and passes any "standable" test perfectly - that version reported forty rooms at exactly y100, which is
+roof height. Scanning UP from the bottom finds the bottom of the deepest shaft, which put Mines at y38 and
+Lava Ravine at y20. Taking the mode of every standable surface still lets the roof win, because a roof is a
+clean 31 by 31 slab while a floor is broken up by furniture.
+
+What works is requiring a ceiling somewhere above the surface before counting it. A floor has one; a roof, by
+definition, does not.
