@@ -172,6 +172,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.puzzles.SimBoulderPuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimTeleportMazePuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimIceFillPuzzle.register();
+        com.killer560.hub.roomsim.puzzles.SimIcePathPuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimPuzzles.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
         HypixelJoinWatcher.register();

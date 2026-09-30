@@ -40,6 +40,7 @@ public final class SimPuzzles {
         BUILDERS.put("boulder", SimBoulderPuzzle::build);
         BUILDERS.put("teleportmaze", SimTeleportMazePuzzle::build);
         BUILDERS.put("icefill", SimIceFillPuzzle::build);
+        BUILDERS.put("icepath", SimIcePathPuzzle::build);
         RESETS.put("blaze", SimBlazePuzzle::reset);
         RESETS.put("creeper", SimCreeperPuzzle::reset);
         RESETS.put("quiz", SimQuizPuzzle::reset);
@@ -48,6 +49,7 @@ public final class SimPuzzles {
         RESETS.put("boulder", SimBoulderPuzzle::reset);
         RESETS.put("teleportmaze", SimTeleportMazePuzzle::reset);
         RESETS.put("icefill", SimIceFillPuzzle::reset);
+        RESETS.put("icepath", SimIcePathPuzzle::reset);
         FORGETS.put("blaze", SimBlazePuzzle::forget);
         FORGETS.put("creeper", SimCreeperPuzzle::forget);
         FORGETS.put("quiz", SimQuizPuzzle::forget);
@@ -56,6 +58,7 @@ public final class SimPuzzles {
         FORGETS.put("boulder", SimBoulderPuzzle::forget);
         FORGETS.put("teleportmaze", SimTeleportMazePuzzle::forget);
         FORGETS.put("icefill", SimIceFillPuzzle::forget);
+        FORGETS.put("icepath", SimIcePathPuzzle::forget);
     }
 
     private SimPuzzles() {

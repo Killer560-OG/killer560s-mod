@@ -26,6 +26,7 @@ public final class McEntities {
     public static final EntityType<net.minecraft.world.entity.boss.enderdragon.EndCrystal> END_CRYSTAL = EntityType.END_CRYSTAL;
     public static final EntityType<net.minecraft.world.entity.item.FallingBlockEntity> FALLING_BLOCK = EntityType.FALLING_BLOCK;
     public static final EntityType<net.minecraft.world.entity.LightningBolt> LIGHTNING_BOLT = EntityType.LIGHTNING_BOLT;
+    public static final EntityType<net.minecraft.world.entity.monster.Silverfish> SILVERFISH = EntityType.SILVERFISH;
     public static final EntityType<net.minecraft.world.entity.monster.skeleton.Skeleton> SKELETON = EntityType.SKELETON;
     public static final EntityType<net.minecraft.world.entity.monster.zombie.Zombie> ZOMBIE = EntityType.ZOMBIE;
 

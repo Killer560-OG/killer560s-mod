@@ -376,8 +376,16 @@ public final class SimIceFillPuzzle {
      * is built over them, so a queued write lands inside the new floor. Just as bad the other way: a stale
      * tile index left in place makes a step on some unrelated block on the new floor count as a move in a
      * puzzle that is not on it.
+     *
+     * <p>{@link #placedBlocks} is dropped here for the same reason, which it was not before: it holds the
+     * absolute positions a STANDALONE arena wrote, and {@code armFloor} calls this for every puzzle a new floor
+     * does not hold - so keeping the list left a later {@code /simpuzzle reset} queueing air inside a freshly
+     * built floor. Every caller that still wants those blocks taken away calls {@link #clearPlaced} first,
+     * which queues the writes and empties the list itself. Same change in {@code SimIcePathPuzzle}, which is
+     * the only other puzzle that places its own arena.
      */
     public static void forget() {
+        placedBlocks = List.of();
         sections = List.of();
         exitTiles = List.of();
         TILE_SECTION.clear();

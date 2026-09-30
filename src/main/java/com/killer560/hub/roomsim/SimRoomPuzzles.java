@@ -6,6 +6,7 @@ import com.killer560.hub.roomsim.puzzles.SimBlazePuzzle;
 import com.killer560.hub.roomsim.puzzles.SimBoulderPuzzle;
 import com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle;
 import com.killer560.hub.roomsim.puzzles.SimIceFillPuzzle;
+import com.killer560.hub.roomsim.puzzles.SimIcePathPuzzle;
 import com.killer560.hub.roomsim.puzzles.SimQuizPuzzle;
 import com.killer560.hub.roomsim.puzzles.SimTeleportMazePuzzle;
 import com.killer560.hub.roomsim.puzzles.SimTicTacToePuzzle;
@@ -32,7 +33,7 @@ import java.util.function.Predicate;
  * <p>killer560 (2026-09-30): "none of the puzzles do anything. They are all rooms that exist but they have
  * none of the actual attributes of the puzzle."
  *
- * <p>He was right and the reason was structural. The eight classes in {@code roomsim/puzzles} were only ever
+ * <p>He was right and the reason was structural. The classes in {@code roomsim/puzzles} were only ever
  * reachable from {@code /simpuzzle <name>}, which builds a standalone arena four blocks in front of him, and
  * from {@code SimPuzzles.buildAt} which the gametests call. Nothing in the floor-building path -
  * {@code SimBuilder.build}, {@code SimFloorGen}, {@code SimBuildQueue} - ever built or armed one, so a
@@ -71,9 +72,12 @@ import java.util.function.Predicate;
  *   <li><b>Higher/Lower Blaze</b> - blazes are entities. Nothing about their placement is bundled anywhere in
  *       this repo, so the positions stay this mod's own invention; what changes is that they are now spawned
  *       in an air pocket found by scanning the real room instead of wherever he happened to be standing.</li>
- *   <li><b>Ice Path</b> is a {@code PUZZLE} room the generator can place and there is no
- *       {@code SimIcePathPuzzle} to arm. Its maze walls ARE readable at relative {@code (23-col, 67, 24-row)}
- *       the way {@code IcePathSolverFeature} reads them, so the data is there whenever that class is written.</li>
+ *   <li><b>Ice Path</b> - the whole puzzle is in the capture. At database rotation 180 all 289 board cells
+ *       have {@code packed_ice} under them, the border ring is 65 of 65 {@code polished_andesite}, and the
+ *       three cells that ring is missing are exactly {@code IcePathSolverFeature}'s exit columns, so the ring
+ *       is what identifies the room (33, 5 and 4 of 65 at the other three rotations). Arming it writes no
+ *       blocks at all: it reads the maze out of the room and spawns the one thing a block capture cannot
+ *       hold, the silverfish.</li>
  * </ul>
  *
  * <h2>Rotation</h2>
@@ -297,19 +301,10 @@ public final class SimRoomPuzzles {
                 // in for both. Kept together here rather than pretending there are two classes.
                 case "quiz", "three weirdos" -> "quiz";
                 case "higher blaze", "lower blaze" -> "blaze";
-                // A real PUZZLE room the generator can place, with no SimIcePathPuzzle to arm. Named here
-                // rather than left out of the count, so "2 of 3 armed" does not quietly become "2 of 2".
-                // Its maze walls ARE in the capture, at relative (23-col, 67, 24-row) - the same positions
-                // IcePathSolverFeature reads - so the data is there when that class is written.
                 case "ice path" -> "icepath";
                 default -> null;
             };
             if (puzzle == null) {
-                continue;
-            }
-            if ("icepath".equals(puzzle)) {
-                seen++;
-                LOGGER.warn("Sim puzzles: Ice Path has no sim puzzle class yet - not armed");
                 continue;
             }
             seen++;
@@ -407,7 +402,7 @@ public final class SimRoomPuzzles {
      * One bind, picked by puzzle name.
      *
      * <p>Split out of {@link #armFloor} only so every puzzle goes through the same guard there. A switch
-     * inside a try reads as though the try is about the switch; it is about the eight methods it calls.
+     * inside a try reads as though the try is about the switch; it is about the nine methods it calls.
      */
     private static boolean bind(ServerLevel level, String puzzle, Placement p, String key) {
         return switch (puzzle) {
@@ -417,6 +412,7 @@ public final class SimRoomPuzzles {
             case "creeper" -> SimCreeperPuzzle.bindAt(level, p);
             case "boulder" -> SimBoulderPuzzle.bindAt(level, p);
             case "icefill" -> SimIceFillPuzzle.bindAt(level, p);
+            case "icepath" -> SimIcePathPuzzle.bindAt(level, p);
             case "quiz" -> SimQuizPuzzle.bindAt(level, p);
             case "blaze" -> SimBlazePuzzle.bindAt(level, p, key.startsWith("higher"));
             default -> false;

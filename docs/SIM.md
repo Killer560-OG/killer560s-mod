@@ -665,3 +665,39 @@ without running the ability a second time.
 **A sim weapon that is hitscan is a sim weapon that fires nothing, as far as he can tell.** The Terminator
 has fired three arrows since it was written, invisibly, and read to him as firing none.
 
+## Ice Path: the whole puzzle was already in the capture
+
+`SimIcePathPuzzle` is the ninth sim puzzle and the only one that arms a captured room **without writing a
+single block**. Decoding `assets/killer560smod/rooms/Ice_Path.json` and mapping
+`IcePathSolverFeature`'s own coordinates into it settles every part of the layout, at database rotation 180:
+
+- the 17x17 board's 289 cells all have `packed_ice` under them at relative y 66, the y the solver draws its
+  path at, and the maze is 17 `polished_andesite` pillars at y 67, where the solver reads its walls;
+- the border ring around the board is 65 of 65 `polished_andesite`, and **the three cells the ring is missing
+  are exactly the solver's exit columns** - row -1, columns 7 to 9. The solver's goal is a real hole in a real
+  wall, not a convention;
+- the other three rotations put 33, 5 and 4 of those 65, so the ring is what identifies the room, and it
+  agrees with the `blue_terracotta` roof marker `RoomCaptureRotation` reads (high-x/high-z corner, i.e. 180).
+
+So arming it is a board read and one entity. **The silverfish is the only thing a block capture cannot hold**,
+and nothing in this repo bundles a spawn for it - `IcePathSolverFeature` finds the live one and has no table.
+The start cell is therefore chosen by rule: the open cell needing the most shoves to escape, of those that can
+escape at all, ties to the lowest row then column. That rule is worth the arithmetic because a fixed guess is
+worse than it looks - the obvious "middle of the entry side", cell (16, 8), **slides straight out in a single
+push** on this very capture. The rule picks cell (9, 0) and a 16-shove solution, and it can never pick a cell
+with no solution.
+
+**A punch must not be a hit.** The shove arrives on `AttackEntityCallback` returning `InteractionResult.FAIL`,
+which fires before any damage logic, so the silverfish is shoved and never hurt - otherwise eight HP of
+punching kills the puzzle. An arrow is picked up separately, by looking for an `AbstractArrow` against the fish
+while it is at rest, and the direction comes from the **arrow's yaw, not its flight**: Auto Ice Path shoots
+straight down from on top of the silverfish, so the flight direction says nothing and the yaw says everything.
+Untested in game - no shortbow has been fired at a sim silverfish yet.
+
+**`forget()` has to drop the placed-block list too.** `SimIcePathPuzzle` and `SimIceFillPuzzle` are the only
+two puzzles that place their own standalone arena, and both kept `placedBlocks` across `forget()`. Since
+`armFloor` calls `forget()` for every puzzle a new floor does NOT hold, that left a later `/simpuzzle reset`
+queueing air at a few hundred absolute positions now sitting inside a freshly built floor. Both drop it now;
+the callers that genuinely want those blocks removed call `clearPlaced()` first, which queues the writes and
+empties the list itself.
+
