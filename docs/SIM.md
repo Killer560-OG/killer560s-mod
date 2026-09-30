@@ -595,3 +595,22 @@ is 48.3/51.7 and perfectly ordinary. It stays removed for a different and real r
 a name the room database knows, `Criss Cross` is, so it was a stray capture under a name nothing can look
 up. Its stale line is gone from the bundled index too, which was warning on every boot.
 
+## Small ones from 2026-09-30
+
+**A filter that matches a room's NAME cannot find a room TYPE.** The Load a Room picker's Puzzles toggle
+filtered on `name.contains("puzzle")`, and no Catacombs puzzle room is called that - they are Boulder,
+Quiz, Ice Fill, Water Board. It asks `SimFloorGen.typeOf` now. The room database has 140 entries: NORMAL
+108, RARE 12, PUZZLE 11, CHAMPION 4, TRAP 2, BLOOD 1, ENTRANCE 1, FAIRY 1, all upper case. It also loads on
+a background thread and `typeOf` answers NORMAL until it is ready, so any screen filtering by type has to
+rebuild when it arrives or it shows the empty state for the first second and looks exactly like the bug.
+
+**The Dungeon Breaker is a LEFT-click tool.** It had a case on the right-click path as well, so
+right-clicking anything while holding it broke the block instead of opening it - and because
+`UseBlockCallback` was consuming every click whose item merely had a Skyblock id, the chest would not have
+opened even without that. Ask whether the id consumes a right-click before consuming it, and keep that
+question in a method: the callback is a COMMON event and the server side has to reach the same answer
+without running the ability a second time.
+
+**A sim weapon that is hitscan is a sim weapon that fires nothing, as far as he can tell.** The Terminator
+has fired three arrows since it was written, invisibly, and read to him as firing none.
+
