@@ -63,6 +63,7 @@ public final class SimState {
     }
 
     public static void leave() {
+        generatedFloor = false;
         active = false;
         mapCode = "";
         com.killer560.hub.secrets.DungeonState.setRoomSim(false);
@@ -71,6 +72,24 @@ public final class SimState {
     /** The map code this session was built from, for showing and for sharing. */
     /** The floor the current map was generated as, for the sidebar. Defaults to F7, the one he practises. */
     private static String floorLabel = "F7";
+
+    /**
+     * Whether what is loaded is a whole generated floor rather than a single room.
+     *
+     * <p>The two are different things to practise in and the Dungeon Breaker treats them differently -
+     * killer560 (2026-09-30): "before the countdown make it so breaker doesnt work on the generated map. If i
+     * only choose one room thought then the breaker should work." A single room is a sandbox; a floor is a
+     * clear, and letting him cut through its walls before the timer starts would defeat the point of it.
+     */
+    private static boolean generatedFloor;
+
+    public static boolean isGeneratedFloor() {
+        return generatedFloor;
+    }
+
+    public static void setGeneratedFloor(boolean value) {
+        generatedFloor = value;
+    }
 
     public static String floorLabel() {
         return floorLabel;

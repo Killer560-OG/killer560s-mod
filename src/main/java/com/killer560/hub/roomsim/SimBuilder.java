@@ -850,6 +850,7 @@ public final class SimBuilder {
      * than making him generate a whole map to reach it.
      */
     public static void buildSingleRoom(Minecraft client, String roomName) {
+        SimState.setGeneratedFloor(false);
         RoomLibrary.Room room = RoomLibrary.get(roomName);
         if (room == null) {
             ModChat.send("Sim", ModChat.text("No captured room called " + roomName));

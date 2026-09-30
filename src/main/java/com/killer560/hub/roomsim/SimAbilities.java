@@ -79,6 +79,19 @@ public final class SimAbilities {
     }
 
     public static void register() {
+        // START, not END: this repo's rule is that anything which can send an interaction ticks before the
+        // movement packet. The insertion's return is a teleport, so it belongs on the same side.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            if (abilityGraceTicks > 0) {
+                abilityGraceTicks--;
+            }
+            if (SimState.canAct(client) && client.player != null) {
+                tickInsertion(client);
+            } else {
+                insertion = null;
+                insertionTicks = 0;
+            }
+        });
         UseItemCallback.EVENT.register((player, level, hand) -> {
             Minecraft client = Minecraft.getInstance();
             if (!SimState.canAct(client) || player != client.player) {
@@ -89,6 +102,7 @@ public final class SimAbilities {
             if (id == null) {
                 return InteractionResult.PASS;
             }
+            markAbilityUsed();
             if (ETHERWARP_ITEMS.contains(id) && player.isShiftKeyDown()) {
                 return etherwarp(client) ? InteractionResult.SUCCESS : InteractionResult.PASS;
             }
@@ -108,6 +122,46 @@ public final class SimAbilities {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
+        });
+        // RIGHT-CLICKING A BLOCK is a different event, and that is why Superboom placed TNT.
+        //
+        // killer560 (2026-09-30): "For superboom if i right click it then it actually places the block and it
+        // shouldnt". UseItemCallback only fires for a right-click in AIR; aiming at a block goes through
+        // UseBlockCallback and falls straight into vanilla's place-block handling. Every sim item is a
+        // reskinned vanilla one, so Superboom is real TNT and gets really placed.
+        //
+        // Consuming the interaction here covers both halves: the ability runs, and vanilla never sees the
+        // click. It returns SUCCESS even when the ability declines, because a Superboom aimed at plain stone
+        // should do nothing at all - not place a block of TNT.
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            Minecraft client = Minecraft.getInstance();
+            if (!SimState.canAct(client) || player != client.player) {
+                return InteractionResult.PASS;
+            }
+            ItemStack held = player.getItemInHand(hand);
+            String id = CheatUtils.skyblockId(held);
+            if (id == null) {
+                return InteractionResult.PASS;
+            }
+            markAbilityUsed();
+            if (ETHERWARP_ITEMS.contains(id)) {
+                if (player.isShiftKeyDown()) {
+                    etherwarp(client);
+                } else {
+                    instantTransmission(client, held);
+                }
+                return InteractionResult.SUCCESS;
+            }
+            if (WITHER_BLADES.contains(id)) {
+                witherImpact(client);
+                return InteractionResult.SUCCESS;
+            }
+            if (TACTICAL_INSERTION.equals(id)) {
+                tacticalInsertion(client);
+                return InteractionResult.SUCCESS;
+            }
+            SimItems.tryUse(client, id);
+            return InteractionResult.SUCCESS;
         });
     }
 
@@ -313,17 +367,61 @@ public final class SimAbilities {
     private static final double STEP = 0.25;
 
     /** First use plants the marker, the next returns to it - the way it works on Hypixel. */
+    /** Ticks left before a planted insertion pulls him back, or 0 when none is planted. */
+    private static int insertionTicks;
+
+    /**
+     * Ticks left in which a left click is treated as the tail of a right-click ability rather than a beam.
+     *
+     * <p>Using an ability makes the client swing the arm, and that swing reads as an attack press - so
+     * teleporting with Hyperion also fired the mage beam. killer560 (2026-09-30): "Dont make hyperion left
+     * click when i teleport as well."
+     */
+    private static int abilityGraceTicks;
+
+    /** How long that grace lasts. Two ticks is enough to cover the swing without swallowing a real click. */
+    private static final int ABILITY_GRACE_TICKS = 2;
+
+    /** Whether an ability has just been used, so the beam should stay quiet. */
+    public static boolean usedAbilityRecently() {
+        return abilityGraceTicks > 0;
+    }
+
+    /** Called by every ability entry point, so one place decides what counts as "just used". */
+    private static void markAbilityUsed() {
+        abilityGraceTicks = ABILITY_GRACE_TICKS;
+    }
+
+    /**
+     * How long an insertion waits before returning you. killer560 (2026-09-30): "tactical insertion goes off
+     * after 3 seconds atuomatically not after you click it again."
+     */
+    private static final int INSERTION_DELAY_TICKS = 60;
+
     private static boolean tacticalInsertion(Minecraft client) {
-        if (insertion == null) {
-            insertion = client.player.position();
-            ModChat.send("Sim", ModChat.text("Tactical Insertion planted"));
-            return true;
+        insertion = client.player.position();
+        insertionTicks = INSERTION_DELAY_TICKS;
+        ModChat.send("Sim", ModChat.text("Tactical Insertion planted"));
+        return true;
+    }
+
+    /**
+     * Counts a planted insertion down and pulls him back when it expires.
+     *
+     * <p>Ticked from {@link #register}'s client tick rather than scheduled, so leaving the sim or dying
+     * cannot strand a pending teleport - {@link #reset} clears it with everything else.
+     */
+    private static void tickInsertion(Minecraft client) {
+        if (insertionTicks <= 0 || insertion == null) {
+            return;
+        }
+        if (--insertionTicks > 0) {
+            return;
         }
         Vec3 back = insertion;
         insertion = null;
         teleport(client, back.x, back.y, back.z);
         ModChat.send("Sim", ModChat.text("Returned to your insertion"));
-        return true;
     }
 
     /**

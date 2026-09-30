@@ -84,7 +84,27 @@ public final class SimClass {
         boolean pressed = attacking && !wasAttacking;
         wasAttacking = attacking;
         redrawLingeringBeam(client);
+        SimTerminator.tick();
         if (!pressed || tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) {
+            return;
+        }
+        // THE TERMINATOR FIRES ON LEFT CLICK TOO, and the beam must not also go off.
+        //
+        // killer560 (2026-09-30): "it needs to function like a shortbow. So on left or right click it shoots
+        // 3 arrows". Holding the Terminator therefore takes the left click entirely - the mage beam is what
+        // you get with any OTHER item in hand.
+        var held = client.player == null ? null : client.player.getMainHandItem();
+        if (held != null && SimTerminator.ITEM_ID.equals(
+                com.killer560.hub.cheatutils.CheatUtils.skyblockId(held))) {
+            if (SimTerminator.readyToFire()) {
+                SimTerminator.use(client);
+            }
+            return;
+        }
+        // And not immediately after an ability. killer560 (2026-09-30): "Dont make hyperion left click when i
+        // teleport as well." A right-click ability makes the client swing, which reads here as a left click
+        // and fired the beam on every teleport.
+        if (SimAbilities.usedAbilityRecently()) {
             return;
         }
         lastBeamTick = tickCounter;

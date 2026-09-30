@@ -28,14 +28,28 @@ import java.util.Deque;
  */
 public final class SimBreakerState {
 
+    // killer560's own numbers, 2026-09-30: "it only uses 1 dungeonbreaker charge per block broken and it
+    // has a max of 20 charges and 2 come back each second" and "for sim make it so it breaks but instantly
+    // comes back". These were placeholders before, guessed and flagged as such.
+
     /** Charges held at once. */
-    private static final int MAX_CHARGES = 5;
+    private static final int MAX_CHARGES = 20;
 
-    /** Server ticks to regain one charge. */
-    private static final int RECHARGE_TICKS = 20 * 6;
+    /**
+     * Server ticks to regain one charge.
+     *
+     * <p>Two a second, so one every ten ticks.
+     */
+    private static final int RECHARGE_TICKS = 10;
 
-    /** Server ticks before a broken block comes back. */
-    private static final int RESTORE_TICKS = 20 * 10;
+    /**
+     * Server ticks before a broken block comes back.
+     *
+     * <p>One, not zero: the block has to actually leave before it returns, or the break never happens at all
+     * and the charge is spent on nothing. A single tick is "instantly" as far as anyone can see, and it keeps
+     * the restore going through the same queue as everything else.
+     */
+    private static final int RESTORE_TICKS = 1;
 
     private static int charges = MAX_CHARGES;
     private static int rechargeCounter;

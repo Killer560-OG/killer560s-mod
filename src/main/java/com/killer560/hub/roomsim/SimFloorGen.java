@@ -141,6 +141,7 @@ public final class SimFloorGen {
     }
 
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
+        SimState.setGeneratedFloor(true);
         Planned planned = plan(floor, puzzles, roomsToBlood);
         if (planned == null) {
             return;   // plan() has already said why

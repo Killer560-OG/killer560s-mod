@@ -95,7 +95,7 @@ public final class SimItems {
         //
         // So these two use a vanilla item that already looks like the thing. The Skyblock id in CUSTOM_DATA is
         // untouched, which is what everything else in the mod actually reads.
-        SPIRIT_SCEPTRE("BAT_WAND", Items.BLAZE_ROD, "Spirit Sceptre", 1),
+        SPIRIT_SCEPTRE("BAT_WAND", Items.ALLIUM, "Spirit Sceptre", 1),
         TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
         // Paper is right for this one - it IS a blueprint.
         ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
@@ -103,7 +103,7 @@ public final class SimItems {
         SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 8),
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
         // Moved off the blaze rod so it is not the same item in the hand as the Spirit Sceptre above.
-        TACTICAL_INSERTION("TACTICAL_INSERTION", Items.FEATHER, "Tactical Insertion", 1),
+        TACTICAL_INSERTION("TACTICAL_INSERTION", Items.BLAZE_ROD, "Tactical Insertion", 1),
         DUNGEON_BREAKER("DUNGEONBREAKER", Items.DIAMOND_PICKAXE, "Dungeon Breaker", 1);
 
         final String skyblockId;
@@ -172,21 +172,33 @@ public final class SimItems {
             // killer560 (2026-09-28): "make /simitem open a menu [...] All of it should be through a gui."
             // The named subcommands stay - they cost nothing and a keybind can still fire one - but the bare
             // command now opens the picker rather than printing a list of words to type back.
-            var root = ClientCommands.literal("simitem").executes(ctx -> {
-                Minecraft mc = Minecraft.getInstance();
-                if (!SimState.canAct(mc)) {
-                    ModChat.send("Sim", ModChat.text("Sim items only work inside the sim."));
-                    return 1;
+            // Registered twice, as /simitem and /item. killer560 (2026-09-30): "change the
+            // command for the items to be /simitem or /item." Both are gated on being in the
+            // sim, so /item cannot shadow a server command on Hypixel - the same reasoning that
+            // kept it off /item in the first place, now satisfied by requires() instead.
+            for (String name : new String[]{"simitem", "item"}) {
+                // /item is gated with requires(), so outside the sim the command does not exist at all: it
+                // does not tab-complete and Hypixel's own /item, if it ever has one, is untouched. That gate
+                // is what makes the short name safe - the old comment here refused /item outright for want of
+                // it.
+                var root = ClientCommands.literal(name)
+                        .requires(src -> SimState.canAct(Minecraft.getInstance()))
+                        .executes(ctx -> {
+                            Minecraft mc = Minecraft.getInstance();
+                            if (!SimState.canAct(mc)) {
+                                ModChat.send("Sim", ModChat.text("Sim items only work inside the sim."));
+                                return 1;
+                            }
+                            mc.execute(() -> mc.setScreenAndShow(new SimItemsScreen(McCompat.screen(mc))));
+                            return 1;
+                        });
+                for (GiveItem item : GiveItem.values()) {
+                    root = root.then(ClientCommands.literal(literalName(item))
+                            .executes(ctx -> give(item)));
                 }
-                mc.execute(() -> mc.setScreenAndShow(new SimItemsScreen(McCompat.screen(mc))));
-                return 1;
-            });
-            for (GiveItem item : GiveItem.values()) {
-                root = root.then(ClientCommands.literal(literalName(item))
-                        .executes(ctx -> give(item)));
+                root = root.then(ClientCommands.literal("all").executes(ctx -> giveAll()));
+                dispatcher.register(root);
             }
-            root = root.then(ClientCommands.literal("all").executes(ctx -> giveAll()));
-            dispatcher.register(root);
         });
     }
 
@@ -195,15 +207,15 @@ public final class SimItems {
     }
 
     private static int help() {
-        ModChat.send("Sim", ModChat.text("Usage: /simitem <"
+        ModChat.send("Sim", ModChat.text("Usage: /simitem or /item <"
                 + "aspect_of_the_void|hyperion|spirit_sceptre|superboom_tnt|ender_pearl|tactical_insertion|"
                 + "dungeon_breaker|all>"));
         return 1;
     }
 
     /**
-     * Gives one item. Named {@code /simitem <item>}, not {@code /item} - {@code /item} may collide with a
-     * real server command, and this must never be mistaken for one.
+     * Gives one item. Registered as both {@code /simitem <item>} and {@code /item <item>}; the short
+     * name is safe because both are gated on being inside the sim, so neither exists on a server.
      */
     private static int give(GiveItem item) {
         Minecraft client = Minecraft.getInstance();
@@ -374,7 +386,8 @@ public final class SimItems {
             // old one-line hit box here read as "the sceptre does nothing".
             case "BAT_WAND" -> SimSpiritSceptre.fire(client);
             // Terminator owns its own file: three arrows, and Salvation after three hits.
-            case "TERMINATOR" -> SimTerminator.use(client);
+            // The same fire rate as the left click - it is one weapon, not two.
+            case "TERMINATOR" -> SimTerminator.readyToFire() && SimTerminator.use(client);
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);
             case "SUPERBOOM_TNT" -> superboomTnt(client);
             case "DUNGEONBREAKER" -> dungeonBreak(client);
@@ -449,8 +462,12 @@ public final class SimItems {
                 return;
             }
             ServerLevel level = (ServerLevel) sp.level();
-            BlockPos min = center.offset(-SUPERBOOM_RADIUS, -SUPERBOOM_RADIUS, -SUPERBOOM_RADIUS);
-            BlockPos max = center.offset(SUPERBOOM_RADIUS, SUPERBOOM_RADIUS, SUPERBOOM_RADIUS);
+            // THE WHOLE WALL, not a 3x3 cube. killer560 (2026-09-30): "it shouldnt have this 3x3 range
+            // instead it should bloww up any cracked bricks". A crypt wall is bigger than three blocks in at
+            // least one direction, so a cube either left part of it standing or chewed into the room around
+            // it. This walks the connected run of fragile blocks outward from the one he is looking at, which
+            // is exactly the wall and nothing else.
+            java.util.List<BlockPos> targets = connectedFragile(level, center);
             // A crypt is a cracked-stone-brick wall, so a superboom that removes one is a crypt opened.
             // Counted ONCE per detonation rather than per block: a crypt wall is several blocks and counting
             // each of them would hand out the bonus five points from a single charge.
@@ -458,12 +475,8 @@ public final class SimItems {
             BlockPos cryptAt = null;
             BlockPos princeAt = null;
             int broken = 0;
-            for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-                BlockPos here = pos.immutable();
+            for (BlockPos here : targets) {
                 BlockState state = level.getBlockState(here);
-                if (!isFragile(state) && !SimPrince.isPrince(here)) {
-                    continue;
-                }
                 if ((state.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
                         || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
                         && sealsAChamber(level, here)) {
@@ -485,8 +498,9 @@ public final class SimItems {
                 broken++;
             }
             if (broken == 0) {
-                client.execute(() -> fail(client, "nothing fragile there - "
-                        + "Superboom only breaks crypt walls"));
+                final String looking = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                        .getKey(level.getBlockState(center).getBlock()).getPath();
+                client.execute(() -> fail(client, "nothing to blow up - you are looking at " + looking));
                 return;
             }
             if (openedCrypt) {
@@ -511,7 +525,8 @@ public final class SimItems {
                             com.killer560.hub.cheatutils.CheatUtils.skyblockId(st)))
                     .findFirst().ifPresent(st -> st.shrink(1));
         });
-        ModChat.send("Sim", ModChat.text("Superboom TNT detonated"));
+        // No chat line. killer560 (2026-09-30): "Also dont have ti send the chat message." On Hypixel a
+        // Superboom is silent; the explosion is the feedback.
         return true;
     }
 
@@ -636,6 +651,16 @@ public final class SimItems {
      *  see {@code DungeonBreakerFeature}), except here there is no real server ping to hide because the
      *  sim's server IS the client's own integrated server. */
     private static boolean dungeonBreak(Minecraft client) {
+        // NOT on a generated floor before the run has started.
+        //
+        // killer560 (2026-09-30): "before the countdown make it so breaker doesnt work on the generated map.
+        // If i only choose one room thought then the breaker should work." A generated floor is a clear he is
+        // about to practise, and breaking its walls while locked in the entrance would let him cut the route
+        // before the timer even starts. A single loaded room is a sandbox, so it stays free.
+        if (SimState.isGeneratedFloor() && !SimRun.isRunning()) {
+            fail(client, "the Dungeon Breaker is locked until the run starts");
+            return false;
+        }
         BlockHitResult hit = lookedAtBlock(client);
         if (hit == null) {
             fail(client, "not looking at a block");
@@ -691,4 +716,42 @@ public final class SimItems {
     private static void fail(Minecraft client, String why) {
         ModChat.send("Sim", ModChat.dim(why));
     }
+    /**
+     * Every fragile block joined to {@code start}, so one charge opens a whole crypt wall.
+     *
+     * <p>killer560 (2026-09-30) asked for "any cracked bricks" rather than the old fixed 3x3x3 cube, which
+     * both left large walls half standing and, on a thin wall, reached past it into the room behind.
+     *
+     * <p>Bounded at {@link #SUPERBOOM_MAX_BLOCKS}: connected cracked brick could in principle run a long way
+     * through a floor's stonework, and an unbounded flood fill on the server thread is how a click becomes a
+     * freeze. Orthogonal neighbours only - a wall that meets another only at a corner is a different wall.
+     */
+    private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {
+        java.util.List<BlockPos> found = new java.util.ArrayList<>();
+        if (!isFragile(level.getBlockState(start)) && !SimPrince.isPrince(start)) {
+            return found;
+        }
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        queue.add(start.immutable());
+        seen.add(start.immutable());
+        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
+            BlockPos here = queue.poll();
+            found.add(here);
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+                BlockPos next = here.relative(dir).immutable();
+                if (!seen.add(next)) {
+                    continue;
+                }
+                if (isFragile(level.getBlockState(next)) || SimPrince.isPrince(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        return found;
+    }
+
+    /** A ceiling on one detonation, so connected stonework cannot turn a click into a server stall. */
+    private static final int SUPERBOOM_MAX_BLOCKS = 256;
+
 }

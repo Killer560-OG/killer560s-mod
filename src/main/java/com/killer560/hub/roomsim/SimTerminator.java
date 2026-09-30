@@ -56,15 +56,54 @@ public final class SimTerminator {
     /** Enough to kill anything in the sim outright; sim mobs have one health anyway. */
     private static final float DAMAGE = 10_000f;
 
-    private static int hitsLanded;
+    /**
+     * The distinct mobs hit since Salvation last fired.
+     *
+     * <p>Distinct MOBS, not arrow hits. killer560 (2026-09-30): "it should only go off after 3 mobs have been
+     * hit not every hit." A shot is three arrows, so counting hits armed Salvation on a single mob that took
+     * all three - which is every shot at close range, and is why it felt like it went off constantly.
+     */
+    private static final java.util.Set<java.util.UUID> MOBS_HIT = new java.util.HashSet<>();
+
     private static boolean salvationArmed;
+
+    /** Client tick the last shot went out, for the fire rate. */
+    private static int lastShotTick;
+
+    /** Counts client ticks, so the cooldown does not depend on frame rate. */
+    private static int tickCounter;
+
+    /**
+     * Ticks between shots - the SHORTBOW rate, from Hypixel's own formula.
+     *
+     * <p>Was 10, which is the ZERO attack speed value; at the 100 Attack Speed the sim assumes it is 5, i.e.
+     * 4.00 shots a second. See {@link SimAttackSpeed} for the formulas and why bows round differently from
+     * melee.
+     */
+    private static final int SHOT_COOLDOWN_TICKS = SimAttackSpeed.SHORTBOW_INTERVAL_TICKS;
 
     private SimTerminator() {
     }
 
     public static void reset() {
-        hitsLanded = 0;
+        MOBS_HIT.clear();
         salvationArmed = false;
+        lastShotTick = 0;
+        tickCounter = 0;
+    }
+
+    /** Whether enough time has passed since the last shot, and claims the slot if so. */
+    public static boolean readyToFire() {
+        if (tickCounter - lastShotTick < SHOT_COOLDOWN_TICKS) {
+            return false;
+        }
+        lastShotTick = tickCounter;
+        return true;
+    }
+
+    /** Advances the fire-rate clock; called once per client tick. */
+    public static void tick() {
+        tickCounter++;
     }
 
     public static boolean isSalvationArmed() {
@@ -83,7 +122,7 @@ public final class SimTerminator {
         if (salvationArmed) {
             salvation(client);
             salvationArmed = false;
-            hitsLanded = 0;
+            MOBS_HIT.clear();
             return true;
         }
         shoot(client);
@@ -112,8 +151,10 @@ public final class SimTerminator {
         }
         applyDamage(client, hits);
         if (!hits.isEmpty()) {
-            hitsLanded += hits.size();
-            if (hitsLanded >= HITS_TO_ARM && !salvationArmed) {
+            // `hits` is already the distinct UUIDs hit by this shot - the loop above refuses duplicates -
+            // so the set accumulates distinct mobs ACROSS shots, which is what "3 mobs have been hit" means.
+            MOBS_HIT.addAll(hits);
+            if (MOBS_HIT.size() >= HITS_TO_ARM && !salvationArmed) {
                 salvationArmed = true;
                 ModChat.send("Sim", ModChat.value("Salvation ready"));
             }
@@ -121,11 +162,43 @@ public final class SimTerminator {
     }
 
     /** The beam: straight along the look, through up to five enemies, then it stops. */
+
+    /**
+     * Red dust along the Salvation beam. killer560 (2026-09-30): "make it red particles instead."
+     *
+     * <p>Drawn server-side with sendParticles so every player in the sim sees it, and spaced a third of a
+     * block apart so the line reads as a beam rather than a dotted trail.
+     */
+    private static void salvationParticles(net.minecraft.server.level.ServerLevel level, Vec3 from, Vec3 to) {
+        Vec3 along = to.subtract(from);
+        double length = along.length();
+        if (length < 1.0E-4) {
+            return;
+        }
+        Vec3 step = along.scale(1.0 / length).scale(0.33);
+        var dust = new net.minecraft.core.particles.DustParticleOptions(0xFF3030, 1.0f);
+        for (double travelled = 0; travelled <= length; travelled += 0.33) {
+            Vec3 at = from.add(step.scale(travelled / 0.33));
+            level.sendParticles(dust, at.x, at.y, at.z, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
     private static void salvation(Minecraft client) {
         Vec3 eye = client.player.getEyePosition();
         Vec3 dir = fromAngles(client.player.getYRot(), client.player.getXRot());
         List<Entity> pierced = firstAlong(client, eye, dir, SALVATION_RANGE, SALVATION_PIERCE);
         applyDamage(client, pierced.stream().map(Entity::getUUID).toList());
+        // The visible half, in red.
+        var server = client.getSingleplayerServer();
+        if (server != null && client.player != null) {
+            Vec3 end = eye.add(dir.scale(SALVATION_RANGE));
+            java.util.UUID who = client.player.getUUID();
+            server.execute(() -> {
+                var sp = server.getPlayerList().getPlayer(who);
+                if (sp != null) {
+                    salvationParticles((net.minecraft.server.level.ServerLevel) sp.level(), eye, end);
+                }
+            });
+        }
         ModChat.send("Sim", ModChat.text("Salvation - "), ModChat.value(String.valueOf(pierced.size())),
                 ModChat.text(" hit"));
     }

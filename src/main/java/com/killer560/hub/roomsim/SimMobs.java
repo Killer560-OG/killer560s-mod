@@ -139,6 +139,8 @@ public final class SimMobs {
     }
 
     public static void register() {
+        net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
+                (dispatcher, registryAccess) -> registerSummon(dispatcher));
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimMobs.tick", SimMobs::tick));
     }
 
@@ -673,4 +675,41 @@ public final class SimMobs {
         public void checkDespawn() {
         }
     }
+    /**
+     * {@code /summon <kind>} - one mob of that kind, standing on him.
+     *
+     * <p>Starred, like everything else the sim spawns, so Mob ESP and the clear's own counters see it exactly
+     * as they would a real one. Spawning at his own feet is deliberate: he asked for "ontop of me", and his
+     * own block is guaranteed to be air, which a block two over is not - a mob spawned inside a wall
+     * suffocates on the first tick and looks like the command did nothing.
+     */
+    private static void registerSummon(
+            com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2
+                    .FabricClientCommandSource> dispatcher) {
+        var root = net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("summon")
+                .requires(src -> SimState.canAct(Minecraft.getInstance()));
+        for (Kind kind : Kind.values()) {
+            final Kind chosen = kind;
+            root = root.then(net.fabricmc.fabric.api.client.command.v2.ClientCommands
+                    .literal(kind.name().toLowerCase(java.util.Locale.ROOT))
+                    .executes(ctx -> summonOne(chosen)));
+        }
+        dispatcher.register(root);
+    }
+
+    private static int summonOne(Kind kind) {
+        Minecraft client = Minecraft.getInstance();
+        if (!SimState.canAct(client) || client.player == null) {
+            com.killer560.hub.util.ModChat.send("Sim",
+                    com.killer560.hub.util.ModChat.text("Summoning only works inside the sim."));
+            return 1;
+        }
+        net.minecraft.core.BlockPos at = client.player.blockPosition();
+        spawnStarred(client, at, kind);
+        com.killer560.hub.util.ModChat.send("Sim",
+                com.killer560.hub.util.ModChat.text("Summoned "),
+                com.killer560.hub.util.ModChat.value(kind.name().toLowerCase(java.util.Locale.ROOT)));
+        return 1;
+    }
+
 }
