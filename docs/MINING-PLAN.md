@@ -122,6 +122,29 @@ Everything else is out of scope.
   until one of the two comes up?
 - OPEN: is there a time limit on waiting for Corleone before it gives up and does something else?
 
+### 2f. Lobby Swapper
+
+A setting of its own, called **Lobby Swapper**, and the thing Auto Nucleus Run falls back on: **if the run
+cannot find everything it needs in the current lobby, it swaps lobby.**
+
+**The swap cycle, for the nucleus run specifically:**
+1. Warp to the **hub**.
+2. Warp to the **Crystal Nucleus**. If he does not have that warp, warp to the **Crystal Hollows** instead.
+3. Pathfind around and **scan the whole map**.
+4. If the lobby does not have everything needed, **swap again** and repeat.
+
+**Its own settings, usable outside the nucleus run too:**
+- **Structures to scan for** - he picks **any number of them**, from **every structure the scanner can
+  detect**. A lobby only passes if all the selected ones are present.
+- **Day count** - a lobby passes only when its **day is equal to or lower than** the number he sets. (The
+  Crystal Hollows lobby day; a low day means a lobby that has not been mined out.)
+  - OPEN: where the client reads the lobby day from - scoreboard, chat on join, or the `/profile`-style
+    line. The research pass should confirm this.
+
+- OPEN: a cap on how many swaps it will make before giving up and telling him, so a bad filter cannot leave
+  it swapping forever.
+- OPEN: does the day filter apply on its own, or only alongside the structure filter?
+
 ### 2d. Finish
 
 Once it has **all** the crystals: **place all the crystals**, then carry on running.
