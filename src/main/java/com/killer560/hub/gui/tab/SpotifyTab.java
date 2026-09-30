@@ -54,6 +54,27 @@ public class SpotifyTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
+        // Where now-playing comes from, and whether that is working right now.
+        //
+        // The status line under it is the whole reason this is not just a silent setting: "no lyrics" used to
+        // be indistinguishable from "Spotify is closed", "you are on Last.fm with no key" and "the feature is
+        // off", and every one of those looks like the mod being broken.
+        widgets.add(SettingsButtonWidget.builder(sourceText(), btn -> {
+                    SpotifyLyricsFeature.source = SpotifyLyricsFeature.source.next();
+                    SpotifyLyricsFeature.saveConfig();
+                    btn.setMessage(sourceText());
+                    requestRebuild.run();
+                }).secondaryPress(btn -> {
+                    SpotifyLyricsFeature.source = SpotifyLyricsFeature.source.previous();
+                    SpotifyLyricsFeature.saveConfig();
+                    btn.setMessage(sourceText());
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 22;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 10, statusText(),
+                Minecraft.getInstance().font));
+        y += 14;
+
         widgets.add(SettingsButtonWidget.builder(destText(), btn -> {
                     SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.next();
                     SpotifyLyricsFeature.saveConfig();
@@ -97,11 +118,15 @@ public class SpotifyTab extends BaseTab {
         });
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Last.fm Setup ->"), btn -> {
-                    onLastFmPage = true;
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
+        // Hidden on the Spotify-App setting, because there it is five website steps that would do nothing.
+        if (SpotifyLyricsFeature.source != com.killer560.hub.spotify.SourceKind.SPOTIFY_APP) {
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Last.fm Setup (phone / web player) ->"),
+                    btn -> {
+                        onLastFmPage = true;
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += 26;
+        }
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Instructions"), btn -> openInstructions())
                 .bounds(contentX, y, contentWidth, 20).build());
@@ -124,39 +149,51 @@ public class SpotifyTab extends BaseTab {
             KILLER560'S MOD - SPOTIFY LYRICS SETUP GUIDE
             =============================================
 
-            This feature posts the lyrics of whatever song you're playing on Spotify into
-            your Minecraft chat. It finds out what you're playing through Last.fm, so
-            Last.fm needs to know what your Spotify is doing (this is called "scrobbling").
+            This feature posts the lyrics of whatever song you're playing into your
+            Minecraft chat.
 
-            STEP 1 - Make a free Last.fm account
-              Go to last.fm and sign up if you don't already have an account.
+            THE SHORT VERSION - THERE IS NO SETUP
+              Have the Spotify app open on this PC and play something. That's it.
+              No account, no API key, no website, nothing to log in to. The mod reads
+              what the Spotify app on this computer is playing, directly.
 
-            STEP 2 - Connect Spotify to Last.fm
-              Open Spotify (desktop or mobile) -> Settings -> Social, and turn on
-              "Last.fm Scrobbling". If you don't see that option, log in to last.fm in
-              your browser, go to last.fm/settings/applications, and connect Spotify
-              from there instead.
+              Check the "Now Playing From" line in the Spotify Mod tab - if it says
+              "Reading Spotify App" in green, it's working.
 
-            STEP 3 - Create a Last.fm API key
-              Go to last.fm/api/account/create
-              Fill in any application name (e.g. "Killer560 Lyrics") and submit.
-              Copy the "API key" it gives you - you'll need it in the next step.
+            IF THE STATUS LINE ISN'T GREEN
+              "Spotify is not running on this PC"
+                 Open the Spotify desktop app. The mod can only read the app on this
+                 machine - it cannot see your phone or the browser web player.
 
-            STEP 4 - Enter your details in the mod
-              Open the mod menu -> Spotify Mod -> "Last.fm Setup ->"
-              Paste your API key and type in your Last.fm username, then hit
-              "Save Credentials".
+              "reading the Spotify app only works on Windows"
+                 Use the Last.fm option below instead.
 
-            STEP 5 - Play something
-              Start playing a song on Spotify. After a few seconds it should start
-              showing up in your chat (or party chat, depending on your Chat
-              Destination setting).
+            IF YOU PLAY FROM YOUR PHONE OR THE WEB PLAYER
+              The mod can't read those, so it has to ask Last.fm what your Spotify has
+              been playing. This is the only path that needs websites, and it is
+              entirely optional:
 
-              If the lyrics feel early or late, adjust the "Lyric Offset" slider in
-              the Spotify Mod tab - it compensates for the delay between a song
-              starting and Last.fm reporting it.
+                1. Make a free account at last.fm
+                2. Spotify -> Settings -> Social -> turn on "Last.fm Scrobbling"
+                3. Get a key at last.fm/api/account/create (any app name will do)
+                4. Spotify Mod tab -> "Last.fm Setup ->" -> paste the key and your
+                   username -> Save Credentials
+                5. Set "Now Playing From" to Last.fm, or leave it on Automatic and it
+                   will use Last.fm whenever the Spotify app isn't open
 
-            That's it - nothing outside the mod needs to keep running.
+            SETTINGS WORTH KNOWING
+              Chat Destination  - which chat the lyrics go to (party by default).
+              Lyrics Mode       - every line, or just the song title on each change.
+              Profanity Filter  - censors words before they are sent.
+              Lyric Offset      - nudges the lyric timing. On the Spotify App source
+                                  this wants to be near 0, because the app reports a
+                                  track change instantly. On Last.fm it needs about 5
+                                  seconds, because a scrobble takes that long to land.
+
+            WHAT LEAVES YOUR PC
+              On the Spotify App source: only the artist and title, sent to lrclib.net
+              to look up the lyrics. Nothing else - no account, no key, no listening
+              history. On Last.fm it also sends your key and username to last.fm.
             """;
 
     private List<AbstractWidget> buildLastFmPage(int contentX, int contentY, Runnable requestRebuild) {
@@ -227,6 +264,16 @@ public class SpotifyTab extends BaseTab {
 
     private static Component profanityText() {
         return Component.literal("Profanity Filter: §b" + SpotifyLyricsFeature.profanityLevel.displayName);
+    }
+
+    private static Component sourceText() {
+        return Component.literal("Now Playing From: §b" + SpotifyLyricsFeature.source.displayName);
+    }
+
+    private static Component statusText() {
+        String status = SpotifyLyricsFeature.sourceStatus();
+        boolean working = status.startsWith("Reading ");
+        return Component.literal((working ? "§a" : "§e") + status);
     }
 
     private static Component timingOffsetText() {

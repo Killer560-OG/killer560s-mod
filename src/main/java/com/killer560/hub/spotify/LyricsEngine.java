@@ -18,13 +18,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Polls Last.fm's now-playing endpoint and lrclib.net for synced lyrics, in-process.
- * This replaces what used to be a separate Node.js companion server (server.js) that had to be
- * started manually outside Minecraft - everything it did now happens here instead.
+ * Turns "what is playing" into "which lyric line is now", in-process.
+ *
+ * <p>It no longer knows WHERE the now-playing came from: it is handed a {@link NowPlayingSource} and asks it.
+ * That split is what let the Last.fm account, API key and website steps become optional on 2026-09-30 - the
+ * Spotify desktop app can answer the same question with nothing set up at all. Only the lyrics themselves
+ * still come off the network, from lrclib.net, and those need no key.
+ *
+ * <p>This is also what used to be a separate Node.js companion server (server.js) that had to be started
+ * outside Minecraft; everything it did happens here instead.
  */
 public final class LyricsEngine {
 
-    private static final String LASTFM_URL = "https://ws.audioscrobbler.com/2.0/";
     private static final String LRCLIB_URL = "https://lrclib.net/api/search";
     private static final Pattern LRC_LINE = Pattern.compile("\\[(\\d+):(\\d+\\.\\d+)](.*)");
 
@@ -42,21 +47,18 @@ public final class LyricsEngine {
     public record LyricLine(double timeSeconds, String text) {
     }
 
-    private record NowPlaying(String artist, String title) {
-    }
-
     /** Call roughly every 2 seconds. Never throws - a failed poll just keeps showing the last known lyric.
      *  {@code fullLyricsMode} controls only the WORDING of the track-change announcement: "And that was
      *  ___" reads fine when the listener has actually been seeing lyric lines, but makes no sense in
      *  Song-Title-Only mode where they never saw any - that mode gets "I just finished listening to ___,
      *  now I'm listening to ___" instead. Which one fired is exposed via {@link #isCurrentLyricTransition()}
      *  so the caller can detect a track-change message without depending on its exact wording. */
-    public synchronized void poll(String apiKey, String username, int timingOffsetMs, boolean fullLyricsMode) {
-        if (apiKey == null || apiKey.isBlank() || username == null || username.isBlank()) {
+    public synchronized void poll(NowPlayingSource source, int timingOffsetMs, boolean fullLyricsMode) {
+        if (source == null) {
             return;
         }
         try {
-            NowPlaying nowPlaying = fetchNowPlaying(apiKey, username);
+            NowPlaying nowPlaying = source.fetch();
 
             if (nowPlaying == null) {
                 currentLyric = "";
@@ -98,7 +100,16 @@ public final class LyricsEngine {
             // had synced lyrics - especially bad for Song-Title-Only mode, where the transition message is
             // the ONLY thing that mode ever sends.
             if (transitionMessageUntilMs == 0 && trackDetectTimeMs != null && !syncedLyrics.isEmpty()) {
-                double elapsed = (System.currentTimeMillis() - trackDetectTimeMs) / 1000.0 + timingOffsetMs / 1000.0;
+                // A source that knows the real playback position is believed over the stopwatch.
+                //
+                // Counting from "when we first saw this track" only works if we saw it at second zero, and it
+                // drifts the moment the user seeks, pauses or joins a song part-way through - which is what the
+                // offset slider was papering over. Nothing supplies a position yet (a window title has no
+                // clock), so this is the branch a Spotify login would light up; until then it falls through to
+                // the stopwatch exactly as before.
+                double elapsed = nowPlaying.positionMs() != null
+                        ? nowPlaying.positionMs() / 1000.0
+                        : (System.currentTimeMillis() - trackDetectTimeMs) / 1000.0 + timingOffsetMs / 1000.0;
                 currentLyric = currentLyricAt(elapsed);
                 currentIsTransition = false;
             }
@@ -125,47 +136,6 @@ public final class LyricsEngine {
             else break;
         }
         return current;
-    }
-
-    private NowPlaying fetchNowPlaying(String apiKey, String username) throws Exception {
-        String url = LASTFM_URL + "?method=user.getrecenttracks&user=" + urlEncode(username)
-                + "&api_key=" + urlEncode(apiKey) + "&format=json&limit=1";
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofSeconds(10)).GET().build();
-        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() / 100 != 2) {
-            // Status only - the error body can echo request details (the URL carries the user's API key).
-            SpotifyLyricsFeature.LOGGER.warn("Last.fm now-playing request failed: HTTP {}", response.statusCode());
-            return null;
-        }
-        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
-        JsonObject recentTracks = root.getAsJsonObject("recenttracks");
-        if (recentTracks == null) {
-            SpotifyLyricsFeature.LOGGER.warn("Last.fm response had no 'recenttracks' object: {}", response.body());
-            return null;
-        }
-        JsonElement trackEl = recentTracks.get("track");
-        if (trackEl == null || trackEl.isJsonNull()) {
-            return null;
-        }
-
-        JsonObject track = trackEl.isJsonArray()
-                ? (trackEl.getAsJsonArray().isEmpty() ? null : trackEl.getAsJsonArray().get(0).getAsJsonObject())
-                : trackEl.getAsJsonObject();
-        if (track == null) {
-            return null;
-        }
-
-        JsonObject attr = track.getAsJsonObject("@attr");
-        boolean isPlaying = attr != null && attr.has("nowplaying")
-                && "true".equals(attr.get("nowplaying").getAsString());
-        if (!isPlaying) {
-            return null;
-        }
-
-        String artist = track.getAsJsonObject("artist").get("#text").getAsString();
-        String title = track.get("name").getAsString();
-        return new NowPlaying(artist, title);
     }
 
     private List<LyricLine> fetchLyrics(String artist, String title) {

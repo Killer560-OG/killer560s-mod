@@ -37,6 +37,14 @@ public final class SpotifyLyricsFeature {
     public static volatile ProfanityLevel profanityLevel = ProfanityLevel.ALL;
     public static volatile String lastFmApiKey = "";
     public static volatile String lastFmUsername = "";
+    /**
+     * Where now-playing comes from.
+     *
+     * <p>Defaults to {@link SourceKind#AUTO}, which reads the Spotify desktop app if it is running and only
+     * touches Last.fm if it is not. killer560 (2026-09-30): "they should just be able to boot up the mod [...]
+     * no external website" - so the setting that requires nothing of the user has to be the one they get.
+     */
+    public static volatile SourceKind source = SourceKind.AUTO;
     // Lyric timing offset in milliseconds (0-15000), compensates for the delay between a song
     // starting and Last.fm reporting it. User-adjustable via the in-game slider.
     public static volatile int lyricTimingOffsetMs = 5_000;
@@ -47,6 +55,8 @@ public final class SpotifyLyricsFeature {
             FabricLoader.getInstance().getConfigDir().resolve("spotify-lyrics-lastfm.json");
 
     private static final LyricsEngine ENGINE = new LyricsEngine();
+    private static final SpotifyDesktopSource DESKTOP = new SpotifyDesktopSource();
+    private static final LastFmSource LASTFM = new LastFmSource();
     private static volatile boolean inParty = false;
     private static volatile String lastSentLyric = "";
 
@@ -81,6 +91,7 @@ public final class SpotifyLyricsFeature {
                 chatDestination = ConfigJson.getEnum(obj, "chatDestination", ChatDestination.class, ChatDestination.PARTY);
                 fullLyrics = ConfigJson.getBool(obj, "fullLyrics", true);
                 profanityLevel = ConfigJson.getEnum(obj, "profanityLevel", ProfanityLevel.class, ProfanityLevel.ALL);
+                source = ConfigJson.getEnum(obj, "source", SourceKind.class, SourceKind.AUTO);
             }
         } catch (Exception e) {
             LOGGER.warn("Could not read Spotify Lyrics config: {}", e.getMessage());
@@ -98,6 +109,7 @@ public final class SpotifyLyricsFeature {
             obj.addProperty("chatDestination", chatDestination.name());
             obj.addProperty("fullLyrics", fullLyrics);
             obj.addProperty("profanityLevel", profanityLevel.name());
+            obj.addProperty("source", source.name());
             Files.writeString(CONFIG_FILE, new Gson().toJson(obj));
         } catch (Exception e) {
             LOGGER.warn("Could not save Spotify Lyrics config: {}", e.getMessage());
@@ -133,7 +145,11 @@ public final class SpotifyLyricsFeature {
         if (!enabled) {
             return;
         }
-        ENGINE.poll(lastFmApiKey, lastFmUsername, lyricTimingOffsetMs, fullLyrics);
+        NowPlayingSource active = activeSource();
+        if (active == null) {
+            return;
+        }
+        ENGINE.poll(active, lyricTimingOffsetMs, fullLyrics);
 
         // Skyblock Only: this runs on a timer, so it checks your location directly rather than
         // SkyblockGate.allows() (which lets the mod's own screens through) - opening the mod menu in another
@@ -156,6 +172,34 @@ public final class SpotifyLyricsFeature {
         }
 
         sendToChat(applyProfanityFilter(lyric));
+    }
+
+    /**
+     * The source to poll right now, or null when none can work.
+     *
+     * <p>{@link SourceKind#AUTO} prefers the desktop app and only falls back to Last.fm when Spotify is not
+     * running here - not the other way round, because the desktop reader needs no setup, sends nothing off the
+     * machine and sees a track change the instant it happens, where a scrobble takes seconds to land.
+     */
+    public static NowPlayingSource activeSource() {
+        return switch (source) {
+            case SPOTIFY_APP -> DESKTOP.available() ? DESKTOP : null;
+            case LASTFM -> LASTFM.available() ? LASTFM : null;
+            case AUTO -> DESKTOP.available() ? DESKTOP : (LASTFM.available() ? LASTFM : null);
+        };
+    }
+
+    /** One line for the settings tab: which source is live, or why none is. */
+    public static String sourceStatus() {
+        NowPlayingSource active = activeSource();
+        if (active != null) {
+            return "Reading " + active.displayName();
+        }
+        return switch (source) {
+            case SPOTIFY_APP -> DESKTOP.unavailableReason();
+            case LASTFM -> LASTFM.unavailableReason();
+            case AUTO -> DESKTOP.unavailableReason() + ", and " + LASTFM.unavailableReason();
+        };
     }
 
     private static void sendToChat(String message) {
