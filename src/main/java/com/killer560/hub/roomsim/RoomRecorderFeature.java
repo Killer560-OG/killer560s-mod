@@ -207,17 +207,41 @@ public final class RoomRecorderFeature {
         if (!BuildVariant.DEV_TOOLS
                 || client.level == null
                 || client.getSingleplayerServer() == null
-                || SimState.isActive()
-                || !DungeonState.isInDungeon()) {
+                || SimState.isActive()) {
+            return;
+        }
+        // A single-room practice world counts, and leaving it out was the bug.
+        //
+        // killer560 (2026-09-30) went through every room on the missing list in Ashfall's Dungeon Rooms, one
+        // world each, and captured NOTHING - the log for that session holds the library loading and not one
+        // capture line. Those worlds are named "Dungeon Room: Three Weirdos" and put up "Practice Room /
+        // Room: X" with no "The Catacombs" line, so isInDungeon() is correctly false and this refused to arm.
+        // scan() has handled exactly this case since 2026-09-29 via captureSingleRoom, but it only runs once
+        // the stage is CAPTURE, and nothing ever set it. Two halves of one feature, each written as though the
+        // other worked.
+        String practiceRoom = DungeonState.isInDungeon() ? null : DungeonState.sidebarRoomName();
+        if (!DungeonState.isInDungeon() && (practiceRoom == null || practiceRoom.isBlank()
+                || "Unknown".equals(practiceRoom))) {
             return;
         }
         if (autoArmedLevel == client.level) {
             return;
         }
+        // The previous world's last second of capture, before this one replaces it. Capture saves once a
+        // second, and a practice room he leaves after ten seconds could otherwise lose the tail of it.
+        if (autoArmedLevel != null) {
+            RoomLibrary.saveDirty();
+        }
         autoArmedLevel = client.level;
+        singleRoomAnnounced = null;
         startCaptureOnly();
-        say("armed automatically - this is a local dungeon, so the rooms are being read as you walk.");
+        say(practiceRoom == null
+                ? "armed automatically - this is a local dungeon, so the rooms are being read as you walk."
+                : "armed automatically - practice room \"" + practiceRoom + "\", reading it now.");
     }
+
+    /** The practice room already reported complete, so the alert fires once per world rather than per tick. */
+    private static String singleRoomAnnounced;
 
     /** New columns since the last write, so a long session is not one unsaved buffer. */
     private static int capturedSinceSave;
@@ -561,6 +585,30 @@ public final class RoomRecorderFeature {
     }
 
     /**
+     * Says when the practice room in this world is fully captured, so he knows when to load the next one.
+     *
+     * <p>Without it the only way to judge a single-room world is to guess how long to stand there. On
+     * 2026-09-30 he gave each room about ten seconds, which would have been enough - but nothing was arming,
+     * and nothing said that either. An alert rather than a chat line, for the same reason the floor-done one
+     * is: he is looking at the world, not at chat.
+     */
+    private static void announceSingleRoomDone(Minecraft client) {
+        String name = DungeonState.sidebarRoomName();
+        if (name == null || name.equals(singleRoomAnnounced)) {
+            return;
+        }
+        RoomLibrary.Room room = RoomLibrary.get(name);
+        if (room == null || !room.complete()) {
+            return;
+        }
+        singleRoomAnnounced = name;
+        RoomLibrary.saveDirty();
+        alert(client, String.format(Locale.US,
+                "\"%s\" CAPTURED - load the next room. (%d/%d rooms complete overall)",
+                name, RoomLibrary.completeCount(), RoomLibrary.expectedCount()));
+    }
+
+    /**
      * Captures every room standing on the dungeon lattice near the player, ignoring the 11x11 grid.
      *
      * <p>Rooms always sit on the same lattice - centres at {@code -185 + 32k} on both axes - whether they are
@@ -650,6 +698,7 @@ public final class RoomRecorderFeature {
             // worlds put up "Practice Room / Room: X" with no "The Catacombs" line. isInDungeon() is correctly
             // false, so scan() bailed here on every tick and the recorder cheerfully reported "this floor 0/0".
             if (stage == Stage.CAPTURE && captureSingleRoom(client)) {
+                announceSingleRoomDone(client);
                 return;
             }
             // Not in a run when we expected to be: most often limbo, which has its own long recovery.
