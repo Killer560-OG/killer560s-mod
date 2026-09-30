@@ -146,10 +146,23 @@ public final class SpotifyLyricsFeature {
         }
         ENGINE.poll(DESKTOP, fullLyrics);
 
+        // The sim counts as a place lyrics may play.
+        //
+        // killer560 (2026-09-30): "nor the spotify lyrics anymore." They were never broken - the log shows the
+        // tracks being found and 91, 40 and 62 synced lines fetched for them - they were gated twice over and
+        // said nothing about it. He was testing in the dungeon sim, which is a single-player world, so the
+        // Skyblock check below refused it AND the party check further down refused it, because his destination
+        // is Party and there is no party in a solo world.
+        //
+        // The sim is the mod's own practice dungeon and there is no public chat in it to leak into, so both
+        // gates are lifted there and the lyric is printed locally.
+        boolean inSim = com.killer560.hub.roomsim.SimState.isActive();
+
         // Skyblock Only: this runs on a timer, so it checks your location directly rather than
         // SkyblockGate.allows() (which lets the mod's own screens through) - opening the mod menu in another
         // game mode must never start sending lyrics there.
-        if (com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock()) {
+        if (!inSim && com.killer560.hub.util.SkyblockGate.isEnabled()
+                && !com.killer560.hub.util.SkyblockGate.isOnSkyblock()) {
             return;
         }
         String lyric = ENGINE.getCurrentLyric();
@@ -162,11 +175,11 @@ public final class SpotifyLyricsFeature {
         if (!isTrackChange && !fullLyrics) {
             return;
         }
-        if (chatDestination == ChatDestination.PARTY && !inParty) {
+        if (!inSim && chatDestination == ChatDestination.PARTY && !inParty) {
             return;
         }
 
-        sendToChat(applyProfanityFilter(lyric));
+        sendToChat(applyProfanityFilter(lyric), inSim);
     }
 
     /** One line for the settings tab: whether Spotify is being read, or why it is not. */
@@ -174,12 +187,20 @@ public final class SpotifyLyricsFeature {
         return DESKTOP.available() ? "Reading Spotify" : DESKTOP.unavailableReason();
     }
 
-    private static void sendToChat(String message) {
+    private static void sendToChat(String message, boolean localOnly) {
         Minecraft client = Minecraft.getInstance();
-        if (client != null && client.player != null) {
-            String full = chatDestination.prefix + message;
-            client.execute(() -> client.player.connection.sendChat(full));
+        if (client == null || client.player == null) {
+            return;
         }
+        if (localOnly) {
+            // In the sim there is nobody to send to - /pc in a single-player world is just an unknown command
+            // - so the line is printed where he can read it instead.
+            client.execute(() -> com.killer560.hub.util.ModChat.send("Lyrics",
+                    com.killer560.hub.util.ModChat.text(message)));
+            return;
+        }
+        String full = chatDestination.prefix + message;
+        client.execute(() -> client.player.connection.sendChat(full));
     }
 
     // ---- Profanity filter ----

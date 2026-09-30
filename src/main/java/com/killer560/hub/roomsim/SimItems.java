@@ -461,8 +461,9 @@ public final class SimItems {
                 if (!isFragile(state) && !SimPrince.isPrince(here)) {
                     continue;
                 }
-                if (state.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                        || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)) {
+                if ((state.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                        || state.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
+                        && sealsAChamber(level, here)) {
                     openedCrypt = true;
                     cryptAt = here;
                 }
@@ -509,6 +510,57 @@ public final class SimItems {
         });
         ModChat.send("Sim", ModChat.text("Superboom TNT detonated"));
         return true;
+    }
+
+    /** How big a sealed pocket may be and still count as a crypt chamber. */
+    private static final int CRYPT_CHAMBER_MAX = 48;
+
+    /**
+     * Whether this cracked brick seals an enclosed chamber, rather than being ordinary decoration.
+     *
+     * <p>killer560 (2026-09-30): "if i superboom regular cracked brick that isnt a crypt dont have it spawn a
+     * zombie." Every cracked stone brick counted as a crypt, so blowing a decorative one scored the bonus and
+     * spawned a starred zombie out of a solid wall.
+     *
+     * <p>What tells them apart is what is BEHIND the block. A crypt is a wall across a small sealed pocket;
+     * decorative cracked brick is set into solid stone with nothing behind it, or faces the open room. So this
+     * flood-fills the air on the far side, bounded at {@value #CRYPT_CHAMBER_MAX} blocks: a fill that stays
+     * inside that bound is a chamber, and one that runs out of it has escaped into the room and is not.
+     *
+     * <p>Run BEFORE anything is destroyed, deliberately - the blast opens the wall and joins the chamber to
+     * the room, so asking afterwards would find every chamber connected to everything and identify none.
+     */
+    private static boolean sealsAChamber(ServerLevel level, BlockPos wall) {
+        for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+            BlockPos start = wall.relative(dir).immutable();
+            if (!level.getBlockState(start).isAir()) {
+                continue;
+            }
+            java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+            java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+            seen.add(start);
+            queue.add(start);
+            boolean escaped = false;
+            while (!queue.isEmpty() && !escaped) {
+                BlockPos at = queue.poll();
+                for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                    BlockPos next = at.relative(d).immutable();
+                    if (seen.contains(next) || !level.getBlockState(next).isAir()) {
+                        continue;
+                    }
+                    if (seen.size() >= CRYPT_CHAMBER_MAX) {
+                        escaped = true;   // too big to be a crypt - this is the room
+                        break;
+                    }
+                    seen.add(next);
+                    queue.add(next);
+                }
+            }
+            if (!escaped) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

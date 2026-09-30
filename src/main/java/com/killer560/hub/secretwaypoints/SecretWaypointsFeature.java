@@ -130,7 +130,19 @@ public final class SecretWaypointsFeature {
     public static void register() {
         SecretWaypointsRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SecretWaypointsFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(SecretWaypointsFeature::onWorldRender);
+        // AFTER_TRANSLUCENT_FEATURES, not AFTER_TRANSLUCENT_TERRAIN.
+        //
+        // killer560 (2026-09-30): "the waypoints are not showing through blocks in esp mode like they always
+        // should for secret waypoints." His config has throughWalls on and the render type does disable depth
+        // testing, so the boxes were being drawn correctly - just too EARLY in the frame. Anything the game
+        // draws after this pass covers them again, and depth being off does not help against geometry that
+        // comes later.
+        //
+        // Mob ESP, the Mage beam and Breaker Aura all show through walls and all register on
+        // AFTER_TRANSLUCENT_FEATURES, which is the later of the two; this was one of the handful still on the
+        // earlier one. The puzzle solvers are on it too and may well have the same symptom - not changed here
+        // because he has not reported it and their highlights are meant to be seen in the room you are in.
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SecretWaypointsFeature::onWorldRender);
         // A chest, wither essence or redstone key is taken by right-clicking its block - exactly its waypoint's block.
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (level.isClientSide() && hit != null) {

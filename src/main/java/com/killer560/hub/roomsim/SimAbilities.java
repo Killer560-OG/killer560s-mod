@@ -268,6 +268,21 @@ public final class SimAbilities {
             break;
         }
         if (best == null) {
+            // LAST RESORT: straight up a block.
+            //
+            // killer560 (2026-09-30): "in that instance if i teleport it should move my character up a block.
+            // Not etherwarp but normal teleporting." Standing hard against a wall, every step along his look
+            // collides on the first try and every lift collides too, so the walk produced nothing and he got
+            // "no room to teleport that way" fourteen times in a row. Lifting him instead is what he asked
+            // for, and it is what unsticks the case - from a block higher the next teleport has somewhere to
+            // go. It still has to pass the same box test, so it can never put him inside anything.
+            for (double lift : STEP_UPS) {
+                Vec3 up = new Vec3(from.x, from.y + lift, from.z);
+                if (fits(client, player, box, from, up)) {
+                    teleport(client, up.x, up.y, up.z);
+                    return true;
+                }
+            }
             fail(client, "no room to teleport that way");
             return false;
         }
