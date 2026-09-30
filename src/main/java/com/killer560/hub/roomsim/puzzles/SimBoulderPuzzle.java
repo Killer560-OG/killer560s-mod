@@ -154,8 +154,106 @@ public final class SimBoulderPuzzle {
         }
         PRESSED.clear();
         builtOrigin = origin;
+        boundAnchor = null;   // a standalone board, not a bind to a captured room
         complete = false;
     }
+
+    /**
+     * Arms this puzzle on a REAL captured Boulder room, on the room's own grid and buttons.
+     *
+     * <p>{@link #X_VALUES}, {@link #Z_VALUES}, {@link #FLOOR_Y} and {@link #BUTTON_Y} are
+     * {@code BoulderSolverFeature}'s own room-relative scan grid, and the capture holds the push buttons:
+     * a clean row of seven at relative {@code z=10}, {@code x} 6/9/12/15/18/21/24, which is {@code X_VALUES}
+     * exactly. That row is what pins the rotation - it only reads as a row of seven along x at database
+     * rotation 270; at rotation 0 the same blocks read as a column of seven along z, which is the wrong axis
+     * because {@code Z_VALUES} has six entries, not seven.
+     *
+     * <p><b>Why this one writes the floor.</b> The capture's own boulder arrangement is NOT one of the eight
+     * bundled patterns - read off the pasted room at all four rotations and all five nearby heights, the
+     * closest bundled key is 10 of 42 tiles away - so there is no known solution for it and nothing could be
+     * armed. So the live arrangement is read first, the way the real solver reads it, and used when it is
+     * known; when it is not, {@link #PATTERN_KEY}'s real arrangement is written into the room's own 42 grid
+     * positions and its real solution used. That is the puzzle's state, not a second arena: the 42 positions
+     * written are exactly the 42 the real solver samples.
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
+        // The seven push buttons are the room's fingerprint, and the only thing here that can tell one
+        // rotation from another - the boulder floor itself is stone at most positions at every rotation.
+        List<int[]> buttonRow = new ArrayList<>();
+        for (int x : X_VALUES) {
+            buttonRow.add(new int[]{x, BUTTON_Y, 10});
+        }
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
+                com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, buttonRow,
+                        com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.STONE_BUTTON), new int[]{0}, 5);
+        if (anchor == null) {
+            return false;
+        }
+        // Read the arrangement the way BoulderSolverFeature.scanFloor does, so a room that HAS a bundled
+        // arrangement is played as it stands rather than overwritten.
+        StringBuilder live = new StringBuilder(42);
+        for (int z : Z_VALUES) {
+            for (int x : X_VALUES) {
+                live.append(level.getBlockState(anchor.world(x, FLOOR_Y, z)).isAir() ? '0' : '1');
+            }
+        }
+        boolean known = PATTERN_KEY.contentEquals(live);
+        if (!known) {
+            // Not this room's own arrangement: write the bundled one in. Said out loud, because a room whose
+            // floor was rewritten is not the room he walked.
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                    "Sim boulder: this room's arrangement is not the bundled one ({}), so the bundled "
+                            + "pattern was written into its 42 grid positions", live);
+            int charIndex = 0;
+            for (int z : Z_VALUES) {
+                for (int x : X_VALUES) {
+                    boolean solid = PATTERN_KEY.charAt(charIndex++) == '1';
+                    level.setBlockAndUpdate(anchor.world(x, FLOOR_Y, z), solid
+                            ? Blocks.STONE.defaultBlockState()
+                            : Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        List<Button> buttons = new ArrayList<>();
+        for (int[] sol : SOLUTION) {
+            buttons.add(new Button(anchor.world(sol[0], BUTTON_Y, sol[1]),
+                    anchor.world(sol[2], BUTTON_Y, sol[3])));
+        }
+        for (Button button : buttons) {
+            // The boulder to push. Cobblestone is the same placeholder build() uses - see its comment.
+            level.setBlockAndUpdate(button.render(), Blocks.COBBLESTONE.defaultBlockState());
+            // Most of the solution's click positions already hold a real stone button in the capture; the ones
+            // that do not get one, because a solution step with nothing to press is a puzzle that cannot be
+            // finished. Only ever added, never moved.
+            if (!level.getBlockState(button.click()).is(Blocks.STONE_BUTTON)) {
+                if (level.getBlockState(button.click().below()).isAir()) {
+                    level.setBlockAndUpdate(button.click().below(), Blocks.STONE.defaultBlockState());
+                }
+                level.setBlockAndUpdate(button.click(), Blocks.STONE_BUTTON.defaultBlockState()
+                        .setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH)
+                        .setValue(ButtonBlock.POWERED, Boolean.FALSE)
+                        .setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.FLOOR));
+            }
+        }
+        BUTTONS.clear();
+        BUTTONS.addAll(buttons);
+        BLOCK_INDEX.clear();
+        for (Button button : buttons) {
+            BLOCK_INDEX.put(button.click(), button);
+        }
+        PRESSED.clear();
+        builtOrigin = anchor.world(X_VALUES[0], BUTTON_Y, Z_VALUES[0]);
+        boundAnchor = anchor;
+        complete = false;
+        return true;
+    }
+
+    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
+    private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
 
     /** Removes the pressed button's boulder ("it rolled away") and checks for completion. */
     private static void pressButton(Minecraft client, Button button) {
@@ -175,9 +273,32 @@ public final class SimBoulderPuzzle {
         // auto-get setting works in here the same as it does on Hypixel.
         SimPuzzles.reportFail("Boulder");
         ModChat.send("Sim", ModChat.bad("Boulder"), ModChat.text(" failed - pressed " + what + ". Resetting."));
+        if (boundAnchor != null && SimState.canAct(client)) {
+            // Bound to a real room: put the boulders back and unpress, rather than rebuilding an arena the
+            // room does not need. build() here would paste the standalone board inside the captured one.
+            rearmBound(client);
+            return;
+        }
         if (builtOrigin != null && SimState.canAct(client)) {
             build(client, builtOrigin);
         }
+    }
+
+    /** Boulders back, buttons unpressed, for a board bound to a real captured room. */
+    private static void rearmBound(Minecraft client) {
+        MinecraftServer server = client.getSingleplayerServer();
+        PRESSED.clear();
+        complete = false;
+        if (server == null) {
+            return;
+        }
+        List<Button> buttons = List.copyOf(BUTTONS);
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            for (Button button : buttons) {
+                level.setBlockAndUpdate(button.render(), Blocks.COBBLESTONE.defaultBlockState());
+            }
+        });
     }
 
     public static boolean isComplete() {
@@ -185,9 +306,30 @@ public final class SimBoulderPuzzle {
     }
 
     /** Rebuilds the board fresh (boulders back, buttons unpressed) without needing a caller-supplied origin. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    public static void forget() {
+        BUTTONS.clear();
+        BLOCK_INDEX.clear();
+        PRESSED.clear();
+        builtOrigin = null;
+        boundAnchor = null;
+        complete = false;
+    }
+
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
-        if (builtOrigin != null && SimState.canAct(client)) {
+        if (boundAnchor != null && SimState.canAct(client)) {
+            rearmBound(client);
+        } else if (builtOrigin != null && SimState.canAct(client)) {
             build(client, builtOrigin);
         } else {
             PRESSED.clear();

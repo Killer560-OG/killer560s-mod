@@ -421,6 +421,15 @@ public final class SimBuilder {
                 for (Runnable r : afterBuild) {
                     r.run();
                 }
+                // The puzzles, now that the rooms are standing and their secrets are in.
+                //
+                // AFTER afterBuild, not before: Boulder and Ice Fill read the pasted floor to work out what
+                // they are looking at, and Three Weirdos has to tell the room's own captured chests from the
+                // secret ones SimSecrets just added. Before this call a generated floor's puzzle rooms were
+                // scenery - the geometry was pasted and no rule was ever attached to it, which is killer560
+                // (2026-09-30): "none of the puzzles do anything. They are all rooms that exist but they have
+                // none of the actual attributes of the puzzle."
+                SimRoomPuzzles.armFloor(level);
                 int still = 0;
                 StringBuilder gone = new StringBuilder();
                 for (var cp : SimSecrets.PLACED_CHESTS) {

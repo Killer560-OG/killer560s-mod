@@ -28,6 +28,8 @@ public final class SimPuzzles {
     /** Name to builder. Order is the order they are listed to him. */
     private static final Map<String, BiConsumer<Minecraft, BlockPos>> BUILDERS = new LinkedHashMap<>();
     private static final Map<String, Runnable> RESETS = new LinkedHashMap<>();
+    /** Name to "drop the bookkeeping, touch nothing in the world" - see each puzzle's {@code forget()}. */
+    private static final Map<String, Runnable> FORGETS = new LinkedHashMap<>();
 
     static {
         BUILDERS.put("blaze", SimBlazePuzzle::build);
@@ -46,6 +48,14 @@ public final class SimPuzzles {
         RESETS.put("boulder", SimBoulderPuzzle::reset);
         RESETS.put("teleportmaze", SimTeleportMazePuzzle::reset);
         RESETS.put("icefill", SimIceFillPuzzle::reset);
+        FORGETS.put("blaze", SimBlazePuzzle::forget);
+        FORGETS.put("creeper", SimCreeperPuzzle::forget);
+        FORGETS.put("quiz", SimQuizPuzzle::forget);
+        FORGETS.put("tictactoe", SimTicTacToePuzzle::forget);
+        FORGETS.put("water", SimWaterPuzzle::forget);
+        FORGETS.put("boulder", SimBoulderPuzzle::forget);
+        FORGETS.put("teleportmaze", SimTeleportMazePuzzle::forget);
+        FORGETS.put("icefill", SimIceFillPuzzle::forget);
     }
 
     private SimPuzzles() {
@@ -124,6 +134,48 @@ public final class SimPuzzles {
      */
     public static void reportFail(String puzzleName) {
         com.killer560.hub.roomsim.SimArchitect.onPuzzleFail(puzzleName);
+    }
+
+    /**
+     * Drops one puzzle's bookkeeping by name, WITHOUT touching the world.
+     *
+     * <p>Needed because {@link com.killer560.hub.roomsim.SimRoomPuzzles} arms only the puzzles a floor actually
+     * holds and has to drop the last floor's state for the ones it does not - without also dropping what it has
+     * just armed, which is what {@link #resetAll} would do, and without writing anything, because those blocks
+     * belonged to a floor that has already been built over. See any puzzle's own {@code forget()}.
+     *
+     * @return false when there is no puzzle by that name
+     */
+    public static boolean forget(String rawName) {
+        Runnable r = FORGETS.get(rawName.toLowerCase(Locale.ROOT));
+        if (r == null) {
+            return false;
+        }
+        try {
+            r.run();
+        } catch (Throwable ignored) {
+            // same reason as resetAll
+        }
+        return true;
+    }
+
+    /**
+     * Resets one puzzle by name - blocks put back, progress cleared. The client-side counterpart of
+     * {@link #forget(String)}, for a puzzle whose arena is still standing.
+     *
+     * @return false when there is no puzzle by that name
+     */
+    public static boolean reset(String rawName) {
+        Runnable r = RESETS.get(rawName.toLowerCase(Locale.ROOT));
+        if (r == null) {
+            return false;
+        }
+        try {
+            r.run();
+        } catch (Throwable ignored) {
+            // same reason as resetAll: a puzzle failing to reset must not take the caller down with it
+        }
+        return true;
     }
 
     /** Clears every puzzle's state, for leaving the sim or restarting a run. */

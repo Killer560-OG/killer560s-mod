@@ -110,6 +110,7 @@ public final class SimTicTacToePuzzle {
             }
         }
         cellPos = positions;
+        boundAnchor = null;   // a standalone board, not a bind to a captured room
         for (int i = 0; i < 9; i++) {
             CELL_INDEX.put(positions[i], i);
         }
@@ -129,6 +130,67 @@ public final class SimTicTacToePuzzle {
                 ModChat.text(" - click a square."));
     }
 
+    /**
+     * Arms this puzzle on a REAL captured Tic Tac Toe room, on the room's own board.
+     *
+     * <p>The nine cells are {@code TicTacToeSolverFeature}'s own: room-relative {@code x=8}, {@code y 70..72},
+     * {@code z 15..17}, with {@code row = 72 - y} and {@code col = 17 - z} - the exact indexing that class uses
+     * to read the real board, so a cell index here means the same cell it means there. Measured against the
+     * shipped capture, 8 of those 9 positions already hold a {@code stone_button} at database rotation 180
+     * (0 of 9 at every other rotation), which is how the board is found; the ninth is missing because that
+     * cell had already been played when the room was walked.
+     *
+     * <p>The real MARKS are map item frames read by pixel colour. An item frame is an entity, so it can never
+     * be in a capture and there is nothing to bind to - the concrete blocks {@link #build} uses stand in, and
+     * they go ON the nine cells, replacing the buttons. That is the one write this bind makes, and it is the
+     * board's state rather than a second arena: a real cell that has been played has no button either.
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(net.minecraft.server.level.ServerLevel level,
+                                 com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
+        java.util.List<int[]> rels = new java.util.ArrayList<>(9);
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                rels.add(new int[]{8, 72 - row, 17 - col});
+            }
+        }
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
+                com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, rels,
+                        com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.STONE_BUTTON), new int[]{0}, 6);
+        if (anchor == null) {
+            return false;
+        }
+        // forget(), not reset(): reset() queues an AIR write at the PREVIOUS board's nine positions for the
+        // next server tick, and on a rebuild of the same room those are the nine about to be painted - it
+        // would blank the board this method just built.
+        forget();
+        BlockPos[] positions = new BlockPos[9];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                positions[row * 3 + col] = anchor.world(8, 72 - row, 17 - col).immutable();
+            }
+        }
+        cellPos = positions;
+        boundAnchor = anchor;
+        for (int i = 0; i < 9; i++) {
+            CELL_INDEX.put(positions[i], i);
+        }
+        Arrays.fill(board, EMPTY);
+        built = true;
+        complete = false;
+        Integer opening = getBestMove(board, false);
+        if (opening != null) {
+            board[opening] = COMPUTER;
+        }
+        for (int i = 0; i < 9; i++) {
+            level.setBlockAndUpdate(positions[i], colourFor(board[i]));
+        }
+        return true;
+    }
+
     /** Whether the last game finished without the computer winning (a draw or an O win). False before any game
      *  finishes, and false again after a loss resets the board. */
     public static boolean isComplete() {
@@ -137,6 +199,43 @@ public final class SimTicTacToePuzzle {
 
     /** Clears the board (blocks and bookkeeping) if a session is still open, and always clears the in-memory
      *  state. Safe to call with no board built, and safe to call after the sim session has already ended. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    /** Non-null while this board is bound to a real captured room rather than a standalone arena. */
+    private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
+
+    /** A fresh game on the board already standing in a captured room - no blocks added or removed. */
+    private static void restartBound() {
+        Arrays.fill(board, EMPTY);
+        complete = false;
+        built = true;
+        Integer opening = getBestMove(board, false);
+        if (opening != null) {
+            board[opening] = COMPUTER;
+        }
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        if (server != null) {
+            paintAll(server);
+        }
+    }
+
+    public static void forget() {
+        boundAnchor = null;
+        cellPos = null;
+        CELL_INDEX.clear();
+        Arrays.fill(board, EMPTY);
+        built = false;
+        complete = false;
+    }
+
     public static void reset() {
         BlockPos[] positions = cellPos;
         Minecraft client = Minecraft.getInstance();
@@ -152,6 +251,7 @@ public final class SimTicTacToePuzzle {
             }
         }
         cellPos = null;
+        boundAnchor = null;
         CELL_INDEX.clear();
         Arrays.fill(board, EMPTY);
         built = false;
@@ -190,11 +290,20 @@ public final class SimTicTacToePuzzle {
         if (score < 0) {
             // The computer got three in a row - the one outcome the real puzzle's "safe prediction" logic
             // exists to make impossible. Treated as a fail: reset, not a silent pass.
-            ModChat.send("Sim", ModChat.bad("Computer got three in a row - resetting. Build again to retry."));
             // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get
             // setting works in here the same as it does on Hypixel.
             SimPuzzles.reportFail("Tic Tac Toe");
-            reset();
+            if (boundAnchor != null) {
+                // Bound to a real room: start a fresh game on the same board. reset() here would set the nine
+                // cells to AIR, which in a captured room means nine holes punched in its wall and no board
+                // left to play on - and "build again to retry" is not something he can do to a generated floor.
+                ModChat.send("Sim", ModChat.bad("Computer got three in a row - new game."));
+                restartBound();
+            } else {
+                ModChat.send("Sim",
+                        ModChat.bad("Computer got three in a row - resetting. Build again to retry."));
+                reset();
+            }
         } else {
             complete = true;
             ModChat.send("Sim", ModChat.good(score > 0 ? "You won!" : "Draw - the computer never got three in a row."));

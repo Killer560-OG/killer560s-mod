@@ -34,8 +34,15 @@ public final class SimRoomIndex {
      *                 coordinates, and those two numbers differ by the capture's own turn
      *                 ({@link RoomCaptureRotation}) in 88 of his 122 identifiable rooms
      * @param cells the 11x11 grid cells this room covers, so "am I in it" is a lookup
+     * @param gridX the 11x11 grid coordinates of the room's top-left cell - kept because
+     *              {@link SimRoomPuzzles} has to recompute the clay corner at a DIFFERENT rotation when it
+     *              checks a puzzle's own furniture against the room, and {@code clayX}/{@code clayZ} alone
+     *              cannot be turned back into a corner
+     * @param pasteRotation the rotation the room was physically pasted at, which is what decides its
+     *                      footprint - {@code rotation} above is that plus the capture's own turn
      */
-    public record Placed(String name, int clayX, int clayZ, int rotation, int[] cells) {
+    public record Placed(String name, int clayX, int clayZ, int rotation, int[] cells,
+                         int gridX, int gridZ, int pasteRotation) {
     }
 
     private static final List<Placed> ROOMS = new CopyOnWriteArrayList<>();
@@ -79,7 +86,12 @@ public final class SimRoomIndex {
         for (int i = 0; i < cellArray.length; i++) {
             cellArray[i] = cells.get(i);
         }
-        ROOMS.add(new Placed(room.name, clay[0], clay[1], dbRotation, cellArray));
+        ROOMS.add(new Placed(room.name, clay[0], clay[1], dbRotation, cellArray, gridX, gridZ, rotation));
+    }
+
+    /** Every placed room on the floor, in paste order. Read by {@link SimRoomPuzzles} to arm the puzzles. */
+    public static List<Placed> placed() {
+        return List.copyOf(ROOMS);
     }
 
     private static int tiles(int size) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim.puzzles;
 
+import com.killer560.hub.roomsim.SimRoomPuzzles;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
@@ -126,6 +127,7 @@ public final class SimIceFillPuzzle {
         }
         clearBlocks(client);
         storedOrigin = origin;
+        boundAnchor = null;   // a standalone arena, not a bind to a captured room
         BlockPos anchorBlock = origin.below(); // player's feet sit at origin, the ice tile sits below
 
         List<BlockPos> path = buildPath(anchorBlock);
@@ -145,6 +147,117 @@ public final class SimIceFillPuzzle {
         });
         ModChat.send("Sim", ModChat.text("Ice Fill built - "), ModChat.value(path.size() + " tiles"),
                 ModChat.text(", don't repeat one."));
+    }
+
+    /**
+     * Arms this puzzle on a REAL captured Ice Fill room, on the room's own ice.
+     *
+     * <p>The waypoints above are {@code ice-fill-floors.json}'s own, in room-relative coordinates, and the
+     * capture holds ice at every one of them - measured by trying all four rotations against all five nearby
+     * heights: at database rotation 270 and <b>one block lower</b>, every pattern of all three bundled floors
+     * lands entirely on ice. (Every pattern, because the unsolved room is a solid slab per floor and a pattern
+     * is a route across it.) That one-block drop is real and is a property of THIS capture - the other five
+     * bound puzzles need no nudge at all - so it is searched for by {@link SimRoomPuzzles#bestAnchor} and
+     * logged when it is used, rather than written in as a constant nobody could check.
+     *
+     * <p><b>Why this one writes.</b> The room's three floors are solid slabs of ice, and the fail rule this
+     * class exists to drill - "the tile you left is gone, so you cannot double back" - cannot bite while there
+     * is solid ice either side of the route. So the slab is carved down to the bundled route: ice inside each
+     * floor's own bounding box that is not on the route is melted, and the route itself is laid as packed ice.
+     * Nothing outside those three boxes is touched, and no block that was not already ice is removed.
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(ServerLevel level, SimRoomPuzzles.Placement p) {
+        List<int[]> rels = new ArrayList<>(WAYPOINTS.length);
+        for (Pt pt : WAYPOINTS) {
+            rels.add(new int[]{pt.x(), pt.y(), pt.z()});
+        }
+        java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> isIce =
+                SimRoomPuzzles.is(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
+        SimRoomPuzzles.Anchor anchor = SimRoomPuzzles.bestAnchor(level, p, rels, isIce,
+                new int[]{0, -1, 1, -2, 2}, rels.size() * 3 / 4);
+        if (anchor == null) {
+            return false;
+        }
+        // In-memory only, NOT clearBlocks(): that queues air writes at the PREVIOUS path's positions for the
+        // next server tick, and if this is the same room being rebuilt those are the positions about to be
+        // laid - it would air out the ice this method just placed. The previous floor's blocks are gone with
+        // the build's own wipe.
+        pathTiles = List.of();
+        List<int[]> relPath = relativePath();
+        List<BlockPos> path = new ArrayList<>(relPath.size());
+        Set<BlockPos> onPath = new java.util.HashSet<>();
+        for (int[] rel : relPath) {
+            BlockPos pos = anchor.world(rel);
+            path.add(pos);
+            onPath.add(pos);
+        }
+        // Melt the rest of each floor's slab, inside that floor's own bounding box and nowhere else.
+        for (Pt[] floor : new Pt[][]{FLOOR_0, FLOOR_1, FLOOR_2}) {
+            int minX = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE;
+            int minZ = Integer.MAX_VALUE;
+            int maxZ = Integer.MIN_VALUE;
+            int y = floor[0].y();
+            for (Pt pt : floor) {
+                minX = Math.min(minX, pt.x());
+                maxX = Math.max(maxX, pt.x());
+                minZ = Math.min(minZ, pt.z());
+                maxZ = Math.max(maxZ, pt.z());
+            }
+            for (int x = minX - 1; x <= maxX + 1; x++) {
+                for (int z = minZ - 1; z <= maxZ + 1; z++) {
+                    BlockPos pos = anchor.world(x, y, z);
+                    if (!onPath.contains(pos) && isIce.test(level.getBlockState(pos))) {
+                        level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    }
+                }
+            }
+        }
+        for (BlockPos tile : path) {
+            level.setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState());
+        }
+        pathTiles = List.copyOf(path);
+        TILE_INDEX.clear();
+        for (int i = 0; i < path.size(); i++) {
+            TILE_INDEX.put(path.get(i).above(), i);
+        }
+        nextRequired = 0;
+        complete = false;
+        storedOrigin = path.get(0).above();
+        boundAnchor = anchor;
+        return true;
+    }
+
+    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
+    private static volatile SimRoomPuzzles.Anchor boundAnchor = null;
+
+    /** The same walk {@link #buildPath} does, in ROOM-RELATIVE coordinates, for {@link #bindAt} to transform. */
+    private static List<int[]> relativePath() {
+        List<int[]> path = new ArrayList<>();
+        int curX = ANCHOR.x();
+        int curY = ANCHOR.y();
+        int curZ = ANCHOR.z();
+        path.add(new int[]{curX, curY, curZ});
+        for (int i = 1; i < WAYPOINTS.length; i++) {
+            Pt target = WAYPOINTS[i];
+            while (curY != target.y()) {
+                curY += Integer.signum(target.y() - curY);
+                path.add(new int[]{curX, curY, curZ});
+            }
+            while (curX != target.x()) {
+                curX += Integer.signum(target.x() - curX);
+                path.add(new int[]{curX, curY, curZ});
+            }
+            while (curZ != target.z()) {
+                curZ += Integer.signum(target.z() - curZ);
+                path.add(new int[]{curX, curY, curZ});
+            }
+        }
+        return path;
     }
 
     /** Walks every waypoint pair one axis at a time (Y, then X, then Z) into a full unit-step tile list. */
@@ -180,11 +293,31 @@ public final class SimIceFillPuzzle {
     }
 
     /** Clears the ice path and its bookkeeping. Safe with nothing built. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    public static void forget() {
+        pathTiles = List.of();
+        TILE_INDEX.clear();
+        nextRequired = 0;
+        complete = false;
+        storedOrigin = null;
+        boundAnchor = null;
+    }
+
     public static void reset() {
         clearBlocks(Minecraft.getInstance());
         TILE_INDEX.clear();
         nextRequired = 0;
         complete = false;
+        boundAnchor = null;
     }
 
     private static void clearBlocks(Minecraft client) {
@@ -251,9 +384,48 @@ public final class SimIceFillPuzzle {
         // auto-get setting works in here the same as it does on Hypixel.
         SimPuzzles.reportFail("Ice Fill");
         ModChat.send("Sim", ModChat.bad("Fell through the ice - resetting."));
+        SimRoomPuzzles.Anchor bound = boundAnchor;
+        if (bound != null) {
+            // Bound to a real room: re-lay the same route in place and put him back at its first tile.
+            // build() here would lay the standalone arena inside the captured room.
+            rearmBound(client, bound);
+            return;
+        }
         BlockPos origin = storedOrigin;
         if (origin != null) {
             client.execute(() -> build(client, origin));
         }
+    }
+
+    /** Re-lays the route of a bound room and starts it over. */
+    private static void rearmBound(Minecraft client, SimRoomPuzzles.Anchor bound) {
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        List<int[]> relPath = relativePath();
+        List<BlockPos> path = new ArrayList<>(relPath.size());
+        for (int[] rel : relPath) {
+            path.add(bound.world(rel));
+        }
+        pathTiles = List.copyOf(path);
+        TILE_INDEX.clear();
+        for (int i = 0; i < path.size(); i++) {
+            TILE_INDEX.put(path.get(i).above(), i);
+        }
+        nextRequired = 0;
+        complete = false;
+        BlockPos start = path.get(0);
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            for (BlockPos tile : path) {
+                level.setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState());
+            }
+            ServerPlayer sp = server.getPlayerList().getPlayer(client.player.getUUID());
+            if (sp != null) {
+                sp.teleportTo((ServerLevel) sp.level(), start.getX() + 0.5, start.getY() + 1,
+                        start.getZ() + 0.5, Set.<Relative>of(), sp.getYRot(), sp.getXRot(), false);
+            }
+        });
     }
 }

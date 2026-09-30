@@ -2,6 +2,7 @@ package com.killer560.hub.roomsim.puzzles;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.killer560.hub.roomsim.SimRoomPuzzles;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.ModChat;
 
@@ -144,6 +145,7 @@ public final class SimQuizPuzzle {
             positions[i] = origin.offset(OFFSET_X[i], 0, 0).immutable();
         }
         chestPos = positions;
+        boundPositions = null;   // a standalone arena, not a bind to a captured room
         for (int i = 0; i < 3; i++) {
             CELL_INDEX.put(positions[i], i);
         }
@@ -165,6 +167,139 @@ public final class SimQuizPuzzle {
         }
         ModChat.send("Sim", ModChat.text(question));
         ModChat.send("Sim", ModChat.dim(options.toString().trim()));
+    }
+
+    /**
+     * Arms this puzzle on a REAL captured Quiz or Three Weirdos room, at the room's own answer positions.
+     *
+     * <p>This is the one bind that has to CREATE its furniture, and the reason is in the real rooms rather
+     * than in the capture: Oruo and the three weirdos are <b>armour stands</b> and their answer spots are
+     * plain floor, so there is no puzzle block anywhere in either capture for a bind to attach to. What the
+     * bind does provide is the right PLACE.
+     *
+     * <ul>
+     *   <li><b>Quiz</b> - the three spots are {@code QuizSolverFeature}'s own room-relative
+     *       {@code (20,70,6)}, {@code (15,70,9)}, {@code (10,70,6)}, which are floor blocks in the capture.
+     *       The chests go one block above them, so the floor is not destroyed.</li>
+     *   <li><b>Three Weirdos</b> - the capture DOES hold the weirdos' three chests, and
+     *       {@link com.killer560.hub.roomsim.SimRoomPuzzles#capturedBlocks} finds them off the room data
+     *       rather than the world (by the time this runs, {@code SimSecrets} has added secret chests and a
+     *       world scan could not tell them apart). Those three are used as they stand, so this room binds to
+     *       real geometry after all.</li>
+     * </ul>
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(ServerLevel level, SimRoomPuzzles.Placement p) {
+        boolean weirdos = "three weirdos".equalsIgnoreCase(p.room().name);
+        BlockPos[] positions;
+        if (weirdos) {
+            List<BlockPos> chests = SimRoomPuzzles.capturedBlocks(p, Blocks.CHEST);
+            if (chests.size() < 3) {
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                        "Sim quiz: Three Weirdos' capture holds {} chest(s), not the three the puzzle needs",
+                        chests.size());
+                return false;
+            }
+            // The three closest to each other, since a bigger room can hold an unrelated chest too. Cheap:
+            // three chests is three candidate triples.
+            positions = new BlockPos[]{chests.get(0), chests.get(1), chests.get(2)};
+        } else {
+            int[][] spots = {{20, 70, 6}, {15, 70, 9}, {10, 70, 6}};
+            List<int[]> rels = List.of(spots);
+            // "Solid floor with standing room over it", not merely "solid": the three spots are plain floor,
+            // and solid alone puts rotation 0 and rotation 180 level at 3 of 3 in this capture - a tie the
+            // recovered capture turn would have to break on its own. Adding the two blocks of air separates
+            // them 3 to 1, because at the wrong turn two of the three spots are inside the room's terracotta.
+            SimRoomPuzzles.Anchor anchor = SimRoomPuzzles.bestAnchor(level, p, rels,
+                    (lv, pos) -> !lv.getBlockState(pos).isAir()
+                            && lv.getBlockState(pos.above()).isAir()
+                            && lv.getBlockState(pos.above(2)).isAir(),
+                    new int[]{0}, 3);
+            if (anchor == null) {
+                return false;
+            }
+            positions = new BlockPos[3];
+            for (int i = 0; i < 3; i++) {
+                // One above the floor spot: the spot itself is the block he stands on in the real room.
+                positions[i] = anchor.world(spots[i]).above();
+            }
+        }
+        if (ANSWERS.isEmpty()) {
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
+                    .warn("Sim quiz: quiz-answers.json did not load - nothing to ask");
+            return false;
+        }
+        // Same in-memory clear reset() does, without its queued block writes: those are aimed at the PREVIOUS
+        // arena's positions and would land a tick from now, inside the room just pasted.
+        forget();
+        newQuestion(level, positions, false);
+        return true;
+    }
+
+    /**
+     * Picks a fresh question and puts it on these three chests. Server thread only.
+     *
+     * @param replaceLabels true when there are already labels floating over them to take away first
+     */
+    private static void newQuestion(ServerLevel level, BlockPos[] positions, boolean replaceLabels) {
+        if (ANSWERS.isEmpty()) {
+            return;
+        }
+        if (replaceLabels) {
+            for (UUID id : List.copyOf(LABELS)) {
+                Entity entity = level.getEntity(id);
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+            LABELS.clear();
+            CELL_INDEX.clear();
+        }
+        List<String> questions = new ArrayList<>(ANSWERS.keySet());
+        String question = questions.get(ThreadLocalRandom.current().nextInt(questions.size()));
+        List<String> correctAnswers = ANSWERS.get(question);
+        String correct = correctAnswers.get(ThreadLocalRandom.current().nextInt(correctAnswers.size()));
+        String[] text = new String[3];
+        int correctSlot = ThreadLocalRandom.current().nextInt(3);
+        text[correctSlot] = correct;
+        List<String> wrongPool = distractorPool(question, correct, questions);
+        int wrongTaken = 0;
+        for (int i = 0; i < 3 && wrongTaken < wrongPool.size(); i++) {
+            if (i == correctSlot) {
+                continue;
+            }
+            text[i] = wrongPool.get(wrongTaken++);
+        }
+        for (int i = 0; i < 3; i++) {
+            if (text[i] == null) {
+                text[i] = "(no other answer available)";
+            }
+        }
+        correctIndex = correctSlot;
+        chestPos = positions;
+        boundPositions = positions;
+        for (int i = 0; i < 3; i++) {
+            CELL_INDEX.put(positions[i], i);
+        }
+        built = true;
+        char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'};
+        for (int i = 0; i < 3; i++) {
+            level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
+            LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
+        }
+        StringBuilder options = new StringBuilder();
+        for (int i = 0; i < 3; i++) {
+            options.append(letters[i]).append(' ').append(text[i]).append("  ");
+        }
+        final String q = question;
+        final String o = options.toString().trim();
+        Minecraft.getInstance().execute(() -> {
+            ModChat.send("Sim", ModChat.text(q));
+            ModChat.send("Sim", ModChat.dim(o));
+        });
     }
 
     /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
@@ -200,6 +335,29 @@ public final class SimQuizPuzzle {
 
     /** Clears the chests and labels if a session is still open, and always clears the in-memory state. Safe to
      *  call with nothing built, and safe to call after the sim session has already ended. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
+    private static volatile BlockPos[] boundPositions = null;
+
+    public static void forget() {
+        boundPositions = null;
+        chestPos = null;
+        CELL_INDEX.clear();
+        LABELS.clear();
+        built = false;
+        complete = false;
+        correctIndex = -1;
+    }
+
     public static void reset() {
         BlockPos[] positions = chestPos;
         List<UUID> labels = List.copyOf(LABELS);
@@ -224,6 +382,7 @@ public final class SimQuizPuzzle {
             }
         }
         chestPos = null;
+        boundPositions = null;
         CELL_INDEX.clear();
         LABELS.clear();
         built = false;
@@ -243,11 +402,20 @@ public final class SimQuizPuzzle {
         } else {
             // Wrong chest: fail like the real puzzle, not a silent pass - reset so the next attempt is a new
             // question rather than the same one with the wrong option already given away.
-            ModChat.send("Sim", ModChat.bad("Wrong chest - resetting. Build again to retry."));
             // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get
             // setting works in here the same as it does on Hypixel.
             SimPuzzles.reportFail("Three Weirdos");
-            reset();
+            if (boundPositions != null && server != null) {
+                // Bound to a real room: a new question on the same three chests. reset() here would delete
+                // them, and in Three Weirdos those chests are the ROOM'S OWN - deleting them leaves a puzzle
+                // room with nothing in it and no way to build it again on a generated floor.
+                ModChat.send("Sim", ModChat.bad("Wrong chest - new question."));
+                BlockPos[] positions = boundPositions;
+                server.execute(() -> newQuestion(server.overworld(), positions, true));
+            } else {
+                ModChat.send("Sim", ModChat.bad("Wrong chest - resetting. Build again to retry."));
+                reset();
+            }
         }
     }
 

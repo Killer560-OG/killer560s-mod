@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim.puzzles;
 
+import com.killer560.hub.roomsim.SimRoomPuzzles;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
@@ -170,6 +171,56 @@ public final class SimWaterPuzzle {
         resetProgress();
     }
 
+    /**
+     * Arms this puzzle on a REAL captured Water Board room the sim has just pasted, instead of building a
+     * lever wall from nothing.
+     *
+     * <p>The seven relative offsets above are {@code WaterSolverFeature.LeverBlock}'s own, and the capture
+     * already holds a {@code lever} at every one of them - measured: 7 of 7 at database rotation 270 against
+     * 4, 6 and 4 at the other three. So nothing is placed. The levers, the wool wall behind them and the
+     * water channel in front are the room's own blocks; only the rules are attached.
+     *
+     * <p>{@link SimRoomPuzzles#bestAnchor} decides the rotation by scoring the levers rather than trusting
+     * the recovered capture turn, and refuses to arm a room whose levers are not there.
+     *
+     * <p>Server thread only - this is called from {@code SimBuilder}'s post-build block, so it may touch
+     * blocks directly the way {@code SimSecrets} does.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(net.minecraft.server.level.ServerLevel level, SimRoomPuzzles.Placement p) {
+        java.util.List<int[]> rels = new java.util.ArrayList<>();
+        for (Lever lever : Lever.values()) {
+            rels.add(new int[]{lever.dx, lever.dy, lever.dz});
+        }
+        SimRoomPuzzles.Anchor anchor = SimRoomPuzzles.bestAnchor(level, p, rels,
+                SimRoomPuzzles.is(Blocks.LEVER), new int[]{0}, 5);
+        if (anchor == null) {
+            return false;
+        }
+        Map<Lever, BlockPos> positions = new EnumMap<>(Lever.class);
+        for (Lever lever : Lever.values()) {
+            positions.put(lever, anchor.world(lever.dx, lever.dy, lever.dz));
+        }
+        POSITIONS.clear();
+        POSITIONS.putAll(positions);
+        BLOCK_INDEX.clear();
+        for (Map.Entry<Lever, BlockPos> entry : positions.entrySet()) {
+            BLOCK_INDEX.put(entry.getValue(), entry.getKey());
+        }
+        // The room may have been captured with a lever already flipped, and a flipped lever the puzzle has no
+        // progress for reads as a puzzle that ignored a click. Put every one of them down.
+        for (BlockPos pos : positions.values()) {
+            BlockState current = level.getBlockState(pos);
+            if (current.hasProperty(LeverBlock.POWERED) && current.getValue(LeverBlock.POWERED)) {
+                level.setBlockAndUpdate(pos, current.setValue(LeverBlock.POWERED, Boolean.FALSE));
+            }
+        }
+        builtOrigin = positions.get(Lever.WATER);
+        resetProgress();
+        return true;
+    }
+
     /** Split out only because LeverBlock.FACE lives on the abstract FaceAttachedHorizontalDirectionalBlock
      *  parent, not on LeverBlock itself - javap-confirmed, 26.1.2. */
     private static BlockState setFace(BlockState state) {
@@ -251,6 +302,23 @@ public final class SimWaterPuzzle {
     }
 
     /** Resets progress (and un-powers any flipped levers) without needing a fresh {@link #build}. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    public static void forget() {
+        POSITIONS.clear();
+        BLOCK_INDEX.clear();
+        builtOrigin = null;
+        resetProgress();
+    }
+
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
         if (builtOrigin != null && SimState.canAct(client)) {

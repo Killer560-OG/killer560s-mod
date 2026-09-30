@@ -75,6 +75,15 @@ public final class SimCreeperPuzzle {
     private static final List<Pair> PAIRS = loadPairs();
 
     private static volatile List<Pair> arenaPairs = List.of();
+    /**
+     * The current arena's lantern pairs in ABSOLUTE world positions, one entry per {@link #arenaPairs} entry.
+     *
+     * <p>Everything used to be {@code storedOrigin.offset(pair.a())}, which cannot express a bind to a real
+     * captured room: there the lanterns are the room's own blocks and their positions come from the room's
+     * clay corner and rotation, not from an origin plus a fixed offset. Resolved once, here, so
+     * {@link #connectPair} and {@link #reset} cannot disagree with whatever placed them.
+     */
+    private static volatile List<Pair> worldPairs = List.of();
     private static volatile boolean[] connected = new boolean[0];
     private static volatile BlockPos storedOrigin = null;
     private static volatile Map<BlockPos, Integer> lanternToPairIndex = Map.of();
@@ -121,22 +130,86 @@ public final class SimCreeperPuzzle {
         List<Pair> pairs = PAIRS;
         storedOrigin = origin;
         arenaPairs = pairs;
+        List<Pair> world = new ArrayList<>(pairs.size());
+        for (Pair pair : pairs) {
+            world.add(new Pair(origin.offset(pair.a()).immutable(), origin.offset(pair.b()).immutable()));
+        }
+        worldPairs = List.copyOf(world);
         connected = new boolean[pairs.size()];
         Map<BlockPos, Integer> lookup = new HashMap<>();
-        for (int i = 0; i < pairs.size(); i++) {
-            lookup.put(origin.offset(pairs.get(i).a()), i);
-            lookup.put(origin.offset(pairs.get(i).b()), i);
+        for (int i = 0; i < world.size(); i++) {
+            lookup.put(world.get(i).a(), i);
+            lookup.put(world.get(i).b(), i);
         }
         lanternToPairIndex = Map.copyOf(lookup);
         built = true;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             BlockState lit = Blocks.SEA_LANTERN.defaultBlockState();
-            for (Pair pair : pairs) {
-                level.setBlockAndUpdate(origin.offset(pair.a()), lit);
-                level.setBlockAndUpdate(origin.offset(pair.b()), lit);
+            for (Pair pair : world) {
+                level.setBlockAndUpdate(pair.a(), lit);
+                level.setBlockAndUpdate(pair.b(), lit);
             }
         });
+    }
+
+    /**
+     * Arms this puzzle on a REAL captured Creeper Beams room, on the room's own sea lanterns.
+     *
+     * <p>{@link #PAIRS} is the bundled candidate list {@code BeamsSolverFeature} uses, in room-relative
+     * coordinates, and all 22 of its distinct lanterns are already in the shipped capture - measured 22 of 22
+     * at database rotation 0 against 1, 2 and 1 at the other three. So none is placed. Thirteen of those 22
+     * are {@code prismarine} in the capture rather than {@code sea_lantern}, which is that room having been
+     * captured part-solved (the solver's own convention: unconnected is a sea lantern, connected is
+     * prismarine), so arming puts every one of them back to unconnected - the puzzle's state, not its arena.
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
+        List<Pair> pairs = PAIRS;
+        if (pairs.isEmpty()) {
+            return false;
+        }
+        List<int[]> rels = new ArrayList<>(pairs.size() * 2);
+        for (Pair pair : pairs) {
+            rels.add(new int[]{pair.a().getX(), pair.a().getY(), pair.a().getZ()});
+            rels.add(new int[]{pair.b().getX(), pair.b().getY(), pair.b().getZ()});
+        }
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
+                com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, rels,
+                        com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.SEA_LANTERN, Blocks.PRISMARINE),
+                        new int[]{0}, Math.max(4, rels.size() * 3 / 4));
+        if (anchor == null) {
+            return false;
+        }
+        List<Pair> world = new ArrayList<>(pairs.size());
+        for (Pair pair : pairs) {
+            world.add(new Pair(anchor.world(pair.a().getX(), pair.a().getY(), pair.a().getZ()),
+                    anchor.world(pair.b().getX(), pair.b().getY(), pair.b().getZ())));
+        }
+        arenaPairs = pairs;
+        worldPairs = List.copyOf(world);
+        storedOrigin = world.get(0).a();   // only used as a "something is built" marker now
+        connected = new boolean[pairs.size()];
+        Map<BlockPos, Integer> lookup = new HashMap<>();
+        for (int i = 0; i < world.size(); i++) {
+            lookup.put(world.get(i).a(), i);
+            lookup.put(world.get(i).b(), i);
+        }
+        lanternToPairIndex = Map.copyOf(lookup);
+        BlockState lit = Blocks.SEA_LANTERN.defaultBlockState();
+        for (Pair pair : world) {
+            if (!level.getBlockState(pair.a()).is(Blocks.SEA_LANTERN)) {
+                level.setBlockAndUpdate(pair.a(), lit);
+            }
+            if (!level.getBlockState(pair.b()).is(Blocks.SEA_LANTERN)) {
+                level.setBlockAndUpdate(pair.b(), lit);
+            }
+        }
+        built = true;
+        return true;
     }
 
     /** True once every pair in the current arena has been connected. False when nothing has been built yet. */
@@ -155,33 +228,50 @@ public final class SimCreeperPuzzle {
 
     /** Puts every lantern in the current arena back to unconnected (Sea Lantern) without moving anything. Takes
      *  no arguments - grabs the client singleton the same way {@code SimAbilities}'s item-use handler does. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    public static void forget() {
+        arenaPairs = List.of();
+        worldPairs = List.of();
+        lanternToPairIndex = Map.of();
+        connected = new boolean[0];
+        storedOrigin = null;
+        built = false;
+    }
+
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
         if (!SimState.canAct(client)) {
             return;
         }
         MinecraftServer server = client.getSingleplayerServer();
-        BlockPos origin = storedOrigin;
-        List<Pair> pairs = arenaPairs;
-        if (server == null || origin == null || pairs.isEmpty()) {
+        List<Pair> world = worldPairs;
+        if (server == null || world.isEmpty()) {
             return;
         }
-        connected = new boolean[pairs.size()];
+        connected = new boolean[world.size()];
         server.execute(() -> {
             ServerLevel level = server.overworld();
             BlockState lit = Blocks.SEA_LANTERN.defaultBlockState();
-            for (Pair pair : pairs) {
-                level.setBlockAndUpdate(origin.offset(pair.a()), lit);
-                level.setBlockAndUpdate(origin.offset(pair.b()), lit);
+            for (Pair pair : world) {
+                level.setBlockAndUpdate(pair.a(), lit);
+                level.setBlockAndUpdate(pair.b(), lit);
             }
         });
     }
 
     private static void connectPair(Minecraft client, int idx) {
         boolean[] c = connected;
-        List<Pair> pairs = arenaPairs;
-        BlockPos origin = storedOrigin;
-        if (idx < 0 || idx >= c.length || c[idx] || origin == null) {
+        List<Pair> world = worldPairs;
+        if (idx < 0 || idx >= c.length || idx >= world.size() || c[idx]) {
             return;
         }
         c[idx] = true;
@@ -189,12 +279,12 @@ public final class SimCreeperPuzzle {
         if (server == null) {
             return;
         }
-        Pair pair = pairs.get(idx);
+        Pair pair = world.get(idx);
         server.execute(() -> {
             ServerLevel level = server.overworld();
             BlockState solved = Blocks.PRISMARINE.defaultBlockState();
-            level.setBlockAndUpdate(origin.offset(pair.a()), solved);
-            level.setBlockAndUpdate(origin.offset(pair.b()), solved);
+            level.setBlockAndUpdate(pair.a(), solved);
+            level.setBlockAndUpdate(pair.b(), solved);
         });
     }
 

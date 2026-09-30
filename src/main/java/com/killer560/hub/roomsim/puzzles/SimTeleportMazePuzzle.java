@@ -76,6 +76,26 @@ public final class SimTeleportMazePuzzle {
         return out.toArray(new int[0][]);
     }
 
+    /**
+     * The real room's own pads, copied verbatim from {@code TeleportMazeSolverFeature.PADS} (which took them
+     * from QUOI's {@code TeleportMazeSolver.kt}): 28 cell pads in cell order, four to a cell, then the END pad
+     * and the START pad. Room-relative, y=69, the same frame every solver in this mod works in.
+     *
+     * <p>Only {@link #bindAt} uses these - {@link #build}'s standalone arena keeps its own invented layout,
+     * because the real coordinates are spread across a 33-block room and are only reachable by teleport.
+     */
+    private static final int[][] REAL_PADS = {
+            {4, 69, 14}, {10, 69, 14}, {10, 69, 20}, {4, 69, 20},
+            {4, 69, 12}, {4, 69, 6}, {10, 69, 6}, {10, 69, 12},
+            {12, 69, 28}, {12, 69, 22}, {18, 69, 22}, {18, 69, 28},
+            {26, 69, 14}, {20, 69, 20}, {20, 69, 14}, {26, 69, 20},
+            {26, 69, 28}, {26, 69, 22}, {20, 69, 28}, {20, 69, 22},
+            {10, 69, 22}, {10, 69, 28}, {4, 69, 28}, {4, 69, 22},
+            {20, 69, 6}, {20, 69, 12}, {26, 69, 12}, {26, 69, 6},
+            {15, 69, 14}, // end
+            {15, 69, 12}, // start
+    };
+
     /** Which pad (0-3) is correct for each cell, chosen fresh every {@link #build}. */
     private static volatile int[] correctPad = new int[0];
 
@@ -119,6 +139,7 @@ public final class SimTeleportMazePuzzle {
         }
         clearBlocks(client);
         storedOrigin = origin;
+        boundAnchor = null;   // a standalone arena, not a bind to a captured room
         BlockPos anchor = origin.below();
 
         BlockPos[] anchors = new BlockPos[CELL_COUNT + 1]; // +1: the final landing spot past the last cell
@@ -170,12 +191,101 @@ public final class SimTeleportMazePuzzle {
                 ModChat.value(CELL_COUNT + " cells"), ModChat.text(" to cross."));
     }
 
+    /**
+     * Arms this puzzle on a REAL captured Teleport Maze room, using the room's own end-portal-frame pads.
+     *
+     * <p>Nothing is placed. All 30 of {@link #REAL_PADS} land on an {@code end_portal_frame} in the shipped
+     * capture - measured 30 of 30 at database rotation 0, against 1, 0 and 1 at the other three - so the pads,
+     * the seven chambers and the iron bars between them are the room's own blocks. Which of a cell's four pads
+     * is the correct one is still drawn fresh here, exactly as {@link #build} does and for the reason that
+     * class doc gives: the real game decides it per room instance and there is no table to port.
+     *
+     * <p>A correct pad teleports to the CENTRE of the next chamber - the midpoint of its four corner pads -
+     * rather than onto one of its pads, because landing on a pad would be read as a choice on arrival.
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(net.minecraft.server.level.ServerLevel level,
+                                 com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
+        List<int[]> rels = List.of(REAL_PADS);
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
+                com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, rels,
+                        com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.END_PORTAL_FRAME),
+                        new int[]{0}, 24);
+        if (anchor == null) {
+            return false;
+        }
+        // In-memory only, NOT clearBlocks(): that queues air writes at the PREVIOUS arena's positions for the
+        // next server tick, which on a rebuild of the same room would be inside the room just pasted. The
+        // build's own wipe has already removed the last floor.
+        builtBlocks = List.of();
+        // The chamber centres, one per cell, plus the end pad as the final landing spot. Worked out from the
+        // pads themselves so a room whose chambers are laid out differently still lands the player inside one.
+        BlockPos[] anchors = new BlockPos[CELL_COUNT + 1];
+        PAD_INDEX.clear();
+        for (int c = 0; c < CELL_COUNT; c++) {
+            int sx = 0;
+            int sz = 0;
+            int y = 0;
+            for (int i = 0; i < PADS_PER_CELL; i++) {
+                int[] rel = REAL_PADS[c * PADS_PER_CELL + i];
+                BlockPos pad = anchor.world(rel);
+                sx += pad.getX();
+                sz += pad.getZ();
+                y = pad.getY();
+                // The feet block is the one ABOVE the pad, same convention build() uses.
+                PAD_INDEX.put(pad.above(), new int[]{c, i});
+            }
+            anchors[c] = new BlockPos(sx / PADS_PER_CELL, y, sz / PADS_PER_CELL);
+        }
+        anchors[CELL_COUNT] = anchor.world(REAL_PADS[28]);   // the end pad
+        cellAnchor = anchors;
+        int[] chosen = new int[CELL_COUNT];
+        for (int c = 0; c < CELL_COUNT; c++) {
+            chosen[c] = ThreadLocalRandom.current().nextInt(PADS_PER_CELL);
+        }
+        correctPad = chosen;
+        storedOrigin = anchor.world(REAL_PADS[29]);   // the start pad, for a rebuild after a wrong pad
+        boundAnchor = anchor;
+        currentCell = 0;
+        complete = false;
+        built = true;
+        return true;
+    }
+
+    /** Non-null while this puzzle is bound to a real room rather than to a standalone arena. */
+    private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
+
     /** True once the last cell's correct pad has sent the player to the final landing spot. */
     public static boolean isComplete() {
         return complete;
     }
 
     /** Clears the arena and its bookkeeping. Safe with nothing built. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    public static void forget() {
+        builtBlocks = List.of();
+        cellAnchor = new BlockPos[0];
+        correctPad = new int[0];
+        PAD_INDEX.clear();
+        currentCell = 0;
+        complete = false;
+        built = false;
+        storedOrigin = null;
+        boundAnchor = null;
+    }
+
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
         clearBlocks(client);
@@ -185,6 +295,7 @@ public final class SimTeleportMazePuzzle {
         currentCell = 0;
         complete = false;
         built = false;
+        boundAnchor = null;
     }
 
     private static void clearBlocks(Minecraft client) {
@@ -248,10 +359,37 @@ public final class SimTeleportMazePuzzle {
         // auto-get setting works in here the same as it does on Hypixel.
         SimPuzzles.reportFail("Teleport Maze");
         ModChat.send("Sim", ModChat.bad("Wrong pad - resetting the maze."));
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor bound = boundAnchor;
+        if (bound != null) {
+            // Bound to a real room: there is no arena to rebuild, so the pads are re-drawn in place and the
+            // player is put back on the start pad. Calling build() here would paste the standalone arena
+            // INSIDE the captured room, which is exactly what this class was not doing before.
+            rearmBound(client, bound);
+            return;
+        }
         BlockPos origin = storedOrigin;
         if (origin != null) {
             client.execute(() -> build(client, origin));
         }
+    }
+
+    /** Fresh correct pads and back to the start, for a maze bound to a real captured room. */
+    private static void rearmBound(Minecraft client, com.killer560.hub.roomsim.SimRoomPuzzles.Anchor bound) {
+        PAD_INDEX.clear();
+        for (int c = 0; c < CELL_COUNT; c++) {
+            for (int i = 0; i < PADS_PER_CELL; i++) {
+                PAD_INDEX.put(bound.world(REAL_PADS[c * PADS_PER_CELL + i]).above(), new int[]{c, i});
+            }
+        }
+        int[] chosen = new int[CELL_COUNT];
+        for (int c = 0; c < CELL_COUNT; c++) {
+            chosen[c] = ThreadLocalRandom.current().nextInt(PADS_PER_CELL);
+        }
+        correctPad = chosen;
+        currentCell = 0;
+        complete = false;
+        BlockPos start = bound.world(REAL_PADS[29]);
+        teleport(client, start.getX() + 0.5, start.getY() + 1, start.getZ() + 0.5);
     }
 
     /**

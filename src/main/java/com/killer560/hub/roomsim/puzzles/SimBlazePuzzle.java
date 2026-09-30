@@ -118,6 +118,15 @@ public final class SimBlazePuzzle {
     }
 
     public static void build(Minecraft client, BlockPos origin) {
+        // A standalone arena, not a bind to a captured room, and always the Lower Blaze half of the rule -
+        // which is what this method has always drilled.
+        boundOrigin = null;
+        lowestFirst = false;
+        rebuild(client, origin);
+    }
+
+    /** Spawns a fresh arena at {@code origin} in whichever kill order the current arena is drilling. */
+    private static void rebuild(Minecraft client, BlockPos origin) {
         if (!SimState.canAct(client)) {
             return;
         }
@@ -127,6 +136,7 @@ public final class SimBlazePuzzle {
         }
         despawnCurrent(client);
         storedOrigin = origin;
+        final boolean higher = lowestFirst;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             UUID[] byPlacement = new UUID[HEALTHS.length];
@@ -149,7 +159,7 @@ public final class SimBlazePuzzle {
                 byPlacement[i] = blaze.getUUID();
             }
             List<UUID> ordered = new ArrayList<>(HEALTHS.length);
-            for (int idx : KILL_ORDER_INDICES) {
+            for (int idx : killOrder(higher)) {
                 ordered.add(byPlacement[idx]);
             }
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
@@ -160,6 +170,108 @@ public final class SimBlazePuzzle {
         });
     }
 
+    /**
+     * Arms this puzzle inside a REAL captured Higher Blaze or Lower Blaze room.
+     *
+     * <p><b>This is the one puzzle where the geometry genuinely is not in the capture, and could not be.</b>
+     * A blaze is an entity; a room capture is blocks. Nothing in this repo's bundled data says where a blaze
+     * stands either - {@code BlazeSolverFeature} reads live entities and has no position table - so the five
+     * stand positions stay this file's own invention, as its class doc already says. What changes is only
+     * WHERE they are invented: an air pocket found by scanning the room's own centre column, instead of four
+     * blocks in front of wherever he was standing when he typed a command.
+     *
+     * <p>The kill order does change with the room, and that part is real: {@code BlazeSolverFeature}'s class
+     * doc states both halves of the rule - Lower Blaze is highest-HP first, Higher Blaze is lowest-HP first -
+     * so {@code higher} reverses the required order rather than always drilling the Lower half.
+     *
+     * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
+     *
+     * @param higher true for Higher Blaze (lowest HP dies first), false for Lower Blaze (highest first)
+     * @return whether the puzzle was armed
+     */
+    public static boolean bindAt(net.minecraft.server.level.ServerLevel level,
+                                 com.killer560.hub.roomsim.SimRoomPuzzles.Placement p, boolean higher) {
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor = p.anchor();
+        // The room's centre column, walked from the dungeon floor upwards for the first place a 5-block-tall
+        // arena fits. Lower Blaze is entered at the bottom and Higher Blaze near its ceiling, so the search
+        // starts from the end the player arrives at rather than assuming one of them.
+        BlockPos found = null;
+        int from = higher ? 120 : 70;
+        int step = higher ? -1 : 1;
+        for (int i = 0; i < 70 && found == null; i++) {
+            int y = from + i * step;
+            BlockPos candidate = anchor.world(15, y, 16);
+            boolean clear = true;
+            for (int dy = 0; dy <= 5 && clear; dy++) {
+                clear = level.getBlockState(candidate.above(dy)).isAir();
+            }
+            if (clear) {
+                found = candidate;
+            }
+        }
+        if (found == null) {
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                    "Sim blaze puzzle: no 6-block-tall air pocket in {}'s centre column - not armed",
+                    p.room().name);
+            return false;
+        }
+        despawnCurrent(Minecraft.getInstance());
+        storedOrigin = found;
+        boundOrigin = found;
+        lowestFirst = higher;
+        final BlockPos origin = found;
+        UUID[] byPlacement = new UUID[HEALTHS.length];
+        for (int i = 0; i < HEALTHS.length; i++) {
+            BlockPos pos = origin.offset(OFFSETS[i]);
+            SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
+            blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HEALTHS[i]);
+            blaze.setHealth(HEALTHS[i]);
+            blaze.setPersistenceRequired();
+            blaze.setNoAi(true);
+            blaze.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+            if (!level.addFreshEntity(blaze)) {
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
+                        .warn("Sim blaze puzzle: the level refused a blaze at {}", pos);
+                continue;
+            }
+            byPlacement[i] = blaze.getUUID();
+        }
+        List<UUID> ordered = new ArrayList<>(HEALTHS.length);
+        int[] order = killOrder(higher);
+        for (int idx : order) {
+            if (byPlacement[idx] != null) {
+                ordered.add(byPlacement[idx]);
+            }
+        }
+        if (ordered.isEmpty()) {
+            return false;
+        }
+        spawnedIds = List.copyOf(ordered);
+        nextRequired = 0;
+        complete = false;
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim blaze puzzle: {} blaze(s) in {} at {}, {}-HP first",
+                ordered.size(), p.room().name, origin, higher ? "lowest" : "highest");
+        return true;
+    }
+
+    /** Non-null while this puzzle is bound inside a real captured room rather than a standalone arena. */
+    private static volatile BlockPos boundOrigin = null;
+    /** Whether the CURRENT arena drills the Higher Blaze half of the rule (lowest HP first). */
+    private static volatile boolean lowestFirst = false;
+
+    /** {@link #KILL_ORDER_INDICES}, reversed for the Higher Blaze half of the real rule. */
+    private static int[] killOrder(boolean higher) {
+        if (!higher) {
+            return KILL_ORDER_INDICES;
+        }
+        int[] out = new int[KILL_ORDER_INDICES.length];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = KILL_ORDER_INDICES[out.length - 1 - i];
+        }
+        return out;
+    }
+
     /** True once every blaze has died in the required order. */
     public static boolean isComplete() {
         return complete;
@@ -168,12 +280,33 @@ public final class SimBlazePuzzle {
     /** Despawns whatever is left of the current arena and clears progress. Takes no arguments - grabs the
      *  client singleton the same way {@code SimAbilities}'s item-use handler does, since the three-method
      *  shape asked for here has no room for one. */
+    /**
+     * Drops this puzzle's bookkeeping WITHOUT touching the world.
+     *
+     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
+     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
+     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
+     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
+     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
+     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     */
+    public static void forget() {
+        // The blazes themselves are entities in a level that is about to be wiped and rebuilt, so they go
+        // with it - nothing is discarded here, which is the whole point of forget().
+        spawnedIds = List.of();
+        nextRequired = 0;
+        complete = false;
+        storedOrigin = null;
+        boundOrigin = null;
+    }
+
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
         if (!SimState.canAct(client)) {
             return;
         }
         despawnCurrent(client);
+        boundOrigin = null;
     }
 
     private static void despawnCurrent(Minecraft client) {
@@ -261,7 +394,9 @@ public final class SimBlazePuzzle {
         complete = false;
         BlockPos origin = storedOrigin;
         if (origin != null) {
-            client.execute(() -> build(client, origin));
+            // rebuild(), not build(): build() would reset the arena to the Lower Blaze half of the rule, so a
+            // failed Higher Blaze would silently start drilling the opposite order.
+            client.execute(() -> rebuild(client, origin));
         }
     }
 
