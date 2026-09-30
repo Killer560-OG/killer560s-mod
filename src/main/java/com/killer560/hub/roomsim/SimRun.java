@@ -58,7 +58,13 @@ public final class SimRun {
                         net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("start")
                                 // Sim-only, like /map and /fly: an ungated /start would claim the name on
                                 // Hypixel, where the server has its own idea of what it means.
-                                .requires(src -> SimState.canAct(Minecraft.getInstance()))
+                                // A WHOLE FLOOR, not a single room. killer560 (2026-09-30): "THere
+                                // shouldnt be the ability for /start in a single generated room only in
+                                // full map generations." A run is a clear of a floor - there is no
+                                // entrance gate to hold shut in one room, so the countdown would end by
+                                // opening a door that does not exist and start a clock against nothing.
+                                .requires(src -> SimState.canAct(Minecraft.getInstance())
+                                        && SimState.isGeneratedFloor())
                                 .executes(ctx -> {
                                     // The door the builder recorded, so this finds the right one rather than
                                     // the nearest one - the nearest is whichever he happens to be standing by.
@@ -75,6 +81,13 @@ public final class SimRun {
     public static void begin(Minecraft client, BlockPos door) {
         if (!SimState.canAct(client)) {
             ModChat.send("Sim", ModChat.text("Not in the sim."));
+            return;
+        }
+        // Checked here as well as in requires(), because requires() only decides whether the command is
+        // OFFERED - begin() is also reached from the menu, and a gate in one of two callers is the shape of
+        // bug this project has written down more than once.
+        if (!SimState.isGeneratedFloor()) {
+            ModChat.send("Sim", ModChat.text("/start needs a whole floor - this is a single room."));
             return;
         }
         entranceDoor = door;

@@ -448,7 +448,9 @@ public final class SimAbilities {
     private static boolean tacticalInsertion(Minecraft client) {
         insertion = client.player.position();
         insertionTicks = INSERTION_DELAY_TICKS;
-        ModChat.send("Sim", ModChat.text("Tactical Insertion planted"));
+        // No chat line. killer560 (2026-09-30): "Remove the tactical insertion lines that appear in
+        // chat." The blaze rod leaving his hand and the marker on the ground already say it was planted,
+        // and a run he is timing does not want two lines of chat per insertion.
         return true;
     }
 
@@ -468,7 +470,6 @@ public final class SimAbilities {
         Vec3 back = insertion;
         insertion = null;
         teleport(client, back.x, back.y, back.z);
-        ModChat.send("Sim", ModChat.text("Returned to your insertion"));
     }
 
     /**
