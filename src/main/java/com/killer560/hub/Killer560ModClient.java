@@ -156,8 +156,13 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimSpeed.register();
         com.killer560.hub.roomsim.SimMimic.register();
         com.killer560.hub.roomsim.SimScoreCommand.register();
+        com.killer560.hub.roomsim.SimTeleportCommands.register();
         com.killer560.hub.roomsim.SimLoadout.register();
-        com.killer560.hub.roomsim.SimMimicRenderer.register();
+        // SimMimicRenderer is deliberately gone. It outlined every chest that could be the mimic, and because
+        // SimSecrets registers each placed secret chest as a candidate that was every secret chest on the
+        // floor, drawn whether or not Secret Waypoints was switched on - killer560 (2026-09-30): "dont have
+        // the secrets highlighted unless my secret highlight setting is on. just my secret highlight setting
+        // should work on this sim." The sim has no highlighter of its own now; Secret Waypoints is the only one.
         // The sim's puzzles. Each owns its own arena and its own failure rule; they do nothing outside the sim.
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.register();

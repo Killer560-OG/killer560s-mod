@@ -5,7 +5,6 @@ import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -43,21 +42,13 @@ public final class SimMimic {
     /**
      * Every chest that could have been the mimic on this map.
      *
-     * <p>Concurrent, because the two sides do not share a thread: the SERVER thread adds to it while a build
-     * places chests, and the unguarded render callback in {@code SimMimicRenderer} iterates it every frame.
-     * A plain LinkedHashSet there is a ConcurrentModificationException waiting for a build to run while he is
-     * looking at the room - which is most of them. Insertion order is preserved, which the picker relies on.
-     */
-    /**
-     * ACTUALLY concurrent, which the old one only claimed to be.
-     *
-     * <p>It was {@code Collections.newSetFromMap(new LinkedHashMap<>(){...})} with a comment saying it existed
-     * to stop a ConcurrentModificationException - and {@code newSetFromMap} adds no synchronisation at all, so
-     * it did nothing of the kind. The race is real and routine: the build's completion callback adds secret
-     * chests on the integrated server's thread while SimMimicRenderer walks this set every frame on the render
-     * thread. A CopyOnWriteArraySet is genuinely safe to iterate under concurrent writes and keeps the
-     * insertion order the picker relies on. The set is a few dozen chests, so copy-on-write costs nothing
-     * here.
+     * <p>Concurrent, and ACTUALLY concurrent, which an earlier version only claimed to be: it was
+     * {@code Collections.newSetFromMap(new LinkedHashMap<>(){...})} with a comment saying it existed to stop a
+     * ConcurrentModificationException, and {@code newSetFromMap} adds no synchronisation at all. Kept concurrent
+     * now that {@code SimMimicRenderer} is gone, because the two sides still do not share a thread: a build's
+     * completion callback adds secret chests from the integrated SERVER thread while the picker reads the set.
+     * A CopyOnWriteArraySet is genuinely safe to iterate under concurrent writes and keeps the insertion order
+     * the picker relies on. The set is a few dozen chests, so copy-on-write costs nothing here.
      */
     private static final Set<BlockPos> CANDIDATES = new java.util.concurrent.CopyOnWriteArraySet<>();
 
@@ -175,15 +166,7 @@ public final class SimMimic {
         return true;
     }
 
-    /** Candidates near the player, for drawing. Bounded so a big map does not redraw the world every frame. */
-    public static List<BlockPos> candidatesNear(BlockPos around, double radius) {
-        AABB box = new AABB(around).inflate(radius);
-        List<BlockPos> out = new ArrayList<>();
-        for (BlockPos p : CANDIDATES) {
-            if (box.contains(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5)) {
-                out.add(p);
-            }
-        }
-        return out;
-    }
+    // candidatesNear() is gone with SimMimicRenderer. It fed the only thing that ever drew the candidates, and
+    // that highlighter was removed on 2026-09-30 because it outlined every secret chest on the floor with no
+    // regard for the Secret Waypoints setting. The candidate SET stays - the picker is what needs it.
 }

@@ -660,6 +660,8 @@ opened even without that. Ask whether the id consumes a right-click before consu
 question in a method: the callback is a COMMON event and the server side has to reach the same answer
 without running the ability a second time.
 
+**"The secrets are highlighted with my setting off" was not Secret Waypoints at all.** `SecretWaypointsFeature` gates correctly on `SecretWaypointsConfig.isEnabled()` (which ships false) and nothing in the repo ever writes that field except the GUI tab, so the config was never the culprit. The highlighter was `SimMimicRenderer`, a sim-only `AFTER_TRANSLUCENT_TERRAIN` callback whose entire gate was `SimState.canAct() && SimMimic.hasMimic()`. It outlined every mimic CANDIDATE within 40 blocks in amber, and `SimSecrets` registers each placed secret chest as a candidate (`SimMimic.addCandidate`) on top of every chest baked into a capture - so "the chests that could be the mimic" was, in practice, every secret on the floor. Deleted 2026-09-30 rather than re-gated, at his request: the sim now has no highlighter of its own and Secret Waypoints is the only thing drawing secrets in there. When a feature looks like it is ignoring its setting, check whether a SECOND renderer is drawing the same thing - this one was in a different package, on an earlier render pass, and never consulted the config at all.
+
 **A sim weapon that is hitscan is a sim weapon that fires nothing, as far as he can tell.** The Terminator
 has fired three arrows since it was written, invisibly, and read to him as firing none.
 
