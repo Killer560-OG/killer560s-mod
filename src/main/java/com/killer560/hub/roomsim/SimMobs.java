@@ -590,6 +590,24 @@ public final class SimMobs {
      * {@link #spawnDummy}. {@code isSunSensitive()} is overridden too, belt-and-suspenders: dungeon rooms have
      * no sky exposure, but the spec asked for it explicitly ("there is no daylight, but persistence matters").
      */
+
+    /**
+     * Whether a sim mob should shrug this off.
+     *
+     * <p>Every sim mob has 1 HP, which makes ANY environmental damage instantly lethal - and a practice target
+     * that dies to the ceiling before he reaches it is worse than no target at all. Measured 2026-09-29: a
+     * zombie placed in a two-block-high room vanished within a tick while a miniboss in the same spot lived,
+     * because a zombie is 1.95 blocks tall and a player is 1.8, so the zombie's head was in the ceiling and it
+     * suffocated. Its star tag survived, which is what a clear would then chase - a name tag with nothing
+     * under it.
+     *
+     * <p>Only the environment is blocked. Damage from him still kills it on the first hit, which is the whole
+     * point of a 1 HP dummy.
+     */
+    private static boolean environmental(net.minecraft.world.damagesource.DamageSource source) {
+        return source.getEntity() == null && source.getDirectEntity() == null;
+    }
+
     private static final class SimZombie extends Zombie {
         SimZombie(EntityType<? extends Zombie> type, Level level) {
             super(type, level);
@@ -597,6 +615,12 @@ public final class SimMobs {
 
         @Override
         public void checkDespawn() {
+        }
+
+        @Override
+        public boolean isInvulnerableTo(net.minecraft.server.level.ServerLevel level,
+                                        net.minecraft.world.damagesource.DamageSource source) {
+            return environmental(source) || super.isInvulnerableTo(level, source);
         }
 
         @Override
@@ -615,6 +639,12 @@ public final class SimMobs {
 
         @Override
         public void checkDespawn() {
+        }
+
+        @Override
+        public boolean isInvulnerableTo(net.minecraft.server.level.ServerLevel level,
+                                        net.minecraft.world.damagesource.DamageSource source) {
+            return environmental(source) || super.isInvulnerableTo(level, source);
         }
     }
 
