@@ -428,8 +428,16 @@ public final class RoomLibrary {
             return minY != MIN_Y && contentMinY() <= minY;
         }
 
+        /**
+         * Why this capture holds blocks that are not this room's, or null when it is sound.
+         *
+         * <p>Set by {@link RoomTileAudit} at load, not stored in the file: it is derived from the blocks, so
+         * one clean walk through the room clears it by itself and no stale list has to be maintained.
+         */
+        public String corruptReason;
+
         public boolean usable() {
-            return currentFormat() && complete();
+            return currentFormat() && complete() && corruptReason == null;
         }
     }
 
@@ -559,6 +567,10 @@ public final class RoomLibrary {
         int onDisk = fresh.size();
         // Still no lock held. mergeBundled reads the jar and merges into the same local map.
         int rescued = mergeBundled(fresh);
+        // AFTER the merge, so a bundled room that replaced a bad local one is what gets checked - and before
+        // the map is swapped in, so nothing can ever see an unaudited library. Still off the render thread,
+        // for the same reason the reads above are.
+        RoomTileAudit.run(fresh);
         int fromJar = 0;
         for (Room r : fresh.values()) {
             if (r.fromJar) {
@@ -1068,13 +1080,27 @@ public final class RoomLibrary {
         if ((tilesX == want[0] && tilesZ == want[1]) || (tilesX == want[1] && tilesZ == want[0])) {
             return new int[]{tilesX, tilesZ};
         }
-        // Keep the orientation the world suggested; only the SIZE comes from the database.
-        int big = Math.max(want[0], want[1]);
-        int small = Math.min(want[0], want[1]);
-        int[] use = tilesX >= tilesZ ? new int[]{big, small} : new int[]{small, big};
+        // REFUSED, not clamped. This used to keep the orientation the world suggested and take only the SIZE
+        // from the database, and that fixed the wrong half of the problem.
+        //
+        // The size was never the dangerous part. The ANCHOR is: captureBox starts the box at the lowest cell
+        // the live map has grouped into this room, and when that grouping is wrong the box starts in the
+        // wrong place. Clamping then read the database's number of tiles from the wrong starting point,
+        // which is how Waterfall's capture came to hold a tile of Catwalk, a tile of nothing, and the whole
+        // of Rare Overgrown - 34 tiles across the library are some other room's, and 12 are empty
+        // (RoomTileAudit measures this at every load and refuses to place the rooms it finds).
+        //
+        // A measured footprint that disagrees with the database means the grouping is not this room, and
+        // there is nothing in a capture that can recover the right anchor from that. Measured too BIG is an
+        // Ashfall line where the map merged a run of neighbours; measured too SMALL is a room only partly
+        // walked, where the revealed corner need not be the room's corner. Both produce a box over the wrong
+        // cells, so both wait. Nothing is lost that was worth keeping: walking the whole room on a real floor
+        // makes the grouping right, and then it captures.
         warnFootprintOnce(name, tilesX, tilesZ, "the room database says it is " + want[0] + "x" + want[1]
-                + " tiles, so it is being captured as " + use[0] + "x" + use[1] + " instead");
-        return use;
+                + " tiles. A footprint that does not match means the map has not grouped this room correctly "
+                + "yet, and capturing anyway would record its neighbours instead - walk the whole room on a "
+                + "real floor and it will capture then");
+        return null;
     }
 
     /** Rooms already warned about, so a scan that retries every tick does not fill the log. */

@@ -534,3 +534,64 @@ clean 31 by 31 slab while a floor is broken up by furniture.
 
 What works is requiring a ceiling somewhere above the surface before counting it. A floor has one; a roof, by
 definition, does not.
+
+## The 2026-09-30 round
+
+**A flag set before `SimWorld.open` does not survive it.** Opening a sim world unloads whatever world is
+open, and `SimWorld.onWorldUnloaded` calls `SimState.leave()`, which clears `generatedFloor`. So
+`SimFloorGen.generate` setting it and then opening the world left it true only for the first floor of a
+session - which is why the Dungeon Breaker's pre-start lock kept not engaging. Anything per-map belongs in
+`SimBuilder.build`, which runs after the world is up and which all five floor-building paths go through
+(`SimFloorGen.generate`, `SimGenerator`'s two map-code entries, the map editor, `SimRunHistory`'s rebuild).
+
+**The roof marker is evidence, not an answer.** `RoomCaptureRotation` trusted it outright whenever exactly one
+corner carried blue terracotta, and on his floor it named the wrong corner for Waterfall, Skull and Purple
+Flags. All three are long rooms, and a quarter turn on a long room swaps its long axis, so the database's
+secrets were rotated across the short side and fell out of the room - Waterfall lost seven of its eight. The
+database's own secret coordinates bound the room's canonical size, so a turn that cannot fit them inside the
+capture is provably wrong whatever block sits in that corner; that veto now runs before the marker is
+believed. Square rooms admit all four turns and are untouched.
+
+**Shape strings and capture footprints are in different frames.** Every long room in `rooms-modern.json` is
+written `1xN`, and its secret coordinates run along **x** - so `1x4` means four tiles along x, not one. Of his
+27 non-square captures, 26 also run long along x and one (Gold) does not. Comparing the shape STRING with the
+capture's `sizeX`/`sizeZ` will tell you 26 rooms are turned when they are not; compare the secret
+coordinates' extent instead, which is convention-free.
+
+**`SimBuildAudit` is the only check in the build that reads the world.** The door audit, the secret audit and
+the map all compare the build's inputs against each other, so a paste that wrote the wrong blocks passed all
+three in silence. The audit samples each room's footprint after the last block lands and compares it with the
+capture. A healthy room does not score 100% - doorways are carved, unused ones bricked up, secrets written in
+- and two captures of *different* rooms still agree about 90% of the time because rooms share walls and
+floors, so the threshold is 70%: a smoke alarm, not a ruler.
+
+## Captures that hold another room's blocks (2026-09-30)
+
+**The builder was never the problem.** Reading the 16:28 floor straight out of its region file and scoring
+all 36 cells against all 134 captures at all four rotations put every cell on the room the sim named, at
+99.9-100% against a best rival of 21-91%. Footprints tile the grid exactly, no overruns, no double claims.
+`RoomPlacer`, the layout and the live map are all correct, and three separate hypotheses about them were
+wrong.
+
+**What is wrong is `resolveFootprint`'s clamp.** `captureBox` anchors the box at the lowest grid cell the
+live map has grouped into the room. When that grouping is not the room - an Ashfall practice floor lays
+rooms out in a LINE and the map merges a whole run into one, or he has only walked part of a room - the box
+starts in the wrong place, and the clamp then read the DATABASE's number of tiles from that wrong start. It
+fixed the size and left the position alone, which is how Waterfall's capture came to be a tile of Catwalk,
+then Waterfall, then nothing, then the whole of Rare Overgrown. A mismatched footprint now REFUSES the
+capture instead of clamping it.
+
+**Measured, so it can be re-measured:** 34 tiles across the 134 captures are block-for-block a tile of a
+different room, and 12 are nothing but air. Compare tiles over y 66..99, the dungeon's own floor-to-roof
+band - comparing each room over its own captured band finds only 5 of the 34, because the duplicates differ
+in how far below the floor they were recorded, not in the room itself. When two rooms share a tile the one
+with MORE tiles is the corrupt one: a 1x1 box cannot span a run. `RoomTileAudit` does this at every load and
+makes the offenders unusable, so they are asked for again rather than placed.
+
+**A correction to the 16:22 commit.** It removed `Criss-Cross.json` as "97.4% solid on one side, 2.6% on the
+other - literally half a room". That measurement used the wrong array index order (`RoomLibrary.index` is
+y-major, `(y-minY)*sizeX*sizeZ + z*sizeX + x`) and was really measuring y-halves; done correctly the capture
+is 48.3/51.7 and perfectly ordinary. It stays removed for a different and real reason: `Criss-Cross` is not
+a name the room database knows, `Criss Cross` is, so it was a stray capture under a name nothing can look
+up. Its stale line is gone from the bundled index too, which was warning on every boot.
+

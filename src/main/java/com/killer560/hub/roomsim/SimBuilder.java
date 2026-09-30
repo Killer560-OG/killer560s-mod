@@ -161,6 +161,7 @@ public final class SimBuilder {
             SimDoors.clear();
             SimBuilder.clearEntranceDoor();
             SimRoomIndex.clear();
+            SimBuildAudit.clear();
             // A whole floor, as opposed to the single room buildSingleRoom pastes. Set HERE because this is
             // the one place all five floor-building paths meet, and because it has to survive SimState.leave()
             // - opening the sim world unloads the previous one, and leave() clears this. Set before the open,
@@ -223,6 +224,9 @@ public final class SimBuilder {
                 afterBuild.add(() -> SimSecrets.place(level, fr, fgx, fgz, rot));
                 // So Secret Waypoints knows this room is here - see SimRoomIndex.
                 SimRoomIndex.add(room, gx, gz, rot);
+                // And so the build can read the blocks back afterwards and check they are this room's - see
+                // SimBuildAudit, which is the only check here whose answer comes from the world.
+                SimBuildAudit.record(room, gx, gz, rot);
                 if (nameIndex >= 0 && nameIndex < clayByRoom.length) {
                     int[] clay = SimSecrets.clayCorner(room, gx, gz, rot);
                     clayByRoom[nameIndex] = new int[]{clay[0], clay[1], rot};
@@ -465,6 +469,7 @@ public final class SimBuilder {
                         : princes + " found, " + SimPrince.size() + " block(s), first at "
                                 + SimPrince.position());
                 SimMimic.chooseForMap();
+                SimBuildAudit.verify(level);
                 if (firstCell >= 0) {
                     snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
                             firstCell / DungeonLayout.GRID);

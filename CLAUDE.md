@@ -134,6 +134,13 @@ physics. Read the relevant one before touching either area.
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
   TWICE, so `grep -c "error:"` is double - the `N errors` line javac prints is the authoritative number.
+- **Cancelling a block break makes `AttackBlockCallback` fire every TICK, not once per click.**
+  `MultiPlayerGameMode.continueDestroyBlock` only continues an existing break when `isDestroying` is set, and
+  that field is set inside `startDestroyBlock` - which is where the callback lives and which a cancel returns
+  from first. So holding the button re-enters the callback twenty times a second (verified by `javap -c`:
+  `continueDestroyBlock` calls `startDestroyBlock` on its fallback path). The sim's Dungeon Breaker spent its
+  whole twenty-charge bar in one second this way. Anything that consumes that callback needs its own
+  edge-detection - track the block and clear it when `keyAttack` comes up.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items

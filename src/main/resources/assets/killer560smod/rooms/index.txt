@@ -25,7 +25,6 @@ Chains
 Chambers
 Cobble_Wall_Pillar
 Creeper_Beams
-Criss-Cross
 Criss_Cross
 Crypt
 Deathmite
