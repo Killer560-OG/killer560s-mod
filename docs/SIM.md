@@ -263,3 +263,23 @@ the world is opening, and the rooms are queued from a later server task, so anyt
 straight afterwards gets "no" and then measures an empty world. Use `buildsFinished()`, which only counts
 completions: snapshot it, ask for the floor, wait for it to change. Eleven testkit scenarios had this bug
 and two of them - "0 secret chests" and "sim mobs never spawn" - read for days as defects in the mod.
+
+## A capture's footprint comes from the database, not from the layout
+
+`DungeonLayout` grouping is not trustworthy as a footprint source. On an Ashfall practice preset the rooms
+sit in a LINE spanning 47 cells, and when the grouping merges a run of neighbours into one room the bounding
+box of the whole run becomes the footprint: a 2026-09-30 scan of every room produced 43 of 135 with a
+footprint the room database contradicts, up to 11x1, and each one overwrote a good capture because
+`captureAt` replaces a room whose footprint changed with an empty one.
+
+So `resolveFootprint` takes the database's shape whenever it knows one (the six shapes are 1x1, 1x2, 1x3,
+1x4, 2x2 and L, so 4 tiles is the hard ceiling), keeping the orientation the world suggested and only taking
+the size. It CLAMPS rather than refuses, in both directions: too big captures the one room, too small
+captures into the correct larger box and leaves the unseen columns unread so `complete()` stays false.
+Refusing would mean a room he has only half-walked could never be captured at all.
+
+Two things made this invisible for a day. `currentFormat()` only asks whether the size is a whole number of
+tiles, never whether the tile count could fit; and the generator's `footprintCells` silently finds no room
+for an oversized room on a 6-tile grid. A room can be captured, report as captured, and never once appear on
+a floor, with nothing logged. If rooms are "missing" from generated floors, check the footprints against the
+database before anything else.
