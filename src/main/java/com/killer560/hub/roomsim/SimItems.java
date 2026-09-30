@@ -369,7 +369,9 @@ public final class SimItems {
                     // server exactly like any other singleplayer world - there is nothing Hypixel-specific
                     // to reimplement, so this is a deliberate no-op rather than a missing handler.
                     false;
-            case "BAT_WAND" -> spiritSceptre(client);
+            // The flight, the particles and the blast live in SimSpiritSceptre - see its class doc for why the
+            // old one-line hit box here read as "the sceptre does nothing".
+            case "BAT_WAND" -> SimSpiritSceptre.fire(client);
             // Terminator owns its own file: three arrows, and Salvation after three hits.
             case "TERMINATOR" -> SimTerminator.use(client);
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);

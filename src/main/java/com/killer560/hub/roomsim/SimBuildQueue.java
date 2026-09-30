@@ -263,11 +263,27 @@ public final class SimBuildQueue {
     /** Queues a room. Safe to call from the server thread while the queue is already running. */
     public static synchronized void submit(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ,
                                            int rotation) {
+        markStart();
+        JOBS.add(new RoomPlacer.PasteJob(level, room, gridX, gridZ, rotation));
+        jobsTotal++;
+    }
+
+    /**
+     * Starts the clock if this is the first job of a build.
+     *
+     * <p>It used to live in {@link #submit} alone, and that made the build TIMER lie on every path that queues
+     * something else first. {@code SimBuilder.buildSingleRoom} wipes before it pastes, so the clear went in
+     * through {@link #submitClear} - which did not set this - and the paste then found a non-empty queue and
+     * did not set it either. {@code startedAtMs} was therefore still the PREVIOUS build's, and the single-room
+     * load on 2026-09-30 reported "Sim build took 112851 ms" for work the log's own timestamps put at about
+     * three seconds: 112.8 seconds is exactly the gap back to the floor he had generated two minutes earlier.
+     * A timer that measures from the last build is worse than no timer, because it reads as a catastrophic
+     * regression in whichever path happens to queue a clear first.
+     */
+    private static void markStart() {
         if (JOBS.isEmpty()) {
             startedAtMs = System.currentTimeMillis();
         }
-        JOBS.add(new RoomPlacer.PasteJob(level, room, gridX, gridZ, rotation));
-        jobsTotal++;
     }
 
     /** When the current build began, so the log can say how long it actually took rather than how long it felt. */
@@ -286,6 +302,7 @@ public final class SimBuildQueue {
      * exists to prevent.
      */
     public static synchronized void submitClear(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        markStart();
         JOBS.addFirst(new ClearJob(level, minX, minZ, maxX, maxZ));
     }
 
@@ -306,6 +323,7 @@ public final class SimBuildQueue {
      * falling into the void, or he will practise a route that walks through one.
      */
     public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        markStart();
         JOBS.add(new SealJob(level, minX, minZ, maxX, maxZ));
     }
 
@@ -400,7 +418,23 @@ public final class SimBuildQueue {
      */
     private static final int SCAN_BUDGET = 250_000;
 
-    /** Fills a box with air, a slice at a time. */
+    /**
+     * Fills a box with air, a CHUNK SECTION at a time.
+     *
+     * <p>It walked the box position by position - {@code level.getBlockState} then {@code level.setBlock} on
+     * every one of them - and both halves of that were the wrong tool. A section that holds nothing but air
+     * can say so in one call ({@code LevelChunkSection.hasOnlyAir}), and the grid's band is 385 blocks tall
+     * while a floor occupies about 80 of them, so roughly three quarters of the volume is answerable without
+     * reading a single block. The writes went the same way {@code RoomPlacer.SectionWriter} already sends the
+     * pastes: straight into the section, with the chunk and section found once instead of per block.
+     * {@code FinishJob} below already puts back what that skips - block counts, the light engine's idea of
+     * which sections are empty, and the light itself - for every chunk the write touched.
+     *
+     * <p>This is the same lesson {@code docs/SIM.md} records for the secret scan: "a block scan over a room's
+     * volume is almost always a chunk-section scan in disguise". The paste was moved off {@code setBlock} for
+     * exactly this reason in September and the clear was left behind, so a wipe cost far more per block than
+     * the floor it was wiping.
+     */
     private static final class ClearJob implements Job {
 
         private final ServerLevel level;
@@ -408,30 +442,39 @@ public final class SimBuildQueue {
         private final int minZ;
         private final int maxX;
         private final int maxZ;
-        private final net.minecraft.core.BlockPos.MutableBlockPos cursor =
-                new net.minecraft.core.BlockPos.MutableBlockPos();
+        /**
+         * The band the OLD floor occupies, not the new one: the clear runs before the pastes and its job is to
+         * remove what was there. Read ONCE, here, because {@code SimAltitude.plan} moves the current offset
+         * into "previous" and any read after that would be measuring the wrong floor.
+         */
+        private final int minY;
+        private final int maxY;
+        private final java.util.List<Long> chunks = new ArrayList<>();
         private final net.minecraft.world.level.block.state.BlockState air =
                 net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
 
-        private int x;
-        private int z;
-        // The band the OLD floor occupies, not the new one: the clear runs before the pastes and its
-        // job is to remove what was there. The next floor may sit somewhere else - see SimAltitude.
-        private int y = SimAltitude.previousMinWorldY();
+        private int chunkIndex;
+        private int sectionIndex;
+        private net.minecraft.world.level.chunk.LevelChunk chunk;
         private boolean done;
         private long visited;
         private final long total;
 
         ClearJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
-            this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
-                    * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
             this.level = level;
             this.minX = minX;
             this.minZ = minZ;
             this.maxX = maxX;
             this.maxZ = maxZ;
-            this.x = minX;
-            this.z = minZ;
+            this.minY = SimAltitude.previousMinWorldY();
+            this.maxY = SimAltitude.previousMaxWorldY();
+            this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
+                    * Math.max(0, maxY - minY + 1);
+            for (int cx = minX >> 4; cx <= (maxX >> 4); cx++) {
+                for (int cz = minZ >> 4; cz <= (maxZ >> 4); cz++) {
+                    chunks.add((((long) cx) << 32) ^ (cz & 0xffffffffL));
+                }
+            }
         }
 
         @Override
@@ -459,26 +502,62 @@ public final class SimBuildQueue {
             // at ten million of them, write nothing, spend no budget and never return. Scanning is work even
             // when it changes nothing.
             while (written < budget && scanned < SCAN_BUDGET) {
-                if (y > SimAltitude.previousMaxWorldY()) {
+                if (chunkIndex >= chunks.size()) {
                     done = true;
                     return written;
                 }
-                scanned++;
-                visited++;
-                cursor.set(x, y, z);
-                // Only touch what is not already air - rewriting air would burn the write budget on nothing.
-                if (!level.getBlockState(cursor).isAir()) {
-                    level.setBlock(cursor, air, RoomPlacer.CLEAR_FLAGS);
-                    touched(x, z);
-                    written++;
+                long key = chunks.get(chunkIndex);
+                int cx = (int) (key >> 32);
+                int cz = (int) key;
+                if (chunk == null) {
+                    chunk = level.getChunk(cx, cz);
+                    sectionIndex = 0;
                 }
-                if (++z > maxZ) {
-                    z = minZ;
-                    if (++x > maxX) {
-                        x = minX;
-                        y++;
+                var sections = chunk.getSections();
+                if (sectionIndex >= sections.length) {
+                    chunk = null;
+                    chunkIndex++;
+                    continue;
+                }
+                int index = sectionIndex++;
+                int sectionBottom = chunk.getSectionYFromSectionIndex(index) << 4;
+                int y0 = Math.max(minY, sectionBottom);
+                int y1 = Math.min(maxY, sectionBottom + 15);
+                int x0 = Math.max(minX, cx << 4);
+                int x1 = Math.min(maxX, (cx << 4) + 15);
+                int z0 = Math.max(minZ, cz << 4);
+                int z1 = Math.min(maxZ, (cz << 4) + 15);
+                if (y1 < y0 || x1 < x0 || z1 < z0) {
+                    continue;   // this section is outside the band, or the chunk outside the box
+                }
+                long cells = (long) (y1 - y0 + 1) * (x1 - x0 + 1) * (z1 - z0 + 1);
+                visited += cells;
+                scanned++;
+                var section = sections[index];
+                if (section.hasOnlyAir()) {
+                    continue;   // the whole section answered in one call
+                }
+                for (int y = y0; y <= y1; y++) {
+                    for (int x = x0; x <= x1; x++) {
+                        for (int z = z0; z <= z1; z++) {
+                            var old = section.getBlockState(x & 15, y & 15, z & 15);
+                            if (old.isAir()) {
+                                continue;
+                            }
+                            section.setBlockState(x & 15, y & 15, z & 15, air, false);
+                            // Take the old block entity with it, for the same reason the paste does: a chest
+                            // paved over behind Level.setBlock's back leaves a ChestBlockEntity attached to a
+                            // position that now holds air, and vanilla throws on the next walk of the chunk.
+                            if (old.hasBlockEntity()) {
+                                chunk.removeBlockEntity(new net.minecraft.core.BlockPos(x, y, z));
+                            }
+                            touched(x, z);
+                            written++;
+                        }
                     }
                 }
+                scanned += (int) Math.min(SCAN_BUDGET, cells);
+                chunk.markUnsaved();
             }
             return written;
         }

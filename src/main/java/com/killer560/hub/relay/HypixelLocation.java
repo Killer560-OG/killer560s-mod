@@ -118,6 +118,18 @@ public final class HypixelLocation {
         return hash == null ? null : "lobby:" + hash.substring(0, RelayRoom.HEX_LENGTH);
     }
 
+    /**
+     * An opaque key for the lobby we are on, or null while Hypixel has not answered yet.
+     *
+     * <p>Public because the Crystal Hollows map has to throw its findings away when the lobby changes -
+     * Hypixel lays that world out differently on every server, so a structure learned on the last one is not
+     * stale, it is wrong. Same value {@link #lobbyRoom} keys the relay room on, so a find and the room it is
+     * shared in cannot disagree about which lobby they belong to.
+     */
+    public static String lobbyKey() {
+        return lobbyRoom();
+    }
+
     /** For the settings tab: is the id known, or should it explain why not yet. */
     public static boolean isKnown() {
         return serverId != null;

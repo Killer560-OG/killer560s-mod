@@ -111,6 +111,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
+        com.killer560.hub.roomsim.SimSpiritSceptre.register();
         com.killer560.hub.roomsim.SimWorld.register();
         com.killer560.hub.roomsim.SimBuildQueue.register();
         com.killer560.hub.roomsim.SimRun.registerStartCommand();
@@ -178,6 +179,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // observational (never click/move) - see each tracker's own class doc.
         com.killer560.hub.mining.profit.MiningProfitTracker.register();
         com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
+        com.killer560.hub.mining.chmap.ChDiscovery.register();
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);

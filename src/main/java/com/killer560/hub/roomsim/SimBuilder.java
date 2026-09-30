@@ -828,11 +828,51 @@ public final class SimBuilder {
                 snapPlayerTo(client, level, centre, centre);
                 client.execute(() -> SimSecrets.report(roomName, secrets));
                 client.execute(() -> {
+                    publishSingleRoomMap(room, centre);
                     SimWorld.buildFinished(client, null);
                     ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
                 });
             });
         });
+    }
+
+    /**
+     * Puts ONE room on the dungeon map, and nothing else.
+     *
+     * <p>killer560 (2026-09-30): "if i load only a single room make sure it wipes everything else on the map
+     * first and the map should only show the room that i loaded not the previous map." The world half of that
+     * was already done - {@code wipeWholeGrid} clears the grid before the paste - but the MAP half was not:
+     * only {@link #build} ever called {@code LiveMapFeature.publishSimFloor}, so a single-room load left the
+     * last floor's twenty-two rooms drawn on the HUD around one room that was the only thing in the world. A
+     * map that disagrees with the world that hard is worse than no map, because every pathfinder and the
+     * interactive map read the same arrays.
+     *
+     * <p>Rotation is 0 because {@code buildSingleRoom} pastes at 0; the clay corner comes from the same
+     * {@link SimSecrets#clayCorner} call the secrets were placed with, so a waypoint cannot point somewhere
+     * the secret is not.
+     */
+    private static void publishSingleRoomMap(RoomLibrary.Room room, int centre) {
+        int cells = DungeonLayout.GRID * DungeonLayout.GRID;
+        int[] cellRoom = new int[cells];
+        java.util.Arrays.fill(cellRoom, MapCode.NO_ROOM);
+        int[] cellDoor = new int[cells];   // DOOR_NONE everywhere: a single room has nothing to connect to
+        int tilesX = tilesOf(room.sizeX);
+        int tilesZ = tilesOf(room.sizeZ);
+        // Every cell the room covers, connectors included - the same convention the generated floor uses, and
+        // what lets the map group a multi-tile room back into one room instead of drawing its tiles apart.
+        for (int gz = centre; gz <= centre + (tilesZ - 1) * 2 && gz < DungeonLayout.GRID; gz++) {
+            for (int gx = centre; gx <= centre + (tilesX - 1) * 2 && gx < DungeonLayout.GRID; gx++) {
+                cellRoom[gz * DungeonLayout.GRID + gx] = 0;
+            }
+        }
+        int[] clay = SimSecrets.clayCorner(room, centre, centre, 0);
+        com.killer560.hub.livemap.LiveMapFeature.publishSimFloor(cellRoom, cellDoor,
+                new String[]{room.name}, new int[][]{{clay[0], clay[1], 0}});
+    }
+
+    /** A captured size back to a tile count - {@code RoomLibrary.footprint}'s only inverse. */
+    private static int tilesOf(int size) {
+        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
 
     /**
