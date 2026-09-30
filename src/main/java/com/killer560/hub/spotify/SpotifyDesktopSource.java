@@ -106,8 +106,27 @@ public final class SpotifyDesktopSource implements NowPlayingSource {
         }
     }
 
-    /** Process ids of every running {@code Spotify.exe}, via the JDK - no native call needed for this half. */
+    /** Cached because the process table is not cheap to walk - see {@link #spotifyPids()}. */
+    private static volatile Set<Long> cachedPids = Set.of();
+    private static volatile long cachedPidsAtMs;
+
+    /** How long a process-id lookup is reused. Spotify does not restart between one poll and the next. */
+    private static final long PID_CACHE_MS = 5_000;
+
+    /**
+     * Process ids of every running {@code Spotify.exe}, via the JDK - no native call needed for this half.
+     *
+     * <p>Cached for {@value #PID_CACHE_MS} ms because {@link ProcessHandle#allProcesses()} walks the whole
+     * process table and reads each entry's command line, and this is asked twice per poll ({@link #available()}
+     * and {@link #fetch()}) on a two-second timer. Uncached that is a few hundred process reads a minute for an
+     * answer that changes only when Spotify is opened or closed.
+     */
     private static Set<Long> spotifyPids() {
+        long now = System.currentTimeMillis();
+        Set<Long> cached = cachedPids;
+        if (now - cachedPidsAtMs < PID_CACHE_MS) {
+            return cached;
+        }
         Set<Long> pids = new HashSet<>();
         try {
             ProcessHandle.allProcesses().forEach(ph -> {
@@ -120,6 +139,8 @@ public final class SpotifyDesktopSource implements NowPlayingSource {
         } catch (Throwable ignored) {
             // A process we are not allowed to inspect is not an error; it just is not Spotify's.
         }
+        cachedPids = pids;
+        cachedPidsAtMs = now;
         return pids;
     }
 
