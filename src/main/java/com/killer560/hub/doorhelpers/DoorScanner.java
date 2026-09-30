@@ -97,10 +97,34 @@ public final class DoorScanner {
         }
     }
 
+    /**
+     * The highest non-air block in this column between y 0 and 255, or 0 when there is none.
+     *
+     * <p>Section-first, rather than a block-by-block walk down from 255. A door's roof is at 73-82, so the old
+     * loop threw away about 175 reads per cell before it reached anything - and a cell over open void read all
+     * 256 and returned 0, which the caller does NOT cache (a 0 means "nothing there yet", so the cell stays
+     * unresolved), so every empty cell was re-swept from the top every RESCAN_TICKS, forever. An 11x11 grid
+     * with both this scanner and WitherDoorScanner registered paid that twice a tick-pair.
+     *
+     * <p>A section whose palette is only air cannot hold the answer, so asking {@code hasOnlyAir()} first skips
+     * the whole empty top of the world in one test each. Reading through the section also skips the
+     * chunk lookup the level-level getBlockState would redo for every single y.
+     */
     private static int topLayer(Minecraft client, BlockPos.MutableBlockPos mutable, int x, int z) {
-        for (int y = 255; y >= 0; y--) {
-            if (!client.level.getBlockState(mutable.set(x, y, z)).isAir()) {
-                return y;
+        net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(x >> 4, z >> 4);
+        net.minecraft.world.level.chunk.LevelChunkSection[] sections = chunk.getSections();
+        int top = Math.min(chunk.getHighestFilledSectionIndex(), sections.length - 1);
+        for (int i = top; i >= 0; i--) {
+            net.minecraft.world.level.chunk.LevelChunkSection section = sections[i];
+            if (section == null || section.hasOnlyAir()) {
+                continue;
+            }
+            int base = client.level.getSectionYFromSectionIndex(i) << 4;
+            // Same 0..255 window the old loop used, so a world with a negative min Y still reports what it did.
+            for (int y = Math.min(base + 15, 255); y >= Math.max(base, 0); y--) {
+                if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
+                    return y;
+                }
             }
         }
         return 0;

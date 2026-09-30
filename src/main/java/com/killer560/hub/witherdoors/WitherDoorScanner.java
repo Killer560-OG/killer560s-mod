@@ -100,10 +100,23 @@ final class WitherDoorScanner {
         }
     }
 
+    /** Section-first column scan - the same one, and for the same reasons, as
+     *  {@code doorhelpers.DoorScanner.topLayer}; see its note. Both scanners are registered independently, so a
+     *  dungeon with both features on paid the old block-by-block sweep twice. */
     private static int topLayer(Minecraft client, BlockPos.MutableBlockPos mutable, int x, int z) {
-        for (int y = 255; y >= 0; y--) {
-            if (!client.level.getBlockState(mutable.set(x, y, z)).isAir()) {
-                return y;
+        net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(x >> 4, z >> 4);
+        net.minecraft.world.level.chunk.LevelChunkSection[] sections = chunk.getSections();
+        int top = Math.min(chunk.getHighestFilledSectionIndex(), sections.length - 1);
+        for (int i = top; i >= 0; i--) {
+            net.minecraft.world.level.chunk.LevelChunkSection section = sections[i];
+            if (section == null || section.hasOnlyAir()) {
+                continue;
+            }
+            int base = client.level.getSectionYFromSectionIndex(i) << 4;
+            for (int y = Math.min(base + 15, 255); y >= Math.max(base, 0); y--) {
+                if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
+                    return y;
+                }
             }
         }
         return 0;

@@ -1575,7 +1575,11 @@ public final class TerminalSolverFeature {
         }
         String colorText = matcher.group(1).trim().toLowerCase(Locale.ROOT);
         DyeColor color = parseSelectColor(colorText);
-        List<String> prefixes = color != null ? SELECT_PREFIXES.getOrDefault(color, List.of(colorText)) : List.of(colorText);
+        // Not getOrDefault: its default is evaluated eagerly, so the one-element List.of was allocated on every
+        // call even though SELECT_PREFIXES has an entry for every colour that gets here - and refreshState
+        // re-solves this every frame a Select terminal is open.
+        List<String> mapped = color != null ? SELECT_PREFIXES.get(color) : null;
+        List<String> prefixes = mapped != null ? mapped : List.of(colorText);
 
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
