@@ -43,6 +43,7 @@ import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.commas;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.inside;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.shorten;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.style;
+import com.killer560.hub.compat.McItems;
 
 /**
  * The Profile Viewer pages beyond Basic Info / Dungeons / Inventories / Pets, modelled on skyblock-pv's
@@ -365,9 +366,9 @@ final class ExtraPages {
 
     private static final String[] CRYSTALS = {"jade_crystal", "amethyst_crystal", "topaz_crystal", "sapphire_crystal", "amber_crystal",
             "ruby_crystal", "jasper_crystal", "opal_crystal", "aquamarine_crystal", "citrine_crystal", "peridot_crystal", "onyx_crystal"};
-    private static final Item[] CRYSTAL_ICONS = {Items.LIME_STAINED_GLASS, Items.PURPLE_STAINED_GLASS, Items.YELLOW_STAINED_GLASS,
-            Items.LIGHT_BLUE_STAINED_GLASS, Items.ORANGE_STAINED_GLASS, Items.RED_STAINED_GLASS, Items.MAGENTA_STAINED_GLASS,
-            Items.WHITE_STAINED_GLASS, Items.BLUE_STAINED_GLASS, Items.BROWN_STAINED_GLASS, Items.GREEN_STAINED_GLASS, Items.BLACK_STAINED_GLASS};
+    private static final Item[] CRYSTAL_ICONS = {McItems.LIME_STAINED_GLASS, McItems.PURPLE_STAINED_GLASS, McItems.YELLOW_STAINED_GLASS,
+            McItems.LIGHT_BLUE_STAINED_GLASS, McItems.ORANGE_STAINED_GLASS, McItems.RED_STAINED_GLASS, McItems.MAGENTA_STAINED_GLASS,
+            McItems.WHITE_STAINED_GLASS, McItems.BLUE_STAINED_GLASS, McItems.BROWN_STAINED_GLASS, McItems.GREEN_STAINED_GLASS, McItems.BLACK_STAINED_GLASS};
     private static final long[] ROCK_BRACKETS = {2500, 7500, 20000, 100000, 250000};
     private static final String[] ROCK_RARITIES = {"Common", "Uncommon", "Rare", "Epic", "Legendary"};
 
@@ -657,7 +658,7 @@ final class ExtraPages {
             long[] tiers = toLongs(fam.tiers());
             int tier = countAtOrBelow(tiers, k);
             boolean isMaxed = tiers.length > 0 && tier >= tiers.length;
-            ItemStack icon = k == 0 ? new ItemStack(Items.GRAY_DYE) : familyIcon(fam);
+            ItemStack icon = k == 0 ? new ItemStack(McItems.GRAY_DYE) : familyIcon(fam);
             g.fill(ix + 1, iy + 1, ix + cell - 1, iy + cell - 1, 0xFF1A1A1A);
             g.outline(ix + 1, iy + 1, cell - 2, cell - 2, isMaxed ? MAXED : 0xFF2E2E2E);
             g.item(icon, ix + 2, iy + 2);
@@ -1089,7 +1090,7 @@ final class ExtraPages {
                         got = tr;
                     }
                 }
-                g.item(new ItemStack(got != null ? Items.CLOCK : Items.GRAY_DYE), tx, ty);
+                g.item(new ItemStack(got != null ? Items.CLOCK : McItems.GRAY_DYE), tx, ty);
                 text(g, f().plainSubstrByWidth(name, tw - 20), tx + 19, ty + 4, got != null ? TEXT : DIM);
                 if (hover(mx, my, tx, ty, tw, 17)) {
                     tip(got == null ? List.of(line(name, DIM), line("Not found", BAD))

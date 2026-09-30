@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * "I Hate Diorite" - real F7/M7 Storm-phase pillar swap, ported from Noamm's own {@code
@@ -40,10 +41,10 @@ public final class DioriteGlassFeature {
     }
 
     private static final Pillar[] PILLARS = {
-            new Pillar(new BlockPos(46, 169, 41), Blocks.LIME_STAINED_GLASS.defaultBlockState()),
-            new Pillar(new BlockPos(46, 169, 65), Blocks.YELLOW_STAINED_GLASS.defaultBlockState()),
-            new Pillar(new BlockPos(100, 169, 65), Blocks.PURPLE_STAINED_GLASS.defaultBlockState()),
-            new Pillar(new BlockPos(100, 169, 41), Blocks.RED_STAINED_GLASS.defaultBlockState()),
+            new Pillar(new BlockPos(46, 169, 41), McBlocks.LIME_STAINED_GLASS.defaultBlockState()),
+            new Pillar(new BlockPos(46, 169, 65), McBlocks.YELLOW_STAINED_GLASS.defaultBlockState()),
+            new Pillar(new BlockPos(100, 169, 65), McBlocks.PURPLE_STAINED_GLASS.defaultBlockState()),
+            new Pillar(new BlockPos(100, 169, 41), McBlocks.RED_STAINED_GLASS.defaultBlockState()),
     };
 
     private static boolean stormPhaseActive = false;

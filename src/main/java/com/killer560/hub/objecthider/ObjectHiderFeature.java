@@ -53,6 +53,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McEntities;
 
 /**
  * Object Hider pack - a bundle of independent, client-side render suppressors aimed at M7 P5 / F7 P3, where the
@@ -470,10 +471,10 @@ public final class ObjectHiderFeature {
             return false;
         }
         EntityType<?> type = packet.getType();
-        if (cfg.isHideFallingBlocks() && type == EntityType.FALLING_BLOCK) {
+        if (cfg.isHideFallingBlocks() && type == McEntities.FALLING_BLOCK) {
             return true;
         }
-        return cfg.isHideLightning() && type == EntityType.LIGHTNING_BOLT;
+        return cfg.isHideLightning() && type == McEntities.LIGHTNING_BOLT;
     }
 
     /** Devonian {@code DisableBlindness.kt} - drop the local player's blindness application. */

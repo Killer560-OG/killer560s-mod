@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McEntities;
 
 /**
  * Maxor's Crystals (F7/M7 Phase 1) - a port of NoammAddons'
@@ -207,7 +208,7 @@ public final class MaxorCrystalsFeature {
         }
         // Newly visible End Crystals; see the one-tick caveat in the class doc.
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity.getType() == EntityType.END_CRYSTAL && SEEN_CRYSTALS.add(entity.getId())) {
+            if (entity.getType() == McEntities.END_CRYSTAL && SEEN_CRYSTALS.add(entity.getId())) {
                 onCrystalEntity(entity);
             }
         }
@@ -236,7 +237,7 @@ public final class MaxorCrystalsFeature {
         }
         HIGHLIGHT_BOXES.clear();
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity.getType() == EntityType.END_CRYSTAL) {
+            if (entity.getType() == McEntities.END_CRYSTAL) {
                 HIGHLIGHT_BOXES.add(entity.getBoundingBox());
             }
         }
@@ -250,7 +251,7 @@ public final class MaxorCrystalsFeature {
         }
         SEEN_CRYSTALS.clear();
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity.getType() == EntityType.END_CRYSTAL) {
+            if (entity.getType() == McEntities.END_CRYSTAL) {
                 SEEN_CRYSTALS.add(entity.getId());
             }
         }

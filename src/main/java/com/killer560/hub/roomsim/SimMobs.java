@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import com.killer560.hub.compat.McEntities;
 
 /**
  * Combat dummies for the dungeon sim - zombies, skeletons, and Fels.
@@ -192,8 +193,8 @@ public final class SimMobs {
         server.execute(() -> {
             ServerLevel level = server.overworld();
             switch (kind) {
-                case ZOMBIE -> spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred);
-                case SKELETON -> spawnDummy(level, new SimSkeleton(EntityType.SKELETON, level), pos, starred);
+                case ZOMBIE -> spawnDummy(level, new SimZombie(McEntities.ZOMBIE, level), pos, starred);
+                case SKELETON -> spawnDummy(level, new SimSkeleton(McEntities.SKELETON, level), pos, starred);
                 case MINIBOSS -> spawnMiniboss(level, pos, boss, starred);
                 case FEL -> spawnFel(level, pos, starred);
                 // A bat is a SECRET on Hypixel, not a mob worth points - which is exactly why it is here: a
@@ -229,7 +230,7 @@ public final class SimMobs {
     private static void spawnMiniboss(ServerLevel level, BlockPos pos, SimMiniboss.Name name, boolean starred) {
         SimMiniboss.Placed placed = SimMiniboss.place(level, pos, name, MINIBOSS_HEALTH);
         if (placed == null) {
-            spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred, MINIBOSS_HEALTH);
+            spawnDummy(level, new SimZombie(McEntities.ZOMBIE, level), pos, starred, MINIBOSS_HEALTH);
             return;
         }
         ServerPlayer boss = placed.boss();
@@ -351,7 +352,7 @@ public final class SimMobs {
      */
     private static void spawnBat(ServerLevel level, BlockPos pos) {
         var bat = new net.minecraft.world.entity.ambient.Bat(
-                net.minecraft.world.entity.EntityType.BAT, level);
+                McEntities.BAT, level);
         bat.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
         bat.setHealth((float) ONE_HP);
         bat.setNoAi(true);
@@ -451,7 +452,7 @@ public final class SimMobs {
         double z = fel.skull.getZ();
         fel.skull.discard();
 
-        SimEnderman enderman = new SimEnderman(EntityType.ENDERMAN, level);
+        SimEnderman enderman = new SimEnderman(McEntities.ENDERMAN, level);
         enderman.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
         enderman.setHealth((float) ONE_HP);
         enderman.setPersistenceRequired();

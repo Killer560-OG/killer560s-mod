@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.Blocks;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * Local door scan for Door Helpers - a port of QUOI {@code odonscanning/ScanUtils.scanTile}'s door branch plus
@@ -86,7 +87,7 @@ public final class DoorScanner {
                 if (height == 73 || height == 74 || height == 81 || height == 82) {
                     Block block = client.level.getBlockState(mutable.set(wx, 69, wz)).getBlock();
                     DoorType type = block == Blocks.COAL_BLOCK ? DoorType.WITHER
-                            : block == Blocks.RED_TERRACOTTA ? DoorType.BLOOD
+                            : block == McBlocks.RED_TERRACOTTA ? DoorType.BLOOD
                             : block == Blocks.INFESTED_CHISELED_STONE_BRICKS ? DoorType.ENTRANCE
                             : DoorType.NORMAL;
                     cells[idx] = new Door(wx, wz, type);

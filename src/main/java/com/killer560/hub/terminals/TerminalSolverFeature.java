@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McItems;
 
 /** Highlights the correct slot(s) to click in Floor 7 dungeon terminals - Solver Only, per killer560's
  *  explicit "Not auto terminals yet just the solver": this never clicks anything, only draws colored
@@ -511,7 +512,7 @@ public final class TerminalSolverFeature {
      *  opens. */
     private static boolean hasRealContent(List<ItemStack> items) {
         for (ItemStack stack : items) {
-            if (!stack.isEmpty() && stack.getItem() != Items.BLACK_STAINED_GLASS_PANE) {
+            if (!stack.isEmpty() && stack.getItem() != McItems.BLACK_STAINED_GLASS_PANE) {
                 return true;
             }
         }
@@ -804,7 +805,7 @@ public final class TerminalSolverFeature {
      *  pair) since a real match can stay true for several consecutive frames before the indicator moves
      *  on. See {@link #queueMelodyLookaheadClicks} for the optional "click ahead" burst on top of this.
      *  <p>Real bug found and fixed (2026-09-09, round 28) per killer560's "still isnt clicking in melody"
-     *  report: the target-marker scan used to check ONLY {@code Items.MAGENTA_STAINED_GLASS_PANE}. But
+     *  report: the target-marker scan used to check ONLY {@code McItems.MAGENTA_STAINED_GLASS_PANE}. But
      *  this class's OWN Melody rendering code ({@link #isMelodyEndpointColor}, round 14) already
      *  discovered from a real screenshot that a real board's marker pane can be either MAGENTA or
      *  PURPLE - "close enough to purple to read as the same color... but is really MAGENTA, a distinct
@@ -820,7 +821,7 @@ public final class TerminalSolverFeature {
         Integer targetSlot = null;
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (stack.getItem() == Items.LIME_STAINED_GLASS_PANE) {
+            if (stack.getItem() == McItems.LIME_STAINED_GLASS_PANE) {
                 limeSlot = i;
                 continue;
             }
@@ -1053,7 +1054,7 @@ public final class TerminalSolverFeature {
      *  to skip decorative background slots (see {@link #solveSelect}), reused here so Melody's rendered
      *  cells and clickable cells always agree on what counts as a real button. */
     private static boolean isMelodyButtonSlot(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() != Items.BLACK_STAINED_GLASS_PANE;
+        return !stack.isEmpty() && stack.getItem() != McItems.BLACK_STAINED_GLASS_PANE;
     }
 
     /** @return the single {@link DyeColor} that appears EXACTLY ONCE among Melody's own track panes
@@ -1347,7 +1348,7 @@ public final class TerminalSolverFeature {
         Integer targetSlot = null;
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (stack.getItem() == Items.LIME_STAINED_GLASS_PANE) {
+            if (stack.getItem() == McItems.LIME_STAINED_GLASS_PANE) {
                 limeSlot = i;
                 continue;
             }
@@ -1407,7 +1408,7 @@ public final class TerminalSolverFeature {
         int maxRow = -1;
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (stack.isEmpty() || stack.getItem() == Items.BLACK_STAINED_GLASS_PANE) {
+            if (stack.isEmpty() || stack.getItem() == McItems.BLACK_STAINED_GLASS_PANE) {
                 continue;
             }
             int col = i % GRID_COLUMNS;
@@ -1488,7 +1489,7 @@ public final class TerminalSolverFeature {
     private static Map<Integer, SlotHighlight> solvePanes(List<ItemStack> items) {
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
-            if (items.get(i).getItem() == Items.RED_STAINED_GLASS_PANE) {
+            if (items.get(i).getItem() == McItems.RED_STAINED_GLASS_PANE) {
                 result.put(i, new SlotHighlight(color(TerminalSolverConfig.OverlayColor.PANES), null));
             }
         }
@@ -1515,7 +1516,7 @@ public final class TerminalSolverFeature {
     private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
         List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
-            if (items.get(i).getItem() == Items.RED_STAINED_GLASS_PANE) {
+            if (items.get(i).getItem() == McItems.RED_STAINED_GLASS_PANE) {
                 slots.add(i);
             }
         }
@@ -1585,7 +1586,7 @@ public final class TerminalSolverFeature {
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
             ItemStack item = items.get(i);
-            if (item.isEmpty() || item.hasFoil() || item.getItem() == Items.BLACK_STAINED_GLASS_PANE) {
+            if (item.isEmpty() || item.hasFoil() || item.getItem() == McItems.BLACK_STAINED_GLASS_PANE) {
                 continue;
             }
             String name = stripColor(item.getHoverName().getString()).toLowerCase(Locale.ROOT);

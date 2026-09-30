@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import java.util.HashSet;
 import java.util.Set;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * Writes a captured {@link RoomLibrary.Room} back into a world.
@@ -165,7 +166,7 @@ public final class RoomPlacer {
 
     /** Stand-in floor for a column the recorder has not seen yet, and the height it goes at. */
     private static final net.minecraft.world.level.block.state.BlockState MARKER =
-            net.minecraft.world.level.block.Blocks.RED_CONCRETE.defaultBlockState();
+            McBlocks.RED_CONCRETE.defaultBlockState();
 
     /** Dungeon floors sit here, so a placeholder at this height lines up with the real ones either side. */
     private static final int MARKER_Y = 69;

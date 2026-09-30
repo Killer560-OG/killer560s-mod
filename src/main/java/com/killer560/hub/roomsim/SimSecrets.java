@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 
 import java.util.List;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McEntities;
 
 /**
  * Puts a room's secrets in it.
@@ -322,7 +323,7 @@ public final class SimSecrets {
             if (!checkInside(at)) {
                 continue;
             }
-            var bat = EntityType.BAT.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+            var bat = McEntities.BAT.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
             if (bat != null) {
                 bat.setPos(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
                 // Still, like every other sim mob: killer560 asked that nothing wanders, so a bat cannot fly

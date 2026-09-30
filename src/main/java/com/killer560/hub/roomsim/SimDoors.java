@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * Wither doors for the dungeon sim, in killer560's own words: "the last starred mob in rooms that have a
@@ -155,7 +156,7 @@ public final class SimDoors {
         net.minecraft.world.level.block.state.BlockState fill = switch (doorType) {
             case DungeonLayout.DOOR_ENTRANCE -> Blocks.INFESTED_CHISELED_STONE_BRICKS.defaultBlockState();
             case DungeonLayout.DOOR_WITHER -> Blocks.COAL_BLOCK.defaultBlockState();
-            case DungeonLayout.DOOR_BLOOD -> Blocks.RED_TERRACOTTA.defaultBlockState();
+            case DungeonLayout.DOOR_BLOOD -> McBlocks.RED_TERRACOTTA.defaultBlockState();
             default -> null;
         };
         java.util.List<BlockPos> filled = new java.util.ArrayList<>();

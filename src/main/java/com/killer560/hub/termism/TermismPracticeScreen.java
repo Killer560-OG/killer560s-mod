@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McItems;
 
 /** Generates and hosts a fake, entirely local terminal puzzle to practice on - killer560's explicit
  *  request (2026-09-09): "generate its own terminal for me to practice solve." No real Hypixel menu is
@@ -122,7 +123,7 @@ public class TermismPracticeScreen extends Screen {
             new NamedItem("Diamond Sword", Items.DIAMOND_SWORD), new NamedItem("Diamond Pickaxe", Items.DIAMOND_PICKAXE),
             new NamedItem("Rail", Items.RAIL), new NamedItem("Rabbit", Items.RABBIT),
             new NamedItem("Iron Ingot", Items.IRON_INGOT), new NamedItem("Ink Sac", Items.INK_SAC),
-            new NamedItem("Orange Dye", Items.ORANGE_DYE),
+            new NamedItem("Orange Dye", McItems.ORANGE_DYE),
             new NamedItem("Golden Apple", Items.GOLDEN_APPLE), new NamedItem("Glowstone Dust", Items.GLOWSTONE_DUST),
             new NamedItem("Wheat", Items.WHEAT), new NamedItem("Water Bucket", Items.WATER_BUCKET),
             new NamedItem("Shears", Items.SHEARS), new NamedItem("Sugar", Items.SUGAR), new NamedItem("Shield", Items.SHIELD),
@@ -175,14 +176,14 @@ public class TermismPracticeScreen extends Screen {
     // real item names for a color don't all literally start with the dye color's own name) - a smaller,
     // one-name-per-color set here since practice only needs one clean example per color, not every alias.
     private static final List<ColorAlias> SELECT_POOL = List.of(
-            new ColorAlias(DyeColor.RED, "Rose", Items.RED_WOOL),
-            new ColorAlias(DyeColor.GREEN, "Cactus", Items.GREEN_WOOL),
-            new ColorAlias(DyeColor.BLUE, "Lapis", Items.BLUE_WOOL),
-            new ColorAlias(DyeColor.BROWN, "Cocoa", Items.BROWN_WOOL),
-            new ColorAlias(DyeColor.WHITE, "Bone", Items.WHITE_WOOL),
-            new ColorAlias(DyeColor.BLACK, "Ink", Items.BLACK_WOOL),
-            new ColorAlias(DyeColor.YELLOW, "Dandelion", Items.YELLOW_WOOL),
-            new ColorAlias(DyeColor.LIGHT_GRAY, "Silver", Items.LIGHT_GRAY_WOOL)
+            new ColorAlias(DyeColor.RED, "Rose", McItems.RED_WOOL),
+            new ColorAlias(DyeColor.GREEN, "Cactus", McItems.GREEN_WOOL),
+            new ColorAlias(DyeColor.BLUE, "Lapis", McItems.BLUE_WOOL),
+            new ColorAlias(DyeColor.BROWN, "Cocoa", McItems.BROWN_WOOL),
+            new ColorAlias(DyeColor.WHITE, "Bone", McItems.WHITE_WOOL),
+            new ColorAlias(DyeColor.BLACK, "Ink", McItems.BLACK_WOOL),
+            new ColorAlias(DyeColor.YELLOW, "Dandelion", McItems.YELLOW_WOOL),
+            new ColorAlias(DyeColor.LIGHT_GRAY, "Silver", McItems.LIGHT_GRAY_WOOL)
     );
 
     private final Screen parent;
@@ -288,22 +289,22 @@ public class TermismPracticeScreen extends Screen {
     private ItemStack melodyItemFor(int col, int row) {
         boolean inBand = row >= 1 && row < 5;
         if (col == melodyMagentaColumn && !inBand) {
-            return new ItemStack(Items.MAGENTA_STAINED_GLASS_PANE);
+            return new ItemStack(McItems.MAGENTA_STAINED_GLASS_PANE);
         }
         if (col == melodyLimeColumn && row == melodyCurrentRow) {
-            return new ItemStack(Items.LIME_STAINED_GLASS_PANE);
+            return new ItemStack(McItems.LIME_STAINED_GLASS_PANE);
         }
         if (col >= 1 && col < 6 && row == melodyCurrentRow) {
-            return new ItemStack(Items.RED_STAINED_GLASS_PANE);
+            return new ItemStack(McItems.RED_STAINED_GLASS_PANE);
         }
         if (col == MELODY_BUTTON_COLUMN && row == melodyCurrentRow) {
-            return new ItemStack(Items.LIME_TERRACOTTA);
+            return new ItemStack(McItems.LIME_TERRACOTTA);
         }
         if (col == MELODY_BUTTON_COLUMN && inBand) {
-            return new ItemStack(Items.RED_TERRACOTTA);
+            return new ItemStack(McItems.RED_TERRACOTTA);
         }
         if (col >= 1 && col < 6 && inBand) {
-            return new ItemStack(Items.WHITE_STAINED_GLASS_PANE);
+            return new ItemStack(McItems.WHITE_STAINED_GLASS_PANE);
         }
         return ItemStack.EMPTY;
     }
@@ -397,7 +398,7 @@ public class TermismPracticeScreen extends Screen {
         int activeCount = minActive + random.nextInt(gridSize - minActive + 1);
         List<Integer> active = randomIndices(gridSize, activeCount);
         for (int i = 0; i < gridSize; i++) {
-            cells.add(new ItemStack(active.contains(i) ? Items.RED_STAINED_GLASS_PANE : Items.LIME_STAINED_GLASS_PANE));
+            cells.add(new ItemStack(active.contains(i) ? McItems.RED_STAINED_GLASS_PANE : McItems.LIME_STAINED_GLASS_PANE));
         }
     }
 
@@ -426,7 +427,7 @@ public class TermismPracticeScreen extends Screen {
         Collections.shuffle(order, random);
         int cursor = 0;
         for (int i = 0; i < gridSize; i++) {
-            cells.add(new ItemStack(Items.RED_STAINED_GLASS_PANE, order.get(cursor++)));
+            cells.add(new ItemStack(McItems.RED_STAINED_GLASS_PANE, order.get(cursor++)));
         }
     }
 
@@ -539,9 +540,9 @@ public class TermismPracticeScreen extends Screen {
         }
         switch (type) {
             case PANES -> {
-                if (stack.getItem() == Items.RED_STAINED_GLASS_PANE) {
-                    cells.set(index, new ItemStack(Items.LIME_STAINED_GLASS_PANE));
-                    if (cells.stream().noneMatch(s -> s.getItem() == Items.RED_STAINED_GLASS_PANE)) {
+                if (stack.getItem() == McItems.RED_STAINED_GLASS_PANE) {
+                    cells.set(index, new ItemStack(McItems.LIME_STAINED_GLASS_PANE));
+                    if (cells.stream().noneMatch(s -> s.getItem() == McItems.RED_STAINED_GLASS_PANE)) {
                         markSolved();
                     }
                 }
@@ -560,13 +561,13 @@ public class TermismPracticeScreen extends Screen {
                 }
             }
             case NUMBERS -> {
-                if (stack.getItem() == Items.RED_STAINED_GLASS_PANE) {
+                if (stack.getItem() == McItems.RED_STAINED_GLASS_PANE) {
                     int minCount = cells.stream()
-                            .filter(s -> s.getItem() == Items.RED_STAINED_GLASS_PANE)
+                            .filter(s -> s.getItem() == McItems.RED_STAINED_GLASS_PANE)
                             .mapToInt(ItemStack::getCount).min().orElse(Integer.MAX_VALUE);
                     if (stack.getCount() == minCount) {
-                        cells.set(index, new ItemStack(Items.LIME_STAINED_GLASS_PANE));
-                        if (cells.stream().noneMatch(s -> s.getItem() == Items.RED_STAINED_GLASS_PANE)) {
+                        cells.set(index, new ItemStack(McItems.LIME_STAINED_GLASS_PANE));
+                        if (cells.stream().noneMatch(s -> s.getItem() == McItems.RED_STAINED_GLASS_PANE)) {
                             markSolved();
                         }
                     }
@@ -704,7 +705,7 @@ public class TermismPracticeScreen extends Screen {
             // Only for still-red panes - a solved (lime) pane defaults to stack count 1, which showed a
             // stray "1" on every already-solved cell (killer560's round-13 "after clicking on the right
             // pane the number changes to 1, dont do that" report).
-            if (type == TerminalType.NUMBERS && stack.getItem() == Items.RED_STAINED_GLASS_PANE) {
+            if (type == TerminalType.NUMBERS && stack.getItem() == McItems.RED_STAINED_GLASS_PANE) {
                 graphics.itemDecorations(this.font, stack, x0, y0, String.valueOf(stack.getCount()));
             }
         }
@@ -731,8 +732,8 @@ public class TermismPracticeScreen extends Screen {
 
     private static int melodyOverlayColorFor(ItemStack stack) {
         Item item = stack.getItem();
-        if (item == Items.MAGENTA_STAINED_GLASS_PANE || item == Items.LIME_STAINED_GLASS_PANE
-                || item == Items.LIME_TERRACOTTA || item == Items.RED_TERRACOTTA) {
+        if (item == McItems.MAGENTA_STAINED_GLASS_PANE || item == McItems.LIME_STAINED_GLASS_PANE
+                || item == McItems.LIME_TERRACOTTA || item == McItems.RED_TERRACOTTA) {
             return com.killer560.hub.terminals.TerminalSolverConfig.color(com.killer560.hub.terminals.TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT);
         }
         return com.killer560.hub.terminals.TerminalSolverConfig.color(com.killer560.hub.terminals.TerminalSolverConfig.OverlayColor.MELODY_TRACK);
@@ -843,12 +844,12 @@ public class TermismPracticeScreen extends Screen {
 
     private static Item paneItemFor(DyeColor color) {
         return switch (color) {
-            case ORANGE -> Items.ORANGE_STAINED_GLASS_PANE;
-            case YELLOW -> Items.YELLOW_STAINED_GLASS_PANE;
-            case GREEN -> Items.GREEN_STAINED_GLASS_PANE;
-            case BLUE -> Items.BLUE_STAINED_GLASS_PANE;
-            case RED -> Items.RED_STAINED_GLASS_PANE;
-            default -> Items.GRAY_STAINED_GLASS_PANE;
+            case ORANGE -> McItems.ORANGE_STAINED_GLASS_PANE;
+            case YELLOW -> McItems.YELLOW_STAINED_GLASS_PANE;
+            case GREEN -> McItems.GREEN_STAINED_GLASS_PANE;
+            case BLUE -> McItems.BLUE_STAINED_GLASS_PANE;
+            case RED -> McItems.RED_STAINED_GLASS_PANE;
+            default -> McItems.GRAY_STAINED_GLASS_PANE;
         };
     }
 

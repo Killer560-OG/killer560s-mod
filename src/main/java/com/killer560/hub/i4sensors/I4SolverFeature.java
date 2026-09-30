@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * Sharp Shooter "Solver" - killer560 (2026-09-14): "any block shot is now highlighted green like a waypoint,
@@ -140,7 +141,7 @@ public final class I4SolverFeature {
     }
 
     private static void maskWall(Minecraft client) {
-        BlockState black = Blocks.BLACK_CONCRETE.defaultBlockState();
+        BlockState black = McBlocks.BLACK_CONCRETE.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
         for (int x = MASK_MIN_X; x <= MASK_MAX_X; x++) {
             for (int y = MASK_MIN_Y; y <= MASK_MAX_Y; y++) {
@@ -169,7 +170,7 @@ public final class I4SolverFeature {
 
     private static void restoreWall(Minecraft client) {
         if (client.level != null) {
-            BlockState black = Blocks.BLACK_CONCRETE.defaultBlockState();
+            BlockState black = McBlocks.BLACK_CONCRETE.defaultBlockState();
             for (Map.Entry<BlockPos, BlockState> entry : maskedOriginals.entrySet()) {
                 BlockState current = client.level.getBlockState(entry.getKey());
                 if (current == black || current.isAir()) {

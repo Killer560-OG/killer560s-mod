@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * A live, self-drawn dungeon room/door map - killer560's "reference Noamm for the map, essentially
@@ -713,7 +714,7 @@ public final class LiveMapFeature {
 
     private static Tile classifyDoor(Minecraft client, int x, int z) {
         BlockState state = client.level.getBlockState(new BlockPos(x, 69, z));
-        if (state.is(Blocks.RED_TERRACOTTA)) {
+        if (state.is(McBlocks.RED_TERRACOTTA)) {
             return Tile.DOOR_BLOOD;
         }
         if (state.is(Blocks.COAL_BLOCK)) {

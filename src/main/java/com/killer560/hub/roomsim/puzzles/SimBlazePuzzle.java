@@ -17,6 +17,7 @@ import net.minecraft.world.level.Level;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.killer560.hub.compat.McEntities;
 
 /**
  * A small standalone practice arena for the real "Lower Blaze" / "Higher Blaze" ("Higher or Lower") dungeon
@@ -131,7 +132,7 @@ public final class SimBlazePuzzle {
             UUID[] byPlacement = new UUID[HEALTHS.length];
             for (int i = 0; i < HEALTHS.length; i++) {
                 BlockPos pos = origin.offset(OFFSETS[i]);
-                SimBlazeEntity blaze = new SimBlazeEntity(EntityType.BLAZE, level);
+                SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
                 blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HEALTHS[i]);
                 blaze.setHealth(HEALTHS[i]);
                 blaze.setPersistenceRequired();

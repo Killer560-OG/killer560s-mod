@@ -7,6 +7,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.StainedGlassPaneBlock;
 
 import java.util.List;
+import com.killer560.hub.compat.McItems;
 
 /**
  * Read-only Floor 7 Melody terminal board parsing - a plain per-tick scan of the container's current items,
@@ -34,7 +35,7 @@ import java.util.List;
  * {@code TerminalSolverFeature} ever reads (it only ever looks at the moving lime PANE, never the clay
  * BUTTON's own item) - ported instead straight from {@code BridgeTables}' Odin research: Odin's real client
  * sends {@code type=1} exactly when one of the four clay slots (16/25/34/43, same slots
- * {@code TerminalSolverFeature.MELODY_CLAY_SLOTS} clicks) becomes {@code Items.LIME_TERRACOTTA} - so this
+ * {@code TerminalSolverFeature.MELODY_CLAY_SLOTS} clicks) becomes {@code McItems.LIME_TERRACOTTA} - so this
  * scans those same four slots each tick for that exact item, never a click, and reports the highest row
  * currently lit. <b>Not verified live</b> - see the staging notes' risk section.</li>
  * </ul>
@@ -60,7 +61,7 @@ final class MelodySlotReader {
         Integer targetSlot = null;
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (stack.getItem() == Items.LIME_STAINED_GLASS_PANE) {
+            if (stack.getItem() == McItems.LIME_STAINED_GLASS_PANE) {
                 limeSlot = i;
                 continue;
             }
@@ -75,7 +76,7 @@ final class MelodySlotReader {
         int highestLit = -1;
         for (int row = 0; row < CLAY_SLOTS.length; row++) {
             int slot = CLAY_SLOTS[row];
-            if (slot < items.size() && items.get(slot).getItem() == Items.LIME_TERRACOTTA) {
+            if (slot < items.size() && items.get(slot).getItem() == McItems.LIME_TERRACOTTA) {
                 highestLit = row + 1; // Odin's own clay row numbering is 1-4, not the 0-based array index.
             }
         }

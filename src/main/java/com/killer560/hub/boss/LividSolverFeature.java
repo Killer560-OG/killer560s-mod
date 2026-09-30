@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * Real Hypixel Floor 5 boss (Livid) solver, ported from Odin's own {@code LividSolver.kt}. Livid spawns
@@ -41,15 +42,15 @@ public final class LividSolverFeature {
     private enum Livid {
         // Box/line colour is the Livid's own wool colour, so "which one did it pick?" is answerable at a
         // glance - killer560, 2026-09-20: "the color changes at some point and ours stays red the whole time".
-        VENDETTA("Vendetta", Blocks.WHITE_WOOL, 1.00f, 1.00f, 1.00f),
-        CROSSED("Crossed", Blocks.MAGENTA_WOOL, 0.85f, 0.25f, 0.85f),
-        ARCADE("Arcade", Blocks.YELLOW_WOOL, 1.00f, 0.90f, 0.20f),
-        SMILE("Smile", Blocks.LIME_WOOL, 0.45f, 0.95f, 0.25f),
-        DOCTOR("Doctor", Blocks.GRAY_WOOL, 0.55f, 0.55f, 0.55f),
-        PURPLE("Purple", Blocks.PURPLE_WOOL, 0.55f, 0.25f, 0.80f),
-        SCREAM("Scream", Blocks.BLUE_WOOL, 0.25f, 0.40f, 0.95f),
-        FROG("Frog", Blocks.GREEN_WOOL, 0.25f, 0.65f, 0.25f),
-        HOCKEY("Hockey", Blocks.RED_WOOL, 1.00f, 0.20f, 0.20f);
+        VENDETTA("Vendetta", McBlocks.WHITE_WOOL, 1.00f, 1.00f, 1.00f),
+        CROSSED("Crossed", McBlocks.MAGENTA_WOOL, 0.85f, 0.25f, 0.85f),
+        ARCADE("Arcade", McBlocks.YELLOW_WOOL, 1.00f, 0.90f, 0.20f),
+        SMILE("Smile", McBlocks.LIME_WOOL, 0.45f, 0.95f, 0.25f),
+        DOCTOR("Doctor", McBlocks.GRAY_WOOL, 0.55f, 0.55f, 0.55f),
+        PURPLE("Purple", McBlocks.PURPLE_WOOL, 0.55f, 0.25f, 0.80f),
+        SCREAM("Scream", McBlocks.BLUE_WOOL, 0.25f, 0.40f, 0.95f),
+        FROG("Frog", McBlocks.GREEN_WOOL, 0.25f, 0.65f, 0.25f),
+        HOCKEY("Hockey", McBlocks.RED_WOOL, 1.00f, 0.20f, 0.20f);
 
         final String entityName;
         final Block wool;

@@ -13,6 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.List;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * Auto Door Opener - port of QUOI {@code module/impl/dungeon/AutoDoorOpener.kt} (runs on tick end, clear
@@ -197,7 +198,7 @@ public final class AutoDoorOpenerFeature {
             }
             boolean matches = switch (door.type()) {
                 case WITHER -> block == Blocks.COAL_BLOCK;
-                case BLOOD -> block == Blocks.RED_TERRACOTTA;
+                case BLOOD -> block == McBlocks.RED_TERRACOTTA;
                 default -> false;
             };
             if (matches) {

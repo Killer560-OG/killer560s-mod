@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import com.killer560.hub.compat.McItems;
 
 /**
  * Best-effort SkyBlock item id (Bukkit material names like {@code INK_SACK:3}, {@code LOG_2}, plus SkyBlock
@@ -40,15 +41,15 @@ public final class ItemIcons {
     private static final Map<String, Item> SKYBLOCK = Map.ofEntries(
             Map.entry("MUSHROOM_COLLECTION", Items.RED_MUSHROOM), Map.entry("GEMSTONE_COLLECTION", Items.AMETHYST_SHARD),
             Map.entry("MITHRIL_ORE", Items.PRISMARINE_CRYSTALS), Map.entry("HARD_STONE", Items.STONE),
-            Map.entry("UMBER", Items.BROWN_TERRACOTTA), Map.entry("TUNGSTEN", Items.CLAY), Map.entry("GLACITE", Items.PACKED_ICE),
-            Map.entry("CHILI_PEPPER", Items.RED_DYE), Map.entry("MOONFLOWER", Items.BLUE_ORCHID), Map.entry("WILD_ROSE", Items.ROSE_BUSH),
+            Map.entry("UMBER", McItems.BROWN_TERRACOTTA), Map.entry("TUNGSTEN", Items.CLAY), Map.entry("GLACITE", Items.PACKED_ICE),
+            Map.entry("CHILI_PEPPER", McItems.RED_DYE), Map.entry("MOONFLOWER", Items.BLUE_ORCHID), Map.entry("WILD_ROSE", Items.ROSE_BUSH),
             Map.entry("SEA_LUMIES", Items.SEA_PICKLE), Map.entry("RUBY_VEILSHROOM", Items.CRIMSON_FUNGUS), Map.entry("VINESAP", Items.VINE),
             Map.entry("LUSHLILAC", Items.LILAC), Map.entry("HELIX_LOG", Items.WARPED_STEM), Map.entry("FIG_LOG", Items.STRIPPED_JUNGLE_LOG),
             Map.entry("TENDER_WOOD", Items.OAK_PLANKS), Map.entry("LOTUS", Items.PINK_PETALS), Map.entry("MAGMA_FISH", Items.COD),
             Map.entry("WILTED_BERBERIS", Items.DEAD_BUSH), Map.entry("METAL_HEART", Items.HEART_OF_THE_SEA),
             Map.entry("CADUCOUS_STEM", Items.TWISTING_VINES), Map.entry("AGARICUS_CAP", Items.RED_MUSHROOM_BLOCK),
-            Map.entry("HEMOVIBE", Items.REDSTONE), Map.entry("HALF_EATEN_CARROT", Items.CARROT), Map.entry("TIMITE", Items.PURPLE_DYE),
-            Map.entry("SULPHUR_ORE", Items.GLOWSTONE_DUST), Map.entry("GEMSTONE_POWDER", Items.PINK_DYE));
+            Map.entry("HEMOVIBE", Items.REDSTONE), Map.entry("HALF_EATEN_CARROT", Items.CARROT), Map.entry("TIMITE", McItems.PURPLE_DYE),
+            Map.entry("SULPHUR_ORE", Items.GLOWSTONE_DUST), Map.entry("GEMSTONE_POWDER", McItems.PINK_DYE));
 
     private static final Map<String, ItemStack> CACHE = new ConcurrentHashMap<>();
 

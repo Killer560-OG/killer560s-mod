@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * A playable Tic Tac Toe board for the dungeon sim, built fresh at a given origin rather than read off a real
@@ -218,9 +219,9 @@ public final class SimTicTacToePuzzle {
 
     private static BlockState colourFor(char mark) {
         return switch (mark) {
-            case PLAYER -> Blocks.LIME_CONCRETE.defaultBlockState();
-            case COMPUTER -> Blocks.RED_CONCRETE.defaultBlockState();
-            default -> Blocks.WHITE_CONCRETE.defaultBlockState();
+            case PLAYER -> McBlocks.LIME_CONCRETE.defaultBlockState();
+            case COMPUTER -> McBlocks.RED_CONCRETE.defaultBlockState();
+            default -> McBlocks.WHITE_CONCRETE.defaultBlockState();
         };
     }
 

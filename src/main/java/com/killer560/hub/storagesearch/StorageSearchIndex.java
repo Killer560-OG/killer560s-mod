@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McItems;
 
 /** A one-shot snapshot of every searchable item: each Storage Overlay cache entry for the CURRENT
  *  account/profile (read-only via {@link StorageOverlayCache}, decoded once per snapshot, not per
@@ -325,9 +326,9 @@ public final class StorageSearchIndex {
      *  real Skyblock item is never a plain stained-glass pane. */
     static boolean isMenuChrome(ItemStack stack) {
         var item = stack.getItem();
-        if (item == Items.BLACK_STAINED_GLASS_PANE || item == Items.GRAY_STAINED_GLASS_PANE
-                || item == Items.LIGHT_GRAY_STAINED_GLASS_PANE || item == Items.WHITE_STAINED_GLASS_PANE
-                || item == Items.RED_STAINED_GLASS_PANE || item == Items.GLASS_PANE) {
+        if (item == McItems.BLACK_STAINED_GLASS_PANE || item == McItems.GRAY_STAINED_GLASS_PANE
+                || item == McItems.LIGHT_GRAY_STAINED_GLASS_PANE || item == McItems.WHITE_STAINED_GLASS_PANE
+                || item == McItems.RED_STAINED_GLASS_PANE || item == Items.GLASS_PANE) {
             return true;
         }
         String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);

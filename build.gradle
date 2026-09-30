@@ -109,8 +109,15 @@ sourceSets.main.java.srcDir buildVariantDir
 // porting to a new Minecraft means writing a new src/mcXX_Y, not sweeping 229 files again. No interface and no
 // indirection at runtime - each version's copy is a plain class with the same public statics, exactly how the
 // generated BuildVariant above is consumed.
-def mcBranch = "mc" + project.minecraft_version.tokenize('.')[0..1].join('_')
+// Robust against both "26.1.2" and "26.2": a fixed [0..1] slice throws IndexOutOfBounds on a
+// two-component version, which is how a -Pminecraft_version=26.2 override first failed with the
+// wonderfully opaque "toIndex = 2" during configuration.
+def mcParts = project.minecraft_version.toString().tokenize('.')
+def mcBranch = "mc" + (mcParts.size() >= 2 ? "${mcParts[0]}_${mcParts[1]}" : mcParts[0])
 def compatDir = file("src/${mcBranch}/java")
+// Printed, because picking the WRONG layer would compile and then misbehave at runtime, which is far worse
+// than not compiling at all.
+logger.lifecycle("Minecraft ${project.minecraft_version}: compatibility layer ${mcBranch}")
 if (!compatDir.directory) {
 	throw new GradleException("No compatibility layer for Minecraft ${project.minecraft_version}: expected "
 			+ "${compatDir}. Porting to a new Minecraft version starts by creating that directory - copy the "
@@ -128,6 +135,9 @@ jar {
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 25
+	// Raised from javac's default of 100. While porting to a new Minecraft version the count IS the plan, and
+	// "100 errors" tells you only that the cap was hit - it reported 100 when the true figure was 706.
+	it.options.compilerArgs += ['-Xmaxerrs', '10000']
 	it.options.encoding = "UTF-8"
 }
 

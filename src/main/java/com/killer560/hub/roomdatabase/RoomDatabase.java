@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import com.killer560.hub.compat.McBlocks;
 
 /**
  * The real dungeon room database (140 known rooms - names, shapes, and secret positions) - killer560's
@@ -302,7 +303,7 @@ public final class RoomDatabase {
             if (!ChunkCacheManager.isLoadedOrCached(level, pos)) {
                 continue;
             }
-            if (level.getBlockState(pos).is(Blocks.BLUE_TERRACOTTA)) {
+            if (level.getBlockState(pos).is(McBlocks.BLUE_TERRACOTTA)) {
                 return new int[]{corners[i][0], corners[i][1], i * 90};
             }
         }
