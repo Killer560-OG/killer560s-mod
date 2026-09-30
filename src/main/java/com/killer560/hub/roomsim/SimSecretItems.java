@@ -198,8 +198,56 @@ public final class SimSecretItems {
             if (entity == null || entity.isRemoved()) {
                 LIVE.remove(id);
                 SimScore.secretFound();
+            } else {
+                reportWhyNotCollected(level, entity);
             }
         }
+    }
+
+    /** How often the uncollected report is written, in ticks. Once a second is plenty to read. */
+    private static final int REPORT_EVERY_TICKS = 20;
+
+    private static int reportTicks;
+
+    /**
+     * Says why a drop that is sitting there has not been picked up.
+     *
+     * <p>killer560 authorised this logger on 2026-09-30 after scenario 81 reported "the item secret appeared
+     * but standing on it did not collect it" three times across five runs and two attempts to fix it from
+     * reasoning alone - one of which was based on the drop having fallen, which it cannot, because it is
+     * spawned with no gravity. Both attempts were guesses at a mechanism, and a guess had already been wrong
+     * once.
+     *
+     * <p>So this prints the things that actually decide a vanilla pickup: where the drop is, where the player
+     * is, the distance between them, the pickup delay still to run, and whether the player is in a state that
+     * can pick anything up at all. One of those is the answer, and none of them was visible before.
+     *
+     * <p>Only while a drop is outstanding, only once a second, and only in a dev build - this is an
+     * investigation aid, and {@link com.killer560.hub.util.ModLog} drops it in a release anyway.
+     */
+    private static void reportWhyNotCollected(ServerLevel level, net.minecraft.world.entity.Entity drop) {
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || ++reportTicks % REPORT_EVERY_TICKS != 0) {
+            return;
+        }
+        var players = level.players();
+        if (players.isEmpty()) {
+            LOGGER.info("[SimSecretItems] drop at {} is waiting - no player on the server",
+                    drop.blockPosition().toShortString());
+            return;
+        }
+        var player = players.get(0);
+        int delay = drop instanceof net.minecraft.world.entity.item.ItemEntity item
+                ? item.getAge() : -1;
+        LOGGER.info("[SimSecretItems] drop at {} ({}), player at {} ({}), {} blocks apart; "
+                        + "player alive={} spectator={} gamemode={}; drop removed={} age={}",
+                drop.blockPosition().toShortString(),
+                String.format(java.util.Locale.US, "%.2f/%.2f/%.2f", drop.getX(), drop.getY(), drop.getZ()),
+                player.blockPosition().toShortString(),
+                String.format(java.util.Locale.US, "%.2f/%.2f/%.2f",
+                        player.getX(), player.getY(), player.getZ()),
+                String.format(java.util.Locale.US, "%.2f", drop.distanceTo(player)),
+                player.isAlive(), player.isSpectator(), player.gameMode.getGameModeForPlayer(),
+                drop.isRemoved(), delay);
     }
 
     private static void spawn(ServerLevel level, BlockPos at) {
