@@ -599,15 +599,50 @@ public class SimMapEditorScreen extends Screen {
         drawGrid(g, mouseX, mouseY);
         drawList(g, mouseX, mouseY);
 
-        String hint = status.isEmpty()
-                ? "click a room, then a cell · right-click a cell to remove"
-                : status;
         // Under the grid, not over the settings row. This sat at panelH - 40, which was clear when there was
         // one row of buttons and is inside the Floor / Rooms to blood / Puzzles row now that there are two.
         // Anchored to the GRID rather than to the panel, so it follows the grid when the grid shrinks
         // instead of being swallowed by it.
-        g.text(this.font, hint, panelX + 14, gridY + cell * GRID + 4, ProfitPanels.DIM, false);
+        //
+        // And FITTED to the space, which it was not. The hint is drawn from the grid's left edge and the room
+        // list starts at listX, so anything wider than the gap between them runs underneath the list - which
+        // is exactly what "click a room, then a cell · right-click a cell to remove" did at his window size.
+        // Writing a shorter string would only move the problem to the next window that is narrower still, so
+        // the width is measured: the full wording when it fits, a short form when it does not, and a trim as
+        // the last resort so a long status line can never reach the list either.
+        g.text(this.font, fit(status.isEmpty()
+                        ? "click a room, then a cell · right-click a cell to remove"
+                        : status,
+                status.isEmpty() ? "click a room, then a cell" : null,
+                listX - 8 - gridX),
+                gridX, gridY + cell * GRID + 4, ProfitPanels.DIM, false);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
+    }
+
+    /**
+     * The longest of these that fits in {@code maxWidth}, trimmed with an ellipsis if even the last does not.
+     *
+     * @param full     the preferred wording
+     * @param shorter  a fallback wording, or null when there is none
+     * @param maxWidth the space available before the next thing on the row
+     */
+    private String fit(String full, String shorter, int maxWidth) {
+        if (maxWidth <= 0 || this.font.width(full) <= maxWidth) {
+            return full;
+        }
+        if (shorter != null && this.font.width(shorter) <= maxWidth) {
+            return shorter;
+        }
+        String candidate = shorter != null ? shorter : full;
+        int ellipsis = this.font.width("...");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < candidate.length(); i++) {
+            if (this.font.width(sb.toString() + candidate.charAt(i)) + ellipsis > maxWidth) {
+                break;
+            }
+            sb.append(candidate.charAt(i));
+        }
+        return sb + "...";
     }
 
     /**

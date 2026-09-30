@@ -524,15 +524,36 @@ public final class SimBuilder {
      * world would be unforgivable.
      */
     private static void clearFloorDrops(ServerLevel level) {
-        int removed = 0;
-        for (var entity : level.getAllEntities()) {
-            if (entity instanceof net.minecraft.world.entity.item.ItemEntity) {
-                entity.discard();
-                removed++;
+        // COLLECT first, discard second. Never both at once.
+        //
+        // discard() removes the entity from the level's own Int2ObjectLinkedOpenHashMap, which invalidates
+        // the iterator being walked - and fastutil does not throw ConcurrentModificationException for that,
+        // it throws ArrayIndexOutOfBoundsException from deep inside MapIterator.nextEntry, which looks like
+        // anything but the bug it is. killer560 hit it on 2026-09-30: "it got to the point where it said 1
+        // room remaining then nothing loaded". The exception killed the build task before it could hand over,
+        // so the loading screen simply never came down.
+        //
+        // Every sim scenario missed this because each one builds a FRESH world with no drops in it, so the
+        // loop matched nothing and never removed anything while iterating. It needs a world that has already
+        // been played in - which is every world but a test's.
+        // The try/catch is the same one clearFloorMobs has, for the same reason: a failure to tidy up must
+        // never stop the floor being built. That guard is why the mob clear could not have caused this and
+        // the drop clear could.
+        try {
+            java.util.List<net.minecraft.world.entity.Entity> drops = new java.util.ArrayList<>();
+            for (var entity : level.getAllEntities()) {
+                if (entity instanceof net.minecraft.world.entity.item.ItemEntity) {
+                    drops.add(entity);
+                }
             }
-        }
-        if (removed > 0) {
-            LOGGER.info("Cleared {} floor drop(s) before building", removed);
+            for (var entity : drops) {
+                entity.discard();
+            }
+            if (!drops.isEmpty()) {
+                LOGGER.info("Cleared {} floor drop(s) before building", drops.size());
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not clear the sim's floor drops: {}", e.getClass().getSimpleName());
         }
     }
 

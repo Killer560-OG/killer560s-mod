@@ -96,9 +96,34 @@ public final class SettingsButtonWidget extends AbstractWidget {
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         int x0 = getX();
         int y0 = getY();
-        graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), isHovered ? BG_HOVER : BG);
-        graphics.outline(x0, y0, getWidth(), getHeight(), isHovered ? BORDER_HOVER : BORDER);
-        graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + getWidth() / 2, y0 + (getHeight() - 8) / 2, TEXT);
+        graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), faded(isHovered ? BG_HOVER : BG));
+        graphics.outline(x0, y0, getWidth(), getHeight(), faded(isHovered ? BORDER_HOVER : BORDER));
+        graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + getWidth() / 2,
+                y0 + (getHeight() - 8) / 2, faded(TEXT));
+    }
+
+    /**
+     * This colour at the widget's current opacity.
+     *
+     * <p>Every colour here was a hardcoded {@code 0xFF......}, so the widget drew fully opaque no matter what
+     * {@link #setAlpha} had been told. That is why the Dungeon Sim button did not fade in with the rest of the
+     * title screen (killer560, 2026-09-28 and again 2026-09-30).
+     *
+     * <p>Checked against the mapped 26.1.2 jar rather than assumed, because the first look was misleading:
+     * {@code TitleScreen} contains no {@code setAlpha} call at all. It calls {@code Screen.fadeWidgets(float)},
+     * and THAT walks {@code children()} calling {@code AbstractWidget.setAlpha} on every one. Our button is in
+     * that list and was being handed the right number every frame - it just threw it away.
+     *
+     * <p>Fixed here rather than on the menu, because it is true of the button everywhere it is used - anything
+     * that fades a screen holding one had the same problem.
+     */
+    private int faded(int argb) {
+        float a = Math.max(0f, Math.min(1f, this.alpha));
+        if (a >= 1f) {
+            return argb;
+        }
+        int base = (argb >>> 24) & 0xFF;
+        return (Math.round(base * a) << 24) | (argb & 0x00FFFFFF);
     }
 
     @Override

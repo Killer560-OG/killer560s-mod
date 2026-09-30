@@ -351,3 +351,24 @@ its z=0 edge and Archway one at y70, and y70 is exactly where an opening starts.
 find the real floor. Run 2 above still shows a chest in the blockage, so at least one variant of that remains,
 probably a chest off the connector's centre column.
 
+
+## Never iterate the level's entity list while removing from it
+
+`clearFloorDrops` did `for (var e : level.getAllEntities()) { e.discard(); }`. That mutates the level's own
+`Int2ObjectLinkedOpenHashMap` underneath the iterator walking it, and fastutil does not raise
+`ConcurrentModificationException` for that - it throws `ArrayIndexOutOfBoundsException` from inside
+`MapIterator.nextEntry`, which looks like anything but the bug it is. killer560 hit it on 2026-09-30:
+"it got to the point where it said 1 room remaining then nothing loaded". No crash and no freeze - the
+exception killed the build task before it could hand over, so the loading screen simply stayed up.
+
+Collect into a list, then discard from the list. `clearFloorMobs`, immediately below it, already did exactly
+that and also wrapped itself in a try/catch so a tidy-up failure can never stop a build; the drop clear now
+matches it on both counts.
+
+Every sim scenario missed this because each one builds into a BRAND NEW world, where the clear matches
+nothing and so never removes anything while iterating. Reproducing it needs a world that has been played in.
+Two attempts at a regression test both gave wrong verdicts - asserting "the build finished" passed on the
+broken jar, and asserting "no drops survive" failed on the FIXED one, because summoned drops that land in
+chunks the level is not ticking never enter `getAllEntities()` at all, so the count is noise on both. No test
+is kept for it: the fix is justified by his stack trace and by matching the correct pattern beside it, and a
+test that cannot tell fixed from broken is worse than none.
