@@ -132,9 +132,12 @@ public final class SimFloorGen {
      *
      * @param bloodDistance rooms from the entrance to blood, as actually laid out
      * @param bigPlaced     rooms larger than one cell
+     * @param keptPins      rooms he had placed by hand that the floor was built AROUND, at his own cells
+     * @param unusedPins    {@code "Name - reason"} per room he had placed that could not be used; always empty
+     *                      from the three-argument {@link #plan}, which has nothing pinned to it
      */
     public record Planned(MapCode.Decoded decoded, String code, int placedPuzzles, int bloodDistance,
-                          int bigPlaced) {
+                          int bigPlaced, List<String> keptPins, List<String> unusedPins) {
     }
 
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
@@ -166,6 +169,27 @@ public final class SimFloorGen {
      * @return the planned floor, or null when it could not lay one out (having said so in chat)
      */
     public static Planned plan(Floor floor, int puzzles, int roomsToBlood) {
+        return plan(floor, puzzles, roomsToBlood, null);
+    }
+
+    /**
+     * The same, but laid out AROUND rooms he has already placed on the designer's grid.
+     *
+     * <p>killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in generating
+     * a map around the room". Every pinned room stays at the cell he put it at; its ROTATION is chosen by
+     * {@link SimFloorLayout}, because a rotation decides which sides a room's doorways are on and so whether the
+     * rest of the floor can connect to it, and the designer has no way of asking for one.
+     *
+     * <p>What a pin cannot do is make the floor worse. It is still connected from the entrance through doorways
+     * measured in both rooms, one-doorway rooms still come out at dead ends, and the cell target is still met -
+     * a pinned room nothing can reach is left OFF the floor and named in {@link Planned#unusedPins()}, and the
+     * floor is then laid out again without it rather than handed over with a hole in it. If he pins the Entrance
+     * that cell is the entrance; the L-shape filter does not apply to a room he placed himself.
+     *
+     * @param pinned cell index {@code gz * ROOM_GRID + gx} to room name, keyed the way the map designer keys it;
+     *               null or empty makes this identical to the three-argument form
+     */
+    public static Planned plan(Floor floor, int puzzles, int roomsToBlood, Map<Integer, String> pinned) {
         long planStart = System.currentTimeMillis();
         Map<String, RoomLibrary.Room> usable = usableRooms();
         if (usable.isEmpty()) {
@@ -181,12 +205,18 @@ public final class SimFloorGen {
         // you do not count blood green room or fairy."
         int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood)) + 1;
 
-        SimFloorLayout.Floor laid =
-                SimFloorLayout.generate(usable, wantRooms, wantCells, wantPuzzles, wantDistance, RNG);
+        SimFloorLayout.PinnedFloor pinnedOut = SimFloorLayout.generate(
+                usable, wantRooms, wantCells, wantPuzzles, wantDistance, pinned, RNG);
+        SimFloorLayout.Floor laid = pinnedOut == null ? null : pinnedOut.floor();
         if (laid == null || laid.rooms().size() < 3) {
             ModChat.send("Sim", ModChat.text("Could not lay out a floor that size - "),
                     ModChat.dim("the Entrance room has to be captured first."));
             return null;
+        }
+        // Said here rather than only returned, so the reason reaches him even from a caller that ignores it -
+        // the same way planExplicit reports a drawn room it had to skip.
+        for (String note : pinnedOut.unusedPins()) {
+            ModChat.send("Sim", ModChat.dim("could not keep your " + note));
         }
 
         int gridCells = DungeonLayout.GRID * DungeonLayout.GRID;
@@ -253,7 +283,8 @@ public final class SimFloorGen {
         MapCode.Decoded decoded = new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
         return new Planned(decoded, MapCode.encodeDecoded(decoded), placedPuzzles,
-                laid.bloodDepth() < 0 ? 0 : laid.bloodDepth(), bigPlaced);
+                laid.bloodDepth() < 0 ? 0 : laid.bloodDepth(), bigPlaced,
+                pinnedOut.honouredPins(), pinnedOut.unusedPins());
     }
 
     /**
@@ -369,7 +400,7 @@ public final class SimFloorGen {
         }
         MapCode.Decoded decoded = new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
-        return new Planned(decoded, MapCode.encodeDecoded(decoded), 0, doors, 0);
+        return new Planned(decoded, MapCode.encodeDecoded(decoded), 0, doors, 0, List.of(), List.of());
     }
 
     /** Every room that can actually be pasted - complete AND at the current footprint. */

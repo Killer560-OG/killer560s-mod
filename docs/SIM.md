@@ -118,7 +118,45 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   A fixed weighting cannot do this: the same preference that fills the grid leaves the last odd cells unfillable.
 - Blood was kept away from the fairy room in one direction only: `touchesFairy` stopped blood landing next to
   fairy, but a fairy placed after blood could still end up against it (about 2% of floors). No door was ever cut
-  between them, so the blood-rush rule held by luck rather than by construction.
+  between them, so the blood-rush rule held by luck rather than by construction. The same rule had a second hole
+  on the ENTRANCE side, and for a different reason: choosing where the fairy goes respects it (a fairy is only
+  attached to a stub at least one doorway in), but the extra-door pass afterwards chooses nothing - it opens a
+  door wherever two placed rooms happen to have doorways facing each other, including between the fairy and the
+  entrance it was carefully kept a room away from. Never once in 4,000 generated floors, once in 200 with rooms
+  pinned, because pinning lays out five times as many candidates and keeps the best. `SimFloorLayout.
+  forbiddenPair` now refuses that link outright in both the growth pass and the pin-waking pass.
+- **Pinned rooms: the growth's own extra-door pass is what reaches them, so that is where the bookkeeping goes.**
+  `SimFloorLayout.generate(..., Map<Integer,String> pinned, ...)` puts each pinned room on the grid before
+  anything grows, registers its doorways as stubs so meeting one scores as a match, and marks it *dormant* - it
+  may be grown INTO but not out of, or a wing hangs off a room the entrance cannot reach. Waking it was written
+  as a separate fixpoint pass, and the pass almost never fired: the growth loop's "any doorway that meets a
+  doorway facing back is a door too" block had already consumed the pin's stub and added the link, without
+  clearing the dormant flag. So the pin was pruned at the end with the link still pointing at its now-empty
+  cells. 63% of single pins honoured and 67 links to an empty cell per 200 floors, against 100% and none once
+  the wake moved into that block. The fixpoint pass is still needed, but only for a pin next to the seed and for
+  two pins side by side.
+- A pin no attempt can connect has to cause a SECOND layout without it. Its cells counted towards the cell
+  target the whole way through and the growth stopped on them, so pruning it at the end leaves a floor short of
+  target with a hole where it was - one unreachable pin dragged the median F7 from 36 cells to 34 and the worst
+  case to 26. `run` lays the floor out again with that room dropped and still reports it.
+- Ranking "every pinned room kept" above the cell count is wrong, however much it sounds like what he asked for.
+  A two-room floor that happens to hold his rooms then beats a full one that had to leave one out, and that is
+  what came back: 5% of the cell target on 14 of 200 floors. A dropped pin costs five cells' worth in the
+  attempt score, and the fact that its cells sit there unfilled does the rest of the work.
+- `wantBlood`/`wantFairy` recorded the REQUEST, not the room that actually went in. When blood could not fit at
+  that stub `choose` returned null, the fallback put an ordinary room there, and the floor was then recorded as
+  having its blood room - at the ordinary room's cells, with that room's stubs deleted as if it were the end of
+  the run. Rare while nothing is pinned; certain the moment blood is PINNED, because the name is already used
+  and that call can never succeed. Check the placed room's type.
+- The entrance's rotation was drawn and then thrown away: `commit(entrance, entranceRotation, ...)` passes
+  DEGREES, and `entranceRotation` is 0..3, every one of which integer-divides by 90 to 0. So the footprint and
+  the position were worked out at the rotation drawn while the room was always committed unrotated - invisible
+  because Entrance is 1x1, but its two doorways never turned. Fixed 2026-09-29; measured over 2,000 F7s before
+  and after, 36 of 36 cells either way.
+- A pinned room is NOT filtered the way a generated one is - not for L shape, and not for the
+  Higher/Lower Blaze pair. He put it there, and the drawn-map path has never filtered what he drew. The
+  generator still never ADDS the other blaze half, because the pinned name is in `used` and `excluded` reads the
+  group against `used`: 0 floors with both in 800 with one of them pinned.
 - Verify Skyblock item ids against Hypixel's own list (`api.hypixel.net/v2/resources/skyblock/items`), not
   against the name or memory. Three were wrong at once (2026-09-28): the Spirit Sceptre is `BAT_WAND`, not
   `SPIRIT_SCEPTRE`, which broke both the sim item and the RNG meter's auction price lookup; `ClearNode` had

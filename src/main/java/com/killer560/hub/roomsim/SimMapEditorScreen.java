@@ -427,13 +427,16 @@ public class SimMapEditorScreen extends Screen {
         // range, so random can never produce a floor the slider could not have been set to by hand.
         int puzzles = roll(puzzleCount, SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES);
         int blood = roll(roomsToBlood, SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD);
-        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzles, blood);
+        // The rooms HE placed go in as PINS, so Generate builds around them instead of over them.
+        // killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in
+        // generating a map around the room."
+        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzles, blood, pinned);
         if (planned == null) {
             status = "could not lay out that floor";   // plan() has already said why, in chat
             return;
         }
         generated = planned;
-        placements.clear();
+        placements.clear();   // `pinned` is deliberately NOT cleared: Clear restores it
         var decoded = planned.decoded();
         java.util.Set<Integer> anchored = new java.util.HashSet<>();
         // Room ids are per PLACEMENT, never per name, so the first cell carrying an id in reading order is
@@ -450,8 +453,15 @@ public class SimMapEditorScreen extends Screen {
             }
         }
         rebuildOccupancy();
+        // Pins that could not be used are named, not swallowed - he put them there on purpose.
+        String pins = "";
+        if (!planned.unusedPins().isEmpty()) {
+            pins = " - could not keep " + String.join(", ", planned.unusedPins());
+        } else if (!planned.keptPins().isEmpty()) {
+            pins = " - kept your " + planned.keptPins().size() + " room(s)";
+        }
         status = planned.decoded().nameTable().length + " rooms, " + puzzles + " puzzle(s), blood "
-                + planned.bloodDistance() + " in - press Play to build it";
+                + planned.bloodDistance() + " in" + pins + " - press Play to build it";
     }
 
     private void play() {

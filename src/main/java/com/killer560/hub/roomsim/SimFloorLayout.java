@@ -60,6 +60,39 @@ public final class SimFloorLayout {
     public record Floor(List<Placement> rooms, List<Link> links, List<int[]> openDoors, int bloodDepth) {
     }
 
+    /**
+     * A floor laid out AROUND rooms he placed by hand, and what could not be honoured.
+     *
+     * <p>killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in generating
+     * a map around the room". Pressing Generate in the map designer used to throw the drawing away; this is the
+     * result of keeping it.
+     *
+     * <p>{@code unusedPins} is never silently empty when a pin was dropped: a pinned room that cannot be
+     * connected at the cell he put it at is REMOVED from {@code floor} rather than left in it unreachable - a
+     * floor with an unreachable room in it is a broken floor, and the sim would build a room with no way into
+     * it - and its name and the reason land here so the caller can tell him. Each entry reads
+     * {@code "Name - reason"}.
+     *
+     * @param honouredPins names of the pinned rooms that ARE on the floor, at the cell he put them
+     * @param unusedPins   {@code "Name - reason"} per pinned room that could not be used
+     */
+    public record PinnedFloor(Floor floor, List<String> honouredPins, List<String> unusedPins) {
+    }
+
+    /** One room he pinned: the cell he put it at, and the room itself. */
+    private record Pin(String name, int cellX, int cellZ, Candidate candidate) {
+    }
+
+    /**
+     * One attempt's outcome: the floor, and the pins that attempt could not use.
+     *
+     * @param unusedNames the bare room names, so {@link #run} can lay the floor out again without them
+     * @param unusedNotes the same, as {@code "Name - reason"} for the caller to show him
+     */
+    private record Grown(Floor floor, List<String> reached, List<String> unusedNames,
+                         List<String> unusedNotes) {
+    }
+
     /** A room the layout may use: its name, type, and its doorways at all four rotations. */
     private record Candidate(String name, String type, RoomDoors.Mask[] byRotation) {
 
@@ -77,7 +110,14 @@ public final class SimFloorLayout {
         final int cellX;
         final int cellZ;
         final int side;
-        final int depth;
+        /**
+         * Doorways from the entrance to the room that owns this stub.
+         *
+         * <p>Not final, because a PINNED room is on the grid before anything has reached it, so its distance
+         * from the entrance is not known until it is - see {@link #wakePins}. Everything a generated floor
+         * places knows its depth the moment it is committed and never changes it.
+         */
+        int depth;
         final int owner;
 
         Stub(int cellX, int cellZ, int side, int depth, int owner) {
@@ -100,6 +140,19 @@ public final class SimFloorLayout {
      * generous: two F7s in 800 came out a room short with ten attempts.
      */
     private static final int ATTEMPTS = 30;
+
+    /**
+     * How many floors to lay out when he has PINNED rooms, which is a harder problem.
+     *
+     * <p>A pinned room is a fixed obstacle the growth has to happen to reach through a matching pair of
+     * doorways, so an attempt fails for reasons no re-ordering inside the attempt can fix: the entrance seeded
+     * on the far edge, or a rotation that turned the pin's only doorways towards the grid edge. Retrying is the
+     * cheap fix - measured at about 2 ms an attempt - and the loop still stops the moment one attempt has every
+     * pin, a blood room, the room minimum and the whole cell target.
+     */
+    private static final int PINNED_ATTEMPTS = 150;
+
+    private static final List<Pin> NO_PINS = List.of();
 
     /**
      * Rooms of which a generated floor may hold at most ONE between them.
@@ -152,37 +205,243 @@ public final class SimFloorLayout {
      */
     public static Floor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                  int puzzles, int bloodDepth, Random rng) {
+        PinnedFloor out = run(usable, minRooms, wantCells, puzzles, bloodDepth, null, rng);
+        return out == null ? null : out.floor();
+    }
+
+    /**
+     * The same, but built AROUND rooms he placed by hand.
+     *
+     * <p>killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in generating
+     * a map around the room". Every pinned room is put at the cell he put it at; the ROTATION is chosen here,
+     * from the four, because a rotation is what decides which sides its doorways are on and therefore whether
+     * the rest of the floor can ever reach it - the map designer has no way to ask for one and he should not
+     * have to.
+     *
+     * <p>Everything the random generator guarantees still holds: the floor is connected from the entrance
+     * through real doorways in both rooms, one-doorway rooms come out at dead ends, blood is a dead end once,
+     * and no room overlaps another. What a pin can do that a generated room cannot is be UNREACHABLE - he can
+     * put a one-doorway room in a corner with its doorway facing the grid edge. That is not dropped silently
+     * and it does not come back as a broken floor either: the attempt is retried, and if no attempt can connect
+     * it the room is left off the floor and named in {@link PinnedFloor#unusedPins()}.
+     *
+     * <p>If he pins the Entrance, that cell IS the entrance rather than a random edge.
+     *
+     * @param pinned cell index {@code cellZ * GRID + cellX} to room name, as the map designer keys it
+     */
+    public static PinnedFloor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
+                                       int puzzles, int bloodDepth, Map<Integer, String> pinned, Random rng) {
+        return run(usable, minRooms, wantCells, puzzles, bloodDepth, pinned, rng);
+    }
+
+    /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
+    private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
+                                   int puzzles, int bloodDepth, Map<Integer, String> pinned, Random rng) {
         List<Candidate> pool = candidates(usable);
         if (pool.isEmpty()) {
             return null;
         }
-        Floor best = null;
+        List<String> rejected = new ArrayList<>();
+        List<Pin> pins = resolvePins(pinned, usable, rejected);
+        Grown best = attemptLoop(pool, minRooms, wantCells, puzzles, bloodDepth, pins, rng);
+        if (best == null) {
+            return null;
+        }
+        List<String> unused = new ArrayList<>(rejected);
+        // A PIN NO ATTEMPT COULD USE IS LAID OUT AGAIN WITHOUT IT, and that is not a detail.
+        //
+        // A pin the floor never reaches has still been sitting on its cells the whole way through - the growth
+        // counted them towards the cell target and then stopped - so pruning it at the end leaves a floor short
+        // of its target with a hole where the pin was. Measured before this second pass went in: a single
+        // unreachable pin dragged the median F7 from 36 cells to 34 and the worst case to 26. Once every one of
+        // the {@link #PINNED_ATTEMPTS} attempts has failed on the same room, the honest thing is to lay the
+        // floor out again as if he had not placed it, and tell him it was dropped.
+        if (!best.unusedNames().isEmpty()) {
+            unused.addAll(best.unusedNotes());
+            Set<String> hopeless = new HashSet<>();
+            for (String n : best.unusedNames()) {
+                hopeless.add(n.toLowerCase(Locale.ROOT));
+            }
+            List<Pin> keep = new ArrayList<>();
+            for (Pin p : pins) {
+                if (!hopeless.contains(p.name().toLowerCase(Locale.ROOT))) {
+                    keep.add(p);
+                }
+            }
+            Grown second = attemptLoop(pool, minRooms, wantCells, puzzles, bloodDepth, keep, rng);
+            if (second != null) {
+                best = second;
+                unused.addAll(second.unusedNotes());
+            }
+        }
+        return new PinnedFloor(best.floor(), best.reached(), unused);
+    }
+
+    /** The best of {@link #ATTEMPTS} (or {@link #PINNED_ATTEMPTS}) layouts. */
+    private static Grown attemptLoop(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
+                                     int bloodDepth, List<Pin> pins, Random rng) {
+        Grown best = null;
         int bestScore = Integer.MIN_VALUE;
-        for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
-            Floor floor = growOnce(pool, minRooms, wantCells, puzzles, bloodDepth, rng);
-            if (floor == null) {
+        int attempts = pins.isEmpty() ? ATTEMPTS : PINNED_ATTEMPTS;
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            Grown grown = growOnce(pool, minRooms, wantCells, puzzles, bloodDepth, pins, rng);
+            if (grown == null) {
                 continue;
             }
+            Floor floor = grown.floor();
             // Having a blood room at all comes first - a floor without one is not a floor, and scenario 73
             // requires it. Then the room minimum, because an attempt that stalled at 20 rooms over 32 cells
             // otherwise beat one that reached 22 rooms over 31, and "fewer rooms than the floor has" is the
             // one thing scenario 73 asserts about the size. Then cells filled, which is the point of the
             // target; then rooms; then fewest doorways left to brick up.
-            int score = (floor.bloodDepth() >= 0 ? 1_000_000 : 0)
+            //
+            // A DROPPED PIN COSTS five cells' worth, not a rank of its own. Ranking "every pin kept" above the
+            // cell count looks right and is not: a two-room floor that happens to hold his rooms then beat a
+            // full one that had to leave one out, and that is what the generator returned - 5% of the cell
+            // target on 14 of 200 floors, measured. A pin's cells are counted as filled while it sits there,
+            // so dropping one already shows up as a hole in the coverage; this is the extra nudge, not the
+            // whole preference. With no pins the term is zero and the ranking is what it always was.
+            int score = (floor.bloodDepth() >= 0 ? 4_000_000 : 0)
                     + (floor.rooms().size() >= minRooms ? 500_000 : 0)
                     + cellsOf(floor) * 1000
+                    - grown.unusedNames().size() * 5_000
                     + floor.rooms().size() * 5
                     - floor.openDoors().size();
             if (score > bestScore) {
                 bestScore = score;
-                best = floor;
+                best = grown;
             }
-            if (floor.bloodDepth() >= 0 && floor.rooms().size() >= minRooms
-                    && cellsOf(floor) >= wantCells) {
+            if (floor.bloodDepth() >= 0 && grown.unusedNames().isEmpty()
+                    && floor.rooms().size() >= minRooms && cellsOf(floor) >= wantCells) {
                 break;   // finished - nothing another attempt could improve
             }
         }
         return best;
+    }
+
+    /**
+     * Turns his cell-to-name map into pins, dropping the ones that are a user error rather than a layout
+     * problem: a room that is not captured, a cell that is not on the grid, a room whose footprint cannot fit
+     * on the grid at that cell at ANY rotation, and the same room pinned twice.
+     *
+     * <p>Two pins OVERLAPPING is decided per attempt, not here, because which cells a pin covers depends on the
+     * rotation this class is choosing - see {@link #assignPinRotations}.
+     */
+    private static List<Pin> resolvePins(Map<Integer, String> pinned, Map<String, RoomLibrary.Room> usable,
+                                         List<String> rejected) {
+        if (pinned == null || pinned.isEmpty()) {
+            return NO_PINS;
+        }
+        List<Pin> pins = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        List<Integer> slots = new ArrayList<>(pinned.keySet());
+        java.util.Collections.sort(slots);   // the same drawing must give the same floor
+        for (int slot : slots) {
+            String name = pinned.get(slot);
+            if (name == null) {
+                continue;
+            }
+            int cellX = slot % GRID;
+            int cellZ = slot / GRID;
+            if (slot < 0 || cellZ >= GRID) {
+                rejected.add(name + " - cell " + slot + " is not on the " + GRID + "x" + GRID + " grid");
+                continue;
+            }
+            if (!seen.add(name.toLowerCase(Locale.ROOT))) {
+                rejected.add(name + " - pinned more than once");
+                continue;
+            }
+            // NOT filtered for L shape, deliberately. A generated floor leaves the L rooms out because their
+            // captures hold a neighbour's geometry in the quarter they do not occupy, but he PUT this one here,
+            // and the drawn-map path has never filtered what he drew either.
+            Candidate c = candidateOf(name, usable.get(name));
+            if (c == null) {
+                rejected.add(name + " - not captured, or not at the current capture format");
+                continue;
+            }
+            boolean fitsSomewhere = false;
+            for (int r = 0; r < 4 && !fitsSomewhere; r++) {
+                RoomDoors.Mask m = c.byRotation()[r];
+                fitsSomewhere = cellX + m.tilesX() <= GRID && cellZ + m.tilesZ() <= GRID;
+            }
+            if (!fitsSomewhere) {
+                rejected.add(name + " - its " + c.byRotation()[0].tilesX() + "x" + c.byRotation()[0].tilesZ()
+                        + " footprint runs off the grid at cell " + cellX + "," + cellZ);
+                continue;
+            }
+            pins.add(new Pin(name, cellX, cellZ, c));
+        }
+        // Biggest first, so the greedy rotation choice below settles the hard ones before the 1x1s.
+        pins.sort(Comparator.comparingInt((Pin p) -> -p.candidate().area(0)));
+        return pins;
+    }
+
+    /**
+     * A rotation per pin, or -1 for a pin that cannot go there without covering another one.
+     *
+     * <p>Greedy rather than a full search, and re-rolled every attempt: among the rotations that fit the grid
+     * and do not overlap a pin already settled, it prefers the one with the most doorways pointing at cells the
+     * floor could actually grow from, because a pin whose doorways all face the grid edge can never be reached.
+     * The jitter is drawn once per rotation and stored - a comparator that rolls a die makes TimSort throw.
+     */
+    private static int[] assignPinRotations(List<Pin> pins, Random rng) {
+        int[] rot = new int[pins.size()];
+        boolean[] taken = new boolean[GRID * GRID];
+        for (int i = 0; i < pins.size(); i++) {
+            Pin p = pins.get(i);
+            Integer[] order = {0, 1, 2, 3};
+            double[] key = new double[4];
+            for (int r = 0; r < 4; r++) {
+                key[r] = -(openness(p, r) + rng.nextDouble() * 1.5);
+            }
+            java.util.Arrays.sort(order, Comparator.comparingDouble(r -> key[r]));
+            rot[i] = -1;
+            for (int r : order) {
+                RoomDoors.Mask m = p.candidate().byRotation()[r];
+                if (p.cellX() + m.tilesX() > GRID || p.cellZ() + m.tilesZ() > GRID
+                        || !free(taken, p.cellX(), p.cellZ(), m.tilesX(), m.tilesZ())) {
+                    continue;
+                }
+                rot[i] = r;
+                for (int a = 0; a < m.tilesX(); a++) {
+                    for (int b = 0; b < m.tilesZ(); b++) {
+                        taken[(p.cellZ() + b) * GRID + p.cellX() + a] = true;
+                    }
+                }
+                break;
+            }
+        }
+        return rot;
+    }
+
+    /** How many of a pin's doorways point at a cell on the grid that is not part of the pin itself. */
+    private static int openness(Pin p, int rotationIndex) {
+        RoomDoors.Mask m = p.candidate().byRotation()[rotationIndex];
+        int open = 0;
+        for (int[] door : RoomDoors.doorCells(m, p.cellX(), p.cellZ())) {
+            int nx = door[0] + RoomDoors.DX[door[2]];
+            int nz = door[1] + RoomDoors.DZ[door[2]];
+            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                continue;
+            }
+            if (nx >= p.cellX() && nx < p.cellX() + m.tilesX()
+                    && nz >= p.cellZ() && nz < p.cellZ() + m.tilesZ()) {
+                continue;   // its own other half
+            }
+            open++;
+        }
+        return open;
+    }
+
+    private static boolean free(boolean[] taken, int originX, int originZ, int w, int h) {
+        for (int a = 0; a < w; a++) {
+            for (int b = 0; b < h; b++) {
+                if (taken[(originZ + b) * GRID + originX + a]) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Room slots the floor actually occupies - the number {@link #generate} is aiming at. */
@@ -198,11 +457,6 @@ public final class SimFloorLayout {
     private static List<Candidate> candidates(Map<String, RoomLibrary.Room> usable) {
         List<Candidate> out = new ArrayList<>();
         for (Map.Entry<String, RoomLibrary.Room> e : usable.entrySet()) {
-            RoomDoors.Mask mask = RoomDoors.of(e.getKey());
-            if (mask == null) {
-                continue;
-            }
-            String type = SimFloorGen.typeOf(e.getKey());
             // L-SHAPED ROOMS ARE LEFT OUT of a generated floor.
             //
             // An L room is captured as its 2x2 bounding box, and the quarter it does not occupy is whatever
@@ -217,17 +471,38 @@ public final class SimFloorLayout {
             if ("L".equalsIgnoreCase(SimFloorGen.shapeOf(e.getKey()))) {
                 continue;
             }
-            RoomDoors.Mask[] byRotation = new RoomDoors.Mask[4];
-            for (int r = 0; r < 4; r++) {
-                byRotation[r] = RoomDoors.rotate(mask, r * 90);
+            Candidate c = candidateOf(e.getKey(), e.getValue());
+            if (c != null) {
+                out.add(c);
             }
-            out.add(new Candidate(e.getKey(), type, byRotation));
         }
         return out;
     }
 
-    private static Floor growOnce(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
-                                  int bloodDepth, Random rng) {
+    /**
+     * One room as the layout sees it, or null when its doorways cannot be measured.
+     *
+     * <p>Shared by {@link #candidates} and by {@link #resolvePins}, so a pinned room and a generated one are
+     * described by exactly the same masks. It does NOT apply the L-shape filter - that belongs to the caller,
+     * because a generated floor leaves them out and a room he placed himself does not.
+     */
+    private static Candidate candidateOf(String name, RoomLibrary.Room room) {
+        if (name == null || room == null) {
+            return null;
+        }
+        RoomDoors.Mask mask = RoomDoors.of(name);
+        if (mask == null) {
+            return null;
+        }
+        RoomDoors.Mask[] byRotation = new RoomDoors.Mask[4];
+        for (int r = 0; r < 4; r++) {
+            byRotation[r] = RoomDoors.rotate(mask, r * 90);
+        }
+        return new Candidate(name, SimFloorGen.typeOf(name), byRotation);
+    }
+
+    private static Grown growOnce(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
+                                  int bloodDepth, List<Pin> pins, Random rng) {
         Map<String, Candidate> byName = new HashMap<>();
         List<Candidate> normal = new ArrayList<>();
         List<Candidate> puzzleRooms = new ArrayList<>();
@@ -249,23 +524,13 @@ public final class SimFloorLayout {
         int[] occupied = new int[GRID * GRID];
         java.util.Arrays.fill(occupied, -1);
         List<Placement> placed = new ArrayList<>();
+        // The Candidate behind each placement, parallel to `placed`. Needed because a PINNED room's doorways
+        // have to be looked at again long after it was committed, when something finally reaches it.
+        List<Candidate> placedFrom = new ArrayList<>();
         List<Link> links = new ArrayList<>();
         List<Stub> stubs = new ArrayList<>();
         Set<String> used = new HashSet<>();
-
-        // The entrance starts on an edge of the grid, the way a real floor's does.
-        int entranceRotation = rng.nextInt(4);
-        RoomDoors.Mask em = entrance.byRotation()[entranceRotation];
-        int ex = rng.nextBoolean() ? 0 : GRID - em.tilesX();
-        int ez = rng.nextInt(Math.max(1, GRID - em.tilesZ() + 1));
-        if (rng.nextBoolean()) {
-            int swap = ex;
-            ex = rng.nextInt(Math.max(1, GRID - em.tilesX() + 1));
-            ez = swap == 0 ? 0 : GRID - em.tilesZ();
-        }
-        commit(entrance, entranceRotation, ex, ez, 0, occupied, placed, stubs, used);
-        int filled = em.tilesX() * em.tilesZ();
-
+        int filled = 0;
         int puzzlesLeft = puzzles;
         int bloodPlacedDepth = -1;
         // An array, not a local, because it is read inside the lambda-free loop below and reassigned there -
@@ -286,6 +551,87 @@ public final class SimFloorLayout {
         java.util.Set<Long> bloodCells = new HashSet<>();
         List<Stub> failed = new ArrayList<>();
 
+        // Rooms that are ON the grid but that nothing has reached yet: every pin except a pinned entrance.
+        //
+        // Their doorways are registered as stubs from the start, so a room placed next to one scores the
+        // meeting as a MATCH and the growth is drawn towards them rather than away. What they may not do is be
+        // grown FROM, because a wing hanging off a room the entrance cannot reach is exactly the unreachable
+        // wing this class is built not to produce. They are woken by {@link #wakePins} the moment a real
+        // doorway pair joins them to the rest of the floor, and only then can the floor grow through them.
+        Set<Integer> dormant = new HashSet<>();
+        int entrancePin = -1;
+        int[] pinRotation = pins.isEmpty() ? new int[0] : assignPinRotations(pins, rng);
+        List<String> pinsUnused = new ArrayList<>();
+        List<String> pinsUnusedNames = new ArrayList<>();
+        List<String> pinsReached = new ArrayList<>();
+        for (int i = 0; i < pins.size(); i++) {
+            Pin p = pins.get(i);
+            if (pinRotation[i] < 0) {
+                pinsUnusedNames.add(p.name());
+                pinsUnused.add(p.name() + " - overlaps another room you placed");
+                continue;
+            }
+            int idx = commit(p.candidate(), pinRotation[i] * 90, p.cellX(), p.cellZ(), 0,
+                    occupied, placed, placedFrom, stubs, used);
+            RoomDoors.Mask pm = p.candidate().byRotation()[pinRotation[i]];
+            filled += pm.tilesX() * pm.tilesZ();
+            if ("ENTRANCE".equalsIgnoreCase(p.candidate().type()) && entrancePin < 0) {
+                entrancePin = idx;   // his own entrance cell is the seed, not a random edge
+                pinsReached.add(p.name());
+            } else {
+                dormant.add(idx);
+            }
+            // A pinned given room is on the grid before the loop starts, so the rules about the other given
+            // rooms have to know about it now rather than when it is reached. The blood-rush rule is about
+            // CELLS, and those are settled the moment he pins it.
+            if ("FAIRY".equalsIgnoreCase(p.candidate().type())) {
+                fairyCellsInto(fairyCells, pm, p.cellX(), p.cellZ());
+                fairyPlaced[0] = true;
+            }
+            if ("BLOOD".equalsIgnoreCase(p.candidate().type())) {
+                fairyCellsInto(bloodCells, pm, p.cellX(), p.cellZ());
+            }
+        }
+
+        if (entrancePin < 0) {
+            // The entrance starts on an edge of the grid, the way a real floor's does.
+            int entranceRotation;
+            RoomDoors.Mask em;
+            int ex;
+            int ez;
+            int seat = 0;
+            while (true) {
+                entranceRotation = rng.nextInt(4);
+                em = entrance.byRotation()[entranceRotation];
+                ex = rng.nextBoolean() ? 0 : GRID - em.tilesX();
+                ez = rng.nextInt(Math.max(1, GRID - em.tilesZ() + 1));
+                if (rng.nextBoolean()) {
+                    int swap = ex;
+                    ex = rng.nextInt(Math.max(1, GRID - em.tilesX() + 1));
+                    ez = swap == 0 ? 0 : GRID - em.tilesZ();
+                }
+                // With nothing pinned the edge is always free, so this is the one draw it always was and the
+                // random stream is unchanged. With pins it can land on one, and then it is re-drawn.
+                if (pins.isEmpty() || fits(occupied, ex, ez, em.tilesX(), em.tilesZ())) {
+                    break;
+                }
+                if (++seat >= 60) {
+                    return null;   // his pins leave no edge cell for an entrance; another attempt may differ
+                }
+            }
+            // DEGREES, not an index. This read `entranceRotation` for years, which integer-divides to 0 for
+            // every one of the four values it can hold, so the entrance was always committed unrotated while
+            // its footprint and its position had been worked out at the rotation that was drawn. Entrance is
+            // 1x1 so the position was right; its two doorways were simply never turned.
+            commit(entrance, entranceRotation * 90, ex, ez, 0, occupied, placed, placedFrom, stubs, used);
+            filled += em.tilesX() * em.tilesZ();
+        }
+        if (!dormant.isEmpty()) {
+            // A pin can be next door to the seed, so give it the chance to be reached before anything grows.
+            bloodPlacedDepth = wakePins(occupied, placed, placedFrom, stubs, links, dormant, pinsReached,
+                    bloodCells, bloodPlacedDepth);
+        }
+
         for (int pass = 0; pass < 2; pass++) {
             boolean relaxed = pass == 1;
             if (relaxed) {
@@ -293,6 +639,7 @@ public final class SimFloorLayout {
                 failed.clear();
             }
             int guard = 0;
+            List<Integer> live = new ArrayList<>();
             // Three things have to be true before the floor is finished, and the cell target is the one that
             // was missing: enough of the grid filled, at least the floor's room count, and a blood room.
             while ((filled < wantCells || placed.size() < minRooms || bloodPlacedDepth < 0)
@@ -313,7 +660,24 @@ public final class SimFloorLayout {
                 boolean preferBig = needMore && maxArea > 1
                         && (double) filled / Math.max(1, placed.size()) < (double) wantCells / Math.max(1, minRooms)
                         && cellsLeft >= 2;
-                int si = rng.nextInt(stubs.size());
+                // A dormant pin's stubs are in the list so that meeting one scores as a match, but the floor
+                // may not GROW from one until something has reached it. With no pins this is the single draw
+                // it always was.
+                int si;
+                if (dormant.isEmpty()) {
+                    si = rng.nextInt(stubs.size());
+                } else {
+                    live.clear();
+                    for (int i = 0; i < stubs.size(); i++) {
+                        if (!dormant.contains(stubs.get(i).owner)) {
+                            live.add(i);
+                        }
+                    }
+                    if (live.isEmpty()) {
+                        break;   // everything still open belongs to a room nothing can reach
+                    }
+                    si = live.get(rng.nextInt(live.size()));
+                }
                 Stub stub = stubs.get(si);
                 int tx = stub.cellX + RoomDoors.DX[stub.side];
                 int tz = stub.cellZ + RoomDoors.DZ[stub.side];
@@ -357,10 +721,10 @@ public final class SimFloorLayout {
                 // A given room is never held back by the size cap: there is exactly one blood and one fairy.
                 Best best = choose(wanted, used, stub, tx, tz, occupied, stubs, remaining,
                         wantBlood || wantFairy || wanted == puzzleRooms, preferBig, cellsLeft,
-                        wantBlood || wantFairy ? Integer.MAX_VALUE : maxArea, rng);
+                        wantBlood || wantFairy ? Integer.MAX_VALUE : maxArea, dormant, rng);
                 if (best == null && wanted != normal && needMore) {
                     best = choose(normal, used, stub, tx, tz, occupied, stubs, remaining, false,
-                            preferBig, cellsLeft, maxArea, rng);
+                            preferBig, cellsLeft, maxArea, dormant, rng);
                 }
                 if (best == null) {
                     failed.add(stubs.remove(si));
@@ -368,7 +732,7 @@ public final class SimFloorLayout {
                 }
 
                 int idx = commit(best.candidate, best.rotation, best.originX, best.originZ, stub.depth + 1,
-                        occupied, placed, stubs, used);
+                        occupied, placed, placedFrom, stubs, used);
                 filled += placed.get(idx).cellsX() * placed.get(idx).cellsZ();
                 links.add(new Link(stub.cellX, stub.cellZ, tx, tz));
                 stubs.remove(si);
@@ -388,38 +752,78 @@ public final class SimFloorLayout {
                     if (neighbour < 0 || neighbour == idx) {
                         continue;
                     }
+                    if (forbiddenPair(best.candidate.type(), placed.get(neighbour).type())) {
+                        continue;
+                    }
                     if (consume(stubs, nx, nz, (door[2] + 2) % 4, neighbour)) {
                         links.add(new Link(door[0], door[1], nx, nz));
                         consume(stubs, door[0], door[1], door[2], idx);
+                        // THIS is the doorway that reaches a room he pinned, most of the time. The loop above
+                        // was already opening a real door into a dormant pin and consuming its stub; what it
+                        // did not do was record that the pin was now part of the floor, so the pin was pruned
+                        // at the end WITH the link still pointing at its cells. Measured: 63% of single pins
+                        // honoured and 67 links to an empty cell over 200 floors, until this line went in.
+                        if (dormant.remove(neighbour)) {
+                            bloodPlacedDepth = adopt(neighbour, stub.depth + 2, placed, placedFrom, stubs,
+                                    pinsReached, bloodCells, bloodPlacedDepth);
+                        }
                     }
                 }
                 if ("PUZZLE".equalsIgnoreCase(best.candidate.type())) {
                     puzzlesLeft--;
                 }
-                if (wantFairy) {
+                // WHAT WENT IN, not what was asked for. Both these blocks used to fire on the REQUEST: when
+                // blood was wanted but could not fit at that stub, `choose` returned null, the fallback below
+                // it put an ordinary room there instead, and the floor was then recorded as having its blood
+                // room - at the ordinary room's cells, with that room's stubs deleted as if it were the end of
+                // the run. Rare with nothing pinned, because `choose(blood)` usually finds a rotation; certain
+                // the moment he PINS the blood room, because the name is then already used and that call can
+                // never succeed.
+                boolean gotFairy = wantFairy && "FAIRY".equalsIgnoreCase(best.candidate.type());
+                boolean gotBlood = wantBlood && "BLOOD".equalsIgnoreCase(best.candidate.type());
+                if (gotFairy) {
                     fairyPlaced[0] = true;
-                    RoomDoors.Mask fm = best.candidate.byRotation()[best.rotation / 90];
-                    for (int a = 0; a < fm.tilesX(); a++) {
-                        for (int c = 0; c < fm.tilesZ(); c++) {
-                            fairyCells.add(cellKey(best.originX + a, best.originZ + c));
-                        }
-                    }
+                    fairyCellsInto(fairyCells, best.candidate.byRotation()[best.rotation / 90],
+                            best.originX, best.originZ);
                 }
-                if (wantBlood) {
+                if (gotBlood) {
                     bloodPlacedDepth = stub.depth + 1;
-                    RoomDoors.Mask bm = best.candidate.byRotation()[best.rotation / 90];
-                    for (int a = 0; a < bm.tilesX(); a++) {
-                        for (int c = 0; c < bm.tilesZ(); c++) {
-                            bloodCells.add(cellKey(best.originX + a, best.originZ + c));
-                        }
-                    }
+                    fairyCellsInto(bloodCells, best.candidate.byRotation()[best.rotation / 90],
+                            best.originX, best.originZ);
                     // Blood is the end of the run: nothing is attached beyond it.
                     stubs.removeIf(s -> s.owner == idx);
+                }
+                if (!dormant.isEmpty()) {
+                    bloodPlacedDepth = wakePins(occupied, placed, placedFrom, stubs, links, dormant,
+                            pinsReached, bloodCells, bloodPlacedDepth);
                 }
             }
             if (filled >= wantCells && placed.size() >= minRooms && bloodPlacedDepth >= 0) {
                 break;
             }
+        }
+
+        // A PIN NOTHING EVER REACHED COMES OFF THE FLOOR.
+        //
+        // He can pin a one-doorway room in a corner with that doorway facing the grid edge, and no layout at
+        // that cell can ever connect it. Leaving it in would hand the builder a room with no way into it - the
+        // one thing this class exists to make impossible - so it is removed, with its own open doorways, and
+        // named for the caller to tell him. It has no links by construction: a dormant room's stubs are only
+        // consumed at the moment it is woken.
+        List<Placement> kept = placed;
+        if (!dormant.isEmpty()) {
+            kept = new ArrayList<>();
+            for (int i = 0; i < placed.size(); i++) {
+                if (dormant.contains(i)) {
+                    pinsUnusedNames.add(placed.get(i).name());
+                    pinsUnused.add(placed.get(i).name() + " - nothing could open a doorway into it at cell "
+                            + placed.get(i).originX() + "," + placed.get(i).originZ());
+                } else {
+                    kept.add(placed.get(i));
+                }
+            }
+            stubs.removeIf(s -> dormant.contains(s.owner));
+            failed.removeIf(s -> dormant.contains(s.owner));
         }
 
         // Doorways with nothing on the other side. They are real holes in real walls, so the builder bricks
@@ -431,7 +835,98 @@ public final class SimFloorLayout {
         for (Stub s : failed) {
             open.add(new int[]{s.cellX, s.cellZ, s.side});
         }
-        return new Floor(placed, links, open, bloodPlacedDepth);
+        return new Grown(new Floor(kept, links, open, bloodPlacedDepth), pinsReached, pinsUnusedNames,
+                pinsUnused);
+    }
+
+    /** Every cell a placed room covers, into {@code into}. */
+    private static void fairyCellsInto(Set<Long> into, RoomDoors.Mask mask, int originX, int originZ) {
+        for (int a = 0; a < mask.tilesX(); a++) {
+            for (int c = 0; c < mask.tilesZ(); c++) {
+                into.add(cellKey(originX + a, originZ + c));
+            }
+        }
+    }
+
+    /**
+     * Joins any pinned room that has just become reachable to the rest of the floor, and keeps going.
+     *
+     * <p>A pin is reachable the moment one of ITS doorways faces a cell held by a room that is already part of
+     * the floor AND that room has an unused doorway facing back. That is the same test the growth applies to
+     * every other pair of neighbours, so a door into a pinned room is a measured doorway in both rooms at the
+     * rotation each is placed at - there is no special case that would let a pin be connected through a wall.
+     *
+     * <p>It repeats until nothing more wakes, because waking one pin can make a second one reachable through
+     * it: two rooms he placed side by side are joined when the first of them is reached, not before.
+     *
+     * @return the blood depth, updated if the room that woke was the blood room he pinned
+     */
+    private static int wakePins(int[] occupied, List<Placement> placed, List<Candidate> placedFrom,
+                                List<Stub> stubs, List<Link> links, Set<Integer> dormant,
+                                List<String> reached, Set<Long> bloodCells, int bloodDepth) {
+        boolean changed = true;
+        while (changed && !dormant.isEmpty()) {
+            changed = false;
+            for (int d : new ArrayList<>(dormant)) {
+                Placement p = placed.get(d);
+                RoomDoors.Mask m = placedFrom.get(d).byRotation()[p.rotation() / 90];
+                for (int[] door : RoomDoors.doorCells(m, p.originX(), p.originZ())) {
+                    int nx = door[0] + RoomDoors.DX[door[2]];
+                    int nz = door[1] + RoomDoors.DZ[door[2]];
+                    if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                        continue;
+                    }
+                    int neighbour = occupied[nz * GRID + nx];
+                    if (neighbour < 0 || neighbour == d || dormant.contains(neighbour)) {
+                        continue;   // empty, itself, or another room nothing has reached either
+                    }
+                    if (forbiddenPair(p.type(), placed.get(neighbour).type())) {
+                        continue;
+                    }
+                    if (!hasStub(stubs, door[0], door[1], door[2], d)
+                            || !consume(stubs, nx, nz, (door[2] + 2) % 4, neighbour)) {
+                        continue;
+                    }
+                    consume(stubs, door[0], door[1], door[2], d);
+                    links.add(new Link(door[0], door[1], nx, nz));
+                    dormant.remove(d);
+                    changed = true;
+                    bloodDepth = adopt(d, placed.get(neighbour).depth() + 1, placed, placedFrom, stubs,
+                            reached, bloodCells, bloodDepth);
+                    break;
+                }
+            }
+        }
+        return bloodDepth;
+    }
+
+    /**
+     * Books a pinned room in as part of the floor, now that a doorway has been opened into it.
+     *
+     * <p>Its distance from the entrance was not known until this moment, so it and every doorway it still has
+     * open take their depth from the room that reached it - the depth is what decides where the blood room is
+     * allowed to go, so a pin left at zero would look like a second entrance.
+     *
+     * @return the blood depth, set if the room adopted is the blood room he pinned
+     */
+    private static int adopt(int idx, int depth, List<Placement> placed, List<Candidate> placedFrom,
+                             List<Stub> stubs, List<String> reached, Set<Long> bloodCells, int bloodDepth) {
+        Placement p = placed.get(idx);
+        placed.set(idx, new Placement(p.name(), p.rotation(), p.originX(), p.originZ(),
+                p.cellsX(), p.cellsZ(), depth, p.type()));
+        for (Stub s : stubs) {
+            if (s.owner == idx) {
+                s.depth = depth;
+            }
+        }
+        reached.add(p.name());
+        if ("BLOOD".equalsIgnoreCase(p.type())) {
+            bloodDepth = depth;
+            fairyCellsInto(bloodCells, placedFrom.get(idx).byRotation()[p.rotation() / 90],
+                    p.originX(), p.originZ());
+            stubs.removeIf(s -> s.owner == idx);   // blood is the end of the run
+        }
+        return bloodDepth;
     }
 
     private record Best(Candidate candidate, int rotation, int originX, int originZ) {
@@ -439,6 +934,24 @@ public final class SimFloorLayout {
 
     private static long cellKey(int x, int z) {
         return ((long) x << 32) ^ (z & 0xffffffffL);
+    }
+
+    /**
+     * Two room types no door may ever join directly.
+     *
+     * <p>killer560 (2026-09-29): "make sure one room must generate between green and fairy and fairy and blood
+     * for any given blood rush path." Choosing WHERE to put the fairy room already respects that - it is only
+     * ever attached to a stub at least one doorway from the entrance, and never next to a blood cell - but the
+     * extra-door pass afterwards does not choose anything: it opens a door wherever two placed rooms happen to
+     * have doorways facing each other, and it will happily put one between the fairy room and the entrance the
+     * fairy was carefully kept a room away from. Rare - never once in 4,000 generated floors, once in 200 with
+     * rooms pinned, because pinning lays out five times as many candidates and keeps the best - and a rule that
+     * holds by luck reads exactly like a rule that holds. Both doorways are left open and bricked up instead.
+     */
+    private static boolean forbiddenPair(String a, String b) {
+        return ("FAIRY".equalsIgnoreCase(a) && ("ENTRANCE".equalsIgnoreCase(b) || "BLOOD".equalsIgnoreCase(b)))
+                || ("FAIRY".equalsIgnoreCase(b)
+                    && ("ENTRANCE".equalsIgnoreCase(a) || "BLOOD".equalsIgnoreCase(a)));
     }
 
     /** Whether a cell is next door to the fairy room - blood may not be, so a room always sits between. */
@@ -463,7 +976,8 @@ public final class SimFloorLayout {
      */
     private static Best choose(List<Candidate> pool, Set<String> used, Stub stub, int tx, int tz,
                                int[] occupied, List<Stub> stubs, int remaining, boolean allowDeadEnd,
-                               boolean preferBig, int cellsLeft, int maxArea, Random rng) {
+                               boolean preferBig, int cellsLeft, int maxArea, Set<Integer> dormant,
+                               Random rng) {
         int need = (stub.side + 2) % 4;
         List<Candidate> shortlist = new ArrayList<>();
         for (Candidate c : pool) {
@@ -545,7 +1059,7 @@ public final class SimFloorLayout {
                         continue;
                     }
                     double score = score(mask, originX, originZ, tx, tz, need, occupied, stubs,
-                            cellsLeft, preferBig, rng);
+                            cellsLeft, preferBig, dormant, rng);
                     if (score > bestScore) {
                         bestScore = score;
                         best = new Best(c, rotation * 90, originX, originZ);
@@ -565,10 +1079,14 @@ public final class SimFloorLayout {
 
     private static double score(RoomDoors.Mask mask, int originX, int originZ, int tx, int tz, int need,
                                 int[] occupied, List<Stub> stubs, int cellsLeft, boolean preferBig,
-                                Random rng) {
+                                Set<Integer> dormant, Random rng) {
         int matched = 0;
         int growable = 0;
         int seal = 0;
+        // Doorways that would open into a room he PINNED that nothing has reached yet. Those are the placements
+        // that connect his rooms to the floor, so they are worth more than an ordinary loop; with nothing
+        // pinned this is always zero and the score is exactly what it was.
+        int reaches = 0;
         for (int[] door : RoomDoors.doorCells(mask, originX, originZ)) {
             if (door[0] == tx && door[1] == tz && door[2] == need) {
                 continue;   // the doorway being attached through
@@ -580,6 +1098,9 @@ public final class SimFloorLayout {
             } else if (occupied[nz * GRID + nx] >= 0) {
                 if (hasStub(stubs, nx, nz, (door[2] + 2) % 4)) {
                     matched++;
+                    if (dormant.contains(occupied[nz * GRID + nx])) {
+                        reaches++;
+                    }
                 } else {
                     seal++;
                 }
@@ -595,7 +1116,7 @@ public final class SimFloorLayout {
         double bulk = preferBig
                 ? Math.min(mask.tilesX() * mask.tilesZ(), Math.max(1, cellsLeft)) - 1
                 : 0;
-        return matched * 2.0 + growable - seal * 3.0 - stranded * 2.5 + bulk * 1.8
+        return matched * 2.0 + growable - seal * 3.0 - stranded * 2.5 + bulk * 1.8 + reaches * 6.0
                 - rng.nextDouble() * 0.5;
     }
 
@@ -689,6 +1210,16 @@ public final class SimFloorLayout {
         return false;
     }
 
+    /** The same, but only counting a doorway that belongs to {@code owner}. */
+    private static boolean hasStub(List<Stub> stubs, int cellX, int cellZ, int side, int owner) {
+        for (Stub s : stubs) {
+            if (s.cellX == cellX && s.cellZ == cellZ && s.side == side && s.owner == owner) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean consume(List<Stub> stubs, int cellX, int cellZ, int side, int owner) {
         for (int i = 0; i < stubs.size(); i++) {
             Stub s = stubs.get(i);
@@ -701,7 +1232,8 @@ public final class SimFloorLayout {
     }
 
     private static int commit(Candidate c, int rotationDegrees, int originX, int originZ, int depth,
-                              int[] occupied, List<Placement> placed, List<Stub> stubs, Set<String> used) {
+                              int[] occupied, List<Placement> placed, List<Candidate> placedFrom,
+                              List<Stub> stubs, Set<String> used) {
         int rotationIndex = ((rotationDegrees / 90) % 4 + 4) % 4;
         RoomDoors.Mask mask = c.byRotation()[rotationIndex];
         int idx = placed.size();
@@ -712,6 +1244,7 @@ public final class SimFloorLayout {
         }
         placed.add(new Placement(c.name(), rotationIndex * 90, originX, originZ,
                 mask.tilesX(), mask.tilesZ(), depth, c.type()));
+        placedFrom.add(c);
         used.add(c.name());
         for (int[] door : RoomDoors.doorCells(mask, originX, originZ)) {
             stubs.add(new Stub(door[0], door[1], door[2], depth, idx));
