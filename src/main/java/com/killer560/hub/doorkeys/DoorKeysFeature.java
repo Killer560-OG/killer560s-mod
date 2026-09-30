@@ -12,7 +12,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -24,6 +23,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Real Hypixel dungeon Wither/Blood Key ESP, ported from noamm's own {@code DoorKeys.kt}. Real dropped
@@ -134,21 +134,12 @@ public final class DoorKeysFeature {
             return;
         }
 
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = client.gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-        VertexConsumer buffer = buffers.getBuffer(ThroughWalls.LINES);
-        lineBox(pose, buffer, box, 2f);
-        if (cfg.isShowTracer()) {
-            line(pose, buffer, tracerStart, target, thickness);
-        }
-        poseStack.popPose();
+        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
+            lineBox(pose, buffer, box, 2f);
+            if (cfg.isShowTracer()) {
+                line(pose, buffer, tracerStart, target, thickness);
+            }
+        });
     }
 
     private static final int[] EDGES = {

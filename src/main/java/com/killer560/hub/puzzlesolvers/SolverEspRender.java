@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -18,6 +17,7 @@ import org.joml.Matrix4f;
 
 import java.util.List;
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Every puzzle/boss solver's world drawing goes through here instead of straight to
@@ -83,17 +83,8 @@ public final class SolverEspRender {
             WorldRenderUtils.renderOutlineBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness);
             return;
         }
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        lineBox(poseStack.last(), buffers.getBuffer(ThroughWalls.LINES), box.inflate(Z_FIGHT_NUDGE),
-                r, g, b, a, thickness);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) ->
+                lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
     }
 
     /** A solver waypoint in the shared Waypoint Style - an outline, or a translucent full block. */
@@ -110,17 +101,8 @@ public final class SolverEspRender {
             WorldRenderUtils.renderFilledBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a);
             return;
         }
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        filledBox(poseStack.last().pose(), buffers.getBuffer(ThroughWalls.FILLED), box.inflate(Z_FIGHT_NUDGE),
-                r, g, b, a);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) ->
+                filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
     }
 
     public static void renderLineStrip(LevelRenderContext context, List<Vec3> points,
@@ -132,26 +114,17 @@ public final class SolverEspRender {
         if (points.size() < 2) {
             return;
         }
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-        VertexConsumer buffer = buffers.getBuffer(ThroughWalls.LINES);
-        for (int i = 0; i < points.size() - 1; i++) {
-            Vec3 start = points.get(i);
-            Vec3 end = points.get(i + 1);
-            float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
-            float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
-            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-        }
-        poseStack.popPose();
+        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec3 start = points.get(i);
+                Vec3 end = points.get(i + 1);
+                float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
+                float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
+                float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+                buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+                buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+            }
+        });
     }
 
     private static final int[] EDGES = {

@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
@@ -15,6 +14,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Custom Mage Beam - port of NoammAddons' {@code MageBeam.kt} (origin/26.1.2). The Mage beam arrives as a run of
@@ -149,15 +149,11 @@ public final class MageBeamFeature {
      *  both windings so face culling can't hide one side. */
     private static void renderBeamQuad(LevelRenderContext context, Vec3 start, Vec3 end,
                                        float r, float g, float b, float a, float widthBlocks) {
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
         Vec3 axis = end.subtract(start);
         if (axis.lengthSqr() < 1.0E-6) {
             return;
         }
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        Vec3 cam = McRender.cameraPos(context);
         Vec3 toCam = start.add(end).scale(0.5).subtract(cam);
         Vec3 side = axis.cross(toCam);
         if (side.lengthSqr() < 1.0E-6) {
@@ -166,22 +162,18 @@ public final class MageBeamFeature {
                 side = new Vec3(1, 0, 0);
             }
         }
-        side = side.normalize().scale(Math.max(0.01f, widthBlocks) * 0.5);
+        // Final because the lambda below captures it.
+        final Vec3 half = side.normalize().scale(Math.max(0.01f, widthBlocks) * 0.5);
 
-        PoseStack poseStack = context.poseStack();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        org.joml.Matrix4f matrix = poseStack.last().pose();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.debugFilledBox());
-
-        Vec3 s0 = start.subtract(side);
-        Vec3 s1 = start.add(side);
-        Vec3 e0 = end.subtract(side);
-        Vec3 e1 = end.add(side);
-        quad(buffer, matrix, s0, e0, e1, s1, r, g, b, a);
-        quad(buffer, matrix, s1, e1, e0, s0, r, g, b, a);
-
-        poseStack.popPose();
+        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            org.joml.Matrix4f matrix = pose.pose();
+            Vec3 s0 = start.subtract(half);
+            Vec3 s1 = start.add(half);
+            Vec3 e0 = end.subtract(half);
+            Vec3 e1 = end.add(half);
+            quad(buffer, matrix, s0, e0, e1, s1, r, g, b, a);
+            quad(buffer, matrix, s1, e1, e0, s0, r, g, b, a);
+        });
     }
 
     private static void quad(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3,

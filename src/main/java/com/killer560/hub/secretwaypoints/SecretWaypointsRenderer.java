@@ -20,6 +20,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Box drawing for Secret Waypoints. killer560 (change 62): "draw them through walls" - a waypoint for a secret
@@ -78,15 +79,14 @@ final class SecretWaypointsRenderer {
      */
     static int draw(LevelRenderContext context, List<SecretWaypointsFeature.Waypoint> waypoints,
                     SecretWaypointsConfig.Style style, boolean throughWalls, double maxDistance) {
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null || waypoints.isEmpty()) {
+        if (waypoints.isEmpty()) {
             return 0;
         }
         boolean fill = style != SecretWaypointsConfig.Style.OUTLINE;
         boolean outline = style != SecretWaypointsConfig.Style.FILL;
         float fillAlphaScale = style == SecretWaypointsConfig.Style.FILL_OUTLINE ? 0.5f : 1.0f;
 
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        Vec3 cam = McRender.cameraPos(context);
         double maxSq = maxDistance * maxDistance;
 
         // Distance cull once, into a reusable scratch array - the two passes below must walk exactly the
@@ -109,12 +109,11 @@ final class SecretWaypointsRenderer {
             return 0;
         }
 
-        PoseStack poseStack = context.poseStack();
-        poseStack.pushPose();
+        // Captured for the lambdas below: `drawn` is reassigned in the catch, so it is not effectively final
+        // and cannot be captured directly.
+        final int count = drawn;
         try {
-            poseStack.translate(-cam.x, -cam.y, -cam.z);
-            PoseStack.Pose pose = poseStack.last();
-            // One getBuffer + one full pass PER RENDER TYPE, never interleaved per box. Crash fixed
+            // One full pass PER RENDER TYPE, never interleaved per box. Crash fixed
             // 2026-09-20 (killer560's log, "java.lang.IllegalStateException: Not building!"): neither of
             // these two types is one of the level BufferSource's fixed buffers (javap-confirmed: only the
             // glint/waterMask types are), so both draw out of its single SHARED buffer, and
@@ -125,20 +124,25 @@ final class SecretWaypointsRenderer {
             // Two flat passes keep the hoist (2 draw calls for the whole batch instead of 2 per box)
             // while making a type switch mid-pass impossible.
             if (fill) {
-                VertexConsumer fillBuffer =
-                        buffers.getBuffer(throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox());
-                for (int i = 0; i < drawn; i++) {
-                    SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
-                    filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(), wp.a() * fillAlphaScale);
-                }
+                McRender.inCameraSpace(context,
+                        throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+                        (pose, fillBuffer) -> {
+                            for (int i = 0; i < count; i++) {
+                                SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
+                                filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(),
+                                        wp.a() * fillAlphaScale);
+                            }
+                        });
             }
             if (outline) {
-                VertexConsumer lineBuffer =
-                        buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
-                for (int i = 0; i < drawn; i++) {
-                    SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
-                    lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
-                }
+                McRender.inCameraSpace(context,
+                        throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+                        (pose, lineBuffer) -> {
+                            for (int i = 0; i < count; i++) {
+                                SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
+                                lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
+                            }
+                        });
             }
         } catch (Throwable t) {
             // Never let a draw failure escape into LevelRenderer: the frame graph pass that calls this
@@ -150,8 +154,6 @@ final class SecretWaypointsRenderer {
                 LOGGER.error("[SecretWaypoints] Box rendering failed - waypoints will not be drawn this frame", t);
             }
             drawn = 0;
-        } finally {
-            poseStack.popPose();
         }
         return drawn;
     }

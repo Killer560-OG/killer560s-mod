@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -17,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Box drawing for the P3 navigation aids. Depth-tested boxes go straight through this mod's existing
@@ -85,29 +85,13 @@ final class P3NavRenderer {
     }
 
     private static void outlineThroughWalls(LevelRenderContext context, AABB box, float[] c, float lineWidth) {
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        lineBox(poseStack.last(), buffers.getBuffer(ThroughWalls.LINES), box, c[0], c[1], c[2], c[3], lineWidth);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) ->
+                lineBox(pose, buffer, box, c[0], c[1], c[2], c[3], lineWidth));
     }
 
     private static void filledThroughWalls(LevelRenderContext context, AABB box, float[] c) {
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        filledBox(poseStack.last().pose(), buffers.getBuffer(ThroughWalls.FILLED), box, c[0], c[1], c[2], c[3]);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) ->
+                filledBox(pose.pose(), buffer, box, c[0], c[1], c[2], c[3]));
     }
 
     private static float[] rgba(int argb, float alphaScale) {

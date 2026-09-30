@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -17,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Box drawing for {@link WitherDoorsFeature}. Depth-tested path reuses the shared
@@ -64,23 +64,11 @@ final class WitherDoorsRenderer {
             }
             return;
         }
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        try {
-            poseStack.translate(-cam.x, -cam.y, -cam.z);
-            PoseStack.Pose pose = poseStack.last();
-            VertexConsumer buffer = buffers.getBuffer(ThroughWalls.LINES);
-            for (WitherDoorsFeature.DoorBox box : boxes) {
-                lineBox(pose, buffer, box.box(), box.r(), box.g(), box.b(), 2f);
-            }
-        } finally {
-            poseStack.popPose();
-        }
+        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
+                for (WitherDoorsFeature.DoorBox box : boxes) {
+                    lineBox(pose, buffer, box.box(), box.r(), box.g(), box.b(), 2f);
+                }
+        });
     }
 
     private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b, float r, float g, float bl,

@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -17,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Dungeon ESP box drawing. Depth-tested boxes use vanilla's own {@code RenderTypes.LINES_TRANSLUCENT} /
@@ -54,55 +54,30 @@ final class EspRenderer {
     }
 
     static void outline(LevelRenderContext context, AABB box, int argb, float lineWidth, boolean throughWalls) {
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
         float[] c = rgba(argb, 1.0f);
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        VertexConsumer buffer = buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
-        lineBox(poseStack.last(), buffer, box, c[0], c[1], c[2], c[3], lineWidth);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
+            lineBox(pose, buffer, box, c[0], c[1], c[2], c[3], lineWidth);
+        });
     }
 
     /** Fill is drawn at 35% of the colour's own alpha so the mob stays visible inside it. */
     static void filled(LevelRenderContext context, AABB box, int argb, boolean throughWalls) {
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
         float[] c = rgba(argb, 0.35f);
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        VertexConsumer buffer = buffers.getBuffer(throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox());
-        filledBox(poseStack.last().pose(), buffer, box, c[0], c[1], c[2], c[3]);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            filledBox(pose.pose(), buffer, box, c[0], c[1], c[2], c[3]);
+        });
     }
 
     /** A single line from {@code from} to {@code to} - the Wither ESP tracer, drawn in the ESP's own colour. */
     static void tracer(LevelRenderContext context, Vec3 from, Vec3 to, int argb, float width, boolean throughWalls) {
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
         float[] c = rgba(argb, 1.0f);
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-        VertexConsumer buffer = buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
-        float sx = (float) from.x, sy = (float) from.y, sz = (float) from.z;
-        float ex = (float) to.x, ey = (float) to.y, ez = (float) to.z;
-        float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-        buffer.addVertex(pose, sx, sy, sz).setColor(c[0], c[1], c[2], c[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        buffer.addVertex(pose, ex, ey, ez).setColor(c[0], c[1], c[2], c[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        poseStack.popPose();
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
+            float sx = (float) from.x, sy = (float) from.y, sz = (float) from.z;
+            float ex = (float) to.x, ey = (float) to.y, ez = (float) to.z;
+            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+            buffer.addVertex(pose, sx, sy, sz).setColor(c[0], c[1], c[2], c[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
+            buffer.addVertex(pose, ex, ey, ez).setColor(c[0], c[1], c[2], c[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
+        });
     }
 
     private static float[] rgba(int argb, float alphaScale) {

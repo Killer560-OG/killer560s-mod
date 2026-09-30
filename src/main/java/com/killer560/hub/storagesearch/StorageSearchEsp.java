@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -21,6 +20,7 @@ import org.joml.Matrix4f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import com.killer560.hub.compat.McRender;
 
 /**
  * World box around the chest a search result lives in - killer560 (2026-09-21): "if the item is in a chest it will
@@ -87,36 +87,26 @@ public final class StorageSearchEsp {
             TARGETS.clear();
             return;
         }
-        MultiBufferSource.BufferSource buffers = context.bufferSource();
-        if (buffers == null) {
-            return;
-        }
         boolean throughWalls = cfg.isEspThroughWalls();
         float r = ((COLOR_RGB >> 16) & 0xFF) / 255f;
         float g = ((COLOR_RGB >> 8) & 0xFF) / 255f;
         float b = (COLOR_RGB & 0xFF) / 255f;
 
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        PoseStack poseStack = context.poseStack();
-        poseStack.pushPose();
-        try {
-            poseStack.translate(-cam.x, -cam.y, -cam.z);
-            PoseStack.Pose pose = poseStack.last();
-            // One getBuffer + one full pass PER RENDER TYPE, never interleaved per box - see the "Not building!"
-            // crash note in SecretWaypointsRenderer for why alternating types inside the loop is not safe here.
-            VertexConsumer fillBuffer =
-                    buffers.getBuffer(throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox());
-            for (Target target : TARGETS) {
-                filledBox(pose.pose(), fillBuffer, boxFor(target.pos()), r, g, b, 0.25f);
-            }
-            VertexConsumer lineBuffer =
-                    buffers.getBuffer(throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT);
-            for (Target target : TARGETS) {
-                lineBox(pose, lineBuffer, boxFor(target.pos()), r, g, b, 1f, 2.5f);
-            }
-        } finally {
-            poseStack.popPose();
-        }
+        // One full pass PER RENDER TYPE, never interleaved per box - see the "Not building!" crash note in
+        // SecretWaypointsRenderer for why alternating types inside the loop is not safe here. Two separate
+        // inCameraSpace calls keep that property: each one is a single type and a single pass.
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+                (pose, fillBuffer) -> {
+                    for (Target target : TARGETS) {
+                        filledBox(pose.pose(), fillBuffer, boxFor(target.pos()), r, g, b, 0.25f);
+                    }
+                });
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+                (pose, lineBuffer) -> {
+                    for (Target target : TARGETS) {
+                        lineBox(pose, lineBuffer, boxFor(target.pos()), r, g, b, 1f, 2.5f);
+                    }
+                });
     }
 
     /** A chest model is inset from its block and only 14/16 tall - a full block box floats visibly above it. */

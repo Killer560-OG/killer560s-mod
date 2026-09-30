@@ -5,10 +5,10 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import com.killer560.hub.compat.McRender;
 
 /**
  * This mod's first world-space (3D) box renderer - killer560s-mod had none before (every prior HUD
@@ -30,41 +30,21 @@ public final class WorldRenderUtils {
     /** Draws a solid box, respecting depth (won't show through walls) - same choice Odin's Simon Says
      *  highlight uses by default, since this is meant to highlight a button you can already see. */
     public static void renderFilledBox(LevelRenderContext context, AABB box, float r, float g, float b, float a) {
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.debugFilledBox());
+        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
 
-        float minX = (float) box.minX, minY = (float) box.minY, minZ = (float) box.minZ;
-        float maxX = (float) box.maxX, maxY = (float) box.maxY, maxZ = (float) box.maxZ;
-        addChainedFilledBoxVertices(pose, buffer, minX, minY, minZ, maxX, maxY, maxZ, r, g, b, a);
-
-        poseStack.popPose();
+            float minX = (float) box.minX, minY = (float) box.minY, minZ = (float) box.minZ;
+            float maxX = (float) box.maxX, maxY = (float) box.maxY, maxZ = (float) box.maxZ;
+            addChainedFilledBoxVertices(pose, buffer, minX, minY, minZ, maxX, maxY, maxZ, r, g, b, a);
+        });
     }
 
     /** Draws a wireframe outline box. */
     public static void renderOutlineBox(LevelRenderContext context, AABB box, float r, float g, float b, float a,
                                          float thickness) {
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.LINES_TRANSLUCENT);
+        McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
 
-        renderLineBox(pose, buffer, box, r, g, b, a, thickness);
-
-        poseStack.popPose();
+            renderLineBox(pose, buffer, box, r, g, b, a, thickness);
+        });
     }
 
     /**
@@ -96,28 +76,18 @@ public final class WorldRenderUtils {
         if (points.size() < 2) {
             return;
         }
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
-        if (bufferSource == null) {
-            return;
-        }
-        PoseStack poseStack = context.poseStack();
-        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        PoseStack.Pose pose = poseStack.last();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.LINES_TRANSLUCENT);
+        McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
 
-        for (int i = 0; i < points.size() - 1; i++) {
-            Vec3 start = points.get(i);
-            Vec3 end = points.get(i + 1);
-            float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
-            float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
-            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-        }
-
-        poseStack.popPose();
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec3 start = points.get(i);
+                Vec3 end = points.get(i + 1);
+                float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
+                float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
+                float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+                buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+                buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+            }
+        });
     }
 
     private static final int[] EDGES = {
