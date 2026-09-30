@@ -242,8 +242,23 @@ public final class SimDoors {
         int bottom = SimAltitude.toWorld(DOORWAY_SEARCH_BOTTOM);
         for (int y = top; y >= bottom; y--) {
             BlockPos at = new BlockPos(near.getX(), y, near.getZ());
-            if (!level.getBlockState(at).isAir()
-                    && level.getBlockState(at.above()).isAir()
+            if (level.getBlockState(at).isAir()) {
+                continue;
+            }
+            // A CHEST is not a floor, and mistaking one for a floor is what sealed a doorway.
+            //
+            // Some rooms have a secret chest in their perimeter at the doorway height - Pedestal has one at
+            // capture y70 on its z=0 edge, Archway one at y70 near the same edge, and y70 is exactly where a
+            // doorway opening starts. Treating that chest as the surface returned y71, so the carve ran 71..74
+            // and left the chest itself at 70, sitting in the middle of the opening. Scenario 81 reported the
+            // doorway between Pedestal and Archway as "blocked by chest" with the player having walked 3.3
+            // blocks into an opening that was carved one block too high. Stepping past it finds the real floor
+            // underneath, and the carve then removes the chest as it always did.
+            if (level.getBlockState(at).is(Blocks.CHEST)
+                    || level.getBlockState(at).is(Blocks.TRAPPED_CHEST)) {
+                continue;
+            }
+            if (level.getBlockState(at.above()).isAir()
                     && level.getBlockState(at.above(2)).isAir()) {
                 return y + 1;
             }

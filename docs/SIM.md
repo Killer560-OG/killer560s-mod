@@ -320,18 +320,34 @@ head height with a useless opening below them. Every Catacombs doorway is on the
 with roofs at y99-107, so the search now runs DOWN from capture y90 to y55 and takes the highest surface in
 that band.
 
-## Open: one doorway in eight is still occasionally impassable
+## Open: impassable doorways cluster on the rooms whose doorways cannot be MEASURED
 
-Fixing `findFloor` took scenario 81 from two impassable doorways per floor to zero on two runs and one on a
-third, so the floor-finding was most of it but not all. The remaining case looks different in the log: the
-player gets 2.2 blocks INTO the opening before stone brick stops him, where the floor-level failures stopped
-him at 0.2. So the opening is being carved, in the right place, and something beyond it is solid.
+Three fixes to `SimDoors.findFloor` each cut this down and none of them ended it. Measured over four
+consecutive runs of scenario 81 on 2026-09-30, with the scenario now naming both rooms:
 
-Two candidates, neither checked yet. The carve is 3 wide and 4 high centred on the cell centre, and a room
-whose own doorway is offset from that centre would be opened next to its doorway rather than through it -
-scenario 73 asserts the door is a doorway in both rooms' GEOMETRY, which is the plan, and says nothing about
-where the carve lands. Or the opening is right and the room's doorway is a different height from the
-connector's floor, so the two openings do not line up.
+| run | cells stuck | rooms |
+|-----|-------------|-------|
+| 1 | 1 of 8 | **Blood** and Atlas |
+| 2 | 1 of 8 | **Pedestal** and Logs (blocked by stone brick AND a chest) |
+| 3 | 2 of 8 | **Supertall** and Lower Blaze; **Supertall** and Mines |
+| 4 | 1 of 8 | **Blood** and Leaves |
 
-The next step is to dump the 3x4x7 box the carve writes against the room's own measured doorway box for a
-failing cell, rather than guessing between those two.
+The clustering is the finding. **Blood** and **Supertall** are exactly the rooms the mod already knows it
+cannot measure a doorway for: `RoomDoors.of` says "Blood and Higher Blaze are the only two rooms this cannot
+measure: their captured perimeters are solid stone at every height", and for those it INVENTS a doorway at
+`edge(NORTH, 0)` and relies on the builder carving an opening. Supertall is also one of the captures whose
+rotation cannot be determined from the roof marker, and its band runs y0..254, which is not a normal room.
+
+So the likely cause is not the floor search at all, it is the invented doorway: the layout puts a door on a
+side of Blood that has no opening, and the 3x4x7 carve is then expected to tunnel through the room's own solid
+perimeter. "moved 2.2 across, blocked by stone_bricks" is consistent with a tunnel that starts but does not
+finish. Worth checking first whether the carve depth of 7 actually reaches through Blood's wall from the
+connector centre, and second whether the invented doorway should be placed on the side the layout wants rather
+than always NORTH.
+
+The chest case is separate and partly fixed: `findFloor` used to treat a chest in the room's perimeter as the
+floor, returning one block too high and leaving the chest in the opening - Pedestal has one at capture y70 on
+its z=0 edge and Archway one at y70, and y70 is exactly where an opening starts. It now steps past a chest to
+find the real floor. Run 2 above still shows a chest in the blockage, so at least one variant of that remains,
+probably a chest off the connector's centre column.
+
