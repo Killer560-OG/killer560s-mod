@@ -449,3 +449,29 @@ broken jar, and asserting "no drops survive" failed on the FIXED one, because su
 chunks the level is not ticking never enter `getAllEntities()` at all, so the count is noise on both. No test
 is kept for it: the fix is justified by his stack trace and by matching the correct pattern beside it, and a
 test that cannot tell fixed from broken is worse than none.
+
+## Sim mobs are invulnerable to any damage with no entity behind it
+
+`SimMobs.environmental(source)` is `getEntity() == null && getDirectEntity() == null`, and every sim mob's
+`isInvulnerableTo` starts with it. That is deliberate and worth keeping: a sim mob has 1 HP, so without it a
+practice target suffocates on a low ceiling before he reaches it.
+
+The trap is that `damageSources().magic()` has neither an entity nor a direct entity. The mage beam
+(`SimClass.fire`) and the terminator (`SimTerminator.applyDamage`) both used it, so both landed and did
+nothing whatsoever — no error, no log line, the mob simply stood there. The sceptre and superboom already
+used `playerAttack(sp)` and were fine, which is the usual shape: a fix applied to some of a set.
+
+Anything in `roomsim/` that damages a mob must name the player. Resolve the `ServerPlayer` by UUID inside the
+`server.execute` and use `level.damageSources().playerAttack(sp)`.
+
+## FlatTestRoom is one tile and must declare margin 0
+
+A real capture is `TILE + 2 * WALL_MARGIN` across, because it shares a wall column with each neighbour.
+`FlatTestRoom` is exactly `TILE` and draws its own walls inside that tile, so it owns nothing outside it — but
+it was built before `Room.margin` existed and inherited the `WALL_MARGIN` default. `RoomPlacer` anchors at
+`origin - TILE / 2 - margin`, so the entire room was pasted one block negative on both axes.
+
+That is invisible from inside the room, because the paste and its own contents agree with each other. It shows
+only when something reads a fixed local coordinate: scenario 70 found a chest where the gold orientation
+marker belongs and called it a rotation fault. `createTestRoom` does not set a margin, so any future synthetic
+room must set its own.
