@@ -51,9 +51,37 @@ public final class SimMobs {
     /** "all mobs have one HP" - killer560. Applies to zombies, skeletons, and the enderman a Fel wakes into. */
     private static final double ONE_HP = 1.0;
 
+    /**
+     * The mob kinds the sim can place.
+     *
+     * <p>killer560's spec (2026-09-29), for testing an auto clear later: "regular star zombies that you can
+     * spawn anywhere these will mimic things like skeleton grunts, or bouncy archers or any other starred mob
+     * in a room" ({@link #ZOMBIE}/{@link #SKELETON}); Fels, which are "the skull and then whenever you step
+     * near them, they are the upside down Enderman" ({@link #FEL}); and "essentially a mini boss style [that]
+     * should maybe take more than just one hit just to be sure that your config works with something that
+     * doesn't get one shot" ({@link #MINIBOSS}).
+     *
+     * <p>Every kind can be spawned starred or not - see {@link #spawn} against {@link #spawnStarred} - because
+     * telling a starred mob from an ordinary one is the whole job of a clear, and a sim where everything is
+     * starred cannot test that.
+     */
     public enum Kind {
-        ZOMBIE, SKELETON, FEL, BAT
+        ZOMBIE, SKELETON, FEL, BAT, MINIBOSS
     }
+
+    /**
+     * A miniboss's health, in half-hearts.
+     *
+     * <p>Not one, which every other sim mob has. The point of this kind is that it does NOT die to the first
+     * hit, so anything tuned around a one-shot - a cooldown, a swap, a retarget - is actually exercised.
+     *
+     * <p>A real Catacombs miniboss is not a mob at all: it is a PLAYER entity with a version-2 UUID and a name
+     * from a fixed list (Shadow Assassin, Lost Adventurer, Frozen Adventurer, Diamond Guy, King Midas), and
+     * Mob ESP finds those on a different path from starred mobs entirely. This is a durable starred mob, which
+     * is what the test he described needs; matching the player-entity form is separate work and is not
+     * pretended at here.
+     */
+    private static final double MINIBOSS_HEALTH = 20.0;
 
     /** Every entity this class has spawned (dummies and woken Fels), for {@link #clear}. */
     private static final List<UUID> SPAWNED = new CopyOnWriteArrayList<>();
@@ -142,6 +170,8 @@ public final class SimMobs {
             switch (kind) {
                 case ZOMBIE -> spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred);
                 case SKELETON -> spawnDummy(level, new SimSkeleton(EntityType.SKELETON, level), pos, starred);
+                case MINIBOSS -> spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred,
+                        MINIBOSS_HEALTH);
                 case FEL -> spawnFel(level, pos, starred);
                 // A bat is a SECRET on Hypixel, not a mob worth points - which is exactly why it is here: a
                 // 300 run needs every secret, and a player who cannot tell a bat secret from a chest secret
@@ -164,8 +194,12 @@ public final class SimMobs {
      * satisfies "not despawn" more completely than persistence alone would.
      */
     private static void spawnDummy(ServerLevel level, Mob mob, BlockPos pos, boolean starred) {
-        mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
-        mob.setHealth((float) ONE_HP);
+        spawnDummy(level, mob, pos, starred, ONE_HP);
+    }
+
+    private static void spawnDummy(ServerLevel level, Mob mob, BlockPos pos, boolean starred, double health) {
+        mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
+        mob.setHealth((float) health);
         mob.setPersistenceRequired();
         // NEVER MOVES. killer560 (2026-09-28): "on the main their movement is dependent on where you are and
         // will be far too hard to replicate I would rather just have them never move". So a sim mob stands
