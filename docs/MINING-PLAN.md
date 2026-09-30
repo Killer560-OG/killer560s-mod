@@ -114,13 +114,27 @@ to whatever is fastest.** Everything about how each crystal is actually collecte
 **Which commissions it will take: only two kinds.**
 
 - **Crystal commissions** - the ones that ask for a crystal. Handled by 2c.
-- **Corleone** - a boss that spawns randomly. Find him; if he is alive, kill him **by melee** ["by Malay"].
-  If he is not there, **wait for him to spawn**.
+- **Corleone** - killer560 supplied the page on 2026-09-30 (Team_Treasurite#Boss_Corleone), which settles
+  what the research pass could not find anywhere else:
+  - Exact name **`Boss Corleone`**, level 200, internal id `TEAM_TREASURITE_CORLEONE_200`.
+  - **1,000,000 health, 4,000 damage.** Killing him by melee is a real fight, not a tap.
+  - **Spawns in the Mithril Deposits**, in specific structures - so the route knows where to go, and the
+    cheat map's structure scan is what finds them.
+  - **Spawns every 60 or 120 seconds alternately**, and immediately the first time a player enters his spawn
+    area on a server. So "wait for him to spawn" has a known bound: two minutes, not indefinite.
+  - **"In order for Corleone to spawn, the player must be moving near his spawn point"** - waiting still
+    does not work. The macro has to patrol, not park.
+  - No boss bar and no spawn or death broadcast, so **detection is his nametag**: an entity named
+    `Boss Corleone`. Same shape as the Keeper stands the metal detector already reads.
+  Find him; if he is alive, kill him **by melee** ["by Malay"]. If not, patrol his structures until he
+  spawns.
 
 Everything else is out of scope.
 - OPEN: what happens to a commission that is neither of those - skipped, abandoned, or does it just idle
   until one of the two comes up?
-- OPEN: is there a time limit on waiting for Corleone before it gives up and does something else?
+- Waiting for Corleone is bounded by his own 60/120-second cycle, and needs the player MOVING near the
+  spawn point - see above. A give-up limit is still worth having for a lobby whose Corleone structures are
+  absent, which is what the Lobby Swapper is for.
 
 ### 2f. Lobby Swapper
 
@@ -168,7 +182,7 @@ on this machine, and the research pass is reading them.
 ## Open questions for killer560
 
 1. **Commissions mode** - specified 2026-09-30, see 2e. Remaining gaps: what to do with a commission that
-   is neither a crystal nor Corleone, and whether waiting for Corleone has a time limit.
+   is neither a crystal nor Corleone. (Corleone's own timing is now known - see 2e.)
 2. **Crystal order** - he left it to me, but if he has a preferred route, it is cheaper to be told than
    derived.
 3. **The Jungle Temple scan** - he needs to do a true scan for the parkour route.
