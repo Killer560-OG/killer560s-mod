@@ -60,6 +60,15 @@ public class SimMenuScreen extends Screen {
 
     private List<String> listed = List.of();
 
+    /**
+     * Whether the room database had finished loading when {@link #listed} was last built.
+     *
+     * <p>The type filter reads the database, which loads on a background thread and answers NORMAL for every
+     * room until it is done. A list filtered before that point would show no puzzles and never change, so the
+     * render loop rebuilds it the moment the database arrives.
+     */
+    private boolean listedWithDatabase;
+
     private int panelX;
     private int panelY;
     private int panelW;
@@ -124,7 +133,18 @@ public class SimMenuScreen extends Screen {
     private void buildRoomPicker() {
         int x = panelX + 20;
         int y = panelY + 56;
-        search = new EditBox(this.font, x, y, panelW - 130, 18, Component.literal("Search"));
+        // The row is sized from the TEXT, not from fixed pixels. "Any shape" is 51 px wide in Minecraft's font
+        // and its button was 50, so the label ran out of the box (killer560, 2026-09-30: "the text box to the
+        // left of it is too small and the text goes outside of it"); the Puzzles button beside it was also
+        // placed to end exactly on the panel border. The buttons are measured against the WIDEST label they
+        // can ever show - the shape button cycles, and a button that resized as he clicked would move under
+        // the cursor - and the search box takes whatever is left inside the panel's 20 px margins.
+        int gap = 4;
+        int shapeW = widestShapeLabel() + BUTTON_PAD;
+        int puzzleW = this.font.width("Puzzles") + BUTTON_PAD;
+        int right = panelX + panelW - 20;
+        search = new EditBox(this.font, x, y, right - x - shapeW - puzzleW - gap * 2, 18,
+                Component.literal("Search"));
         search.setHint(Component.literal("Search rooms..."));
         search.setResponder(v -> {
             scroll = 0;
@@ -135,15 +155,26 @@ public class SimMenuScreen extends Screen {
             shape = ShapeFilter.values()[(shape.ordinal() + 1) % ShapeFilter.values().length];
             refreshRoomList();
             rebuildWidgets();
-        }).bounds(x + panelW - 124, y, 50, 18).build());
+        }).bounds(right - shapeW - gap - puzzleW, y, shapeW, 18).build());
         addRenderableWidget(SettingsButtonWidget.builder(
                 Component.literal(puzzlesOnly ? "§6Puzzles" : "§7Puzzles"), b -> {
                     puzzlesOnly = !puzzlesOnly;
                     refreshRoomList();
                     rebuildWidgets();
-                }).bounds(x + panelW - 70, y, 50, 18).build());
+                }).bounds(right - puzzleW, y, puzzleW, 18).build());
         refreshRoomList();
         backButton();
+    }
+
+    /** Horizontal space a button's label needs on top of its text: a border and a little air each side. */
+    private static final int BUTTON_PAD = 14;
+
+    private int widestShapeLabel() {
+        int widest = 0;
+        for (ShapeFilter f : ShapeFilter.values()) {
+            widest = Math.max(widest, this.font.width(f.label));
+        }
+        return widest;
     }
 
     private void backButton() {
@@ -167,7 +198,11 @@ public class SimMenuScreen extends Screen {
             if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(query)) {
                 continue;
             }
-            if (puzzlesOnly && !name.toLowerCase(Locale.ROOT).contains("puzzle")) {
+            // The room database's own TYPE, not a look at the name. This was
+            // name.contains("puzzle"), and no room is called that - Boulder, Quiz and Ice Fill are named for
+            // what they are, so the filter matched nothing at all (killer560, 2026-09-30: "no puzzle is under
+            // the puzzle rooms tab"). rooms-modern.json holds 11 PUZZLE entries and every type is upper case.
+            if (puzzlesOnly && !"PUZZLE".equalsIgnoreCase(SimFloorGen.typeOf(name))) {
                 continue;
             }
             RoomLibrary.Room room = RoomLibrary.get(name);
@@ -177,6 +212,7 @@ public class SimMenuScreen extends Screen {
             out.add(name);
         }
         listed = out;
+        listedWithDatabase = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
     }
 
     private boolean shapeMatches(RoomLibrary.Room room) {
@@ -239,6 +275,10 @@ public class SimMenuScreen extends Screen {
                     : "Pick what to practise";
             g.text(this.font, hint, panelX + 20, panelY + 42, ProfitPanels.DIM, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
+            if (mode == Mode.ROOM && puzzlesOnly
+                    && com.killer560.hub.roomdatabase.RoomDatabase.isReady() != listedWithDatabase) {
+                refreshRoomList();
+            }
             int top = listTop();
             int h = listHeight();
             g.fill(panelX + 6, top, panelX + panelW - 6, top + h, ProfitPanels.INNER_BG);
@@ -246,8 +286,10 @@ public class SimMenuScreen extends Screen {
             g.enableScissor(panelX + 6, top, panelX + panelW - 6, top + h);
             try {
                 if (listed.isEmpty()) {
-                    g.text(this.font, mode == Mode.ROOM ? "No rooms match" : "No saved runs yet",
-                            panelX + 14, top + 6, ProfitPanels.DIM, false);
+                    String none = mode != Mode.ROOM ? "No saved runs yet"
+                            : puzzlesOnly && !listedWithDatabase ? "Loading the room database..."
+                            : "No rooms match";
+                    g.text(this.font, none, panelX + 14, top + 6, ProfitPanels.DIM, false);
                 }
                 for (int i = 0; i < listed.size(); i++) {
                     int rowY = top + i * 14 - scroll + 3;
