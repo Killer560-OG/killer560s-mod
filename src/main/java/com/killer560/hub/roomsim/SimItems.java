@@ -165,8 +165,18 @@ public final class SimItems {
                     if (!SimState.isActive() || client == null || player != client.player) {
                         return true;
                     }
-                    return "DUNGEONBREAKER".equals(
-                            com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getMainHandItem()));
+                    // NOTHING breaks through vanilla in the sim, not even the Dungeon Breaker.
+                    //
+                    // It used to allow the break when the breaker was held, which meant two things destroyed
+                    // the same block: dungeonBreak, which REMEMBERS it and puts it back, and vanilla, which
+                    // does not. The vanilla one is why a mined block could stay gone. It also meant simply
+                    // holding left-click mined the room while dungeonBreak spent a charge for each one -
+                    // killer560 (2026-09-30): "before i do /start make it so mining doesnt use charges from
+                    // the breaker."
+                    //
+                    // Every break in the sim now goes through dungeonBreak, which is the only path that
+                    // records the block for restoring and the only one that spends a charge.
+                    return false;
                 });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             // killer560 (2026-09-28): "make /simitem open a menu [...] All of it should be through a gui."
@@ -387,7 +397,17 @@ public final class SimItems {
             case "BAT_WAND" -> SimSpiritSceptre.fire(client);
             // Terminator owns its own file: three arrows, and Salvation after three hits.
             // The same fire rate as the left click - it is one weapon, not two.
-            case "TERMINATOR" -> SimTerminator.readyToFire() && SimTerminator.use(client);
+            // Always returns true, so the caller consumes the click and vanilla never starts drawing the
+            // bow. killer560 (2026-09-30): "The terminator still doesnt insta shoot nor does it work without
+            // an arrow." Both were the same cause - the click fell through to vanilla, which wants arrows and
+            // a draw time. The shot itself is hitscan and needs no ammunition at all; the fire rate just
+            // decides whether this particular click produces one.
+            case "TERMINATOR" -> {
+                if (SimTerminator.readyToFire()) {
+                    SimTerminator.use(client);
+                }
+                yield true;
+            }
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);
             case "SUPERBOOM_TNT" -> superboomTnt(client);
             case "DUNGEONBREAKER" -> dungeonBreak(client);
@@ -498,9 +518,8 @@ public final class SimItems {
                 broken++;
             }
             if (broken == 0) {
-                final String looking = net.minecraft.core.registries.BuiltInRegistries.BLOCK
-                        .getKey(level.getBlockState(center).getBlock()).getPath();
-                client.execute(() -> fail(client, "nothing to blow up - you are looking at " + looking));
+                // Silent. killer560 (2026-09-30): "Remove the nothing to blow up line." A Superboom aimed at
+                // ordinary stone should simply do nothing, the way it does on Hypixel.
                 return;
             }
             if (openedCrypt) {

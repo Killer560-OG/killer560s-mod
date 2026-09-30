@@ -135,15 +135,29 @@ public final class SimAbilities {
         // should do nothing at all - not place a block of TNT.
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             Minecraft client = Minecraft.getInstance();
-            if (!SimState.canAct(client) || player != client.player) {
+            // BOTH SIDES, or the block still gets placed.
+            //
+            // UseBlockCallback is a COMMON event: in singleplayer it fires once for the client player and
+            // again for the integrated server's ServerPlayer. The first version compared `player` against
+            // client.player, which is false for the server copy - so the server never saw a cancel and placed
+            // the TNT anyway, which is why killer560 still had Superboom placing blocks after the first fix.
+            // Matching on UUID catches both, and only the client side runs the ability so it cannot fire
+            // twice - the same double-fire guard SimDoors and SimBoulderPuzzle already use.
+            if (!SimState.canAct(client) || client.player == null
+                    || !player.getUUID().equals(client.player.getUUID())) {
                 return InteractionResult.PASS;
             }
+            boolean clientSide = player == client.player;
             ItemStack held = player.getItemInHand(hand);
             String id = CheatUtils.skyblockId(held);
             if (id == null) {
                 return InteractionResult.PASS;
             }
             markAbilityUsed();
+            if (!clientSide) {
+                // The server's job here is only to NOT place the block.
+                return InteractionResult.SUCCESS;
+            }
             if (ETHERWARP_ITEMS.contains(id)) {
                 if (player.isShiftKeyDown()) {
                     etherwarp(client);
@@ -322,15 +336,37 @@ public final class SimAbilities {
         Vec3 from = player.position();
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         Vec3 best = null;
+        // Once the look has driven the travel into the floor it stays there for the rest of the walk, so the
+        // remaining steps run along the ground rather than re-testing a descent that can only fail again.
+        boolean verticalBlocked = false;
         for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
-            Vec3 candidate = snap(from.add(look.scale(d)));
+            Vec3 full = from.add(look.scale(d));
+            Vec3 candidate = snap(verticalBlocked ? new Vec3(full.x, from.y, full.z) : full);
             if (candidate.equals(best)) {
                 continue;   // the same block as the last step - nothing new to test
             }
-            if (!fits(client, player, box, from, candidate)) {
-                break;      // the first thing in the way ends the travel, exactly as it does on Hypixel
+            if (fits(client, player, box, from, candidate)) {
+                best = candidate;
+                continue;
             }
-            best = candidate;
+            // AIMING DOWN MUST STILL MOVE YOU. killer560 (2026-09-30): "If i am looking down even just a
+            // little bit or hitting a block at all it doesnt work even though on main it should."
+            //
+            // Standing on a floor and looking down even a degree puts the very first candidate inside that
+            // floor, and breaking there meant the whole teleport was refused - which is exactly what he saw.
+            // His own Hypixel log shows the real behaviour: aiming 35 degrees down moved him 1.6 blocks at
+            // the SAME height. So a blocked descent keeps the horizontal part and carries on along the
+            // ground. What is NOT restored is the old step-up, which raised the walk's origin and let the
+            // raises stack into a six-block climb.
+            if (!verticalBlocked) {
+                Vec3 flat = snap(new Vec3(full.x, from.y, full.z));
+                if (fits(client, player, box, from, flat)) {
+                    verticalBlocked = true;
+                    best = flat;
+                    continue;
+                }
+            }
+            break;
         }
         return best;
     }

@@ -325,6 +325,7 @@ public final class SimWorld {
      */
     public static void onWorldLoaded(Minecraft client) {
         LOGGER.info("[SimPhase] world loaded, starting the build");
+        freezeWorld(client);
         if (pendingCode == null) {
             return;
         }
@@ -422,4 +423,31 @@ public final class SimWorld {
         SimBuilder.clearEntranceDoor();
         com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
     }
+    /**
+     * Stops the sim world changing itself underneath him.
+     *
+     * <p>killer560 (2026-09-30): "Make it so ice cannot unfreeze." Ice melts on a RANDOM TICK, not on a timer
+     * the puzzle controls, so the Ice Fill path could quietly rot while he was still crossing it - and the
+     * same ticks grow and spread everything else in a room that is supposed to be a fixed reproduction of a
+     * dungeon. Setting the random tick rate to zero stops all of it at the source, rather than special-casing
+     * ice and waiting to discover the next thing that moved.
+     *
+     * <p>The clock and the weather are pinned for the same reason: a practice room should look the same every
+     * session, and rain in a dungeon is simply wrong.
+     */
+    private static void freezeWorld(Minecraft client) {
+        var server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> {
+            var rules = server.getGameRules();
+            rules.set(net.minecraft.world.level.gamerules.GameRules.RANDOM_TICK_SPEED, 0, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.ADVANCE_TIME, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.ADVANCE_WEATHER, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MONSTERS, false, server);
+        });
+    }
+
 }

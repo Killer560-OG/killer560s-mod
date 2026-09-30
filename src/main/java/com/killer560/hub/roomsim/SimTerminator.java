@@ -67,8 +67,14 @@ public final class SimTerminator {
 
     private static boolean salvationArmed;
 
-    /** Client tick the last shot went out, for the fire rate. */
-    private static int lastShotTick;
+    /**
+     * Client tick the last shot went out, for the fire rate.
+     *
+     * <p>Starts far enough in the past that the FIRST click always fires. At zero it sat inside its own
+     * cooldown for the first quarter second of every session, which reads exactly like the weapon ignoring
+     * the click.
+     */
+    private static int lastShotTick = -1000;
 
     /** Counts client ticks, so the cooldown does not depend on frame rate. */
     private static int tickCounter;
@@ -88,7 +94,7 @@ public final class SimTerminator {
     public static void reset() {
         MOBS_HIT.clear();
         salvationArmed = false;
-        lastShotTick = 0;
+        lastShotTick = -1000;
         tickCounter = 0;
     }
 
