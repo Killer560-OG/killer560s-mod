@@ -118,6 +118,22 @@ physics. Read the relevant one before touching either area.
 - Mixin config uses `defaultRequire: 0`, so a wrong target signature fails **silently** and the feature
   just never runs. Verify targets with `javap` against the mapped jar in `.gradle/loom-cache/` before
   trusting a new mixin. A probe that silently counts nothing reports zeroes that read as findings.
+- **Two Minecraft versions, one source tree.** `build.gradle` derives a compat directory from
+  `minecraft_version` and puts exactly ONE of `src/mc26_1/java` / `src/mc26_2/java` on the source path (it
+  prints "compatibility layer mcXX_Y" every build and throws for a version with no directory). Version-specific
+  API lives in `com.killer560.hub.compat` - `McCompat`, `McBlocks`, `McItems`, `McEntities`, `McRender` - and
+  **every version's copy must have identical public signatures**, or one version stops compiling. Nothing under
+  `src/main/java` may touch an API that differs between versions. Build 26.2 with
+  `-Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2`.
+  A mixin is the one thing the facade cannot cover, because `@Mixin(X.class)` is an annotation constant: a
+  mixin whose target **class** moved gets one copy per version directory under the same name (eight do), while
+  one where only the **method** name changed just lists both - `method = {"renderFire", "submitFire"}`. Mixin
+  accepts a handler taking only `CallbackInfo` for any target (checked in `CallbackInjector$Callback.
+  checkDescriptor`: the full descriptor OR `(LCallbackInfo;)V`, all-or-nothing, never a prefix), which is how a
+  single mixin survives a target whose argument TYPES changed.
+- Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
+  messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
+  TWICE, so `grep -c "error:"` is double - the `N errors` line javac prints is the authoritative number.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items

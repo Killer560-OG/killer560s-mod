@@ -1639,7 +1639,7 @@ final class ExtraPages {
         if (name == null) {
             return def;
         }
-        net.minecraft.ChatFormatting fmt = net.minecraft.ChatFormatting.getByName(name.toLowerCase(Locale.ROOT));
-        return fmt == null || !fmt.isColor() ? def : "§" + fmt.getChar();
+        net.minecraft.ChatFormatting fmt = com.killer560.hub.util.ChatColors.byName(name.toLowerCase(Locale.ROOT));
+        return fmt == null || !com.killer560.hub.util.ChatColors.isColor(fmt) ? def : "§" + com.killer560.hub.util.ChatColors.code(fmt);
     }
 }

@@ -8,7 +8,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.core.BlockPos;
@@ -380,10 +379,9 @@ public final class WaypointRoutesFeature {
             }
         }
 
-        Camera camera = client.gameRenderer.getMainCamera();
         if (cfg.isLineToNext() && target >= 0) {
-            Vector3fc forward = camera.forwardVector();
-            Vec3 start = camera.position().add(forward.x(), forward.y(), forward.z());
+            Vector3fc forward = McRender.cameraForward(context);
+            Vec3 start = McRender.cameraPos(context).add(forward.x(), forward.y(), forward.z());
             WorldRenderUtils.renderLineStrip(context, List.of(start, center(pts.get(target))),
                     hc[0], hc[1], hc[2], 1f, thickness);
         }
@@ -404,7 +402,7 @@ public final class WaypointRoutesFeature {
                 distance = String.format(Locale.US, "%.1fm", Math.sqrt(playerPos.distanceToSqr(anchor(p))));
             }
             int labelColor = isTarget ? (0xFF000000 | cfg.getTargetColor()) : 0xFFFFFFFF;
-            renderText(context, camera, p.x() + 0.5, p.y() + 1.6, p.z() + 0.5,
+            renderText(context, p.x() + 0.5, p.y() + 1.6, p.z() + 0.5,
                     label, labelColor, distance, 0xFF000000 | ModChat.LIGHT_ORANGE, cfg.getTextScale());
         }
     }
@@ -412,13 +410,13 @@ public final class WaypointRoutesFeature {
     /** Billboard text - camera rotation then (+s, -s, +s), the 26.1.2 nametag transform (see
      *  SimonSaysFeature.renderNumber / BloodCampFeature for why not (-s, -s, s)). SEE_THROUGH so the
      *  numbers show through terrain. Grows with distance so far points stay readable. */
-    private static void renderText(LevelRenderContext context, Camera camera, double x, double y, double z,
+    private static void renderText(LevelRenderContext context, double x, double y, double z,
                                    String line1, int color1, String line2, int color2, float scaleMul) {
         if ((line1 == null && line2 == null)) {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         float s = 0.025f * scaleMul * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
 
@@ -429,7 +427,7 @@ public final class WaypointRoutesFeature {
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(camera.rotation());
+            poseStack.mulPose(McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
             if (line1 != null) {

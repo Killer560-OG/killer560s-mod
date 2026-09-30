@@ -115,14 +115,14 @@ public final class WindowModeFeature {
         if (monitor == null) {
             return;
         }
-        VideoMode mode = monitor.getCurrentMode();
-        int[] rect = borderlessRect(monitor.getX(), monitor.getY(), mode.getWidth(), mode.getHeight());
+        VideoMode mode = McCompat.currentMode(monitor);
+        int[] rect = borderlessRect(McCompat.monitorX(monitor), McCompat.monitorY(monitor), mode.getWidth(), mode.getHeight());
 
         GLFW.glfwSetWindowAttrib(window.handle(), GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
         GLFW.glfwSetWindowMonitor(window.handle(), 0L, rect[0], rect[1], rect[2], rect[3], GLFW.GLFW_DONT_CARE);
         reapplyCursorState(client);
         LOGGER.info("Borderless ON: monitor {}x{} at {},{} -> window {}x{} at {},{} ({} overhang, composited)",
-                mode.getWidth(), mode.getHeight(), monitor.getX(), monitor.getY(),
+                mode.getWidth(), mode.getHeight(), McCompat.monitorX(monitor), McCompat.monitorY(monitor),
                 rect[2], rect[3], rect[0], rect[1], OVERHANG > 0 ? OVERHANG + "px" : "no");
     }
 
@@ -140,11 +140,11 @@ public final class WindowModeFeature {
         // window - 60% of the monitor's width, 16:9, centred. Once he resizes it, that size is saved next time.
         Monitor monitor = window.findBestMonitor();
         if (monitor != null && (!cfg.hasSavedWindowedBounds() || coversMonitor(window, width, height))) {
-            VideoMode mode = monitor.getCurrentMode();
+            VideoMode mode = McCompat.currentMode(monitor);
             width = Math.max(854, Math.round(mode.getWidth() * 0.6f));
             height = Math.max(480, width * 9 / 16);
-            x = monitor.getX() + (mode.getWidth() - width) / 2;
-            y = monitor.getY() + (mode.getHeight() - height) / 2;
+            x = McCompat.monitorX(monitor) + (mode.getWidth() - width) / 2;
+            y = McCompat.monitorY(monitor) + (mode.getHeight() - height) / 2;
             cfg.saveWindowedBounds(x, y, width, height);
             cfg.save();
         }
@@ -161,7 +161,7 @@ public final class WindowModeFeature {
         if (monitor == null) {
             return false;
         }
-        VideoMode mode = monitor.getCurrentMode();
+        VideoMode mode = McCompat.currentMode(monitor);
         return w >= mode.getWidth() * 0.95 && h >= mode.getHeight() * 0.95;
     }
 

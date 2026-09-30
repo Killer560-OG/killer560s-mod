@@ -81,7 +81,7 @@ public final class InventoryHudFeature {
         Minecraft client = Minecraft.getInstance();
         InventoryHudConfig cfg = InventoryHudConfig.getInstance();
         Player player = client.player;
-        if (!cfg.isEnabled() || player == null || client.options.hideGui || !isVisible(client, cfg)) {
+        if (!cfg.isEnabled() || player == null || McCompat.hudHidden(client) || !isVisible(client, cfg)) {
             return;
         }
         if (cfg.isHideWhenEmpty() && isMainInventoryEmpty(player.getInventory())) {

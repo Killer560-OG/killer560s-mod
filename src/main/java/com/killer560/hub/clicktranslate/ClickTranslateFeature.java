@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -121,7 +122,7 @@ public final class ClickTranslateFeature {
             // Orange-themed via ModChat (2026-09-14): only the mod's own framing is themed - the orange
             // "[Killer560's Mod → X]" tag and the dim "(from Y)" note. The translated sender prefix + text
             // stays in the neutral light body color, exactly as readable as the old white.
-            client.gui.getChat().addClientSystemMessage(ModChat.line("Killer560's Mod → " + targetName,
+            McCompat.chat(client).addClientSystemMessage(ModChat.line("Killer560's Mod → " + targetName,
                     ModChat.text(prefix + result.text()), ModChat.dim(fromSuffix)));
         }));
         return true;

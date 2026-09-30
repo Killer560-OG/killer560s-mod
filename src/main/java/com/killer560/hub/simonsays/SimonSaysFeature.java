@@ -2825,8 +2825,7 @@ public final class SimonSaysFeature {
                                       int number, float scaleMultiplier) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        var mainCamera = client.gameRenderer.getMainCamera();
-        Vec3 cam = mainCamera.position();
+        Vec3 cam = McRender.cameraPos(context);
         String text = String.valueOf(number);
         float scale = 0.02f * scaleMultiplier;
 

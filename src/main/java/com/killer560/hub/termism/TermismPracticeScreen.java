@@ -155,7 +155,7 @@ public class TermismPracticeScreen extends Screen {
             new NamedItem("Firework Rocket", Items.FIREWORK_ROCKET),
             new NamedItem("Experience Bottle", Items.EXPERIENCE_BOTTLE),
             new NamedItem("Totem of Undying", Items.TOTEM_OF_UNDYING),
-            new NamedItem("Lapis Lazuli", Items.LAPIS_LAZULI), new NamedItem("Lightning Rod", Items.LIGHTNING_ROD),
+            new NamedItem("Lapis Lazuli", Items.LAPIS_LAZULI), new NamedItem("Lightning Rod", McItems.LIGHTNING_ROD),
             new NamedItem("Beetroot", Items.BEETROOT), new NamedItem("Blaze Rod", Items.BLAZE_ROD),
             new NamedItem("Clay Ball", Items.CLAY_BALL), new NamedItem("Cod", Items.COD),
             new NamedItem("Dried Kelp", Items.DRIED_KELP), new NamedItem("Diamond Boots", Items.DIAMOND_BOOTS),

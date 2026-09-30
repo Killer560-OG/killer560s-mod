@@ -38,6 +38,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * codebase has no existing signal for "a Skyblock terminal screen is open" to scope it to, and guessing one
  * risks suppressing swing animation everywhere a container is open instead of just terminals; see staging
  * notes.
+ *
+ * <p><b>26.2 rename.</b> {@code renderArmWithItem} is {@code submitArmWithItem} on 26.2, with a byte-identical
+ * parameter list (javap on both jars), so both names are listed and the one file serves both versions.
  */
 @Mixin(ItemInHandRenderer.class)
 public abstract class ObjectHiderItemAnimMixin {
@@ -50,7 +53,7 @@ public abstract class ObjectHiderItemAnimMixin {
         }
     }
 
-    @ModifyVariable(method = "renderArmWithItem", at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
+    @ModifyVariable(method = {"renderArmWithItem", "submitArmWithItem"}, at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
     private float killer560smod$objectHider$noShortbowSwing(float attack) {
         if (!ObjectHiderConfig.getInstance().isNoShortbowSwing()) {
             return attack;

@@ -14,6 +14,32 @@ repositories {
 	mavenCentral()
 }
 
+// ---------------------------------------------------------------- which Minecraft, in one place
+//
+// Parsed up here because three separate things downstream need it: the compatibility-layer directory, the
+// fabric.mod.json dependency range, and which netty the Jar-in-Jar libraries must match. Robust against both
+// "26.1.2" and "26.2" - a fixed [0..1] slice throws IndexOutOfBounds on a two-component version, which is how
+// a -Pminecraft_version=26.2 override first failed with the wonderfully opaque "toIndex = 2" during
+// configuration.
+def mcParts = project.minecraft_version.toString().tokenize('.')
+def mcMinorVersion = mcParts.size() >= 2 ? "${mcParts[0]}.${mcParts[1]}" : "${mcParts[0]}"
+def mcBranch = "mc" + (mcParts.size() >= 2 ? "${mcParts[0]}_${mcParts[1]}" : mcParts[0])
+
+// The netty that Minecraft itself ships, per Minecraft version. The two SOCKS libraries below are bundled into
+// the jar and MUST match it, or the jar carries two incompatible nettys: 26.1.2 ships 4.2.7.Final and 26.2
+// ships 4.2.15.Final. This was a single gradle.properties value pinned to 26.1.2's, so a 26.2 build silently
+// bundled the older pair. `nettyMatchesMinecraft` below re-checks this against the resolved classpath on every
+// build rather than trusting the table - a stale entry here is exactly the kind of thing that compiles, ships,
+// and only shows up as a NoSuchMethodError inside the Proxy Client.
+def nettyByMinecraft = ['26.1': '4.2.7.Final', '26.2': '4.2.15.Final']
+def nettyVersion = nettyByMinecraft[mcMinorVersion]
+if (nettyVersion == null) {
+	throw new GradleException("No netty version recorded for Minecraft ${project.minecraft_version}. Find it "
+			+ "with `./gradlew dependencies --configuration compileClasspath | grep netty-common` and add it "
+			+ "to nettyByMinecraft in build.gradle - do NOT guess, a mismatch breaks the Proxy Client at "
+			+ "runtime only.")
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
@@ -22,9 +48,10 @@ dependencies {
 
 	// SOCKS proxy support (Proxy Client feature). Minecraft bundles netty core/handler/codec,
 	// but NOT netty-handler-proxy or netty-codec-socks. Bundled into the jar (Jar-in-Jar) so
-	// they are present at runtime. Version must match Minecraft 26.1.2's netty version.
-	include(implementation("io.netty:netty-handler-proxy:${project.netty_version}"))
-	include(implementation("io.netty:netty-codec-socks:${project.netty_version}"))
+	// they are present at runtime. The version comes from nettyByMinecraft above, per Minecraft
+	// version, and is verified against the real classpath by nettyMatchesMinecraft.
+	include(implementation("io.netty:netty-handler-proxy:${nettyVersion}"))
+	include(implementation("io.netty:netty-codec-socks:${nettyVersion}"))
 
 	// MP3 decoding for the GIF Player's companion audio (auto-converts .mp3 to .wav so the rest of
 	// the feature can keep using plain javax.sound.sampled Clips). The JDK has zero built-in MP3
@@ -51,9 +78,16 @@ dependencies {
 
 processResources {
 	def ver = project.version
+	// The Minecraft dependency range is TEMPLATED, not written out in fabric.mod.json. It used to be a literal
+	// "~26.1", which meant a jar built with -Pminecraft_version=26.2 still declared it needed 26.1 and Fabric
+	// Loader refused to load it - a compile-clean jar that cannot start, and nothing in the build says so. The
+	// two ranges must stay mutually exclusive, which is what keeps the 26.1.2 jar from loading on 26.2 and vice
+	// versa; that separation is deliberate, not a bug to widen away.
+	def mcRange = "~" + mcMinorVersion
 	inputs.property "version", ver
+	inputs.property "minecraft_range", mcRange
 	filesMatching("fabric.mod.json") {
-		expand "version": ver
+		expand "version": ver, "minecraft_range": mcRange
 	}
 }
 
@@ -109,11 +143,7 @@ sourceSets.main.java.srcDir buildVariantDir
 // porting to a new Minecraft means writing a new src/mcXX_Y, not sweeping 229 files again. No interface and no
 // indirection at runtime - each version's copy is a plain class with the same public statics, exactly how the
 // generated BuildVariant above is consumed.
-// Robust against both "26.1.2" and "26.2": a fixed [0..1] slice throws IndexOutOfBounds on a
-// two-component version, which is how a -Pminecraft_version=26.2 override first failed with the
-// wonderfully opaque "toIndex = 2" during configuration.
-def mcParts = project.minecraft_version.toString().tokenize('.')
-def mcBranch = "mc" + (mcParts.size() >= 2 ? "${mcParts[0]}_${mcParts[1]}" : mcParts[0])
+// mcBranch is derived at the top of this file, beside the netty table that needs the same parse.
 def compatDir = file("src/${mcBranch}/java")
 // Printed, because picking the WRONG layer would compile and then misbehave at runtime, which is far worse
 // than not compiling at all.
@@ -125,7 +155,31 @@ if (!compatDir.directory) {
 }
 sourceSets.main.java.srcDir compatDir
 
+// Checks the bundled netty against the one Minecraft actually put on the compile classpath, so the table above
+// cannot quietly go stale on the next Minecraft version. Resolution happens inside the task, not during
+// configuration, so it costs nothing on an unrelated build.
+def nettyMatchesMinecraft = tasks.register('nettyMatchesMinecraft') {
+	description = 'Fails if the bundled netty-handler-proxy/netty-codec-socks do not match Minecraft\'s netty.'
+	doLast {
+		def resolved = configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts
+				.find { it.moduleVersion.id.name == 'netty-common' }
+		if (resolved == null) {
+			throw new GradleException("netty-common is not on the compile classpath - the check that keeps the "
+					+ "bundled SOCKS libraries in step with Minecraft's netty cannot run, so do not trust it.")
+		}
+		def mcNetty = resolved.moduleVersion.id.version
+		if (mcNetty != nettyVersion) {
+			throw new GradleException("Minecraft ${project.minecraft_version} ships netty ${mcNetty} but this "
+					+ "build bundles ${nettyVersion} for netty-handler-proxy/netty-codec-socks. Update "
+					+ "nettyByMinecraft in build.gradle to ${mcNetty}; shipping the mismatch breaks the Proxy "
+					+ "Client at runtime only.")
+		}
+		logger.lifecycle("Bundled netty ${nettyVersion} matches Minecraft ${project.minecraft_version}")
+	}
+}
+
 jar {
+	dependsOn nettyMatchesMinecraft
 	// The Minecraft version is in the name of all four jars on purpose. With a legit and a cheat jar for each
 	// of two Minecraft versions, two files both called "-legit.jar" is how somebody installs the wrong one -
 	// and .github/workflows/dev-build.yml collects them with a `*-legit.jar` glob, which would silently pick

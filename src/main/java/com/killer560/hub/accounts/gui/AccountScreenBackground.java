@@ -1,6 +1,7 @@
 package com.killer560.hub.accounts.gui;
 
 import com.killer560.hub.mainmenu.MainMenuTheme;
+import com.killer560.hub.compat.McCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -42,7 +43,7 @@ public final class AccountScreenBackground {
         try {
             MainMenuTheme.drawBackground(graphics, screen.width, screen.height);
             // Vanilla Screen.extractBackground ends with this; keep it so subtitles still show.
-            Minecraft.getInstance().gui.extractDeferredSubtitles();
+            McCompat.extractDeferredSubtitles(Minecraft.getInstance());
             return true;
         } catch (Throwable t) {
             MainMenuTheme.fail("account screen background", t);

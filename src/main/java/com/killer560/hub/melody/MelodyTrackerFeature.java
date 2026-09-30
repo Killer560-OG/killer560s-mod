@@ -208,7 +208,7 @@ public final class MelodyTrackerFeature {
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide this, matching every other HUD in this mod.
-        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui
+        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client)
                 || !MelodyHudConfig.getInstance().isHudEnabled() || !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)) {
             return;
         }

@@ -77,7 +77,7 @@ public final class DungeonAlertsFeature {
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide these (killer560), the HUD editor still does.
-        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !com.killer560.hub.util.SkyblockGate.allows()) {
+        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         // Position/scale come from HudConfig by id, so this works even before the element is in the editor list.
@@ -127,9 +127,9 @@ public final class DungeonAlertsFeature {
     /** Vanilla title/subtitle with explicit fade/stay/fade ticks. */
     static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         Minecraft client = Minecraft.getInstance();
-        client.gui.setTimes(fadeIn, stay, fadeOut);
-        client.gui.setTitle(Component.literal(title));
-        client.gui.setSubtitle(Component.literal(subtitle));
+        McCompat.setTimes(client, fadeIn, stay, fadeOut);
+        McCompat.setTitle(client, Component.literal(title));
+        McCompat.setSubtitle(client, Component.literal(subtitle));
     }
 
     /** Local UI sound, same call Odin's {@code playSoundAtPlayer} / Essential's {@code USound.playSoundStatic} make. */
@@ -147,12 +147,11 @@ public final class DungeonAlertsFeature {
     static void renderWorldText(LevelRenderContext context, Component text, double x, double y, double z, float scale) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        var camera = client.gameRenderer.getMainCamera();
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-        poseStack.mulPose(camera.rotation());
+        poseStack.mulPose(McRender.cameraRotation(context));
         float s = 0.025f * scale;
         poseStack.scale(s, -s, s);
         float width = font.width(text);

@@ -3,7 +3,6 @@ package com.killer560.hub.ap3;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.world.phys.AABB;
@@ -49,7 +48,6 @@ public final class Ap3Renderer {
         }
         float thickness = cfg.getThickness();
         double height = cfg.getHeight();
-        Camera camera = client.gameRenderer.getMainCamera();
         Vec3 playerPos = client.player.position();
 
         List<Vec3> chainLine = new ArrayList<>();
@@ -85,7 +83,7 @@ public final class Ap3Renderer {
                 if (!text.isEmpty()) {
                     int stack = stackIndex(nodes, i);
                     double lift = stack * STACK_STEP * Math.max(0.5f, cfg.getLabelScale());
-                    renderLabel(ctx, camera, real.x, real.y + height + 0.35 + cfg.getLabelHeightOffset() + lift, real.z,
+                    renderLabel(ctx, real.x, real.y + height + 0.35 + cfg.getLabelHeightOffset() + lift, real.z,
                             text, cfg.labelColorFor(node, argb), cfg.getLabelScale());
                 }
             }
@@ -251,20 +249,20 @@ public final class Ap3Renderer {
 
     /** Camera-facing text at a world position - {@code posmsg/PosmsgRenderer.renderLabel}, including its
      *  {@code textScale} multiplier on top of the distance-based size. */
-    private static void renderLabel(LevelRenderContext ctx, Camera camera, double x, double y, double z, String text,
+    private static void renderLabel(LevelRenderContext ctx, double x, double y, double z, String text,
                                     int color, float textScale) {
         PoseStack poseStack = ctx.poseStack();
         if (poseStack == null || text == null || text.isBlank()) {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(ctx);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0)) * Math.max(0.05f, textScale);
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(camera.rotation());
+            poseStack.mulPose(McRender.cameraRotation(ctx));
             poseStack.scale(s, -s, s);
             McRender.drawText(ctx, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
                     poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);

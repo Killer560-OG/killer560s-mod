@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeSet;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.ChatColors;
 
 /**
  * killer560's item 8.1: the custom Auction House browser. Black+amber chrome (same palette as
@@ -552,7 +553,7 @@ public final class AuctionHouseScreen extends Screen {
         String code = SkyblockItemStackFactory.tierColorCode(tier);
         char c = code.length() >= 2 ? code.charAt(1) : 'f';
         ChatFormatting cf = ChatFormatting.getByCode(c);
-        Integer rgb = cf != null ? cf.getColor() : null;
+        Integer rgb = cf != null ? ChatColors.color(cf) : null;
         return 0xFF000000 | (rgb != null ? rgb : 0xFFFFFF);
     }
 }

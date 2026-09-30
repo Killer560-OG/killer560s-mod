@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Real bug found and fixed (2026-09-15, spotted while wiring the Dungeon Alerts HUDs): only a handful of this mod's
@@ -42,7 +43,7 @@ public final class HudInGameRenderer {
         // Menu check (2026-09-16): one gate here instead of "screen != null" inside every element, so chat never
         // hides these (killer560: "dont make it hide the gui if i open chat") and the HUD editor - which draws
         // each listed element itself - doesn't get a second copy from this layer underneath its boxes.
-        if (client.player == null || client.options.hideGui || HudVisibility.menuOpen()
+        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen()
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }

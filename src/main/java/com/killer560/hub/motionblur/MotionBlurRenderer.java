@@ -27,6 +27,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McRender;
 
 import java.io.Reader;
 import java.util.List;
@@ -118,7 +119,7 @@ public final class MotionBlurRenderer {
                 return;
             }
 
-            RenderTarget main = mc.getMainRenderTarget();
+            RenderTarget main = McRender.mainRenderTarget(mc);
             if (main == null || main.width <= 0 || main.height <= 0) {
                 resetHistory();
                 return;
@@ -173,10 +174,7 @@ public final class MotionBlurRenderer {
         if (blend == lastWrittenBlend) {
             return;
         }
-        try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder()
-                .mapBuffer(uniformBuffer, false, true)) {
-            Std140Builder.intoBuffer(view.data()).putVec4(blend, 0.0f, 0.0f, 0.0f);
-        }
+        McRender.writeUniformVec4(uniformBuffer, blend, 0.0f, 0.0f, 0.0f);
         lastWrittenBlend = blend;
     }
 

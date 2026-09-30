@@ -16,6 +16,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Leap Counter - entry point. Ticks {@link LeapTracker}, feeds it chat (through {@link ChatObserver}, so Hypixel's
@@ -83,8 +84,8 @@ public final class LeapCounterFeature {
         String text = cfg.getAlertText();
         if (text != null && !text.isBlank()) {
             // Same fade/stay/fade as the crush title; "&" codes so the text box is easy to type in.
-            client.gui.setTimes(0, 25, 5);
-            client.gui.setTitle(Component.literal(text.replace('&', '§')));
+            McCompat.setTimes(client, 0, 25, 5);
+            McCompat.setTitle(client, Component.literal(text.replace('&', '§')));
         }
         if (cfg.isSound()) {
             // forUI(SoundEvent, float pitch, float volume) - the same call Dungeon Alerts / Auto Meow make.
@@ -124,7 +125,7 @@ public final class LeapCounterFeature {
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         // HudVisibility, not "screen != null": chat must not hide the HUD, and the HUD editor draws the element itself.
-        if (client.player == null || client.options.hideGui || HudVisibility.menuOpen() || !SkyblockGate.allows()
+        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen() || !SkyblockGate.allows()
                 || !LEAP_HUD.isVisible()) {
             return;
         }

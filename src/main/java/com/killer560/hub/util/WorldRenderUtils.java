@@ -3,7 +3,6 @@ package com.killer560.hub.util;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.AABB;
@@ -64,9 +63,9 @@ public final class WorldRenderUtils {
      * first, exactly like that fix and {@code routes.WaypointRoutesFeature}'s "Line to Next" line already do -
      * this is just the shared version of both, for every other tracer to call instead of re-deriving it.
      */
-    public static Vec3 tracerOrigin() {
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        return camera.position().add(Vec3.directionFromRotation(camera.xRot(), camera.yRot()).scale(0.5));
+    public static Vec3 tracerOrigin(LevelRenderContext context) {
+        return McRender.cameraPos(context).add(Vec3.directionFromRotation(
+                McRender.cameraXRot(context), McRender.cameraYRot(context)).scale(0.5));
     }
 
     /** Draws a connected line strip through a real sequence of world-space points (e.g. a real puzzle

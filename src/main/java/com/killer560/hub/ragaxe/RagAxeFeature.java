@@ -134,9 +134,9 @@ public final class RagAxeFeature {
 
     private static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         Minecraft client = Minecraft.getInstance();
-        client.gui.setTimes(fadeIn, stay, fadeOut);
-        client.gui.setTitle(Component.literal(title));
-        client.gui.setSubtitle(Component.literal(subtitle));
+        McCompat.setTimes(client, fadeIn, stay, fadeOut);
+        McCompat.setTitle(client, Component.literal(title));
+        McCompat.setSubtitle(client, Component.literal(subtitle));
     }
 
     private static void playSound(SoundEvent sound, float volume, float pitch) {
@@ -160,7 +160,7 @@ public final class RagAxeFeature {
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide these (killer560), the HUD editor still does.
-        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !SkyblockGate.allows()) {
+        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !SkyblockGate.allows()) {
             return;
         }
         int[] pos = HudElementRegistry.resolvePosition(element);

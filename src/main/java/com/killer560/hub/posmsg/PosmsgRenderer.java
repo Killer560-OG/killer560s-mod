@@ -4,7 +4,6 @@ import com.killer560.hub.util.SkyblockGate;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.world.entity.player.Player;
@@ -59,7 +58,6 @@ public final class PosmsgRenderer {
             return;
         }
         PosmsgConfig cfg = PosmsgConfig.getInstance();
-        Camera camera = client.gameRenderer.getMainCamera();
         for (PosmsgEntry e : cfg.entries()) {
             if (!e.enabled || !e.configured || !e.showRadius) {
                 continue;
@@ -77,7 +75,7 @@ public final class PosmsgRenderer {
                 // On the waypoint unless the player lifted it (offset defaults to 0 - killer560's original
                 // "Make the text not offset though from the waypoint"). SEE_THROUGH keeps it legible at
                 // floor level.
-                renderLabel(context, camera, e.x, e.y + e.textHeightOffset, e.z, e.sendText(), e.color(),
+                renderLabel(context, e.x, e.y + e.textHeightOffset, e.z, e.sendText(), e.color(),
                         (float) e.textScale);
             }
         }
@@ -102,21 +100,21 @@ public final class PosmsgRenderer {
     }
 
     /** Camera-facing text at a world position - same approach as {@code F7SpotsRenderer.renderLabel}. */
-    private static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
+    private static void renderLabel(LevelRenderContext context, double x, double y, double z,
                                     String text, int color, float textScale) {
         PoseStack poseStack = context.poseStack();
         if (poseStack == null || text == null || text.isBlank()) {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         // Distance-compensated base size (same curve as F7 Spots) times the per-waypoint multiplier.
         float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0)) * Math.max(0.05f, textScale);
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(camera.rotation());
+            poseStack.mulPose(McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false,
                     poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);

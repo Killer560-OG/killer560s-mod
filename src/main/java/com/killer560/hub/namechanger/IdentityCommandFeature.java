@@ -1,6 +1,7 @@
 package com.killer560.hub.namechanger;
 
 import com.killer560.hub.util.ServerCommands;
+import com.killer560.hub.compat.McCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -93,7 +94,7 @@ public final class IdentityCommandFeature {
 
     private static void addHistory(String normalizedMessage, boolean addToHistory) {
         if (addToHistory) {
-            Minecraft.getInstance().gui.getChat().addRecentChat(normalizedMessage);
+            McCompat.chat(Minecraft.getInstance()).addRecentChat(normalizedMessage);
         }
     }
 

@@ -146,4 +146,11 @@ public final class McItems {
     public static final Item GREEN_WOOL = Items.WOOL.pick(DyeColor.GREEN);
     public static final Item RED_WOOL = Items.WOOL.pick(DyeColor.RED);
     public static final Item BLACK_WOOL = Items.WOOL.pick(DyeColor.BLACK);
+
+    // Lightning rod. Not a colour family: 26.2 gave the rod copper weathering, so Items.LIGHTNING_ROD is now a
+    // WeatheringCopperCollection<Item> with eight members. weathering().unaffected() is the one registered as
+    // plain minecraft:lightning_rod - checked against the 26.2 lang file, which prefixes every other variant
+    // (exposed_, weathered_, oxidized_, waxed_*) and leaves only that one bare.
+    public static final Item LIGHTNING_ROD = Items.LIGHTNING_ROD.weathering().unaffected();
+
 }

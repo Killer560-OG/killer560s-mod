@@ -146,8 +146,7 @@ public final class EtherwarpFeature {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        var camera = mc.gameRenderer.getMainCamera();
-        var cam = camera.position();
+        var cam = McRender.cameraPos(ctx);
         var font = mc.font;
         for (int i = 0; i < waypoints.size(); i++) {
             AABB box = boxes.get(i);
@@ -160,7 +159,7 @@ public final class EtherwarpFeature {
             poseStack.pushPose();
             try {
                 poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-                poseStack.mulPose(camera.rotation());
+                poseStack.mulPose(McRender.cameraRotation(ctx));
                 poseStack.scale(s, -s, s);
                 McRender.drawText(ctx, font, label, -font.width(label) / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false,
                         poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,

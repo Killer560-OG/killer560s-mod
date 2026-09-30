@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -300,8 +301,7 @@ public final class TeleportMazeSolverFeature {
             // take me to the tp pads ... doesn't really show up"): a line that begins exactly at the camera runs straight
             // away from the viewer and collapses to a dot, so it only flickered into view at odd angles. Starting it
             // half a block along the view direction makes it a proper line from the crosshair to the pad.
-            var camera = client.gameRenderer.getMainCamera();
-            Vec3 start = camera.position().add(Vec3.directionFromRotation(camera.xRot(), camera.yRot()).scale(0.5));
+            Vec3 start = WorldRenderUtils.tracerOrigin(context);
             SolverEspRender.renderLineStrip(context, List.of(start,
                     new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)), 0.33f, 1.0f, 1.0f, 1f, 3f);
         }

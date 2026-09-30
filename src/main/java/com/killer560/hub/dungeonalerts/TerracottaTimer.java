@@ -93,7 +93,7 @@ final class TerracottaTimer {
         for (Terracotta t : SPAWNS) {
             float seconds = t.ticksLeft / 20f;
             char color = seconds > 5f ? 'a' : seconds > 2f ? '6' : 'c';
-            Vec3 c = t.pos.getCenter();
+            Vec3 c = Vec3.atCenterOf(t.pos);
             DungeonAlertsFeature.renderWorldText(context, "§" + color + String.format(Locale.US, "%.2f", seconds) + "s",
                     c.x, c.y, c.z, 2f);
         }
