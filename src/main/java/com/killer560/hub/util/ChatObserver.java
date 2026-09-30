@@ -4,14 +4,12 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 /**
  * Sees every chat line that actually lands in chat, once.
@@ -38,12 +36,11 @@ import java.util.regex.Pattern;
  */
 public final class ChatObserver {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-chatobserver");
+    private static final Logger LOGGER = ModLog.get("killer560smod-chatobserver");
 
     private static final long DEDUPE_WINDOW_MS = 250L;
     // Prefix-based de-dup only for reasonably long lines, so a short line can't swallow an unrelated one.
     private static final int MIN_PREFIX_DEDUPE_LENGTH = 12;
-    private static final Pattern DIAG_DEVICE_COMPLETE = Pattern.compile("^(.{1,16}) completed a device! \\(\\d+/\\d+\\)");
 
     /** Rewrites a line right before it is added to chat - runs exactly once per real ChatComponent add. */
     @FunctionalInterface
@@ -119,10 +116,6 @@ public final class ChatObserver {
         synchronized (ChatObserver.class) {
             duplicate = isRecentDuplicate(plain, System.currentTimeMillis());
             listeners = duplicate ? List.<Consumer<Component>>of() : List.copyOf(LISTENERS);
-        }
-        if (DIAG_DEVICE_COMPLETE.matcher(plain).find()) {
-            LOGGER.info("[ChatObserver] Device-complete line via {} -> {}: \"{}\"", source,
-                    duplicate ? "duplicate, skipped" : "dispatched to " + listeners.size() + " listener(s)", plain);
         }
         for (Consumer<Component> listener : listeners) {
             try {

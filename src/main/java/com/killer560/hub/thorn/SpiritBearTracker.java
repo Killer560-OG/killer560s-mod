@@ -14,7 +14,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
@@ -51,7 +51,7 @@ import java.util.Set;
  */
 public final class SpiritBearTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-thorn");
+    private static final Logger LOGGER = ModLog.get("killer560smod-thorn");
 
     public static final int F4_KILLS = 25;
     public static final int M4_KILLS = 30;
@@ -104,10 +104,6 @@ public final class SpiritBearTracker {
     }
 
     public static void reset(String reason) {
-        if (activeRing != null) {
-            LOGGER.info("[Thorn] Spirit Bear tracker reset ({}): kills={} timer={} overkill={} lastOverkill={} cycle={}",
-                    reason, kills, timer, overkill, lastOverkill, bearCycle);
-        }
         ringState = new Boolean[M4_RING.length];
         activeRing = null;
         kills = 0;
@@ -143,9 +139,6 @@ public final class SpiritBearTracker {
         tickCount++;
         if (timer > 0) {
             timer--;
-            if (timer == 0) {
-                LOGGER.info("[Thorn] Spirit Bear spawn timer done (cycle {}, {} kills)", bearCycle, kills);
-            }
         }
 
         // ---- Ring poll ----
@@ -179,7 +172,6 @@ public final class SpiritBearTracker {
                 if (isLast && now && timer < 0) {
                     // Joined/relogged with the ring already full: the bear is already out (or about to be).
                     timer = 0;
-                    LOGGER.info("[Thorn] Ring already full on first sight - treating Spirit Bear as spawned");
                 }
                 continue;
             }
@@ -187,11 +179,9 @@ public final class SpiritBearTracker {
                 lights++;
                 if (isLast) {
                     timer = BEAR_SPAWN_TICKS;
-                    LOGGER.info("[Thorn] Last ring block lit - Spirit Bear #{} spawning in {}t", bearCycle, BEAR_SPAWN_TICKS);
                 }
             } else if (before && !now && isLast) {
                 timer = -1;
-                LOGGER.info("[Thorn] Last ring block back to coal - bear cycle {} over", bearCycle);
             }
         }
         kills = Math.min(lit, ring.length);
@@ -260,7 +250,6 @@ public final class SpiritBearTracker {
     }
 
     private static void finishCycle(Minecraft client) {
-        LOGGER.info("[Thorn] Bear cycle {} finished - overkill {}", bearCycle, overkill);
         lastOverkill = overkill;
         ThornConfig cfg = ThornConfig.getInstance();
         if (cfg.isOverkillChatEnabled() && client.player != null) {

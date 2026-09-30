@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Map;
@@ -50,7 +50,7 @@ import java.util.Map;
  */
 public final class P3NavFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-p3nav");
+    private static final Logger LOGGER = ModLog.get("killer560smod-p3nav");
 
     /** NoammAddons {@code GateHighlight.kt} lines 22-26, coordinates verbatim. */
     private record Gate(BlockPos probe, AABB box) {

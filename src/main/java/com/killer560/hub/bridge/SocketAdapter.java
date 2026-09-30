@@ -1,7 +1,7 @@
 package com.killer560.hub.bridge;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -134,7 +134,7 @@ abstract class SocketAdapter {
     SocketAdapter(String displayName, String modId) {
         this.displayName = displayName;
         this.modId = modId;
-        this.log = LoggerFactory.getLogger("killer560smod-bridge");
+        this.log = ModLog.get("killer560smod-bridge");
         this.worker = Executors.newSingleThreadScheduledExecutor(daemon("killer560smod-bridge-" + modId));
         worker.scheduleWithFixedDelay(this::pumpSafely, PUMP_MS, PUMP_MS, TimeUnit.MILLISECONDS);
     }

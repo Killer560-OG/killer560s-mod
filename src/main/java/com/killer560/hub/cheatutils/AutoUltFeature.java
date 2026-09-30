@@ -70,7 +70,6 @@ public final class AutoUltFeature {
             classScanCooldown = 40;
             DungeonClass found = scanTabClass(client);
             if (found != null && found != tabClass) {
-                CheatUtils.LOGGER.info("[CheatUtils] AutoUlt tab-list class detected: {} (was {})", found, tabClass);
                 tabClass = found;
             }
         }
@@ -114,7 +113,6 @@ public final class AutoUltFeature {
         // the ult - the exact failure the Experimentation Table audit was written about. So the ult is
         // handed to the tick loop instead, which re-asks every tick until the gate lets it through and only
         // reports a loss if it never does.
-        CheatUtils.LOGGER.info("[CheatUtils] AutoUlt '{}' armed as {} - waiting on the action gate.", trigger, clazz);
         pendingUltTrigger = trigger;
         pendingUltTicksLeft = ULT_GATE_BUDGET_TICKS;
     }
@@ -132,7 +130,6 @@ public final class AutoUltFeature {
             pendingUltTrigger = null;
             client.player.connection.send(new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.DROP_ITEM, BlockPos.ZERO, Direction.DOWN));
-            CheatUtils.LOGGER.info("[CheatUtils] AutoUlt used Ultimate on '{}'", what);
             ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Used Ultimate "), ModChat.dim("(" + what + ")"));
             return;
         }

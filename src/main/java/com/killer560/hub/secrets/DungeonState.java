@@ -12,7 +12,7 @@ import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -62,26 +62,9 @@ public final class DungeonState {
     private static final Pattern BOSS_START_PATTERN =
             Pattern.compile("^\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!");
 
-    /** Logging filter only - e.g. {@code Maxor's Frenzy hit you for 1,959.3 damage.} (real run log). */
-    private static final Pattern BOSS_DAMAGE_SPAM_PATTERN = Pattern.compile("^(?!\\[BOSS]).*'s .+ hit you for [\\d,.]+ damage\\.?$");
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrets");
+    private static final Logger LOGGER = ModLog.get("killer560smod-secrets");
 
     private static boolean bossPhaseActive = false;
-    // Real bug found (2026-09-09, round 21): killer560 confirmed every individual block toggle works
-    // fine (Full Block master ON, Dungeons Only OFF), but Dungeons Only itself never enables during a
-    // real dungeon run. A real F7 clear's log (all 5 bosses fought) never logged a SINGLE "Dungeon floor
-    // changed" line - meaning #computeCurrentFloor() returned null the entire run, not just failed to
-    // re-enable on re-entry. SkyHanni's own real, currently-working sidebar reader
-    // (ScoreboardCompatKt.getSidebarObjective, decompiled 2026-09-09) is just a bare
-    // `getDisplayObjective(DisplaySlot.SIDEBAR)` with NO team-color fallback at all - directly
-    // contradicting this class's own round-13 "Hypixel uses a TEAM_* slot instead" theory, which was
-    // never independently confirmed against a real log and looks to have been the wrong diagnosis.
-    // Rather than guess again on this HIGH-RISK-adjacent detection code, this logs the full picture
-    // (polled every ~3s; since 2026-09-14 only logged when it changes) - which DisplaySlot (if any)
-    // actually holds a non-null objective, and the raw text read from it - so the next real dungeon run
-    // shows definitively whether SIDEBAR itself is populated, some other slot is, or none are.
-    private static int diagnosticTickCounter = 0;
     // "/killer560 sim" (2026-09-14) - killer560's own request, since p3sim.net's real sidebar/chat
     // format was unknown and this session had no way to connect and observe it directly. Rather than
     // guess at matching p3sim's real text (this class's own history above is full of real, hard-won
@@ -105,83 +88,7 @@ public final class DungeonState {
     // dungeon run's log can show exactly what this class saw and when.
     private static String cachedFloor;
 
-    // [DungeonState] diagnostics (2026-09-14, pre-live-run logging pass) - logging only, never gates anything.
-    private static String lastGateSnapshot = null;
-    private static int tabClassTickCounter = 0;
-    private static String lastTabClassSummary = null;
-    private static final Pattern TAB_CLASS_PATTERN =
-            Pattern.compile("\\((Mage|Tank|Healer|Archer|Berserk|Berserker|EMPTY|DEAD)[^)]*\\)");
-    private static final String[] DUNGEON_CHAT_KEYWORDS = {
-            "[NPC] Mort", "Starting in", "entered", "Wither Key", "Blood Key", "WITHER door", "BLOOD DOOR",
-            "PUZZLE", "EXTRA STATS", "Mimic", "Prince", "[STATUE]", "Watcher", "RIGHT CLICK", "has obtained",
-            "Dungeon starts", "Team Score", "Defeated", "The Core entrance", "terminal", "device", "gate"
-    };
-
     private DungeonState() {
-    }
-
-    /** Player position for logs, or "no-player". */
-    private static String playerPosForLog() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return "no-player";
-        }
-        var pos = client.player.position();
-        return String.format(java.util.Locale.US, "(%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
-    }
-
-    private static String serverIpForLog() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) {
-            return "null";
-        }
-        var server = client.getCurrentServer();
-        return server == null ? "null" : String.valueOf(server.ip);
-    }
-
-    /** Logs whenever any externally visible gate value changes (what every dungeon feature reads). */
-    private static void logGateSnapshotIfChanged() {
-        String snapshot = "inDungeon=" + isInDungeon() + " floor=" + getFloor() + " f7OrM7=" + isF7OrM7()
-                + " bossPhaseRaw=" + bossPhaseActive + " bossPhaseEffective=" + isBossPhaseActive()
-                + " simOverride=" + simOverrideActive;
-        if (!snapshot.equals(lastGateSnapshot)) {
-            LOGGER.info("[DungeonState] Gates changed: {} -> {} | pos={} server={}",
-                    lastGateSnapshot, snapshot, playerPosForLog(), serverIpForLog());
-            lastGateSnapshot = snapshot;
-        }
-    }
-
-    /** Tab-list class/party readout - there's no automatic class detection in this mod (classes are
-     *  assigned manually in Leap Menu), so this logs what Hypixel's tab list actually shows, every ~5s
-     *  while in a dungeon, only when it changes. */
-    private static void logTabClassesIfChanged(Minecraft client) {
-        if (!isInDungeon() || client.getConnection() == null) {
-            tabClassTickCounter = 0;
-            return;
-        }
-        if (++tabClassTickCounter < 100) {
-            return;
-        }
-        tabClassTickCounter = 0;
-        StringBuilder summary = new StringBuilder();
-        int listed = 0;
-        for (var info : client.getConnection().getListedOnlinePlayers()) {
-            listed++;
-            Component display = info.getTabListDisplayName();
-            if (display == null) {
-                continue;
-            }
-            String plain = ChatFormatting.stripFormatting(display.getString());
-            if (plain != null && TAB_CLASS_PATTERN.matcher(plain).find()) {
-                summary.append('"').append(plain.trim()).append("\" ");
-            }
-        }
-        String result = summary.toString().trim();
-        if (!result.equals(lastTabClassSummary)) {
-            LOGGER.info("[DungeonState] Tab-list class entries ({} listed players): [{}]", listed,
-                    result.isEmpty() ? "NONE MATCHED" : result);
-            lastTabClassSummary = result;
-        }
     }
 
     public static void register() {
@@ -189,18 +96,12 @@ public final class DungeonState {
         // line can arrive through either) AND lines another mod (Odin/NoammAddons/Skyblocker) cancelled via
         // ALLOW_GAME and re-added straight to ChatComponent, which Fabric listeners never see. The boss-phase
         // trigger is Maxor's full, exact opening sentence, so this mod's own client-side messages (also
-        // delivered by ChatObserver) can't start the boss phase; they can only show up in the log-only
-        // keyword diagnostics below. Overlay (action bar) lines are not delivered - none needed here.
+        // delivered by ChatObserver) can't start the boss phase. Overlay (action bar) lines are not delivered - none needed here.
         ChatObserver.subscribe(DungeonState::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonState", client -> {
             if (client.level == null && simOverrideActive) {
                 LOGGER.info("[Secrets] World unloaded - clearing /killer560 sim override.");
                 simOverrideActive = false;
-            }
-            diagnosticTickCounter++;
-            if (diagnosticTickCounter >= 60) {
-                diagnosticTickCounter = 0;
-                logSidebarDiagnostic();
             }
             String floor = computeCurrentFloor();
             // Real bug found and fixed (2026-09-14): this used to auto-clear the override the instant
@@ -212,15 +113,7 @@ public final class DungeonState {
             // needed - only a real disconnect/world-unload (handled above) does that now. The override
             // is purely manual again: on until killer560 turns it off himself.
             if (!Objects.equals(floor, cachedFloor)) {
-                // Includes a snippet of the raw sidebar text this round - if the DisplaySlot fallback fix
-                // (2026-09-09, round 13) still isn't enough, this is the next thing to check: is a real
-                // sidebar even being found now, and does its actual text match CATACOMBS_FLOOR_PATTERN.
-                String rawSidebar = readSidebarText();
-                String snippet = rawSidebar.length() > 200 ? rawSidebar.substring(0, 200) + "..." : rawSidebar;
-                LOGGER.info("[Secrets] Dungeon floor changed: '{}' -> '{}' (sidebar: \"{}\")",
-                        cachedFloor, floor, snippet.replace("\n", "\\n"));
-                LOGGER.info("[DungeonState] Floor transition '{}' -> '{}' at pos={} server={} simOverride={}",
-                        cachedFloor, floor, playerPosForLog(), serverIpForLog(), simOverrideActive);
+                LOGGER.info("[Secrets] Dungeon floor changed: '{}' -> '{}'", cachedFloor, floor);
                 cachedFloor = floor;
             }
             boolean f7OrM7Now = "F7".equals(floor) || "M7".equals(floor);
@@ -228,23 +121,11 @@ public final class DungeonState {
                 LOGGER.info("[Secrets] Boss phase ended (left F7/M7, floor now '{}')", floor);
                 bossPhaseActive = false;
             }
-            logGateSnapshotIfChanged();
-            logTabClassesIfChanged(client);
         }));
     }
 
     private static void onChatMessage(Component message) {
         String raw = message.getString();
-        // Broad safety net - if the plain-text match below still somehow misses the real line, this
-        // logs the EXACT raw text (formatting codes and all) of anything boss-related so the actual
-        // wording/codes can be compared directly instead of guessing again.
-        // Real bug found and fixed (2026-09-14, first real F7 run log): this also logged Maxor's damage
-        // spam ("Maxor's Frenzy/Shadow Wave/Wither TNT hit you for N damage.") - 24 of 123 lines in one
-        // fight. Damage lines are skipped now; real [BOSS] dialogue and other Maxor lines still log.
-        if ((raw.contains("Maxor") || raw.contains("[BOSS]")) && !BOSS_DAMAGE_SPAM_PATTERN.matcher(Objects.requireNonNullElse(ChatFormatting.stripFormatting(raw), raw)).find()) {
-            LOGGER.info("[Secrets] Boss-related chat line seen: \"{}\" (pos={} floor={} bossPhaseRaw={})",
-                    raw, playerPosForLog(), cachedFloor, bossPhaseActive);
-        }
         String plain = ChatFormatting.stripFormatting(raw);
         if (plain != null && BOSS_START_PATTERN.matcher(plain).find() && isF7OrM7()) {
             LOGGER.info("[Secrets] Boss phase started (real Maxor chat line matched)");
@@ -252,15 +133,6 @@ public final class DungeonState {
         } else if (plain != null && BOSS_START_PATTERN.matcher(plain).find()) {
             LOGGER.warn("[DungeonState] Maxor start line matched but isF7OrM7()=false (floor='{}') - boss phase NOT started",
                     cachedFloor);
-        }
-        // Non-boss dungeon structure lines (run start, keys, doors, puzzles, score) - chat-rate only.
-        if (plain != null && (isInDungeon() || plain.contains("Catacombs")) && !raw.contains("[BOSS]")) {
-            for (String keyword : DUNGEON_CHAT_KEYWORDS) {
-                if (plain.contains(keyword)) {
-                    LOGGER.info("[DungeonState] Dungeon chat (matched '{}'): \"{}\" pos={}", keyword, plain, playerPosForLog());
-                    break;
-                }
-            }
         }
     }
 
@@ -345,62 +217,6 @@ public final class DungeonState {
         Matcher matcher = CATACOMBS_FLOOR_PATTERN.matcher(plain);
         return matcher.find() ? matcher.group(1) : null;
     }
-
-    /** Diagnostic only (round 21) - see the doc comment on {@link #diagnosticTickCounter}. Logs whether
-     *  the plain {@code DisplaySlot.SIDEBAR} objective is populated, and if not, EVERY other
-     *  {@code DisplaySlot} that has a non-null objective (not just the first one found, unlike
-     *  {@link #readSidebarText()}) - plus the actual raw text {@link #readSidebarText()} ends up reading.
-     *  Polled every ~3 real seconds (60 client ticks), but only LOGS when the sidebar changes (digits
-     *  masked) - see the 2026-09-14 note in the body. */
-    private static void logSidebarDiagnostic() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null || client.level == null) {
-            return;
-        }
-        Scoreboard scoreboard = client.level.getScoreboard();
-        Objective plainSidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-        StringBuilder others = new StringBuilder();
-        for (DisplaySlot slot : DisplaySlot.values()) {
-            if (slot == DisplaySlot.SIDEBAR) {
-                continue;
-            }
-            Objective candidate = scoreboard.getDisplayObjective(slot);
-            if (candidate != null) {
-                others.append(slot).append("='").append(candidate.getDisplayName().getString()).append("' ");
-            }
-        }
-        String raw = readSidebarText();
-        String plainSidebarName = plainSidebar != null ? "'" + plainSidebar.getDisplayName().getString() + "'" : "null";
-        // Real bug found and fixed (2026-09-14, first real F7 run log): this logged every 60 ticks all
-        // session, hub included (~20 identical lines/min), truncated to 200 chars so the dungeon lines past
-        // "Time Elapsed:" were cut off. Now logs the FULL text, only when the sidebar changes. Digits are
-        // masked for the change check only - the clock, Time Elapsed, Purse and teammate HP tick
-        // constantly and would otherwise make every poll a "change".
-        // Real bug found and fixed (2026-09-14 review pass): digits were masked BEFORE stripping § codes, so
-        // "§a"/"§e"/"§c" teammate-health color flips in boss still made every poll a change, while the real
-        // Keys count / Cleared % changes were masked away. Now strips formatting first and leaves the Keys and
-        // Cleared lines' digits unmasked so those real changes still log.
-        StringBuilder changeKeyBuilder = new StringBuilder();
-        String strippedHeader = ChatFormatting.stripFormatting(plainSidebarName + "|" + others + "|");
-        changeKeyBuilder.append(strippedHeader == null ? "" : strippedHeader.replaceAll("\\d", "#"));
-        for (String line : raw.split("\n", -1)) {
-            String plainLine = ChatFormatting.stripFormatting(line);
-            if (plainLine == null) {
-                plainLine = "";
-            }
-            boolean keepDigits = plainLine.contains("Keys") || plainLine.contains("Cleared");
-            changeKeyBuilder.append(keepDigits ? plainLine : plainLine.replaceAll("\\d", "#")).append('\n');
-        }
-        String changeKey = changeKeyBuilder.toString();
-        if (changeKey.equals(lastSidebarDiagnosticKey)) {
-            return;
-        }
-        lastSidebarDiagnosticKey = changeKey;
-        LOGGER.info("[Secrets] Sidebar diagnostic (changed): plainSidebar={} otherPopulatedSlots=[{}] readSidebarText=\"{}\"",
-                plainSidebarName, others.toString().trim(), raw.replace("\n", "\\n"));
-    }
-
-    private static String lastSidebarDiagnosticKey = null;
 
     /** Real bug found and fixed (2026-09-09, round 22) - your own log from a real F7 clear (Maxor's
      *  opening chat line included) showed the actual root cause: {@code DisplaySlot.SIDEBAR} WAS

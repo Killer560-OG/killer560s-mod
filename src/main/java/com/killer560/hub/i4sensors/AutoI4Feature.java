@@ -22,8 +22,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,12 +64,8 @@ import java.util.regex.Pattern;
  * fallback) - not during a menu mask swap, not within 400ms of a hotbar change made by something else (so a
  * manual/other-mod swap gets its moment), and never after completion (so Auto Leap's swap isn't fought).
  * Not ported (not asked for): Noamm's rod swap and timed leap. Solver: {@link I4SolverFeature}.
- * Every decision logs under [AutoI4] (alongside [I4Sensors]' wall/arrow/hit data) for sim testing.
  */
 public final class AutoI4Feature {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoi4");
-    private static final String TAG = "[AutoI4]";
 
     private static final Pattern DEVICE_DONE = Pattern.compile("^(\\w{3,16}) completed a device! \\(\\d/\\d\\)");
     private static final AABB STAND_BOX = new AABB(56, 118, 40, 76, 140, 58);
@@ -88,11 +82,8 @@ public final class AutoI4Feature {
     private static final double CPS_JITTER = 2.0;
     private static double sessionBaseCps = 0.0;
     private static long nextClickAtMs = 0L;
-    private static int spamClicks = 0;
-    private static long lastSpamLogAtMs = 0L;
     // Machine Gun Shortbow "Rapid Fire" - hypixelskyblock.minecraft.wiki/w/Machine_Gun_Shortbow: 8s, 100s cooldown.
     private static final long RAPID_FIRE_DURATION_MS = 8000L;
-    private static final long RAPID_FIRE_COOLDOWN_MS = 100_000L;
     // ASSUMPTION (unconfirmed exact text): Hypixel's generic ability-cooldown line. Only used to release the hold.
     private static final Pattern ABILITY_ON_COOLDOWN = Pattern.compile("^This ability is on cooldown for \\d+s");
     private static final long EXTERNAL_SWAP_GRACE_MS = 400L;
@@ -108,18 +99,14 @@ public final class AutoI4Feature {
     // wherever the next light can appear. Lit targets and the watchdog re-shoot always take priority (they're queued
     // first; a newly lit target also interrupts a prefire mid-aim).
     private static boolean deviceStarted = false;
-    private static boolean noPredictionLogged = false;
     private static BlockPos activeTarget = null;
     private static long lastShotAtActiveMs = 0L;
     private static boolean completed = false;
     private static boolean wasRunning = false;
-    private static String lastGateReason = "";
 
     // Shot queue: the current shot (aiming in progress in Rotate mode) plus at most one queued prediction.
     private static final List<BlockPos> shotQueue = new ArrayList<>();
     private static Shot currentShot = null;
-    private static int shotsFired = 0;
-    private static long lastFireAtMs = 0L;
     // Armor stand names seen near the wall - completion only counts on a real RENAME to "Active", so a stand
     // still reading "Active" from a previous attempt (p3sim restarts) can't instantly re-complete a new one.
     private static final Map<Integer, String> standNames = new HashMap<>();
@@ -129,14 +116,12 @@ public final class AutoI4Feature {
     private static boolean abilityUsedThisAttempt = false;
     private static long abilityActivatedAtMs = 0L;
     private static long abilityHoldUntilMs = 0L;
-    private static String abilityWaitLogged = null;
 
     // Auto Swap To Bow
     private static int lastSeenSlot = -1;
     private static boolean weSwappedSlot = false;
     private static long externalSlotChangeMs = 0L;
     private static long lastWeaponSwapMs = 0L;
-    private static String weaponSwapLogged = null;
 
     private static final class Shot {
         final BlockPos target;
@@ -198,8 +183,6 @@ public final class AutoI4Feature {
         }
         if (abilityActivatedAtMs > 0 && System.currentTimeMillis() - abilityActivatedAtMs <= 1500L
                 && isAbilityHoldActive() && ABILITY_ON_COOLDOWN.matcher(plain).find()) {
-            LOGGER.info("{} {} Rapid Fire: \"{}\" {}ms after the left click - ability didn't fire, releasing the hold.", TAG,
-                    I4SensorsFeature.clock(), plain, System.currentTimeMillis() - abilityActivatedAtMs);
             abilityHoldUntilMs = 0L;
         }
         if (!wasRunning || completed) {
@@ -222,8 +205,6 @@ public final class AutoI4Feature {
         LocalPlayer player = client.player;
         long tickNow = System.currentTimeMillis();
         if (abilityHoldUntilMs > 0 && tickNow >= abilityHoldUntilMs) {
-            LOGGER.info("{} {} Rapid Fire ENDED ({}ms after activation) - swaps allowed again.", TAG,
-                    I4SensorsFeature.clock(), tickNow - abilityActivatedAtMs);
             abilityHoldUntilMs = 0L;
         }
         trackSelectedSlot(player, tickNow);
@@ -232,15 +213,6 @@ public final class AutoI4Feature {
             gate = gateReason(client, cfg, player);
         }
         boolean running = gate.isEmpty();
-        if (!gate.equals(lastGateReason)) {
-            LOGGER.info("{} {} {}", TAG, I4SensorsFeature.clock(), running
-                    ? "RUNNING (on device, holding bow) mode=" + (cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate")
-                    + " weapon=" + cfg.getAutoI4Weapon().label + " rotationTime=" + cfg.getAutoI4RotationTimeMs()
-                    + "ms predictions=" + cfg.isAutoI4Predictions() + " autoSwapToBow=" + cfg.isAutoSwapToBow()
-                    + " autoMask=" + cfg.isAutoMask() + " order=" + I4SensorsConfig.orderLabel(cfg.getMaskOrder())
-                    : "idle: " + gate);
-            lastGateReason = gate;
-        }
         boolean pauseOnly = !running && (gate.startsWith("not holding a bow") || gate.equals("a screen is open"));
         if (!running && !pauseOnly) {
             if (wasRunning) {
@@ -277,8 +249,6 @@ public final class AutoI4Feature {
         // Re-shoot a target that's still lit well after the last shot at it (Noamm's watchdog).
         if (activeTarget != null && currentShot == null && shotQueue.isEmpty()
                 && now - lastShotAtActiveMs >= RESHOOT_AFTER_MS && isLit(client, activeTarget)) {
-            LOGGER.info("{} {} Watchdog: target #{} still lit {}ms after last shot - re-shooting.", TAG,
-                    I4SensorsFeature.clock(), indexOf(activeTarget), now - lastShotAtActiveMs);
             shotQueue.add(activeTarget);
         }
         if (currentShot == null && shotQueue.isEmpty() && deviceStarted && cfg.isAutoI4Predictions()) {
@@ -341,7 +311,6 @@ public final class AutoI4Feature {
             String to = I4SensorsFeature.blockId(state);
             if (from.equals("emerald_block") && to.equals("blue_terracotta")) {
                 doneTargets.add(pos);
-                LOGGER.info("{} {} Target #{} HIT ({} of 9 done).", TAG, I4SensorsFeature.clock(), indexOf(pos), doneTargets.size());
                 if (pos.equals(activeTarget)) {
                     activeTarget = null;
                 }
@@ -373,10 +342,6 @@ public final class AutoI4Feature {
             I4SensorsConfig cfg = I4SensorsConfig.getInstance();
             sessionBaseCps = cfg.getCpsMin() + Math.random() * (cfg.getCpsMax() - cfg.getCpsMin());
             nextClickAtMs = 0L;
-            spamClicks = 0;
-            LOGGER.info("{} {} Device started - clicking at ~{} CPS this attempt (range {}-{}, +-{} per click).", TAG,
-                    I4SensorsFeature.clock(), String.format(java.util.Locale.US, "%.1f", sessionBaseCps),
-                    cfg.getCpsMin(), cfg.getCpsMax(), (int) CPS_JITTER);
         }
         deviceStarted = true;
         lastShotAtActiveMs = 0L;
@@ -384,9 +349,6 @@ public final class AutoI4Feature {
         // was already aimed at a spot that covers the new target (a Terminator aim point hits both columns beside it).
         // Keep that shot and let it fire; it now counts as the shot at the new target.
         boolean keepPrefire = currentShot != null && currentShot.prediction && covers(currentShot.aimPoint, pos);
-        LOGGER.info("{} {} New target #{} {} - {}. {} {}.", TAG, I4SensorsFeature.clock(), indexOf(pos), pos, why,
-                keepPrefire ? "Keeping" : "Interrupting",
-                currentShot == null ? "nothing" : "shot at #" + indexOf(currentShot.target) + (currentShot.prediction ? " (prediction)" : ""));
         // A freshly lit target otherwise takes priority over whatever was being aimed at (Noamm's getEmerald
         // retarget), and gets a fresh prediction after it.
         shotQueue.clear();
@@ -397,8 +359,6 @@ public final class AutoI4Feature {
         if (I4SensorsConfig.getInstance().getAutoI4Weapon() == Weapon.MACHINE_GUN_SHORTBOW && !abilityUsedThisAttempt
                 && !abilityPending) {
             abilityPending = true;
-            abilityWaitLogged = null;
-            LOGGER.info("{} {} Rapid Fire requested - first target of this attempt lit.", TAG, I4SensorsFeature.clock());
         }
         if (I4SensorsConfig.getInstance().isAutoI4Predictions()) {
             BlockPos prediction = predictNext(pos);
@@ -443,15 +403,9 @@ public final class AutoI4Feature {
         completed = true;
         currentShot = null;
         shotQueue.clear();
-        LOGGER.info("{} {} Device COMPLETED ({}) - {} shots fired, {} of 9 targets seen hit. Stopping.", TAG,
-                I4SensorsFeature.clock(), why, shotsFired, doneTargets.size());
     }
 
     private static void resetDevice(String why) {
-        if (!doneTargets.isEmpty() || shotsFired > 0 || completed) {
-            LOGGER.info("{} {} Reset ({}) - had {} shots, {} hits, completed={}.", TAG, I4SensorsFeature.clock(), why,
-                    shotsFired, doneTargets.size(), completed);
-        }
         doneTargets.clear();
         lastWall.clear();
         predictionCounts.clear();
@@ -461,12 +415,10 @@ public final class AutoI4Feature {
         activeTarget = null;
         lastShotAtActiveMs = 0L;
         completed = false;
-        shotsFired = 0;
         shotQueue.clear();
         currentShot = null;
         abilityPending = false;
         abilityUsedThisAttempt = false;
-        weaponSwapLogged = null;
     }
 
     // ------------------------------------------------------------------
@@ -507,14 +459,12 @@ public final class AutoI4Feature {
         }
         Weapon weapon = cfg.getAutoI4Weapon();
         if (isWeapon(player.getMainHandItem(), weapon)) {
-            weaponSwapLogged = null;
             return false;
         }
         String wait = I4AutoMask.isBusy() ? "a mask menu swap is in progress"
                 : now - externalSlotChangeMs < EXTERNAL_SWAP_GRACE_MS ? "hotbar was just changed by something else"
                 : now - lastWeaponSwapMs < WEAPON_SWAP_GAP_MS ? "min gap since the last weapon swap" : null;
         if (wait != null) {
-            logWeaponSwapOnce("Auto Swap To Bow waiting - " + wait + " (held " + I4SensorsFeature.itemDesc(player.getMainHandItem()) + ").");
             return false;
         }
         int found = -1;
@@ -525,28 +475,14 @@ public final class AutoI4Feature {
             }
         }
         if (found < 0) {
-            logWeaponSwapOnce("Auto Swap To Bow: no " + weapon.label + " (id " + weapon.skyblockId + " or name \""
-                    + weapon.nameFallback + "\") in the hotbar.");
             return false;
         }
-        int from = player.getInventory().getSelectedSlot();
-        String heldBefore = I4SensorsFeature.itemDesc(player.getMainHandItem());
         player.getInventory().setSelectedSlot(found);
         player.connection.send(new ServerboundSetCarriedItemPacket(found));
         weSwappedSlot = true;
         lastSeenSlot = found;
         lastWeaponSwapMs = now;
-        weaponSwapLogged = null;
-        LOGGER.info("{} {} Auto Swap To Bow: slot {} -> {} ({} -> {}).", TAG, I4SensorsFeature.clock(), from, found,
-                heldBefore, I4SensorsFeature.itemDesc(player.getInventory().getItem(found)));
         return true;
-    }
-
-    private static void logWeaponSwapOnce(String line) {
-        if (!line.equals(weaponSwapLogged)) {
-            weaponSwapLogged = line;
-            LOGGER.info("{} {} {}", TAG, I4SensorsFeature.clock(), line);
-        }
     }
 
     /** Running, not paused: fires the pending Rapid Fire left click once the Machine Gun Shortbow is in hand. */
@@ -559,27 +495,15 @@ public final class AutoI4Feature {
             return;
         }
         if (!isWeapon(player.getMainHandItem(), Weapon.MACHINE_GUN_SHORTBOW)) {
-            String line = "Rapid Fire waiting - not holding a Machine Gun Shortbow (held "
-                    + I4SensorsFeature.itemDesc(player.getMainHandItem()) + ").";
-            if (!line.equals(abilityWaitLogged)) {
-                abilityWaitLogged = line;
-                LOGGER.info("{} {} {}", TAG, I4SensorsFeature.clock(), line);
-            }
             return;
         }
         long now = System.currentTimeMillis();
-        long sincePrevious = abilityActivatedAtMs > 0 ? now - abilityActivatedAtMs : -1;
         // Left click in the air = an arm swing packet (what vanilla sends for a miss); the wall is out of reach.
         player.swing(InteractionHand.MAIN_HAND);
         abilityPending = false;
         abilityUsedThisAttempt = true;
         abilityActivatedAtMs = now;
         abilityHoldUntilMs = now + RAPID_FIRE_DURATION_MS;
-        LOGGER.info("{} {} Rapid Fire ACTIVATED (left click) holding {} - no swaps for {}ms. Previous activation {}{}.", TAG,
-                I4SensorsFeature.clock(), I4SensorsFeature.itemDesc(player.getMainHandItem()), RAPID_FIRE_DURATION_MS,
-                sincePrevious < 0 ? "none" : sincePrevious + "ms ago",
-                sincePrevious >= 0 && sincePrevious < RAPID_FIRE_COOLDOWN_MS
-                        ? " - likely still on its 100s cooldown (wiki), may not fire" : "");
     }
 
     // ------------------------------------------------------------------
@@ -616,7 +540,6 @@ public final class AutoI4Feature {
     private static void startShot(Minecraft client, I4SensorsConfig cfg, LocalPlayer player, BlockPos target) {
         boolean prediction = !target.equals(activeTarget);
         if (!prediction && !isLit(client, target)) {
-            LOGGER.info("{} {} Skipping shot at #{} - no longer lit.", TAG, I4SensorsFeature.clock(), indexOf(target));
             return;
         }
         Vec3 aim = aimPointFor(target);
@@ -624,13 +547,10 @@ public final class AutoI4Feature {
         // too high or too low so the arrow misses. Rows are 2 blocks apart, so ~1 block up/down lands the arrow in
         // the empty gap between rows instead of on a neighbouring target. A missed target stays lit and gets
         // picked up again by the normal re-shoot logic.
-        String missNote = "";
         int accuracy = cfg.getShotAccuracyPercent();
         if (accuracy < 100 && Math.random() * 100.0 >= accuracy) {
             double offset = (0.9 + Math.random() * 0.2) * (Math.random() < 0.5 ? -1.0 : 1.0);
             aim = aim.add(0.0, offset, 0.0);
-            missNote = String.format(java.util.Locale.US, " MISS ROLL (accuracy %d%%): aim %s by %.2f", accuracy,
-                    offset > 0 ? "high" : "low", Math.abs(offset));
         }
         Vec3 eye = player.getEyePosition();
         Vec3 diff = aim.subtract(eye);
@@ -646,10 +566,6 @@ public final class AutoI4Feature {
                 && Math.abs(targetPitch - currentPitch) <= ALREADY_AIMED_TOLERANCE_DEG;
         long duration = cfg.isAutoI4Rotate() && !alreadyAimed ? cfg.getAutoI4RotationTimeMs() : 0L;
         currentShot = new Shot(target, prediction, aim, currentYaw, currentPitch, targetYaw, targetPitch, duration);
-        LOGGER.info("{} {} Aiming at #{}{} aimPoint={} eye={} yaw {} -> {} pitch {} -> {} ({}, {}, {}ms){}.", TAG,
-                I4SensorsFeature.clock(), indexOf(target), prediction ? " (PREDICTION)" : "", I4SensorsFeature.fmt(aim),
-                I4SensorsFeature.fmt(eye), fmt2(currentYaw), fmt2(targetYaw), fmt2(currentPitch), fmt2(targetPitch),
-                cfg.getAutoI4Weapon().label, cfg.isAutoI4Rotate() ? "Rotate" : "No Rotate", duration, missNote);
     }
 
     /** Rotate mode - runs every render frame so the turn is as smooth as real mouse look. */
@@ -699,14 +615,6 @@ public final class AutoI4Feature {
         } else if (cfg.isAutoI4Rotate()) {
             // Mid-turn (or nothing to aim at yet): a plain click wherever the camera is pointing.
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            I4SensorsFeature.noteAutoShot(now);
-            spamClicks++;
-            if (now - lastSpamLogAtMs >= 1000L) {
-                lastSpamLogAtMs = now;
-                LOGGER.info("{} {} Clicking at ~{} CPS: {} un-aimed click(s) so far this attempt (shot {}).", TAG,
-                        I4SensorsFeature.clock(), String.format(java.util.Locale.US, "%.1f", sessionBaseCps), spamClicks,
-                        shot == null ? "none queued" : "still turning to #" + indexOf(shot.target));
-            }
         }
     }
 
@@ -732,18 +640,9 @@ public final class AutoI4Feature {
     }
 
     private static void onFired(Minecraft client, Shot shot, String mode, InteractionResult result, long aimMs) {
-        long now = System.currentTimeMillis();
-        I4SensorsFeature.noteAutoShot(now);
-        long sincePrevious = lastFireAtMs > 0 ? now - lastFireAtMs : -1;
-        lastFireAtMs = now;
-        shotsFired++;
         if (shot.target.equals(activeTarget) || (activeTarget != null && covers(shot.aimPoint, activeTarget))) {
             lastShotAtActiveMs = System.currentTimeMillis();
         }
-        LOGGER.info("{} {} FIRED shot #{} at #{}{} ({}) after {}ms aim, {}ms since previous shot - yaw={} pitch={} useItem={} targetNow={}", TAG,
-                I4SensorsFeature.clock(), shotsFired, indexOf(shot.target), shot.prediction ? " (PREDICTION)" : "",
-                mode, aimMs, sincePrevious, fmt2(shot.targetYaw), fmt2(shot.targetPitch), result,
-                I4SensorsFeature.blockId(client.level.getBlockState(shot.target)));
     }
 
     /** Noamm's getPredictionTarget: prefer one of a horizontally adjacent pair of still-unhit blocks, avoid
@@ -758,13 +657,8 @@ public final class AutoI4Feature {
             }
         }
         if (valid.isEmpty()) {
-            if (!noPredictionLogged) {
-                LOGGER.info("{} {} No prediction - no unhit blue_terracotta targets left.", TAG, I4SensorsFeature.clock());
-                noPredictionLogged = true; // continuous prefire asks every tick - log the dry spell once
-            }
             return null;
         }
-        noPredictionLogged = false;
         // Least-prefired spots first (continuous prefire cycles through every remaining spot instead of hammering one).
         int fewest = Integer.MAX_VALUE;
         for (BlockPos pos : valid) {
@@ -788,8 +682,6 @@ public final class AutoI4Feature {
         List<BlockPos> pool = paired.isEmpty() ? candidates : paired;
         BlockPos chosen = pool.get((int) (Math.random() * pool.size()));
         predictionCounts.merge(chosen, 1, Integer::sum);
-        LOGGER.info("{} {} Prediction after #{}: #{} (from {} {} candidates).", TAG, I4SensorsFeature.clock(),
-                indexOf(lastLit), indexOf(chosen), pool.size(), paired.isEmpty() ? "unpaired" : "paired");
         return chosen;
     }
 
@@ -818,9 +710,5 @@ public final class AutoI4Feature {
 
     private static double easeInOutCubic(double t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    }
-
-    private static String fmt2(float v) {
-        return String.format(java.util.Locale.US, "%.2f", v);
     }
 }

@@ -11,8 +11,6 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -29,7 +27,6 @@ import java.util.List;
  */
 public final class MageBeamFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonextras");
     private static final double POINT_SPACE = 0.5;
     private static final int MIN_POINTS = 6;
 
@@ -44,7 +41,6 @@ public final class MageBeamFeature {
         final long createdTick;
         final long createdMs;
         long updateTick;
-        boolean logged;
 
         Beam(Vec3 point, long tick) {
             points.add(point);
@@ -112,10 +108,6 @@ public final class MageBeamFeature {
         if (last != null && tick - last.updateTick <= 1 && last.inLine(point)) {
             last.points.add(point);
             last.updateTick = tick;
-            if (!last.logged && last.points.size() >= MIN_POINTS) {
-                last.logged = true;
-                LOGGER.info("[DungeonExtras] Mage beam detected from {} (first {} points).", last.min(), MIN_POINTS);
-            }
         } else {
             BEAMS.add(new Beam(point, tick));
         }

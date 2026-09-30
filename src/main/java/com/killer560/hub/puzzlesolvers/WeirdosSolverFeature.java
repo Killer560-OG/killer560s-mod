@@ -70,7 +70,7 @@ public final class WeirdosSolverFeature {
     );
 
     // [WeirdosSolver] diagnostics - logging only (chat-rate).
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
 
     private static volatile BlockPos correctPos = null;
     private static final Set<BlockPos> wrongPositions = ConcurrentHashMap.newKeySet();
@@ -99,16 +99,9 @@ public final class WeirdosSolverFeature {
             com.killer560.hub.roomdatabase.RoomEntry room = LiveMapFeature.currentRoomEntry();
             if (room != lastRoomEntry) {
                 lastRoomEntry = room;
-                if (correctPos != null || !wrongPositions.isEmpty()) {
-                    LOGGER.info("[WeirdosSolver] Reset - left the room the answer belonged to");
-                }
                 reset();
             }
             if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || inBoss) {
-                if (correctPos != null || !wrongPositions.isEmpty()) {
-                    LOGGER.info("[WeirdosSolver] Reset (enabled={} inDungeon={} inBoss={})",
-                            WeirdosSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), inBoss);
-                }
                 reset();
             }
         }));
@@ -136,24 +129,11 @@ public final class WeirdosSolverFeature {
 
         boolean isSolution = SOLUTIONS.stream().anyMatch(p -> p.matcher(dialogue).matches());
         boolean isWrong = !isSolution && WRONG.stream().anyMatch(p -> p.matcher(dialogue).matches());
-        RoomEntry room = LiveMapFeature.currentRoomEntry();
-        if (room != null && "Three Weirdos".equals(room.name)) {
-            LOGGER.info("[WeirdosSolver] NPC line: npc=\"{}\" dialogue=\"{}\" isSolution={} isWrong={}",
-                    npc, dialogue, isSolution, isWrong);
-        } else if (isSolution || isWrong) {
-            // A recognised weirdos line while the room is NOT identified as Three Weirdos. Logged because the
-            // gate above would otherwise hide exactly the case being chased - a line that arrives before the
-            // room resolves is invisible in the log AND gets no highlight.
-            LOGGER.info("[WeirdosSolver] NPC line with the room unresolved: npc=\"{}\" room={} isSolution={}",
-                    npc, room == null ? "null" : room.name, isSolution);
-        }
         if (!isSolution && !isWrong) {
             return;
         }
 
         BlockPos chestPos = findChestPos(npc);
-        LOGGER.info("[WeirdosSolver] Chest for \"{}\" -> {} (clayRot={})", npc, chestPos,
-                java.util.Arrays.toString(LiveMapFeature.currentRoomClayAndRotation()));
         if (chestPos == null) {
             return;
         }

@@ -38,12 +38,6 @@ public final class DoorKeysFeature {
     private static Entity currentKey = null;
     private static float[] currentColor = null;
 
-    // [DoorKeys] diagnostics - logging only.
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-doorkeys");
-    private static String lastLoggedGates = null;
-    private static Entity lastLoggedKey = null;
-    private static final java.util.Set<String> loggedNearMissNames = new java.util.HashSet<>();
-
     private DoorKeysFeature() {
     }
 
@@ -70,29 +64,8 @@ public final class DoorKeysFeature {
                         .build())).createRenderSetup());
     }
 
-    private static void logKeyDiagnostics() {
-        DoorKeysConfig cfg = DoorKeysConfig.getInstance();
-        String gates = "enabled=" + cfg.isEnabled() + " wither=" + cfg.isHighlightWither() + " blood=" + cfg.isHighlightBlood()
-                + " inDungeon=" + DungeonState.isInDungeon() + " bossPhase=" + DungeonState.isBossPhaseActive();
-        if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[DoorKeys] Gates changed: {}", gates);
-            lastLoggedGates = gates;
-        }
-        if (currentKey != lastLoggedKey) {
-            if (currentKey != null) {
-                LOGGER.info("[DoorKeys] Tracking key \"{}\" id={} at {}", currentKey.getName().getString(),
-                        currentKey.getId(), currentKey.blockPosition());
-            } else {
-                LOGGER.info("[DoorKeys] No key tracked (previous removed={})",
-                        lastLoggedKey != null && lastLoggedKey.isRemoved());
-            }
-            lastLoggedKey = currentKey;
-        }
-    }
-
     private static void tick(Minecraft client) {
         tickInner(client);
-        logKeyDiagnostics();
     }
 
     private static void tickInner(Minecraft client) {
@@ -113,11 +86,6 @@ public final class DoorKeysFeature {
             String name = ChatFormatting.stripFormatting(entity.getName().getString());
             if (name == null) {
                 continue;
-            }
-            if (name.contains("Key") && !"Wither Key".equals(name) && !"Blood Key".equals(name)
-                    && loggedNearMissNames.size() < 50 && loggedNearMissNames.add(name)) {
-                LOGGER.info("[DoorKeys] Armor stand with 'Key' in name did not exactly match: \"{}\" at {}",
-                        name, entity.blockPosition());
             }
             if ("Wither Key".equals(name) && cfg.isHighlightWither()) {
                 currentKey = entity;

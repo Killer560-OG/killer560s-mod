@@ -9,7 +9,7 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -53,7 +53,7 @@ import java.util.regex.Pattern;
  */
 public final class BreakerAuraStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-breakeraura");
+    private static final Logger LOGGER = ModLog.get("killer560smod-breakeraura");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     /** The folder every config file lives in, inside the config dir. */
     private static final String FOLDER_NAME = "killer560smod-breakeraura";

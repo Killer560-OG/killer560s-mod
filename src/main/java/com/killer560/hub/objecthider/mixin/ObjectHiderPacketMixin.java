@@ -5,7 +5,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -83,6 +83,6 @@ public abstract class ObjectHiderPacketMixin {
     // closed to a log line and let vanilla handle the packet - see BloodCampPacketMixin for the real case.
     @Unique
     private static void killer560smod$objectHider$hookThrew(String what, RuntimeException e) {
-        LoggerFactory.getLogger("killer560smod-objecthider").error("[ObjectHider] {} packet hook threw", what, e);
+        ModLog.get("killer560smod-objecthider").error("[ObjectHider] {} packet hook threw", what, e);
     }
 }

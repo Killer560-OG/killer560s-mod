@@ -17,7 +17,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +51,7 @@ public final class CustomScoreboardFeature {
 
     public static final String ELEMENT_ID = "custom_scoreboard";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-customscoreboard");
+    private static final Logger LOGGER = ModLog.get("killer560smod-customscoreboard");
     private static final long UNKNOWN_LINES_WORLD_GRACE_MS = 3000L;
     private static final long ISLAND_SWITCH_CACHE_MS = 6000L;
     private static final long UNKNOWN_WARNING_COOLDOWN_MS = 10_000L;
@@ -269,7 +269,6 @@ public final class CustomScoreboardFeature {
         for (String line : unknown) {
             if (warnedUnknown.add(line)) {
                 lastUnknownWarningMs = now;
-                LOGGER.info("[CustomScoreboard] Unknown scoreboard line: {}", line);
                 ModChat.send("Custom Scoreboard", ModChat.text("Unknown scoreboard line: "),
                         Component.literal(line));
                 return;

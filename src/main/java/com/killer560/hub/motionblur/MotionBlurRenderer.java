@@ -26,7 +26,7 @@ import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.Reader;
 import java.util.List;
@@ -60,7 +60,7 @@ import java.util.Optional;
  */
 public final class MotionBlurRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-motionblur");
+    private static final Logger LOGGER = ModLog.get("killer560smod-motionblur");
 
     private static final Identifier CHAIN_ID = Identifier.fromNamespaceAndPath("killer560smod", "motion_blur");
     private static final Identifier CHAIN_JSON =

@@ -10,7 +10,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Auto Door Opener (cheat build only; QUOI {@code AutoDoorOpener.kt}) - owns the shared gating (QUOI
@@ -23,10 +23,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class DoorHelpersFeature {
 
-    static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-doorhelpers");
+    static final Logger LOGGER = ModLog.get("killer560smod-doorhelpers");
 
     private static boolean wasInClear = false;
-    private static String lastGateLog = null;
 
     private DoorHelpersFeature() {
     }
@@ -51,7 +50,6 @@ public final class DoorHelpersFeature {
             AutoDoorOpenerFeature.cancelPending("left clear (" + gate + ")");
         }
         wasInClear = inClear;
-        logGate(gate == null ? "active" : gate);
         if (!inClear) {
             return;
         }
@@ -91,12 +89,5 @@ public final class DoorHelpersFeature {
         }
         ItemStack first = client.player.getInventory().getItem(0);
         return !first.isEmpty() && first.getHoverName().getString().contains("Haunt");
-    }
-
-    private static void logGate(String gate) {
-        if (!gate.equals(lastGateLog)) {
-            lastGateLog = gate;
-            LOGGER.info("[DoorHelpers] state: {}", gate);
-        }
     }
 }

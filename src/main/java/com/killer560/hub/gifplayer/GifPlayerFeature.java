@@ -10,7 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,7 +34,7 @@ import java.util.stream.Stream;
  */
 public final class GifPlayerFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-gifplayer");
+    private static final Logger LOGGER = ModLog.get("killer560smod-gifplayer");
     private static final int MAX_DISPLAY_SIZE = 256;
 
     private static final Path GIF_FOLDER =

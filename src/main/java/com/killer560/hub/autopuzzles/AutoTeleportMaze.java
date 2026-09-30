@@ -11,7 +11,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +41,7 @@ import java.util.Set;
  */
 final class AutoTeleportMaze {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Teleport Maze";
     private static final long WALK_TIMEOUT_MS = 3000L;
     private static final long FINISH_WALK_TIMEOUT_MS = 5000L;
@@ -124,11 +124,9 @@ final class AutoTeleportMaze {
                 client.options.keyUp.setDown(true);
                 walking = true;
                 walkStartMs = System.currentTimeMillis();
-                LOGGER.info("[AutoPuzzles] TeleportMaze: walking to pad {}", target);
             } else {
                 stop(client);
                 if (isAtEndPad(player.position())) {
-                    LOGGER.info("[AutoPuzzles] TeleportMaze: landed on the end pad - maze solved, starting finish sequence");
                     finishStage = FinishStage.AURA_CHEST;
                     finishStageStartMs = System.currentTimeMillis();
                     auraAttempts = 0;
@@ -178,7 +176,6 @@ final class AutoTeleportMaze {
                         : PuzzleCoords.real(outsideRel[0], outsideRel[1], outsideRel[2], cr);
                 boolean done = walkFinishLeg(client, player, outside, FinishStage.DONE, "the door");
                 if (done && finishStage == FinishStage.DONE) {
-                    LOGGER.info("[AutoPuzzles] TeleportMaze: walked out of the room - done");
                     ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: "), ModChat.good("done"),
                             ModChat.text("."));
                 }
@@ -216,7 +213,6 @@ final class AutoTeleportMaze {
             LOGGER.warn("[AutoPuzzles] TeleportMaze: no clickable shape at {} (attempt {}/{})", target, auraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
-        LOGGER.info("[AutoPuzzles] TeleportMaze: aura'd chest at {}", target);
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: aura'd the "), ModChat.good("secret chest"),
                 ModChat.text("."));
         finishStage = FinishStage.WALK_TO_EXIT_PAD;

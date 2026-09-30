@@ -6,7 +6,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -63,7 +63,7 @@ public abstract class OutboundBreakMixin {
 
     @Unique
     private static void killer560smod$outbound$threw(Throwable t) {
-        LoggerFactory.getLogger("killer560smod-dungeonextras")
+        ModLog.get("killer560smod-dungeonextras")
                 .error("[DungeonExtras] outbound packet probe threw - it is read-only, so the packet still went", t);
     }
 }

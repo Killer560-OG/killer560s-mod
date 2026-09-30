@@ -1,7 +1,7 @@
 package com.killer560.hub.experiments;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -69,7 +69,7 @@ import java.util.regex.Pattern;
  */
 final class ExperimentSolver {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-experiments-solver");
+    private static final Logger LOGGER = ModLog.get("killer560smod-experiments-solver");
 
     enum Mode { NONE, CHRONOMATRON, ULTRASEQUENCER, SUPERPAIRS }
 
@@ -204,8 +204,6 @@ final class ExperimentSolver {
     private static final long SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS = 3000;
     /** Samples above this are clamped before entering the EMA, so one freak stall can't poison it. */
     private static final long SUPERPAIRS_MAX_LATENCY_SAMPLE_MS = SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS;
-    /** Log a state-change line only when the effective timeout moves by more than this. */
-    private static final long SUPERPAIRS_TIMEOUT_LOG_THRESHOLD_MS = 25;
     /** Session-wide (NOT reset per board, same as TerminalSolverFeature's confirmLatencyEmaMs) EMA of real
      *  send -> observed-slot-change latency for Superpairs clicks; -1 until the first sample. */
     private static double superpairsConfirmLatencyEmaMs = -1;
@@ -213,7 +211,6 @@ final class ExperimentSolver {
      *  ExperimentsFeature; -1 if unknown. Used as a floor under the EMA (tab ping excludes server-side
      *  processing and tick granularity, so it can only under-estimate the real confirm round-trip). */
     private static int superpairsTabListLatencyMs = -1;
-    private static long superpairsLastLoggedTimeoutMs = SUPERPAIRS_CONFIRM_TIMEOUT_MS;
     /** A non-powerup click that timed out is still watched for a LATE confirm (up to the adaptive max) so
      *  slow confirms still feed the EMA - otherwise a short timeout would censor exactly the slow samples
      *  it needs in order to grow. Cleared once sampled, expired, re-clicked, or on board reset. */
@@ -652,7 +649,6 @@ final class ExperimentSolver {
             Cell late = bySlot.get(superpairsLateConfirmSlot);
             long lateLatency = now - superpairsLateConfirmSentAtMs;
             if (superpairsSlotChanged(superpairsLateConfirmPriorCell, late)) {
-                LOGGER.info("Superpairs slot {} confirmed LATE, {}ms after send", superpairsLateConfirmSlot, lateLatency);
                 recordSuperpairsConfirmLatency(lateLatency);
                 superpairsLateConfirmSlot = null;
                 superpairsLateConfirmPriorCell = null;
@@ -773,14 +769,6 @@ final class ExperimentSolver {
                 }
                 continue;
             }
-            // Diagnostic (2026-09-07): logged only the first time a slot is learned, to correlate
-            // against the confirm-timeout warnings above - if a slot logs "learned" here shortly after
-            // (or well after) its own click timed out above, that proves the reveal DID land and the
-            // confirm-check itself has the bug; if it never logs at all, the reveal genuinely never
-            // happened for that slot.
-            if (!knownSuperpairsCells.containsKey(slot)) {
-                LOGGER.info("Superpairs learned slot {}: itemId={} name='{}'", slot, cell.itemId(), cell.name());
-            }
             knownSuperpairsCells.put(slot, cell);
         }
     }
@@ -846,7 +834,7 @@ final class ExperimentSolver {
 
     /** @return the effective Superpairs confirm timeout. Adaptive Timeout off, or no latency sample yet
      *  (neither a confirmed click nor a tab-list ping): the flat {@link #SUPERPAIRS_CONFIRM_TIMEOUT_MS}.
-     *  Otherwise clamp(K * max(confirmEma, tabPing) + margin). Logs whenever the value moves > 25ms. */
+     *  Otherwise clamp(K * max(confirmEma, tabPing) + margin). */
     static long superpairsConfirmTimeoutMs() {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         long timeout = SUPERPAIRS_CONFIRM_TIMEOUT_MS;
@@ -854,12 +842,6 @@ final class ExperimentSolver {
         if (cfg.isSuperpairsAdaptiveTimeout() && estimate > 0) {
             long raw = Math.round(SUPERPAIRS_ADAPTIVE_LATENCY_MULTIPLIER * estimate) + cfg.getSuperpairsTimeoutMarginMs();
             timeout = Math.max(SUPERPAIRS_ADAPTIVE_MIN_TIMEOUT_MS, Math.min(SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS, raw));
-        }
-        if (Math.abs(timeout - superpairsLastLoggedTimeoutMs) > SUPERPAIRS_TIMEOUT_LOG_THRESHOLD_MS) {
-            LOGGER.info("Superpairs confirm timeout {}ms -> {}ms (adaptive={}, confirmLatencyEma={}ms, tabListPing={}ms, margin={}ms)",
-                    superpairsLastLoggedTimeoutMs, timeout, cfg.isSuperpairsAdaptiveTimeout(),
-                    Math.round(superpairsConfirmLatencyEmaMs), superpairsTabListLatencyMs, cfg.getSuperpairsTimeoutMarginMs());
-            superpairsLastLoggedTimeoutMs = timeout;
         }
         return timeout;
     }

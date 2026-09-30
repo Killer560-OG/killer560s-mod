@@ -7,7 +7,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -36,7 +36,7 @@ import java.util.List;
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin extends Screen {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-rngmeter-tooltip");
+    private static final Logger LOGGER = ModLog.get("killer560smod-rngmeter-tooltip");
 
     protected AbstractContainerScreenMixin(Component title) {
         super(title);

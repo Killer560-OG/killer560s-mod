@@ -2,7 +2,7 @@ package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.util.ModChat;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Per-auto safety bookkeeping shared by the Auto Puzzles ports:
@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  */
 final class AutoGuard {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
 
     private final String autoName;
     private final String solverName;
@@ -53,7 +53,6 @@ final class AutoGuard {
         }
         if (!solverOffWarned) {
             solverOffWarned = true;
-            LOGGER.info("[AutoPuzzles] {}: in room but {} is OFF - the auto needs it", autoName, solverName);
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text(autoName + " needs "), ModChat.value(solverName),
                     ModChat.text(" turned on."));
         }

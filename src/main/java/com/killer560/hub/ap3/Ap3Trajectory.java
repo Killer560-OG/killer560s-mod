@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -27,7 +27,7 @@ import java.nio.file.Path;
  */
 public final class Ap3Trajectory {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3-route");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ap3-route");
     /** Long enough for any single movement, short enough that a forgotten recording cannot eat memory. */
     private static final int MAX_TICKS = 400;
 
@@ -47,7 +47,6 @@ public final class Ap3Trajectory {
         recording = true;
         ticks = new JsonArray();
         count = 0;
-        LOGGER.info("[AP3 trajectory] recording started");
         return true;
     }
 
@@ -107,7 +106,6 @@ public final class Ap3Trajectory {
                     .resolve("config").resolve("killer560smod").resolve("ap3-trajectory.json");
             Files.createDirectories(f.getParent());
             Files.writeString(f, root.toString(), StandardCharsets.UTF_8);
-            LOGGER.info("[AP3 trajectory] wrote {} ticks to {}", ticks.size(), f.getFileName());
             ModChat.send("AP3", ModChat.text("Recorded "), ModChat.value(ticks.size() + " ticks"),
                     ModChat.dim(" to ap3-trajectory.json"));
         } catch (Throwable t) {

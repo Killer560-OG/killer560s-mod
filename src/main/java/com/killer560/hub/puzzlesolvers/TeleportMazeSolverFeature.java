@@ -14,8 +14,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,7 +32,6 @@ import java.util.Set;
  */
 public final class TeleportMazeSolverFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-puzzles");
     private static final String ROOM = "Teleport Maze";
 
     private static final int[][] PADS = {
@@ -132,23 +129,6 @@ public final class TeleportMazeSolverFeature {
             }
             realCells.add(cell);
         }
-        // killer560, 2026-09-20: "white hitboxes appear far away, off-centre from the actual maze area".
-        // The 30 relative PADS coordinates above are byte-for-byte identical to QUOI's own
-        // endPortalFrameLocations/cells (both are the same fixed OdinFabric-derived layout), so this logs
-        // the real-world bounding box of every transformed pad next to the player's own position - if the
-        // reported bug is real, this range will sit well away from where the player actually is standing,
-        // which would point at RoomDatabase's clay/rotation transform (see staging notes; not owned by
-        // this file) rather than the pad data itself.
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
-        for (BlockPos pad : tpPads) {
-            minX = Math.min(minX, pad.getX());
-            maxX = Math.max(maxX, pad.getX());
-            minZ = Math.min(minZ, pad.getZ());
-            maxZ = Math.max(maxZ, pad.getZ());
-        }
-        Vec3 playerPos = client.player != null ? client.player.position() : null;
-        LOGGER.info("[TeleportMazeSolver] Entered maze (clayRot={},{},{}) - {} pads, real bounds x=[{},{}] z=[{},{}], player={}",
-                cr[0], cr[1], cr[2], tpPads.size(), minX, maxX, minZ, maxZ, playerPos);
     }
 
     /** From {@code PuzzlePacketMixin}, main thread, before vanilla applies the teleport. */
@@ -173,8 +153,6 @@ public final class TeleportMazeSolverFeature {
         getCorrectPortals(client, pos, yaw, packet.change().xRot());
         best = getBestPad(pos, yaw);
         teleportSeq++;
-        LOGGER.info("[TeleportMazeSolver] Teleport to {} yaw={} - visited={} candidates={} best={}",
-                pos, yaw, visited.size(), correctPortals.size(), best);
     }
 
     private static void getCorrectPortals(Minecraft client, Vec3 pos, float yaw, float pitch) {

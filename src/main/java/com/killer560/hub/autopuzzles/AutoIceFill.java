@@ -10,8 +10,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +26,6 @@ import java.util.List;
  */
 final class AutoIceFill {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
     private static final String ROOM = "Ice Fill";
     private static final double EPS = 1e-4;
 
@@ -71,7 +68,6 @@ final class AutoIceFill {
         if (IceFillSolverConfig.getInstance().isOptimizedPath()) {
             if (!optimizedWarned) {
                 optimizedWarned = true;
-                LOGGER.info("[AutoPuzzles] IceFill: solver Optimized Path is ON - QUOI's auto only uses the easy path");
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Ice Fill needs the solver's "),
                         ModChat.value("Optimized Path"), ModChat.text(" turned off."));
             }
@@ -91,7 +87,6 @@ final class AutoIceFill {
             done = true;
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
-            LOGGER.info("[AutoPuzzles] IceFill: puzzle complete");
             return;
         }
         if (REPOSITION.isActive()) {
@@ -157,7 +152,6 @@ final class AutoIceFill {
             // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the
             // 6-tick teleport window would override the 2-tick Delay setting on every single step of the path.
             com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
-            LOGGER.info("[AutoPuzzles] IceFill: teleport {} -> {} ({}/{})", current, next, lastIndex + 1, path.size() - 1);
             lastIndex++;
             ticks = 0;
         } else {

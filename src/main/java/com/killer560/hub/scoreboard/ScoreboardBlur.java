@@ -14,7 +14,7 @@ import net.minecraft.client.renderer.state.gui.ColoredRectangleRenderState;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Real background blur behind the Custom Scoreboard - the approach of SkyBlock Custom Scoreboard's
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class ScoreboardBlur {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-customscoreboard");
+    private static final Logger LOGGER = ModLog.get("killer560smod-customscoreboard");
 
     private static RenderPipeline pipeline;
     private static TextureTarget target;

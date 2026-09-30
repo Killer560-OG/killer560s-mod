@@ -257,7 +257,6 @@ public final class Floor7Tracker {
         if (newStage != null && oldStage != Stage.UNKNOWN && listener != null) {
             listener.onStageCompleteFull(oldStage);
         }
-        FastLeapFeature.LOGGER.info("[FastLeap] F7 state -> phase={} stage={}", phase, stage);
     }
 
     public static Phase getPhase() {

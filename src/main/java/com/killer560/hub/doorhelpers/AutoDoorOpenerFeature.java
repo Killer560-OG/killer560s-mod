@@ -46,8 +46,6 @@ public final class AutoDoorOpenerFeature {
     private static final int PENDING_WINDOW_TICKS = 60;
 
     private static long lastClick = 0L;
-    private static BlockPos lastLoggedPos = null;
-    private static long lastLogMs = 0L;
 
     private static int pendingTicks = 0;
     private static DoorScanner.DoorType pendingType = null;
@@ -159,13 +157,6 @@ public final class AutoDoorOpenerFeature {
             // One click is the whole point now - stop trying for this pickup rather than keep retrying
             // every Retry delay for the rest of the window.
             pendingTicks = 0;
-        }
-        if (!doorPos.equals(lastLoggedPos) || now - lastLogMs >= 5000L) {
-            lastLoggedPos = doorPos;
-            lastLogMs = now;
-            DoorHelpersFeature.LOGGER.info("[DoorHelpers] Auto Door Opener {} {} at {} ({})",
-                    cfg.getAutoDoorMode(), sent ? "clicked" : "had no hit on", doorPos.toShortString(),
-                    client.level.getBlockState(doorPos).getBlock());
         }
     }
 

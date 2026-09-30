@@ -79,7 +79,6 @@ final class RoomAlerts {
             clearedAlerted.add(idx);
             RoomEntry entry = LiveMapFeature.roomEntryAt(idx);
             String name = entry != null && entry.name != null ? entry.name : "Room";
-            DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Room Cleared alert: \"{}\"", name);
             fireAlert(cfg, name + " Cleared!");
         }
     }
@@ -95,7 +94,6 @@ final class RoomAlerts {
         }
         secretsAlerted.add(entry);
         String name = entry.name != null ? entry.name : "Room";
-        DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Secrets Done alert: \"{}\" ({}/{})", name, found, entry.secrets);
         fireAlert(cfg, name + " Secrets Done!");
     }
 

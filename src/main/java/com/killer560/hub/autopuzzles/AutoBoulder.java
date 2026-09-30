@@ -12,7 +12,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Auto Boulder - REDONE ENTIRELY (killer560, 2026-09-27): "redo auto boulder in its entirety. It should instead be
@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  */
 final class AutoBoulder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Boulder";
     /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
     private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
@@ -134,8 +134,6 @@ final class AutoBoulder {
         standReal = RoomDatabase.toRealCoord(standRel, cr[0], cr[1], cr[2]);
         int[] exitRel = AutoClearUtils.roomOverride(ROOM);
         exitReal = exitRel == null ? null : PuzzleCoords.real(exitRel[0], exitRel[1], exitRel[2], cr);
-        LOGGER.info("[AutoPuzzles] Boulder: chest at {} (relative {},{},{}) - standing spot {}, exit {}",
-                chestReal, chestRel.x, chestRel.y, chestRel.z, standReal, exitReal);
         legStartMs = System.currentTimeMillis();
         stage = Stage.WALK_TO_STAND;
     }
@@ -169,7 +167,6 @@ final class AutoBoulder {
         }
         if (!AutoPuzzleUtil.pathIfMapOn(target, null) && !mapOffWarned) {
             mapOffWarned = true;
-            LOGGER.info("[AutoPuzzles] Boulder: Interactive Map is off - can't walk to {}", label);
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Boulder needs "), ModChat.value("Interactive Map"),
                     ModChat.text(" on to walk to " + label + "."));
         }
@@ -218,7 +215,6 @@ final class AutoBoulder {
             LOGGER.warn("[AutoPuzzles] Boulder: no clickable shape at {} (attempt {}/{})", target, auraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
-        LOGGER.info("[AutoPuzzles] Boulder: aura'd chest at {}", target);
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Boulder: aura'd the "), ModChat.good("secret chest"),
                 ModChat.text("."));
         stage = Stage.WALK_TO_EXIT;

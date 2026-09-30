@@ -78,23 +78,12 @@ import net.minecraft.world.phys.Vec3;
 public final class EtherwarpOverlayFeature {
 
     private static final String ETHERWARP_CONDUIT_ID = "ETHERWARP_CONDUIT";
-    private static final int PASSABLE = 1;
-    private static final int BLOCKS_FEET = 2;
 
     private record EtherPos(boolean succeeded, BlockPos pos, BlockState state) {
         static final EtherPos NONE = new EtherPos(false, null, null);
     }
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-etherwarpoverlay");
-    private static String diagLastState;
-
-    /** Diagnostic only (2026-09-14) - logs only when the overlay's gate state changes, never per frame. */
-    private static void diagState(String state) {
-        if (!state.equals(diagLastState)) {
-            LOGGER.info("[EtherwarpOverlay] {}", state);
-            diagLastState = state;
-        }
-    }
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-etherwarpoverlay");
 
     private EtherwarpOverlayFeature() {
     }
@@ -113,7 +102,6 @@ public final class EtherwarpOverlayFeature {
         ItemStack mainHand = client.player.getMainHandItem();
         CompoundTag etherData = getEtherwarpData(mainHand);
         if (etherData == null) {
-            diagState("idle (main hand is not an etherwarp item)");
             return;
         }
         // Read the id off the tag getEtherwarpData already copied (2026-09-20, FPS pass): the old
@@ -122,12 +110,10 @@ public final class EtherwarpOverlayFeature {
         String diagItemId = etherData.contains("id") ? etherData.getStringOr("id", null) : null;
         boolean isConduit = ETHERWARP_CONDUIT_ID.equals(diagItemId);
         if (!client.player.isShiftKeyDown() && !isConduit) {
-            diagState("holding ether item " + diagItemId + " but not sneaking");
             return;
         }
 
         double distance = 57.0 + etherData.getIntOr("tuned_transmission", 0);
-        diagState("ACTIVE: item=" + diagItemId + " conduit=" + isConduit + " range=" + distance);
         EtherPos etherPos = getEtherPos(client.level, client.player.position(), client.player, distance);
         if (!etherPos.succeeded() && !cfg.isShowWhenFailed()) {
             return;

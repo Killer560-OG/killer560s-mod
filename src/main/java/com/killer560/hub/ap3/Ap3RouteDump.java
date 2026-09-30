@@ -4,7 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,7 +22,7 @@ import java.util.Locale;
  */
 final class Ap3RouteDump {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3-route");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ap3-route");
 
     private Ap3RouteDump() {
     }

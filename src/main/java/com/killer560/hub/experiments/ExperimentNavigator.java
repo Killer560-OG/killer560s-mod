@@ -9,7 +9,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
  */
 final class ExperimentNavigator {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-experiments-nav");
+    private static final Logger LOGGER = ModLog.get("killer560smod-experiments-nav");
     private static final String MAIN_MENU_TITLE = "Experimentation Table";
     private static final String BOTTLES_TITLE = "Bottles of Enchanting";
     private static final List<String> TIER_NAMES = List.of(
@@ -139,8 +139,6 @@ final class ExperimentNavigator {
             int autoRenewCount, double titanicMaxPriceCoins) {
         String title = screen.getTitle().getString();
         if (!title.equals(lastLoggedTitle)) {
-            LOGGER.info("Navigator sees screen \"{}\" (chronomatronDone={}, ultrasequencerDone={}, superpairsDone={})",
-                    title, chronomatronDoneThisRun, ultrasequencerDoneThisRun, superpairsDoneThisRun);
             lastLoggedTitle = title;
             // Field-tested (2026-09-06): lastNavClickAtMs started at 0, so the FIRST click the
             // navigator ever made (right after enabling autonomous mode, before any prior click had
@@ -183,9 +181,6 @@ final class ExperimentNavigator {
             if (result < 0) {
                 Slot chrono = findSlotContaining(menu, "Chronomatron");
                 boolean chronoAvailable = chrono != null && !isMainMenuEntryUnavailable(chrono.getItem());
-                if (chronomatronDoneThisRun && chronoAvailable) {
-                    LOGGER.info("Chronomatron is available again - retrying it");
-                }
                 chronomatronDoneThisRun = !chronoAvailable;
                 if (chronoAvailable) {
                     result = chrono.index;
@@ -196,9 +191,6 @@ final class ExperimentNavigator {
             if (result < 0) {
                 Slot ultra = findSlotContaining(menu, "Ultrasequencer");
                 boolean ultraAvailable = ultra != null && !isMainMenuEntryUnavailable(ultra.getItem());
-                if (ultrasequencerDoneThisRun && ultraAvailable) {
-                    LOGGER.info("Ultrasequencer is available again - retrying it");
-                }
                 ultrasequencerDoneThisRun = !ultraAvailable;
                 if (ultraAvailable) {
                     result = ultra.index;
@@ -215,9 +207,6 @@ final class ExperimentNavigator {
             if (result < 0) {
                 Slot pairs = findSlotContaining(menu, "Superpairs");
                 boolean pairsAvailable = pairs != null && !isMainMenuEntryUnavailable(pairs.getItem());
-                if (superpairsDoneThisRun && pairsAvailable) {
-                    LOGGER.info("Superpairs is available again - retrying it");
-                }
                 superpairsDoneThisRun = !pairsAvailable;
                 if (pairsAvailable) {
                     result = pairs.index;
@@ -265,14 +254,11 @@ final class ExperimentNavigator {
                                 // with menu already in hand. Just find and click it directly, same tick.
                                 Slot bottles = findSlotContaining(menu, "Experience Bottles");
                                 if (bottles != null) {
-                                    LOGGER.info("Renew Experiments is blocked by insufficient XP - opening Bottles of Enchanting directly (same menu)");
                                     result = bottles.index;
                                     reason = "open Bottles of Enchanting (need more XP)";
                                 } else {
                                     LOGGER.warn("Renew Experiments is blocked by insufficient XP but no \"Experience Bottles\" entry is showing right now");
                                 }
-                            } else {
-                                LOGGER.info("Renew Experiments can't be afforded right now - skipping it for now");
                             }
                         } else {
                             result = renew.index;
@@ -294,7 +280,6 @@ final class ExperimentNavigator {
             if (result < 0 && chronomatronDoneThisRun && ultrasequencerDoneThisRun && superpairsDoneThisRun) {
                 String exhaustedReason = renewExhaustedReason(menu, autoRenewCount, titanicMaxPriceCoins);
                 if (exhaustedReason != null) {
-                    LOGGER.info("Autonomous run has nothing left to do today: {}", exhaustedReason);
                     doneReason = "All Experiments finished for today - " + exhaustedReason;
                     result = DONE_SIGNAL;
                     stoppedForToday = true;
@@ -321,22 +306,12 @@ final class ExperimentNavigator {
             // explicit "make sure it buys titanics during any instance never grands" - every XP-bottle
             // purchase this navigator ever makes, for any reason, targets this one item.
             if (titanicPurchasedThisVisit) {
-                LOGGER.info("Already bought one Titanic Experience Bottle this visit - backing out (capped at 1 per trip)");
                 return CLOSED_SIGNAL;
             }
             if (titanicMaxPriceCoins > 0) {
                 Slot titanic = findSlotContaining(menu, "Titanic Experience Bottle");
                 if (titanic == null) {
                     LOGGER.warn("No \"Titanic Experience Bottle\" item found at all in Bottles of Enchanting");
-                } else {
-                    ItemLore lore = titanic.getItem().get(DataComponents.LORE);
-                    List<String> loreLines = new ArrayList<>();
-                    if (lore != null) {
-                        for (Component line : lore.lines()) {
-                            loreLines.add(line.getString());
-                        }
-                    }
-                    LOGGER.info("Titanic Experience Bottle lore={}", loreLines);
                 }
                 Double price = titanic != null ? readBazaarPrice(titanic.getItem()) : null;
                 // Real bug found and fixed (2026-09-06) from a real log: the navigator only ever
@@ -372,7 +347,6 @@ final class ExperimentNavigator {
                     } else {
                         priceText = price + " coins, over your " + titanicMaxPriceCoins + "-coin budget";
                     }
-                    LOGGER.info("Titanic Experience Bottle unaffordable ({}) - stopping the run instead of retrying", priceText);
                     doneReason = "Titanic Experience Bottle is unaffordable (" + priceText + ")";
                     return DONE_SIGNAL;
                 }
@@ -399,25 +373,17 @@ final class ExperimentNavigator {
             if (!midPuzzle && !runComplete && looksLikeGameScreen) {
                 TierScan scan = scanTiers(menu);
                 if (scan.betterLockedByExperience() && titanicMaxPriceCoins > 0) {
-                    LOGGER.info("A better tier on \"{}\" is locked by \"Not enough experience!\" - backing "
-                            + "out to buy a Titanic Experience Bottle instead of settling for a worse tier", title);
                     pendingTitanicPurchase = true;
                     return CLOSED_SIGNAL;
                 }
                 if (scan.bestSlot() >= 0) {
                     pendingRoundsNeeded = readMaxClickBonusRounds(scan.bestStack());
-                    if (pendingRoundsNeeded > 0) {
-                        LOGGER.info("Tier at slot {} reaches max Superpairs-click bonus at round {}", scan.bestSlot(), pendingRoundsNeeded);
-                    }
                     result = scan.bestSlot();
                     reason = "tier pick";
                 }
             }
         }
 
-        if (result >= 0) {
-            LOGGER.info("Navigator clicking slot {} ({}) on screen \"{}\"", result, reason, title);
-        }
         // Real bug found and fixed (2026-09-06), from a real log showing dozens of full
         // re-evaluations (menu scans, regex matching, logging) within a two-second window instead of
         // the intended one per second - killer560 reported this as the game "freezing." lastNavClickAtMs
@@ -766,8 +732,6 @@ final class ExperimentNavigator {
             return false;
         }
         boolean blocked = player.experienceLevel < requiredXp;
-        LOGGER.info("isRenewBlockedByXp: requiredXp={} yourRealXpLevel={} blocked={}",
-                requiredXp, player.experienceLevel, blocked);
         return blocked;
     }
 
@@ -780,17 +744,12 @@ final class ExperimentNavigator {
         if (lore == null) {
             return false;
         }
-        List<String> loreLines = new ArrayList<>();
         boolean cannotAfford = false;
         for (Component line : lore.lines()) {
             String text = line.getString();
-            loreLines.add(text);
             if (text.contains("Cannot afford this!")) {
                 cannotAfford = true;
             }
-        }
-        if (cannotAfford) {
-            LOGGER.info("cannotAffordRenew: lore={} -> cannotAfford=true (Renew will not be clicked)", loreLines);
         }
         return cannotAfford;
     }

@@ -8,7 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class EtherwarpWaypointsStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-etherwarp");
+    private static final Logger LOGGER = ModLog.get("killer560smod-etherwarp");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-etherwarp-waypoints.json");

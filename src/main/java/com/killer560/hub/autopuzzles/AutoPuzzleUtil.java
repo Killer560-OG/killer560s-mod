@@ -481,11 +481,6 @@ public final class AutoPuzzleUtil {
             com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
                     * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
 
-    /** Is this block within the reach the server enforces, measured to its box from the eye? */
-    public static boolean inBlockReach(LocalPlayer player, BlockPos pos) {
-        return com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) <= BLOCK_REACH_SQ;
-    }
-
     public static BlockPos nearestChest(Minecraft client, LocalPlayer player, double rangeSq) {
         Vec3 eye = player.getEyePosition();
         double range = Math.sqrt(rangeSq);

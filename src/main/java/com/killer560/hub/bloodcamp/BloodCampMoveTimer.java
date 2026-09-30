@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  */
 public final class BloodCampMoveTimer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bloodcamp");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bloodcamp");
 
     /** The Watcher's greeting when the blood door opens - verbatim from Odin's own {@code BLOOD_START_REGEX}
      *  (the same list {@code splittimers.SplitTimersFeature} already matches on). */

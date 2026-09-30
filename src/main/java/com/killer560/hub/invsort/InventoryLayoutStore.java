@@ -7,7 +7,7 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  */
 public final class InventoryLayoutStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-invsort");
+    private static final Logger LOGGER = ModLog.get("killer560smod-invsort");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FOLDER_NAME = "killer560smod-invsort";
     private static final String JSON = ".json";

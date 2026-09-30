@@ -42,8 +42,11 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 24;
 
-        // Read by DeviceTimesFeature (appends the P3 split time to each device/lever completion line) -
-        // was saved/loaded but had no toggle anywhere (2026-09-15 persistence audit).
+        // NOTHING READS THIS ANY MORE (2026-09-29). It used to gate DeviceTimesFeature's "(Xs since P2
+        // started)" suffix, which TerminalTimersFeature superseded on 2026-09-14; the class was deleted
+        // once the only thing left in it was diagnostic logging. The toggle, the field and its save/load
+        // are still here rather than ripped out, because the sensible fix is probably to make
+        // TerminalTimersFeature honour it for device/lever lines - killer560's call.
         widgets.add(SettingsButtonWidget.builder(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()), btn -> {
                     cfg.setAnnounceDeviceTimes(!cfg.isAnnounceDeviceTimes());
                     cfg.save();

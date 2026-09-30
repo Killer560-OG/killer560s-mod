@@ -101,14 +101,11 @@ final class WatcherMoveTracker {
                 return;
             }
             watcherId = watcher.getId();
-            SplitTimersFeature.LOGGER.info("[SplitTimers] Watcher resolved for Watcher Move: id={} type={}",
-                    watcherId, watcher.getType().toShortString());
         }
         if (watcher.xo == watcher.getX() && watcher.yo == watcher.getY() && watcher.zo == watcher.getZ()) {
             return;
         }
         moveMs = now;
-        SplitTimersFeature.LOGGER.info("[SplitTimers] Watcher Move: {}ms after the blood door opened", getMoveMs());
     }
 
     /** The entity one id below the "The Watcher" nametag stand - see this class's doc. */

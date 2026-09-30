@@ -14,8 +14,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ResolvableProfile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.List;
@@ -36,8 +34,6 @@ import java.util.regex.Pattern;
  * re-derived here, reused because two independent real-screenshot checks in this codebase already agree on it.
  */
 public final class PetsMenuScanner {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-petwheel-scan");
 
     private static final Pattern PETS_TITLE = Pattern.compile("^(?:\\((\\d+)/(\\d+)\\)\\s*)?Pets$");
     /** Devonian's own compiled pet-name regex confirms this exact bracket format: {@code "[Lvl N] Name"}. */

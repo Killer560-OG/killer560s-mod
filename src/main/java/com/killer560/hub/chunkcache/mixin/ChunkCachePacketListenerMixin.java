@@ -3,7 +3,7 @@ package com.killer560.hub.chunkcache.mixin;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.world.level.chunk.LevelChunk;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -31,7 +31,7 @@ public abstract class ChunkCachePacketListenerMixin {
             // Reached from handleLevelChunkWithLight: an exception here reaches
             // ClientCommonPacketListenerImpl.onPacketError, which disconnects the client with
             // disconnect.packetError ("Network Protocol Error"). Fail closed and let vanilla light the chunk.
-            LoggerFactory.getLogger("killer560smod-chunkcache")
+            ModLog.get("killer560smod-chunkcache")
                     .error("[ChunkCache] enableChunkLight hook threw", e);
         }
     }

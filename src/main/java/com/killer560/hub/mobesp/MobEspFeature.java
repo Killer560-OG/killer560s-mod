@@ -105,11 +105,6 @@ public final class MobEspFeature {
     private static double cachedRoomMargin = -1.0;
     private static AABB cachedRoomBox = null;
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-mobesp");
-    private static int lastLoggedGateBits = Integer.MIN_VALUE;
-    private static String lastLoggedCounts = null;
-    private static long lastCountsLogMs = 0;
-
     private MobEspFeature() {
     }
 
@@ -151,7 +146,6 @@ public final class MobEspFeature {
                 losCache.clear();
                 clearTargets();
             }
-            logGates(cfg, false, false, false, false, false, false);
             return;
         }
         boolean inDungeon = DungeonState.isInDungeon();
@@ -163,8 +157,6 @@ public final class MobEspFeature {
         boolean wantWitherEsp = witherActive && cfg.isWithersEnabled();
         // Wither ESP wins when both are on - otherwise the same wither is drawn twice.
         boolean wantWitherHighlight = witherActive && !wantWitherEsp && cfg.isWitherHighlightEnabled();
-
-        logGates(cfg, wantStars, wantBats, wantWitherEsp, wantWitherHighlight, inDungeon, inBoss);
 
         if (!wantStars) {
             standToMob.clear();
@@ -256,40 +248,6 @@ public final class MobEspFeature {
         boxTargets = Map.copyOf(foundBoxes);
         glowTargets = Map.copyOf(foundGlows);
         tracerTargets = Map.copyOf(foundTracers);
-
-        long nowMs = System.currentTimeMillis();
-        if (nowMs - lastCountsLogMs >= 2000) {
-            lastCountsLogMs = nowMs;
-            String counts = "starredStands=" + liveStands.size() + " stars=" + stars + " bats=" + bats
-                    + " withers=" + withers + " room=" + (roomBox == null ? "range" : "scoped");
-            if (!counts.equals(lastLoggedCounts)) {
-                LOGGER.info("[DungeonEsp] {}", counts);
-                lastLoggedCounts = counts;
-            }
-        }
-    }
-
-    /** Was a 15-part concatenated string built every tick purely to compare against the last one (FPS pass) - now a
-     *  bitset, with the string only built on an actual change. */
-    private static void logGates(MobEspConfig cfg, boolean wantStars, boolean wantBats, boolean wantWitherEsp,
-                                 boolean wantWitherHighlight, boolean inDungeon, boolean inBoss) {
-        int bits = (wantStars ? 1 : 0) | (wantBats ? 1 << 1 : 0) | (wantWitherEsp ? 1 << 2 : 0)
-                | (wantWitherHighlight ? 1 << 3 : 0) | (cfg.getStarredMobsRaw() ? 1 << 4 : 0)
-                | (cfg.getBatsRaw() ? 1 << 5 : 0) | (cfg.getWithersRaw() ? 1 << 6 : 0)
-                | (cfg.getWitherHighlightRaw() ? 1 << 7 : 0) | (cfg.isThroughWalls() ? 1 << 8 : 0)
-                | (inDungeon ? 1 << 9 : 0) | (inBoss ? 1 << 10 : 0) | (cfg.isRoomScoped() ? 1 << 11 : 0)
-                | (cfg.getStyle().ordinal() << 12) | (cfg.getWitherHighlightStyle().ordinal() << 14)
-                | (cfg.getWitherTracerRaw() ? 1 << 15 : 0);
-        if (bits == lastLoggedGateBits) {
-            return;
-        }
-        lastLoggedGateBits = bits;
-        LOGGER.info("[DungeonEsp] Gates changed: stars={} bats={} witherEsp={} witherHighlight={} (cfg stars={}"
-                        + " bats={} withers={} witherHighlight={}) style={} witherStyle={} witherTracer={}"
-                        + " throughWalls={} roomScoped={} inDungeon={} inBoss={}",
-                wantStars, wantBats, wantWitherEsp, wantWitherHighlight, cfg.getStarredMobsRaw(), cfg.getBatsRaw(),
-                cfg.getWithersRaw(), cfg.getWitherHighlightRaw(), cfg.getStyle(), cfg.getWitherHighlightStyle(),
-                cfg.getWitherTracerRaw(), cfg.isThroughWalls(), cfg.isRoomScoped(), inDungeon, inBoss);
     }
 
     /**
@@ -444,10 +402,8 @@ public final class MobEspFeature {
         int offset = name.toUpperCase(Locale.ROOT).contains("WITHERMANCER") ? 3 : 1;
         Entity byId = client.level.getEntity(stand.getId() - offset);
         Entity mob = null;
-        String how = null;
         if (byId != null && !(byId instanceof ArmorStand) && isValidMob(client, byId)) {
             mob = byId;
-            how = "id-" + offset;
         } else {
             List<Entity> below = client.level.getEntities(stand, stand.getBoundingBox().move(0.0, -1.0, 0.0),
                     e -> !(e instanceof ArmorStand) && !(e instanceof ExperienceOrb));
@@ -455,14 +411,11 @@ public final class MobEspFeature {
                 Entity e = it.next();
                 if (isValidMob(client, e) && !standToMob.containsValue(e.getId())) {
                     mob = e;
-                    how = "bbox-below";
                 }
             }
         }
         if (mob != null) {
             standToMob.put(stand.getId(), mob.getId());
-            LOGGER.info("[DungeonEsp] Resolved starred stand {} \"{}\" -> {} id={} via {}",
-                    stand.getId(), name, mob.getType().toShortString(), mob.getId(), how);
         }
         return mob;
     }

@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -19,7 +19,7 @@ import java.nio.file.Path;
  */
 final class ScoreboardBackgroundImage {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-customscoreboard");
+    private static final Logger LOGGER = ModLog.get("killer560smod-customscoreboard");
     static final Path FILE = CustomScoreboardConfig.DATA_DIR.resolve("background.png");
     private static final Identifier TEXTURE_ID = Identifier.fromNamespaceAndPath("killer560smod", "customscoreboard/background");
 

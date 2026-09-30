@@ -27,7 +27,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,7 +53,7 @@ import java.util.regex.Pattern;
  */
 public final class BreakerAuraFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonextras");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dungeonextras");
     private static final String DUNGEON_BREAKER_SKYBLOCK_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES_PATTERN = Pattern.compile("Charges: (\\d+)/(\\d+)");
     /**
@@ -621,7 +621,6 @@ public final class BreakerAuraFeature {
             if (hit == null) {
                 continue;
             }
-            Block block = level.getBlockState(pos).getBlock();
             // Say so before sending, so the outbound probe files this under OURS rather than under whatever other
             // mod happens to be running - see ForeignBreakerProbe.
             ForeignBreakerProbe.ours();
@@ -629,8 +628,6 @@ public final class BreakerAuraFeature {
             RECENT.put(pos, now);
             spentSinceLore++;
             sent++;
-            LOGGER.info("[DungeonExtras] Breaker Aura sent START_DESTROY_BLOCK at {} ({}), charges {} -> {} (local).",
-                    pos, block, charges, charges - spentSinceLore);
         }
         if (sent == 0) {
             // Two very different reasons, and calling them both the same thing sent the last investigation down

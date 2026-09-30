@@ -41,7 +41,6 @@ public final class ClassColors {
 
     private static final Map<String, DungeonClass> CLASSES = new HashMap<>();
     private static int tickCounter = 0;
-    private static String lastLogged = "";
 
     /** One player's cached nametag {@link Component}, plus the class it was built for - see
      *  {@link #onWorldRender}'s FPS fix comment. */
@@ -77,11 +76,6 @@ public final class ClassColors {
                     parse(ChatFormatting.stripFormatting(display.getString()));
                 }
             }
-            String summary = CLASSES.toString();
-            if (!summary.equals(lastLogged)) {
-                lastLogged = summary;
-                DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Teammate classes: {}", summary);
-            }
         }));
     }
 
@@ -109,7 +103,6 @@ public final class ClassColors {
 
     static void onWorldChange() {
         CLASSES.clear();
-        lastLogged = "";
     }
 
     static DungeonClass selfClass() {

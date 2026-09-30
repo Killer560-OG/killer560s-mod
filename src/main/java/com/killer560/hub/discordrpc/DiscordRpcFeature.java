@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class DiscordRpcFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-discordrpc");
+    private static final Logger LOGGER = ModLog.get("killer560smod-discordrpc");
 
     /** Never send SET_ACTIVITY more often than this, even if the player keeps changing area. */
     private static final long MIN_UPDATE_INTERVAL_MS = 15_000L;

@@ -32,7 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -63,7 +63,7 @@ import java.util.regex.Pattern;
  */
 public final class WitherDragonsFeature {
 
-    static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-witherdragons");
+    static final Logger LOGGER = ModLog.get("killer560smod-witherdragons");
 
     // Odin WitherDragons.witherKingRegex
     private static final Pattern WITHER_KING_REGEX =
@@ -130,7 +130,6 @@ public final class WitherDragonsFeature {
             }
             boolean solid = !level.getBlockState(d.statuePos).isAir();
             if (d.statueWasSolid && !solid) {
-                LOGGER.info("[WitherDragons] {} statue block at {} turned to air -> dead", d, d.statuePos);
                 setDead(d, false);
             }
             d.statueWasSolid = solid;
@@ -163,7 +162,6 @@ public final class WitherDragonsFeature {
         d.spawnedMs = System.currentTimeMillis();
         d.sprayed = false;
         d.arrowsHit = 0;
-        LOGGER.info("[WitherDragons] {} ALIVE (#{}, uuid={})", d, d.timesSpawned, uuid);
         P5Splits.dragonSpawned(d.name(), d.colored(), d.timesSpawned, d.spawnedMs);
         if (messagesOn() && WitherDragonsConfig.getInstance().isSendSpawned()) {
             send(Component.literal(d.colored() + " §fdragon spawned §8(§7" + d.timesSpawned + "§8)"));
@@ -184,8 +182,6 @@ public final class WitherDragonsFeature {
         }
         long nowMs = System.currentTimeMillis();
         P5Splits.dragonKilled(d.name(), nowMs);
-        LOGGER.info("[WitherDragons] {} DEAD (realTime={}, alive {} ticks, arrows={}, sprayed={})", d, realTime,
-                ServerTickClock.now() - d.spawnedTick, d.arrowsHit, d.sprayed);
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
         if (!messagesOn() || !realTime) {
             return;
@@ -228,7 +224,6 @@ public final class WitherDragonsFeature {
             d.state = WitherDragon.State.SPAWNING;
             d.timeToSpawn = 100;
             dragons.add(d);
-            LOGGER.info("[WitherDragons] {} SPAWNING (particles at {}, {})", d, p.getX(), p.getZ());
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
             if (messagesOn() && cfg.isDragonTitle() && cfg.getTitleMode() == WitherDragonsConfig.TitleMode.EVERY) {
                 alert(d, "");
@@ -313,7 +308,6 @@ public final class WitherDragonsFeature {
             }
             d.sprayed = true;
             long ticks = ServerTickClock.now() - d.spawnedTick;
-            LOGGER.info("[WitherDragons] {} sprayed {} ticks after spawn", d, ticks);
             if (messagesOn() && WitherDragonsConfig.getInstance().isSendSpray()) {
                 send(Component.literal(d.colored() + " §fdragon was sprayed in §c" + ticks + " §ftick" + (ticks > 1 ? "s" : "") + "."));
             }

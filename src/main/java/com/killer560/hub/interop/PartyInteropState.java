@@ -1,8 +1,6 @@
 package com.killer560.hub.interop;
 
 import com.killer560.hub.secrets.DungeonState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,8 +38,6 @@ import java.util.Map;
  * Everything resets when {@link DungeonState#isInDungeon()} flips, driven from {@link InteropFeature}.
  */
 public final class PartyInteropState {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interop");
 
     /** After this long an untouched counter may be replaced by any source, however weak. */
     private static final long STALE_MS = 30_000L;
@@ -307,7 +303,6 @@ public final class PartyInteropState {
     /** New dungeon run (or left the dungeon) - everything here is per-run. */
     public static void reset() {
         synchronized (LOCK) {
-            boolean hadAnything = !FLAGS.isEmpty() || !COUNTERS.isEmpty() || !ROOMS.isEmpty() || !DRAGONS.isEmpty();
             FLAGS.clear();
             ANNOUNCED_IN_PARTY.clear();
             COUNTERS.clear();
@@ -316,9 +311,6 @@ public final class PartyInteropState {
             EVENT_LOG.clear();
             ACCEPTED_BY_SOURCE.clear();
             PENDING_PICKUP_MESSAGES.clear();
-            if (hadAnything) {
-                LOGGER.info("[Interop] Party state reset for a new run");
-            }
         }
     }
 
@@ -335,7 +327,6 @@ public final class PartyInteropState {
         while (EVENT_LOG.size() > MAX_EVENT_LOG) {
             EVENT_LOG.removeLast();
         }
-        LOGGER.info("[Interop] {}", text);
         if (InteropConfig.getInstance().isLogPickups() && PENDING_PICKUP_MESSAGES.size() < 32) {
             PENDING_PICKUP_MESSAGES.add(text);
         }

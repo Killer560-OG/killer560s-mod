@@ -14,7 +14,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.world.item.equipment.trim.ArmorTrim;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -54,7 +54,7 @@ import java.util.Map;
  */
 public final class ArmourDye {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-armourdye");
+    private static final Logger LOGGER = ModLog.get("killer560smod-armourdye");
     private static final int MAX_FAILURES = 5;
 
     /** Volatile snapshot the render threads read; rebuilt by {@link #invalidate()} on every config change. */

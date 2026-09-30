@@ -9,7 +9,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -40,7 +40,7 @@ import java.util.zip.GZIPInputStream;
  */
 public final class HypixelMarketPrices {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-rngmeter-prices");
+    private static final Logger LOGGER = ModLog.get("killer560smod-rngmeter-prices");
     private static final String BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar";
     private static final String AUCTIONS_URL = "https://api.hypixel.net/skyblock/auctions";
     private static final int PAGE_BATCH_SIZE = 10;
@@ -153,7 +153,6 @@ public final class HypixelMarketPrices {
         refreshing = true;
         lastError = null;
         long startedAt = System.currentTimeMillis();
-        LOGGER.info("Price refresh starting (wanted AH ids: {})", wantedIdCountForLogging());
         CompletableFuture.runAsync(this::fetchBazaarPrices)
                 .thenCompose(v -> fetchAhLowestBins())
                 .whenComplete((v, err) -> {
@@ -171,17 +170,6 @@ public final class HypixelMarketPrices {
                     LOGGER.info("Price refresh finished in {}ms: {} bazaar prices, {} AH prices, error={}",
                             lastRefreshedAtMs - startedAt, bazaarSellPrice.size(), ahLowestBin.size(), lastError);
                 });
-    }
-
-    private static int wantedIdCountForLogging() {
-        Set<String> ids = new HashSet<>();
-        for (List<RngItem> category : RngItemData.ALL_CATEGORIES) {
-            for (RngItem item : category) {
-                ids.add(item.id());
-            }
-        }
-        ids.addAll(RngItemNames.BY_NAME.values());
-        return ids.size();
     }
 
     private void fetchBazaarPrices() {

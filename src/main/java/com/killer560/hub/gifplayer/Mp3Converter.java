@@ -1,7 +1,7 @@
 package com.killer560.hub.gifplayer;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
@@ -21,7 +21,7 @@ import java.nio.file.Path;
  */
 public final class Mp3Converter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-gifplayer-mp3");
+    private static final Logger LOGGER = ModLog.get("killer560smod-gifplayer-mp3");
 
     /** Converts {@code mp3File} to a .wav with the same base name under {@code cacheDir}, overwriting
      *  any previous conversion, and returns the resulting path. */

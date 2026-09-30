@@ -50,7 +50,6 @@ final class TerracottaTimer {
             }
             SPAWNS.removeIf(t -> --t.ticksLeft <= 0);
             if (clearInTicks >= 0 && clearInTicks-- == 0) {
-                DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Terracotta timers cleared (Sadan ENOUGH! +10t)");
                 SPAWNS.clear();
             }
         }));
@@ -80,7 +79,6 @@ final class TerracottaTimer {
         }
         int ticks = DungeonAlertsFeature.isMasterMode() ? 240 : 300;
         SPAWNS.add(new Terracotta(pos.immutable(), ticks));
-        DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Terracotta died at {} - respawn in {} ticks", pos.toShortString(), ticks);
     }
 
     static void onWorldChange() {

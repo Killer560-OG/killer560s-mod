@@ -13,8 +13,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -60,8 +58,6 @@ import java.util.regex.Pattern;
  */
 public final class I4AutoMask {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoi4");
-    private static final String TAG = "[AutoI4]";
     /** The label {@link MaskSwapper} logs and reports this caller under. */
     private static final String REQUESTER = "Auto i4";
 
@@ -80,7 +76,6 @@ public final class I4AutoMask {
     private static boolean firstPointDone = false;
     private static boolean secondPointDone = false;
     private static String deferredPoint = null;
-    private static String lastDeferReason = null;
     /** See {@link #onCooldown} - at most one rod throw per Storm-death timeline. */
     private static boolean phoenixRequestedThisTimeline = false;
     private static Object lastLevel = null;
@@ -117,11 +112,6 @@ public final class I4AutoMask {
             case PHOENIX -> 60_000L;
         };
         usedUntilMs.put(popped, System.currentTimeMillis() + cooldownMs);
-        List<MaskSwapper.Target> order = swapOrder(I4SensorsConfig.getInstance().getMaskOrder());
-        MaskSwapper.Target next = MaskSwapper.pickTarget(order, t -> onCooldown(t, System.currentTimeMillis()));
-        LOGGER.info("{} {} Auto Mask: {} POPPED (\"{}\") - counted as used for {}s. Order {} -> next is {}.", TAG,
-                I4SensorsFeature.clock(), popped.label, plain, cooldownMs / 1000, label(order),
-                next == null ? "nothing (all used/missing)" : next.label());
     }
 
     private static long bonzoLoreCooldownMs(LocalPlayer player) {
@@ -194,15 +184,6 @@ public final class I4AutoMask {
         };
     }
 
-    /** Short form ("Phoenix > Spirit > Bonzo") for the logs, matching the tab's Order button. */
-    static String label(List<MaskSwapper.Target> order) {
-        StringBuilder sb = new StringBuilder();
-        for (MaskSwapper.Target target : order) {
-            sb.append(sb.length() == 0 ? "" : " > ").append(deathItem(target).label);
-        }
-        return sb.toString();
-    }
-
     // ------------------------------------------------------------------
     // Tick - the timeline. The swap itself belongs to MaskSwapper.
     // ------------------------------------------------------------------
@@ -210,9 +191,6 @@ public final class I4AutoMask {
     private static void tick() {
         Minecraft client = Minecraft.getInstance();
         if (client.level != lastLevel) {
-            if (lastLevel != null && !usedUntilMs.isEmpty()) {
-                LOGGER.info("{} World changed - Auto Mask pop tracking cleared.", TAG);
-            }
             usedUntilMs.clear();
             phoenixRequestedThisTimeline = false;
             deferredPoint = null;
@@ -235,10 +213,7 @@ public final class I4AutoMask {
         int t = I4SensorsFeature.ticksSinceStormDeath();
         if (!cfg.isAutoMask() || !cfg.isAutoI4Enabled() || t < 0 || t >= LEAP_TICK) {
             if (deferredPoint != null) {
-                LOGGER.info("{} {} Auto Mask: dropped deferred {} swap point (t={}, autoMask={}).", TAG,
-                        I4SensorsFeature.clock(), deferredPoint, t, cfg.isAutoMask() && cfg.isAutoI4Enabled());
                 deferredPoint = null;
-                lastDeferReason = null;
             }
             return;
         }
@@ -263,24 +238,13 @@ public final class I4AutoMask {
                 : MaskSwapper.isBusy() ? "another swap is already running"
                 : ActionGate.containerScreenOpen(client)
                         ? "a container menu is open (\"" + client.screen.getTitle().getString() + "\")" : null;
-        if (deferReason == null) {
-            lastDeferReason = null;
-        }
         if (!I4SensorsFeature.isOnDevice(player.position())) {
-            LOGGER.info("{} {} Auto Mask: {} swap point skipped - not on the device (Noamm does the same).", TAG,
-                    I4SensorsFeature.clock(), point);
             return;
         }
         if (AutoI4Feature.isDeviceCompleted()) {
-            LOGGER.info("{} {} Auto Mask: {} swap point skipped - device already completed.", TAG, I4SensorsFeature.clock(), point);
             return;
         }
         if (deferReason != null) {
-            if (!deferReason.equals(lastDeferReason)) {
-                LOGGER.info("{} {} Auto Mask: {} swap point waiting - {}{}.", TAG, I4SensorsFeature.clock(), point,
-                        deferReason, AutoI4Feature.isAbilityHoldActive() ? " (" + AutoI4Feature.abilityHoldRemainingMs() + "ms left)" : "");
-                lastDeferReason = deferReason;
-            }
             deferredPoint = point;
             return;
         }
@@ -293,17 +257,11 @@ public final class I4AutoMask {
         List<MaskSwapper.Target> order = swapOrder(cfg.getMaskOrder());
         MaskSwapper.Target target = MaskSwapper.pickTarget(order, t -> onCooldown(t, now));
         if (target == null) {
-            LOGGER.info("{} {} Auto Mask: {} - nothing in order {} is available (used, missing or already on).",
-                    TAG, I4SensorsFeature.clock(), point, label(order));
             return;
         }
-        String helmet = I4SensorsFeature.skyblockId(player.getItemBySlot(EquipmentSlot.HEAD));
         boolean started = MaskSwapper.request(target, REQUESTER);
         if (started && target == MaskSwapper.Target.PHOENIX) {
             phoenixRequestedThisTimeline = true;
         }
-        LOGGER.info("{} {} Auto Mask: {} - {} {} (order {}, helmet {}).", TAG, I4SensorsFeature.clock(), point,
-                started ? "handed a swap to" : "MaskSwapper refused a swap to", target.label(), label(order),
-                helmet.isEmpty() ? "none" : helmet);
     }
 }

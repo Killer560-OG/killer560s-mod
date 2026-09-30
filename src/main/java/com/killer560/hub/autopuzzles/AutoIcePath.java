@@ -7,8 +7,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -26,7 +24,6 @@ import java.util.List;
  */
 final class AutoIcePath {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
     private static final String ROOM = "Ice Path";
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Ice Path", "Ice Path Solver");
@@ -99,7 +96,6 @@ final class AutoIcePath {
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], 90f)) {
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
-        LOGGER.info("[AutoPuzzles] IcePath: shot silverfish at {} towards {} (yaw={})", currSpot, nextSpot, dir[0]);
         lastShotTime = now;
     }
 

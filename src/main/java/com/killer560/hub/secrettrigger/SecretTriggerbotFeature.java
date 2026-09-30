@@ -24,8 +24,6 @@ import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,8 +48,6 @@ import java.util.UUID;
  */
 public final class SecretTriggerbotFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrettriggerbot");
-
     /** Same skin id as {@code dungeonalerts.SecretSound} / QUOI {@code Dungeon.REDSTONE_KEY}. */
     private static final UUID REDSTONE_KEY_ID = UUID.fromString("fed95410-aba1-39df-9b95-1d4f361eb66e");
     private static final Set<String> SKIP_ROOMS = Set.of("Water Board", "Three Weirdos");
@@ -69,7 +65,6 @@ public final class SecretTriggerbotFeature {
     private static long lastClickMs = 0;
     private static BlockPos lastClickedChest = null;
     private static Object lastLevel = null;
-    private static String lastGateLog = null;
 
     private SecretTriggerbotFeature() {
     }
@@ -90,7 +85,6 @@ public final class SecretTriggerbotFeature {
         SecretTriggerbotConfig cfg = SecretTriggerbotConfig.getInstance();
         if (!cfg.isEnabled()) {
             pendingPos = null;
-            logGate("disabled");
             return;
         }
         long now = System.currentTimeMillis();
@@ -114,10 +108,8 @@ public final class SecretTriggerbotFeature {
         if (gate != null) {
             // QUOI: Water Board drops the pending trigger; screen/boss just pause it. Dropping is the safe superset.
             dropPending(cfg);
-            logGate(gate);
             return;
         }
-        logGate("active");
 
         if (swapBackPending) {
             swapBackPending = false;
@@ -197,8 +189,6 @@ public final class SecretTriggerbotFeature {
         } else {
             originalSlot = -1;
         }
-        LOGGER.info("[SecretTriggerbot] Clicked {} at {} (room={})",
-                state.getBlock().getName().getString(), pos.toShortString(), roomName == null ? "?" : roomName);
     }
 
     /** Drops a pending trigger; if we already swapped for it, swap back (when enabled) once active again. */
@@ -293,21 +283,11 @@ public final class SecretTriggerbotFeature {
     }
 
     private static void reset(String why) {
-        if (!clicked.isEmpty()) {
-            LOGGER.info("[SecretTriggerbot] Reset ({}): {} clicked/done", why, clicked.size());
-        }
         clicked.clear();
         leverSeenState.clear();
         pendingPos = null;
         originalSlot = -1;
         swapBackPending = false;
         lastClickedChest = null;
-    }
-
-    private static void logGate(String gate) {
-        if (!gate.equals(lastGateLog)) {
-            lastGateLog = gate;
-            LOGGER.info("[SecretTriggerbot] State: {}", gate);
-        }
     }
 }

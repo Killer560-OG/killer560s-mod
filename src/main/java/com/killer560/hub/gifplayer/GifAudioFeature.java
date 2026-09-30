@@ -1,7 +1,7 @@
 package com.killer560.hub.gifplayer;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  */
 public final class GifAudioFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-gifplayer-audio");
+    private static final Logger LOGGER = ModLog.get("killer560smod-gifplayer-audio");
     private static final List<String> NATIVE_EXTENSIONS = List.of(".wav", ".wave", ".aiff", ".aif", ".au");
     private static final String MP3_EXTENSION = ".mp3";
 

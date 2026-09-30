@@ -1,7 +1,7 @@
 package com.killer560.hub.interop;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class ReadOnlyReflect {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interop");
+    private static final Logger LOGGER = ModLog.get("killer560smod-interop");
 
     /** A resolved (or permanently failed) read. A failed one returns {@code null} forever. */
     static final class Reader {

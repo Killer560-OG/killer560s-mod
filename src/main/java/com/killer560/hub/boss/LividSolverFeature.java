@@ -108,19 +108,12 @@ public final class LividSolverFeature {
         String plain = ChatFormatting.stripFormatting(message.getString());
         String raw = plain != null ? plain : message.getString();
         if (raw.equals(LIVID_START_LINE)) {
-            LOGGER.info("[Livid] Start line seen - invulnerability timer armed (390t)");
             invulnTicks = 390;
         }
     }
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-livid");
-
     private static void tick(Minecraft client) {
         boolean onFloor5 = LividSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon() && onFloor5();
-        if (onFloor5 != wasOnFloor5) {
-            LOGGER.info("[Livid] solver {} (enabled={}, inDungeon={}, floor={})", onFloor5 ? "ACTIVE" : "INACTIVE",
-                    LividSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), DungeonState.getFloor());
-        }
         if (!onFloor5 && wasOnFloor5) {
             reset();
         }
@@ -149,13 +142,11 @@ public final class LividSolverFeature {
 
     private static void resolve(ClientLevel level) {
         Livid resolved = null;
-        BlockPos resolvedAt = null;
         for (BlockPos woolPos : WOOL_LOCATIONS) {
             Block block = level.getBlockState(woolPos).getBlock();
             for (Livid livid : Livid.values()) {
                 if (livid.wool == block) {
                     resolved = livid;
-                    resolvedAt = woolPos;
                     break;
                 }
             }
@@ -166,9 +157,6 @@ public final class LividSolverFeature {
         // No wool in range right now (chunk not loaded yet, clue not placed yet): keep whatever we had
         // rather than throwing away a good answer mid-fight.
         if (resolved != null && resolved != currentLivid) {
-            LOGGER.info("[Livid] Wool at {} is {} -> real Livid = \"{} Livid\" (was {})", resolvedAt,
-                    resolved.wool, resolved.entityName,
-                    currentLivid == null ? "unknown" : currentLivid.entityName);
             currentLivid = resolved;
             lividEntity = null;
         }
@@ -183,7 +171,6 @@ public final class LividSolverFeature {
         for (Entity entity : level.entitiesForRendering()) {
             if (entity instanceof Player && entity.getName().getString().equals(targetName)) {
                 lividEntity = entity;
-                LOGGER.info("[Livid] Found real Livid entity \"{}\" at {}", targetName, entity.position());
                 break;
             }
         }

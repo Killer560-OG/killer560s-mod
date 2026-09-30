@@ -4,8 +4,6 @@ import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.players.PlayerNames;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -36,8 +34,6 @@ import java.util.function.BiConsumer;
  * one {@link Component#literal} wrapper needed to hand back a {@link Component}.
  */
 public final class SupportersFeature {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-supporters");
 
     /** One fetched+resolved supporter, keyed by account UUID. {@code displayText} is {@code null} when the
      *  stored name is blank or trips {@link SlurFilter} - the real IGN is shown instead, but the entry (and
@@ -92,7 +88,6 @@ public final class SupportersFeature {
         if (persist) {
             SupportersCache.save(version, entries);
         }
-        LOGGER.info("[Supporters] {} supporter(s) loaded (list version {})", entries.size(), version);
     }
 
     public static int supporterCount() {

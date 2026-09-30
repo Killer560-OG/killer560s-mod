@@ -17,8 +17,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.EnumMap;
 import java.util.Locale;
@@ -74,7 +72,6 @@ public final class MaskInvincibilityFeature {
         }
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-masktimers");
     private static final Map<Type, Integer> activeRemaining = new EnumMap<>(Type.class);
     private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
     /** Last real stack seen for each type, so the icon keeps rendering after the mask leaves your inventory. */
@@ -115,8 +112,6 @@ public final class MaskInvincibilityFeature {
         String raw = plain != null ? plain : message.getString();
         for (Type t : Type.values()) {
             if (t.pattern.matcher(raw).matches()) {
-                LOGGER.info("[MaskTimers] {} PROC detected: \"{}\" (previous cooldownLeft={}t) -> active {}t, cooldown {}t, autoSwap={}",
-                        t.label, raw, cooldownRemaining.getOrDefault(t, 0), t.activeTicks, t.cooldownTicks, cfg.isAutoSwapEnabled());
                 activeRemaining.put(t, t.activeTicks);
                 cooldownRemaining.put(t, t.cooldownTicks);
                 if (cfg.isAnnounceInChat()) {
@@ -155,7 +150,6 @@ public final class MaskInvincibilityFeature {
             return type == null || cooldownRemaining.getOrDefault(type, 0) > 0 || !shown(type);
         });
         if (target == null) {
-            LOGGER.info("[MaskTimers] Auto-swap: nothing in order Spirit > Phoenix > Bonzo is ready and not already on.");
             return;
         }
         MaskSwapper.request(target, "Mask Timers");
@@ -197,15 +191,9 @@ public final class MaskInvincibilityFeature {
             if (active > 0) {
                 activeRemaining.put(t, active - 1);
             }
-            if (active == 1) {
-                LOGGER.info("[MaskTimers] {} invincibility window ENDED", t.label);
-            }
             int cooldown = cooldownRemaining.get(t);
             if (cooldown > 0) {
                 cooldownRemaining.put(t, cooldown - 1);
-            }
-            if (cooldown == 1) {
-                LOGGER.info("[MaskTimers] {} cooldown READY", t.label);
             }
         }
     }

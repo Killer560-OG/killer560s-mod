@@ -14,7 +14,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 
@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class TerminalAuraFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-terminalaura");
+    private static final Logger LOGGER = ModLog.get("killer560smod-terminalaura");
 
     private static long lastClickMs = 0L;
 
@@ -130,7 +130,6 @@ public final class TerminalAuraFeature {
             }
             client.gameMode.interact(player, stand, new EntityHitResult(stand, hit), InteractionHand.MAIN_HAND);
             player.swing(InteractionHand.MAIN_HAND);
-            LOGGER.debug("[TerminalAura] Opened terminal entity {}", stand.getId());
             return true; // one per pass, so the delay actually paces them
         }
         return false;

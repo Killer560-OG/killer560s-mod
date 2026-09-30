@@ -3,7 +3,7 @@ package com.killer560.hub.dungeonextras.mixin;
 import com.killer560.hub.dungeonextras.MageBeamFeature;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -35,6 +35,6 @@ public abstract class DungeonExtrasPacketMixin {
     // closed to a log line and let vanilla handle the packet - see BloodCampPacketMixin for the real case.
     @Unique
     private static void killer560smod$dungeonExtras$hookThrew(String what, RuntimeException e) {
-        LoggerFactory.getLogger("killer560smod-dungeonextras").error("[DungeonExtras] {} packet hook threw", what, e);
+        ModLog.get("killer560smod-dungeonextras").error("[DungeonExtras] {} packet hook threw", what, e);
     }
 }

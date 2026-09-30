@@ -307,9 +307,4 @@ public class LeapOrderScreen extends Screen {
             output.add(NarratedElementType.TITLE, getMessage());
         }
     }
-
-    @SuppressWarnings("unused")
-    private static String debug(String[] layout) {
-        return Arrays.toString(layout);
-    }
 }

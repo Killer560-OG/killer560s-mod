@@ -28,7 +28,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,7 +57,7 @@ import java.util.regex.Pattern;
  */
 public final class SimonSaysFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-simonsays");
+    private static final Logger LOGGER = ModLog.get("killer560smod-simonsays");
 
     private static final BlockPos START_BUTTON = new BlockPos(110, 121, 91);
     private static final double ACTIVE_RANGE_SQ = 30.0 * 30.0;
@@ -125,11 +125,10 @@ public final class SimonSaysFeature {
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
     private static boolean wasActive = false;
     private static boolean wasGridReset = false;
-    private static long solveStartedAtMs = 0L;
 
     // --- whole-device completion timer (2026-09-14, killer560's own request): "send a message client
     // side about how long it took from the first ss start click to the last click to finish dev." Unlike
-    // solveStartedAtMs above (which resets every round - it only ever measured ONE round, despite the
+    // the old per-round solve timer (which reset every round - it only ever measured ONE round, despite the
     // old "Device completed" log name being misleading about that), these two track the REAL whole
     // device: first click of round 1 to the final click of round 5, regardless of whether a person,
     // Trigger Bot, or Auto Solve is doing the clicking. Reset only at firstPhase's own two real trigger
@@ -259,9 +258,6 @@ public final class SimonSaysFeature {
         attemptExpectedTransitionMs += expected;
         attemptRevealScale = Mth.clamp(attemptObservedTransitionMs / attemptExpectedTransitionMs, 0.6, 1.4);
         estimates[index] = expected * 0.5 + observedMs * 0.5;
-        LOGGER.info("[SimonSays] Reveal estimate for round {} transition: expected {}ms, real {}ms -> learned {}ms; "
-                        + "remaining reveals this device scaled x{}.", nowOnRound, (long) expected, observedMs,
-                (long) estimates[index], String.format(Locale.US, "%.2f", attemptRevealScale));
     }
 
     private static void resetRevealScale() {
@@ -541,22 +537,12 @@ public final class SimonSaysFeature {
                 || atMs - lastStartButtonClickAtMs > START_BURST_MAX_GAP_MS;
         if (freshStart) {
             startClickAnchorMs = atMs;
-            LOGGER.info("[SimonSays] Timer anchored on first start-button click ({}).", source);
         }
         lastStartButtonClickAtMs = atMs;
     }
 
     // --- Live-run verification diagnostics (2026-09-14, pre-M7 test pass) - LOGGING ONLY: nothing below
-    // is ever read by any pacing/aim/click decision. Per-attempt ones reset via resetDeviceDiagnostics() at
-    // the same real fresh-attempt points deviceStartedAtMs itself resets at.
-    private static long diagArmedAtMs = 0L;
-    private static long diagArmedJitterMs = 0L;
-    private static final List<Long> diagTransitionMs = new ArrayList<>();
-    private static int diagReClicks = 0;
-    private static int diagIgnoredClicks = 0;
-    private static int diagConfirmCount = 0;
-    private static long diagConfirmLatencySumMs = 0L;
-    private static long diagConfirmLatencyMaxMs = 0L;
+    // is ever read by any pacing/aim/click decision.
     // The most recent synthetic grid click still awaiting server confirmation (see onButtonPressed).
     private static BlockPos diagPendingConfirmButton = null;
     private static long diagPendingConfirmFiredAtMs = 0L;
@@ -569,18 +555,6 @@ public final class SimonSaysFeature {
     private static boolean diagApproachOvershootRolled = false;
     private static boolean diagApproachCurveRolled = false;
     private static boolean diagApproachFeintRolled = false;
-    private static long diagLastAutoStartFireAtMs = 0L;
-
-    private static void resetDeviceDiagnostics() {
-        diagArmedAtMs = 0L;
-        diagArmedJitterMs = 0L;
-        diagTransitionMs.clear();
-        diagReClicks = 0;
-        diagIgnoredClicks = 0;
-        diagConfirmCount = 0;
-        diagConfirmLatencySumMs = 0L;
-        diagConfirmLatencyMaxMs = 0L;
-    }
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
@@ -783,7 +757,6 @@ public final class SimonSaysFeature {
 
         if (!active) {
             if (wasActive) {
-                LOGGER.info("[SimonSays] Left device range/floor - clearing solve state.");
                 resetSolveState();
                 lastStartButtonState = null;
                 lastStartButtonPressAtMs = 0L;
@@ -803,11 +776,6 @@ public final class SimonSaysFeature {
             return;
         }
         if (!wasActive) {
-            // Missing before 2026-09-14 - only the "left" transition was logged, so a real test log
-            // could never distinguish "never got in range" from "was in range the whole time but
-            // detected nothing" (a real question that came up investigating a p3sim.net report).
-            LOGGER.info("[SimonSays] Entered device range on F7/M7 at distance {} - now watching for grid changes.",
-                    String.format(Locale.US, "%.1f", Math.sqrt(client.player.distanceToSqr(Vec3.atCenterOf(START_BUTTON)))));
             // A fresh encounter with the device - one of firstPhase's two real trigger points (see
             // resetSolveState's doc comment), matching Odin's own LevelEvent.Load reset. Also re-arms
             // Auto Solve's own once-per-attempt pacing window (see its field doc comment).
@@ -824,7 +792,6 @@ public final class SimonSaysFeature {
             expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
-            resetDeviceDiagnostics();
             resetRevealScale();
             startClickAnchorMs = 0L;
             rotateInProgressTarget = null;
@@ -858,7 +825,6 @@ public final class SimonSaysFeature {
         // this right (see tickRestartKeybind's client.screen == null check); this one never did.
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
         if (down && !announceKeyWasDown && client.screen == null && cfg.isEnabled()) {
-            LOGGER.info("[SimonSays] Manual announce via keybind.");
             if (client.player != null) {
                 client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
             }
@@ -907,7 +873,6 @@ public final class SimonSaysFeature {
         lastAutoClickedPos = null;
         lastTriggerBotTarget = null;
         triggerAimTarget = null;
-        solveStartedAtMs = 0L;
         // Found in the 2026-09-14 review pass: an approach still in progress when the grid/round resets
         // (e.g. a failed attempt) used to keep aiming at - and eventually click - its now-stale button,
         // possibly mid-way through the next reveal. Nothing left in progress belongs to the new state.
@@ -966,7 +931,6 @@ public final class SimonSaysFeature {
             expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
-            resetDeviceDiagnostics();
             resetRevealScale();
             rotateInProgressTarget = null;
             rotateLastFiredTarget = null;
@@ -1005,9 +969,6 @@ public final class SimonSaysFeature {
             if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)) {
                 clickInOrder.add(pos.immutable());
                 lastLanternChangeTick = 0;
-                if (clickInOrder.size() == 1) {
-                    solveStartedAtMs = System.currentTimeMillis();
-                }
                 if (firstPhase) {
                     if (clickInOrder.size() == 2) {
                         // Real bug found and fixed (2026-09-14, killer560's own report: "it kept the first
@@ -1196,7 +1157,6 @@ public final class SimonSaysFeature {
                 currentRoundNumber = 1;
                 expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
                 deviceStartedAtMs = 0L;
-                resetDeviceDiagnostics();
                 resetRevealScale();
             }
         }
@@ -1231,9 +1191,6 @@ public final class SimonSaysFeature {
         if (buttonPos.equals(diagPendingConfirmButton)) {
             long confirmedAtMs = System.currentTimeMillis();
             long latencyMs = confirmedAtMs - diagPendingConfirmFiredAtMs;
-            diagConfirmCount++;
-            diagConfirmLatencySumMs += latencyMs;
-            diagConfirmLatencyMaxMs = Math.max(diagConfirmLatencyMaxMs, latencyMs);
             verboseLog("[SimonSays] Click on {} server-confirmed {}ms after fire ({} fire(s), {}ms since first fire).",
                     buttonPos, latencyMs, diagPendingConfirmFires, confirmedAtMs - diagPendingConfirmFirstFiredAtMs);
             diagPendingConfirmButton = null;
@@ -1257,10 +1214,8 @@ public final class SimonSaysFeature {
             client.player.connection.sendCommand("pc SS " + clickInOrder.size() + "/5");
         }
         if (clickNeeded >= clickInOrder.size()) {
-            long tookMs = solveStartedAtMs > 0 ? System.currentTimeMillis() - solveStartedAtMs : 0;
-            LOGGER.info("[SimonSays] Round completed in {} ms.", tookMs);
-            // Anchor for the per-transition log in tickAutoSolveAndTriggerBot - marks the exact moment
-            // this round's last click landed, so the NEXT round becoming clickable can report the real
+            // Anchor for the round-transition timing in tickAutoSolveAndTriggerBot - marks the exact moment
+            // this round's last click landed, so the NEXT round becoming clickable can measure the real
             // gap between them.
             lastRoundCompletedAtMs = System.currentTimeMillis();
             // Real whole-device completion. Real bug found and fixed (2026-09-14): this used to check
@@ -1284,7 +1239,6 @@ public final class SimonSaysFeature {
                         ? completedAtMs - startClickAnchorMs : -1L;
                 LOGGER.info("[SimonSays] Whole device completed in {} ms from first start-button click, {} ms from first grid click ({} ms of that was real reveal/transition delay).",
                         fromStartMs, deviceTookMs, autoSolveBlockedMsThisAttempt);
-                logDeviceSummary(cfg, deviceTookMs);
                 // Client-side only (sendSystemMessage, same technique this mod's other features already
                 // use for a local-only notice) - killer560 asked for a message to himself, not a real
                 // party announcement. Breaks out the real reveal/transition delay (2026-09-14, killer560's
@@ -1362,7 +1316,6 @@ public final class SimonSaysFeature {
                 expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
                 deviceStartedAtMs = 0L;
                 totalClicksThisAttempt = 0;
-                resetDeviceDiagnostics();
                 resetRevealScale();
                 startClickAnchorMs = 0L;
                 autoStartClickedThisPhase = false;
@@ -1382,40 +1335,6 @@ public final class SimonSaysFeature {
             // reveal happens to begin.
             rotateInProgressTarget = null;
         }
-    }
-
-    /** Diagnostic-only (2026-09-14, pre-M7 verification) - one line per whole-device completion answering
-     *  "did the booked-at-real-fire-time pacing land on the Timer Target": the jitter-adjusted deadline vs
-     *  the real last-click FIRE time (the same clock the deadline is armed on), plus every input the pacing
-     *  math used. Called before the completion branch resets any of it. */
-    private static void logDeviceSummary(SimonSaysConfig cfg, long deviceTookMs) {
-        String pacing;
-        if (!cfg.isAutoSolveEnabled()) {
-            pacing = "autoSolve=off";
-        } else if (cfg.isAutoSolveFixedDelayMode()) {
-            pacing = "fixedDelay=" + cfg.getAutoSolveFixedDelayMs() + "ms";
-        } else if (!autoSolveArmed || diagArmedAtMs == 0L) {
-            pacing = "target=" + cfg.getClickTimerTargetMs() + "ms (pacing window never armed)";
-        } else {
-            long offsetMs = lastAutoClickAtMs - autoSolveDeadlineMs;
-            pacing = String.format(Locale.US,
-                    "target=%dms variance=%dms jitter=%+dms -> deadline at +%dms from pacing anchor; last click fired at +%dms = %dms %s",
-                    cfg.getClickTimerTargetMs(), cfg.getClickTimerVarianceMs(), diagArmedJitterMs,
-                    autoSolveDeadlineMs - diagArmedAtMs, lastAutoClickAtMs - diagArmedAtMs, Math.abs(offsetMs),
-                    offsetMs <= 0 ? "EARLY" : "LATE");
-        }
-        long transitionSumMs = 0L;
-        for (long t : diagTransitionMs) {
-            transitionSumMs += t;
-        }
-        LOGGER.info("[SimonSays][DeviceSummary] {} | confirm-to-confirm {}ms | transitions {}ms (sum {}ms, "
-                        + "reserved estimate {}ms) | clicks booked {}/{} confirmed {} | re-clicks {} ignored {} | "
-                        + "confirm latency avg {}ms max {}ms | approachOverheadEma={}ms | revealBlocked={}ms",
-                pacing, deviceTookMs, diagTransitionMs, transitionSumMs,
-                java.util.Arrays.toString(transitionEstimates()), autoSolveClicksDoneThisAttempt,
-                expectedTotalClicksThisAttempt, totalClicksThisAttempt, diagReClicks, diagIgnoredClicks,
-                diagConfirmCount > 0 ? diagConfirmLatencySumMs / diagConfirmCount : -1, diagConfirmLatencyMaxMs,
-                autoApproachOverheadEmaMs, autoSolveBlockedMsThisAttempt);
     }
 
     // ------------------------------------------------------------------
@@ -1474,10 +1393,7 @@ public final class SimonSaysFeature {
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key);
         if (down && !restartKeyWasDown && client.screen == null) {
-            if (autoStartRunning) {
-                LOGGER.info("[SimonSays] Restart key pressed but a start-button burst is already running - ignored.");
-            } else {
-                LOGGER.info("[SimonSays] Restart key pressed - restarting Simon Says.");
+            if (!autoStartRunning) {
                 maybeAutoAnnounceReset(client, cfg);
                 beginAutoStart(cfg, "manual restart key", 0);
             }
@@ -1493,8 +1409,6 @@ public final class SimonSaysFeature {
             return;
         }
         if (autoStartClicksSent >= cfg.getAutoStartClicks()) {
-            LOGGER.info("[SimonSays] {} finished ({} of {} clicks sent).", autoStartIsRestart ? "Restart" : "Auto-start",
-                    autoStartClicksSent, cfg.getAutoStartClicks());
             autoStartRunning = false;
             autoStartIsRestart = false;
             // Real bug found and fixed (2026-09-14, killer560's own report: "it is still staying on the
@@ -1559,12 +1473,8 @@ public final class SimonSaysFeature {
             // the Auto Start burst's clicks (and set autoStartClickedThisPhase) for a packet that never left.
             return;
         }
-        // Diagnostic-only (2026-09-14): real fire time of this click (the frame it actually fired in, for
-        // rotate) - so the burst's real click spacing is visible, not just the tick it got consumed on.
-        long autoStartConsumedAtMs = System.currentTimeMillis();
-        long autoStartFiredAtMs = rotateActive(cfg) ? rotateClickFiredAtMs : autoStartConsumedAtMs;
-        long autoStartSincePrevFireMs = diagLastAutoStartFireAtMs > 0 ? autoStartFiredAtMs - diagLastAutoStartFireAtMs : -1;
-        diagLastAutoStartFireAtMs = autoStartFiredAtMs;
+        // Real fire time of this click (the frame it actually fired in, for rotate).
+        long autoStartFiredAtMs = rotateActive(cfg) ? rotateClickFiredAtMs : System.currentTimeMillis();
         noteStartButtonClick(autoStartFiredAtMs, "Auto Start");
         autoStartClicksSent++;
         autoStartClickedThisPhase = true;
@@ -1573,20 +1483,6 @@ public final class SimonSaysFeature {
         // so wait exactly Delay ticks: the countdown below decrements-and-returns once per tick and fires on
         // the tick after it reaches 0, so Delay - 1 here is Delay real ticks (was Delay + 1 before).
         autoStartTicksUntilNextClick = rotateActive(cfg) ? 0 : cfg.getAutoStartClickDelayTicks() - 1;
-        // Always-on (not gated behind Diagnostic Logging) while killer560's "isn't working" report is
-        // unresolved (2026-09-14) - includes the button's own POWERED state at send-time to directly
-        // answer his own question ("is it still clicking the start button while it is already pressed
-        // still?"): this code never skips a scheduled click based on that state, so if the log shows 3
-        // clicks land exactly on schedule regardless of powered state, the click-sending itself isn't
-        // the problem - something server-side is.
-        BlockState startButtonState = client.level.getBlockState(START_BUTTON);
-        boolean startButtonPowered = startButtonState.is(Blocks.STONE_BUTTON)
-                && startButtonState.getValue(BlockStateProperties.POWERED);
-        LOGGER.info("[SimonSays] Auto-start click {}/{} sent ({} mode, button currently powered={}, "
-                        + "{}ms since previous auto-start fire, consumed {}ms after fire).",
-                autoStartClicksSent, cfg.getAutoStartClicks(),
-                rotateActive(cfg) ? "look-only (rotate)" : "aura",
-                startButtonPowered, autoStartSincePrevFireMs, autoStartConsumedAtMs - autoStartFiredAtMs);
     }
 
     /** Real trigger ported from NoammAddons' own SimonSays.kt: the moment Goldor's real "Who dares
@@ -1626,7 +1522,6 @@ public final class SimonSaysFeature {
         expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
         deviceStartedAtMs = 0L;
         totalClicksThisAttempt = 0;
-        resetDeviceDiagnostics();
         resetRevealScale();
         startClickAnchorMs = 0L;
         rotateInProgressTarget = null;
@@ -1650,10 +1545,6 @@ public final class SimonSaysFeature {
         autoStartIsRestart = restartReason != null;
         breakArmed = false;
         blankGridTicks = 0;
-        diagLastAutoStartFireAtMs = 0L;
-        LOGGER.info("[SimonSays] {}: {} clicks, {} ticks apart ({} mode).",
-                restartReason != null ? "Restart triggered (" + restartReason + ")" : "Auto-start triggered by real Goldor phase-start line",
-                cfg.getAutoStartClicks(), cfg.getAutoStartClickDelayTicks(), rotateActive(cfg) ? "look-only (rotate)" : "aura");
     }
 
     // ------------------------------------------------------------------
@@ -1706,8 +1597,6 @@ public final class SimonSaysFeature {
         // timing data instead of only the lump-sum total in the completion message.
         if (wasBlockedByReveal && !(noStepsPending || blockedByReveal) && lastRoundCompletedAtMs > 0) {
             long transitionMs = now - lastRoundCompletedAtMs;
-            LOGGER.info("[SimonSays] Round transition took {} ms (now on round {}).", transitionMs, clickInOrder.size());
-            diagTransitionMs.add(transitionMs);
             learnTransition(clickInOrder.size(), transitionMs);
             lastRoundCompletedAtMs = 0L;
         }
@@ -1911,8 +1800,6 @@ public final class SimonSaysFeature {
         }
         lastTriggerBotTarget = target;
         triggerAimTarget = null;
-        LOGGER.info("[SimonSays] Trigger Bot click sent after {}ms on target (delay {}ms, round {}, total clicks {} so far this attempt).",
-                now - triggerAimSinceMs, cfg.getTriggerBotDelayMs(), currentRoundNumber, totalClicksThisAttempt);
     }
 
     /** Per-frame half of the Trigger Bot delay: starts the aim timer the frame the crosshair lands on the next
@@ -1985,24 +1872,18 @@ public final class SimonSaysFeature {
     private static void bookAutoSolveClick(SimonSaysConfig cfg, BlockPos clickedButton, long clickedAtMs) {
         long sincePreviousMs = lastAutoClickAtMs > 0 ? clickedAtMs - lastAutoClickAtMs : 0;
         autoSolveStallTarget = null;
-        String modeSuffix = cfg.isAutoSolveRotate() ? ", rotate mode" : "";
         if (clickedButton.equals(lastAutoClickedPos)) {
             // The 300ms same-button guard expired before the server confirmed the previous click, so this
             // was a retry of the SAME step (lastAutoClickedPos is cleared at every round reset, and a round
             // never repeats a button, so this can't be a genuinely new step). Restart the guard's timer but
             // don't count it as another step or reschedule/re-estimate anything off it.
             lastAutoClickAtMs = clickedAtMs;
-            diagReClicks++;
-            LOGGER.info("[SimonSays] Auto-solve re-click of {} ({}ms since previous click, server hadn't confirmed it yet{}).",
-                    clickedButton, sincePreviousMs, modeSuffix);
             return;
         }
         int clickedIndex = clickInOrder.indexOf(clickedButton.east());
         if (clickedIndex < 0) {
             // Not a step of the round currently being tracked (a stale click that landed across a reset) -
             // never let it count toward, or arm the deadline of, whatever attempt is tracked now.
-            diagIgnoredClicks++;
-            LOGGER.info("[SimonSays] Auto-solve click on {} ignored for pacing - not a step of the current round.", clickedButton);
             return;
         }
         // The real button after this one IN THIS ROUND, if known - null for a round's last click (the next
@@ -2014,9 +1895,6 @@ public final class SimonSaysFeature {
         autoSolveClicksDoneThisAttempt++;
 
         if (cfg.isAutoSolveFixedDelayMode()) {
-            LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, fixed {}ms delay{}).",
-                    autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                    cfg.getAutoSolveFixedDelayMs(), modeSuffix);
             return;
         }
 
@@ -2045,11 +1923,6 @@ public final class SimonSaysFeature {
             // completion processing), so the deadline aims that much earlier to land the SERVER'S number on target.
             autoSolveDeadlineMs = anchorMs + cfg.getClickTimerTargetMs() + jitter - SERVER_TIMER_COMPENSATION_MS;
             autoSolveArmed = true;
-            diagArmedAtMs = anchorMs;
-            diagArmedJitterMs = jitter;
-            LOGGER.info("[SimonSays] Auto-solve pacing armed on first grid click of {}: anchored on {} ({}ms before this click), target {}ms, jitter {}ms -> deadline {}ms from now.",
-                    clickedButton, anchoredOnStart ? "first start-button click" : "this click (no recent start click seen)",
-                    clickedAtMs - anchorMs, cfg.getClickTimerTargetMs(), jitter, autoSolveDeadlineMs - clickedAtMs);
         } else if (lastScheduledDelayMs > 0 && clickedIndex > 0) {
             // Real per-click approach overhead (see autoApproachOverheadEmaMs's own doc comment) - only
             // sampled between two clicks of the SAME round (clickedIndex > 0). The gap before a round's
@@ -2086,7 +1959,6 @@ public final class SimonSaysFeature {
         // this round use their real distance weights and clicks in not-yet-revealed rounds count 1.0 - so the
         // shares always add up to the window and nothing is left over to dump on the last click.
         long delayMs = baseDelayMs;
-        String weightNote = "=n/a";
         if (remainingAfter > 1 && clickedIndex >= 0) {
             double nextWeight = 1.0;
             double weightSum = 0.0;
@@ -2112,17 +1984,9 @@ public final class SimonSaysFeature {
                 nextWeight = 0.0; // the next click opens the next round
             }
             delayMs = weightSum > 0 ? (long) (activeWindowLeftMs * (nextWeight / weightSum)) : 0L;
-            weightNote = String.format(Locale.US, " share %.2f/%.2f", nextWeight, weightSum);
         }
         autoSolveNextClickAtMs = clickedAtMs + Math.max(50, delayMs);
         lastScheduledDelayMs = autoSolveNextClickAtMs - clickedAtMs;
-        // Always-on (not gated behind Diagnostic Logging) - the exact data needed to see whether real delay
-        // is coming from this pacing math or from something it can't control (reveal, turn time).
-        LOGGER.info("[SimonSays] Auto-solve click {}/{} sent ({}ms since previous click, next in ~{}ms "
-                        + "[base {}ms, distance-weighted{}, approachOverheadEma={}ms, deadline in {}ms]{}).",
-                autoSolveClicksDoneThisAttempt, expectedTotalClicksThisAttempt, sincePreviousMs,
-                lastScheduledDelayMs, baseDelayMs, weightNote,
-                autoApproachOverheadEmaMs, windowLeftMs, modeSuffix);
     }
 
     /** No Rotate mode's instant click - booked by the caller via bookAutoSolveClick in the same tick.

@@ -8,7 +8,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +49,7 @@ import java.util.UUID;
  */
 public final class BestFriendsTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bestfriends");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
 
     private static final int POLL_INTERVAL_TICKS = 20; // ~1s
     private static final int FLUSH_INTERVAL_POLLS = 30; // ~30s of polls

@@ -5,7 +5,7 @@ import com.killer560.hub.puzzlesolvers.TeleportMazeSolverFeature;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -47,6 +47,6 @@ public abstract class PuzzlePacketMixin {
 
     @Unique
     private static void killer560smod$puzzles$hookThrew(String what, RuntimeException e) {
-        LoggerFactory.getLogger("killer560smod-puzzlesolvers").error("[PuzzleSolvers] {} packet hook threw", what, e);
+        ModLog.get("killer560smod-puzzlesolvers").error("[PuzzleSolvers] {} packet hook threw", what, e);
     }
 }

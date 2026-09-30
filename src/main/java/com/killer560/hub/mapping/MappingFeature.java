@@ -1,15 +1,12 @@
 package com.killer560.hub.mapping;
 
-import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.secrets.DungeonState;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,10 +25,6 @@ import java.time.format.DateTimeFormatter;
  * disclosed "pattern matched, not build-verified" piece of this session's work) and save it to a plain
  * text file you can open, save copies of at different real moments (map open, mimic room visible, after
  * a class icon shows up), and diff against each other to find the actual pixel encoding.
- * <p>
- * Also logs a lightweight periodic diagnostic (map id + byte checksum + non-zero pixel count) while
- * you're in a dungeon holding a map, purely so the log itself shows when the held map's content is
- * changing tick-to-tick, without spamming the full 16384-byte grid every time.
  */
 public final class MappingFeature {
 
@@ -39,58 +32,9 @@ public final class MappingFeature {
     // 128x128 grid of color-index bytes (MapItemSavedData.MAP_SIZE).
     private static final int MAP_SIZE = 128;
     private static final DateTimeFormatter FILE_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-mapping");
-
-    private static int tickCounter = 0;
-    private static int lastLoggedChecksum = Integer.MIN_VALUE;
-    private static String lastLoggedGates = null;
-    private static boolean lastHadHeldMap = false;
+    private static final Logger LOGGER = ModLog.get("killer560smod-mapping");
 
     private MappingFeature() {
-    }
-
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MappingFeature", client -> {
-            String gates = "enabled=" + MappingConfig.getInstance().isEnabled() + " inDungeon=" + DungeonState.isInDungeon();
-            if (!gates.equals(lastLoggedGates)) {
-                LOGGER.info("[Mapping] Gates changed: {}", gates);
-                lastLoggedGates = gates;
-            }
-            if (!MappingConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
-                return;
-            }
-            tickCounter++;
-            if (tickCounter < 100) {
-                return;
-            }
-            tickCounter = 0;
-            logDiagnostic();
-        }));
-    }
-
-    private static void logDiagnostic() {
-        HeldMap held = findHeldMap();
-        if ((held != null) != lastHadHeldMap) {
-            lastHadHeldMap = held != null;
-            LOGGER.info("[Mapping] Holding a filled map with loaded data: {}", lastHadHeldMap);
-        }
-        if (held == null) {
-            return;
-        }
-        byte[] colors = held.data.colors;
-        int checksum = 0;
-        int nonZero = 0;
-        for (byte b : colors) {
-            checksum = checksum * 31 + b;
-            if (b != 0) {
-                nonZero++;
-            }
-        }
-        if (checksum != lastLoggedChecksum) {
-            LOGGER.info("[Mapping] Held map id={} changed: checksum={} nonZeroPixels={}/{}",
-                    held.mapId, checksum, nonZero, colors.length);
-            lastLoggedChecksum = checksum;
-        }
     }
 
     /** Real, callable-now action wired to "/killer560 mapdump" (2026-09-20: its Dungeon Map tab button was dropped

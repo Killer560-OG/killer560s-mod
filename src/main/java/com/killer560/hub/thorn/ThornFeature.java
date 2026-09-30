@@ -16,7 +16,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.regex.Pattern;
 
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
  */
 public final class ThornFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-thorn");
+    private static final Logger LOGGER = ModLog.get("killer560smod-thorn");
     /** Every Thorn dialogue line starts with this (e.g. his opening "[BOSS] Thorn: Welcome Adventurers! ..."). */
     private static final Pattern THORN_BOSS_LINE = Pattern.compile("^\\[BOSS] Thorn: ");
 
@@ -89,7 +89,6 @@ public final class ThornFeature {
         }
         if (THORN_BOSS_LINE.matcher(ChatObserver.strip(message)).find()) {
             thornChatSeen = true;
-            LOGGER.info("[Thorn] Thorn dialogue seen on {} - boss fight latched", thornFloor());
         }
     }
 
@@ -105,8 +104,6 @@ public final class ThornFeature {
         }
         boolean active = client.level != null && client.player != null && inThornBoss();
         if (active != lastActive) {
-            LOGGER.info("[Thorn] Boss fight {} (floor={} chatLatch={} liveMapInBoss={})", active ? "ACTIVE" : "INACTIVE",
-                    DungeonState.getFloor(), thornChatSeen, LiveMapFeature.isInBoss());
             lastActive = active;
             if (!active) {
                 SpiritBearTracker.reset("left Thorn fight");

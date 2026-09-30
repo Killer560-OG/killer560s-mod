@@ -11,7 +11,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Locale;
 
@@ -33,7 +33,7 @@ import java.util.Locale;
  */
 public final class RouteRecorder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoroutes");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
     /** A position change this large in one tick is a teleport, not a step (sprint-jumping moves ~0.6/tick). */
     private static final double TELEPORT_JUMP = 3.0;
     /** How long after a sneaking etherwarp click the teleport may arrive (server lag) before the click is dropped. */
@@ -119,7 +119,6 @@ public final class RouteRecorder {
                 RouteCoords.toRelativeYaw(f, player.getYRot()), player.getXRot(), 0);
         startNode.start = true;
         route.nodes().add(startNode);
-        LOGGER.info("[AutoRoutes] Recording started in \"{}\" (replacing existing: {})", f.roomName(), existing != null);
         return "Recording " + f.roomName() + (existing != null ? " (will replace the saved route)" : "")
                 + " - move, then /ar stop record";
     }
@@ -138,8 +137,6 @@ public final class RouteRecorder {
         RouteStore store = RouteStore.getInstance();
         store.put(done);
         store.save();
-        LOGGER.info("[AutoRoutes] Recording stopped in \"{}\": {} sample(s), {} node(s)", done.roomName(),
-                done.path().size(), done.nodes().size());
         return String.format(Locale.US, "Saved %s - %.1fs of movement, %d node(s)", done.roomName(),
                 done.path().size() / 20.0, done.nodes().size());
     }

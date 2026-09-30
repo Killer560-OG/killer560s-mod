@@ -4,7 +4,7 @@ import com.killer560.hub.secrets.DungeonState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -29,7 +29,7 @@ import java.util.Set;
  */
 public final class ManualBreakMonitor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonextras");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dungeonextras");
     private static final long WINDOW_MS = 5_000L;
 
     /** Distinct blocks broken in this window - the same thing the aura's "sent" counts. */

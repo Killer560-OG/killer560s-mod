@@ -7,7 +7,7 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -59,7 +59,7 @@ import java.util.regex.Pattern;
  */
 public final class PlayerNames {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-players");
+    private static final Logger LOGGER = ModLog.get("killer560smod-players");
     private static final Pattern VALID_NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
 
     /** A UUID's name is refreshed at most this often - killer560's spec: "no more than once a day per UUID". */

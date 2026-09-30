@@ -14,7 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +50,7 @@ import java.util.List;
  */
 final class AutoBlaze {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String LOWER = "Lower Blaze";
     private static final String HIGHER = "Higher Blaze";
     private static final BlockPos[] HIGHER_SPOTS = {
@@ -80,7 +80,6 @@ final class AutoBlaze {
     private static int currentSpot = 0;
     private static boolean wasInRoom = false;
     private static int lastBlazeCount = 0;
-    private static boolean noShortbowLogged = false;
 
     private enum SecretStage { NONE, FIND, WALK, AURA, DONE }
 
@@ -124,7 +123,6 @@ final class AutoBlaze {
         seedDefaultView(player);
         if (blazes.isEmpty()) {
             if (lastBlazeCount > 0) {
-                LOGGER.info("[AutoPuzzles] Blaze: all blazes dead - done");
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
                 REPOSITION.cancel(client);
                 AutoReposition.releaseSneak(client);
@@ -184,13 +182,8 @@ final class AutoBlaze {
             return;
         }
         if (!AutoPuzzleUtil.isShortbow(player.getMainHandItem())) {
-            if (!noShortbowLogged) {
-                noShortbowLogged = true;
-                LOGGER.info("[AutoPuzzles] Blaze: clean shot available but not holding a shortbow - waiting");
-            }
             return;
         }
-        noShortbowLogged = false;
         if (now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
         }
@@ -200,8 +193,6 @@ final class AutoBlaze {
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
             return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
         }
-        LOGGER.info("[AutoPuzzles] Blaze: shot at blaze id={} ({} left) yaw={} pitch={} term={}", blaze.getId(),
-                blazes.size(), dir[0], dir[1], terminator);
         lastShotTime = now;
         waitingForUpdate = true;
         currentTarget = blaze;
@@ -414,7 +405,6 @@ final class AutoBlaze {
         secretIsChest = bestIsChest;
         secretLegStartMs = System.currentTimeMillis();
         secretStage = SecretStage.WALK;
-        LOGGER.info("[AutoPuzzles] Blaze: nearest known secret at {} (chest={}) - walking there", secretReal, secretIsChest);
     }
 
     private static void addCandidates(List<SecretCandidate> out, List<RoomEntry.Pos> src, boolean chest) {
@@ -446,7 +436,6 @@ final class AutoBlaze {
         }
         if (!AutoPuzzleUtil.pathIfMapOn(secretReal, null) && !secretMapOffWarned) {
             secretMapOffWarned = true;
-            LOGGER.info("[AutoPuzzles] Blaze: Interactive Map is off - can't walk to the secret");
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Secret needs "), ModChat.value("Interactive Map"),
                     ModChat.text(" on to walk to it."));
         }
@@ -476,7 +465,6 @@ final class AutoBlaze {
             LOGGER.warn("[AutoPuzzles] Blaze: no clickable shape at {} (attempt {}/{})", target, secretAuraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
-        LOGGER.info("[AutoPuzzles] Blaze: aura'd secret chest at {}", target);
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Higher/Lower: aura'd the "), ModChat.good("secret"),
                 ModChat.text("."));
         secretStage = SecretStage.DONE;
@@ -490,7 +478,6 @@ final class AutoBlaze {
         currentTarget = null;
         currentSpot = 0;
         lastBlazeCount = 0;
-        noShortbowLogged = false;
         secretStage = SecretStage.NONE;
         secretReal = null;
         secretIsChest = false;

@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -54,7 +54,7 @@ public final class RngMeterOverlay {
     private static final Pattern BARE_FRACTION_LINE = Pattern.compile("^([\\d,]+)\\s*/\\s*([\\d,]+(?:\\.\\d+)?[kKmM]?)$");
 
     private static final String ELEMENT_ID = "rng_meter_ranking";
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-rngmeter-overlay");
+    private static final Logger LOGGER = ModLog.get("killer560smod-rngmeter-overlay");
     // Committed scan: only updated once a candidate scan has matched the previous frame's
     // candidate STABLE_FRAMES_REQUIRED times in a row (or MAX_UNSTABLE_FRAMES have passed without
     // stabilizing, as a worst-case bound). A single frame's slot data is unreliable right around a
@@ -134,12 +134,11 @@ public final class RngMeterOverlay {
 
         RngItemLog.load();
 
-        // Kept only for logging + a once-per-open price refresh; actual drawing happens in
+        // Kept only for a once-per-open price refresh; actual drawing happens in
         // AbstractContainerScreenMixin now.
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
             try {
                 String title = screen.getTitle().getString();
-                LOGGER.info("Screen opened, title=\"{}\" class={}", title, screen.getClass().getName());
                 if (title.toLowerCase(Locale.US).contains("rng")) {
                     RngMeterEngine.PRICES.refreshIfStale();
                 }
@@ -218,9 +217,6 @@ public final class RngMeterOverlay {
             committedScan = itemsFromLog(groupKey);
             committedSelected = pendingSelected;
             scrollOffset = 0;
-            LOGGER.info("Committed RNG Meter menu scan \"{}\" (group=\"{}\"): {} rewards on this page, {} total known for this menu: {}",
-                    title, groupKey, candidate.size(), committedScan.size(),
-                    committedScan.stream().map(i -> i.name() + "(req=" + i.pityXp() + ")").toList());
 
             // Diagnostic: an item with a resolved id but still no price is either a real Bazaar/AH
             // gap (rare drop, genuinely no current listing) or an id mismatch neither the items

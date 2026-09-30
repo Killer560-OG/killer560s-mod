@@ -15,7 +15,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -73,7 +73,7 @@ import java.util.Map;
  */
 public final class PartyDataFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-partydata");
+    private static final Logger LOGGER = ModLog.get("killer560smod-partydata");
 
     /** Scans PartyInteropState/the map/the dragons at ~2 Hz - matches LocalModBridge's poll rate; none of
      *  this changes faster than that. */

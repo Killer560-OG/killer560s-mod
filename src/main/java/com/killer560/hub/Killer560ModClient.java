@@ -60,14 +60,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Locale;
 import java.util.Optional;
 
 public class Killer560ModClient implements ClientModInitializer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod");
+    private static final Logger LOGGER = ModLog.get("killer560smod");
     private static boolean editKeyWasDown = false;
     // ModScreen's tab order: Home, Chat, Dungeon, Spotify, GIF Player - see ModScreen.init().
     // Translate lives inside the Chat folder tab (as its first sub-tab), so opening this index
@@ -77,6 +77,14 @@ public class Killer560ModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ModCompatibility.refuseIfFirmamentPresent();
+
+        // The one startup line worth keeping, and the only thing this class logs now: which jar is actually
+        // running. Four instances have been caught two builds behind with an unpromoted .jar.pending, and the
+        // legit and cheat variants are indistinguishable once installed - so say it once, in the log the bug
+        // report zip already collects.
+        LOGGER.info("Killer560's Mod starting: {} variant, {} build",
+                BuildVariant.CHEAT_FEATURES_ENABLED ? "cheat" : "legit",
+                BuildVariant.DEV_TOOLS ? "dev" : "release");
 
         // THE ACTION GATE GOES FIRST, and the order is the whole point.
         //
@@ -194,7 +202,6 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new TickTimersFeature.TickTimersHudElement());
         SplitTimersFeature.register();
         HudElementRegistry.register(new SplitTimersFeature.SplitTimersHudElement());
-        com.killer560.hub.splittimers.DeviceTimesFeature.register();
         com.killer560.hub.splittimers.TerminalTimersFeature.register();
         com.killer560.hub.itemrarity.ItemRarityFeature.register();
         com.killer560.hub.cheatutils.CheatUtils.register();
@@ -307,7 +314,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.runstats.RunStatsFeature.register();
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
-        MappingFeature.register();
         EtherwarpFeature.register();
         com.killer560.hub.trail.TrailFeature.register();
         com.killer560.hub.interop.ModConflictWarnings.register();
@@ -375,14 +381,12 @@ public class Killer560ModClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("killer560")
                         .executes(context -> {
-                            LOGGER.info("/killer560 executed - command handler running");
                             Minecraft client = Minecraft.getInstance();
                             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
                             // Deferred via client.execute (matches the macro mod's own proven-working
                             // /start command pattern) rather than calling setScreen synchronously from
                             // inside command execution, in case that context matters.
                             client.execute(() -> {
-                                LOGGER.info("Deferred setScreenAndShow(ModScreen) running now");
                                 client.setScreenAndShow(new ModScreen(client.screen));
                             });
                             return 1;

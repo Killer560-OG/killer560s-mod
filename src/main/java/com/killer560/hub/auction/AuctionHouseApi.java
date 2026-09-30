@@ -15,7 +15,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -89,7 +89,7 @@ import java.util.zip.GZIPOutputStream;
  */
 public final class AuctionHouseApi {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-auctionhouse");
+    private static final Logger LOGGER = ModLog.get("killer560smod-auctionhouse");
 
     private static final String AUCTIONS_URL = "https://api.hypixel.net/skyblock/auctions";
     private static final Path CACHE_PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-auction-cache.json");

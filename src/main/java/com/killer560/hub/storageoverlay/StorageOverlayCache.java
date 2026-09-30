@@ -17,7 +17,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -47,7 +47,7 @@ import java.util.Set;
  *  existing JSON config style rather than needing a second file format. */
 public final class StorageOverlayCache {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-storageoverlay");
+    private static final Logger LOGGER = ModLog.get("killer560smod-storageoverlay");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CACHE_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-storageoverlay-cache.json");

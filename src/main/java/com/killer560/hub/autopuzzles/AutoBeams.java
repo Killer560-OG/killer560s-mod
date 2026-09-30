@@ -10,8 +10,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -31,7 +29,6 @@ import java.util.List;
  */
 public final class AutoBeams {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
     private static final String ROOM = "Creeper Beams";
     private static final BlockPos[] PLATFORM_SPOTS = {
             new BlockPos(14, 74, 14), new BlockPos(14, 74, 15), new BlockPos(14, 74, 16),
@@ -83,11 +80,9 @@ public final class AutoBeams {
         }
         if (pair.stage == 0 && packet.getPitch() == 1.3968254f) {
             pair.stage = 1;
-            LOGGER.info("[AutoPuzzles] Beams: first lantern {} hit", pair.first);
         } else if (pair.stage == 1 && packet.getPitch() == 2.0f) {
             pair.stage = 2;
             activePair = null;
-            LOGGER.info("[AutoPuzzles] Beams: pair {} -> {} done", pair.first, pair.second);
         }
     }
 
@@ -115,7 +110,6 @@ public final class AutoBeams {
             activePair = null;
         }
         if (lastPairCount >= 0 && pairs.size() < lastPairCount && ++solvedPairs == 4) {
-            LOGGER.info("[AutoPuzzles] Beams: 4 pairs solved - done");
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Creeper Beams: "), ModChat.good("done"), ModChat.text("."));
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
@@ -179,7 +173,6 @@ public final class AutoBeams {
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
-        LOGGER.info("[AutoPuzzles] Beams: shot lantern {} (stage {}) yaw={} pitch={}", lantern, pair.stage, dir[0], dir[1]);
         lastShotTime = now;
     }
 

@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class ExtraTables {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-profileviewer");
+    private static final Logger LOGGER = ModLog.get("killer560smod-profileviewer");
 
     private static final String COLLECTIONS_URL = "https://api.hypixel.net/v2/resources/skyblock/collections";
     private static final String BESTIARY_URL = "https://raw.githubusercontent.com/meowdding/meowdding-repo/HEAD/repo/neu/bestiary.json";

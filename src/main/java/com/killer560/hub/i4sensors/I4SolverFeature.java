@@ -11,8 +11,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,8 +37,6 @@ import java.util.Set;
  */
 public final class I4SolverFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoi4");
-    private static final String TAG = "[AutoI4]";
     // Bigger (2026-09-14, killer560: "make them a bit bigger").
     // Much bigger flat plates (2026-09-14, killer560: "the little squares telling me where to aim... they are almost
     // impossible to see") - 0.6 blocks wide, drawn in the user's Aim Marker Color (default neon yellow).
@@ -71,7 +67,6 @@ public final class I4SolverFeature {
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
     private static boolean wasActive = false;
     private static boolean wasOnPad = false;
-    private static String lastState = "";
 
     private I4SolverFeature() {
     }
@@ -100,11 +95,6 @@ public final class I4SolverFeature {
         Minecraft client = Minecraft.getInstance();
         String gate = gate(client);
         boolean active = gate.isEmpty();
-        String state = active ? "ACTIVE" : "idle: " + gate;
-        if (!state.equals(lastState)) {
-            LOGGER.info("{} {} Solver {}", TAG, I4SensorsFeature.clock(), state);
-            lastState = state;
-        }
         if (client.level != maskedInLevel) {
             maskedOriginals.clear(); // a different world - nothing of ours is left to restore
             maskedInLevel = client.level;
@@ -129,7 +119,6 @@ public final class I4SolverFeature {
         // which already clears below.
         boolean onPad = I4SensorsFeature.isOnDevice(client.player.position());
         if (wasOnPad && !onPad && !hits.isEmpty()) {
-            LOGGER.info("{} {} Solver: stepped off the pressure pad - wiping {} highlight(s).", TAG, I4SensorsFeature.clock(), hits.size());
             hits.clear();
         }
         wasOnPad = onPad;
@@ -144,11 +133,7 @@ public final class I4SolverFeature {
             String to = I4SensorsFeature.blockId(now);
             if (from.equals("emerald_block") && to.equals("blue_terracotta")) {
                 hits.add(pos);
-                LOGGER.info("{} {} Solver: target #{} marked hit ({} of 9 highlighted).", TAG, I4SensorsFeature.clock(),
-                        I4SensorsFeature.DEV_BLOCKS.indexOf(pos), hits.size());
             } else if (to.equals("emerald_block") && hits.contains(pos)) {
-                LOGGER.info("{} {} Solver: hit target #{} lit again - new attempt, clearing {} highlight(s).", TAG,
-                        I4SensorsFeature.clock(), I4SensorsFeature.DEV_BLOCKS.indexOf(pos), hits.size());
                 hits.clear();
             }
         }
@@ -157,22 +142,17 @@ public final class I4SolverFeature {
     private static void maskWall(Minecraft client) {
         BlockState black = Blocks.BLACK_CONCRETE.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
-        int newlyMasked = 0;
         for (int x = MASK_MIN_X; x <= MASK_MAX_X; x++) {
             for (int y = MASK_MIN_Y; y <= MASK_MAX_Y; y++) {
                 BlockPos wall = new BlockPos(x, y, WALL_Z);
                 if (!I4SensorsFeature.DEV_BLOCKS.contains(wall)) {
-                    newlyMasked += mask(client, wall, black);
+                    mask(client, wall, black);
                 }
                 BlockPos front = new BlockPos(x, y, FRONT_Z);
                 if (I4SensorsFeature.blockId(client.level.getBlockState(front)).contains("glass")) {
-                    newlyMasked += mask(client, front, air);
+                    mask(client, front, air);
                 }
             }
-        }
-        if (newlyMasked > 0) {
-            LOGGER.info("{} {} Solver: blacked out {} block(s) around the targets (client-side only, {} tracked).", TAG,
-                    I4SensorsFeature.clock(), newlyMasked, maskedOriginals.size());
         }
     }
 
@@ -196,7 +176,6 @@ public final class I4SolverFeature {
                     client.level.setBlock(entry.getKey(), entry.getValue(), CLIENT_ONLY_FLAGS);
                 }
             }
-            LOGGER.info("{} {} Solver: restored {} blacked-out block(s).", TAG, I4SensorsFeature.clock(), maskedOriginals.size());
         }
         maskedOriginals.clear();
     }

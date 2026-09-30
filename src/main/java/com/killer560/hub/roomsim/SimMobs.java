@@ -59,7 +59,8 @@ public final class SimMobs {
      * in a room" ({@link #ZOMBIE}/{@link #SKELETON}); Fels, which are "the skull and then whenever you step
      * near them, they are the upside down Enderman" ({@link #FEL}); and "essentially a mini boss style [that]
      * should maybe take more than just one hit just to be sure that your config works with something that
-     * doesn't get one shot" ({@link #MINIBOSS}).
+     * doesn't get one shot" ({@link #MINIBOSS}) - which is a {@link SimMiniboss}, the real player-entity form
+     * Mob ESP recognises, not a durable mob standing in for one.
      *
      * <p>Every kind can be spawned starred or not - see {@link #spawn} against {@link #spawnStarred} - because
      * telling a starred mob from an ordinary one is the whole job of a clear, and a sim where everything is
@@ -73,15 +74,24 @@ public final class SimMobs {
      * A miniboss's health, in half-hearts.
      *
      * <p>Not one, which every other sim mob has. The point of this kind is that it does NOT die to the first
-     * hit, so anything tuned around a one-shot - a cooldown, a swap, a retarget - is actually exercised.
+     * hit, so anything tuned around a one-shot - a cooldown, a swap, a retarget - is actually exercised. The sim
+     * never raises the player's attack damage, so 20 is two or three swings of an ordinary sword.
      *
      * <p>A real Catacombs miniboss is not a mob at all: it is a PLAYER entity with a version-2 UUID and a name
-     * from a fixed list (Shadow Assassin, Lost Adventurer, Frozen Adventurer, Diamond Guy, King Midas), and
-     * Mob ESP finds those on a different path from starred mobs entirely. This is a durable starred mob, which
-     * is what the test he described needs; matching the player-entity form is separate work and is not
-     * pretended at here.
+     * from a fixed list (Shadow Assassin, Lost Adventurer, Frozen Adventurer, Diamond Guy, King Midas), and Mob
+     * ESP finds those on a different path from starred mobs entirely. {@link SimMiniboss} produces exactly that,
+     * and {@link Kind#MINIBOSS} places one; the durable starred ZOMBIE that used to stand in for it is now only
+     * the fallback for when the player entity cannot be built.
      */
     private static final double MINIBOSS_HEALTH = 20.0;
+
+    /**
+     * Which miniboss {@link Kind#MINIBOSS} places when the caller does not say.
+     *
+     * <p>Lost Adventurer, because it is the Catacombs miniboss that turns up in the most rooms - and because it
+     * is one of the four whose name fits in a game profile (see {@link SimMiniboss.Name#FROZEN_ADVENTURER}).
+     */
+    private static final SimMiniboss.Name DEFAULT_MINIBOSS = SimMiniboss.Name.LOST_ADVENTURER;
 
     /** Every entity this class has spawned (dummies and woken Fels), for {@link #clear}. */
     private static final List<UUID> SPAWNED = new CopyOnWriteArrayList<>();
@@ -146,18 +156,32 @@ public final class SimMobs {
             wakeFels(level);
             refreshStarred(level);
             countDeadBats(level);
+            SimMiniboss.tick(level);
         });
     }
 
     public static void spawn(Minecraft client, BlockPos pos, Kind kind) {
-        spawn(client, pos, kind, false);
+        spawn(client, pos, kind, false, DEFAULT_MINIBOSS);
     }
 
     public static void spawnStarred(Minecraft client, BlockPos pos, Kind kind) {
-        spawn(client, pos, kind, true);
+        spawn(client, pos, kind, true, DEFAULT_MINIBOSS);
     }
 
-    private static void spawn(Minecraft client, BlockPos pos, Kind kind, boolean starred) {
+    /**
+     * Places one named Catacombs miniboss - a real player entity Mob ESP highlights on its miniboss path, and
+     * one that can be hit and killed. See {@link SimMiniboss} for how and why.
+     *
+     * @param starred whether it counts toward the room's starred-mob tally (and so toward the last-starred-death
+     *                hook). A Hypixel miniboss has to die for a full clear, so a room that gates on one wants
+     *                this true; it carries no "star ... heart" name-tag stand either way, because the ESP finds
+     *                a miniboss by name and never looks for one.
+     */
+    public static void spawnMiniboss(Minecraft client, BlockPos pos, SimMiniboss.Name name, boolean starred) {
+        spawn(client, pos, Kind.MINIBOSS, starred, name == null ? DEFAULT_MINIBOSS : name);
+    }
+
+    private static void spawn(Minecraft client, BlockPos pos, Kind kind, boolean starred, SimMiniboss.Name boss) {
         if (!SimState.canAct(client)) {
             return;
         }
@@ -170,8 +194,7 @@ public final class SimMobs {
             switch (kind) {
                 case ZOMBIE -> spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred);
                 case SKELETON -> spawnDummy(level, new SimSkeleton(EntityType.SKELETON, level), pos, starred);
-                case MINIBOSS -> spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred,
-                        MINIBOSS_HEALTH);
+                case MINIBOSS -> spawnMiniboss(level, pos, boss, starred);
                 case FEL -> spawnFel(level, pos, starred);
                 // A bat is a SECRET on Hypixel, not a mob worth points - which is exactly why it is here: a
                 // 300 run needs every secret, and a player who cannot tell a bat secret from a chest secret
@@ -193,6 +216,32 @@ public final class SimMobs {
      * reach without touching SimWorld: they override {@code checkDespawn()} to do nothing at all, which also
      * satisfies "not despawn" more completely than persistence alone would.
      */
+    /**
+     * Places a real miniboss, falling back to the durable starred zombie this kind used to be.
+     *
+     * <p>The fallback is not decoration: the player-entity form depends on a Fabric API class, on a version-2
+     * UUID reaching the client before the entity does, and on three {@code ServerPlayer} behaviours being
+     * overridden - and if any of that ever stops working the sim must still put something in the room that takes
+     * more than one hit, rather than leaving it empty with only a log line. There is no setting either way;
+     * killer560, 2026-09-29: "it will be something that is done basically on your end only and that the user
+     * should never have to do."
+     */
+    private static void spawnMiniboss(ServerLevel level, BlockPos pos, SimMiniboss.Name name, boolean starred) {
+        ServerPlayer boss = SimMiniboss.place(level, pos, name, MINIBOSS_HEALTH);
+        if (boss == null) {
+            spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred, MINIBOSS_HEALTH);
+            return;
+        }
+        SPAWNED.add(boss.getUUID());
+        if (starred) {
+            STARRED.add(boss.getUUID());
+            // WITH a star stand, because that is how Hypixel does it - see attachStarTag for the log lines
+            // off his own client. Added immediately after the player so the stand's entity id is the
+            // player's plus one, which is the first thing MobEspFeature.resolveMob looks at.
+            attachStarTag(level, boss, name.text(), MINIBOSS_HEALTH);
+        }
+    }
+
     private static void spawnDummy(ServerLevel level, Mob mob, BlockPos pos, boolean starred) {
         spawnDummy(level, mob, pos, starred, ONE_HP);
     }
@@ -227,17 +276,54 @@ public final class SimMobs {
      * the difference between one change here and a special case in every feature.
      */
     private static void attachStarTag(ServerLevel level, Mob mob) {
+        attachStarTag(level, mob, mob.getType().getDescription().getString(), mob.getMaxHealth());
+    }
+
+    /**
+     * The star tag, in the shape Hypixel really writes it.
+     *
+     * <p>Taken from killer560's own Map Logger client logs rather than invented - the mod's ESP logged these
+     * off the live server:
+     *
+     * <pre>
+     * [DungeonEsp] Resolved starred stand 1103225 " ✯ Frozen Adventurer 6.6M❤" -&gt; player id=1103224 via id-1
+     * [DungeonEsp] Resolved starred stand 169937  " ✯ Lost Adventurer 337.5k❤" -&gt; player id=169936 via id-1
+     * </pre>
+     *
+     * So: a LEADING space, the star, the name, then the health run straight into the heart with no space. The
+     * sim used "✯ Zombie ❤", which satisfies the ESP's contains-star-and-heart test but is not what he sees.
+     *
+     * <p>Those same log lines settle something else. A real miniboss DOES carry a star stand, and the stand
+     * resolves to a PLAYER entity below it - "-&gt; player id=..." - so the sim's miniboss gets one too. The
+     * earlier assumption here that Hypixel gives minibosses no stand was simply wrong, and the ESP's
+     * {@code MINIBOSS_NAMES} path is the secondary one, not the way these are normally found. (Which is just
+     * as well: "Frozen Adventurer" is 17 characters and a player's profile name is capped at 16 by
+     * {@code ByteBufCodecs.PLAYER_NAME = stringUtf8(16)}, verified in the 26.1.2 bytecode, so that entry could
+     * never have matched a profile name anyway.)
+     */
+    private static void attachStarTag(ServerLevel level, net.minecraft.world.entity.LivingEntity mob,
+                                      String displayName, double health) {
         ArmorStand tag = new ArmorStand(level, mob.getX(), mob.getY() + mob.getBbHeight() + 0.1, mob.getZ());
         tag.setInvisible(true);
         tag.setNoGravity(true);
         tag.setNoBasePlate(true);
         tag.setInvulnerable(true);
-        tag.setCustomName(Component.literal("✯ " + mob.getType().getDescription().getString()
-                + " ❤"));
+        tag.setCustomName(Component.literal(" ✯ " + displayName + " " + shortHealth(health) + "❤"));
         tag.setCustomNameVisible(true);
         level.addFreshEntity(tag);
         SPAWNED.add(tag.getUUID());
         STAR_TAGS.put(mob.getUUID(), tag.getUUID());
+    }
+
+    /** Health the way Hypixel writes it on a name tag: 337.5k, 6.6M. */
+    private static String shortHealth(double health) {
+        if (health >= 1_000_000) {
+            return String.format(java.util.Locale.ROOT, "%.1fM", health / 1_000_000);
+        }
+        if (health >= 1_000) {
+            return String.format(java.util.Locale.ROOT, "%.1fk", health / 1_000);
+        }
+        return String.valueOf((long) health);
     }
 
     /** Star tag per starred mob, so the tag can be removed when the mob is. */
@@ -319,6 +405,10 @@ public final class SimMobs {
                 continue;
             }
             for (ServerPlayer player : players) {
+                // A placed miniboss IS a ServerPlayer and so is in level.players() - it must not wake a Fel.
+                if (SimMiniboss.isPlaced(player)) {
+                    continue;
+                }
                 if (player.distanceToSqr(fel.skull) <= FEL_WAKE_RADIUS_SQ) {
                     wake(level, fel);
                     break;
@@ -485,6 +575,8 @@ public final class SimMobs {
                     fel.skull.discard();
                 }
             }
+            // Withdraws the client-side profile entry of every miniboss just discarded, in the same tick.
+            SimMiniboss.tick(level);
         });
         SPAWNED.clear();
         STARRED.clear();

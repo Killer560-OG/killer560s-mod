@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Dungeon Blessings tracker - the run's Power/Time/Wisdom/Stone/Life levels on a movable HUD. Default OFF
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class BlessingsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-blessings");
+    private static final Logger LOGGER = ModLog.get("killer560smod-blessings");
 
     public static final HudElement HUD = new BlessingsHud();
 

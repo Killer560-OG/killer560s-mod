@@ -18,8 +18,6 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -34,7 +32,6 @@ import java.util.List;
  */
 public final class TicTacToeSolverFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-puzzles");
     private static final String ROOM = "Tic Tac Toe";
     private static final char EMPTY = '\0';
     private static final int[] MOVE_ORDER = {4, 0, 2, 6, 8, 1, 3, 5, 7};
@@ -48,7 +45,6 @@ public final class TicTacToeSolverFeature {
     private static int lastBoardHash = 0;
     private static BlockPos bestMove = null;
     private static BlockPos predictedMove = null;
-    private static String lastLoggedState = null;
 
     private TicTacToeSolverFeature() {
     }
@@ -69,11 +65,6 @@ public final class TicTacToeSolverFeature {
 
     private static void tick(Minecraft client) {
         tickInner(client);
-        String state = bestMove == null && predictedMove == null ? "idle" : "best=" + bestMove + " predicted=" + predictedMove;
-        if (!state.equals(lastLoggedState)) {
-            lastLoggedState = state;
-            LOGGER.info("[TicTacToeSolver] State: {}", state);
-        }
     }
 
     private static void tickInner(Minecraft client) {

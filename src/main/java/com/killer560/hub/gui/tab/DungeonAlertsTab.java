@@ -7,8 +7,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +23,6 @@ import java.util.function.Supplier;
  *  {@link DungeonAlertsConfig} instance and JSON keys, unchanged. Every change is saved immediately. */
 public class DungeonAlertsTab extends BaseTab {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonalerts");
     private static final int ORANGE = 0xFFCC6600;
 
     public DungeonAlertsTab() {
@@ -86,7 +83,6 @@ public class DungeonAlertsTab extends BaseTab {
                     boolean now = !get.get();
                     set.accept(now);
                     DungeonAlertsConfig.getInstance().save();
-                    LOGGER.info("[DungeonAlerts] {} -> {}", label, now ? "ON" : "OFF");
                     requestRebuild.run();
                 }).bounds(x, y[0], width, 20).build());
         y[0] += 24;
@@ -98,7 +94,6 @@ public class DungeonAlertsTab extends BaseTab {
                     boolean now = !get.get();
                     set.accept(now);
                     DungeonAlertsConfig.getInstance().save();
-                    LOGGER.info("[DungeonAlerts] {} -> {}", label, now ? "ON" : "OFF");
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
     }

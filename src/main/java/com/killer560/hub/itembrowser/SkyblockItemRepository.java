@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -52,7 +52,7 @@ import java.util.regex.Pattern;
  */
 public final class SkyblockItemRepository {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-itembrowser");
+    private static final Logger LOGGER = ModLog.get("killer560smod-itembrowser");
     private static final String ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
     private static final Path CACHE_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-itembrowser-items-cache.json");

@@ -10,7 +10,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -45,7 +45,7 @@ import java.util.Set;
  */
 public final class ForeignBreakerProbe {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonextras");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dungeonextras");
     private static final long WINDOW_MS = 5_000L;
 
     /** Set by Breaker Aura on the tick it sends, so its own packets are not counted as somebody else's. */

@@ -15,7 +15,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 
@@ -48,7 +48,7 @@ import java.util.List;
  */
 final class AutoTicTacToe {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Tic Tac Toe";
     /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
     private static final double REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
@@ -114,7 +114,6 @@ final class AutoTicTacToe {
                 roomSpotAttempted = true;
             } else if (AutoPuzzleUtil.pathIfMapOn(spot, null)) {
                 roomSpotAttempted = true;
-                LOGGER.info("[AutoPuzzles] TicTacToe: entered room - etherwarp pathing to the room spot {}", spot);
             }
         }
         if (chestStage != ChestStage.NONE && chestStage != ChestStage.DONE) {
@@ -142,8 +141,6 @@ final class AutoTicTacToe {
                 BlockPos exit = DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), door);
                 if (exit != null && AutoPuzzleUtil.pathIfMapOn(exit, null)) {
                     walkOutAttempted = true;
-                    LOGGER.info("[AutoPuzzles] TicTacToe: board done after {} placement(s) - walking out to "
-                            + "door {} at {}", totalPlaced, door, exit);
                 }
             } else if (layout != null) {
                 // Said once, not every tick: no layout means the map has nothing to path with.
@@ -185,7 +182,6 @@ final class AutoTicTacToe {
             attempts = MAX_ATTEMPTS;
             return;
         }
-        LOGGER.info("[AutoPuzzles] TicTacToe: placed at {} (attempt {})", best, attempts);
         totalPlaced++;
         if (totalPlaced == 1 && cfg.isTicTacToeAuraChestEnabled()) {
             chestStage = ChestStage.WALK_TO_CHEST;
@@ -297,7 +293,6 @@ final class AutoTicTacToe {
             LOGGER.warn("[AutoPuzzles] TicTacToe: no clickable shape at {} (attempt {}/{})", target, chestAuraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
-        LOGGER.info("[AutoPuzzles] TicTacToe: aura'd chest at {}", target);
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: aura'd the "), ModChat.good("secret chest"),
                 ModChat.text("."));
         chestStage = ChestStage.WALK_BACK;

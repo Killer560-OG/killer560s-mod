@@ -7,8 +7,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.world.entity.player.Player;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,7 +36,6 @@ import java.util.UUID;
  */
 public final class NameChangerFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-namechanger");
 
     /** Stable per-launch seed so "randomize others" gives the same fake name for a player all session. */
     private static final long SESSION_SEED = new SplittableRandom().nextLong();
@@ -163,7 +160,6 @@ public final class NameChangerFeature {
         builtSeenVersion = sv;
         builtOwnName = own;
         NameReplacer.clearCaches();
-        LOGGER.debug("[NameChanger] rebuilt name table ({} entries)", table.size);
     }
 
     /** A display name with its picked colour applied as a legacy code prefix (see {@link NameColor}) - the

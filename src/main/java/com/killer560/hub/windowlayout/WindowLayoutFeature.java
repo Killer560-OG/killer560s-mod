@@ -11,7 +11,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWNativeWin32;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 
@@ -38,7 +38,7 @@ import java.util.List;
  */
 public final class WindowLayoutFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-windowlayout");
+    private static final Logger LOGGER = ModLog.get("killer560smod-windowlayout");
 
     private static final int RESTORE_DELAY_TICKS = 10;
     private static final int MAX_PREPARE_ROUNDS = 6;
@@ -95,11 +95,6 @@ public final class WindowLayoutFeature {
         cfg.setLastPlacement(monitor, count, cellIndex);
         cfg.save();
         pending = new Request(monitor.index(), monitor.device(), monitor.name(), count, cellIndex, 1);
-        Minecraft mc = Minecraft.getInstance();
-        LOGGER.info("[Layout] place monitor={} count={} cell={} | mcFullscreen={} borderless={}",
-                monitor.index() + 1, count, cellIndex,
-                mc.getWindow() != null && mc.getWindow().isFullscreen(),
-                WindowModeConfig.getInstance().isBorderlessFullscreenEnabled());
     }
 
     public static void openPicker() {
@@ -163,8 +158,6 @@ public final class WindowLayoutFeature {
                         req.restoreBorderless = wantsBorderlessFullMonitor();
                         req.restoreFullscreen = !req.restoreBorderless;
                     }
-                    LOGGER.info("[Layout] PREPARE leaving real fullscreen | restoreFullscreen={} restoreBorderless={}",
-                            req.restoreFullscreen, req.restoreBorderless);
                     window.setWindowed(Math.max(MIN_CONTENT_SIZE, cell[2]), Math.max(MIN_CONTENT_SIZE, cell[3]));
                     // Callback is a no-op now that isFullscreen() already matches; keeps options.txt from
                     // re-entering fullscreen next launch.
@@ -177,7 +170,6 @@ public final class WindowLayoutFeature {
                     // Full Monitor is exactly what borderless already does, so put it back at the end instead of
                     // leaving the window merely windowed-at-monitor-size (which keeps the title bar/borders).
                     req.restoreBorderless = req.count == 1 && wantsBorderlessFullMonitor();
-                    LOGGER.info("[Layout] PREPARE turning borderless off | restoreBorderless={}", req.restoreBorderless);
                     WindowModeFeature.toggle();
                     req.waitTicks = 3;
                     return;
@@ -223,8 +215,6 @@ public final class WindowLayoutFeature {
                     // picked first, which turns it off) - Full Monitor still means "cover the screen".
                     req.restoreBorderless = true;
                 }
-                LOGGER.info("[Layout] VERIFY done | restoreBorderless={} restoreFullscreen={} mcFullscreen={}",
-                        req.restoreBorderless, req.restoreFullscreen, window.isFullscreen());
                 if (req.restoreBorderless) {
                     req.restoreBorderless = false;
                     // The window is on the requested monitor now, so borderless re-applies to that one.
@@ -241,7 +231,6 @@ public final class WindowLayoutFeature {
                         // Minecraft.runTick), and it no-ops when its actuallyFullscreen flag already matches - so
                         // apply it here rather than trusting the next frame to do it.
                         window.updateFullscreenIfChanged();
-                        LOGGER.info("[Layout] re-entered real fullscreen | mcFullscreen={}", window.isFullscreen());
                     }
                 }
                 pending = null;

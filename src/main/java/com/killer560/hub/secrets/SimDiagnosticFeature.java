@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Real-data capture for p3sim.net testing - killer560 confirmed {@code /killer560 sim} unblocks the
@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class SimDiagnosticFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-simdiag");
+    private static final Logger LOGGER = ModLog.get("killer560smod-simdiag");
     private static int tickCounter = 0;
 
     private SimDiagnosticFeature() {

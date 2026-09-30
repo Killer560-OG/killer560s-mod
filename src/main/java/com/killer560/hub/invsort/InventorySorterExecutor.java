@@ -13,7 +13,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -48,7 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class InventorySorterExecutor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-invsort");
+    private static final Logger LOGGER = ModLog.get("killer560smod-invsort");
 
     /** More than a 36-slot layout could ever need (see the class doc's termination proof) - a safety net, not a
      *  real limit. */
@@ -301,12 +301,10 @@ public final class InventorySorterExecutor {
                 ModChat.text(" (" + swaps + " swap" + (swaps == 1 ? "" : "s") + ")"),
                 unresolved.isEmpty() ? ModChat.text("") : ModChat.dim(" - " + unresolved.size()
                         + " item(s) from the layout weren't in your inventory."));
-        LOGGER.info("[InvSort] Applied layout {} - {} swap(s), {} unresolved slot(s)", targetLayout.name(), swaps, unresolved.size());
         setState(State.IDLE);
     }
 
     private static void stop(String reason) {
-        LOGGER.info("[InvSort] Stopped: {}", reason);
         ModChat.send("InvSort", ModChat.bad("Stopped: "), ModChat.text(reason));
         setState(State.IDLE);
     }

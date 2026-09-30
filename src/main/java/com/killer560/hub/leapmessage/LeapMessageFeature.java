@@ -6,7 +6,7 @@ import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  */
 public final class LeapMessageFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapmessage");
+    private static final Logger LOGGER = ModLog.get("killer560smod-leapmessage");
 
     private static final Pattern LEAP_MESSAGE = Pattern.compile("^You have teleported to (.+)!$");
     /** The IGN at the end of whatever the line captured, so a rank prefix or a stray formatting code never ends up
@@ -83,9 +83,6 @@ public final class LeapMessageFeature {
             return;
         }
         String targetName = ign(m.group(1));
-        LOGGER.info("[LeapMessage] Leap detected to \"{}\": leapingTo={} (message blank={}), cringe={}{}",
-                targetName, cfg.isLeapingToEnabled(), cfg.getCustomMessage().isBlank(), cfg.isCringeEnabled(),
-                delayTicksRemaining >= 0 ? " - NOTE: overwriting a still-pending delayed cringe send" : "");
 
         boolean sentLeapingTo = false;
         if (cfg.isLeapingToEnabled()) {

@@ -30,7 +30,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,7 +69,7 @@ import java.util.Set;
  */
 public final class BloodCampFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bloodcamp");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bloodcamp");
 
     // Real base64 skull "textures" property values, copied verbatim from Noamm's own confirmed source -
     // not re-derived or guessed. Two of the real mob skulls have no attached player profile at all (a
@@ -133,7 +133,6 @@ public final class BloodCampFeature {
     private static final Map<ArmorStand, BloodMobState> bloodMobs = new HashMap<>();
     private static Object lastLevel = null;
     private static int watcherScanCounter = 0;
-    private static int triggerIdleTicks = 0;
     /** Reused every frame by the Spawn Line render (see {@link #onWorldRender}) so drawing it never
      *  allocates a new List - only its two elements are overwritten, never the List itself. */
     private static final List<Vec3> SPAWN_LINE_POINTS = new ArrayList<>(List.of(Vec3.ZERO, Vec3.ZERO));
@@ -216,14 +215,8 @@ public final class BloodCampFeature {
         String texture = getSkullTexture(head);
         if (watcherEntityId == null && texture != null && WATCHER_SKULL_TEXTURES.contains(texture)) {
             watcherEntityId = packet.getEntity();
-            LOGGER.info("[BloodCamp] Watcher detected: entityId={} (thread={})", watcherEntityId, Thread.currentThread().getName());
         }
     }
-
-    // [BloodCamp] diagnostics - logging only.
-    private static String lastLoggedGates = null;
-    private static int lastLoggedMobCount = -1;
-    private static boolean lastLoggedAuraActive = false;
 
     /** Real movement-based extrapolation, ported directly from Noamm's own real math - see this class's
      *  own doc comment. */
@@ -271,15 +264,11 @@ public final class BloodCampFeature {
         if (data == null) {
             data = new BloodMobState(packetVec, nowTick, firstSpawn);
             bloodMobs.put(entity, data);
-            LOGGER.info("[BloodCamp] New blood mob tracked: entityId={} pos={} firstSpawn={} (thread={})",
-                    entity.getId(), entity.blockPosition(), firstSpawn, Thread.currentThread().getName());
         } else if (nowTick - data.lastMoveTick >= RESETTLE_GAP_TICKS) {
             // This class's own doc: "the SAME entity periodically repositions". Deltas arrive every tick while a
             // mob is travelling, so a gap means the last trip ended - without restarting here the start vector,
             // the countdown origin and the accumulated delta history all stayed on trip #1 forever, which left
             // every later wave with a stale box and a countdown permanently in the past.
-            LOGGER.info("[BloodCamp] Blood mob {} started a new trip after {} idle ticks - state restarted.",
-                    entity.getId(), nowTick - data.lastMoveTick);
             data.restart(packetVec, nowTick, firstSpawn);
         }
         data.lastMoveTick = nowTick;
@@ -302,7 +291,6 @@ public final class BloodCampFeature {
 
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, Level level) {
         if (watcherEntityId != null && packet.getEntityIds().contains(watcherEntityId)) {
-            LOGGER.info("[BloodCamp] Watcher entity {} removed (thread={})", watcherEntityId, Thread.currentThread().getName());
             watcherEntityId = null;
         }
         bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
@@ -343,18 +331,6 @@ public final class BloodCampFeature {
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
         }
-        String gates = "enabled=" + cfg.isEnabled() + " inDungeon=" + DungeonState.isInDungeon()
-                + " inBoss=" + com.killer560.hub.livemap.LiveMapFeature.isInBoss() + " overlay=" + cfg.isShowOverlay()
-                + " triggerBot=" + cfg.isTriggerBotEnabled() + " aura=" + cfg.isAuraEnabled()
-                + " killPopup=" + cfg.isKillPopup() + " watcherId=" + watcherEntityId;
-        if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[BloodCamp] Gates changed: {} (active={})", gates, isActive());
-            lastLoggedGates = gates;
-        }
-        if (bloodMobs.size() != lastLoggedMobCount) {
-            LOGGER.info("[BloodCamp] Tracked blood mobs: {} -> {}", lastLoggedMobCount, bloodMobs.size());
-            lastLoggedMobCount = bloodMobs.size();
-        }
         if (!isActive()) {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
                 bloodMobs.clear();
@@ -381,7 +357,6 @@ public final class BloodCampFeature {
         // together produced a burst of attack packets on one tick. Pick the most-due one here and send it below.
         Entity triggerTarget = null;
         BloodMobState triggerData = null;
-        double triggerRemaining = 0.0;
         double bestRemaining = Double.MAX_VALUE;
         // NEVER EARLY. killer560 (2026-09-27): "make it so it cannot triggerbot click before the kill
         // notification timing would go off. Then if my crosshair is looking in a blood mobs spawn hitbox when it
@@ -407,7 +382,6 @@ public final class BloodCampFeature {
         boolean triggerBotUsable = cfg.isTriggerBotEnabled()
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
         double reach = client.player.entityInteractionRange();
-        int dueCount = 0;
         for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
             ArmorStand entity = entry.getKey();
             BloodMobState data = entry.getValue();
@@ -428,7 +402,6 @@ public final class BloodCampFeature {
                     || remainingTicks >= bestRemaining) {
                 continue;
             }
-            dueCount++;
             // "if my crosshair is looking in a blood mobs spawn hitbox when it goes to spawn have it click once."
             // aimBox is that spawn hitbox - a 1x2x1 box standing on the predicted spawn point. The stand's own
             // bounding box is accepted too, so being aimed at the real mob once it exists counts as well; it can
@@ -444,10 +417,8 @@ public final class BloodCampFeature {
             }
             triggerTarget = target;
             triggerData = data;
-            triggerRemaining = remainingTicks;
             bestRemaining = remainingTicks;
         }
-        logTriggerBotIdle(triggerBotUsable, triggerTarget != null, dueCount);
         // Mod-wide one-interaction-per-tick gate, after the target is chosen and before anything is marked: a
         // denial leaves triggerBotClicked false so the same mob is simply hit on the next tick it allows.
         if (triggerTarget != null
@@ -455,14 +426,8 @@ public final class BloodCampFeature {
             client.gameMode.attack(client.player, triggerTarget);
             client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             triggerData.triggerBotClicked = true;
-            LOGGER.info("[BloodCamp] Trigger Bot clicked {} (remaining {} ticks at click time).",
-                    triggerTarget.getType().toShortString(), String.format(Locale.US, "%.1f", triggerRemaining));
         }
 
-        if ((cfg.isAuraEnabled() && auraTarget != null) != lastLoggedAuraActive) {
-            lastLoggedAuraActive = cfg.isAuraEnabled() && auraTarget != null;
-            LOGGER.info("[BloodCamp] Aura rotation active={} target={}", lastLoggedAuraActive, auraTarget);
-        }
         if (cfg.isAuraEnabled() && auraTarget != null) {
             lookTowardsSafely(client, auraTarget);
         }
@@ -481,7 +446,6 @@ public final class BloodCampFeature {
             String texture = getSkullTexture(zombie.getItemBySlot(EquipmentSlot.HEAD));
             if (texture != null && WATCHER_SKULL_TEXTURES.contains(texture)) {
                 watcherEntityId = zombie.getId();
-                LOGGER.info("[BloodCamp] Watcher found by entity scan: entityId={}", watcherEntityId);
                 return;
             }
         }
@@ -547,20 +511,6 @@ public final class BloodCampFeature {
     private static boolean isAttackableMob(Entity entity) {
         return entity instanceof LivingEntity && entity.isAlive() && !entity.isRemoved()
                 && !(entity instanceof ArmorStand) && !(entity instanceof Player);
-    }
-
-    /** Throttled "the Trigger Bot is on but nothing happened" line, so a live run says which step stopped it
-     *  instead of leaving the next session guessing again. */
-    private static void logTriggerBotIdle(boolean usable, boolean fired, int dueCount) {
-        if (!usable || fired || bloodMobs.isEmpty()) {
-            triggerIdleTicks = 0;
-            return;
-        }
-        if (++triggerIdleTicks % 40 != 0) {
-            return;
-        }
-        LOGGER.info("[BloodCamp] Trigger Bot idle: {} tracked mob(s), {} due this tick, none under the crosshair.",
-                bloodMobs.size(), dueCount);
     }
 
     /** Real countdown formula, ported directly from Noamm's own real math (see this class's own doc

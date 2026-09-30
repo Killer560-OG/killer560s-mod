@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Leap Counter - entry point. Ticks {@link LeapTracker}, feeds it chat (through {@link ChatObserver}, so Hypixel's
@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class LeapCounterFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapcounter");
+    private static final Logger LOGGER = ModLog.get("killer560smod-leapcounter");
 
     private static final LeapHud LEAP_HUD = new LeapHud();
     public static final HudElement HUD = LEAP_HUD;

@@ -11,7 +11,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +48,7 @@ import java.util.zip.ZipOutputStream;
  */
 public final class BugReportFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bugreport");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bugreport");
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
     /** Same two files {@code profiles.ProfileManager.EXCLUDED_FILES} keeps out of a shared profile zip for

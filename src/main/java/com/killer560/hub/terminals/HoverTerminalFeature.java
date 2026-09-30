@@ -8,8 +8,6 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -47,8 +45,6 @@ import java.util.Random;
  *  window is simply not sent (and the dwell timer restarts), rather than being sent and then swallowed,
  *  which would waste Protection's one-shot on a click the player never made. */
 public final class HoverTerminalFeature {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-hoverterminals");
 
     /** Melody only - the same 250ms same-row guard {@code TerminalSolverFeature}'s own Melody auto-click
      *  uses (ported from NoammAddons' {@code lastClickedSlot} + cooldown pair), since a real column match
@@ -156,8 +152,6 @@ public final class HoverTerminalFeature {
         TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
         hoverStartedAtMs = now;
         armedDelayMs = rollDelayMs(cfg);
-        LOGGER.info("[HoverTerms] {} hover-clicked slot {} (button={}, {}) after a {}ms dwell - next click on this slot needs another {}ms of hover",
-                type, target.slot(), target.button(), target.clickType(), cfg.getHoverDelayMs(), armedDelayMs);
     }
 
     /** Melody has no solved/correct set at all (see {@link TerminalSolverFeature#solve}), so "a button
@@ -184,8 +178,6 @@ public final class HoverTerminalFeature {
         lastMelodyClickedSlot = slot;
         lastMelodyClickAtMs = now;
         TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
-        LOGGER.info("[HoverTerms] MELODY hover-clicked row button slot {} the frame it lined up (armed by a {}ms dwell)",
-                slot, armedDelayMs);
     }
 
     /** @return the terminal-grid slot index under the mouse, or -1.

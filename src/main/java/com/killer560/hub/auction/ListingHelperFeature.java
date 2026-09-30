@@ -16,7 +16,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -49,7 +49,7 @@ import java.util.List;
  */
 public final class ListingHelperFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-listinghelper");
+    private static final Logger LOGGER = ModLog.get("killer560smod-listinghelper");
 
     /** Exact real Hypixel container title, as given by killer560's own report. */
     private static final String SCREEN_TITLE = "Create BIN Auction";

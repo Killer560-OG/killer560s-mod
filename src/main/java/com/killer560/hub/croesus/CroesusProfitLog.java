@@ -8,7 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
  */
 public final class CroesusProfitLog {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-croesus");
+    private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-croesus-log.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
@@ -155,8 +155,6 @@ public final class CroesusProfitLog {
             map.computeIfAbsent(ALL, k -> new Totals()).add(chest.cost(), chest.value(), chest.profit());
             map.computeIfAbsent(floorKey, k -> new Totals()).add(chest.cost(), chest.value(), chest.profit());
         }
-        LOGGER.info("[Croesus] Logged claim: {} {} chest, cost={}, value={}, profit={}, unpriced={} ({})",
-                floorKey, chest.type().display, chest.cost(), chest.value(), chest.profit(), chest.unpricedCount(), source);
         saveAsync();
     }
 

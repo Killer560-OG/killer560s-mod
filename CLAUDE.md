@@ -56,6 +56,12 @@ boss-phase detection; `util/ViewFreeze` holds the camera still while something r
 
 ## Conventions
 
+Loggers come from `util/ModLog.get("killer560smod-…")`, never from `LoggerFactory` directly. In a dev or
+cheat build that hands back the real SLF4J logger; in a release (`-Prelease=true`, `DEV_TOOLS == false`) it
+hands back one that drops TRACE/DEBUG/INFO/WARN and forwards only ERROR, so a release jar is quiet without
+a thousand call sites being guarded. `roomsim/` and `bazaarflip/` still call `LoggerFactory` directly and so
+still log in a release; route them through `ModLog` when their current work settles.
+
 Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter.
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
@@ -81,6 +87,10 @@ Two topics have their own files, because they had grown to half this one:
 secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP3's nodes and align
 physics. Read the relevant one before touching either area.
 
+- `LOGGER.debug` never reaches his log. Minecraft's root log4j2 level is INFO, and a real client log
+  (`26.1.2 (Dungeons)`, 29,596 lines, 2026-09-29) contains zero DEBUG lines. So a `.debug` call is not the
+  spam and deleting one buys nothing; when hunting log noise, hunt `.info`. That is where it all was: the
+  2026-09-29 trim cut INFO call sites from 783 to 273 and left WARN (276) and ERROR (86) alone.
 - A reach check belongs at the one place the interaction is SENT, not in each caller. Simon Says had four
   callers and a check in one of them; three paths sent clicks from up to 30 blocks away for months.
 - `"^(?:.*something.*|...)$"` is NOT anchored. The leading `^` buys nothing when the alternative starts with
@@ -89,6 +99,11 @@ physics. Read the relevant one before touching either area.
 - A comparator must not call the RNG. `SimFloorLayout` sorted candidates by a key containing
   `rng.nextDouble()`; TimSort noticed and threw "Comparison method violates its general contract!". Draw the
   jitter once per element and store it.
+- Switching variants needs `build/classes` cleared too, not just the generated `BuildVariant` source. After a
+  cheat compile, deleting only `build/generated/sources/buildVariant` and compiling legit produced a wall of
+  `error: cannot access Ap3FreezeState` / `Ap3EditScreen` / `Ap3RouteCache` - stale class files, not a real
+  break. The same source compiled clean once `build/classes` went too (2026-09-29). A "cannot access <a class
+  in this repo>" error is almost always this, not a missing dependency.
 - Gradle does NOT always regenerate `BuildVariant` when only `-Prelease`/`-PcheatBuild` changes. After
   building a release jar, a plain `./gradlew build` left the legit jar still carrying `DEV_TOOLS=false`.
   Delete `build/generated/sources/buildVariant` between variants, and check the class hash:

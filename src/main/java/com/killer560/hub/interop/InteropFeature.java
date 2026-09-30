@@ -6,7 +6,7 @@ import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Party Interop: one place that collects what the whole party knows about the current dungeon run, from
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class InteropFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interop");
+    private static final Logger LOGGER = ModLog.get("killer560smod-interop");
     /** 10 client ticks - the bridge polls at 2 Hz, which is far more often than any of this actually changes. */
     private static final int BRIDGE_POLL_TICKS = 10;
 

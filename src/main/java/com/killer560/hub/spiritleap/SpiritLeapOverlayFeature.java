@@ -17,8 +17,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +37,6 @@ import java.util.regex.Pattern;
  */
 public final class SpiritLeapOverlayFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-spiritleap");
     private static final Pattern IGN = Pattern.compile("([A-Za-z0-9_]{1,16})\\s*$");
 
     private static final int BOX_W = 180;
@@ -116,8 +113,6 @@ public final class SpiritLeapOverlayFeature {
 
         MenuState state = new MenuState();
         AtomicLong lastLeapAtMs = new AtomicLong(0L);
-        LOGGER.info("[SpiritLeap] Leap screen '{}' opened (containerId={}), playing class {}",
-                containerScreen.getTitle().getString(), containerScreen.getMenu().containerId, LeapMenuFeature.playingClass());
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) -> {
             poll(containerScreen, state);
@@ -171,8 +166,6 @@ public final class SpiritLeapOverlayFeature {
             return;
         }
         lastLeapAtMs.set(now);
-        LOGGER.info("[SpiritLeap] Leap to \"{}\" via {} (slot {}, containerId={})", target.name(), how,
-                target.slotIndex(), screen.getMenu().containerId);
         client.gameMode.handleContainerInput(screen.getMenu().containerId, target.slotIndex(), 0,
                 ContainerInput.PICKUP, client.player);
     }
@@ -208,8 +201,6 @@ public final class SpiritLeapOverlayFeature {
         if (first || !fresh.equals(state.targets)) {
             // Hypixel re-sends the contents of an open leap menu (a teammate dying/leaving); a change goes through
             // the same window before it is trusted.
-            LOGGER.info("[SpiritLeap] Leap menu {} (containerId={}): {}", first ? "settled" : "targets changed",
-                    containerScreen.getMenu().containerId, fresh);
             state.targets = fresh;
             PartyTracker.noteTeammates(fresh.stream().map(LeapTarget::name).toList());
         }

@@ -10,7 +10,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ import java.util.Locale;
  */
 final class Ap3RouteRunner {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ap3");
     /** The player's box: 0.6 wide, 1.8 tall. */
     private static final double HALF_WIDTH = 0.3;
     private static final double BODY_HEIGHT = 1.8;

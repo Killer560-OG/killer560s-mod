@@ -14,8 +14,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -31,7 +29,6 @@ import java.util.List;
  */
 public final class BloodRush {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interactivemap");
     private static final String CHAT = "Blood Rush";
     private static final int MAX_PATH_FAILURES = 3;
 
@@ -91,7 +88,6 @@ public final class BloodRush {
         pathStarted = false;
         cooldownTicks = 0;
         ModChat.send(CHAT, ModChat.good("Started"));
-        LOGGER.info("[BloodRush] Started");
     }
 
     public static void stop(String reason) {
@@ -102,7 +98,6 @@ public final class BloodRush {
         targetDoor = -1;
         ClearExecutor.cancel();
         ModChat.send(CHAT, ModChat.text(reason));
-        LOGGER.info("[BloodRush] Stopped: {}", reason);
     }
 
     private static void tick(Minecraft client) {

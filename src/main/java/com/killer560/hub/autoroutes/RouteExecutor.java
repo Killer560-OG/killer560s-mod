@@ -25,7 +25,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -68,8 +68,7 @@ import java.util.regex.Pattern;
  */
 public final class RouteExecutor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoroutes");
-    private static final String CHAT = "Auto Routes";
+    private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
 
     /** A sample counts as reached within this horizontal distance (tight: the path shape is the point)... */
     private static final double REACH_XZ = 0.45;
@@ -609,8 +608,6 @@ public final class RouteExecutor {
         breakerSent.clear();
         boomTarget = null;
         boomBefore.clear();
-        LOGGER.info("[AutoRoutes] Node {} ({}) at sample {}{}", route.indexOf(node), node.type, cursor,
-                node.awaitEnabled ? " (awaiting first)" : "");
     }
 
     private static void finishAction() {

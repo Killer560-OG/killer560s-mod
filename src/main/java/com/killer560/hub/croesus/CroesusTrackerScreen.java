@@ -8,12 +8,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -33,8 +30,6 @@ import java.util.Set;
 public class CroesusTrackerScreen extends Screen {
 
     private static final int ROW_H = 12;
-    private static final DateTimeFormatter DATE =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd").withLocale(Locale.US).withZone(ZoneId.systemDefault());
 
     /** Which tab the body is showing. */
     public enum View {

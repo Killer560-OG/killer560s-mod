@@ -98,8 +98,6 @@ public final class RagAxeState {
         strengthSent = false;
         endAlerted = false;
         readyAlerted = false;
-        RagAxeFeature.LOGGER.info("[RagAxe] Cast detected (strength +{}, channel {} ms, cooldown {} s)",
-                pendingStrength, cfg.isSoundIsBuffStart() ? 0 : CHANNEL_MS, cfg.getCooldownSeconds());
         if (cfg.isCastAlert()) {
             RagAxeFeature.alert("§aCasted Rag");
         }
@@ -119,7 +117,6 @@ public final class RagAxeState {
         if (!CANCEL.matcher(plain).matches()) {
             return;
         }
-        RagAxeFeature.LOGGER.info("[RagAxe] Ragnarock cancelled");
         buffStartMs = 0L;
         buffEndMs = 0L;
         pendingStrength = 0;
@@ -151,7 +148,6 @@ public final class RagAxeState {
         }
         if (!endAlerted && buffEndMs > 0 && now >= buffEndMs) {
             endAlerted = true;
-            RagAxeFeature.LOGGER.info("[RagAxe] Ragnarock buff ended");
             if (cfg.isEndAlert()) {
                 RagAxeFeature.alert("§cRagnarock Ended");
             }

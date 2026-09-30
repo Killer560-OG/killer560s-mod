@@ -9,7 +9,7 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -43,7 +43,7 @@ import java.util.concurrent.Executors;
  */
 public final class BestFriendsStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bestfriends");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-social");

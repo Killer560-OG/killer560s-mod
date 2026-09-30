@@ -44,8 +44,6 @@ public final class ChocolateFactoryFeature {
     private static boolean halted = false;
     private static long nextActionMs = 0;
     private static long nextUpgradeMs = 0;
-    private static int clicksThisSession = 0;
-    private static int upgradesThisSession = 0;
 
     private record Candidate(int slot, long cost, double effectiveCost) {
     }
@@ -64,7 +62,6 @@ public final class ChocolateFactoryFeature {
             endSession("screen closed");
             if (halted) {
                 halted = false;
-                CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory halt cleared (all screens closed)");
             }
             return;
         }
@@ -92,13 +89,8 @@ public final class ChocolateFactoryFeature {
         long now = System.currentTimeMillis();
         if (!sessionActive) {
             sessionActive = true;
-            clicksThisSession = 0;
-            upgradesThisSession = 0;
             nextActionMs = now + cfg.rollCfDelayMs();
             nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
-            CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory session started (cookie={} upgrade={} strays={} timeTower={} delay={}-{}ms upgradeDelay={}ms)",
-                    cfg.isCfClickCookie(), cfg.isCfAutoUpgrade(), cfg.isCfClaimStrays(), cfg.isCfAutoTimeTower(),
-                    cfg.getCfMinDelayMs(), cfg.getCfMaxDelayMs(), cfg.getCfUpgradeDelayMs());
         }
 
         // Real gap found (2026-09-21, gate audit): ActionGate.Actor.CHOCOLATE_FACTORY was declared for this
@@ -113,20 +105,10 @@ public final class ChocolateFactoryFeature {
             Boolean sent = null; // null = nothing was due to click at all
             if (cfg.isCfAutoTimeTower() && shouldActivateTimeTower(menu.getSlot(39).getItem())) {
                 sent = click(client, screen, menu, 39, 1, ContainerInput.PICKUP);
-                if (sent) {
-                    CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory activated Time Tower");
-                }
             } else if (straySlot >= 0) {
                 sent = click(client, screen, menu, straySlot, 0, ContainerInput.PICKUP);
-                if (sent) {
-                    CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory claimed stray '{}' (slot {})",
-                            CheatUtils.plainName(menu.getSlot(straySlot).getItem()), straySlot);
-                }
             } else if (cfg.isCfClickCookie()) {
                 sent = click(client, screen, menu, 13, 1, ContainerInput.PICKUP);
-                if (sent) {
-                    clicksThisSession++;
-                }
             }
             if (sent == null || sent) {
                 nextActionMs = now + cfg.rollCfDelayMs();
@@ -140,10 +122,6 @@ public final class ChocolateFactoryFeature {
                 nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
             } else if (click(client, screen, menu, best.slot(), 2, ContainerInput.CLONE)) {
                 nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
-                upgradesThisSession++;
-                CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory bought slot {} '{}' cost={} (chocolate={}, cost/cps={})",
-                        best.slot(), CheatUtils.plainName(menu.getSlot(best.slot()).getItem()), best.cost(), chocolate,
-                        String.format(java.util.Locale.US, "%.1f", best.effectiveCost()));
             }
         }
     }
@@ -178,8 +156,6 @@ public final class ChocolateFactoryFeature {
 
     private static void endSession(String why) {
         if (sessionActive) {
-            CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory session ended ({}): {} cookie clicks, {} upgrades",
-                    why, clicksThisSession, upgradesThisSession);
             sessionActive = false;
         }
     }

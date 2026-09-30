@@ -8,7 +8,7 @@ import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,7 +25,7 @@ import java.nio.file.Path;
  */
 public final class RagAxeConfig {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ragaxe");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ragaxe");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ragaxe.json");

@@ -13,7 +13,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +53,7 @@ import java.util.Locale;
  */
 public final class EtherwarpFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-etherwarp");
+    private static final Logger LOGGER = ModLog.get("killer560smod-etherwarp");
     private static final double MAX_LOOK_DISTANCE = 64.0;
 
     private EtherwarpFeature() {

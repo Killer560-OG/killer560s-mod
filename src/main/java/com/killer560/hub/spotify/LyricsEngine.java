@@ -59,9 +59,6 @@ public final class LyricsEngine {
             NowPlaying nowPlaying = fetchNowPlaying(apiKey, username);
 
             if (nowPlaying == null) {
-                if (lastTrackKey != null) {
-                    SpotifyLyricsFeature.LOGGER.info("Last.fm reports nothing playing (was tracking '{}')", lastTrackKey);
-                }
                 currentLyric = "";
                 currentIsTransition = false;
                 lastTrackKey = null;

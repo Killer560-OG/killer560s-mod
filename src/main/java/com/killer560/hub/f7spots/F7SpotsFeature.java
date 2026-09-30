@@ -4,7 +4,7 @@ import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * F7 Spots - F7/M7 walk-to waypoints and Last Breath aim spots. Entry point; everything is default OFF
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class F7SpotsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-f7spots");
+    private static final Logger LOGGER = ModLog.get("killer560smod-f7spots");
 
     private F7SpotsFeature() {
     }

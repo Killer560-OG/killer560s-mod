@@ -15,8 +15,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.animal.wolf.WolfSoundVariant;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -67,8 +65,6 @@ import java.util.regex.Pattern;
  */
 public final class AbilityCooldownState {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-abilitycooldown");
-
     /** SkyHanni {@code abilityUsePattern}: {@code ".*§b-\d+ Mana \(§6(?<type>.*)§b\).*"}. Written here so the
      *  colour codes are optional - this mod's own {@code PlayerStatsFeature} learned the hard way that a real
      *  action bar does not always carry the codes the reference mod's regex assumed. */
@@ -111,7 +107,6 @@ public final class AbilityCooldownState {
             return;
         }
         ENDS_AT.put(ability, System.currentTimeMillis() + durationMs);
-        LOGGER.info("[AbilityCooldown] {} started ({} ms)", ability.label(), durationMs);
     }
 
     /** SkyHanni's {@code ItemAbility.sound()} - only yours if you clicked an item inside the window. */

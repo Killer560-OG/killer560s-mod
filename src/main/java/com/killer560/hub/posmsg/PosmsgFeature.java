@@ -10,8 +10,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -42,7 +40,6 @@ import java.util.Set;
  */
 public final class PosmsgFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-posmsg");
 
     /** You must get this much further out than the radius before the waypoint can fire again. */
     private static final double EXIT_MARGIN = 1.5;
@@ -79,7 +76,6 @@ public final class PosmsgFeature {
         boolean inDungeonNow = DungeonState.isInDungeon();
         if (inDungeonNow && !wasInDungeon) {
             usedThisRun.clear();
-            LOGGER.info("[Posmsg] New dungeon run detected - cleared once-per-run usage");
         }
         wasInDungeon = inDungeonNow;
 
@@ -147,7 +143,6 @@ public final class PosmsgFeature {
         }
         client.player.connection.sendCommand("pc " + text);
         usedThisRun.add(entry.id);
-        LOGGER.info("[Posmsg] Sent \"{}\" for waypoint \"{}\"", text, entry.name);
         return true;
     }
 

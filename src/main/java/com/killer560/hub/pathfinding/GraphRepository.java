@@ -2,7 +2,7 @@ package com.killer560.hub.pathfinding;
 
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.InputStream;
 import java.net.URI;
@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class GraphRepository {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-pathfinding");
+    private static final Logger LOGGER = ModLog.get("killer560smod-pathfinding");
 
     private static final String BRANCH = "main";
     private static final String PRIMARY = "https://raw.githubusercontent.com/hannibal002/SkyHanni-REPO/" + BRANCH

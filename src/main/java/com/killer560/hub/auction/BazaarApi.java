@@ -9,7 +9,7 @@ import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class BazaarApi {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bazaar");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bazaar");
     private static final String BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar";
     private static final long AUTO_RESCAN_MINUTES = 5;
 

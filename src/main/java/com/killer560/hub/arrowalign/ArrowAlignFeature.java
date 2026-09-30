@@ -20,7 +20,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -48,7 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class ArrowAlignFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod/ArrowAlign");
+    private static final Logger LOGGER = ModLog.get("killer560smod/ArrowAlign");
 
     private static final int GRID_X = -2;
     private static final int GRID_Y = 120;
@@ -177,9 +177,6 @@ public final class ArrowAlignFeature {
         int[] match = findSolution();
         if (match != solution) {
             solution = match;
-            if (match != null) {
-                LOGGER.info("[ArrowAlign] Layout matched ({} clicks needed).", totalServerClicksNeeded());
-            }
         }
     }
 
@@ -213,7 +210,6 @@ public final class ArrowAlignFeature {
         if (serverSolved && firstClickMs > 0L) {
             solvedAnnounced = true;
             long took = now - firstClickMs;
-            LOGGER.info("[ArrowAlign] Solved in {}ms ({} clicks sent).", took, clicksThisSolve);
             if (cfg.isSolveTimeEnabled()) {
                 ModChat.send("Arrow Align",
                         ModChat.text("Solved in "),

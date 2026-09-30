@@ -5,7 +5,7 @@ import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -54,6 +54,6 @@ public abstract class LiveMapPacketListenerMixin {
     // closed to a log line and let vanilla handle the packet - see BloodCampPacketMixin for the real case.
     @Unique
     private static void killer560smod$liveMap$hookThrew(String what, RuntimeException e) {
-        LoggerFactory.getLogger("killer560smod-livemap").error("[LiveMap] {} packet hook threw", what, e);
+        ModLog.get("killer560smod-livemap").error("[LiveMap] {} packet hook threw", what, e);
     }
 }

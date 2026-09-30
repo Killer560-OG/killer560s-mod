@@ -18,7 +18,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -73,7 +73,7 @@ import java.util.regex.Pattern;
  */
 public final class MaskSwapper {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-maskswap");
+    private static final Logger LOGGER = ModLog.get("killer560smod-maskswap");
     private static final String CHAT = "Mask";
 
     /** Hard floor between two commands this class sends, on top of everything else. Anti-mute, not anti-cheat. */
@@ -154,7 +154,6 @@ public final class MaskSwapper {
     private static long lastCommandMs = Long.MIN_VALUE / 4;
     private static long menuFirstSeenMs = 0L;
     private static int previousSlot = -1;
-    private static String lastForeignTitle = null;
     private static Object lastLevel = null;
     private static int petPagesTried = 0;
     /** Set the moment a rod is thrown or {@code /pets} confirms Phoenix is out - see {@link #msSincePhoenixHandled()}. */
@@ -268,7 +267,6 @@ public final class MaskSwapper {
             return false;
         }
         if (unavailable.contains(wanted)) {
-            LOGGER.info("[MaskSwap] {} asked for {} - refused, it was already marked missing this world.", who, wanted.label());
             return false;
         }
         // The rod route sends no command at all, so only a mask swap or a direct Phoenix-via-/pets request has
@@ -279,8 +277,6 @@ public final class MaskSwapper {
                 && MaskInvincibilityConfig.getInstance().getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.PETS;
         long now = System.currentTimeMillis();
         if ((wanted != Target.PHOENIX || phoenixViaPets) && now - lastCommandMs < MIN_COMMAND_GAP_MS) {
-            LOGGER.info("[MaskSwap] {} asked for {} - refused, only {}ms since the last command (floor {}ms).",
-                    who, wanted.label(), now - lastCommandMs, MIN_COMMAND_GAP_MS);
             return false;
         }
         target = wanted;
@@ -288,13 +284,9 @@ public final class MaskSwapper {
         startedMs = now;
         nextActionAtMs = now + stepDelayMs();
         menuFirstSeenMs = 0L;
-        lastForeignTitle = null;
         petPagesTried = 0;
         previousSlot = client.player.getInventory().getSelectedSlot();
         stage = wanted != Target.PHOENIX ? Stage.SEND_STATS : phoenixViaPets ? Stage.SEND_PETS : Stage.ROD_SELECT;
-        LOGGER.info("[MaskSwap] {} requested {} - {} (step delay {}ms).", who, wanted.label(),
-                wanted != Target.PHOENIX ? "/stats + menu click" : phoenixViaPets ? "/pets + menu click" : "rod throw",
-                stepDelayMs());
         return true;
     }
 
@@ -368,7 +360,6 @@ public final class MaskSwapper {
         player.connection.sendCommand("stats");
         stage = Stage.AWAIT_MENU;
         nextActionAtMs = now + stepDelayMs();
-        LOGGER.info("[MaskSwap] Sent /stats for {} ({}).", target.label(), requester);
     }
 
     private static void awaitMenu(Minecraft client, long now) {
@@ -377,10 +368,6 @@ public final class MaskSwapper {
         }
         String title = screen.getTitle().getString();
         if (!title.toLowerCase(Locale.ROOT).contains("equipment")) {
-            if (!title.equals(lastForeignTitle)) {
-                lastForeignTitle = title;
-                LOGGER.info("[MaskSwap] Waiting for the Stats & Equipment menu - currently \"{}\".", title);
-            }
             return;
         }
         List<Slot> slots = screen.getMenu().slots;
@@ -422,14 +409,10 @@ public final class MaskSwapper {
                 return;
             }
             client.gameMode.handleContainerInput(screen.getMenu().containerId, slot.index, 0, ContainerInput.PICKUP, player);
-            LOGGER.info("[MaskSwap] Clicked {} in \"{}\" (slot {}, {}ms after /stats).", target.label(),
-                    screen.getTitle().getString(), slot.index, now - startedMs);
             stage = Stage.CLOSE_MENU;
             nextActionAtMs = now + stepDelayMs();
             return;
         }
-        LOGGER.info("[MaskSwap] No {} in the inventory half of the Stats menu - marked missing this world, no retry.",
-                target.label());
         unavailable.add(target);
         closeOurMenu(client);
         ModChat.send(CHAT, ModChat.bad("No " + target.label() + " in your inventory."));
@@ -443,14 +426,10 @@ public final class MaskSwapper {
             // silently doing nothing is exactly the regression this whole change exists to fix, so fall back to
             // the /pets menu instead of just giving up. That's a second command, so it still owes the floor.
             if (now - lastCommandMs < MIN_COMMAND_GAP_MS) {
-                LOGGER.info("[MaskSwap] No fishing rod in the hotbar for Phoenix, and the command floor hasn't "
-                                + "cleared to fall back to /pets ({}ms left) - refusing this attempt, no retry.",
-                        MIN_COMMAND_GAP_MS - (now - lastCommandMs));
                 ModChat.send(CHAT, ModChat.bad("No rod for Phoenix, and /pets can't send yet (command floor)."));
                 abort("no rod, floored");
                 return;
             }
-            LOGGER.info("[MaskSwap] No fishing rod in the hotbar for Phoenix - falling back to /pets.");
             ModChat.send(CHAT, ModChat.text("No rod found for Phoenix - falling back to "), ModChat.value("/pets"));
             stage = Stage.SEND_PETS;
             nextActionAtMs = now + stepDelayMs();
@@ -462,8 +441,6 @@ public final class MaskSwapper {
             }
             player.getInventory().setSelectedSlot(slot);
             player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-            LOGGER.info("[MaskSwap] Selected rod \"{}\" in hotbar slot {} (was {}).",
-                    ChatObserver.strip(player.getInventory().getItem(slot).getHoverName()), slot, previousSlot);
         }
         stage = Stage.ROD_CAST;
         nextActionAtMs = now + stepDelayMs();
@@ -475,7 +452,6 @@ public final class MaskSwapper {
         }
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         lastPhoenixRodThrowMs = now;
-        LOGGER.info("[MaskSwap] Threw the rod for Phoenix ({}). Hypixel's own Autopet rule does the summon.", requester);
         ModChat.send(CHAT, ModChat.text("Threw the rod for "), ModChat.value("Phoenix"));
         if (!MaskInvincibilityConfig.getInstance().isRodReturnToPreviousSlot() || previousSlot < 0) {
             abort("rod thrown");
@@ -492,7 +468,6 @@ public final class MaskSwapper {
             }
             player.getInventory().setSelectedSlot(previousSlot);
             player.connection.send(new ServerboundSetCarriedItemPacket(previousSlot));
-            LOGGER.info("[MaskSwap] Returned to hotbar slot {}.", previousSlot);
         }
         abort("rod done");
     }
@@ -509,11 +484,9 @@ public final class MaskSwapper {
         startedMs = now; // the timeout is about the menu, so it starts when the command actually goes out
         petPagesTried = 0;
         menuFirstSeenMs = 0L;
-        lastForeignTitle = null;
         player.connection.sendCommand("pets");
         stage = Stage.AWAIT_PETS;
         nextActionAtMs = now + stepDelayMs();
-        LOGGER.info("[MaskSwap] Sent /pets for Phoenix ({}).", requester);
     }
 
     private static void awaitPets(Minecraft client, long now) {
@@ -522,10 +495,6 @@ public final class MaskSwapper {
         }
         String title = screen.getTitle().getString();
         if (!PETS_TITLE.matcher(title).matches()) {
-            if (!title.equals(lastForeignTitle)) {
-                lastForeignTitle = title;
-                LOGGER.info("[MaskSwap] Waiting for the Pets menu - currently \"{}\".", title);
-            }
             return;
         }
         List<Slot> slots = screen.getMenu().slots;
@@ -568,7 +537,6 @@ public final class MaskSwapper {
             ItemLore lore = stack.get(DataComponents.LORE);
             String joined = lore == null ? "" : String.join(" | ", lore.lines().stream().map(ChatObserver::strip).toList());
             if (joined.contains("Click to despawn")) {
-                LOGGER.info("[MaskSwap] Phoenix already summoned (slot {} shows \"Click to despawn!\") - closing.", i);
                 lastPhoenixConfirmedSummonMs = now;
                 closeOurMenu(client);
                 abort("already summoned");
@@ -578,8 +546,6 @@ public final class MaskSwapper {
                 return;
             }
             client.gameMode.handleContainerInput(screen.getMenu().containerId, slots.get(i).index, 0, ContainerInput.PICKUP, player);
-            LOGGER.info("[MaskSwap] Clicked \"{}\" in \"{}\" (slot {}, page {}/{}, {}ms after /pets).",
-                    ChatObserver.strip(stack.getHoverName()), title, i, current, total, now - startedMs);
             lastPhoenixConfirmedSummonMs = now;
             closeOurMenu(client);
             ModChat.send(CHAT, ModChat.text("Summoned "), ModChat.value("Phoenix"));
@@ -596,15 +562,11 @@ public final class MaskSwapper {
                     menuFirstSeenMs = 0L;
                     startedMs = now; // fresh timeout for the next page, same as the deleted class did
                     client.gameMode.handleContainerInput(screen.getMenu().containerId, i, 0, ContainerInput.PICKUP, player);
-                    LOGGER.info("[MaskSwap] No Phoenix on pets page {}/{} - clicked Next Page (slot {}).",
-                            current, total, i);
                     nextActionAtMs = now + stepDelayMs();
                     return;
                 }
             }
         }
-        LOGGER.info("[MaskSwap] No Phoenix pet found in /pets (page {}/{}) - marked missing this world, no retry.",
-                current, total);
         unavailable.add(Target.PHOENIX);
         closeOurMenu(client);
         ModChat.send(CHAT, ModChat.bad("No Phoenix pet found in /pets."));
@@ -651,7 +613,6 @@ public final class MaskSwapper {
 
     private static void abort(String why) {
         if (stage != Stage.IDLE) {
-            LOGGER.debug("[MaskSwap] Swap ended ({}).", why);
             if (target != null) {
                 lastCompletedTarget = target;
                 lastCompletedRequester = requester;
@@ -664,6 +625,5 @@ public final class MaskSwapper {
         requester = "";
         menuFirstSeenMs = 0L;
         previousSlot = -1;
-        lastForeignTitle = null;
     }
 }

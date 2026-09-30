@@ -22,7 +22,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -63,7 +63,7 @@ import java.util.regex.Pattern;
  */
 public final class ExperimentsProfitTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-experiments-profit");
+    private static final Logger LOGGER = ModLog.get("killer560smod-experiments-profit");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-experiments-profit.json");
@@ -231,9 +231,6 @@ public final class ExperimentsProfitTracker {
 
     private static void onPuzzleScreen(String game, String tier, ChestMenu menu) {
         if (pending == null || !pending.game.equals(game)) {
-            if (pending != null) {
-                LOGGER.info("Discarding unclaimed {} session - a new {} session started", pending.game, game);
-            }
             pending = new Pending(game, tier);
         }
         pending.tier = tier;
@@ -434,8 +431,6 @@ public final class ExperimentsProfitTracker {
         lastSummary = game + (session.tier != null ? " (" + session.tier + ")" : "")
                 + ": +" + shortNumber(xp) + " XP, " + shortNumber(value) + " coins";
         save();
-        LOGGER.info("Logged {} session from {}: {} rewards, xp={}, value={}, unpriced={}",
-                game, source, rewards.size(), xp, value, unpriced);
         postSummary(game, session, rewards, xp, value, unpriced);
     }
 

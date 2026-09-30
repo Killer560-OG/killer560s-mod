@@ -37,7 +37,7 @@ import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.lang.ref.WeakReference;
 import java.net.URI;
@@ -75,7 +75,7 @@ import java.util.regex.Pattern;
  */
 public final class ScoreCalculatorFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-scorecalc");
+    private static final Logger LOGGER = ModLog.get("killer560smod-scorecalc");
     public static final String ELEMENT_ID = "score_calculator";
     private static final String CHAT_NAME = "Score Calculator";
 
@@ -256,7 +256,6 @@ public final class ScoreCalculatorFeature {
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof Zombie zombie && zombie.isBaby() && zombie.isDeadOrDying()) {
                 mimicKilled = true;
-                LOGGER.info("[ScoreCalc] Mimic killed (baby zombie id={} at {})", zombie.getId(), zombie.position());
                 // We saw it ourselves, so this is the most trustworthy version of the fact the party has.
                 PartyInteropState.offerFlag(PartyInteropState.Flag.MIMIC_KILLED, InteropSource.SELF, null);
                 maybeSendKillAlert("Mimic", ScoreCalculatorConfig.getInstance().isMimicAlertEnabled(),
@@ -406,7 +405,6 @@ public final class ScoreCalculatorFeature {
         if (PRINCE_KILLED.matcher(plain).matches()) {
             if (!princeKilled) {
                 princeKilled = true;
-                LOGGER.info("[ScoreCalc] Prince killed");
                 // The bonus-score line is public server chat identical for the whole party, so this is a
                 // SELF fact for Party Interop - same as DungeonInfoFeature used to offer it.
                 PartyInteropState.offerFlag(PartyInteropState.Flag.PRINCE_KILLED, InteropSource.SELF, null);
@@ -417,7 +415,6 @@ public final class ScoreCalculatorFeature {
         if (BAT_KILLED.matcher(plain).matches()) {
             if (!batKilled) {
                 batKilled = true;
-                LOGGER.info("[ScoreCalc] Bat killed");
                 PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
                 maybeSendKillAlert("Bat", cfg.isBatAlertEnabled(), cfg.getBatAlertMessage(), PartyInteropState.Flag.BAT_KILLED);
             }
@@ -429,12 +426,6 @@ public final class ScoreCalculatorFeature {
         }
         Matcher teamScore = TEAM_SCORE.matcher(plain);
         if (teamScore.find()) {
-            // Diagnostics only: Hypixel's real end-of-run score vs this estimate, for checking the formula in latest.log.
-            ScoreCalculator.Result r = lastResult;
-            LOGGER.info("[ScoreCalc] Hypixel final score {} ({}) vs estimate {} ({}) | inputs={} | parts skill={} explore={} speed={} bonus={}",
-                    teamScore.group(1), teamScore.group(2), r == null ? "?" : r.total(), r == null ? "?" : r.rank(),
-                    lastInputs, r == null ? "?" : r.skill(), r == null ? "?" : r.explore(),
-                    r == null ? "?" : r.speed(), r == null ? "?" : r.bonus());
             return;
         }
         Matcher party = PARTY_MESSAGE.matcher(plain);
@@ -466,12 +457,8 @@ public final class ScoreCalculatorFeature {
                 completedRooms, clearedPercent, deaths, puzzleCount, puzzlesCompleted, puzzlesFailed, seconds,
                 bloodDone, inBoss, mimicKilled, princeKilled, batKilled, isPaul(cfg), cfg.isAssumeSpiritPet());
         ScoreCalculator.Result result = ScoreCalculator.calculate(inputs);
-        ScoreCalculator.Result previous = lastResult;
         lastInputs = inputs;
         lastResult = result;
-        if (previous == null || previous.total() != result.total()) {
-            LOGGER.debug("[ScoreCalc] Score {} -> {} ({})", previous == null ? "-" : previous.total(), result.total(), inputs);
-        }
         if (!tabDataSeen) {
             return; // never alert off an empty tab list
         }
@@ -487,8 +474,6 @@ public final class ScoreCalculatorFeature {
 
     private static void fireMilestone(ScoreCalculatorConfig cfg, int milestone, String floor, int seconds) {
         boolean is300 = milestone == 300;
-        LOGGER.info("[ScoreCalc] {} score reached at {} on {} (estimate={}, inputs={})", milestone, formatTime(seconds),
-                floor, lastResult == null ? "?" : lastResult.total(), lastInputs);
         Minecraft client = Minecraft.getInstance();
         boolean title = is300 ? cfg.isTitle300() : cfg.isTitle270();
         if (title) {

@@ -8,7 +8,7 @@ import com.killer560.hub.livemap.RunStatsBridge;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -46,7 +46,7 @@ import java.util.regex.Pattern;
  */
 public final class RunStatsTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-runstats");
+    private static final Logger LOGGER = ModLog.get("killer560smod-runstats");
 
     /** NoammAddons {@code DungeonListener.deathRegex}. */
     private static final Pattern DEATH = Pattern.compile(

@@ -194,3 +194,39 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   singleplayer server, and `SimBreakerState` ticks on `END_SERVER_TICK`, which never fires on a remote
   server - so those are structurally safe rather than gated. Scenario 88 fires every sim command at a real
   dedicated server and fingerprints the arena block for block before and after.
+- **A sim miniboss the Mob ESP recognises has to be a real server-side PLAYER, and four separate things each
+  silently refuse it.** `MobEspFeature.isMiniboss` wants a client `Player` with a **version-2 UUID** and a name
+  from its five, so the only route is an AddEntity packet of type `PLAYER` -
+  `ClientPacketListener.createEntityFromPacket` builds a `RemotePlayer` from `getPlayerInfo(uuid).getProfile()`
+  and, with no `PlayerInfo` for that UUID, logs "Server attempted to add player prior to sending player info"
+  and drops the entity. So `SimMiniboss` sends a `ClientboundPlayerInfoUpdatePacket(ADD_PLAYER, boss)` to each
+  real connection **before** `addFreshEntity` (ADD_PLAYER alone, so the client's `listed` stays false and it
+  never reaches the tab list), and withdraws it with `ClientboundPlayerInfoRemovePacket` once the entity is gone.
+  The other three, all verified in the 26.1.2 bytecode: a bare `ServerPlayer` in a level **crashes**, because
+  `ChunkMap.addEntity` calls `updatePlayerStatus(player, true)` which reaches the static
+  `ChunkMap.markChunkPendingToSend` reading `player.connection.chunkSender` with no null check - which is why it
+  extends Fabric's `FakePlayer`, whose constructor installs a `FakePlayerPacketListener` (a real
+  `ServerGamePacketListenerImpl` over a channel-less `Connection` whose `send` is a no-op). `isInvulnerableTo`
+  refuses **every** hit twice over: `FakePlayer`'s returns a flat `true`, and `ServerPlayer`'s returns true unless
+  `connection.hasClientLoaded()`, which a fake listener never gets told. And `ServerPlayer.canHarmPlayer` returns
+  false whenever `isPvpAllowed()` is false. All three are overridden in `SimMiniboss.Miniboss`.
+- **`FakePlayer.tick()` is empty, and an empty tick makes a player immortal after ONE hit.** `invulnerableTime`
+  is decremented in `ServerPlayer.tick` and nowhere else for a player - `LivingEntity.baseTick` guards its own
+  decrement with `!(this instanceof ServerPlayer)` - so with nothing ticking it, it sticks at 20 and
+  `LivingEntity.hurtServer`'s `invulnerableTime > 10` branch then refuses every later hit of the same size
+  (`amount <= lastHurt`). A test that hits the thing once cannot see this. `SimMiniboss.Miniboss.tick` decrements
+  `invulnerableTime`/`hurtTime` and discards the entity once `isDeadOrDying()`, and `die()` is overridden to
+  nothing so `ServerPlayer.die` never broadcasts a vanilla death message or leaves a corpse awaiting a respawn.
+- **Singleplayer packets ARE serialized, so wire limits apply in the sim.** `Connection$3.initChannel` calls
+  `configureInMemoryPipeline` -> `configureSerialization`, which installs a real `PacketEncoder`/`PacketDecoder`
+  over the local channel. `ADD_PLAYER` encodes the profile name with `ByteBufCodecs.PLAYER_NAME` =
+  `stringUtf8(16)`, and `Player.getName()` is the profile name and nothing else (`getfield gameProfile;
+  GameProfile.name()`). "Frozen Adventurer" is 17 characters, so that one of the five can never be placed at all
+  and `SimMiniboss.place` refuses it by name; the other four fit. Also: `UUID.nameUUIDFromBytes` gives version 3
+  and `UUID.randomUUID` version 4, so the version nibble has to be written by hand (byte 6 `& 0x0F | 0x20`).
+- **A placed miniboss lands in `ServerLevel.players()`.** `ServerLevel$EntityCallbacks.onTrackingStart` adds
+  every `ServerPlayer` to that list, so anything in `roomsim` walking it now sees NPCs: `SimMobs.wakeFels` would
+  have had one wake a Fel, and `SimSecretItems` was taking `players().get(0)` as "the player". Both filter on
+  `SimMiniboss.isPlaced` now. `Kind.MINIBOSS` is the real thing rather than the 20-HP starred zombie it used to
+  be, with that zombie kept only as the automatic fallback when the player entity cannot be built (no player on
+  the server yet, an unsendable name, or the `ServerPlayer` constructor throwing) - there is no setting either way.

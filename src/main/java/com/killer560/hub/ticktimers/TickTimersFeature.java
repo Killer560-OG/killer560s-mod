@@ -13,8 +13,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -99,23 +97,6 @@ public final class TickTimersFeature {
     private static long goldorPhaseStartTick = 0L;
     private static boolean wasInDungeon = false;
     private static Object lastLevel = null;
-    private static int diagGoldorRestarts = 0;
-
-    // Diagnostic only (2026-09-14) - never read by any timer logic.
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ticktimers");
-    private static Boolean diagWasCounting = null;
-
-    private static void diagArmed(String timer, String line) {
-        LOGGER.info("[TickTimers] {} ARMED by line \"{}\" (bossPhaseActive={}, inDungeon={}, floor={}){}",
-                timer, line, DungeonState.isBossPhaseActive(), DungeonState.isInDungeon(), DungeonState.getFloor(),
-                DungeonState.isBossPhaseActive() ? "" : " - WARNING: timers only count down while bossPhaseActive, this one will freeze");
-    }
-
-    private static void diagExpired(String timer, int before, int after) {
-        if (before >= 0 && after < 0) {
-            LOGGER.info("[TickTimers] {} countdown EXPIRED", timer);
-        }
-    }
 
     private TickTimersFeature() {
     }
@@ -152,30 +133,23 @@ public final class TickTimersFeature {
         String raw = plain != null ? plain : message.getString();
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
-            diagArmed("Necron (60t)", raw);
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             goldorTickTime = 60;
-            diagGoldorRestarts = 0;
             goldorPhaseStartTick = ServerTickClock.now();
-            diagArmed("Goldor Tick (60t, repeating until Core entrance opens)", raw);
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
             goldorTickTime = -1;
-            LOGGER.info("[TickTimers] Goldor Start/Tick CLEARED by line \"{}\" (Tick restarted {} times this P3)", raw, diagGoldorRestarts);
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
             goldorStartTime = 104;
             padTickTime = -1;
             stormTick = -1;
-            diagArmed("Goldor Start (104t), Storm pad/storm cleared", raw);
         } else if (STORM_START_REGEX.matcher(raw).matches()) {
             padTickTime = 20;
             lightningTickTime = 560;
             stormTick = 0;
-            diagArmed("Storm Pad (20t) + Lightning (560t) + Storm counter", raw);
         } else if (!pyTriggered && STORM_PY_REGEX.matcher(raw).matches()) {
             pyTriggered = true;
             pyTickTime = 95;
-            diagArmed("PY (95t)", raw);
         }
         // CrushTimer (moved in from f7spots 2026-09-21): its own trigger lines ("Oof" / "Ouch, that hurt!" /
         // the optional extra trigger text) don't overlap any pattern above, so it always gets a look.
@@ -187,25 +161,15 @@ public final class TickTimersFeature {
         Object level = Minecraft.getInstance().level;
         if (level != lastLevel) {
             if (lastLevel != null) {
-                LOGGER.info("[TickTimers] Level changed - all timers reset");
                 resetAll();
             }
             lastLevel = level;
         }
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
-            LOGGER.info("[TickTimers] Left dungeon - all timers reset");
             resetAll();
         }
         wasInDungeon = inDungeon;
-
-        boolean diagCounting = TickTimersConfig.getInstance().isEnabled() && DungeonState.isBossPhaseActive();
-        if (diagWasCounting == null || diagWasCounting != diagCounting) {
-            LOGGER.info("[TickTimers] countdown ticking {} (enabled={}, bossPhaseActive={}, inDungeon={}, floor={})",
-                    diagCounting ? "ACTIVE" : "PAUSED", TickTimersConfig.getInstance().isEnabled(),
-                    DungeonState.isBossPhaseActive(), inDungeon, DungeonState.getFloor());
-            diagWasCounting = diagCounting;
-        }
 
         // CrushTimer's interval countdown/title (moved in from f7spots 2026-09-21) - client tick, same as
         // F7SpotsFeature used to drive it, gated by the master switch since it now shares this tab.
@@ -220,11 +184,6 @@ public final class TickTimersFeature {
         if (!TickTimersConfig.getInstance().isEnabled() || !DungeonState.isBossPhaseActive()) {
             return;
         }
-        int diagGoldorStart = goldorStartTime;
-        int diagGoldorTick = goldorTickTime;
-        int diagLightning = lightningTickTime;
-        int diagPy = pyTickTime;
-        int diagNecron = necronTicks;
         TickTimersConfig cfg = TickTimersConfig.getInstance();
         // Real bug found and fixed (2026-09-14, real-run log analysis): an earlier review pass removed this
         // re-arm as a "copy-paste bug", claiming the Core entrance line fires BEFORE Goldor's taunt. It
@@ -240,7 +199,6 @@ public final class TickTimersFeature {
         // it only removes that failure mode; the countdown's alignment is unchanged.
         if (goldorTickTime == 0 && cfg.isGoldorTimer()) {
             goldorTickTime = 60;
-            diagGoldorRestarts++;
         }
         if (goldorStartTime >= 0) {
             goldorStartTime--;
@@ -268,11 +226,6 @@ public final class TickTimersFeature {
         if (stormTick >= 0) {
             stormTick++;
         }
-        diagExpired("Goldor Start", diagGoldorStart, goldorStartTime);
-        diagExpired("Goldor Tick", diagGoldorTick, goldorTickTime);
-        diagExpired("Lightning", diagLightning, lightningTickTime);
-        diagExpired("PY", diagPy, pyTickTime);
-        diagExpired("Necron", diagNecron, necronTicks);
     }
 
     private static void resetAll() {
@@ -286,7 +239,6 @@ public final class TickTimersFeature {
         stormTick = -1;
         CrushTimer.reset();
         goldorPhaseStartTick = 0L;
-        diagGoldorRestarts = 0;
     }
 
     private static String format(int time, int max, String prefix) {

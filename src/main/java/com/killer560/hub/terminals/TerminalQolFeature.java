@@ -16,7 +16,7 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -58,7 +58,7 @@ import java.util.regex.Pattern;
  */
 public final class TerminalQolFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-terminalqol");
+    private static final Logger LOGGER = ModLog.get("killer560smod-terminalqol");
 
     /** Devonian's own {@code terminalTitleRegex}, widened with the same optional trailing group
      *  {@code DeviceTimesFeature}/{@code TerminalTimersFeature} already use, so a line another mod (or this
@@ -173,8 +173,6 @@ public final class TerminalQolFeature {
         }
         terminalOpenedAtMs = -1L;
         playBlockedSound();
-        LOGGER.info("[TerminalQol] Swallowed a {} click {}ms after the terminal opened (threshold {}ms{})",
-                currentType, elapsed, threshold, cfg.isProtectionSubtractPing() ? ", ping " + ping() + "ms subtracted" : "");
         return true;
     }
 
@@ -322,8 +320,6 @@ public final class TerminalQolFeature {
             cfg.save();
             client.options.keyDrop.setKey(keyFor(cfg.getDropKeyCode()));
             dropKeySwapped = true;
-            LOGGER.info("[TerminalQol] Drop key swapped from {} to {} for the duration of this terminal",
-                    realKey, keyFor(cfg.getDropKeyCode()).getName());
         } else if (!wanted && dropKeySwapped) {
             restoreDropKey(client, cfg);
         }
@@ -333,7 +329,6 @@ public final class TerminalQolFeature {
         String saved = cfg.getSavedDropKeyName();
         if (!saved.isEmpty() && client.options != null) {
             client.options.keyDrop.setKey(InputConstants.getKey(saved));
-            LOGGER.info("[TerminalQol] Drop key restored to {}", saved);
         }
         cfg.setSavedDropKeyName("");
         cfg.save();

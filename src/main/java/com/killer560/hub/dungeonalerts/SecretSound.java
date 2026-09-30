@@ -192,7 +192,6 @@ public final class SecretSound {
         if (type == SecretType.CHEST) {
             lastChestMs = now;
         }
-        DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Secret {} at {} - playing sound", type, pos.toShortString());
         play();
     }
 

@@ -13,7 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +54,7 @@ public final class WitherDoorsFeature {
     record DoorBox(AABB box, float r, float g, float b) {
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-witherdoors");
+    private static final Logger LOGGER = ModLog.get("killer560smod-witherdoors");
 
     private static boolean witherKeyHeld = false;
     private static boolean bloodKeyHeld = false;
@@ -84,7 +84,6 @@ public final class WitherDoorsFeature {
     private static final double DOOR_Y_MIN = 69.0;
     private static final double DOOR_Y_MAX = 73.0;
 
-    private static String lastLoggedGates = null;
 
     private WitherDoorsFeature() {
     }
@@ -156,7 +155,6 @@ public final class WitherDoorsFeature {
         }
         WitherDoorsConfig cfg = WitherDoorsConfig.getInstance();
         String gate = gate(client, cfg);
-        logGate(gate == null ? "active" : gate);
         if (gate != null) {
             CACHED.clear();
             cacheStampMs = 0L;
@@ -256,12 +254,5 @@ public final class WitherDoorsFeature {
             return;
         }
         WitherDoorsRenderer.draw(context, CACHED, WitherDoorsConfig.getInstance().isThroughWalls());
-    }
-
-    private static void logGate(String gate) {
-        if (!gate.equals(lastLoggedGates)) {
-            lastLoggedGates = gate;
-            LOGGER.info("[WitherDoors] state: {}", gate);
-        }
     }
 }

@@ -66,7 +66,6 @@ public final class AutoGfsFeature {
     private static long lastCheckMs = 0;
     private static long lastCommandMs = 0;
     private static Object lastLevel = null;
-    private static String lastGate = null;
 
     private AutoGfsFeature() {
     }
@@ -75,7 +74,6 @@ public final class AutoGfsFeature {
         for (RefillItem item : RefillItem.values()) {
             if (plain.equals("You have no " + item.emptyName + " in your Sacks!") && emptySacks.add(item)) {
                 pending.remove(item);
-                CheatUtils.LOGGER.info("[CheatUtils] AutoGFS sack empty for {} - skipping until world change", item.sackName);
             }
         }
     }
@@ -102,11 +100,6 @@ public final class AutoGfsFeature {
                 : !CheatUtils.isOnDungeonServer(client) ? "not on hypixel/p3sim"
                 : cfg.isGfsDungeonKuudraOnly() && !ScoreboardData.inIsland("Catacombs", "Kuudra") ? "not in a dungeon or Kuudra"
                 : containerOpen ? "a container screen is open" : null;
-        String gateLog = gate == null ? "active" : gate;
-        if (!gateLog.equals(lastGate)) {
-            lastGate = gateLog;
-            CheatUtils.LOGGER.info("[CheatUtils] AutoGFS state: {}", gateLog);
-        }
         if (gate != null) {
             // Real bug found (2026-09-20): this compared gate to the literal "screen open", which the gate
             // string above never actually produces (it says "a container screen is open") - so the compare
@@ -159,8 +152,6 @@ public final class AutoGfsFeature {
         lastCommandMs = now;
         String command = "gfs " + item.sackName + " " + amount;
         client.player.connection.sendCommand(command);
-        CheatUtils.LOGGER.info("[CheatUtils] AutoGFS sent /{} (had {}/{}, threshold {}%)", command,
-                count(client, item), item.maxStack, cfg.getGfsThresholdPercent());
         ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Auto GFS: "), ModChat.value("/" + command));
     }
 

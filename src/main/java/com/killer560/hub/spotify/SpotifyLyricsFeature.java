@@ -8,7 +8,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  */
 public final class SpotifyLyricsFeature {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-spotify");
+    public static final Logger LOGGER = ModLog.get("killer560smod-spotify");
 
     // Persistent settings
     public static volatile boolean enabled = true;

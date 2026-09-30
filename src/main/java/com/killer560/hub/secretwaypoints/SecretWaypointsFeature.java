@@ -12,8 +12,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,12 +93,6 @@ public final class SecretWaypointsFeature {
 
     private static boolean wasInDungeon = false;
 
-    // [SecretWaypoints] diagnostics - logging only.
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secretwaypoints");
-    private static String lastLoggedGates = null;
-    private static String lastLoggedWaypointSummary = null;
-    private static long lastWaypointSummaryMs = 0;
-
     /** Interactive map per-room toggles (room names): shown while the feature is off, hidden while it is on. */
 
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
@@ -113,8 +105,6 @@ public final class SecretWaypointsFeature {
     private static final long CACHE_TTL_MS = 1000L;
     /** ...and how far the player may walk before it is rebuilt early. Squared. */
     private static final double CACHE_MOVE_SQ = 8.0 * 8.0;
-    /** Rooms are pre-filtered at render distance + this, to cover the staleness the two limits above allow. */
-    private static final double CACHE_MARGIN = 16.0;
 
     private SecretWaypointsFeature() {
     }
@@ -218,53 +208,6 @@ public final class SecretWaypointsFeature {
         NEAR_BATS.putAll(bats);
     }
 
-    private static void logDiagnostics(boolean inDungeon) {
-        SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
-        String gates = "enabled=" + cfg.isEnabled() + " throughWalls=" + cfg.isThroughWalls()
-                + " boxSize=" + cfg.getBoxSize() + " renderDistance=" + cfg.getRenderDistance()
-                + " inDungeon=" + inDungeon
-                // 2026-09-14: room scanning no longer requires Live Map to be enabled (see
-                // LiveMapFeature.scanConsumers) - these confirm scanning is actually feeding this feature.
-                + " roomDbReady=" + RoomDatabase.isReady() + " inBoss=" + LiveMapFeature.isInBoss();
-        if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[SecretWaypoints] Gates changed: {}", gates);
-            lastLoggedGates = gates;
-        }
-        long now = System.currentTimeMillis();
-        if (!inDungeon || now - lastWaypointSummaryMs < 1000) {
-            return;
-        }
-        lastWaypointSummaryMs = now;
-        StringBuilder sb = new StringBuilder();
-        int rooms = 0;
-        int waypoints = 0;
-        for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
-            RoomEntry entry = LiveMapFeature.roomEntryAt(room[0]);
-            if (entry == null) {
-                continue;
-            }
-            rooms++;
-            int count = 0;
-            if (entry.secretCoords != null) {
-                count += entry.secretCoords.chest != null ? entry.secretCoords.chest.size() : 0;
-                count += entry.secretCoords.item != null ? entry.secretCoords.item.size() : 0;
-                count += entry.secretCoords.wither != null ? entry.secretCoords.wither.size() : 0;
-                count += entry.secretCoords.bat != null ? entry.secretCoords.bat.size() : 0;
-                count += entry.secretCoords.redstoneKey != null ? entry.secretCoords.redstoneKey.size() : 0;
-            }
-            waypoints += count;
-            sb.append(entry.name).append("[rot=").append(room[3]).append(" clay=").append(room[1]).append(',')
-                    .append(room[2]).append(" wps=").append(count).append(entry.secretCoords == null ? " NO-COORDS" : "")
-                    .append("] ");
-        }
-        String summary = rooms + " rooms / " + waypoints + " waypoints (" + CACHED.size() + " within range): "
-                + sb.toString().trim();
-        if (!summary.equals(lastLoggedWaypointSummary)) {
-            LOGGER.info("[SecretWaypoints] Renderable rooms changed: {}", summary);
-            lastLoggedWaypointSummary = summary;
-        }
-    }
-
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
@@ -272,7 +215,6 @@ public final class SecretWaypointsFeature {
             invalidateCache();
         }
         wasInDungeon = inDungeon;
-        logDiagnostics(inDungeon);
         refreshCacheIfStale(inDungeon);
         watchPickups(Minecraft.getInstance());
     }

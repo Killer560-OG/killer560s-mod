@@ -18,8 +18,6 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.world.entity.player.Player;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,7 +36,6 @@ import java.util.Set;
 public final class InteractiveMapFeature {
 
     static final String CHAT = "Interactive Map";
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interactivemap");
 
     private static boolean openWasDown = false;
     private static boolean startWasDown = false;
@@ -494,7 +491,6 @@ public final class InteractiveMapFeature {
             }
             if (!inside.isEmpty()) {
                 clearedBy.put(roomKey(group), inside);
-                LOGGER.info("[InteractiveMap] {} cleared by {}", roomKey(group), inside);
             }
         }
     }

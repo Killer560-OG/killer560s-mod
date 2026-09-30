@@ -7,7 +7,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -55,6 +55,6 @@ public abstract class Ap3PositionPacketMixin {
 
     @Unique
     private static void killer560smod$ap3$hookThrew(RuntimeException e) {
-        LoggerFactory.getLogger("killer560smod-ap3").error("[AP3] position packet hook threw", e);
+        ModLog.get("killer560smod-ap3").error("[AP3] position packet hook threw", e);
     }
 }

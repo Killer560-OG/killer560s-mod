@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +28,7 @@ import java.util.Locale;
  */
 public final class CheatUtils {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-cheatutils");
+    public static final Logger LOGGER = ModLog.get("killer560smod-cheatutils");
     public static final String CHAT_TAG = "Cheat Utils";
 
     private CheatUtils() {

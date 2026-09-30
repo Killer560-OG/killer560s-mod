@@ -200,7 +200,6 @@ final class BrowserLauncher {
             root.add("profile", profileObj);
             Gson gson = new GsonBuilder().disableHtmlEscaping().create();
             Files.writeString(prefs, gson.toJson(root), StandardCharsets.UTF_8);
-            log.info("[Shorts] Marked Shorts profile as cleanly exited (suppresses the restore-pages bubble).");
         } catch (Exception e) {
             log.warn("[Shorts] Couldn't patch profile Preferences ({}), continuing.", e.toString());
         }

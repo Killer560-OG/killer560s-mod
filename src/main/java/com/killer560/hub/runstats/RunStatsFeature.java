@@ -12,8 +12,6 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -32,7 +30,6 @@ import java.util.regex.Pattern;
  */
 public final class RunStatsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-runstats");
     private static final String FEATURE = "Run Stats";
 
     private static final Pattern EXTRA_STATS = Pattern.compile("(?m)^\\s*> EXTRA STATS <\\s*$");
@@ -124,7 +121,6 @@ public final class RunStatsFeature {
         if (cfg.isAnnounceToParty()) {
             client.player.connection.sendCommand("pc " + partyLine(rows, cfg));
         }
-        LOGGER.info("[RunStats] {}", partyLine(rows, cfg));
     }
 
     private static MutableComponent rowComponent(PlayerRunStats row, RunStatsConfig cfg) {

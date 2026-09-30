@@ -10,7 +10,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,7 +47,7 @@ import java.util.zip.ZipInputStream;
  */
 public final class RoomDatabase {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomdatabase");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomdatabase");
     private static final String VERSION_URL = "https://api.noamm.org/na/data/version";
     private static final String DOWNLOAD_URL = "https://api.noamm.org/na/data/download";
     private static final Gson GSON = new Gson();
@@ -99,8 +99,6 @@ public final class RoomDatabase {
             return;
         }
         loadAttempts++;
-        LOGGER.info("[RoomDatabase] Starting background load attempt #{} (consecutiveFailures={}, dataDir={}, rooms-modern.json present={})",
-                loadAttempts, consecutiveFailures, dataDir(), Files.exists(dataDir().resolve("rooms-modern.json")));
         Thread thread = new Thread(RoomDatabase::loadBlocking, "killer560smod-roomdb-load");
         thread.setDaemon(true);
         thread.start();

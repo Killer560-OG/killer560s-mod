@@ -22,12 +22,11 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -68,7 +67,7 @@ import java.util.regex.Pattern;
  */
 public final class LeverAuraFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leveraura");
+    private static final Logger LOGGER = ModLog.get("killer560smod-leveraura");
     private static final String CHAT_TAG = "Lever Aura";
 
     /** Skyblocker LightsOn.java / QUOI SecretAura.kt. */
@@ -111,7 +110,6 @@ public final class LeverAuraFeature {
     private static final Map<Long, Long> requiredDwell = new HashMap<>();
     private static long nextClickAllowedMs = 0L;
     private static Object lastLevel = null;
-    private static String lastGateLog = null;
     /** Whether Goldor's opening line was seen this run - p3sim.net can skip it (see {@link #onChat}). */
     private static boolean sawGoldorStart = false;
 
@@ -172,7 +170,6 @@ public final class LeverAuraFeature {
         if (section == 2 && "device".equals(m.group(3)) && !lightsCompleted) {
             // S2 has exactly one device - the Lights device.
             lightsCompleted = true;
-            LOGGER.info("[LeverAura] S2 device (Lights) completed by {}", m.group(1));
         }
         checkSectionAdvance("objective " + cur + "/" + tot);
     }
@@ -187,7 +184,6 @@ public final class LeverAuraFeature {
         if (s == section) {
             return;
         }
-        LOGGER.info("[LeverAura] P3 section {} -> {} ({})", section, s, why);
         section = s;
         sectionCurrent = 0;
         sectionTotal = 0;
@@ -222,7 +218,6 @@ public final class LeverAuraFeature {
         } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             gate = "a container screen is open";
         }
-        logGate(gate == null ? (section == 1 ? "active (S2 not open)" : "active (S2 open)") : gate);
         if (gate != null) {
             return;
         }
@@ -367,9 +362,6 @@ public final class LeverAuraFeature {
         if (cfg.isSwingHand()) {
             client.player.swing(InteractionHand.MAIN_HAND);
         }
-        double dist = Math.sqrt(client.player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)));
-        LOGGER.info("[LeverAura] Clicked {} ({}, dist={}, section={}, wasPowered={})", pos.toShortString(), reason,
-                String.format(Locale.US, "%.2f", dist), section, st.hasProperty(LeverBlock.POWERED) && st.getValue(LeverBlock.POWERED));
         if (cfg.isChatFeedback()) {
             ModChat.send(CHAT_TAG, ModChat.text("Flicked "), ModChat.value(pos.toShortString()), ModChat.dim(" (" + reason + ")"));
         }
@@ -397,10 +389,6 @@ public final class LeverAuraFeature {
     }
 
     private static void resetRun(String why) {
-        if (!clickedEarly.isEmpty() || !clickedS2.isEmpty() || section != 1) {
-            LOGGER.info("[LeverAura] Reset ({}): section was {}, {} early clicks, {} S2 clicks, lightsCompleted={}",
-                    why, section, clickedEarly.size(), clickedS2.size(), lightsCompleted);
-        }
         section = 1;
         sectionCurrent = 0;
         sectionTotal = 0;
@@ -420,13 +408,6 @@ public final class LeverAuraFeature {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {
             return 0;
-        }
-    }
-
-    private static void logGate(String gate) {
-        if (!gate.equals(lastGateLog)) {
-            lastGateLog = gate;
-            LOGGER.info("[LeverAura] State: {}", gate);
         }
     }
 

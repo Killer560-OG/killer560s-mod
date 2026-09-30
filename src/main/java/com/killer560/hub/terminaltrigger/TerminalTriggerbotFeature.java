@@ -11,7 +11,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.EntityHitResult;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -36,7 +36,7 @@ import java.util.Set;
  */
 public final class TerminalTriggerbotFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-terminaltriggerbot");
+    private static final Logger LOGGER = ModLog.get("killer560smod-terminaltriggerbot");
 
     private static final Set<Integer> clicked = new HashSet<>();
 
@@ -112,6 +112,5 @@ public final class TerminalTriggerbotFeature {
         clicked.add(id);
         lastClickMs = now;
         pendingEntityId = -1;
-        LOGGER.debug("[TerminalTriggerbot] Opened terminal entity {}", id);
     }
 }

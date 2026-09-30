@@ -6,7 +6,7 @@ import net.minecraft.client.Screenshot;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +33,7 @@ import java.util.stream.Stream;
  *  is Windows, and {@link ScreenshotCopyConfig} ships disabled by default regardless. */
 public final class ScreenshotCopyFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-screenshotcopy");
+    private static final Logger LOGGER = ModLog.get("killer560smod-screenshotcopy");
 
     private ScreenshotCopyFeature() {
     }

@@ -13,7 +13,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  */
 public final class PetSummoner {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-petwheel-summon");
+    private static final Logger LOGGER = ModLog.get("killer560smod-petwheel-summon");
     private static final String CHAT = "Pet Wheel";
 
     private static final Pattern PETS_TITLE = Pattern.compile("^(?:\\((\\d+)/(\\d+)\\)\\s*)?Pets$");
@@ -59,7 +59,6 @@ public final class PetSummoner {
     private static long startedMs = 0L;
     private static long nextActionAtMs = 0L;
     private static long menuFirstSeenMs = 0L;
-    private static String lastForeignTitle = null;
     private static int pagesTried = 0;
     private static Object lastLevel = null;
 
@@ -93,10 +92,8 @@ public final class PetSummoner {
         startedMs = System.currentTimeMillis();
         nextActionAtMs = startedMs + STEP_DELAY_MS;
         menuFirstSeenMs = 0L;
-        lastForeignTitle = null;
         pagesTried = 0;
         stage = Stage.SEND_PETS;
-        LOGGER.info("[PetWheel] Summoning {} (uuid {}).", wanted.shortLabel(), wanted.uuid());
         return true;
     }
 
@@ -140,7 +137,6 @@ public final class PetSummoner {
         player.connection.sendCommand("pets");
         stage = Stage.AWAIT_PETS;
         nextActionAtMs = now + STEP_DELAY_MS;
-        LOGGER.info("[PetWheel] Sent /pets for {}.", target.shortLabel());
     }
 
     private static void awaitPets(Minecraft client, long now) {
@@ -149,10 +145,6 @@ public final class PetSummoner {
         }
         String title = screen.getTitle().getString();
         if (!PETS_TITLE.matcher(title).matches()) {
-            if (!title.equals(lastForeignTitle)) {
-                lastForeignTitle = title;
-                LOGGER.info("[PetWheel] Waiting for the Pets menu - currently \"{}\".", title);
-            }
             return;
         }
         List<Slot> slots = screen.getMenu().slots;
@@ -192,7 +184,6 @@ public final class PetSummoner {
                 continue;
             }
             if (alreadyOut(stack)) {
-                LOGGER.info("[PetWheel] {} is already summoned (slot {} shows \"Click to despawn!\") - closing.", target.shortLabel(), i);
                 closeOurMenu(client);
                 ModChat.send(CHAT, ModChat.text(target.name() + " is already summoned."));
                 abort("already summoned");
@@ -202,8 +193,6 @@ public final class PetSummoner {
                 return;
             }
             client.gameMode.handleContainerInput(screen.getMenu().containerId, slots.get(i).index, 0, ContainerInput.PICKUP, player);
-            LOGGER.info("[PetWheel] Clicked \"{}\" in \"{}\" (slot {}, page {}/{}, {}ms after /pets).",
-                    target.shortLabel(), title, i, current, total, now - startedMs);
             closeOurMenu(client);
             ModChat.send(CHAT, ModChat.text("Summoned "), ModChat.value(target.name()));
             abort("done");
@@ -220,13 +209,11 @@ public final class PetSummoner {
                     menuFirstSeenMs = 0L;
                     startedMs = now; // fresh timeout window for the next page
                     client.gameMode.handleContainerInput(screen.getMenu().containerId, i, 0, ContainerInput.PICKUP, player);
-                    LOGGER.info("[PetWheel] {} not on page {}/{} - clicked Next Page (slot {}).", target.shortLabel(), current, total, i);
                     nextActionAtMs = now + STEP_DELAY_MS;
                     return;
                 }
             }
         }
-        LOGGER.info("[PetWheel] {} not found in /pets (page {}/{}) - giving up, no retry.", target.shortLabel(), current, total);
         closeOurMenu(client);
         ModChat.send(CHAT, ModChat.bad("Couldn't find " + target.name() + " in /pets."));
         abort("not found");
@@ -252,12 +239,8 @@ public final class PetSummoner {
     }
 
     private static void abort(String why) {
-        if (stage != Stage.IDLE) {
-            LOGGER.debug("[PetWheel] Summon ended ({}).", why);
-        }
         stage = Stage.IDLE;
         target = null;
         menuFirstSeenMs = 0L;
-        lastForeignTitle = null;
     }
 }

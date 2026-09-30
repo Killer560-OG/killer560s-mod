@@ -146,7 +146,6 @@ public final class KingRelicsFeature {
             p5StartTick = ServerTickClock.now();
             relicTicksToSpawn = WitherDragonsConfig.getInstance().getRelicSpawnTicks();
             P5Splits.p5Started(System.currentTimeMillis());
-            WitherDragonsFeature.LOGGER.info("[KingRelics] P5 started (Necron line), relic spawn in {} ticks", relicTicksToSpawn);
             return;
         }
         Matcher m = PICKUP.matcher(plain);
@@ -205,7 +204,6 @@ public final class KingRelicsFeature {
                     double seconds = (ServerTickClock.now() - p5StartTick) / 20.0;
                     PLACED.put(r, seconds);
                     P5Splits.relicPlaced(r.key(), r.colored(), System.currentTimeMillis(), PICKERS.get(r));
-                    WitherDragonsFeature.LOGGER.info("[KingRelics] {} relic placed at cauldron after {}s (picker={})", r, seconds, PICKERS.get(r));
                 }
             }
         }
@@ -240,7 +238,6 @@ public final class KingRelicsFeature {
             announcedSpawn = true;
             double seconds = (ServerTickClock.now() - p5StartTick) / 20.0;
             P5Splits.relicSpawned(System.currentTimeMillis());
-            WitherDragonsFeature.LOGGER.info("[KingRelics] Relics spawned {}s after P5 start", seconds);
             if (messagesOn()) {
                 send(relic.colored() + " relic §7spawned in §6" + String.format(Locale.US, "%.2f", seconds) + "s");
             }
@@ -274,7 +271,6 @@ public final class KingRelicsFeature {
         Minecraft client = Minecraft.getInstance();
         String self = client.player == null ? null : client.player.getGameProfile().name();
         P5Splits.relicPlaced(relic.key(), relic.colored(), pendingMs, self);
-        WitherDragonsFeature.LOGGER.info("[KingRelics] You placed the {} relic {}s after P5 start", relic, seconds);
         if (messagesOn() && WitherDragonsConfig.getInstance().isRelicPlaceTime()) {
             send(relic.colored() + " relic §7placed in §6" + String.format(Locale.US, "%.2f", seconds) + "s§7!");
         }

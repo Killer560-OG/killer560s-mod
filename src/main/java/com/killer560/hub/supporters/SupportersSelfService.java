@@ -5,7 +5,7 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.relay.RelayAuth;
 import com.killer560.hub.relay.RelayEndpoint;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
  */
 public final class SupportersSelfService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-supporters");
+    private static final Logger LOGGER = ModLog.get("killer560smod-supporters");
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     /** Same reuse margin {@code RelayClient} uses before it bothers re-authenticating a still-valid token. */
     private static final long TOKEN_REUSE_MARGIN_MS = 5 * 60_000L;

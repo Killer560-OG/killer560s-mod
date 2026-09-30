@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  */
 public final class DungeonQueueFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonqueue");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dungeonqueue");
     private static final String FEATURE = "Auto Requeue";
 
     private static final Pattern EXTRA_STATS = Pattern.compile("(?m)^\\s*> EXTRA STATS <\\s*$");

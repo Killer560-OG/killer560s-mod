@@ -6,8 +6,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.inventory.MenuType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
@@ -28,8 +26,6 @@ import java.util.Set;
  * having nothing to do with dungeon secrets.
  */
 public final class AutoCloseChestFeature {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoclosechest");
 
     private static final Set<String> SECRET_CHEST_TITLES = Set.of("Chest", "Large Chest", "Trapped Chest");
     private static final Set<MenuType<?>> SECRET_CHEST_MENU_TYPES = Set.of(
@@ -65,7 +61,6 @@ public final class AutoCloseChestFeature {
             return;
         }
         client.player.connection.send(new ServerboundContainerClosePacket(packet.getContainerId()));
-        LOGGER.info("[AutoCloseChest] Auto-closed a real secret chest (container {}).", packet.getContainerId());
     }
 
     private static String extractPlainTitle(Component title) {

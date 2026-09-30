@@ -5,7 +5,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -68,6 +68,6 @@ public abstract class BloodCampPacketMixin {
 
     @Unique
     private static void killer560smod$bloodCampHandlerThrew(String what, RuntimeException e) {
-        LoggerFactory.getLogger("killer560smod-bloodcamp").error("[BloodCamp] {} handler threw", what, e);
+        ModLog.get("killer560smod-bloodcamp").error("[BloodCamp] {} handler threw", what, e);
     }
 }

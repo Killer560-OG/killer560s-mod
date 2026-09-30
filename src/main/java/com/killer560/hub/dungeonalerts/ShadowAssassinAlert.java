@@ -28,10 +28,8 @@ final class ShadowAssassinAlert {
         }
         int floor = DungeonAlertsFeature.floorNumber();
         if ((floor == 2 || floor == 3) && DungeonAlertsFeature.inBoss()) {
-            DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Border packet ignored (F{} boss)", floor);
             return;
         }
-        DungeonAlertsFeature.LOGGER.info("[DungeonAlerts] Shadow Assassin alert (border packet, floor={})", DungeonState.getFloor());
         DungeonAlertsFeature.showTitle("", "§aShadow Assassin!", 0, 35, 0);
         DungeonAlertsFeature.playSound(SoundEvents.BLAZE_HURT, 1.0f, 1.0f);
     }

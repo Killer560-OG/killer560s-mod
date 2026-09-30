@@ -80,7 +80,6 @@ public final class SecretAuraFeature {
     private static Long lastClickKey = null;
     private static Object lastLevel = null;
     private static boolean wasActive = false;
-    private static String lastGateLog = null;
 
     private SecretAuraFeature() {
     }
@@ -125,7 +124,6 @@ public final class SecretAuraFeature {
         }
         if (gate != null) {
             // Review fix (2026-09-15): skip the room/boss lookups entirely while gated (incl. disabled).
-            logGate(gate);
             return;
         }
         boolean inBoss = LiveMapFeature.isInBoss();
@@ -137,7 +135,6 @@ public final class SecretAuraFeature {
         if (gate == null && roomName != null && SKIP_ROOMS.contains(roomName)) {
             gate = "skipped room " + roomName;
         }
-        logGate(gate == null ? "active" + (inBoss ? " (boss levers)" : "") : gate);
         if (gate != null) {
             return;
         }
@@ -240,9 +237,6 @@ public final class SecretAuraFeature {
         if (cfg.isAuraSwing()) {
             client.player.swing(InteractionHand.MAIN_HAND);
         }
-        CheatUtils.LOGGER.info("[CheatUtils] SecretAura clicked {} at {} (attempt {}/{}, dist={}, room={})",
-                bestKind, bestPos.toShortString(), count, MAX_ATTEMPTS,
-                String.format(Locale.US, "%.2f", Math.sqrt(bestDist)), roomName == null ? (inBoss ? "boss" : "?") : roomName);
     }
 
     /** @return "chest"/"lever"/"essence"/"bossLever" when this block is a secret the aura may click, else null. */
@@ -329,10 +323,7 @@ public final class SecretAuraFeature {
     }
 
     private static void markDone(long key, String why) {
-        if (done.add(key)) {
-            // Opening a chest opens its GUI, so this logs at click-rate at most.
-            CheatUtils.LOGGER.info("[CheatUtils] SecretAura done {} ({})", BlockPos.of(key).toShortString(), why);
-        }
+        done.add(key);
     }
 
     private static boolean heldItemPaused(CheatUtilsConfig cfg, ItemStack held) {
@@ -353,20 +344,10 @@ public final class SecretAuraFeature {
     }
 
     private static void reset(String why) {
-        if (!done.isEmpty() || !attempts.isEmpty()) {
-            CheatUtils.LOGGER.info("[CheatUtils] SecretAura reset ({}): {} done, {} attempted", why, done.size(), attempts.size());
-        }
         done.clear();
         firstSeenMs.clear();
         attempts.clear();
         leverInitialState.clear();
         lastClickKey = null;
-    }
-
-    private static void logGate(String gate) {
-        if (!gate.equals(lastGateLog)) {
-            lastGateLog = gate;
-            CheatUtils.LOGGER.info("[CheatUtils] SecretAura state: {}", gate);
-        }
     }
 }

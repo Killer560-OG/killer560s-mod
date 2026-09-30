@@ -20,7 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +44,7 @@ import java.util.concurrent.Executors;
 public final class ClearExecutor {
 
     static final String CHAT = "Interactive Map";
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interactivemap");
+    private static final Logger LOGGER = ModLog.get("killer560smod-interactivemap");
     private static final ExecutorService PLANNER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-etherplanner");
         t.setDaemon(true);
@@ -181,7 +181,6 @@ public final class ClearExecutor {
                 }
                 ModChat.send(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
                         + result.size() + " warps)"));
-                LOGGER.info("[InteractiveMap] Path to {} found in {}ms: {} warps", to, took, result.size());
                 clearPath(list, complete);
             });
         });

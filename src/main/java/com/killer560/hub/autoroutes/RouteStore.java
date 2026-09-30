@@ -10,7 +10,7 @@ import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -50,7 +50,7 @@ import java.util.Map;
  */
 public final class RouteStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoroutes");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "killer560smod-autoroutes.json";
     private static final int FORMAT_VERSION = 1;

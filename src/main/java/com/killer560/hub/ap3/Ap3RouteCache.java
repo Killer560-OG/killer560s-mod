@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +33,7 @@ import java.util.Map;
  */
 final class Ap3RouteCache {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3-route");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ap3-route");
 
     /** How far from where a cached plan was planned he may start and still be given it. */
     /**

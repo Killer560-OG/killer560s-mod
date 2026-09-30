@@ -10,7 +10,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Black+orange restyle of the vanilla title screen (2026-09-15, killer560: "redo the main menu to fit our
@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class MainMenuTheme {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-mainmenu");
+    private static final Logger LOGGER = ModLog.get("killer560smod-mainmenu");
 
     // Palette - same values as SettingsButtonWidget / ModScreen / ModChat so the title screen matches the
     // Swap Accounts button and the mod menu exactly.

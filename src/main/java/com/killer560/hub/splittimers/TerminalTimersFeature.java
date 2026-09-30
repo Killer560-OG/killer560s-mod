@@ -8,8 +8,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,12 +33,11 @@ import java.util.regex.Pattern;
  * Odin's, line for line. Real time, like Odin's default "Use Real Time".</li>
  * <li><b>Simon Says time</b>: gates {@code SimonSaysFeature}'s own "Whole device solved" message.</li>
  * </ul>
- * Replaces this mod's older, differently-worded "Device/Lever Times" suffix ({@link DeviceTimesFeature} keeps
- * only its P3 diagnostics) and the Terminal Solver's own "Announce Completion Time" toggle.
+ * Replaces this mod's older, differently-worded "Device/Lever Times" suffix (deleted 2026-09-29, with the
+ * P3 progress diagnostics that were all it had left) and the Terminal Solver's own "Announce Completion
+ * Time" toggle.
  */
 public final class TerminalTimersFeature {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-terminaltimers");
 
     // Odin's regex, plus an optional trailing suffix so a line another mod already annotated still matches.
     private static final Pattern COMPLETE_REGEX =
@@ -135,8 +132,6 @@ public final class TerminalTimersFeature {
         if (originalStyle.getHoverEvent() != null) {
             rewritten.withStyle(style -> style.withHoverEvent(originalStyle.getHoverEvent()));
         }
-        LOGGER.info("[TerminalTimers] {} {} a {} ({}/{}) section={}s phase={}s gateBlown={}", name, verb, type, current,
-                total, fmt(section), fmt(phase), gateBlown);
         // Odin's section bookkeeping, verbatim.
         if ((current == total && gateBlown) || current < completedCurrent) {
             resetSection(false);
@@ -184,7 +179,6 @@ public final class TerminalTimersFeature {
             }
             ModChat.send("Terminal Timers", times, ModChat.dim(", "), ModChat.text("Total: "),
                     ModChat.value(fmt(seconds(phaseTimerMs)) + "s"));
-            LOGGER.info("[TerminalTimers] Core opening - section times {} total {}s", sectionTimes, fmt(seconds(phaseTimerMs)));
         }
     }
 
@@ -227,7 +221,6 @@ public final class TerminalTimersFeature {
             }
             return;
         }
-        LOGGER.info("[TerminalTimers] {} solved in {}s", pendingSolveName, String.format(Locale.US, "%.2f", pendingSolveSeconds));
         if (TerminalTimersConfig.getInstance().isSolveTimes() && DungeonState.isInDungeon()) {
             ModChat.send("Terminal Timers", ModChat.value(pendingSolveName), ModChat.text(" solved in "),
                     ModChat.value(String.format(Locale.US, "%.2fs", pendingSolveSeconds)), ModChat.text("!"));

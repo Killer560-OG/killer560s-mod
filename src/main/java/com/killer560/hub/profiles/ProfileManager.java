@@ -3,7 +3,7 @@ package com.killer560.hub.profiles;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +37,7 @@ import java.util.zip.ZipOutputStream;
  */
 public final class ProfileManager {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-profiles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-profiles");
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir();
     private static final Path PROFILES_DIR = CONFIG_DIR.resolve("killer560smod-profiles");
     private static final Path ACTIVE_MARKER = CONFIG_DIR.resolve("killer560smod-active-profile.txt");

@@ -23,7 +23,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,7 +47,7 @@ import java.util.regex.Matcher;
  */
 public final class ChestProfitFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-croesus");
+    private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
 
     private static final long CONFIRM_MIN_MS = 1000L;
     private static final long CONFIRM_GIVE_UP_MS = 6000L;
@@ -82,7 +82,6 @@ public final class ChestProfitFeature {
     private static long lastKnownRunFloorAtMs = 0L;
     private static PendingClaim pending = null;
     private static volatile boolean pendingFailed = false;
-    private static String lastLoggedKindKey = "";
 
     private ChestProfitFeature() {
     }
@@ -227,8 +226,6 @@ public final class ChestProfitFeature {
         String floor = floorForChestScreen();
         pending = new PendingClaim(value, floor, screen.getMenu().containerId, System.currentTimeMillis(), source);
         pendingFailed = false;
-        LOGGER.info("[Croesus] Claim click on {} {} chest (profit {}, {}) - awaiting confirmation",
-                floor, type.display, value.profit(), source);
     }
 
     // ---- screen hooks ----------------------------------------------------------------------------
@@ -363,13 +360,6 @@ public final class ChestProfitFeature {
 
     private static void setKind(Kind newKind, String title) {
         kind = newKind;
-        String key = newKind + "|" + title;
-        if (!key.equals(lastLoggedKindKey)) {
-            lastLoggedKindKey = key;
-            if (newKind != Kind.NONE) {
-                LOGGER.info("[ChestProfit] Valuing {} screen \"{}\" (prices ready={})", newKind, title, DungeonChestValuer.pricesReady());
-            }
-        }
     }
 
     private static void resolvePending(Minecraft client) {

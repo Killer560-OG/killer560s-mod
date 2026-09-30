@@ -72,7 +72,6 @@ final class CoreEntryTimes {
             EXPECTED.add(client.player.getGameProfile().name());
         }
         EXPECTED.addAll(PartyTracker.teammates());
-        SplitTimersFeature.LOGGER.info("[SplitTimers] Core entry timing started for {}", EXPECTED);
     }
 
     /** Necron's entry line - the fight has started, nobody else is "entering the core". */
@@ -165,7 +164,6 @@ final class CoreEntryTimes {
             EXPECTED.add(name);
         }
         ENTRIES.put(name, now - openedMs);
-        SplitTimersFeature.LOGGER.info("[SplitTimers] Core entry: {} {}ms after the core opened", name, now - openedMs);
     }
 
     private static boolean containsKeyIgnoreCase(Map<String, Long> map, String name) {

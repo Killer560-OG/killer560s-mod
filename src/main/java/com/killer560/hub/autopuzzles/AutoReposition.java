@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Java port of QUOI {@code puzzlesolvers/Repositionable.kt}: etherwarp onto a standing spot. Sequence per QUOI:
@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
  */
 final class AutoReposition {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final int ARRIVE_TIMEOUT_TICKS = 40;
 
     /** True while sneak is being held down by an auto (released by {@link #releaseSneak}). */
@@ -56,7 +56,6 @@ final class AutoReposition {
         bow = bowAfter;
         awaitStand = awaitStandStill;
         swapOk = AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isAotv);
-        LOGGER.info("[AutoPuzzles] {}: etherwarp reposition to {} (bow={} swapOk={})", tag, target, bowAfter, swapOk);
         if (!client.options.keyShift.isDown()) {
             client.options.keyShift.setDown(true);
             sneakHeldByUs = true;

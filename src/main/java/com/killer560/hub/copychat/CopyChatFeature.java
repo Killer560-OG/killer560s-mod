@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
  *  matching that same precedent (killer560's own setup is Windows). */
 public final class CopyChatFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-copychat");
+    private static final Logger LOGGER = ModLog.get("killer560smod-copychat");
 
     // Per killer560's "if i ctrl click a long message... it lags my game and essentially freezes it for
     // quite a few seconds" report (2026-09-09, round 11): #copyToClipboard is called directly from the

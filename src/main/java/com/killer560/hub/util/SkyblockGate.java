@@ -13,7 +13,6 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -33,7 +32,7 @@ import java.util.Locale;
  */
 public final class SkyblockGate {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-skyblockgate");
+    private static final Logger LOGGER = ModLog.get("killer560smod-skyblockgate");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-skyblockonly.json");
     private static final long NO_SIDEBAR_HOLD_MS = 10_000L;
@@ -81,7 +80,6 @@ public final class SkyblockGate {
     }
 
     private static void update(Minecraft client) {
-        boolean before = onSkyblock;
         if (client.level == null || client.player == null) {
             holdOrExpire();
         } else if (isP3Sim(client)) {
@@ -96,9 +94,6 @@ public final class SkyblockGate {
                 onSkyblock = title != null && title.toUpperCase(Locale.ROOT).replace(" ", "").contains("SKYBLOCK");
                 noSidebarSinceMs = 0L;
             }
-        }
-        if (before != onSkyblock) {
-            LOGGER.info("[SkyblockGate] On Skyblock/p3sim: {} -> {} (Skyblock Only {})", before, onSkyblock, isEnabled() ? "ON" : "OFF");
         }
     }
 

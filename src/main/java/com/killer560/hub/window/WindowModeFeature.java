@@ -6,10 +6,9 @@ import com.mojang.blaze3d.platform.VideoMode;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 
@@ -32,21 +31,19 @@ import java.util.List;
  *  changes: the monitor is still covered edge to edge with no border. */
 public final class WindowModeFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-window");
+    private static final Logger LOGGER = ModLog.get("killer560smod-window");
 
     /** Extra pixels pushed outside the monitor so DWM keeps compositing (see the class javadoc). */
     private static final int OVERHANG = 1;
 
     private static boolean appliedStartupState = false;
-    private static Class<?> lastLoggedScreen = Void.class;
 
     private WindowModeFeature() {
     }
 
     /** Re-applies the saved borderless state once, on the first client tick after boot - the GLFW
      *  window isn't guaranteed to exist yet at {@code onInitializeClient()} time, but it always does
-     *  by the first tick. Also carries the per-screen-change diagnostic (one log line per screen
-     *  change, never per frame). */
+     *  by the first tick. */
     public static void tickApplyOnce(Minecraft client) {
         if (!appliedStartupState) {
             appliedStartupState = true;
@@ -54,7 +51,6 @@ public final class WindowModeFeature {
                 enable(client, true);
             }
         }
-        logScreenChange(client);
     }
 
     /** Profile switch ({@code ProfileManager#applyProfile}): after {@link WindowModeConfig#load()} picked up
@@ -227,46 +223,6 @@ public final class WindowModeFeature {
                     client.mouseHandler.xpos(), client.mouseHandler.ypos());
         } catch (Throwable ignored) {
             // Never let a cursor fix-up break the window toggle itself.
-        }
-    }
-
-    /** One log line per screen open/close (never per frame) recording everything needed to tell a cursor-mode
-     *  problem from a compositing problem in a real test run: what the game thinks the grab state is, what GLFW
-     *  actually has set, whether the window is still undecorated, and the exact window rect versus the monitor. */
-    private static void logScreenChange(Minecraft client) {
-        Screen screen = client.screen;
-        Class<?> now = screen == null ? null : screen.getClass();
-        if (now == lastLoggedScreen) {
-            return;
-        }
-        lastLoggedScreen = now;
-        if (!WindowModeConfig.getInstance().isBorderlessFullscreenEnabled()) {
-            return;
-        }
-        try {
-            Window window = client.getWindow();
-            long handle = window.handle();
-            int[] wx = new int[1];
-            int[] wy = new int[1];
-            int[] ww = new int[1];
-            int[] wh = new int[1];
-            GLFW.glfwGetWindowPos(handle, wx, wy);
-            GLFW.glfwGetWindowSize(handle, ww, wh);
-            Monitor monitor = window.findBestMonitor();
-            VideoMode mode = monitor == null ? null : monitor.getCurrentMode();
-            int cursorMode = GLFW.glfwGetInputMode(handle, GLFW.GLFW_CURSOR);
-            LOGGER.info("Screen {} | grabbed={} glfwCursor={} decorated={} window={}x{}@{},{} monitor={} mcFullscreen={}",
-                    now == null ? "<none>" : now.getSimpleName(),
-                    client.mouseHandler.isMouseGrabbed(),
-                    cursorMode == GLFW.GLFW_CURSOR_DISABLED ? "DISABLED"
-                            : cursorMode == GLFW.GLFW_CURSOR_HIDDEN ? "HIDDEN" : "NORMAL",
-                    GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_DECORATED) == GLFW.GLFW_TRUE,
-                    ww[0], wh[0], wx[0], wy[0],
-                    mode == null ? "?" : mode.getWidth() + "x" + mode.getHeight() + "@"
-                            + monitor.getX() + "," + monitor.getY(),
-                    window.isFullscreen());
-        } catch (Throwable ignored) {
-            // Diagnostics must never break a screen change.
         }
     }
 }

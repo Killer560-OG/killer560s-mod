@@ -22,7 +22,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.scores.PlayerTeam;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -55,7 +55,7 @@ import java.util.UUID;
  */
 public final class BridgeFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bridge");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bridge");
     private static final int TICK_DIVISOR = 5;
     private static final int SERVER_CODE_DIVISOR = 20;
 

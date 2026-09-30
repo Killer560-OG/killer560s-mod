@@ -8,8 +8,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 
@@ -34,7 +32,6 @@ import java.util.Locale;
  */
 public final class HypixelLocation {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-relay");
     /** Only used to RETRY when we have no answer yet - never as a polling interval. An earlier version of
      *  this class re-sent {@code /locraw} every 15s for as long as Lobby mode was on: 240 commands an hour,
      *  which is automation, not "a command a player might type". We now ask once per join and then stay
@@ -146,7 +143,6 @@ public final class HypixelLocation {
                 return null;
             }
             serverId = id;
-            LOGGER.debug("[Relay] Hypixel instance id: {}", id);
             return Component.empty();
         });
     }

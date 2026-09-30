@@ -117,19 +117,6 @@ public final class PlayerStatsFeature {
         if (defenseHit) {
             defense = defenseMatch.group(1);
         }
-        String hits = "health=" + healthHit + " mana=" + manaHit + " defense=" + defenseHit;
-        if (!hits.equals(lastLoggedHits)) {
-            // State-change only: which icon-anchored patterns matched, with the raw bar to check against.
-            LOGGER.info("[PlayerStats] Pattern hits changed: {} -> health={} mana={} defense={} raw=\"{}\"",
-                    hits, health, mana, defense, raw);
-            lastLoggedHits = hits;
-        }
-        // [PlayerStats] diagnostics - at most one line per 10s, raw action bar included so the regexes can be checked.
-        long nowMs = System.currentTimeMillis();
-        if (nowMs - lastDiagLogMs >= 10000) {
-            lastDiagLogMs = nowMs;
-            LOGGER.info("[PlayerStats] Action bar raw=\"{}\" -> health={} mana={} defense={}", raw, health, mana, defense);
-        }
         // Real bug found and fixed (2026-09-27), killer560: "it didn't hide the text that the server
         // normally has. It does show its own text though." This class doc used to say the real overlay
         // is "always returned unchanged" - that was the bug, not a design choice: Stat Bars is meant to
@@ -142,10 +129,6 @@ public final class PlayerStatsFeature {
         }
         return message;
     }
-
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-playerstats");
-    private static long lastDiagLogMs = 0;
-    private static String lastLoggedHits = null;
 
     public static final class StatsHudElement implements HudElement {
 

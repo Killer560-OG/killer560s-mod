@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 final class DiscordIpcClient implements Closeable {
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-discordrpc");
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-discordrpc");
 
     static final int OP_HANDSHAKE = 0;
     static final int OP_FRAME = 1;
@@ -207,7 +207,6 @@ final class DiscordIpcClient implements Closeable {
         send(OP_HANDSHAKE, hello.toString());
 
         Frame reply = readFrame();
-        LOGGER.debug("[DiscordRPC] handshake reply op={} {}", reply.op(), reply.payload());
         if (reply.op() == OP_CLOSE) {
             // Discord sends a CLOSE frame with a reason for e.g. an application id that doesn't exist.
             throw new IOException("Discord refused the connection: " + reply.payload());

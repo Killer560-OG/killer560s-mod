@@ -16,7 +16,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -47,7 +47,7 @@ import java.util.Set;
  */
 public final class MiningProfitTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-mining-profit");
+    private static final Logger LOGGER = ModLog.get("killer560smod-mining-profit");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-mining-profit.json");

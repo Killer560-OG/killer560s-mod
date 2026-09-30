@@ -58,11 +58,8 @@ import java.util.Map;
  */
 public final class TeammatesFeature {
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-teammates");
-
     /** Entity id -> ARGB, rebuilt every client tick; read by the render callback. */
     private static volatile Map<Integer, Integer> targets = Map.of();
-    private static String lastLoggedGates = null;
 
     private TeammatesFeature() {
     }
@@ -115,13 +112,6 @@ public final class TeammatesFeature {
             found.put(player.getId(), clazz != null ? clazz.color() : cfg.getUnknownColor());
         }
         targets = Map.copyOf(found);
-
-        String gates = "targets=" + found.size() + " party=" + party.size() + " style=" + cfg.getStyle()
-                + " throughWalls=" + throughWalls + " self=" + cfg.isHighlightSelf();
-        if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[Teammates] {}", gates);
-            lastLoggedGates = gates;
-        }
     }
 
     /** A real (v4-UUID, i.e. not a Hypixel NPC) player the party tracker lists. */

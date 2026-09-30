@@ -70,7 +70,7 @@ import java.util.Set;
  */
 public final class ChunkCacheManager {
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-chunkcache");
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-chunkcache");
     private static boolean warnedNoStore;
 
     /** Set while a renderer lookup is running, so the {@code getChunk} fallback stays out of its way. */

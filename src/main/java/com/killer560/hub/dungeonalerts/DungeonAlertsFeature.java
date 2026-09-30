@@ -20,7 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 
@@ -32,7 +32,7 @@ import java.util.List;
  */
 public final class DungeonAlertsFeature {
 
-    static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonalerts");
+    static final Logger LOGGER = ModLog.get("killer560smod-dungeonalerts");
     private static Object lastLevel = null;
 
     private DungeonAlertsFeature() {

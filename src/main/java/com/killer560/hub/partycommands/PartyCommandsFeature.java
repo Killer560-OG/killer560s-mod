@@ -16,7 +16,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -75,7 +75,7 @@ import java.util.regex.Pattern;
  */
 public final class PartyCommandsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-partycommands");
+    private static final Logger LOGGER = ModLog.get("killer560smod-partycommands");
 
     /** The one shape a Minecraft name can have - every argument must match before it is put in a command. */
     private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
@@ -577,7 +577,6 @@ public final class PartyCommandsFeature {
     /** Local-only record of what a teammate just made this client do - never silent, by design. */
     private static void log(String sender, String description) {
         ModChat.send("Party Commands", ModChat.value(sender), ModChat.text(" " + description), ModChat.dim("."));
-        LOGGER.info("[PartyCommands] {} -> {}", sender, description);
     }
 
     private static void sendCommand(String command) {

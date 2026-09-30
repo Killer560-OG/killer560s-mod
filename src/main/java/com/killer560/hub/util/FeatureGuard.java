@@ -2,7 +2,6 @@ package com.killer560.hub.util;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Set;
@@ -27,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class FeatureGuard {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-guard");
+    private static final Logger LOGGER = ModLog.get("killer560smod-guard");
 
     /** Three, not one: a feature that throws once on a world boundary or a null player is common and recovers.
      *  A feature that has thrown three times is broken and will keep throwing every tick. */

@@ -18,7 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +57,7 @@ import java.util.regex.Pattern;
  */
 public final class RunSummaryFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-runsummary");
+    private static final Logger LOGGER = ModLog.get("killer560smod-runsummary");
     public static final String FEATURE = "Run Summary";
 
     /** Split Timers' own run-arm line, matched by exact equality exactly as it does. */

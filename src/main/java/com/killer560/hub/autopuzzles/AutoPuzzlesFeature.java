@@ -27,7 +27,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -58,7 +58,7 @@ import java.util.Set;
  */
 public final class AutoPuzzlesFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     static final String CHAT = "AutoPuzzles";
 
     private static final String QUIZ_ROOM = "Quiz";
@@ -137,9 +137,6 @@ public final class AutoPuzzlesFeature {
         // even if the next answer arrives in the same tick (so the null gap is never observed).
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")
                 && (msg.contains("answered Question #") || msg.contains("answered the final question"))) {
-            if (quizActed || quizPendingPos != null) {
-                LOGGER.info("[AutoPuzzles] Quiz: question answered (\"{}\") - re-armed", msg);
-            }
             resetQuiz();
         }
     }
@@ -195,10 +192,6 @@ public final class AutoPuzzlesFeature {
     private static void tickQuiz(Minecraft client, boolean inQuizRoom) {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoQuizEnabled() || !inQuizRoom) {
-            if (quizPendingPos != null) {
-                LOGGER.info("[AutoPuzzles] Quiz: pending click on {} cancelled (enabled={} inQuizRoom={})",
-                        quizPendingPos, cfg.isAutoQuizEnabled(), inQuizRoom);
-            }
             quizPendingPos = null;
             quizWaitLogged = false;
             if (!inQuizRoom) {
@@ -209,7 +202,6 @@ public final class AutoPuzzlesFeature {
         if (!QuizSolverConfig.getInstance().isEnabled()) {
             if (!quizSolverOffWarned) {
                 quizSolverOffWarned = true;
-                LOGGER.info("[AutoPuzzles] Quiz: in Quiz room but Quiz Solver is OFF - Auto Quiz needs it");
                 ModChat.send(CHAT, ModChat.text("Auto Quiz needs "), ModChat.value("Quiz Solver"),
                         ModChat.text(" turned on."));
             }
@@ -239,7 +231,6 @@ public final class AutoPuzzlesFeature {
             quizPendingPos = answer;
             quizPendingSinceMs = now;
             quizWaitLogged = false;
-            LOGGER.info("[AutoPuzzles] Quiz: correct answer at {} - clicking after {}ms", answer, cfg.getQuizDelayMs());
         }
         if (now - quizPendingSinceMs < cfg.getQuizDelayMs() || client.screen != null) {
             return;
@@ -256,10 +247,6 @@ public final class AutoPuzzlesFeature {
                     Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), answer)));
         }
         if (blocker != null) {
-            if (!quizWaitLogged) {
-                quizWaitLogged = true;
-                LOGGER.info("[AutoPuzzles] Quiz: waiting to click {} - {}", answer, blocker);
-            }
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick()) {
@@ -271,7 +258,6 @@ public final class AutoPuzzlesFeature {
                     answer, client.level.getBlockState(answer));
             return;
         }
-        LOGGER.info("[AutoPuzzles] Quiz: clicked answer block {} (delay={}ms)", answer, cfg.getQuizDelayMs());
         ModChat.send(CHAT, ModChat.text("Quiz: clicked the "), ModChat.good("correct answer"), ModChat.text("."));
     }
 
@@ -299,10 +285,6 @@ public final class AutoPuzzlesFeature {
     private static void tickWeirdos(Minecraft client, boolean inWeirdosRoom) {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoWeirdosEnabled() || !inWeirdosRoom) {
-            if (weirdosPendingPos != null) {
-                LOGGER.info("[AutoPuzzles] Weirdos: pending chest {} cancelled (enabled={} inWeirdosRoom={})",
-                        weirdosPendingPos, cfg.isAutoWeirdosEnabled(), inWeirdosRoom);
-            }
             weirdosPendingPos = null;
             weirdosWaitLogged = false;
             if (!inWeirdosRoom) {
@@ -313,7 +295,6 @@ public final class AutoPuzzlesFeature {
         if (!WeirdosSolverConfig.getInstance().isEnabled()) {
             if (!weirdosSolverOffWarned) {
                 weirdosSolverOffWarned = true;
-                LOGGER.info("[AutoPuzzles] Weirdos: in Three Weirdos room but Weirdos Solver is OFF - Auto Three Weirdos needs it");
                 ModChat.send(CHAT, ModChat.text("Auto Three Weirdos needs "), ModChat.value("Weirdos Solver"),
                         ModChat.text(" turned on."));
             }
@@ -348,8 +329,6 @@ public final class AutoPuzzlesFeature {
             weirdosPendingPos = chest;
             weirdosPendingSinceMs = now;
             weirdosWaitLogged = false;
-            LOGGER.info("[AutoPuzzles] Weirdos: correct chest {} (wrong={}) - opening after {}ms",
-                    chest, WeirdosSolverFeature.getWrongChestCount(), cfg.getWeirdosDelayMs());
         }
         if (now - weirdosPendingSinceMs < cfg.getWeirdosDelayMs() || client.screen != null) {
             return;
@@ -366,10 +345,6 @@ public final class AutoPuzzlesFeature {
             blocker = String.format(java.util.Locale.US, "out of reach (%.2f blocks)", Math.sqrt(distSq));
         }
         if (blocker != null) {
-            if (!weirdosWaitLogged) {
-                weirdosWaitLogged = true;
-                LOGGER.info("[AutoPuzzles] Weirdos: waiting to open {} - {}", chest, blocker);
-            }
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick()) {
@@ -380,7 +355,6 @@ public final class AutoPuzzlesFeature {
             LOGGER.warn("[AutoPuzzles] Weirdos: no clickable shape at {} (state={}) - not opening this room", chest, state);
             return;
         }
-        LOGGER.info("[AutoPuzzles] Weirdos: opened correct chest {} (delay={}ms)", chest, cfg.getWeirdosDelayMs());
         ModChat.send(CHAT, ModChat.text("Three Weirdos: opened the "), ModChat.good("correct chest"), ModChat.text("."));
     }
 
@@ -444,8 +418,6 @@ public final class AutoPuzzlesFeature {
         client.player.swing(InteractionHand.MAIN_HAND);
         clickedNpcIds.add(best.getId());
         lastNpcClickMs = now;
-        LOGGER.info("[AutoPuzzles] Weirdos: talked to NPC stand id={} at {} ({}/3)",
-                best.getId(), best.blockPosition(), clickedNpcIds.size());
     }
 
     private static void resetWeirdos() {

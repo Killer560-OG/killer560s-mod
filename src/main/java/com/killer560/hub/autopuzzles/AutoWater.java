@@ -10,7 +10,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Auto Water Board - port of QUOI {@code WaterBoardSolver.kt}'s {@code auto} on top of {@link WaterSolverFeature}'s
@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 final class AutoWater {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autopuzzles");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Water Board";
     /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
     private static final double REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
@@ -51,7 +51,6 @@ final class AutoWater {
     private static boolean atChest = false;
     private static boolean stoppedThisRoom = false;
     private static boolean wasInRoom = false;
-    private static String lastWaitLog = null;
     /** Whether the one-shot "walk to the start area" has been attempted for this room visit yet. */
     private static boolean startAreaAttempted = false;
 
@@ -88,7 +87,6 @@ final class AutoWater {
                 startAreaAttempted = true;
             } else if (AutoPuzzleUtil.pathIfMapOn(start, null)) {
                 startAreaAttempted = true;
-                LOGGER.info("[AutoPuzzles] Water: entered room - etherwarp pathing to start area {}", start);
             }
             // else: Interactive Map is off, or another path is already running - leave startAreaAttempted false
             // and just try again next tick; cheap to check.
@@ -118,7 +116,6 @@ final class AutoWater {
                 }
                 AutoReposition.releaseSneak(client);
                 atChest = true;
-                LOGGER.info("[AutoPuzzles] Water: all lever clicks done");
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Water Board: "), ModChat.good("done"), ModChat.text("."));
             }
             return;
@@ -160,16 +157,11 @@ final class AutoWater {
         String blocker = player.isShiftKeyDown() ? "sneaking"
                 : distSq > REACH_SQ ? String.format(java.util.Locale.US, "out of reach (%.2f blocks)", Math.sqrt(distSq)) : null;
         if (blocker != null) {
-            if (!blocker.equals(lastWaitLog)) {
-                lastWaitLog = blocker;
-                LOGGER.info("[AutoPuzzles] Water: click at {} due but {}", next.pos(), blocker);
-            }
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick()) {
             return; // gate held this tick back - the lever stays due and nothing is marked clicked/stopped
         }
-        lastWaitLog = null;
         int countedBefore = WaterSolverFeature.getCountedClicks();
         lastClickTick = tick;
         lastClickMs = now;
@@ -185,8 +177,6 @@ final class AutoWater {
                     ModChat.text(" - auto stopped for this room."));
             return;
         }
-        LOGGER.info("[AutoPuzzles] Water: clicked {} (water={} time={}s tick={} opened={})", next.pos(), next.water(),
-                next.time(), tick, opened);
     }
 
     private static void reset(Minecraft client) {
@@ -196,7 +186,6 @@ final class AutoWater {
         lastClickMs = 0L;
         atChest = false;
         stoppedThisRoom = false;
-        lastWaitLog = null;
         startAreaAttempted = false;
     }
 }

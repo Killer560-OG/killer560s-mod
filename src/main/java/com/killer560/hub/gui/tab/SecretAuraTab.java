@@ -82,11 +82,6 @@ public class SecretAuraTab extends BaseTab {
         return (int) Math.round(min + v * (max - min));
     }
 
-    private static void label(List<AbstractWidget> w, int x, int[] y, int width, String text) {
-        w.add(new StringWidget(x, y[0], width, 12, Component.literal(text), Minecraft.getInstance().font));
-        y[0] += 16;
-    }
-
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
         y[0] += 6;
         w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(text, true), Minecraft.getInstance().font));

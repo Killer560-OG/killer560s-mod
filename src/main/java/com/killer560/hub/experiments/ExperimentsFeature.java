@@ -31,7 +31,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.phys.EntityHitResult;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,7 +64,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class ExperimentsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-experiments");
+    private static final Logger LOGGER = ModLog.get("killer560smod-experiments");
     // Real Hypixel reward caps, confirmed by killer560 directly (2026-09-06): the maximum Enchanting Exp
     // reward is paid out once you pass 15 notes on Chronomatron or 20 numbers on Ultrasequencer -
     // going further gives literally nothing more, regardless of tier (e.g. Metaphysical caps at
@@ -175,7 +175,6 @@ public final class ExperimentsFeature {
     // Diagnostic-only state, not used by the solver itself - just tracked so log lines only fire on
     // an actual change instead of once per tick (20/sec).
     private static ExperimentSolver.Mode lastLoggedMode = ExperimentSolver.Mode.NONE;
-    private static String lastLoggedControlItem = null;
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ExperimentsFeature", client -> tick()));
@@ -381,7 +380,6 @@ public final class ExperimentsFeature {
             return false;
         }
         armed = true;
-        LOGGER.info("Start ETable clicked - autonomous mode armed");
         return true;
     }
 
@@ -689,7 +687,6 @@ public final class ExperimentsFeature {
             if (mode == ExperimentSolver.Mode.SUPERPAIRS) {
                 updateSuperpairsIconCache(menu, cells);
             }
-            logControlSlotIfChanged(cells);
             // Real bug found and fixed (2026-09-08): a real item could still end up in killer560's
             // cursor during Solver Only click protection even with every real client click already
             // redirected through ContainerInput.CLONE (a genuine no-op for real item movement in
@@ -740,7 +737,6 @@ public final class ExperimentsFeature {
                         now, lastClickAtMs, cfg.getDelayMs(), cfg.getFirstClickDelayMs());
                 if (click.isPresent()) {
                     int slot = click.getAsInt();
-                    LOGGER.info("Clicking slot {} (mode={})", slot, mode);
                     lastClickAtMs = now;
                     scheduleClick(menu.containerId, slot, now, cfg);
                 }
@@ -815,7 +811,6 @@ public final class ExperimentsFeature {
                     // emergencyCancel(): never routed through scheduleAction's jitter, and never
                     // touches whatever screen is currently open (stays exactly where it is).
                     String doneReason = NAVIGATOR.takeDoneReason();
-                    LOGGER.info("Autonomous run finished on its own: {}", doneReason);
                     resetRunState();
                     // Per killer560's request (2026-09-09) - the center-screen overlay popup is gone,
                     // matching the same "chat message is the only confirmation" pattern Screenshot Copy
@@ -900,7 +895,6 @@ public final class ExperimentsFeature {
             return;
         }
         lastExitAttemptAtMs = now;
-        LOGGER.info("Claim item found - clicking slot {}", claimSlot);
         scheduleClick(menu.containerId, claimSlot, now, ExperimentsConfig.getInstance());
         armReopenAfterClaim(now);
     }
@@ -949,7 +943,6 @@ public final class ExperimentsFeature {
             LOGGER.warn("Wanted to reopen the table but no ray from the eye reaches the entity's box");
             return;
         }
-        LOGGER.info("Reopening the table by right-clicking entity {}", entity.getId());
         client.gameMode.interact(client.player, entity, new EntityHitResult(entity, aim),
                 InteractionHand.MAIN_HAND);
     }
@@ -1257,7 +1250,6 @@ public final class ExperimentsFeature {
         boolean wasArmed = armed;
         resetRunState();
         if (wasArmed) {
-            LOGGER.info("Emergency cancel triggered - autonomous run stopped and reset");
             // Per killer560's request (2026-09-09) - same "chat message, not a popup" treatment the
             // natural-finish notification already got (see the DONE_SIGNAL branch in tickUnsafe()).
             var player = Minecraft.getInstance().player;
@@ -1297,12 +1289,10 @@ public final class ExperimentsFeature {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
         int claimSlot = findClaimSlot(menu);
         if (claimSlot >= 0) {
-            LOGGER.info("Max chain reached - clicking claim slot {}", claimSlot);
             scheduleClick(menu.containerId, claimSlot, now, cfg);
             armReopenAfterClaim(now);
             return;
         }
-        LOGGER.info("Max chain reached - no claim item found, pressing escape");
         scheduleAction(() -> {
             screen.onClose();
             armReopenAfterClaim(System.currentTimeMillis());
@@ -1348,7 +1338,6 @@ public final class ExperimentsFeature {
 
     private static void logModeChangeIfAny(ExperimentSolver.Mode mode, String title) {
         if (mode != lastLoggedMode) {
-            LOGGER.info("Experiment mode changed: {} -> {} (title=\"{}\")", lastLoggedMode, mode, title);
             // Defense in depth alongside the mode gate in superpairsGhostIcon - clears stale cached
             // icons the instant Superpairs is left, rather than trusting the gate alone to keep them
             // from ever being read again.
@@ -1370,7 +1359,6 @@ public final class ExperimentsFeature {
             superpairsLastRemainingClicks = -1;
             superpairsMaxRemainingClicksSeen = -1;
             lastLoggedMode = mode;
-            lastLoggedControlItem = null;
             maxClicksNotifiedThisRound = false;
             if (mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER) {
                 // Real bug found and fixed (2026-09-08), per killer560's report that the max-clicks
@@ -1384,26 +1372,9 @@ public final class ExperimentsFeature {
                     discovered = NAVIGATOR.takePendingRoundsNeeded();
                 }
                 activeRoundsNeeded = discovered;
-                if (discovered > 0) {
-                    LOGGER.info("Using rounds-needed={} discovered from stakes lore for this round", discovered);
-                }
             } else {
                 activeRoundsNeeded = -1;
             }
-        }
-    }
-
-    /** Logs slot 49's item id whenever it changes - lets a real test confirm the "glowstone" /
-     *  "clock" control-item assumption the solver is built on actually matches this live game. */
-    private static void logControlSlotIfChanged(List<ExperimentSolver.Cell> cells) {
-        String controlItem = cells.stream()
-                .filter(c -> c.slot() == 49)
-                .findFirst()
-                .map(c -> c.empty() ? "(empty)" : c.itemId())
-                .orElse("(no slot 49)");
-        if (!controlItem.equals(lastLoggedControlItem)) {
-            LOGGER.info("Control slot (49) changed to: {}", controlItem);
-            lastLoggedControlItem = controlItem;
         }
     }
 

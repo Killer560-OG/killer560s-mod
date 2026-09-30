@@ -10,11 +10,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -75,31 +72,17 @@ public final class SecretsFeature {
     public static boolean shouldExpandLevers() {
         SecretsConfig cfg = SecretsConfig.getInstance();
         if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isLeversEnabled() || !passesDungeonsOnlyGate(cfg)) {
-            return logExpandIfChanged(0, "Levers", false, cfg);
+            return false;
         }
-        return logExpandIfChanged(0, "Levers", !cfg.isBossOnly() || DungeonState.isBossPhaseActive(), cfg);
+        return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
     }
 
     public static boolean shouldExpandButtons() {
         SecretsConfig cfg = SecretsConfig.getInstance();
         if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isButtonsEnabled() || !passesDungeonsOnlyGate(cfg)) {
-            return logExpandIfChanged(1, "Buttons", false, cfg);
+            return false;
         }
-        return logExpandIfChanged(1, "Buttons", !cfg.isBossOnly() || DungeonState.isBossPhaseActive(), cfg);
-    }
-
-    // [Secrets] per-block-type expand result, logged only when it flips (getShape is called very often).
-    private static final Boolean[] lastExpandResult = new Boolean[4];
-
-    private static boolean logExpandIfChanged(int index, String type, boolean result, SecretsConfig cfg) {
-        if (lastExpandResult[index] == null || lastExpandResult[index] != result) {
-            lastExpandResult[index] = result;
-            LoggerFactory.getLogger("killer560smod-secrets").info(
-                    "[Secrets] Expand {} now={} (master={} onDungeonServer={} dungeonsOnly={} inDungeon={} bossOnly={} bossPhase={})",
-                    type, result, cfg.isMasterEnabled(), isOnDungeonServer(), cfg.isDungeonsOnly(),
-                    DungeonState.isInDungeon(), cfg.isBossOnly(), DungeonState.isBossPhaseActive());
-        }
-        return result;
+        return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
     }
 
     public static boolean shouldUseFullBoxButtons() {
@@ -108,14 +91,12 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandChests() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return logExpandIfChanged(2, "Chests",
-                cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg), cfg);
+        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg);
     }
 
     public static boolean shouldExpandEssence() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return logExpandIfChanged(3, "Essence",
-                cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg), cfg);
+        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg);
     }
 
     // Real player-head skin profile IDs for Wither Essence, per NoammAddons' own DungeonUtils.isSecret
@@ -143,15 +124,6 @@ public final class SecretsFeature {
         return partial != null && partial.id() != null && WITHER_ESSENCE_PROFILE_IDS.contains(partial.id());
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-secrets");
-    // Per killer560's "for the dungeon detection relook through the other mods... otherwise put some
-    // sort of logging into my game" request (2026-09-09, round 12) - re-checking a real Hypixel run
-    // against this log line, alongside DungeonState's own floor-change log, should show exactly what this
-    // gate saw at the moment expansion failed to re-enable, without guessing further at HIGH RISK
-    // collision code. Cached and only logged on an actual change - #passesDungeonsOnlyGate runs on every
-    // real getShape() call, which can be very frequent.
-    private static Boolean lastLoggedGateResult;
-
     // Per killer560's explicit "dungeons only" request (2026-09-09) - shared by all 4 block types. Just
     // an independent AND condition alongside "Boss Only" (Levers/Buttons only, checked separately above)
     // - being in the F7/M7 boss phase already implies being in a dungeon, so having both on at once is
@@ -161,10 +133,6 @@ public final class SecretsFeature {
             return true;
         }
         boolean inDungeon = DungeonState.isInDungeon();
-        if (!Objects.equals(lastLoggedGateResult, inDungeon)) {
-            LOGGER.info("[Secrets] Dungeons Only gate changed: now passes={}", inDungeon);
-            lastLoggedGateResult = inDungeon;
-        }
         return inDungeon;
     }
 

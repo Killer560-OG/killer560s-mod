@@ -7,7 +7,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  */
 final class GuardianPetSwapper {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-guardian-swap");
+    private static final Logger LOGGER = ModLog.get("killer560smod-guardian-swap");
     private static final String MAIN_MENU_TITLE = "Experimentation Table";
     private static final Pattern PETS_TITLE_PATTERN = Pattern.compile("^(?:\\((\\d+)/(\\d+)\\)\\s*)?Pets$");
     private static final int PLAYER_INVENTORY_SLOTS = 36;
@@ -81,7 +81,6 @@ final class GuardianPetSwapper {
             return Result.NONE_RESULT;
         }
         if (lastActionAtMs < 0) {
-            LOGGER.info("[t={}] Pacing clock started (state={}, title=\"{}\")", now, state, title);
             lastActionAtMs = now;
             return Result.NONE_RESULT;
         }
@@ -89,7 +88,6 @@ final class GuardianPetSwapper {
         if (elapsed < STEP_DELAY_MS) {
             return Result.NONE_RESULT;
         }
-        LOGGER.info("[t={}] 1s gate cleared ({}ms since last action, state={}, title=\"{}\")", now, elapsed, state, title);
 
         switch (state) {
             case IDLE -> {
@@ -98,7 +96,6 @@ final class GuardianPetSwapper {
                 }
                 state = State.WAITING_TO_SEND_PETS;
                 lastActionAtMs = now;
-                LOGGER.info("[t={}] Firing CLOSE_TABLE", now);
                 return new Result(Action.CLOSE_TABLE, -1);
             }
             case WAITING_TO_SEND_PETS -> {
@@ -107,13 +104,11 @@ final class GuardianPetSwapper {
                 // of what (if anything) is open right now.
                 state = State.AWAITING_PETS_SCREEN;
                 lastActionAtMs = now;
-                LOGGER.info("[t={}] Firing RUN_PETS_COMMAND", now);
                 return new Result(Action.RUN_PETS_COMMAND, -1);
             }
             case AWAITING_PETS_SCREEN -> {
                 Matcher pageMatch = PETS_TITLE_PATTERN.matcher(title);
                 if (!pageMatch.matches() || menu == null) {
-                    LOGGER.info("[t={}] Waiting for the Pets screen - currently seeing \"{}\"", now, title);
                     return Result.NONE_RESULT;
                 }
                 int currentPage = pageMatch.group(1) != null ? Integer.parseInt(pageMatch.group(1)) : 1;
@@ -127,27 +122,23 @@ final class GuardianPetSwapper {
                     // leaving it active. Per killer560's exact diagnosis ("if it has that click to
                     // despawn subtext then i already have it out"), nothing needs to be clicked at
                     // all here - the goal (a Guardian active) is already satisfied.
-                    LOGGER.info("[t={}] A Guardian pet is already active (shows \"Click to despawn!\") - nothing to do", now);
                     doneThisRun = true;
                     state = State.IDLE;
                     return new Result(Action.CLOSE_AND_REOPEN, -1);
                 }
                 if (scan.slotToSummon() >= 0) {
                     state = State.CLICKED_PET;
-                    LOGGER.info("[t={}] Firing CLICK_SLOT on slot {} (page {}/{})", now, scan.slotToSummon(), currentPage, totalPages);
                     return new Result(Action.CLICK_SLOT, scan.slotToSummon());
                 }
                 if (currentPage < totalPages) {
                     int nextPageSlot = findNextPageSlot(menu);
                     if (nextPageSlot >= 0) {
-                        LOGGER.info("[t={}] No Guardian on page {}/{} - clicking Next Page (slot {})",
-                                now, currentPage, totalPages, nextPageSlot);
                         return new Result(Action.NEXT_PAGE, nextPageSlot);
                     }
                     LOGGER.warn("[t={}] On page {}/{} but couldn't find a \"Next Page\" item to click", now, currentPage, totalPages);
                 }
                 // Either the last page, or no "Next Page" item could be found - nothing left to try.
-                LOGGER.warn("[t={}] No Guardian pet found after checking page {}/{} - see the item list logged above",
+                LOGGER.warn("[t={}] No Guardian pet found after checking page {}/{}",
                         now, currentPage, totalPages);
                 doneThisRun = true;
                 state = State.IDLE;
@@ -157,7 +148,6 @@ final class GuardianPetSwapper {
                 doneThisRun = true;
                 state = State.IDLE;
                 lastActionAtMs = now;
-                LOGGER.info("[t={}] Firing CLOSE_AND_REOPEN - swap complete", now);
                 return new Result(Action.CLOSE_AND_REOPEN, -1);
             }
         }
@@ -171,11 +161,7 @@ final class GuardianPetSwapper {
     private record GuardianScan(int slotToSummon, boolean alreadyActive) {
     }
 
-    /** Diagnostic-only: logs every non-empty item name (and lore, joined) actually seen in the Pets
-     *  container, once per page scanned - the real /pets item format has no client-jar ground truth
-     *  to verify against (see the class doc), so if Guardian-picking ever misfires, this log is the
-     *  fastest way to see exactly what the screen actually contained and fix the name/lore matching.
-     *  Real bug found and fixed (2026-09-06) from a screenshot: a pet's own lore ends in either
+    /** Real bug found and fixed (2026-09-06) from a screenshot: a pet's own lore ends in either
      *  "Click to despawn!" (already the active/summoned pet) or "Left-click to summon!" (not active) -
      *  clicking an ALREADY-active Guardian would toggle it off, so that's recognized and never clicked.
      *  <p>
@@ -194,13 +180,10 @@ final class GuardianPetSwapper {
             ItemLore lore = stack.get(DataComponents.LORE);
             String loreJoined = lore == null ? "" : String.join(" | ", lore.lines().stream()
                     .map(Component::getString).toList());
-            LOGGER.info("Pets slot {}: name=\"{}\" lore=[{}]", slot.index, name, loreJoined);
             if (!name.contains("Guardian")) continue;
             if (loreJoined.contains("Click to despawn!")) {
-                LOGGER.info("  -> matched Guardian, already active - stopping here");
                 return new GuardianScan(-1, true);
             }
-            LOGGER.info("  -> matched inactive Guardian at slot {} - picking it (first in reading order)", slot.index);
             return new GuardianScan(slot.index, false);
         }
         return new GuardianScan(-1, false);

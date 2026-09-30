@@ -21,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -57,7 +57,7 @@ import java.util.regex.Pattern;
  */
 public final class ScoreboardExtraData {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-customscoreboard");
+    private static final Logger LOGGER = ModLog.get("killer560smod-customscoreboard");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH = CustomScoreboardConfig.DATA_DIR.resolve("data.json");
     private static final URI ELECTION_URI = URI.create("https://api.hypixel.net/v2/resources/skyblock/election");

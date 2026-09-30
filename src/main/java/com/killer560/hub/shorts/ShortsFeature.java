@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWNativeWin32;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ShortsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-shorts");
+    private static final Logger LOGGER = ModLog.get("killer560smod-shorts");
     private static final String CHAT = "Video Browser";
 
     private static final ScheduledExecutorService EXEC = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -88,7 +88,6 @@ public final class ShortsFeature {
     private static int ticks;
     private static boolean refocusMcOnAttach;
     private static boolean pausedByHide;
-    private static int driftLogs;
     private static final boolean[] keyWasDown = new boolean[5];
 
     // ---- 2026-09-21 expansion: Edit Window + DVD placement (client thread only, same as the fields above) ----
@@ -302,7 +301,6 @@ public final class ShortsFeature {
                 // The browser usually drops the socket before replying - the command was still delivered.
             }
             bc.close();
-            LOGGER.info("[Shorts] Sent Browser.close on DevTools port {}.", port);
             return true;
         } catch (Exception e) {
             return false;
@@ -343,7 +341,6 @@ public final class ShortsFeature {
                 }
                 browserProcess = process.toHandle();
             }
-            LOGGER.info("[Shorts] Browser process started (pid {}).", process.pid());
 
             // 1) DevTools port (the browser writes it once its debugging server is up).
             int port = -1;
@@ -362,7 +359,6 @@ public final class ShortsFeature {
             }
             if (port > 0) {
                 devToolsPort = port;
-                LOGGER.info("[Shorts] DevTools port {} ({}ms after launch).", port, System.currentTimeMillis() - startedAt);
                 connectCdp(gen, port, 10000);
             } else {
                 LOGGER.warn("[Shorts] No DevTools port after launch (process alive: {}) - playback keybinds won't work.",
@@ -394,8 +390,6 @@ public final class ShortsFeature {
                 }
                 browserHwnd = hwnd;
             }
-            LOGGER.info("[Shorts] Browser window found: hwnd 0x{} pid {} ({}ms after launch).",
-                    Long.toHexString(hwnd), pid, System.currentTimeMillis() - startedAt);
             CdpClient c = cdp;
             chatLater(ModChat.good("Browser ready. "),
                     ModChat.dim(c != null && c.isOpen() ? "First time? Click the Shorts window and log into YouTube once."
@@ -424,7 +418,6 @@ public final class ShortsFeature {
         if (gen == generation.get()) {
             return false;
         }
-        LOGGER.info("[Shorts] Launch aborted (closed or relaunched meanwhile).");
         if (process != null && process.isAlive() && browserProcess == null) {
             process.toHandle().descendants().forEach(ProcessHandle::destroyForcibly);
             process.destroyForcibly();
@@ -474,19 +467,18 @@ public final class ShortsFeature {
                         }
                         cdp = client;
                     }
-                    LOGGER.info("[Shorts] CDP connected (port {}).", port);
                     // Emulation overrides die with the CDP session, so the theme has to be re-sent on every
                     // (re)connect, not just at launch. Own try/catch: a theme failure must not fall into this
                     // loop's retry path and open a second client on top of the one just stored.
                     try {
-                        LOGGER.info("[Shorts] Theme: {}.", applyThemeNow(client, "connect"));
+                        applyThemeNow(client, "connect");
                     } catch (Exception e) {
                         LOGGER.warn("[Shorts] Theme apply on connect failed: {}", e.toString());
                     }
                     // Own try/catch for the same reason as the theme above: install the volume hook (page-side
                     // JS, dies with the CDP session same as the emulation) fresh on every (re)connect.
                     try {
-                        LOGGER.info("[Shorts] Volume hook: {}.", installVolumeHookNow(client));
+                        installVolumeHookNow(client);
                     } catch (Exception e) {
                         LOGGER.warn("[Shorts] Volume hook install on connect failed: {}", e.toString());
                     }
@@ -602,7 +594,6 @@ public final class ShortsFeature {
         if (h == 0) {
             ProcessHandle ph = browserProcess;
             if (!launching && ph != null && ticks % 20 == 0 && !ph.isAlive()) {
-                LOGGER.info("[Shorts] Browser process exited before its window was attached.");
                 closeBrowser("process exited", false);
             }
             return;
@@ -617,14 +608,12 @@ public final class ShortsFeature {
         Win32.User32 u = Win32.user32();
         try {
             if (!u.IsWindow(h)) {
-                LOGGER.info("[Shorts] Browser window 0x{} is gone (closed by the user?).", Long.toHexString(h));
                 closeBrowser("window closed", true);
                 return;
             }
             if (ticks % 10 == 0) {
                 ProcessHandle ph = browserProcess;
                 if (ph != null && !ph.isAlive()) {
-                    LOGGER.info("[Shorts] Browser process {} exited.", ph.pid());
                     closeBrowser("process exited", true);
                     return;
                 }
@@ -682,14 +671,12 @@ public final class ShortsFeature {
         lastRegion = null;
         appliedOpacity = -1;
         pausedByHide = false;
-        driftLogs = 0;
         LOGGER.info("[Shorts] Attached window 0x{}: owner={} (Minecraft 0x{}), style 0x{} -> 0x{}, exstyle 0x{} -> 0x{}.",
                 Long.toHexString(h), ownerOk ? "set" : "FAILED", Long.toHexString(mc),
                 Long.toHexString(style), Long.toHexString(newStyle), Long.toHexString(ex), Long.toHexString(newEx));
         if (refocusMcOnAttach) {
             refocusMcOnAttach = false;
             GLFW.glfwFocusWindow(client.getWindow().handle());
-            LOGGER.info("[Shorts] Returned focus to Minecraft.");
         }
         return true;
     }
@@ -710,7 +697,6 @@ public final class ShortsFeature {
     }
 
     private static void detachLocal() {
-        LOGGER.info("[Shorts] Detached from window 0x{}.", Long.toHexString(attachedHwnd));
         attachedHwnd = 0;
         shown = false;
         lastWindowRect = null;
@@ -775,7 +761,6 @@ public final class ShortsFeature {
         if (wantShown != shown) {
             u.ShowWindow(h, wantShown ? Win32.SW_SHOWNOACTIVATE : Win32.SW_HIDE);
             shown = wantShown;
-            LOGGER.info("[Shorts] Window {}.", wantShown ? "shown" : "hidden (" + hideReason + ")");
             if (!wantShown && cfg.isPauseWhenHidden()) {
                 runCommand("pause (hidden)", c -> {
                     boolean wasPlaying = "paused".equals(str(c.evaluate(pauseJs())));
@@ -817,12 +802,10 @@ public final class ShortsFeature {
         if (op >= 100) {
             if ((ex & Win32.WS_EX_LAYERED) != 0) {
                 u.SetWindowLongPtrW(h, Win32.GWL_EXSTYLE, ex & ~Win32.WS_EX_LAYERED);
-                LOGGER.info("[Shorts] Opacity back to 100% (layered style removed).");
             }
         } else {
             if ((ex & Win32.WS_EX_LAYERED) == 0) {
                 u.SetWindowLongPtrW(h, Win32.GWL_EXSTYLE, ex | Win32.WS_EX_LAYERED);
-                LOGGER.info("[Shorts] Opacity enabled (layered style added).");
             }
             u.SetLayeredWindowAttributes(h, 0, (byte) Math.round(op * 255 / 100.0), Win32.LWA_ALPHA);
         }
@@ -848,11 +831,6 @@ public final class ShortsFeature {
         lastWindowRect = null;
         lastRegion = null;
         appliedOpacity = -1;
-        if (driftLogs < 5) {
-            driftLogs++;
-            LOGGER.info("[Shorts] Browser reset its window ({}{}) - re-applied.", styleDrift ? "frame styles" : "",
-                    ownerDrift ? (styleDrift ? ", owner" : "owner") : "");
-        }
     }
 
     /** @return {x, y, w, h} of the video area in screen pixels for a Minecraft client rect {x, y, w, h},
@@ -1004,7 +982,6 @@ public final class ShortsFeature {
             u.SetWindowRgn(h, 0, true); // drop the title-bar crop - a real caption is showing now, nothing to hide
             u.SetWindowPos(h, 0, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOZORDER
                     | Win32.SWP_NOACTIVATE | Win32.SWP_NOOWNERZORDER | Win32.SWP_FRAMECHANGED);
-            LOGGER.info("[Shorts] Edit Window on: real title bar/border restored, auto-placement paused.");
             ModChat.send(CHAT, ModChat.text("Edit Window: drag the title bar to move it, drag an edge/corner to "
                     + "resize it. Turn Edit Window off again to lock the new position/size in."));
         } else {
@@ -1030,7 +1007,6 @@ public final class ShortsFeature {
             lastWindowRect = null;
             lastRegion = null;
             appliedOpacity = -1;
-            LOGGER.info("[Shorts] Edit Window off: frame re-stripped, auto-placement resumed.");
             scheduleInsetMeasure(300);
         }
     }
@@ -1066,8 +1042,6 @@ public final class ShortsFeature {
             }
             if (!Arrays.equals(b, insets)) {
                 insets = b;
-                LOGGER.info("[Shorts] Browser frame insets measured: left {} top {} right {} bottom {} px (cropped away).",
-                        b[0], b[1], b[2], b[3]);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -1255,11 +1229,6 @@ public final class ShortsFeature {
         openSignInWindow(url, site.label);
     }
 
-    /** Kept for anything still calling the pre-expansion name; now just YouTube Shorts specifically. */
-    public static void signInToYouTube() {
-        openSignInWindow(ShortsConfig.Site.YOUTUBE_SHORTS.signInUrl, ShortsConfig.Site.YOUTUBE_SHORTS.label);
-    }
-
     private static void openSignInWindow(String url, String platform) {
         if (!isSupported()) {
             ModChat.send(CHAT, ModChat.bad(unsupportedReason));
@@ -1275,7 +1244,6 @@ public final class ShortsFeature {
                 Path profile = BrowserLauncher.profileDir();
                 Files.createDirectories(profile);
                 List<String> cmd = BrowserLauncher.buildSignInCommand(exe, profile, url);
-                LOGGER.info("[Shorts] Opening {} sign-in: {}", platform, String.join(" ", cmd));
                 new ProcessBuilder(cmd)
                         .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                         .redirectError(ProcessBuilder.Redirect.DISCARD)
@@ -1299,7 +1267,6 @@ public final class ShortsFeature {
         }
         cfg.setHidden(!cfg.isHidden());
         cfg.save();
-        LOGGER.info("[Shorts] Overlay toggled {}.", cfg.isHidden() ? "off" : "on");
     }
 
     /**
@@ -1573,8 +1540,7 @@ public final class ShortsFeature {
             return;
         }
         try {
-            String result = action.run(c);
-            LOGGER.info("[Shorts] Command '{}' sent ({}).", name, result);
+            action.run(c);
         } catch (Exception e) {
             LOGGER.warn("[Shorts] Command '{}' failed: {}", name, e.toString());
         }

@@ -19,8 +19,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,14 +42,11 @@ import java.util.Set;
  */
 public final class ThornEspFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-thorn");
-
     /** Entity id -> ARGB, rebuilt every client tick. */
     private static volatile Map<Integer, Integer> targets = Map.of();
     private static volatile Map<Integer, Integer> glowTargets = Map.of();
     /** Ids in {@link #targets} that are Spirit Bow stands (drawn with the ground box). */
     private static volatile Set<Integer> bowIds = Set.of();
-    private static String lastLoggedCounts = null;
 
     private ThornEspFeature() {
     }
@@ -87,8 +82,6 @@ public final class ThornEspFeature {
         Vec3 eye = client.player.getEyePosition();
         Map<Integer, Integer> found = new LinkedHashMap<>();
         java.util.HashSet<Integer> bows = new java.util.HashSet<>();
-        int bears = 0;
-        int mobs = 0;
 
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity == client.player || entity.isRemoved()) {
@@ -97,7 +90,6 @@ public final class ThornEspFeature {
             if (entity instanceof Player) {
                 if (wantBear && SpiritBearTracker.isSpiritBear(entity) && entity.isAlive() && visible(client, eye, entity, throughWalls)) {
                     found.put(entity.getId(), cfg.getBearColor());
-                    bears++;
                 }
             } else if (entity instanceof ArmorStand stand) {
                 if (wantBow && isSpiritBow(stand) && visible(client, eye, stand, throughWalls)) {
@@ -112,7 +104,6 @@ public final class ThornEspFeature {
             } else if (wantMobs && isKnownSpiritAnimal(entity) && entity.isAlive() && !entity.isInvisible()
                     && visible(client, eye, entity, throughWalls)) {
                 found.put(entity.getId(), cfg.getMobColor());
-                mobs++;
             }
         }
 
@@ -120,12 +111,6 @@ public final class ThornEspFeature {
         targets = snapshot;
         bowIds = Set.copyOf(bows);
         glowTargets = cfg.getStyle() == ThornConfig.Style.GLOW ? snapshot : Map.of();
-
-        String counts = "bears=" + bears + " mobs=" + mobs + " bows=" + bows.size();
-        if (!counts.equals(lastLoggedCounts) && (bears > 0 || bows.size() > 0 || lastLoggedCounts == null)) {
-            LOGGER.info("[ThornEsp] {}", counts);
-            lastLoggedCounts = counts;
-        }
     }
 
     /** The wiki's six spirit animals by vanilla class (see class doc). */

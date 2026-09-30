@@ -17,7 +17,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -59,7 +59,7 @@ import java.util.regex.Pattern;
  */
 public final class MaxorCrystalsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-maxor");
+    private static final Logger LOGGER = ModLog.get("killer560smod-maxor");
 
     /** NoammAddons MaxorsCrystals.kt line 23. */
     private static final Pattern PICKUP = Pattern.compile("^(\\w+) picked up an Energy Crystal!");

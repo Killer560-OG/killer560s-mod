@@ -40,7 +40,6 @@ public final class WitherEspFeature {
     static void onChat(String plain) {
         if (plain.startsWith("[BOSS] Wither King:") && !witherKingPhase) {
             witherKingPhase = true;
-            CheatUtils.LOGGER.info("[CheatUtils] Wither detection: Wither King phase - boss withers ignored");
         }
     }
 

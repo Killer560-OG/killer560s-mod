@@ -11,7 +11,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  */
 public final class ProfileViewerApi {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-profileviewer");
+    private static final Logger LOGGER = ModLog.get("killer560smod-profileviewer");
 
     public static final long CACHE_MS = 5 * 60 * 1000L;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);

@@ -57,7 +57,6 @@ public final class QuizSolverFeature {
         ChatObserver.subscribe(QuizSolverFeature::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", client -> {
             onTick();
-            logQuizStateIfChanged();
         }));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
@@ -121,7 +120,6 @@ public final class QuizSolverFeature {
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
         String msg = plain != null ? plain : message.getString();
-        logQuizChat(msg);
 
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")) {
             if (msg.contains("answered the final question")) {
@@ -163,37 +161,6 @@ public final class QuizSolverFeature {
                 return;
             }
         }
-    }
-
-    // [QuizSolver] diagnostics - logging only (chat-rate, only in a dungeon with the solver enabled).
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-puzzles");
-
-    private static String lastLoggedState = null;
-
-    private static void logQuizStateIfChanged() {
-        RoomEntry current = QuizSolverConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
-                ? LiveMapFeature.currentRoomEntry() : null;
-        String state = current == null || !"Quiz".equals(current.name)
-                ? "notInRoom(enabled=" + QuizSolverConfig.getInstance().isEnabled() + " inBoss=" + LiveMapFeature.isInBoss() + ")"
-                : "inRoom optionPositions=" + options[0].blockPos + "," + options[1].blockPos + "," + options[2].blockPos
-                + " currentAnswers=" + triviaAnswers + " correct=[" + options[0].correct + "," + options[1].correct
-                + "," + options[2].correct + "]";
-        if (!state.equals(lastLoggedState)) {
-            LOGGER.info("[QuizSolver] State: {}", state);
-            lastLoggedState = state;
-        }
-    }
-
-    private static void logQuizChat(String msg) {
-        String trimmed = msg.trim();
-        boolean relevant = msg.contains("Oruo") || startsWithAnswerLetter(trimmed) || trimmed.endsWith("?");
-        if (!relevant) {
-            return;
-        }
-        RoomEntry current = LiveMapFeature.currentRoomEntry();
-        LOGGER.info("[QuizSolver] Chat: \"{}\" | room={} answersLoaded={} currentAnswers={} optionPositionsSet={} correct=[{},{},{}]",
-                trimmed, current != null ? current.name : null, ANSWERS.size(), triviaAnswers,
-                options[0].blockPos != null, options[0].correct, options[1].correct, options[2].correct);
     }
 
     private static boolean startsWithAnswerLetter(String trimmed) {

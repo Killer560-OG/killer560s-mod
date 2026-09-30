@@ -6,7 +6,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Locale;
@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
  */
 public final class AutoDialogueFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeonextras");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dungeonextras");
     private static final String OPTION_PREFIX = "Select an option: ";
     private static final String FACTION_CHOICE = "[BARBARIANS] [MAGES]";
     private static final Pattern NPC_LINE = Pattern.compile("^\\[NPC] ([^:]+): (.*)$");

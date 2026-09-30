@@ -19,7 +19,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Locale;
@@ -41,7 +41,7 @@ import java.util.Locale;
  */
 public final class RagAxeFeature {
 
-    static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ragaxe");
+    static final Logger LOGGER = ModLog.get("killer560smod-ragaxe");
 
     /** NoammAddons' exact delays/pitches for the M7 rag cue (vol 0.25). */
     private static final long[] CUE_DELAYS_MS = {0L, 120L, 240L, 400L, 520L, 640L, 780L};
@@ -115,7 +115,6 @@ public final class RagAxeFeature {
     // ------------------------------------------------------------------ output helpers
 
     static void showPrompt(String what, boolean sound, boolean title) {
-        LOGGER.info("[RagAxe] Prompt: {}", what);
         promptTicks = PROMPT_TICKS;
         if (sound) {
             cueStartMs = System.currentTimeMillis();

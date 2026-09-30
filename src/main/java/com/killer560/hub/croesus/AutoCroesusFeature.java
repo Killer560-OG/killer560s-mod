@@ -23,7 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.EntityHitResult;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.List;
@@ -59,7 +59,7 @@ import java.util.regex.Pattern;
  */
 public final class AutoCroesusFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-croesus");
+    private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
 
     private static final int[] RUN_SLOTS = DungeonChestValuer.RUN_HEAD_SLOTS;
     private static final int NEXT_PAGE_SLOT = 53;
@@ -260,7 +260,6 @@ public final class AutoCroesusFeature {
         }
         armed = true;
         armedAtMs = System.currentTimeMillis();
-        LOGGER.info("[Croesus] Start Croesus clicked - arming");
         return true;
     }
 
@@ -487,7 +486,6 @@ public final class AutoCroesusFeature {
                     currentRunKey = key;
                     rerolledThisRun = false;
                     claimedThisRun = false;
-                    LOGGER.info("[Croesus] Opening run {} (page {}, slot {})", floor, page, slot);
                     setState(State.WAIT_RUN_VIEW, now);
                     return;
                 }
@@ -500,7 +498,6 @@ public final class AutoCroesusFeature {
                     }
                     lastPageClickedFrom = page;
                     lastPageClickAtMs = now;
-                    LOGGER.info("[Croesus] No unopened runs on page {} - next page", page);
                     nextActionAtMs = now + randomDelay();
                     return;
                 }
@@ -544,7 +541,6 @@ public final class AutoCroesusFeature {
                 }
                 String signature = chestSignature(ChestProfitFeature.containerStacks(screen));
                 if (!signature.equals(preRerollSignature)) {
-                    LOGGER.info("[Croesus] Reroll landed - re-valuing {} chest", targetType.display);
                     setState(State.CHEST, now);
                     return;
                 }
@@ -624,9 +620,6 @@ public final class AutoCroesusFeature {
             if (target.requiresKey()) {
                 keysUsed++;
             }
-            LOGGER.info("[Croesus] Claiming {} chest in {} (profit {}, min {}, key {}, unpriced items {})",
-                    target.type().display, ChestProfitFeature.currentRunViewFloor(), target.profit(),
-                    target.requiresKey() ? keyMinProfit : minProfit, target.requiresKey(), target.unpricedCount());
             setState(State.WAIT_CHEST, now);
             return;
         }
@@ -650,8 +643,6 @@ public final class AutoCroesusFeature {
                 targetType = bedrock.type();
                 targetSlot = bedrock.slot();
                 pendingReroll = true;
-                LOGGER.info("[Croesus] Opening Bedrock chest in {} to reroll it (profit {} < {})",
-                        ChestProfitFeature.currentRunViewFloor(), bedrock.profit(), rerollBelow);
                 setState(State.WAIT_CHEST, now);
                 return;
             }
@@ -677,8 +668,6 @@ public final class AutoCroesusFeature {
             return;
         }
         skipped++;
-        LOGGER.info("[Croesus] Skipping run {} - best profit {} below min {}",
-                ChestProfitFeature.currentRunViewFloor(), best == null ? "n/a" : best.profit(), minProfit);
         ModChat.send("Auto Croesus", ModChat.text("Skipped "), ModChat.value(String.valueOf(ChestProfitFeature.currentRunViewFloor())),
                 ModChat.dim(" (best " + (best == null ? "n/a" : DungeonChestValuer.formatCoins(best.profit())) + ")"));
     }
@@ -702,7 +691,6 @@ public final class AutoCroesusFeature {
             if (!DungeonChestValuer.isRerollButton(button)) {
                 if (inState > TRANSITION_TIMEOUT_MS) {
                     pendingReroll = false;
-                    LOGGER.info("[Croesus] No Reroll Chest button in this chest - claiming/skipping normally");
                 }
                 return;
             }
@@ -726,7 +714,6 @@ public final class AutoCroesusFeature {
             }
             rerolls++;
             rerolledThisRun = true;
-            LOGGER.info("[Croesus] Rerolled the {} chest in {}", targetType.display, ChestProfitFeature.currentRunViewFloor());
             setState(State.WAIT_REROLL, now);
             return;
         }
@@ -747,7 +734,6 @@ public final class AutoCroesusFeature {
             // Re-check with the real reward stacks before paying. This used to stop the whole session; with
             // rerolling in the mix a chest legitimately lands here (a reroll that made things worse), so it
             // walks back to the run view and refuses this one chest instead of ending the run.
-            LOGGER.info("[Croesus] Re-check says {} < {} - leaving this chest alone", value.profit(), minProfit);
             refuseCurrentChest();
             goBack(client, screen, now);
             return;
@@ -892,8 +878,6 @@ public final class AutoCroesusFeature {
         } else {
             client.gameMode.attack(client.player, entity);
         }
-        LOGGER.info("[Croesus] Re-opening Croesus ({}-click, attempt {})", reopenAttempts == 0 ? "right" : "left",
-                reopenAttempts + 1);
         reopenAttempts++;
         reopenSent = true;
         stateSinceMs = now;
@@ -1027,8 +1011,6 @@ public final class AutoCroesusFeature {
     }
 
     private static void finish(Minecraft client) {
-        LOGGER.info("[Croesus] Auto Croesus finished: claimed={}, skipped={}, keys={}, rerolls={}, profit={}",
-                claimed, skipped, keysUsed, rerolls, claimedProfit);
         ModChat.send("Auto Croesus", ModChat.good("Done. "), ModChat.text("Claimed "), ModChat.value(String.valueOf(claimed)),
                 ModChat.text(", skipped "), ModChat.value(String.valueOf(skipped)),
                 ModChat.dim(" (keys " + keysUsed + ", rerolls " + rerolls + ")"),
@@ -1052,7 +1034,6 @@ public final class AutoCroesusFeature {
 
     private static void setState(State newState, long now) {
         if (state != newState) {
-            LOGGER.info("[Croesus] {} -> {}", state, newState);
             if (newState == State.MENU) {
                 lastPageClickedFrom = -1;
             }

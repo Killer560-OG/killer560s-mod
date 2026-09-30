@@ -14,7 +14,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.lang.ref.WeakReference;
 import java.util.Locale;
@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
  */
 public final class DungeonInfoFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dungeoninfo");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dungeoninfo");
     // Real bug found and fixed (2026-09-14, first real F7 run log): the old SECRETS_PATTERN scanned the
     // SIDEBAR, but Hypixel's dungeon sidebar only has Keys / Time Elapsed / Cleared - "Secrets Found" is a
     // TAB LIST entry, so lastSecretsCount stayed -1 all run. Formats per Odin's DungeonListener
@@ -72,7 +72,6 @@ public final class DungeonInfoFeature {
     // time is recorded every tick while still in the run's own world, and used as the end time.
     private static long lastInDungeonGameTime = -1;
     private static WeakReference<ClientLevel> runLevel = new WeakReference<>(null);
-    private static boolean loggedSecretsLineThisRun = false;
     private static int lastSecretsCount = -1;
     private static String lastSecretsPercent = null;
 
@@ -98,7 +97,6 @@ public final class DungeonInfoFeature {
             runLevel = new WeakReference<>(client.level);
             runEndedAtMs = -1;
             runEndedGameTime = -1;
-            loggedSecretsLineThisRun = false;
             lastSecretsCount = -1;
             lastSecretsPercent = null;
             secretsReadsThisRun = 0;
@@ -130,13 +128,6 @@ public final class DungeonInfoFeature {
         }
         wasInDungeon = inDungeonNow;
 
-        DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-        String gates = "secretsHud=" + cfg.isSecretsHudEnabled() + " inDungeon=" + inDungeonNow;
-        if (!gates.equals(lastLoggedGates)) {
-            LOGGER.info("[DungeonInfo] Gates changed: {}", gates);
-            lastLoggedGates = gates;
-        }
-
         // Tracked whenever in a dungeon, not just while the Secrets HUD is on - Dungeon Alerts' Secrets
         // Done alert (roomSecretsFound()) needs this too, independent of this HUD's own toggle.
         if (inDungeonNow) {
@@ -146,13 +137,12 @@ public final class DungeonInfoFeature {
     }
 
     // [DungeonInfo] diagnostics - logging only.
-    private static String lastLoggedGates = null;
     private static int secretsReadsThisRun = 0;
     private static boolean loggedSecretsMissThisRun = false;
     private static boolean loggedLevelMismatchThisRun = false;
 
     /** Reads "Secrets Found" from the tab list - the same player-info display names
-     *  {@code DungeonState#logTabClassesIfChanged} already reads for class entries. */
+     *  {@code DungeonState} reads for the sidebar. */
     private static void updateSecretsCount() {
         Minecraft client = Minecraft.getInstance();
         if (client.getConnection() == null) {
@@ -169,27 +159,17 @@ public final class DungeonInfoFeature {
             if (plain == null || !plain.contains("Secrets Found")) {
                 continue;
             }
-            if (!loggedSecretsLineThisRun) {
-                loggedSecretsLineThisRun = true;
-                LOGGER.info("[DungeonInfo] First tab-list secrets line this run: raw=\"{}\" plain=\"{}\"", raw, plain);
-            }
             Matcher count = TAB_SECRETS_COUNT_PATTERN.matcher(plain);
             if (count.matches()) {
                 matchedAny = true;
                 int value = Integer.parseInt(count.group(1));
-                if (value != lastSecretsCount) {
-                    LOGGER.info("[DungeonInfo] Secrets count changed: {} -> {}", lastSecretsCount, value);
-                    lastSecretsCount = value;
-                }
+                lastSecretsCount = value;
                 continue;
             }
             Matcher percent = TAB_SECRETS_PERCENT_PATTERN.matcher(plain);
             if (percent.matches()) {
                 matchedAny = true;
-                if (!percent.group(1).equals(lastSecretsPercent)) {
-                    LOGGER.info("[DungeonInfo] Secrets percent changed: {} -> {}%", lastSecretsPercent, percent.group(1));
-                    lastSecretsPercent = percent.group(1);
-                }
+                lastSecretsPercent = percent.group(1);
             }
         }
         if (!matchedAny && lastSecretsCount < 0 && !loggedSecretsMissThisRun && ++secretsReadsThisRun >= 200) {
@@ -221,8 +201,6 @@ public final class DungeonInfoFeature {
             lastRoomEntry = entry;
             roomBaselineSecrets = lastSecretsCount;
             roomSecretsFound = 0;
-            LOGGER.info("[DungeonInfo] Room changed to \"{}\" - per-room secrets baseline set to {}",
-                    entry.name, roomBaselineSecrets);
         }
         // Hypixel's OWN per-room number first.
         //

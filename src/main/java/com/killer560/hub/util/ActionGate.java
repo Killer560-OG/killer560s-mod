@@ -7,7 +7,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
@@ -78,7 +77,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class ActionGate {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-actiongate");
+    private static final Logger LOGGER = ModLog.get("killer560smod-actiongate");
 
     /** Ticks the other class of actor must stay quiet for after an interaction. */
     public static final int CROSS_CLASS_TICKS = 4;

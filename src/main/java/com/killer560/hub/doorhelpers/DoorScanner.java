@@ -90,8 +90,6 @@ public final class DoorScanner {
                             : block == Blocks.INFESTED_CHISELED_STONE_BRICKS ? DoorType.ENTRANCE
                             : DoorType.NORMAL;
                     cells[idx] = new Door(wx, wz, type);
-                    DoorHelpersFeature.LOGGER.info("[DoorHelpers] Door cell ({},{}) world=({},{}) roofY={} -> {}",
-                            gx, gz, wx, wz, height, type);
                 } else {
                     cells[idx] = NOT_A_DOOR;
                 }

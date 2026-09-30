@@ -5,7 +5,7 @@ import com.killer560.hub.melody.MelodyHudConfig;
 import com.killer560.hub.partydata.PartyDataConfig;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,7 +22,7 @@ import java.nio.file.Path;
  */
 public final class SharingDefaults {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-interop");
+    private static final Logger LOGGER = ModLog.get("killer560smod-interop");
     static final String MARKER_FILE = "killer560smod-sharing-defaults-v1.json";
     private static final Path MARKER = FabricLoader.getInstance().getConfigDir().resolve(MARKER_FILE);
     /** Second one-time step: Mod Chat on by default (killer560, 2026-09-21, after v1 had already run). */

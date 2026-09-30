@@ -12,7 +12,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
  */
 public final class DvdFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-dvd");
+    private static final Logger LOGGER = ModLog.get("killer560smod-dvd");
     private static final float BASE_SPEED_PX_PER_SEC = 90f;
     /** Small margin added around the measured text size so a background box (if enabled) doesn't
      *  render literally flush against the glyphs. */

@@ -1,8 +1,6 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,8 +25,6 @@ import java.util.List;
  * b/m") says only the non-selected class flips, which is what this does.
  */
 final class DragonPriority {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-witherdragons");
 
     private static final List<WitherDragon> DEFAULT_ORDER =
             List.of(WitherDragon.RED, WitherDragon.ORANGE, WitherDragon.BLUE, WitherDragon.PURPLE, WitherDragon.GREEN);
@@ -77,8 +73,6 @@ final class DragonPriority {
             }
         }
 
-        LOGGER.info("[WitherDragons] Priority: power={} class={} dragons={} -> {} ({})", formatPower(totalPower),
-                clazz, spawning, dragons.get(0), reason);
         if (clazz == null) {
             reason += ", class unknown";
         }

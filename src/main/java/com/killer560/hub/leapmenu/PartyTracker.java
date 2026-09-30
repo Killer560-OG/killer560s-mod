@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
  */
 public final class PartyTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapmenu");
+    private static final Logger LOGGER = ModLog.get("killer560smod-leapmenu");
 
     private static final String NAME = "(?:\\[[^]]+] )?([A-Za-z0-9_]{1,16})";
     /** Hoisted (2026-09-20, FPS pass): this was compiled fresh for every comma-separated member of
@@ -68,7 +68,6 @@ public final class PartyTracker {
     private static boolean wasInDungeon = false;
     private static boolean readingList = false;
     private static int tickCounter = 0;
-    private static String lastLogged = "";
 
     private PartyTracker() {
     }
@@ -141,7 +140,6 @@ public final class PartyTracker {
         } else {
             return;
         }
-        logIfChanged();
     }
 
     private static void readTabList(Minecraft client) {
@@ -187,7 +185,6 @@ public final class PartyTracker {
         if (!fromTab.isEmpty() && !new ArrayList<>(MEMBERS).equals(fromTab)) {
             MEMBERS.clear();
             MEMBERS.addAll(fromTab);
-            logIfChanged();
         }
     }
 
@@ -229,19 +226,12 @@ public final class PartyTracker {
         if (names.isEmpty()) {
             return;
         }
-        boolean changed = false;
         for (String n : names) {
-            int before = MEMBERS.size();
             add(n);
-            changed |= MEMBERS.size() != before;
-        }
-        if (changed) {
-            logIfChanged();
         }
         LeapMenuConfig cfg = LeapMenuConfig.getInstance();
         if (cfg.setLastLeapOrder(names)) {
             cfg.save();
-            LOGGER.info("[PartyTracker] Leap menu order: {}", names);
         }
     }
 
@@ -272,14 +262,6 @@ public final class PartyTracker {
         }
         out.addAll(remaining);
         return out;
-    }
-
-    private static void logIfChanged() {
-        String summary = MEMBERS + " " + CLASSES;
-        if (!summary.equals(lastLogged)) {
-            lastLogged = summary;
-            LOGGER.info("[PartyTracker] Party: {}", summary);
-        }
     }
 
     /** Everyone known to be in your party except you, in Hypixel's listing order. */

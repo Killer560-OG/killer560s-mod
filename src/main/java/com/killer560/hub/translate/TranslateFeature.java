@@ -11,7 +11,7 @@ import com.killer560.hub.emotes.ChatEmoteFeature;
 import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -49,7 +49,7 @@ public final class TranslateFeature {
     public record TranslationResult(String text, String detectedLanguageCode) {
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-translate");
+    private static final Logger LOGGER = ModLog.get("killer560smod-translate");
 
     /**
      * Hypixel routes chat to a specific channel via a leading slash command (e.g. "/ac hello" for
@@ -118,10 +118,6 @@ public final class TranslateFeature {
                 && !"en".equalsIgnoreCase(cfg.getTargetLanguageCode());
         boolean autoCorrectActive = AutoCorrectConfig.getInstance().isEnabled();
         boolean emotesActive = ChatEmoteConfig.getInstance().isEnabled();
-        // debug, not info: this fires for every outgoing chat line (incl. /msg) and would put the
-        // user's whole chat history into latest.log (2026-09-16 audit).
-        LOGGER.debug("tryIntercept called: message=\"{}\" translateActive={} autoCorrectActive={} emotesActive={}",
-                normalizedMessage, translateActive, autoCorrectActive, emotesActive);
 
         if (!translateActive && !autoCorrectActive && !emotesActive) {
             return false;
@@ -253,9 +249,6 @@ public final class TranslateFeature {
     }
 
     private static void sendFinal(Minecraft client, String commandWord, String text) {
-        // DEBUG, not INFO (2026-09-16 security pass): this line is every outgoing chat message, private
-        // messages included, and latest.log is a file people paste into Discord when asking for help.
-        LOGGER.debug("Sending: commandWord={} outgoing=\"{}\"", commandWord, text);
         if (commandWord == null) {
             client.player.connection.sendChat(text);
         } else {
@@ -342,7 +335,6 @@ public final class TranslateFeature {
             throw new RuntimeException("MyMemory returned HTTP " + response.statusCode());
         }
 
-        LOGGER.debug("MyMemory raw response: {}", response.body());
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
         JsonObject responseData = root.getAsJsonObject("responseData");
         if (responseData == null || !responseData.has("translatedText")) {

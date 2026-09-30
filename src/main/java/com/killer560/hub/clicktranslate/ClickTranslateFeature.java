@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
  */
 public final class ClickTranslateFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-clicktranslate");
+    private static final Logger LOGGER = ModLog.get("killer560smod-clicktranslate");
     private static final Identifier TRANSLATE_ID = Identifier.fromNamespaceAndPath("killer560smod", "translate_click");
 
     private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool(r -> {
@@ -60,7 +60,6 @@ public final class ClickTranslateFeature {
 
     /** @return true if {@code style}'s click event was one of ours and has been fully handled. */
     public static boolean tryHandleClick(Style style) {
-        LOGGER.debug("tryHandleClick: style={} clickEvent={}", style, style == null ? null : style.getClickEvent());
         if (style == null || !(style.getClickEvent() instanceof ClickEvent.Custom custom)) {
             return false;
         }

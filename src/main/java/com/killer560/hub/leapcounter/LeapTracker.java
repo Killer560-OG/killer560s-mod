@@ -6,8 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -61,8 +59,6 @@ import java.util.regex.Pattern;
  * getStageAt()}, falling back to the chat-driven stage when you stand between section boxes).
  */
 public final class LeapTracker {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-leapcounter");
 
     /** Where you can be leapt to. S1-S4 are Floor7Tracker's P3 stages, CORE its S5, RELIC is P5. */
     public enum Section {
@@ -132,9 +128,6 @@ public final class LeapTracker {
     /** Forgets every counted teammate at the current spot (the anchor re-follows you). Position history is kept, so a
      *  teammate who walked in before the reset still cannot be counted afterwards. */
     public static void reset() {
-        if (!COUNTED.isEmpty() || complete) {
-            LOGGER.info("[LeapCounter] Reset ({} counted, section {})", COUNTED.size(), section);
-        }
         COUNTED.clear();
         complete = false;
         completionPending = false;
@@ -217,7 +210,6 @@ public final class LeapTracker {
             reset();
             section = now;
             ticksInSection = 0;
-            LOGGER.info("[LeapCounter] Section -> {}", now);
         }
         ticksInSection++;
 
@@ -239,7 +231,6 @@ public final class LeapTracker {
         if (COUNTED.isEmpty()) {
             anchor = self;
         } else if (anchor != null && anchor.distanceToSqr(self) > radiusSq) {
-            LOGGER.info("[LeapCounter] Left the spot ({} counted)", COUNTED.size());
             reset();
             anchor = self;
         }
@@ -287,8 +278,6 @@ public final class LeapTracker {
                 continue;
             }
             COUNTED.put(id, nowMs);
-            LOGGER.info("[LeapCounter] {} leapt to you ({}) - {}/{} in {}", name, jumped ? "jump" : "appeared",
-                    COUNTED.size(), target, section);
         }
         // Stale entries (teammate left the party / disconnected) so the map can't grow across a long session.
         Iterator<Map.Entry<Integer, ArrayDeque<Sample>>> it = HISTORY.entrySet().iterator();
@@ -302,7 +291,6 @@ public final class LeapTracker {
         if (!complete && target > 0 && COUNTED.size() >= target) {
             complete = true;
             completionPending = true;
-            LOGGER.info("[LeapCounter] Complete: {}/{} in {}", COUNTED.size(), target, section);
         }
     }
 

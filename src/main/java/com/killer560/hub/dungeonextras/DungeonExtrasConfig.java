@@ -205,7 +205,7 @@ public final class DungeonExtrasConfig {
                 if (!cfg.breakerAuraMultiBreakDefaulted) {
                     cfg.breakerAuraMultiBreakDefaulted = true;
                     cfg.breakerAuraMultiBreak = true;
-                    org.slf4j.LoggerFactory.getLogger("killer560smod-dungeonextras").info(
+                    com.killer560.hub.util.ModLog.get("killer560smod-dungeonextras").info(
                             "[DungeonExtras] Multi Break switched on once (new default - measured clean "
                                     + "against GrimAC on 2026-09-29). Turn it off in the Breaker Aura tab if "
                                     + "you would rather it sent one break a tick.");

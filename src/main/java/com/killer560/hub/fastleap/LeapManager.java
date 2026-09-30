@@ -268,8 +268,6 @@ public final class LeapManager {
         a.menu = container.getMenu();
         a.hidden = true;
         beginFastBlock(a);
-        FastLeapFeature.LOGGER.info("[FastLeap] Leap menu '{}' opened hidden (containerId {})",
-                container.getTitle().getString(), a.menu.containerId);
         return true;
     }
 
@@ -283,7 +281,6 @@ public final class LeapManager {
         }
         player.connection.send(new ServerboundContainerClosePacket(a.menu.containerId));
         player.containerMenu = player.inventoryMenu;
-        FastLeapFeature.LOGGER.info("[FastLeap] Closed hidden leap menu (containerId {})", a.menu.containerId);
     }
 
     static void onStartTick(Minecraft client) {
@@ -477,7 +474,6 @@ public final class LeapManager {
             return;
         }
         client.gameMode.handleContainerInput(a.menu.containerId, match.index, 0, ContainerInput.PICKUP, player);
-        FastLeapFeature.LOGGER.info("[FastLeap] Clicked {} (slot {}, containerId {})", a.current.name(), match.index, a.menu.containerId);
         // finishClick(): the fast block ends with the last click
         a.fastBlockActive = false;
         a.fastBlockFinished = true;

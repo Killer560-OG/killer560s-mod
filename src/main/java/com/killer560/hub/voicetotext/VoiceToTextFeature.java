@@ -8,7 +8,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -49,7 +49,7 @@ import java.util.zip.ZipInputStream;
  */
 public final class VoiceToTextFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-voicetotext");
+    private static final Logger LOGGER = ModLog.get("killer560smod-voicetotext");
     private static final String MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip";
     private static final String MODEL_DIR_NAME = "vosk-model-small-en-us-0.15";
 

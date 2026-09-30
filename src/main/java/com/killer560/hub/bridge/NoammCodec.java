@@ -54,7 +54,6 @@ public final class NoammCodec {
      *  blank here). */
     private static final Pattern SERVER_CODE = Pattern.compile("^\\w{1,16}$");
     private static final Pattern FLOOR = Pattern.compile("^(?:E|[FM][1-7])$");
-    private static final int MAX_SECRETS = 999;
     private static final int MAX_TEXT = 8_192;
 
     private NoammCodec() {

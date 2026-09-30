@@ -18,7 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
  */
 public final class FastLeapFeature {
 
-    static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-fastleap");
+    static final Logger LOGGER = ModLog.get("killer560smod-fastleap");
 
     private static final AABB GREEN_PAD_BOX = new AABB(24.0, 170.0, 4.0, 41.0, 172.0, 21.0);
     private static final AABB YELLOW_PAD_BOX = new AABB(24.0, 170.0, 86.0, 41.0, 172.0, 103.0);

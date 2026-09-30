@@ -16,7 +16,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +38,7 @@ import java.util.Optional;
  */
 final class EtherwarpWaypointsRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-etherwarp");
+    private static final Logger LOGGER = ModLog.get("killer560smod-etherwarp");
 
     private EtherwarpWaypointsRenderer() {
     }

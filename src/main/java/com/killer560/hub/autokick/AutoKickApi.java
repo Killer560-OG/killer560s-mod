@@ -3,8 +3,6 @@ package com.killer560.hub.autokick;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.SbProfile;
 import net.minecraft.client.Minecraft;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -41,8 +39,6 @@ import java.util.concurrent.CompletableFuture;
  * player. Floors with no recorded clear time on the source profile are left at 0 (still "never kick").
  */
 public final class AutoKickApi {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autokick");
 
     private AutoKickApi() {
     }
@@ -115,9 +111,6 @@ public final class AutoKickApi {
             }
         }
 
-        LOGGER.info("[AutoKick] Populate from {}: {} floor(s) set from their fastest recorded clear time, "
-                        + "{} left at 0 (no recorded time), {} left untouched (already had a target).",
-                playerName, set, noData, alreadySet);
         return new PopulateResult(playerName, set, noData, alreadySet);
     }
 }

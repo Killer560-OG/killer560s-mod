@@ -20,7 +20,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  */
 public final class AutoRoutesFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autoroutes");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
     private static final String CHAT = "Auto Routes";
     /** NoammAddons {@code ActionBarParser} / {@code LiveMapFeature.ACTION_BAR_SECRETS}. */
     private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d+)/(\\d+) Secrets");

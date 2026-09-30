@@ -13,7 +13,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -54,7 +54,7 @@ import java.util.regex.Pattern;
  */
 public final class NucleusRunProfitTracker {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-nucleus-profit");
+    private static final Logger LOGGER = ModLog.get("killer560smod-nucleus-profit");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-nucleus-profit.json");

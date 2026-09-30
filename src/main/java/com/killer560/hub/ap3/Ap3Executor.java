@@ -32,7 +32,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -135,7 +135,7 @@ import java.util.UUID;
  */
 public final class Ap3Executor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ap3");
     private static final String CHAT = "AP3";
 
     /** Mixin/steer thresholds: the 8-way key record that best matches an analog direction. */
@@ -150,7 +150,6 @@ public final class Ap3Executor {
      *  this it fails instead of dragging you across the room. */
     private static final double ALIGN_REACH = 4.0;
     private static final double WALL_TOUCH = 0.02;
-    private static final double WALL_PUSH_HELD = 0.35;
     private static final int LOOK_TIMEOUT = 80;
     private static final long LOOK_TIMEOUT_MS = 3000L;
     /** At most one camera step per 2 ms of wall time, whatever fires the render hook. */
@@ -915,7 +914,6 @@ public final class Ap3Executor {
             }
             String behind = activeNode != null ? "behind #" + number(activeNode) + " " + activeNode.type.label()
                     : waitUntilMs > 0L ? "behind a wait" : "(" + queue.size() + " waiting)";
-            LOGGER.info("[AP3] Queued #{} {} {}", number(node), node.type.label(), behind);
             if (Ap3Config.getInstance().isChatFeedback()
                     && Ap3Config.getInstance().getMessageDetail() == Ap3Config.MessageDetail.DETAILED) {
                 chat(ModChat.dim("Queued "), ModChat.value("#" + number(node) + " " + node.type.label()), ModChat.dim(" " + behind));
@@ -987,7 +985,6 @@ public final class Ap3Executor {
             edgeArmedTicks = 0;
         }
         step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
-        LOGGER.info("[AP3] Node #{} {}", number(node), node.describe());
     }
 
     /** A node failed: it ends, and so does everything else (the hold, the queue) - the nodes behind it were placed
@@ -1612,8 +1609,13 @@ public final class Ap3Executor {
      * delta from where the client is. While AP3 is moving him that is Hypixel rejecting the movement (killer560:
      * "spit me out right back the way I entered it", 14 of them in one align on fda6ad4) - so: everything AP3 is
      * doing stops at once, the node(s) involved are blocked until he has left their box for a second, and two such
-     * corrections inside ten seconds switch AP3 off altogether until he turns it back on. Logged and counted into
-     * the dev line either way. Nothing is changed about the packet; vanilla applies it as always.
+     * corrections inside ten seconds switch AP3 off altogether until he turns it back on. Counted either way.
+     * Nothing is changed about the packet; vanilla applies it as always.
+     *
+     * <p>The one line this still logs is deliberate: a server correction while AP3 is driving is the flag-risk
+     * signal the whole design turns on, so it stays even though the verbose position dump beside it (a
+     * 2026-09-22 chest-placement hunt) is gone. It is guarded so that ordinary teleports during normal play -
+     * every warp, every leap - no longer print anything at all.
      */
     public static void onServerPositionPacket(double dx, double dy, double dz) {
         boolean moving = activeNode != null || holdDir != null || driving;
@@ -1621,16 +1623,11 @@ public final class Ap3Executor {
         if (inAlign || traceActive) {
             alignCorrections++;
         }
-        LOGGER.info("[AP3 dev] SERVER CORRECTION #{}{}: delta ({}, {}, {}) blocks", alignCorrections,
-                moving ? " while AP3 was moving you" : (traceActive ? " (align tail)" : ""),
-                String.format(Locale.US, "%.4f", dx), String.format(Locale.US, "%.4f", dy), String.format(Locale.US, "%.4f", dz));
-        LocalPlayer pl = Minecraft.getInstance().player;
-        if (pl != null) {
-            LOGGER.info("[AP3 dev] correction: client was at ({}, {}, {}), yaw {}; server puts you at ({}, {}, {}); last block place {}",
-                    String.format(Locale.US, "%.3f", pl.getX()), String.format(Locale.US, "%.3f", pl.getY()),
-                    String.format(Locale.US, "%.3f", pl.getZ()), String.format(Locale.US, "%.1f", pl.getYRot()),
-                    String.format(Locale.US, "%.3f", pl.getX() + dx), String.format(Locale.US, "%.3f", pl.getY() + dy),
-                    String.format(Locale.US, "%.3f", pl.getZ() + dz), blockWatchPos == null ? "none" : blockWatchPos.toShortString());
+        if (moving || traceActive) {
+            LOGGER.info("[AP3] Server correction #{}{}: delta ({}, {}, {}) blocks", alignCorrections,
+                    moving ? " while AP3 was moving you" : " (align tail)",
+                    String.format(Locale.US, "%.4f", dx), String.format(Locale.US, "%.4f", dy),
+                    String.format(Locale.US, "%.4f", dz));
         }
         if (!moving) {
             return;
@@ -2052,7 +2049,6 @@ public final class Ap3Executor {
             serverYaw = player.getYRot();
             serverYawO = serverYaw;
             strafeSmoothing = 0.5f + (float) (Math.random() * 0.2);
-            LOGGER.info("[AP3] Server-side yaw: locking for an align from yaw {}", String.format(Locale.US, "%.1f", serverYaw));
         }
         strafeLock = true;
         strafeReturning = false;
@@ -2694,7 +2690,6 @@ public final class Ap3Executor {
     /** Dev diagnostics: the spot the last Block node placed into, watched for a second. */
     private static BlockPos blockWatchPos;
     private static int blockWatchTicks;
-    private static String blockWatchLast = "";
     /** The placed block is solid and you are pressed against it: the walk stops pushing into it (Grim sees your
      *  keys - holding W into a block the server may not have is a mismatch). */
     private static boolean placedBlocking;
@@ -2723,8 +2718,6 @@ public final class Ap3Executor {
                 ping = info.getLatency();
             }
             placedGraceTicks = Math.min(20, ping / 50 + 2);
-            LOGGER.info("[AP3 dev] Block watch: {} vanished while you were against it - holding {} ticks (ping {} ms)",
-                    blockWatchPos.toShortString(), placedGraceTicks, ping);
         }
         placedWasSolid = solid;
         // Only a block that really stops you counts: taller than a step up above your feet (a slab you run onto is
@@ -2733,15 +2726,6 @@ public final class Ap3Executor {
                 + client.level.getBlockState(blockWatchPos).getCollisionShape(client.level, blockWatchPos).max(net.minecraft.core.Direction.Axis.Y)
                 : 0.0;
         placedBlocking = solid && touching && top - client.player.getY() > 0.6;
-        String now = String.valueOf(client.level.getBlockState(blockWatchPos).getBlock());
-        boolean overlaps = client.player.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(blockWatchPos));
-        if (!now.equals(blockWatchLast) || overlaps) {
-            LOGGER.info("[AP3 dev] Block watch +{}t: {} now shows {}{}; player at ({}, {}, {})", blockWatchTicks,
-                    blockWatchPos.toShortString(), now, overlaps ? " (your hitbox overlaps it)" : "",
-                    String.format(Locale.US, "%.3f", client.player.getX()), String.format(Locale.US, "%.3f", client.player.getY()),
-                    String.format(Locale.US, "%.3f", client.player.getZ()));
-            blockWatchLast = now;
-        }
     }
     private static float aimPrevPitch;
     private static boolean aiming;
@@ -3102,13 +3086,6 @@ public final class Ap3Executor {
                 placedWasSolid = false;
                 placedBlocking = false;
                 placedGraceTicks = 0;
-                blockWatchLast = String.valueOf(client.level.getBlockState(blockWatchPos).getBlock());
-                LOGGER.info("[AP3 dev] Block #{} used {} on {} face {} -> place at {} ({}); player at ({}, {}, {}) yaw {} pitch {}; client now shows {}",
-                        number(node), player.getMainHandItem().getHoverName().getString(), b.getBlockPos().toShortString(),
-                        b.getDirection(), blockWatchPos.toShortString(), r,
-                        String.format(Locale.US, "%.3f", player.getX()), String.format(Locale.US, "%.3f", player.getY()),
-                        String.format(Locale.US, "%.3f", player.getZ()), String.format(Locale.US, "%.1f", player.getYRot()),
-                        String.format(Locale.US, "%.1f", player.getXRot()), blockWatchLast);
                 if (r.consumesAction()) {
                     player.swing(InteractionHand.MAIN_HAND);
                 }
@@ -3562,8 +3539,6 @@ public final class Ap3Executor {
                 strafeReturning = false;
                 strafeHold = null;
                 lookHeld = false; // a walk's explicit yaw supersedes a finished LOOK's client-only hold
-                LOGGER.info("[AP3] Server-side yaw: locking from yaw {} ({})",
-                        String.format(Locale.US, "%.1f", serverYaw), strafe45 ? "45 degree strafe" : "straight");
             }
             serverYawO = serverYaw;
             float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
@@ -3588,7 +3563,6 @@ public final class Ap3Executor {
         if (!strafeReturning) {
             strafeReturning = true;
             strafeHold = null;
-            LOGGER.info("[AP3] Server-side yaw: returning to the camera yaw");
         }
         serverYawO = serverYaw;
         float cameraYaw = player.getYRot();
@@ -3612,9 +3586,6 @@ public final class Ap3Executor {
     /** Drops the lock at once: the next packet carries the live camera yaw. Only for the moments the server has
      *  just set our rotation itself (a teleport) or there is no player to speak of. */
     private static void releaseStrafeNow() {
-        if (strafeLock) {
-            LOGGER.info("[AP3] Server-side yaw: released");
-        }
         strafeLock = false;
         strafeReturning = false;
         strafeHold = null;

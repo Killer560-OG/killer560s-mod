@@ -12,8 +12,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.Slot;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.regex.Pattern;
 
@@ -36,7 +34,6 @@ import java.util.regex.Pattern;
  */
 final class PetWheelEditor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-petwheel-editor");
     private static final Pattern PETS_TITLE = Pattern.compile("^(?:\\((\\d+)/(\\d+)\\)\\s*)?Pets$");
 
     private static boolean armed = false;
@@ -66,7 +63,6 @@ final class PetWheelEditor {
         returnParent = editScreen.editParent();
         Minecraft client = Minecraft.getInstance();
         client.setScreen(null);
-        LOGGER.info("[PetWheel] Edit mode: picking a real pet for wheel slot {}.", wheelIndex);
     }
 
     private static void tick(Minecraft client) {
@@ -86,7 +82,6 @@ final class PetWheelEditor {
         }
         player.connection.sendCommand("pets");
         sentCommand = true;
-        LOGGER.info("[PetWheel] Edit mode: sent /pets for slot {}.", targetSlotIndex);
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int w, int h) {
@@ -127,7 +122,6 @@ final class PetWheelEditor {
         cfg.recordSeenPet(entry); // definitely a real pet now, same bookkeeping a passive scan tick would do
         cfg.replaceOrAppendWheelSlot(slot, entry);
         cfg.save();
-        LOGGER.info("[PetWheel] Edit mode: slot {} set to {}.", slot, entry.shortLabel());
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             if (client.screen == screen) {
@@ -148,7 +142,6 @@ final class PetWheelEditor {
     }
 
     private static void cancel(String why) {
-        LOGGER.debug("[PetWheel] Edit pick cancelled ({}).", why);
         armed = false;
         sentCommand = false;
         targetSlotIndex = -1;

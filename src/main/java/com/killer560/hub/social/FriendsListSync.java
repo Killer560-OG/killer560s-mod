@@ -8,7 +8,7 @@ import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +53,7 @@ import java.util.regex.Pattern;
  */
 public final class FriendsListSync {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-friendslist-sync");
+    private static final Logger LOGGER = ModLog.get("killer560smod-friendslist-sync");
     private static final String CHAT = "Friends List";
 
     private static final long MIN_COMMAND_INTERVAL_MS = 1_500L;

@@ -7,7 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Reads the vanilla Hypixel dungeon map item (hotbar slot 9) into the same 11x11 room/door grid
@@ -44,7 +44,7 @@ final class DungeonMapScanner {
     private static final int MAP_SIZE = 128;
     private static final int COLOR_ENTRANCE = 30;
     private static final int COLOR_PUZZLE = 66;
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-livemap");
+    private static final Logger LOGGER = ModLog.get("killer560smod-livemap");
 
     private static final byte[] centerColors = new byte[CELLS];
     private static final byte[] sideColors = new byte[CELLS];

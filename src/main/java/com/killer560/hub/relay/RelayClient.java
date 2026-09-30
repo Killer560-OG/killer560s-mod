@@ -5,7 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.net.ConnectException;
 import java.net.UnknownHostException;
@@ -62,7 +62,7 @@ public final class RelayClient {
         RETRYING
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-relay");
+    private static final Logger LOGGER = ModLog.get("killer560smod-relay");
 
     /** The relay's own limit (Worker {@code room.ts}); truncating here keeps the reported length honest. */
     private static final int MAX_CHAT_CHARS = 512;

@@ -12,7 +12,7 @@ import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,7 +85,7 @@ import java.util.regex.Pattern;
  */
 public final class AutoKickFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autokick");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autokick");
 
     /** Same shape {@code partycommands.PartyCommandsFeature} validates typed names against before they
      *  ever reach a command string. */
@@ -173,8 +173,6 @@ public final class AutoKickFeature {
 
         String elapsedStr = formatMmSs(elapsedMs);
         String targetStr = formatMmSs(targetSeconds * 1000L);
-        LOGGER.info("[AutoKick] {} target ({}) exceeded - elapsed {} - mode={} targets={}",
-                floor.label(), targetStr, elapsedStr, mode, targets);
 
         switch (mode) {
             case WARN_ONLY -> ModChat.send("Auto Kick",
@@ -270,7 +268,6 @@ public final class AutoKickFeature {
         lastKickAtMs = now;
         ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" kicked "),
                 ModChat.dim("(floor target time exceeded)."));
-        LOGGER.info("[AutoKick] Sent \"p kick {}\" - {} left queued", name, pendingKicks.size());
     }
 
     private static String formatMmSs(long ms) {

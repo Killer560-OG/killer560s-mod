@@ -84,8 +84,6 @@ final class RagAxePrompts {
         }
         long delay = Math.max(0L, prompt.expectedOffsetMs - (long) cfg.getPromptLeadMs(prompt));
         FIRE_AT_MS[prompt.ordinal()] = System.currentTimeMillis() + delay;
-        RagAxeFeature.LOGGER.info("[RagAxe] {} prompt scheduled in {} ms (offset {}, lead {})", prompt.label, delay,
-                prompt.expectedOffsetMs, cfg.getPromptLeadMs(prompt));
     }
 
     static void clientTick() {
@@ -121,8 +119,6 @@ final class RagAxePrompts {
             }
             if (dragon.timeToSpawn() * 50L <= lead) {
                 DRAGON_PROMPTED[i] = dragon.timesSpawned();
-                RagAxeFeature.LOGGER.info("[RagAxe] Dragon prompt: {} spawns in {} ticks", dragon.colourName,
-                        dragon.timeToSpawn());
                 fire(prompt);
             }
         }

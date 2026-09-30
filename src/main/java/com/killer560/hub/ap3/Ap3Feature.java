@@ -24,7 +24,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.Collections;
 import java.util.List;
@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
  */
 public final class Ap3Feature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-ap3");
+    private static final Logger LOGGER = ModLog.get("killer560smod-ap3");
     private static final String CHAT = "AP3";
     /** Hypixel's own line, the same regex {@code Floor7Tracker.Stage} parses (kept private there), with the optional
      *  trailing suffix so a line annotated by another mod (Odin's terminal splits) still matches. */

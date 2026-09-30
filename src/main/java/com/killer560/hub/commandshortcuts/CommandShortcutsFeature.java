@@ -9,7 +9,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Locale;
@@ -65,7 +65,7 @@ import java.util.stream.Collectors;
  */
 public final class CommandShortcutsFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-commandshortcuts");
+    private static final Logger LOGGER = ModLog.get("killer560smod-commandshortcuts");
 
     public static final String FEATURE = "Command Shortcuts";
 

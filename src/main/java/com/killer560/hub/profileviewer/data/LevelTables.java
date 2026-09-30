@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class LevelTables {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-profileviewer");
+    private static final Logger LOGGER = ModLog.get("killer560smod-profileviewer");
     private static final String BASE = "/assets/killer560smod/profileviewer/";
 
     public record Skill(String id, String name, int maxLevel, long[] totalXp) {

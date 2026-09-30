@@ -21,7 +21,7 @@ import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.Scoreboard;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
  *  (a real, already-working 26.1.2 mod local to this machine) rather than guessed. */
 public final class StorageOverlayFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-storageoverlay");
+    private static final Logger LOGGER = ModLog.get("killer560smod-storageoverlay");
     private static final String ELEMENT_ID = "storage_overlay";
     private static final int SLOT_SIZE = 18;
     private static final int PANEL_WIDTH = SLOT_SIZE * 9 + 4;
@@ -305,7 +305,6 @@ public final class StorageOverlayFeature {
             return;
         }
         cache.put(key, contents);
-        LOGGER.info("Logged storage \"{}\" ({} slots)", key, contents.size());
     }
 
     /** @return the composite cache key for this screen title if it's a real Wardrobe page, otherwise
@@ -354,7 +353,6 @@ public final class StorageOverlayFeature {
             return;
         }
         cache.put(key, contents);
-        LOGGER.info("Logged wardrobe page \"{}\" ({} sets)", key, contents.size());
     }
 
     private static boolean sameContents(List<ItemStack> a, List<ItemStack> b) {
@@ -397,7 +395,6 @@ public final class StorageOverlayFeature {
      *  That tooltip doesn't contain "locked", so it was being counted as owned. Now excluded the same way. */
     private static void scanOverview(ChestMenu menu) {
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
-        int ownedCount = 0;
         for (Slot slot : menu.slots) {
             String key = overviewSlotToKey(slot.index);
             if (key == null) {
@@ -411,24 +408,11 @@ public final class StorageOverlayFeature {
             boolean owned = stack != null && !stack.isEmpty() && !locked && !emptySlot;
             if (owned) {
                 cache.markKnown(key);
-                ownedCount++;
             } else {
                 cache.unmarkKnown(key);
             }
         }
-        // Only when the answer CHANGES.
-        //
-        // scanOverview runs every frame while a storage screen is open, and this logged every time - about
-        // two hundred lines a second at 200 fps, straight to disk, saying the same thing. A log line that
-        // repeats at frame rate is not a diagnostic, it is a leak with a timestamp.
-        if (ownedCount != lastLoggedOwnedCount) {
-            lastLoggedOwnedCount = ownedCount;
-            LOGGER.info("Scanned Storage overview: {} owned page(s)/backpack(s) found", ownedCount);
-        }
     }
-
-    /** The count last logged, so the scan only says something when something changed. */
-    private static int lastLoggedOwnedCount = -1;
 
     private static String overviewSlotToKey(int slotIndex) {
         if (slotIndex >= 9 && slotIndex < 18) {

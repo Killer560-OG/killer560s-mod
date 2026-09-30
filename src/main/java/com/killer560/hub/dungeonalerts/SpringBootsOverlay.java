@@ -62,9 +62,6 @@ final class SpringBootsOverlay {
     }
 
     static void reset() {
-        if (blockAmount != 0f) {
-            DungeonAlertsFeature.LOGGER.debug("[DungeonAlerts] Spring Boots charge reset (was {})", blockAmount);
-        }
         blockAmount = 0f;
         highCount = 0;
         lowCount = 0;

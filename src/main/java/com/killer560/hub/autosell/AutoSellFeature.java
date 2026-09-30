@@ -14,7 +14,7 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.List;
@@ -63,7 +63,7 @@ import java.util.regex.PatternSyntaxException;
  */
 public final class AutoSellFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-autosell");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autosell");
 
     private static final int MAX_CLICKS_PER_SESSION = 200;
 
@@ -124,7 +124,6 @@ public final class AutoSellFeature {
         running = true;
         stateSinceMs = System.currentTimeMillis();
         nextActionAtMs = stateSinceMs;
-        LOGGER.info("[AutoSell] Started on screen \"{}\"", title);
         return null;
     }
 
@@ -237,12 +236,10 @@ public final class AutoSellFeature {
     private static void finish() {
         ModChat.send("AutoSell", ModChat.good("Done - "), ModChat.value(attempted + " item stack(s)"),
                 ModChat.text(" clicked."));
-        LOGGER.info("[AutoSell] Finished - {} click(s) sent", attempted);
         running = false;
     }
 
     private static void stop(String reason) {
-        LOGGER.info("[AutoSell] Stopped: {}", reason);
         ModChat.send("AutoSell", ModChat.bad("Stopped: "), ModChat.text(reason),
                 ModChat.dim(" (" + attempted + " item stack(s) clicked)"));
         running = false;

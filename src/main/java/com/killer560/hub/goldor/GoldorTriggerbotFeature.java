@@ -15,7 +15,7 @@ import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -48,7 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class GoldorTriggerbotFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-goldortriggerbot");
+    private static final Logger LOGGER = ModLog.get("killer560smod-goldortriggerbot");
 
     /**
      * TEMPORARY - {@code ActionGate.Actor} has no Goldor constant yet and this feature must not borrow another
@@ -64,7 +64,6 @@ public final class GoldorTriggerbotFeature {
     private static int aimTargetId = -1;
     private static long nextClickAtMs = 0L;
     private static Object lastLevel = null;
-    private static String lastGateLog = null;
 
     private GoldorTriggerbotFeature() {
     }
@@ -87,7 +86,6 @@ public final class GoldorTriggerbotFeature {
         GoldorTriggerbotConfig cfg = GoldorTriggerbotConfig.getInstance();
         if (!cfg.isEnabled()) {
             clearAim();
-            logGate("disabled");
             return;
         }
         LocalPlayer player = client.player;
@@ -115,10 +113,8 @@ public final class GoldorTriggerbotFeature {
         }
         if (gate != null) {
             clearAim();
-            logGate(gate);
             return;
         }
-        logGate("active");
 
         long now = System.currentTimeMillis();
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
@@ -218,12 +214,5 @@ public final class GoldorTriggerbotFeature {
 
     private static void clearAim() {
         aimTargetId = -1;
-    }
-
-    private static void logGate(String gate) {
-        if (!gate.equals(lastGateLog)) {
-            lastGateLog = gate;
-            LOGGER.info("[GoldorTriggerbot] State: {}", gate);
-        }
     }
 }

@@ -5,7 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * The clicking half of {@code /ar edit db}: "lets me right-click blocks to add them to that breaker and
@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class AutoRoutesEditInput {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod/autoroutes");
+    private static final Logger LOGGER = ModLog.get("killer560smod/autoroutes");
 
     /** Vanilla repeats a held right-click every 4 ticks (200 ms); anything faster than this on the same block with
      *  the same shift state is that auto-repeat, not a second deliberate click. */
