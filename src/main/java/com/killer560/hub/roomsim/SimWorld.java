@@ -101,7 +101,10 @@ public final class SimWorld {
                 .getDefault(biomes, structures, features)
                 .withBiomeAndLayers(java.util.List.of(), java.util.Optional.empty(),
                         biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.THE_VOID));
-        return WorldPresets.createFlatWorldDimensions(registries).replaceOverworldGenerator(
+        // createNormalWorldDimensions, not createFlatWorldDimensions: 26.2 deleted the flat one, and the
+        // two differ only in the overworld generator - which the very next call replaces with the void
+        // settings above. So this is the same world on both versions, not a substitute for it.
+        return WorldPresets.createNormalWorldDimensions(registries).replaceOverworldGenerator(
                 registries, new net.minecraft.world.level.levelgen.FlatLevelSource(settings));
     }
 

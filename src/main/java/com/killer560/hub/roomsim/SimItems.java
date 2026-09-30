@@ -466,7 +466,8 @@ public final class SimItems {
                 target.hurt(source, SCEPTER_DAMAGE);
                 // Vanilla's own convention: pass the vector FROM the target TO the attacker: knockback()
                 // normalises it and pushes the target the other way, away from the player.
-                target.knockback(SCEPTER_KNOCKBACK, sp.getX() - target.getX(), sp.getZ() - target.getZ());
+                com.killer560.hub.compat.McEntities.knockback(
+                        target, SCEPTER_KNOCKBACK, sp.getX() - target.getX(), sp.getZ() - target.getZ());
             }
         });
         ModChat.send("Sim", ModChat.text("Spirit Sceptre bats fired"));

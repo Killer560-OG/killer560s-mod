@@ -268,7 +268,8 @@ public final class SimSpiritSceptre {
                 target.hurtServer(level, source, BLAST_DAMAGE);
                 // Vanilla's own convention: the vector points FROM the target TO the blast, and knockback()
                 // pushes the other way.
-                target.knockback(BLAST_KNOCKBACK, centre.x - target.getX(), centre.z - target.getZ());
+                com.killer560.hub.compat.McEntities.knockback(
+                        target, BLAST_KNOCKBACK, centre.x - target.getX(), centre.z - target.getZ());
             }
         });
     }

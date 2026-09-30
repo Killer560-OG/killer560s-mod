@@ -28,4 +28,21 @@ public final class McEntities {
     public static final EntityType<net.minecraft.world.entity.LightningBolt> LIGHTNING_BOLT = EntityType.LIGHTNING_BOLT;
     public static final EntityType<net.minecraft.world.entity.monster.skeleton.Skeleton> SKELETON = EntityType.SKELETON;
     public static final EntityType<net.minecraft.world.entity.monster.zombie.Zombie> ZOMBIE = EntityType.ZOMBIE;
+
+    /**
+     * Horizontal knockback, the way a Skyblock ability applies it.
+     *
+     * <p>26.2 gave {@code LivingEntity.knockback} a {@code DamageSource} and a strength float; 26.1.2's takes
+     * the three doubles alone. Nothing in the 26.2 body reads either of the new arguments - disassembled, its
+     * six-argument form is byte-for-byte the 26.1.2 three-argument one - so the sim passes a generic source
+     * and zero rather than null, which is what a subclass override would be entitled to dereference.
+     *
+     * <p>The vector convention is vanilla's own and is the easy thing to get backwards: {@code dx}/{@code dz}
+     * point FROM the target TO the attacker, and knockback pushes the opposite way.
+     */
+    public static void knockback(net.minecraft.world.entity.LivingEntity target,
+                                 double strength, double dx, double dz) {
+        target.knockback(strength, dx, dz);
+    }
+
 }
