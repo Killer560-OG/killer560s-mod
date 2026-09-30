@@ -18,10 +18,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Bazaar-to-NPC Flipper (CHEAT BUILD ONLY - {@link BazaarFlipConfig#isEnabled()} is hard-gated on
@@ -70,7 +70,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class BazaarFlipFeature {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bazaarflip");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
 
     /**
      * <b>False, and it is meant to be false.</b> Flip this only after the Bazaar product menu's real

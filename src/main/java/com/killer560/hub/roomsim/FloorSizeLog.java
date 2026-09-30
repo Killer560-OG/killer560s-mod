@@ -16,7 +16,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -30,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Records how big a real floor actually is, so the sim's generator can stop guessing.
@@ -50,7 +50,7 @@ import java.util.Set;
  */
 public final class FloorSizeLog {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final Path FILE =

@@ -141,7 +141,7 @@ public final class SimBlazePuzzle {
                     // Said out loud rather than silently skipped. A blaze arena with no blazes in it looks
                     // exactly like a puzzle that was never built, and scenario 78 found this puzzle building
                     // nothing with nothing in the log to say why.
-                    org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim")
+                    com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
                             .warn("Sim blaze puzzle: the level refused a blaze at {}", pos);
                     continue;
                 }
@@ -151,7 +151,7 @@ public final class SimBlazePuzzle {
             for (int idx : KILL_ORDER_INDICES) {
                 ordered.add(byPlacement[idx]);
             }
-            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim")
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
                     .info("Sim blaze puzzle: {} blaze(s) spawned at {}", ordered.size(), origin);
             spawnedIds = List.copyOf(ordered);
             nextRequired = 0;

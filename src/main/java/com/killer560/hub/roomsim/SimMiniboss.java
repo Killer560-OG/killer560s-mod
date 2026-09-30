@@ -67,7 +67,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class SimMiniboss {
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("killer560smod-simminiboss");
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-simminiboss");
 
     /**
      * The five names {@code MobEspFeature.MINIBOSS_NAMES} matches, and the only names worth placing: any other

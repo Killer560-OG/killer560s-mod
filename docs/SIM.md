@@ -230,3 +230,36 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   `SimMiniboss.isPlaced` now. `Kind.MINIBOSS` is the real thing rather than the 20-HP starred zombie it used to
   be, with that zombie kept only as the automatic fallback when the player entity cannot be built (no player on
   the server yet, an unsendable name, or the `ServerPlayer` constructor throwing) - there is no setting either way.
+
+## A room's y band is per room, not a constant
+
+`RoomLibrary.MIN_Y`/`MAX_Y` are the band a NEW capture may use (-64..320). They are **not** the band any
+given room occupies: `toJson` trims a capture to its content, so a loaded room's band is whatever its file
+says, and `Room.index` measures from `room.minY`. Every read must therefore go through `Room.at(x, y, z)`,
+which bounds-checks and returns -1 outside the capture, and every loop over a room's volume must run
+`room.minY..room.maxY`. Walking the constants instead asked a room holding y 60..140 for element -135,036
+of an 88,209-long array and killed the integrated server on the first floor built (2026-09-29, at
+`RoomPlacer$PasteJob.step` and `SimBuilder.collectChests`). `MARKER_Y` is clamped into the band for the
+same reason - a marker y outside it places nothing and the uncaptured column is a hole again.
+
+## The generated floor's doors are written in plan(), not linkDoors()
+
+There are two door passes and they are not the same code. `linkDoors` serves the map designer's
+**explicitly drawn** floor; the generated floor doors `laid.links()` inline in `plan(floor, puzzles,
+blood, pinned)`. A no-loops union-find added to `linkDoors` alone changed nothing measurable, because
+scenario 73 plans through `plan()` - all 120 floors still carried 3 to 8 doors more than a tree. Fix the
+pass that writes the doors you are testing, and check the count: a connected floor is a tree exactly when
+its inter-room doors equal rooms minus one.
+
+Blood and entrance links are placed first and so are never the link refused; an ordinary link that closes
+a cycle is dropped. Connectivity survives because a link is only refused when both sides are already
+joined by links already kept.
+
+## isBusy() is not a completion signal
+
+`SimBuildQueue.isBusy()` is false both before a build starts and after it finishes, and `progress()` is 0
+in both cases too (`finishedWork` is zeroed the moment the queue empties). `generate()` returns as soon as
+the world is opening, and the rooms are queued from a later server task, so anything that asks "is it busy"
+straight afterwards gets "no" and then measures an empty world. Use `buildsFinished()`, which only counts
+completions: snapshot it, ask for the floor, wait for it to change. Eleven testkit scenarios had this bug
+and two of them - "0 secret chests" and "sim mobs never spawn" - read for days as defects in the mod.

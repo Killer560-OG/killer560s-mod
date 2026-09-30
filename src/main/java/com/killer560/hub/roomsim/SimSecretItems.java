@@ -68,7 +68,7 @@ public final class SimSecretItems {
     private static final List<UUID> LIVE = new CopyOnWriteArrayList<>();
 
     private static final org.slf4j.Logger LOGGER =
-            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim");
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
 
     /** So a throw in the tick handler is reported once rather than twenty times a second, or never. */
     private static boolean warnedOnce;

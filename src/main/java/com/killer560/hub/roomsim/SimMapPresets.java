@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import com.killer560.hub.util.ModLog;
 
 /**
  * The floors he has drawn, kept between sessions.
@@ -28,7 +28,7 @@ import java.util.TreeMap;
  */
 public final class SimMapPresets {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-simmaps");
+    private static final Logger LOGGER = ModLog.get("killer560smod-simmaps");
 
     private static final Path FILE =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-simmaps.json");

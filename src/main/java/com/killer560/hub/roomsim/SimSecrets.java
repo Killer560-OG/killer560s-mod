@@ -11,9 +11,9 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Puts a room's secrets in it.
@@ -38,7 +38,7 @@ import java.util.List;
  */
 public final class SimSecrets {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     /** Stand-ins for the two secret kinds that are not worth modelling exactly. */
     private static final net.minecraft.world.level.block.state.BlockState WITHER_MARKER =

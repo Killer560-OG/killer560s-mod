@@ -15,13 +15,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.util.ModLog;
 
 /**
  * The hotbar and inventory the sim gives you every time a dungeon opens.
@@ -40,7 +40,7 @@ import java.util.List;
  */
 public final class SimLoadout {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-sim-loadout.json");

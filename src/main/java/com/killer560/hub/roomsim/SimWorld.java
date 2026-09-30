@@ -10,7 +10,7 @@ import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Opens the singleplayer world the dungeon sim is built in.
@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class SimWorld {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     /** The save folder. Distinctive on purpose: this must never collide with one of his own worlds. */
     public static final String LEVEL_ID = "killer560s-dungeon-sim";

@@ -9,7 +9,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,6 +18,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Writes down the real numbers the sim is currently guessing at.
@@ -38,7 +38,7 @@ import java.util.Set;
  */
 public final class SimMeasure {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     private static final Path FILE =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-measurements.txt");

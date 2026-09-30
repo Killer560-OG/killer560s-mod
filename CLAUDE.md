@@ -64,8 +64,9 @@ boss-phase detection; `util/ViewFreeze` holds the camera still while something r
 Loggers come from `util/ModLog.get("killer560smod-…")`, never from `LoggerFactory` directly. In a dev or
 cheat build that hands back the real SLF4J logger; in a release (`-Prelease=true`, `DEV_TOOLS == false`) it
 hands back one that drops TRACE/DEBUG/INFO/WARN and forwards only ERROR, so a release jar is quiet without
-a thousand call sites being guarded. `roomsim/` and `bazaarflip/` still call `LoggerFactory` directly and so
-still log in a release; route them through `ModLog` when their current work settles.
+a thousand call sites being guarded. `roomsim/` and `bazaarflip/` were the last two packages still calling
+`LoggerFactory` directly, and so the last two still logging in a release; both went through `ModLog` on
+2026-09-30, so a release jar is now quiet everywhere.
 
 Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter.
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features

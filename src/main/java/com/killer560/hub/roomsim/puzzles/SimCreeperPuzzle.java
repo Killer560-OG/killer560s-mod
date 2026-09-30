@@ -216,7 +216,7 @@ public final class SimCreeperPuzzle {
                 return dedupe(raw.toArray(new int[0][]));
             }
         } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim")
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
                     .warn("[SimCreeperPuzzle] Failed to load creeper-beams-solutions.json, using generated pairs", e);
             return dedupe(FALLBACK_PAIRS);
         }

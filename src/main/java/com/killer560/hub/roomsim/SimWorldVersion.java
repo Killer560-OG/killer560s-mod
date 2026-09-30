@@ -3,11 +3,11 @@ package com.killer560.hub.roomsim;
 import net.fabricmc.loader.api.FabricLoader;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Remembers which shape the sim world on disk was generated in.
@@ -25,7 +25,7 @@ import java.nio.file.Path;
  */
 public final class SimWorldVersion {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     private static final Path FILE =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-sim-world.txt");

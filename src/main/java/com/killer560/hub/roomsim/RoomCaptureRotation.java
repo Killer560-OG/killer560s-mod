@@ -3,12 +3,12 @@ package com.killer560.hub.roomsim;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Which way round a captured room was when it was captured.
@@ -54,7 +54,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class RoomCaptureRotation {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     /** Derived once per room and kept - it is a property of the capture file, which does not change. */
     private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();

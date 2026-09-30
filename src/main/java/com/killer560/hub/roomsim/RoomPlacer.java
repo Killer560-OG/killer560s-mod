@@ -9,10 +9,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Writes a captured {@link RoomLibrary.Room} back into a world.
@@ -35,7 +35,7 @@ import java.util.Set;
  */
 public final class RoomPlacer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     /**
      * Bulk-placement flag, verified against vanilla's own usage rather than guessed.

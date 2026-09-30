@@ -12,7 +12,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import com.killer560.hub.util.ModLog;
 
 /**
  * The captured rooms: their blocks, and how much of each one has actually been seen.
@@ -44,7 +44,7 @@ import java.util.TreeMap;
  */
 public final class RoomLibrary {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DIR =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-rooms");

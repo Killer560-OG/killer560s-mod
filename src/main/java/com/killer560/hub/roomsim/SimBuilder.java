@@ -7,9 +7,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Turns a map code into rooms on the ground.
@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SimBuilder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     private SimBuilder() {
     }

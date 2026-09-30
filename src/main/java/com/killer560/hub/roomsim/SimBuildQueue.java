@@ -5,13 +5,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
+import com.killer560.hub.util.ModLog;
 
 /**
  * Places the sim's rooms a slice at a time, instead of all at once on one server tick.
@@ -31,7 +31,7 @@ import java.util.Set;
  */
 public final class SimBuildQueue {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-roomsim");
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     /**
      * Blocks placed per server tick.

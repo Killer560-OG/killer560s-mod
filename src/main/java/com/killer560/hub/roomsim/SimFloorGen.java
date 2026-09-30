@@ -125,7 +125,7 @@ public final class SimFloorGen {
      *                     and the fairy room are given and are not counted, which is how he counts them
      */
     private static final org.slf4j.Logger LOGGER =
-            org.slf4j.LoggerFactory.getLogger("killer560smod-roomsim");
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
 
     /**
      * A planned floor: the map code and what the planner decided, with nothing built yet.

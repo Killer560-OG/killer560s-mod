@@ -6,7 +6,6 @@ import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.killer560.hub.util.ModLog;
 
 /**
  * The pure-data half of the Bazaar-to-NPC Flipper: joins the live Bazaar order books against
@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class BazaarFlipScanner {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("killer560smod-bazaarflip");
+    private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
 
     /** Real player inventory slots a Skyblock player can fill with one stackable material: 27 main + 9
      *  hotbar. Deliberately not "36 minus whatever he is holding" - see {@link #size}. */
