@@ -236,6 +236,17 @@ public final class SimDoors {
      * any roof - to y55, and takes the first surface it meets, which is the highest one in that band rather
      * than the deepest one in the world. {@link SimAltitude#toWorld} maps those to wherever this floor was
      * built. The y69 fallback is unchanged: it is the real dungeon floor.
+     *
+     * <p><b>The top of the band has to be INSIDE the opening, not above it.</b> Measured 2026-09-30 by
+     * printing the carve volume layer by layer for every doorway the player could not walk through (scenario
+     * 81's seam profile): the failing doorways all had a perfect 21-of-21 open 3x7 carve FIVE BLOCKS ABOVE the
+     * walking floor, with the floor layer itself only 13 of 21 open. So the carve was happening exactly as
+     * written - at a "floor" this search had found at capture y74. With the band starting at y75, the scan
+     * begins above the doorway's lintel, and the first surface it meets coming down is the TOP OF THAT LINTEL
+     * whenever the seam above the door is open (which it often is, up to the roof). Starting at y72 instead -
+     * the top block of a doorway whose floor is y69 - the scan begins inside the opening, walks down through
+     * air, and lands on the doorway's own floor. It still covers floors from y67 to y72, which is every
+     * Catacombs doorway.
      */
     private static int findFloor(ServerLevel level, BlockPos near) {
         int top = SimAltitude.toWorld(DOORWAY_SEARCH_TOP);
@@ -273,10 +284,13 @@ public final class SimDoors {
      * found basements. Searching DOWN from y90 found a room's internal upper floor instead of its ground
      * floor, which is still a surface with air above it - scenario 81 went from two doorways impassable to
      * two different ones, both blocked by plain stone brick with the player having moved a fifth of a block.
-     * A Catacombs doorway is on the dungeon floor at y68-70, and a player standing there occupies y69-70, so
-     * y75 is above the opening and below any mezzanine, and y58 is below the floor and above any basement.
+     * Searching down from y75 found the top of the doorway's own LINTEL, because the seam above a door is
+     * usually open: that put the carve five blocks above the floor, which is the measurement in
+     * {@link #findFloor}'s doc. A Catacombs doorway is on the dungeon floor at y68-70 and is four blocks tall,
+     * so y72 is the top block OF the opening rather than the first block above it, and y58 is below the floor
+     * and above any basement.
      */
-    private static final int DOORWAY_SEARCH_TOP = 75;
+    private static final int DOORWAY_SEARCH_TOP = 72;
     private static final int DOORWAY_SEARCH_BOTTOM = 58;
 
     /**
