@@ -194,8 +194,27 @@ public final class SimDoors {
      * <p>Searched rather than assumed, for the same reason the player's landing spot is: rooms differ in floor
      * height, and a doorway cut at a fixed Y is a hole in a wall halfway up on half the floors.
      */
+    /**
+     * The walking floor at a doorway, searched DOWNWARD through the band a Catacombs doorway can be in.
+     *
+     * <p>This used to scan upward from the very bottom of the world and take the first solid block with two
+     * air above it, which is the LOWEST surface in the column - a basement, a cave, the underside of the room.
+     * The carve then happened down there and the real doorway stayed solid. It only ever worked because
+     * captures used to start at y60, so the lowest surface was the walking floor by luck; once rooms were
+     * captured at full height, with content down to y15 in places, scenario 81 found two of eight doorways
+     * impassable on a single floor - blocked by stone bricks and by cobblestone with stairs, both at head
+     * height, with a carved opening sitting uselessly below them.
+     *
+     * <p>Every doorway on a Catacombs floor is at the same level, on the dungeon floor around y68-70, with
+     * roofs up near y99-107. So the search runs down from y90 - above a doorway's four-block opening, below
+     * any roof - to y55, and takes the first surface it meets, which is the highest one in that band rather
+     * than the deepest one in the world. {@link SimAltitude#toWorld} maps those to wherever this floor was
+     * built. The y69 fallback is unchanged: it is the real dungeon floor.
+     */
     private static int findFloor(ServerLevel level, BlockPos near) {
-        for (int y = SimAltitude.minWorldY(); y < SimAltitude.maxWorldY() - 2; y++) {
+        int top = SimAltitude.toWorld(DOORWAY_SEARCH_TOP);
+        int bottom = SimAltitude.toWorld(DOORWAY_SEARCH_BOTTOM);
+        for (int y = top; y >= bottom; y--) {
             BlockPos at = new BlockPos(near.getX(), y, near.getZ());
             if (!level.getBlockState(at).isAir()
                     && level.getBlockState(at.above()).isAir()
@@ -205,6 +224,10 @@ public final class SimDoors {
         }
         return SimAltitude.toWorld(69);
     }
+
+    /** The band a doorway's floor can be in, in CAPTURE coordinates. See {@link #findFloor}. */
+    private static final int DOORWAY_SEARCH_TOP = 90;
+    private static final int DOORWAY_SEARCH_BOTTOM = 55;
 
     /**
      * Registers a wither door centred on {@code centre}. See {@link #DOOR_WIDTH}/{@link #DOOR_HEIGHT} for

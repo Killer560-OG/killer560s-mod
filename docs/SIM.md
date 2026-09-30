@@ -283,3 +283,39 @@ tiles, never whether the tile count could fit; and the generator's `footprintCel
 for an oversized room on a 6-tile grid. A room can be captured, report as captured, and never once appear on
 a floor, with nothing logged. If rooms are "missing" from generated floors, check the footprints against the
 database before anything else.
+
+## Secret rotation: the translation is right, the DATA is what is missing
+
+Scenario 82 measures how many of the database's chest secrets land on a chest the capture already had, and it
+sits at 55-61% against a 70% bar. Before concluding the translation is wrong, this was measured directly
+(2026-09-30): every room with database chest coordinates and chests in its capture was tried at all four
+rotations across dx/dz/dy offsets of -2..+2, and **the winning transform was dx=0 dz=0 dy=0 in 78 of 79
+rooms**. So the coordinate translation has no constant error. The only free variable is the rotation.
+
+Where it does fail is a DATA mismatch, not arithmetic. Seven rooms - Purple Flags, Quartz Knight, Redstone
+Warrior, Spider, Supertall, Waterfall, Withermancer - land zero secrets at every rotation AND every offset,
+and Red Blue's capture has no chest in it at all. Those Ashfall-preset rooms simply do not hold the chests
+the database describes, so nothing the code does can make a secret land on one. Scenario 82's figure is
+therefore a mixture of "is the rotation right" (the thing under test) and "does this capture contain the
+chest at all" (a property of the source world), and it cannot reach 70% on this library however correct the
+code is. Fix the instrument before touching the bar: assert the chosen rotation against the best-scoring
+rotation per room, and skip the rooms whose captures hold no matching chest.
+
+What the marker can and cannot do: 116 of 135 captures resolve from the roof marker, because in these rooms
+blue terracotta is often the ROOF MATERIAL rather than a single corner marker - Mossy has 76 of them, Pit 105,
+Cathedral 544. Two changes on 2026-09-30 took it to 120: `roofLine` now looks for the highest y holding the
+MARKER rather than the highest non-air block in a corner column (a taller capture put terrain above the room,
+so the old rule looked a hundred blocks above the marker - Redstone Warrior), and `narrowBySecrets` now falls
+back to SCORING the rotations and taking a clear winner instead of requiring every secret to land, which
+settles Catwalk, Pedestal and Slime.
+
+## A doorway's floor is found DOWNWARD, in a band
+
+`SimDoors.findFloor` scanned upward from the bottom of the world and took the first solid block with two air
+above it - the LOWEST surface in the column. For any room with a basement that is the basement floor, so the
+carve opened a doorway down there and left the real one solid. It only ever worked because captures used to
+start at y60, which put the lowest surface at the walking floor by luck; once rooms were captured at full
+height, with content down to y15, scenario 81 found two of eight doorways impassable on one floor, blocked at
+head height with a useless opening below them. Every Catacombs doorway is on the dungeon floor around y68-70
+with roofs at y99-107, so the search now runs DOWN from capture y90 to y55 and takes the highest surface in
+that band.

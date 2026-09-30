@@ -135,12 +135,24 @@ public final class RoomCaptureRotation {
         return hits.isEmpty() ? allFour() : hits;
     }
 
-    /** The highest y at which any of the four corner columns holds something other than air. */
+    /**
+     * The highest y at which any of the four corner columns holds the MARKER.
+     *
+     * <p>This used to be the highest y holding anything other than air, on the reasoning that that is the roof.
+     * It stopped being true when captures got taller: a capture now runs to whatever its content reaches, and
+     * an Ashfall preset has terrain and structure above the rooms, so "the highest non-air block in a corner
+     * column" can be a hundred blocks above the roof with no marker anywhere near it. Redstone Warrior was
+     * exactly that - a corner column occupied at y114 and the marker down at the real roof.
+     *
+     * <p>Looking for the marker itself is immune to anything above the room, and still prefers the real roof
+     * marker over decorative terracotta lower down because it takes the HIGHEST one. Measured across his 135
+     * captures (2026-09-30) it settles one room the old rule could not and disagrees with it on none.
+     */
     private static int roofLine(RoomLibrary.Room room, int[][] corners) {
         for (int y = room.maxY; y >= room.minY; y--) {
             for (int[] c : corners) {
                 String block = blockAt(room, c[0], y, c[1]);
-                if (block != null && !"minecraft:air".equals(block)) {
+                if (block != null && block.startsWith("minecraft:blue_terracotta")) {
                     return y;
                 }
             }
@@ -174,7 +186,56 @@ public final class RoomCaptureRotation {
                 kept.add(degrees);
             }
         }
-        return kept.isEmpty() ? candidates : kept;
+        if (!kept.isEmpty()) {
+            return kept;
+        }
+        // Nothing landed EVERY secret, so score them instead and take a clear winner.
+        //
+        // Requiring all of them is the right first test - one coincidence is easy - but "all or nothing" threw
+        // away rotations that placed most of a room's secrets correctly and left those rooms defaulting to 0,
+        // which is a guess. Measured over his 135 captures (2026-09-30) this settles Catwalk, Pedestal and
+        // Slime, each of which had one rotation landing secrets and three landing none.
+        //
+        // A clear winner only: the best rotation must land at least one and beat the runner-up outright. A tie
+        // is still ambiguous, and saying so is better than picking the first of two.
+        int bestDegrees = -1;
+        int best = 0;
+        int runnerUp = 0;
+        for (int degrees : candidates) {
+            int score = countLandOn(room, chests, degrees, "chest") + countLandOn(room, levers, degrees, "lever");
+            if (score > best) {
+                runnerUp = best;
+                best = score;
+                bestDegrees = degrees;
+            } else if (score > runnerUp) {
+                runnerUp = score;
+            }
+        }
+        if (bestDegrees >= 0 && best > runnerUp) {
+            return new ArrayList<>(List.of(bestDegrees));
+        }
+        return candidates;
+    }
+
+    /** How many of these secrets land on the block they should, at this rotation. */
+    private static int countLandOn(RoomLibrary.Room room, List<RoomEntry.Pos> list, int degrees, String want) {
+        if (list == null) {
+            return 0;
+        }
+        int frameX = (degrees == 90 || degrees == 270) ? room.sizeZ : room.sizeX;
+        int frameZ = (degrees == 90 || degrees == 270) ? room.sizeX : room.sizeZ;
+        int landed = 0;
+        for (RoomEntry.Pos p : list) {
+            if (p.y < room.minY || p.y > room.maxY) {
+                continue;
+            }
+            int[] local = RoomPlacer.rotateLocal(p.x + room.margin, p.z + room.margin, frameX, frameZ, degrees);
+            String block = blockAt(room, local[0], p.y, local[1]);
+            if (block != null && block.contains(want)) {
+                landed++;
+            }
+        }
+        return landed;
     }
 
     private static boolean allLandOn(RoomLibrary.Room room, List<RoomEntry.Pos> list, int degrees, String want) {
