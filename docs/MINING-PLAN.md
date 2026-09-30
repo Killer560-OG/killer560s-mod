@@ -52,8 +52,7 @@ Shows the map "just like other mods". What is new is **structures**:
 **Cheat only.** A setting called "Auto Nucleus Run" with several tabs under it. The first tab is
 **Auto Pathfind**, which has two modes:
 
-1. **Commissions** - pathfind based on the player's commissions. *He said he would explain this later; it is
-   not specified yet.*
+1. **Commissions** - pathfind to whatever the current commission needs. Specified in 2e.
 2. **Speed** - specified below.
 
 ### 2a. Speed mode: getting started
@@ -102,6 +101,27 @@ Shows the map "just like other mods". What is new is **structures**:
 - Needs the **auto metal detector** (below). Once it has the metal detector parts, talk to each NPC and grab
   **the crystal in the middle**.
 
+### 2e. Commissions mode
+
+The route driver changes, nothing else: **it pathfinds to whatever is next for the commission, rather than
+to whatever is fastest.** Everything about how each crystal is actually collected (2c) is unchanged.
+
+**Claiming a commission** splits on one thing, which the mod must **DETECT rather than ask**:
+
+- **Has the Royal Pigeon** - use it to claim commissions in place.
+- **Does not have it** - teleport back to the Crystal Nucleus and talk to the NPC to collect.
+
+**Which commissions it will take: only two kinds.**
+
+- **Crystal commissions** - the ones that ask for a crystal. Handled by 2c.
+- **Corleone** - a boss that spawns randomly. Find him; if he is alive, kill him **by melee** ["by Malay"].
+  If he is not there, **wait for him to spawn**.
+
+Everything else is out of scope.
+- OPEN: what happens to a commission that is neither of those - skipped, abandoned, or does it just idle
+  until one of the two comes up?
+- OPEN: is there a time limit on waiting for Corleone before it gives up and does something else?
+
 ### 2d. Finish
 
 Once it has **all** the crystals: **place all the crystals**, then carry on running.
@@ -124,7 +144,8 @@ on this machine, and the research pass is reading them.
 
 ## Open questions for killer560
 
-1. **Commissions mode** - the whole of it. He said he would explain later.
+1. **Commissions mode** - specified 2026-09-30, see 2e. Remaining gaps: what to do with a commission that
+   is neither a crystal nor Corleone, and whether waiting for Corleone has a time limit.
 2. **Crystal order** - he left it to me, but if he has a preferred route, it is cheaper to be told than
    derived.
 3. **The Jungle Temple scan** - he needs to do a true scan for the parkour route.
