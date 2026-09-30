@@ -373,6 +373,40 @@ public final class SimMobs {
     }
 
     /** Whether any starred mob spawned by this class is still alive, anywhere in the sim. */
+    /**
+     * How many entities this class has spawned, and how many of those were starred.
+     *
+     * <p>{@link #anyStarredAlive()} reads a snapshot refreshed on tick, so it says "no" both when nothing was
+     * spawned and when the snapshot has not caught up - and a gametest cannot tell those apart. These two are
+     * written the moment the entity is added, which is the question a test actually needs answered.
+     */
+    public static int spawnedCount() {
+        return SPAWNED.size();
+    }
+
+    public static int starredCount() {
+        return STARRED.size();
+    }
+
+    /**
+     * Every starred mob paired with its name-tag armour stand, as {@code {mobUuid, tagUuid}}.
+     *
+     * <p>For a test that has to check the pair the way Mob ESP reads it, WITHOUT enumerating the level:
+     * entity enumeration does not work in a gametest client (a vanilla entity added with
+     * {@code addFreshEntity} returning true, in a loaded chunk, still never appears in
+     * {@code getAllEntities()}), so a scenario has to look each one up by id instead.
+     */
+    public static java.util.List<UUID[]> starredPairs() {
+        java.util.List<UUID[]> out = new java.util.ArrayList<>();
+        for (UUID mob : STARRED) {
+            UUID tag = STAR_TAGS.get(mob);
+            if (tag != null) {
+                out.add(new UUID[]{mob, tag});
+            }
+        }
+        return out;
+    }
+
     public static boolean anyStarredAlive() {
         return !starredSnapshot.isEmpty();
     }
