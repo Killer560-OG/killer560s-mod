@@ -43,6 +43,42 @@ public final class ChShare {
     private ChShare() {
     }
 
+    /**
+     * Whether the relay should be in a LOBBY room for us right now.
+     *
+     * <p>Read by {@code ModChatFeature}, which is the single place that decides the room. A Crystal Hollows
+     * find travels in the lobby room or not at all, and the room mode defaults to Party - so without this
+     * the whole sharing feature would compile, run every tick, and never send a single packet.
+     *
+     * <p>Only while he is actually in the Crystal Hollows, so this never takes the relay off the party room
+     * anywhere it matters.
+     */
+    public static boolean wantsLobbyRoom() {
+        CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
+        return cfg.isEnabled()
+                && (cfg.isShareWaypoints() || cfg.isReceiveWaypoints())
+                && "CRYSTAL_HOLLOWS".equals(com.killer560.hub.pathfinding.IslandDetector.graphIsland());
+    }
+
+    /** One line for the settings tab: is sharing actually able to work right now, and if not, why not. */
+    public static String status() {
+        CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
+        if (!cfg.isShareWaypoints() && !cfg.isReceiveWaypoints()) {
+            return "off";
+        }
+        if (!"CRYSTAL_HOLLOWS".equals(com.killer560.hub.pathfinding.IslandDetector.graphIsland())) {
+            return "waiting - not in the Crystal Hollows";
+        }
+        if (!RelayClient.isConnected()) {
+            return "waiting - the relay is not connected";
+        }
+        String room = RelayClient.room();
+        if (room == null || !room.startsWith("lobby:")) {
+            return "waiting - Hypixel has not said which lobby this is yet";
+        }
+        return "connected to this lobby";
+    }
+
     public static void register() {
         RelayClient.addListener(new Listener());
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(

@@ -127,7 +127,15 @@ public class CrystalHollowsMapTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(colBX, y, colW, 18).build());
-        y += 22;
+        y += 20;
+
+        // Whether sharing can actually work right now. Without this the feature has three quiet failure
+        // states that all look identical from here - not in the Crystal Hollows, relay down, or Hypixel not
+        // having said which lobby this is yet - and "nobody else's finds appeared" would read as a bug.
+        String share = com.killer560.hub.mining.chmap.ChShare.status();
+        widgets.add(new StringWidget(contentX, y, contentWidth, 10,
+                Component.literal((share.startsWith("connected") ? "§a" : "§e") + share), font));
+        y += 14;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Waypoints", false), font));

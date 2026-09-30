@@ -59,12 +59,30 @@ public final class ModChatFeature {
                 && com.killer560.hub.interop.InteropConfig.getInstance().isRelayData()
                 && (com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled()
                     || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress());
-        boolean on = (chatOn || dataOn) && client.getConnection() != null && client.player != null;
+        // Crystal Hollows structure sharing needs a LOBBY room, and needs the relay up at all.
+        //
+        // A Crystal Hollows find only means anything to someone standing on the same server - Hypixel lays
+        // that world out differently on every one - so it travels in the lobby room or not at all. Declared
+        // here, the same way dungeon data declares it needs the party room, because this is the one place
+        // that decides which room the relay is in. Without it the sharing feature would compile, run, and
+        // silently never send anything: the room mode defaults to Party.
+        boolean chNeedsLobby = com.killer560.hub.mining.chmap.ChShare.wantsLobbyRoom();
+        boolean on = (chatOn || dataOn || chNeedsLobby)
+                && client.getConnection() != null && client.player != null;
         // Party dungeon data only travels in a party room. In a dungeon the lobby IS the party (the instance only holds
         // your team), so while sharing is on, a dungeon always uses the party room even if Mod Chat is set to Lobby -
         // otherwise choosing Lobby would silently stop data sharing. Mod Chat keeps its chosen mode everywhere else.
         boolean dataNeedsParty = dataOn && com.killer560.hub.secrets.DungeonState.isInDungeon();
-        RelayRoom.Mode mode = (!chatOn || dataNeedsParty) ? RelayRoom.Mode.PARTY : cfg.getRoomMode();
+        // Dungeon data still wins, though the two cannot actually collide - you are not in a dungeon and the
+        // Crystal Hollows at the same time. Ordered explicitly anyway rather than left to luck.
+        RelayRoom.Mode mode;
+        if (dataNeedsParty) {
+            mode = RelayRoom.Mode.PARTY;
+        } else if (chNeedsLobby) {
+            mode = RelayRoom.Mode.LOBBY;
+        } else {
+            mode = chatOn ? cfg.getRoomMode() : RelayRoom.Mode.PARTY;
+        }
         // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
         // never sends /locraw at all.
         HypixelLocation.tick(client, on && mode == RelayRoom.Mode.LOBBY);
